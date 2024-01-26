@@ -41,6 +41,7 @@ use crate::{
     InArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     push_if_unique_eq, contains, 
     TransformNodesTransformationResult, CoreTransformationContext,
+    get_factory_id,
 };
 
 pub fn get_declaration_diagnostics(
@@ -53,7 +54,7 @@ pub fn get_declaration_diagnostics(
     let result = transform_nodes(
         Some(resolver),
         Some(host.clone()),
-        get_factory(),
+        get_factory_id(arena),
         compiler_options,
         &if let Some(file) = file {
             vec![file]
@@ -591,7 +592,7 @@ impl TransformDeclarations {
             self.set_libs(Some(HashMap::new()));
             let mut has_no_default_lib = false;
             let mut bundle =
-                self.factory.create_bundle_raw(
+                self.factory.ref_(self).create_bundle_raw(
                     try_map(
                         &node_as_bundle.source_files,
                         |source_file: &Option<Id<Node>>, _| -> io::Result<Option<Id<Node>>> {
@@ -628,7 +629,7 @@ impl TransformDeclarations {
                                 self.set_result_has_external_module_indicator(false);
                                 self.set_needs_declare(false);
                                 let statements = if is_source_file_js(&source_file.ref_(self)) {
-                                    self.factory.create_node_array(
+                                    self.factory.ref_(self).create_node_array(
                                         self.transform_declarations_for_js(
                                             source_file,
                                             Some(true)
@@ -645,17 +646,17 @@ impl TransformDeclarations {
                                     )?
                                 };
                                 let new_file =
-                                    self.factory.update_source_file(
+                                    self.factory.ref_(self).update_source_file(
                                         source_file,
                                         vec![
-                                            self.factory.create_module_declaration(
+                                            self.factory.ref_(self).create_module_declaration(
                                                 Some(vec![]),
                                                 Some(vec![
-                                                    self.factory.create_modifier(
+                                                    self.factory.ref_(self).create_modifier(
                                                         SyntaxKind::DeclareKeyword,
                                                     )
                                                 ]),
-                                                self.factory.create_string_literal(
+                                                self.factory.ref_(self).create_string_literal(
                                                     get_resolved_external_module_name(
                                                         &**self.context.ref_(self).get_emit_host().ref_(self),
                                                         &source_file.ref_(self),
@@ -665,10 +666,10 @@ impl TransformDeclarations {
                                                     None,
                                                 ),
                                                 Some(
-                                                    self.factory.create_module_block(
+                                                    self.factory.ref_(self).create_module_block(
                                                         Some(
                                                             set_text_range_node_array(
-                                                                self.factory.create_node_array(
+                                                                self.factory.ref_(self).create_node_array(
                                                                     Some(self.transform_and_replace_late_painted_statements(
                                                                         &statements,
                                                                     )?),
@@ -692,7 +693,7 @@ impl TransformDeclarations {
                             }
                             self.set_needs_declare(true);
                             let updated = if is_source_file_js(&source_file.ref_(self)) {
-                                self.factory.create_node_array(
+                                self.factory.ref_(self).create_node_array(
                                     self.transform_declarations_for_js(source_file, None)?,
                                     None,
                                 )
@@ -706,7 +707,7 @@ impl TransformDeclarations {
                                 )?
                             };
                             Ok(Some(
-                                self.factory.update_source_file(
+                                self.factory.ref_(self).update_source_file(
                                     source_file,
                                     self.transform_and_replace_late_painted_statements(
                                         &updated
@@ -815,7 +816,7 @@ impl TransformDeclarations {
         if is_source_file_js(&self.current_source_file().ref_(self)) {
             combined_statements = self
                 .factory
-                .create_node_array(self.transform_declarations_for_js(node, None)?, None);
+                .ref_(self).create_node_array(self.transform_declarations_for_js(node, None)?, None);
             self.refs()
                 .values()
                 .try_for_each(|&ref_: &Id<Node>| -> io::Result<_> {
@@ -836,7 +837,7 @@ impl TransformDeclarations {
                 None,
             )?;
             combined_statements = set_text_range_node_array(
-                self.factory.create_node_array(
+                self.factory.ref_(self).create_node_array(
                     Some(self.transform_and_replace_late_painted_statements(&statements)?),
                     None,
                 ),
@@ -858,10 +859,10 @@ impl TransformDeclarations {
                     || self.needs_scope_fix_marker() && !self.result_has_scope_marker())
             {
                 combined_statements = set_text_range_node_array(
-                    self.factory.create_node_array(
+                    self.factory.ref_(self).create_node_array(
                         Some({
                             let mut combined_statements = combined_statements.to_vec();
-                            combined_statements.push(create_empty_exports(&self.factory));
+                            combined_statements.push(create_empty_exports(&self.factory.ref_(self)));
                             combined_statements
                         }),
                         None,
@@ -871,7 +872,7 @@ impl TransformDeclarations {
             }
         }
         drop(reference_visitor);
-        let updated = self.factory.update_source_file(
+        let updated = self.factory.ref_(self).update_source_file(
             node,
             combined_statements,
             Some(true),
@@ -1103,7 +1104,7 @@ impl TransformDeclarations {
             name
         } else {
             if name.ref_(self).kind() == SyntaxKind::ArrayBindingPattern {
-                self.factory.update_array_binding_pattern(
+                self.factory.ref_(self).update_array_binding_pattern(
                     name,
                     try_visit_nodes(
                         &name.ref_(self).as_array_binding_pattern().elements,
@@ -1116,7 +1117,7 @@ impl TransformDeclarations {
                     )?,
                 )
             } else {
-                self.factory.update_object_binding_pattern(
+                self.factory.ref_(self).update_object_binding_pattern(
                     name,
                     try_visit_nodes(
                         &name.ref_(self).as_object_binding_pattern().elements,
@@ -1141,7 +1142,7 @@ impl TransformDeclarations {
         }
         let elem_ref = elem.ref_(self);
         let elem_as_binding_element = elem_ref.as_binding_element();
-        Ok(self.factory.update_binding_element(
+        Ok(self.factory.ref_(self).update_binding_element(
             elem,
             elem_as_binding_element.dot_dot_dot_token,
             elem_as_binding_element.property_name,
@@ -1169,7 +1170,7 @@ impl TransformDeclarations {
                 create_get_symbol_accessibility_diagnostic_for_node(p, self),
             );
         }
-        let new_param = self.factory.update_parameter_declaration(
+        let new_param = self.factory.ref_(self).update_parameter_declaration(
             p,
             Option::<Gc<NodeArray>>::None,
             Some(mask_modifiers(p, modifier_mask, None, self)),
@@ -1180,7 +1181,7 @@ impl TransformDeclarations {
                     p_as_parameter_declaration
                         .question_token
                         .clone()
-                        .unwrap_or_else(|| self.factory.create_token(SyntaxKind::QuestionToken)),
+                        .unwrap_or_else(|| self.factory.ref_(self).create_token(SyntaxKind::QuestionToken)),
                 )
             } else {
                 None

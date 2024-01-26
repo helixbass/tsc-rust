@@ -26,7 +26,7 @@ use crate::{
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
     HasArena, AllArenas, InArena, static_arena,
-    BaseNodeFactory,
+    BaseNodeFactory, get_factory_id,
 };
 
 fn get_module_transformer(module_kind: ModuleKind, arena: &impl HasArena) -> TransformerFactory {
@@ -859,9 +859,9 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             if let Some(lexical_environment_variable_declarations) =
                 lexical_environment_variable_declarations.as_ref()
             {
-                let statement = self.factory.create_variable_statement(
+                let statement = self.factory.ref_(self).create_variable_statement(
                     Option::<Gc<NodeArray>>::None,
-                    self.factory.create_variable_declaration_list(
+                    self.factory.ref_(self).create_variable_declaration_list(
                         lexical_environment_variable_declarations.clone(),
                         None,
                     ),
@@ -942,7 +942,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
         );
         let decl = set_emit_flags(
             self.factory()
-                .create_variable_declaration(Some(name), None, None, None),
+                .ref_(self).create_variable_declaration(Some(name), None, None, None),
             EmitFlags::NoNestedSourceMaps,
             self,
         );
@@ -994,13 +994,13 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             self.maybe_block_scoped_variable_declarations().as_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
-            Some(vec![self.factory().create_variable_statement(
+            Some(vec![self.factory().ref_(self).create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
-                self.factory().create_variable_declaration_list(
+                self.factory().ref_(self).create_variable_declaration_list(
                     self.block_scoped_variable_declarations()
                         .iter()
                         .map(|identifier| {
-                            self.factory().create_variable_declaration(
+                            self.factory().ref_(self).create_variable_declaration(
                                 Some(identifier.clone()),
                                 None,
                                 None,
@@ -1361,7 +1361,7 @@ impl TransformationContextNull {
 
 impl CoreTransformationContext for TransformationContextNull {
     fn factory(&self) -> Id<NodeFactory> {
-        get_factory()
+        get_factory_id(self)
     }
 
     fn get_compiler_options(&self) -> Id<CompilerOptions> {

@@ -34,12 +34,12 @@ impl SymbolTableToDeclarationStatements {
         specifier: Option<Id<Node /*Expression*/>>,
     ) {
         self.add_result(
-            get_factory().create_export_declaration(
+            get_factory(self).create_export_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 false,
-                Some(get_factory().create_named_exports(vec![
-                    get_factory().create_export_specifier(
+                Some(get_factory(self).create_named_exports(vec![
+                    get_factory(self).create_export_specifier(
                         false,
                         (local_name != target_name).then_some(target_name),
                         local_name,
@@ -109,7 +109,7 @@ impl SymbolTableToDeclarationStatements {
                 self.context().tracker_ref().disable_track_symbol();
                 if is_export_assignment_compatible_symbol_name {
                     self.results_mut()
-                        .push(get_factory().create_export_assignment(
+                        .push(get_factory(self).create_export_assignment(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             Some(is_export_equals),
@@ -138,11 +138,11 @@ impl SymbolTableToDeclarationStatements {
                     } else {
                         let var_name = self.get_unused_name(name, Some(symbol));
                         self.add_result(
-                            get_factory().create_import_equals_declaration(
+                            get_factory(self).create_import_equals_declaration(
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 false,
-                                get_factory().create_identifier(&var_name),
+                                get_factory(self).create_identifier(&var_name),
                                 self.node_builder.symbol_to_name(
                                     target,
                                     &self.context(),
@@ -178,10 +178,10 @@ impl SymbolTableToDeclarationStatements {
                         },
                     )?;
                 } else {
-                    let statement = get_factory().create_variable_statement(
+                    let statement = get_factory(self).create_variable_statement(
                         Option::<Gc<NodeArray>>::None,
-                        get_factory().create_variable_declaration_list(
-                            vec![get_factory().create_variable_declaration(
+                        get_factory(self).create_variable_declaration_list(
+                            vec![get_factory(self).create_variable_declaration(
                                 Some(&*var_name),
                                 None,
                                 Some(self.node_builder.serialize_type_for_declaration(
@@ -216,11 +216,11 @@ impl SymbolTableToDeclarationStatements {
                 }
                 if is_export_assignment_compatible_symbol_name {
                     self.results_mut()
-                        .push(get_factory().create_export_assignment(
+                        .push(get_factory(self).create_export_assignment(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             Some(is_export_equals),
-                            get_factory().create_identifier(&var_name),
+                            get_factory(self).create_identifier(&var_name),
                         ));
                     return Ok(true);
                 } else if name != var_name {
@@ -389,9 +389,9 @@ impl SymbolTableToDeclarationStatements {
             }
             if private_protected != ModifierFlags::None {
                 return Ok(vec![set_text_range_id_node(
-                    get_factory().create_constructor_declaration(
+                    get_factory(self).create_constructor_declaration(
                         Option::<Gc<NodeArray>>::None,
-                        Some(get_factory().create_modifiers_from_modifier_flags(private_protected)),
+                        Some(get_factory(self).create_modifiers_from_modifier_flags(private_protected)),
                         Some(vec![]),
                         None,
                     ),
@@ -460,10 +460,10 @@ impl SymbolTableToDeclarationStatements {
         }
         let temp_name =
             self.get_unused_name(&format!("{root_name}_base"), Option::<Id<Symbol>>::None);
-        let statement = get_factory().create_variable_statement(
+        let statement = get_factory(self).create_variable_statement(
             Option::<Gc<NodeArray>>::None,
-            get_factory().create_variable_declaration_list(
-                vec![get_factory().create_variable_declaration(
+            get_factory(self).create_variable_declaration_list(
+                vec![get_factory(self).create_variable_declaration(
                     Some(&*temp_name),
                     None,
                     self.node_builder
@@ -474,8 +474,8 @@ impl SymbolTableToDeclarationStatements {
             ),
         );
         self.add_result(statement, ModifierFlags::None);
-        Ok(get_factory().create_expression_with_type_arguments(
-            get_factory().create_identifier(&temp_name),
+        Ok(get_factory(self).create_expression_with_type_arguments(
+            get_factory(self).create_identifier(&temp_name),
             Option::<Gc<NodeArray>>::None,
         ))
     }
@@ -531,7 +531,7 @@ impl SymbolTableToDeclarationStatements {
             )?);
         }
         Ok(reference.map(|reference| {
-            get_factory().create_expression_with_type_arguments(reference, type_args)
+            get_factory(self).create_expression_with_type_arguments(reference, type_args)
         }))
     }
 
@@ -543,7 +543,7 @@ impl SymbolTableToDeclarationStatements {
         t.ref_(self)
             .maybe_symbol()
             .try_map(|t_symbol| -> io::Result<_> {
-                Ok(get_factory().create_expression_with_type_arguments(
+                Ok(get_factory(self).create_expression_with_type_arguments(
                     self.node_builder.symbol_to_expression_(
                         t_symbol,
                         &self.context(),
@@ -772,11 +772,11 @@ impl MakeSerializePropertySymbol {
             let mut result: Vec<Id<Node /*AccessorDeclaration*/>> = Default::default();
             if p.ref_(self).flags().intersects(SymbolFlags::SetAccessor) {
                 result.push(set_text_range_id_node(
-                    get_factory().create_set_accessor_declaration(
+                    get_factory(self).create_set_accessor_declaration(
                         Option::<Gc<NodeArray>>::None,
-                        Some(get_factory().create_modifiers_from_modifier_flags(flag)),
+                        Some(get_factory(self).create_modifiers_from_modifier_flags(flag)),
                         name.clone(),
-                        vec![get_factory().create_parameter_declaration(
+                        vec![get_factory(self).create_parameter_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             None,
@@ -824,9 +824,9 @@ impl MakeSerializePropertySymbol {
             if p.ref_(self).flags().intersects(SymbolFlags::GetAccessor) {
                 let is_private = modifier_flags.intersects(ModifierFlags::Private);
                 result.push(set_text_range_id_node(
-                    get_factory().create_get_accessor_declaration(
+                    get_factory(self).create_get_accessor_declaration(
                         Option::<Gc<NodeArray>>::None,
-                        Some(get_factory().create_modifiers_from_modifier_flags(flag)),
+                        Some(get_factory(self).create_modifiers_from_modifier_flags(flag)),
                         name.clone(),
                         vec![],
                         if is_private {
@@ -876,7 +876,7 @@ impl MakeSerializePropertySymbol {
                 self.create_property.call(
                     None,
                     Some(
-                        get_factory()
+                        get_factory(self)
                             .create_modifiers_from_modifier_flags(
                                 if self.type_checker.is_readonly_symbol(p)? {
                                     ModifierFlags::Readonly
@@ -890,7 +890,7 @@ impl MakeSerializePropertySymbol {
                     p.ref_(self)
                         .flags()
                         .intersects(SymbolFlags::Optional)
-                        .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
+                        .then(|| get_factory(self).create_token(SyntaxKind::QuestionToken)),
                     if !is_private {
                         Some(
                             self.node_builder.serialize_type_for_declaration(
@@ -944,7 +944,7 @@ impl MakeSerializePropertySymbol {
                     self.create_property.call(
                         None,
                         Some(
-                            get_factory()
+                            get_factory(self)
                                 .create_modifiers_from_modifier_flags(
                                     if self.type_checker.is_readonly_symbol(p)? {
                                         ModifierFlags::Readonly
@@ -958,7 +958,7 @@ impl MakeSerializePropertySymbol {
                         p.ref_(self)
                             .flags()
                             .intersects(SymbolFlags::Optional)
-                            .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
+                            .then(|| get_factory(self).create_token(SyntaxKind::QuestionToken)),
                         None,
                         None,
                     ),
@@ -1001,9 +1001,9 @@ impl MakeSerializePropertySymbol {
                                 .ref_(self)
                                 .flags()
                                 .intersects(SymbolFlags::Optional)
-                                .then(|| get_factory().create_token(SyntaxKind::QuestionToken)),
+                                .then(|| get_factory(self).create_token(SyntaxKind::QuestionToken)),
                             modifiers: (flag != ModifierFlags::None)
-                                .then(|| get_factory().create_modifiers_from_modifier_flags(flag)),
+                                .then(|| get_factory(self).create_modifiers_from_modifier_flags(flag)),
                             private_symbol_visitor: Option::<fn(Id<Symbol>)>::None,
                             bundled_imports: None,
                         }),

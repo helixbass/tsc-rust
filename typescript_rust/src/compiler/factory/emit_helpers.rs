@@ -31,7 +31,7 @@ impl EmitHelperFactory {
             .borrow_mut()
             .get_or_insert_with(|| {
                 self.factory
-                    .create_true()
+                    .ref_(self).create_true()
                     .set_emit_flags(EmitFlags::Immutable, self)
             })
             .clone()
@@ -42,7 +42,7 @@ impl EmitHelperFactory {
             .borrow_mut()
             .get_or_insert_with(|| {
                 self.factory
-                    .create_false()
+                    .ref_(self).create_false()
                     .set_emit_flags(EmitFlags::Immutable, self)
             })
             .clone()
@@ -50,7 +50,7 @@ impl EmitHelperFactory {
 
     pub fn get_unscoped_helper_name(&self, name: &str) -> Id<Node /*Identifier*/> {
         self.factory
-            .create_identifier(name)
+            .ref_(self).create_identifier(name)
             .set_emit_flags(EmitFlags::HelperName | EmitFlags::AdviseOnEmitNode, self)
     }
 
@@ -67,7 +67,7 @@ impl EmitHelperFactory {
         let mut arguments_array: Vec<Id<Node /*Expression*/>> = _d();
         arguments_array.push(
             self.factory
-                .create_array_literal_expression(Some(decorator_expressions), Some(true)),
+                .ref_(self).create_array_literal_expression(Some(decorator_expressions), Some(true)),
         );
         arguments_array.push(target);
         if let Some(member_name) = member_name {
@@ -77,7 +77,7 @@ impl EmitHelperFactory {
             }
         }
 
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__decorate"),
             Option::<Gc<NodeArray>>::None,
             Some(arguments_array),
@@ -90,12 +90,12 @@ impl EmitHelperFactory {
         metadata_value: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(metadata_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__metadata"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![
                 self.factory
-                    .create_string_literal(metadata_key.to_owned(), None, None),
+                    .ref_(self).create_string_literal(metadata_key.to_owned(), None, None),
                 metadata_value,
             ]),
         )
@@ -109,12 +109,12 @@ impl EmitHelperFactory {
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(param_helper(self));
         /*setTextRange(*/
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__param"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![
                 self.factory
-                    .create_numeric_literal(format!("{parameter_offset}"), None),
+                    .ref_(self).create_numeric_literal(format!("{parameter_offset}"), None),
                 expression,
             ]),
         ) /*, location);*/
@@ -126,9 +126,9 @@ impl EmitHelperFactory {
     ) -> Id<Node /*Expression*/> {
         let attributes_segments = attributes_segments.into();
         if get_emit_script_target(&self.context.ref_(self).get_compiler_options().ref_(self)) >= ScriptTarget::ES2015 {
-            return self.factory.create_call_expression(
-                self.factory.create_property_access_expression(
-                    self.factory.create_identifier("Object"),
+            return self.factory.ref_(self).create_call_expression(
+                self.factory.ref_(self).create_property_access_expression(
+                    self.factory.ref_(self).create_identifier("Object"),
                     "assign",
                 ),
                 Option::<Gc<NodeArray>>::None,
@@ -136,7 +136,7 @@ impl EmitHelperFactory {
             );
         }
         self.context.ref_(self).request_emit_helper(assign_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__assign"),
             Option::<Gc<NodeArray>>::None,
             Some(attributes_segments),
@@ -148,7 +148,7 @@ impl EmitHelperFactory {
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(await_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__await"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![expression]),
@@ -174,16 +174,16 @@ impl EmitHelperFactory {
                 | EmitFlags::ReuseTempVariableScope,
         );
 
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__asyncGenerator"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![
                 if has_lexical_this {
-                    self.factory.create_this()
+                    self.factory.ref_(self).create_this()
                 } else {
-                    self.factory.create_void_zero()
+                    self.factory.ref_(self).create_void_zero()
                 },
-                self.factory.create_identifier("arguments"),
+                self.factory.ref_(self).create_identifier("arguments"),
                 generator_func,
             ]),
         )
@@ -195,7 +195,7 @@ impl EmitHelperFactory {
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(await_helper(self));
         self.context.ref_(self).request_emit_helper(async_delegator(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__asyncDelegator"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![expression]),
@@ -207,7 +207,7 @@ impl EmitHelperFactory {
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(async_values(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__asyncValues"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![expression]),
@@ -236,31 +236,31 @@ impl EmitHelperFactory {
                     let temp = &computed_temp_variables[computed_temp_variable_offset];
                     computed_temp_variable_offset += 1;
                     property_names.push(
-                        self.factory.create_conditional_expression(
-                            self.factory.create_type_check(temp.clone(), "symbol"),
+                        self.factory.ref_(self).create_conditional_expression(
+                            self.factory.ref_(self).create_type_check(temp.clone(), "symbol"),
                             None,
                             temp.clone(),
                             None,
-                            self.factory.create_add(
+                            self.factory.ref_(self).create_add(
                                 temp.clone(),
                                 self.factory
-                                    .create_string_literal("".to_owned(), None, None),
+                                    .ref_(self).create_string_literal("".to_owned(), None, None),
                             ),
                         ),
                     );
                 } else {
                     property_names
-                        .push(self.factory.create_string_literal_from_node(property_name));
+                        .push(self.factory.ref_(self).create_string_literal_from_node(property_name));
                 }
             }
         }
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__rest"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![
                 value,
                 self.factory
-                    .create_array_literal_expression(Some(property_names), None)
+                    .ref_(self).create_array_literal_expression(Some(property_names), None)
                     .set_text_range(Some(location), self),
             ]),
         )
@@ -275,9 +275,9 @@ impl EmitHelperFactory {
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(awaiter_helper(self));
 
-        let generator_func = self.factory.create_function_expression(
+        let generator_func = self.factory.ref_(self).create_function_expression(
             Option::<Gc<NodeArray>>::None,
-            Some(self.factory.create_token(SyntaxKind::AsteriskToken)),
+            Some(self.factory.ref_(self).create_token(SyntaxKind::AsteriskToken)),
             Option::<Id<Node>>::None,
             Option::<Gc<NodeArray>>::None,
             Some(vec![]),
@@ -296,24 +296,24 @@ impl EmitHelperFactory {
                 | EmitFlags::ReuseTempVariableScope,
         );
 
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__awaiter"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![
                 if has_lexical_this {
-                    self.factory.create_this()
+                    self.factory.ref_(self).create_this()
                 } else {
-                    self.factory.create_void_zero()
+                    self.factory.ref_(self).create_void_zero()
                 },
                 if has_lexical_arguments {
-                    self.factory.create_identifier("arguments")
+                    self.factory.ref_(self).create_identifier("arguments")
                 } else {
-                    self.factory.create_void_zero()
+                    self.factory.ref_(self).create_void_zero()
                 },
                 promise_constructor.map_or_else(
-                    || self.factory.create_void_zero(),
+                    || self.factory.ref_(self).create_void_zero(),
                     |promise_constructor| {
-                        create_expression_from_entity_name(&self.factory, promise_constructor)
+                        create_expression_from_entity_name(&self.factory.ref_(self), promise_constructor)
                     },
                 ),
                 generator_func,
@@ -323,12 +323,12 @@ impl EmitHelperFactory {
 
     pub fn create_extends_helper(&self, name: Id<Node /*Identifier*/>) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(extends_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__extends"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![
                 name,
-                self.factory.create_unique_name(
+                self.factory.ref_(self).create_unique_name(
                     "_super",
                     Some(
                         GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
@@ -344,7 +344,7 @@ impl EmitHelperFactory {
         raw: Id<Node /*ArrayLiteralExpression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(template_object_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__makeTemplateObject"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![cooked, raw]),
@@ -358,7 +358,7 @@ impl EmitHelperFactory {
         pack_from: bool,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(spread_array_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__spreadArray"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![
@@ -378,7 +378,7 @@ impl EmitHelperFactory {
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(values_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__values"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![expression]),
@@ -391,7 +391,7 @@ impl EmitHelperFactory {
         count: Option<usize>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(read_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__read"),
             Option::<Gc<NodeArray>>::None,
             Some(count.map_or_else(
@@ -400,7 +400,7 @@ impl EmitHelperFactory {
                     vec![
                         iterator_record.clone(),
                         self.factory
-                            .create_numeric_literal(format!("{count}"), None),
+                            .ref_(self).create_numeric_literal(format!("{count}"), None),
                     ]
                 },
             )),
@@ -412,10 +412,10 @@ impl EmitHelperFactory {
         body: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(generator_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__generator"),
             Option::<Gc<NodeArray>>::None,
-            Some(vec![self.factory.create_this(), body]),
+            Some(vec![self.factory.ref_(self).create_this(), body]),
         )
     }
 
@@ -426,12 +426,12 @@ impl EmitHelperFactory {
         output_name: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(create_binding_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__createBinding"),
             Option::<Gc<NodeArray>>::None,
             Some(
                 vec![
-                    self.factory.create_identifier("exports"),
+                    self.factory.ref_(self).create_identifier("exports"),
                     module,
                     input_name,
                 ]
@@ -445,7 +445,7 @@ impl EmitHelperFactory {
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(import_star_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__importStar"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![expression]),
@@ -462,7 +462,7 @@ impl EmitHelperFactory {
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node /*Expression*/> {
         self.context.ref_(self).request_emit_helper(import_default_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__importDefault"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![expression]),
@@ -475,10 +475,10 @@ impl EmitHelperFactory {
         exports_expression: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node /*Expression*/> {
         let exports_expression =
-            exports_expression.unwrap_or_else(|| self.factory.create_identifier("exports"));
+            exports_expression.unwrap_or_else(|| self.factory.ref_(self).create_identifier("exports"));
         self.context.ref_(self).request_emit_helper(export_star_helper(self));
         self.context.ref_(self).request_emit_helper(create_binding_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__exportStar"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![module_expression, exports_expression]),
@@ -500,17 +500,17 @@ impl EmitHelperFactory {
                 receiver,
                 state,
                 self.factory
-                    .create_string_literal(kind_str.to_owned(), None, None),
+                    .ref_(self).create_string_literal(kind_str.to_owned(), None, None),
             ],
             Some(f) => vec![
                 receiver,
                 state,
                 self.factory
-                    .create_string_literal(kind_str.to_owned(), None, None),
+                    .ref_(self).create_string_literal(kind_str.to_owned(), None, None),
                 f,
             ],
         };
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__classPrivateFieldGet"),
             Option::<Gc<NodeArray>>::None,
             Some(args),
@@ -534,18 +534,18 @@ impl EmitHelperFactory {
                 state,
                 value,
                 self.factory
-                    .create_string_literal(kind_str.to_owned(), None, None),
+                    .ref_(self).create_string_literal(kind_str.to_owned(), None, None),
             ],
             Some(f) => vec![
                 receiver,
                 state,
                 value,
                 self.factory
-                    .create_string_literal(kind_str.to_owned(), None, None),
+                    .ref_(self).create_string_literal(kind_str.to_owned(), None, None),
                 f,
             ],
         };
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__classPrivateFieldSet"),
             Option::<Gc<NodeArray>>::None,
             Some(args),
@@ -559,7 +559,7 @@ impl EmitHelperFactory {
     ) -> Id<Node /*Expression*/> {
         self.context
             .ref_(self).request_emit_helper(class_private_field_in_helper(self));
-        self.factory.create_call_expression(
+        self.factory.ref_(self).create_call_expression(
             self.get_unscoped_helper_name("__classPrivateFieldIn"),
             Option::<Gc<NodeArray>>::None,
             Some(vec![state, receiver]),

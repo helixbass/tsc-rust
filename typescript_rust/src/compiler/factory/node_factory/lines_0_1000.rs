@@ -56,32 +56,33 @@ bitflags! {
 pub fn create_node_factory(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
     base_factory: Gc<Box<dyn BaseNodeFactory>>,
+    arena: &impl HasArena,
 ) -> Id<NodeFactory> {
-    NodeFactory::new(flags, base_factory)
+    NodeFactory::new(flags, base_factory, arena)
 }
 
 impl NodeFactory {
-    pub fn new(flags: NodeFactoryFlags, base_factory: Gc<Box<dyn BaseNodeFactory>>) -> Gc<Self> {
-        let factory_ = Gc::new(Self {
+    pub fn new(flags: NodeFactoryFlags, base_factory: Gc<Box<dyn BaseNodeFactory>>, arena: &impl HasArena) -> Id<Self> {
+        let factory_ = arena.alloc_node_factory(Self {
             base_factory,
             flags,
             parenthesizer_rules: Default::default(),
             converters: Default::default(),
         });
-        factory_.set_parenthesizer_rules(
+        factory_.ref_(arena).set_parenthesizer_rules(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
                 Gc::new(Box::new(null_parenthesizer_rules()))
             } else {
-                Gc::new(Box::new(create_parenthesizer_rules(factory_.clone())))
+                Gc::new(Box::new(create_parenthesizer_rules(factory_)))
             },
         );
-        factory_.set_converters(
+        factory_.ref_(arena).set_converters(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
                 Box::new(null_node_converters())
             } else {
-                Box::new(create_node_converters(factory_.clone()))
+                Box::new(create_node_converters(factory_))
             },
         );
         factory_

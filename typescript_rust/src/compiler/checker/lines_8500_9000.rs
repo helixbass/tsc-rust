@@ -663,16 +663,16 @@ impl TypeChecker {
             },
         );
         let reference: Id<Node> = if are_all_module_exports {
-            get_factory().create_property_access_expression(
-                get_factory().create_property_access_expression(
-                    get_factory().create_identifier("module"),
-                    get_factory().create_identifier("exports"),
+            get_factory(self).create_property_access_expression(
+                get_factory(self).create_property_access_expression(
+                    get_factory(self).create_identifier("module"),
+                    get_factory(self).create_identifier("exports"),
                 ),
                 access_name,
             )
         } else {
-            get_factory().create_property_access_expression(
-                get_factory().create_identifier("exports"),
+            get_factory(self).create_property_access_expression(
+                get_factory(self).create_identifier("exports"),
                 access_name,
             )
         };
@@ -707,7 +707,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
-            get_factory()
+            get_factory(self)
                 .create_private_identifier(
                     (&*symbol.ref_(self).escaped_name())
                         .split("@")
@@ -719,7 +719,7 @@ impl TypeChecker {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
         for &static_block in static_blocks {
-            let reference = get_factory().create_property_access_expression(get_factory().create_this(), access_name.clone());
+            let reference = get_factory(self).create_property_access_expression(get_factory(self).create_this(), access_name.clone());
             set_parent(
                 &reference.ref_(self).as_property_access_expression().expression.ref_(self),
                 Some(reference),
@@ -758,7 +758,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
-            get_factory()
+            get_factory(self)
                 .create_private_identifier(
                     (&*symbol.ref_(self).escaped_name())
                         .split("@")
@@ -769,7 +769,7 @@ impl TypeChecker {
         } else {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
-        let reference = get_factory().create_property_access_expression(get_factory().create_this(), access_name);
+        let reference = get_factory(self).create_property_access_expression(get_factory(self).create_this(), access_name);
         set_parent(
             &reference.ref_(self).as_property_access_expression().expression.ref_(self),
             Some(reference),

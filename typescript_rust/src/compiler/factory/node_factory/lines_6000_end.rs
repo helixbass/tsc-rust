@@ -13,7 +13,7 @@ use crate::{
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
-    parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    get_parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     HasMembersInterface, HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface,
@@ -24,7 +24,7 @@ use crate::{
     SyntaxKind, TransformFlags,
     HasArena, InArena,
     maybe_append_if_unique_eq,
-    per_arena_getter,
+    per_arena,
 };
 
 impl NodeFactory {
@@ -682,7 +682,7 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
     }
 }
 
-pub fn get_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
+pub fn get_factory_id(arena: &impl HasArena) -> Id<NodeFactory> {
     per_arena!(
         NodeFactory,
         arena,
@@ -690,7 +690,11 @@ pub fn get_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
             NodeFactoryFlags::NoIndentationOnFreshPropertyAccess,
             get_synthetic_factory()
         ))
-    ).ref_(arena)
+    )
+}
+
+pub fn get_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
+    get_factory_id(arena).ref_(arena)
 }
 
 pub enum PseudoBigIntOrString {
@@ -731,8 +735,7 @@ pub fn create_input_files(
     build_info: Option<Gc<BuildInfo>>,
     old_file_of_current_emit: Option<bool>,
 ) -> Id<Node /*InputFiles*/> {
-    let mut node: InputFiles = parse_node_factory
-        .with(|parse_node_factory_| parse_node_factory_.create_input_files_raw().into());
+    let mut node: InputFiles = get_parse_node_factory().create_input_files_raw().into();
     match javascript_text_or_read_file_text.into() {
         StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
             node.initialize_with_read_file_callback(
@@ -760,7 +763,7 @@ pub fn create_input_files(
             );
         }
     }
-    parse_node_factory.with(|parse_node_factory_| parse_node_factory_.alloc_node(node.into()))
+    get_parse_node_factory().alloc_node(node.into())
 }
 
 pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {

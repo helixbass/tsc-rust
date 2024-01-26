@@ -840,7 +840,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(3);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
                 ).into())
             ));
         }
@@ -855,7 +855,7 @@ impl NodeBuilder {
 
         if type_.ref_(self).flags().intersects(TypeFlags::Any) {
             if let Some(type_alias_symbol) = type_.ref_(self).maybe_alias_symbol() {
-                return Ok(Some(get_factory().create_type_reference_node(
+                return Ok(Some(get_factory(self).create_type_reference_node(
                     self.symbol_to_entity_name_node(type_alias_symbol),
                     self.map_to_type_nodes(
                         type_.ref_(self).maybe_alias_type_arguments().as_deref(),
@@ -866,7 +866,7 @@ impl NodeBuilder {
             }
             if type_ == self.type_checker.unresolved_type() {
                 let ret = self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
                 )
                 .into());
                 add_synthetic_leading_comment(
@@ -880,7 +880,7 @@ impl NodeBuilder {
             }
             context.increment_approximate_length_by(3);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(get_factory().create_keyword_type_node_raw(
+                self.alloc_node(KeywordTypeNode::from(get_factory(self).create_keyword_type_node_raw(
                     if type_ == self.type_checker.intrinsic_marker_type() {
                         SyntaxKind::IntrinsicKeyword
                     } else {
@@ -892,7 +892,7 @@ impl NodeBuilder {
         if type_.ref_(self).flags().intersects(TypeFlags::Unknown) {
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::UnknownKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::UnknownKeyword),
                 ).into())
             ));
         }
@@ -900,7 +900,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::StringKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::StringKeyword),
                 ).into()),
             ));
         }
@@ -908,7 +908,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::NumberKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::NumberKeyword),
                 ).into())
             ));
         }
@@ -916,7 +916,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::BigIntKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::BigIntKeyword),
                 ).into())
             ));
         }
@@ -926,7 +926,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(7);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::BooleanKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::BooleanKeyword),
                 ).into())
             ));
         }
@@ -952,7 +952,7 @@ impl NodeBuilder {
                 return Ok(Some(
                     self.append_reference_to_type(
                         parent_name,
-                        self.alloc_node(get_factory()
+                        self.alloc_node(get_factory(self)
                             .create_type_reference_node_raw(
                                 &*member_name,
                                 Option::<Gc<NodeArray>>::None,
@@ -964,20 +964,20 @@ impl NodeBuilder {
             }
             if is_import_type_node(&parent_name.ref_(self)) {
                 parent_name.ref_(self).as_import_type_node().set_is_type_of(true);
-                return Ok(Some(get_factory().create_indexed_access_type_node(
+                return Ok(Some(get_factory(self).create_indexed_access_type_node(
                     parent_name,
-                    get_factory().create_literal_type_node(get_factory().create_string_literal(
+                    get_factory(self).create_literal_type_node(get_factory(self).create_string_literal(
                         member_name,
                         None,
                         None,
                     )),
                 )));
             } else if is_type_reference_node(&parent_name.ref_(self)) {
-                return Ok(Some(get_factory().create_indexed_access_type_node(
-                    get_factory().create_type_query_node(
+                return Ok(Some(get_factory(self).create_indexed_access_type_node(
+                    get_factory(self).create_type_query_node(
                         parent_name.ref_(self).as_type_reference_node().type_name,
                     ),
-                    get_factory().create_literal_type_node(get_factory().create_string_literal(
+                    get_factory(self).create_literal_type_node(get_factory(self).create_string_literal(
                         member_name,
                         None,
                         None,
@@ -1005,8 +1005,8 @@ impl NodeBuilder {
             let value = type_.ref_(self).as_string_literal_type().value.clone();
             context.increment_approximate_length_by(value.len() + 2);
             return Ok(Some(
-                get_factory().create_literal_type_node(set_emit_flags(
-                    get_factory().create_string_literal(
+                get_factory(self).create_literal_type_node(set_emit_flags(
+                    get_factory(self).create_string_literal(
                         value,
                         Some(
                             context
@@ -1027,14 +1027,14 @@ impl NodeBuilder {
         {
             let value = type_.ref_(self).as_number_literal_type().value.value();
             context.increment_approximate_length_by(value.to_string().len());
-            return Ok(Some(get_factory().create_literal_type_node(
+            return Ok(Some(get_factory(self).create_literal_type_node(
                 if value < 0.0 {
-                    get_factory().create_prefix_unary_expression(
+                    get_factory(self).create_prefix_unary_expression(
                         SyntaxKind::MinusToken,
-                        get_factory().create_numeric_literal((-value).to_string(), None),
+                        get_factory(self).create_numeric_literal((-value).to_string(), None),
                     )
                 } else {
-                    get_factory().create_numeric_literal(value.to_string(), None)
+                    get_factory(self).create_numeric_literal(value.to_string(), None)
                 },
             )));
         }
@@ -1046,8 +1046,8 @@ impl NodeBuilder {
             let type_ref = type_.ref_(self);
             let value = &type_ref.as_big_int_literal_type().value;
             context.increment_approximate_length_by(pseudo_big_int_to_string(value).len() + 1);
-            return Ok(Some(get_factory().create_literal_type_node(
-                get_factory().create_big_int_literal(value.clone()),
+            return Ok(Some(get_factory(self).create_literal_type_node(
+                get_factory(self).create_big_int_literal(value.clone()),
             )));
         }
         if type_
@@ -1059,11 +1059,11 @@ impl NodeBuilder {
             let type_intrinsic_name = type_ref.as_intrinsic_type().intrinsic_name();
             context.increment_approximate_length_by(type_intrinsic_name.len());
             return Ok(Some(
-                get_factory().create_literal_type_node(
+                get_factory(self).create_literal_type_node(
                     self.alloc_node(if type_intrinsic_name == "true" {
-                        get_factory().create_true_raw()
+                        get_factory(self).create_true_raw()
                     } else {
-                        get_factory().create_false_raw()
+                        get_factory(self).create_false_raw()
                     }.into()),
                 ),
             ));
@@ -1095,10 +1095,10 @@ impl NodeBuilder {
             }
             context.increment_approximate_length_by(13);
             return Ok(Some(
-                get_factory().create_type_operator_node(
+                get_factory(self).create_type_operator_node(
                     SyntaxKind::UniqueKeyword,
                     self.alloc_node(KeywordTypeNode::from(
-                        get_factory().create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
                     ).into()),
                 ),
             ));
@@ -1107,7 +1107,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(4);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::VoidKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::VoidKeyword),
                 ).into())
             ));
         }
@@ -1115,21 +1115,21 @@ impl NodeBuilder {
             context.increment_approximate_length_by(9);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::UndefinedKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::UndefinedKeyword),
                 ).into())
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Null) {
             context.increment_approximate_length_by(9);
             return Ok(Some(
-                get_factory().create_literal_type_node(get_factory().create_null()),
+                get_factory(self).create_literal_type_node(get_factory(self).create_null()),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Never) {
             context.increment_approximate_length_by(5);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::NeverKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::NeverKeyword),
                 ).into()),
             ));
         }
@@ -1137,7 +1137,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
                 ).into()),
             ));
         }
@@ -1145,7 +1145,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(6);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(
-                    get_factory().create_keyword_type_node_raw(SyntaxKind::ObjectKeyword),
+                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::ObjectKeyword),
                 ).into()),
             ));
         }
@@ -1166,7 +1166,7 @@ impl NodeBuilder {
                 // }
             }
             context.increment_approximate_length_by(4);
-            return Ok(Some(get_factory().create_this_type_node()));
+            return Ok(Some(get_factory(self).create_this_type_node()));
         }
 
         if !in_type_alias {
@@ -1192,8 +1192,8 @@ impl NodeBuilder {
                             .flags()
                             .intersects(SymbolFlags::Class)
                     {
-                        return Ok(Some(get_factory().create_type_reference_node(
-                            get_factory().create_identifier(""),
+                        return Ok(Some(get_factory(self).create_type_reference_node(
+                            get_factory(self).create_identifier(""),
                             type_argument_nodes,
                         )));
                     }
@@ -1241,7 +1241,7 @@ impl NodeBuilder {
                 context.increment_approximate_length_by(
                     symbol_name(type_.ref_(self).symbol(), self).len() + 6,
                 );
-                return Ok(Some(get_factory().create_infer_type_node(
+                return Ok(Some(get_factory(self).create_infer_type_node(
                     self.type_parameter_to_declaration_with_constraint(type_, context, None)?,
                 )));
             }
@@ -1259,8 +1259,8 @@ impl NodeBuilder {
             {
                 let name = self.type_parameter_to_name(type_, context)?;
                 context.increment_approximate_length_by(id_text(&name.ref_(self)).len());
-                return Ok(Some(get_factory().create_type_reference_node(
-                    get_factory().create_identifier(&id_text(&name.ref_(self))),
+                return Ok(Some(get_factory(self).create_type_reference_node(
+                    get_factory(self).create_identifier(&id_text(&name.ref_(self))),
                     Option::<Gc<NodeArray>>::None,
                 )));
             }
@@ -1268,8 +1268,8 @@ impl NodeBuilder {
                 if let Some(type_symbol) = type_.ref_(self).maybe_symbol() {
                     self.symbol_to_type_node(type_symbol, context, SymbolFlags::Type, None)?
                 } else {
-                    get_factory().create_type_reference_node(
-                        get_factory().create_identifier("?"),
+                    get_factory(self).create_type_reference_node(
+                        get_factory(self).create_identifier("?"),
                         Option::<Gc<NodeArray>>::None,
                     )
                 },
@@ -1302,9 +1302,9 @@ impl NodeBuilder {
                 if !type_nodes.is_empty() {
                     return Ok(Some(
                         if type_.ref_(self).flags().intersects(TypeFlags::Union) {
-                            get_factory().create_union_type_node(type_nodes)
+                            get_factory(self).create_union_type_node(type_nodes)
                         } else {
-                            get_factory().create_intersection_type_node(type_nodes)
+                            get_factory(self).create_intersection_type_node(type_nodes)
                         },
                     ));
                 }
@@ -1328,7 +1328,7 @@ impl NodeBuilder {
             let index_type_node = self
                 .type_to_type_node_helper(Some(indexed_type), context)?
                 .unwrap();
-            return Ok(Some(get_factory().create_type_operator_node(
+            return Ok(Some(get_factory(self).create_type_operator_node(
                 SyntaxKind::KeyOfKeyword,
                 index_type_node,
             )));
@@ -1342,21 +1342,21 @@ impl NodeBuilder {
             let texts = &type_ref.as_template_literal_type().texts;
             let types = &type_ref.as_template_literal_type().types;
             let template_head: Id<Node> =
-                get_factory().create_template_head(Some(texts[0].clone()), None, None);
-            let template_spans = get_factory().create_node_array(
+                get_factory(self).create_template_head(Some(texts[0].clone()), None, None);
+            let template_spans = get_factory(self).create_node_array(
                 Some(try_map(
                     types,
                     |&t: &Id<Type>, i| -> io::Result<Id<Node>> {
-                        Ok(get_factory().create_template_literal_type_span(
+                        Ok(get_factory(self).create_template_literal_type_span(
                             self.type_to_type_node_helper(Some(t), context)?.unwrap(),
                             if i < types.len() - 1 {
-                                get_factory().create_template_middle(
+                                get_factory(self).create_template_middle(
                                     Some(texts[i + 1].clone()),
                                     None,
                                     None,
                                 )
                             } else {
-                                get_factory().create_template_tail(
+                                get_factory(self).create_template_tail(
                                     Some(texts[i + 1].clone()),
                                     None,
                                     None,
@@ -1369,7 +1369,7 @@ impl NodeBuilder {
             );
             context.increment_approximate_length_by(2);
             return Ok(Some(
-                get_factory().create_template_literal_type(template_head, template_spans),
+                get_factory(self).create_template_literal_type(template_head, template_spans),
             ));
         }
         if type_
@@ -1408,7 +1408,7 @@ impl NodeBuilder {
                 )?
                 .unwrap();
             context.increment_approximate_length_by(2);
-            return Ok(Some(get_factory().create_indexed_access_type_node(
+            return Ok(Some(get_factory(self).create_indexed_access_type_node(
                 object_type_node,
                 index_type_node,
             )));

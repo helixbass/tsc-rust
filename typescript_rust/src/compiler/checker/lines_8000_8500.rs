@@ -18,7 +18,7 @@ use crate::{
     is_ambient_module, is_bindable_object_define_property_call, is_binding_pattern,
     is_call_expression, is_computed_property_name, is_external_module_augmentation,
     is_identifier_text, is_internal_module_import_equals_declaration, is_left_hand_side_expression,
-    is_source_file, map, maybe_get_source_file_of_node, parse_node_factory, push_if_unique_gc,
+    is_source_file, map, maybe_get_source_file_of_node, get_parse_node_factory, push_if_unique_gc,
     return_ok_default_if_none, return_ok_none_if_none, set_parent, set_text_range, starts_with,
     symbol_name, try_add_to_set, try_map, try_maybe_for_each, try_using_single_line_string_writer,
     walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter, HasArena,
@@ -67,12 +67,12 @@ impl TypeChecker {
         flags: TypeFormatFlags,
         writer: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
-        let predicate = get_factory().create_type_predicate_node(
+        let predicate = get_factory(self).create_type_predicate_node(
             if matches!(
                 type_predicate.kind,
                 TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
             ) {
-                Some(get_factory().create_token(SyntaxKind::AssertsKeyword))
+                Some(get_factory(self).create_token(SyntaxKind::AssertsKeyword))
             } else {
                 None
             },
@@ -80,9 +80,9 @@ impl TypeChecker {
                 type_predicate.kind,
                 TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
             ) {
-                get_factory().create_identifier(type_predicate.parameter_name.as_ref().unwrap())
+                get_factory(self).create_identifier(type_predicate.parameter_name.as_ref().unwrap())
             } else {
-                get_factory().create_this_type_node()
+                get_factory(self).create_this_type_node()
             },
             type_predicate.type_.try_and_then(|type_| {
                 self.node_builder().type_to_type_node(
@@ -905,21 +905,16 @@ impl TypeChecker {
             |parent_access_flow_node| -> io::Result<_> {
                 let prop_name =
                     return_ok_default_if_none!(self.get_destructuring_property_name(node)?);
-                let literal = parse_node_factory.with(|parse_node_factory_| {
-                    parse_node_factory_.create_string_literal(prop_name, None, None)
-                });
+                let literal = get_parse_node_factory(self).create_string_literal(prop_name, None, None);
                 set_text_range(&*literal.ref_(self), Some(&*node.ref_(self)));
                 let lhs_expr = if is_left_hand_side_expression(parent_access, self) {
                     parent_access
                 } else {
-                    parse_node_factory.with(|parse_node_factory_| {
-                        parse_node_factory_.create_parenthesized_expression(parent_access.clone())
-                    })
+                    get_parse_node_factory(self).create_parenthesized_expression(parent_access.clone())
                 };
-                let result = parse_node_factory.with(|parse_node_factory_| {
-                    parse_node_factory_
-                        .create_element_access_expression(lhs_expr.clone(), literal.clone())
-                });
+                let result =
+                    get_parse_node_factory(self)
+                        .create_element_access_expression(lhs_expr.clone(), literal.clone());
                 set_text_range(&*result.ref_(self), Some(&*node.ref_(self)));
                 set_parent(&literal.ref_(self), Some(result));
                 set_parent(&result.ref_(self), Some(node));

@@ -62,7 +62,7 @@ impl NodeBuilder {
                 .get_false_type_from_conditional_type(type_)?,
         )?;
         context.increment_approximate_length_by(15);
-        Ok(get_factory().create_conditional_type_node(
+        Ok(get_factory(self).create_conditional_type_node(
             check_type_node,
             extends_type_node,
             true_type_node,
@@ -109,16 +109,16 @@ impl NodeBuilder {
             type_declaration_ref.as_mapped_type_node();
         let readonly_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
             .readonly_token
-            .map(|readonly_token| get_factory().create_token(readonly_token.ref_(self).kind()));
+            .map(|readonly_token| get_factory(self).create_token(readonly_token.ref_(self).kind()));
         let question_token: Option<Id<Node>> = type_declaration_as_mapped_type_node
             .question_token
-            .map(|question_token| get_factory().create_token(question_token.ref_(self).kind()));
+            .map(|question_token| get_factory(self).create_token(question_token.ref_(self).kind()));
         let appropriate_constraint_type_node: Id<Node /*TypeNode*/>;
         if self
             .type_checker
             .is_mapped_type_with_keyof_constraint_declaration(type_)
         {
-            appropriate_constraint_type_node = get_factory().create_type_operator_node(
+            appropriate_constraint_type_node = get_factory(self).create_type_operator_node(
                 SyntaxKind::KeyOfKeyword,
                 self.type_to_type_node_helper(
                     Some(
@@ -167,7 +167,7 @@ impl NodeBuilder {
             ),
             context,
         )?;
-        let mapped_type_node = get_factory().create_mapped_type_node(
+        let mapped_type_node = get_factory(self).create_mapped_type_node(
             readonly_token,
             type_parameter_node,
             name_type_node,
@@ -451,7 +451,7 @@ impl NodeBuilder {
             return node;
         }
         let ret =
-            get_factory().clone_node(visit_each_child(
+            get_factory(self).clone_node(visit_each_child(
                 node,
                 |node: Id<Node>| Some(self.deep_clone_or_reuse_node(node).into()),
                 &*null_transformation_context,
@@ -503,7 +503,7 @@ impl NodeBuilder {
             {
                 context.increment_approximate_length_by(2);
                 return Ok(set_emit_flags(
-                    get_factory().create_type_literal_node(Option::<Gc<NodeArray>>::None),
+                    get_factory(self).create_type_literal_node(Option::<Gc<NodeArray>>::None),
                     EmitFlags::SingleLine,
                     self,
                 ));
@@ -618,7 +618,7 @@ impl NodeBuilder {
         context.set_flags(context.flags() | NodeBuilderFlags::InObjectTypeLiteral);
         let members = self.create_type_nodes_from_resolved_type(context, resolved)?;
         context.set_flags(saved_flags);
-        let type_literal_node = get_factory().create_type_literal_node(members);
+        let type_literal_node = get_factory(self).create_type_literal_node(members);
         context.increment_approximate_length_by(2);
         set_emit_flags(
             type_literal_node,
@@ -653,7 +653,7 @@ impl NodeBuilder {
                     let type_argument_node = self
                         .type_to_type_node_helper(Some(type_arguments[0]), context)?
                         .unwrap();
-                    return Ok(Some(get_factory().create_type_reference_node(
+                    return Ok(Some(get_factory(self).create_type_reference_node(
                         if type_target == self.type_checker.global_array_type() {
                             "Array"
                         } else {
@@ -665,11 +665,11 @@ impl NodeBuilder {
                 let element_type = self
                     .type_to_type_node_helper(Some(type_arguments[0]), context)?
                     .unwrap();
-                let array_type = get_factory().create_array_type_node(element_type);
+                let array_type = get_factory(self).create_array_type_node(element_type);
                 Some(if type_target == self.type_checker.global_array_type() {
                     array_type
                 } else {
-                    get_factory().create_type_operator_node(SyntaxKind::ReadonlyKeyword, array_type)
+                    get_factory(self).create_type_operator_node(SyntaxKind::ReadonlyKeyword, array_type)
                 })
             } else if type_target
                 .ref_(self)
@@ -698,17 +698,17 @@ impl NodeBuilder {
                             for i in 0..tuple_constituent_nodes.len() {
                                 let tuple_constituent_node = tuple_constituent_nodes[i].clone();
                                 let flags = type_target.ref_(self).as_tuple_type().element_flags[i];
-                                tuple_constituent_nodes[i] = get_factory()
+                                tuple_constituent_nodes[i] = get_factory(self)
                                     .create_named_tuple_member(
                                         if flags.intersects(ElementFlags::Variable) {
                                             Some(
-                                                get_factory()
+                                                get_factory(self)
                                                     .create_token(SyntaxKind::DotDotDotToken),
                                             )
                                         } else {
                                             None
                                         },
-                                        get_factory().create_identifier(
+                                        get_factory(self).create_identifier(
                                             &unescape_leading_underscores(
                                                 &self.type_checker.get_tuple_element_label(
                                                     type_target_labeled_element_declarations[i],
@@ -717,14 +717,14 @@ impl NodeBuilder {
                                         ),
                                         if flags.intersects(ElementFlags::Optional) {
                                             Some(
-                                                get_factory()
+                                                get_factory(self)
                                                     .create_token(SyntaxKind::QuestionToken),
                                             )
                                         } else {
                                             None
                                         },
                                         if flags.intersects(ElementFlags::Rest) {
-                                            get_factory()
+                                            get_factory(self)
                                                 .create_array_type_node(tuple_constituent_node)
                                         } else {
                                             tuple_constituent_node
@@ -738,28 +738,28 @@ impl NodeBuilder {
                                 tuple_constituent_nodes[i] = if flags
                                     .intersects(ElementFlags::Variable)
                                 {
-                                    get_factory().create_rest_type_node(
+                                    get_factory(self).create_rest_type_node(
                                         if flags.intersects(ElementFlags::Rest) {
-                                            get_factory()
+                                            get_factory(self)
                                                 .create_array_type_node(tuple_constituent_node)
                                         } else {
                                             tuple_constituent_node
                                         },
                                     )
                                 } else if flags.intersects(ElementFlags::Optional) {
-                                    get_factory().create_optional_type_node(tuple_constituent_node)
+                                    get_factory(self).create_optional_type_node(tuple_constituent_node)
                                 } else {
                                     tuple_constituent_node
                                 };
                             }
                         }
                         let tuple_type_node = set_emit_flags(
-                            get_factory().create_tuple_type_node(Some(tuple_constituent_nodes)),
+                            get_factory(self).create_tuple_type_node(Some(tuple_constituent_nodes)),
                             EmitFlags::SingleLine,
                             self,
                         );
                         return Ok(Some(if type_target.ref_(self).as_tuple_type().readonly {
-                            get_factory().create_type_operator_node(
+                            get_factory(self).create_type_operator_node(
                                 SyntaxKind::ReadonlyKeyword,
                                 tuple_type_node,
                             )
@@ -774,12 +774,12 @@ impl NodeBuilder {
                         .intersects(NodeBuilderFlags::AllowEmptyTuple)
                 {
                     let tuple_type_node = set_emit_flags(
-                        get_factory().create_tuple_type_node(Some(vec![])),
+                        get_factory(self).create_tuple_type_node(Some(vec![])),
                         EmitFlags::SingleLine,
                         self,
                     );
                     return Ok(Some(if type_target.ref_(self).as_tuple_type().readonly {
-                        get_factory()
+                        get_factory(self)
                             .create_type_operator_node(SyntaxKind::ReadonlyKeyword, tuple_type_node)
                     } else {
                         tuple_type_node
@@ -896,14 +896,14 @@ impl NodeBuilder {
             if let Some(qualifier_present) = qualifier {
                 if is_identifier(&qualifier_present.ref_(self)) {
                     qualifier = Some(
-                        get_factory().update_identifier(qualifier_present, type_arguments.cloned())
+                        get_factory(self).update_identifier(qualifier_present, type_arguments.cloned())
                     );
                 } else {
                     qualifier = Some(
-                        get_factory().update_qualified_name(
+                        get_factory(self).update_qualified_name(
                             qualifier_present,
                             qualifier_present.ref_(self).as_qualified_name().left,
-                            get_factory().update_identifier(
+                            get_factory(self).update_identifier(
                                 qualifier_present.ref_(self).as_qualified_name().right,
                                 type_arguments.cloned(),
                             ),
@@ -916,12 +916,12 @@ impl NodeBuilder {
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 qualifier = Some(if let Some(qualifier) = qualifier {
-                    get_factory().create_qualified_name(qualifier, id)
+                    get_factory(self).create_qualified_name(qualifier, id)
                 } else {
                     id
                 });
             }
-            get_factory()
+            get_factory(self)
                 .update_import_type_node(
                     root,
                     root_as_import_type_node.argument.clone(),
@@ -937,12 +937,12 @@ impl NodeBuilder {
             let type_arguments = type_arguments.as_ref();
             let mut type_name: Id<Node> = root_as_type_reference_node.type_name;
             if is_identifier(&type_name.ref_(self)) {
-                type_name = get_factory().update_identifier(type_name, type_arguments.cloned());
+                type_name = get_factory(self).update_identifier(type_name, type_arguments.cloned());
             } else {
-                type_name = get_factory().update_qualified_name(
+                type_name = get_factory(self).update_qualified_name(
                     type_name,
                     type_name.ref_(self).as_qualified_name().left,
-                    get_factory().update_identifier(
+                    get_factory(self).update_identifier(
                         type_name.ref_(self).as_qualified_name().right,
                         type_arguments.cloned(),
                     ),
@@ -952,9 +952,9 @@ impl NodeBuilder {
             let type_arguments = type_arguments.as_ref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
-                type_name = get_factory().create_qualified_name(type_name, id);
+                type_name = get_factory(self).create_qualified_name(type_name, id);
             }
-            get_factory().update_type_reference_node(root, type_name, type_arguments.cloned())
+            get_factory(self).update_type_reference_node(root, type_name, type_arguments.cloned())
         }
     }
 
@@ -981,7 +981,7 @@ impl NodeBuilder {
     ) -> io::Result<Option<Vec<Id<Node /*TypeElement*/>>>> {
         if self.check_truncation_length(context) {
             return Ok(Some(vec![
-                get_factory().create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
+                get_factory(self).create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
             ]));
         }
         let mut type_elements: Vec<Id<Node>> = vec![];
@@ -1067,7 +1067,7 @@ impl NodeBuilder {
             }
             if self.check_truncation_length(context) && i + 2 < properties.len() - 1 {
                 type_elements.push(
-                    get_factory().create_property_signature(
+                    get_factory(self).create_property_signature(
                         Option::<Gc<NodeArray>>::None,
                         &*format!("... {} more ...", properties.len() - 1),
                         None,
@@ -1096,13 +1096,13 @@ impl NodeBuilder {
     ) -> Id<Node> {
         context.increment_approximate_length_by(3);
         if !context.flags().intersects(NodeBuilderFlags::NoTruncation) {
-            return get_factory().create_type_reference_node(
-                get_factory().create_identifier("..."),
+            return get_factory(self).create_type_reference_node(
+                get_factory(self).create_identifier("..."),
                 Option::<Gc<NodeArray>>::None,
             );
         }
         self.alloc_node(KeywordTypeNode::from(
-            get_factory().create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
+            get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
         ).into())
     }
 
@@ -1220,7 +1220,7 @@ impl NodeBuilder {
             .flags()
             .intersects(SymbolFlags::Optional)
         {
-            Some(get_factory().create_token(SyntaxKind::QuestionToken))
+            Some(get_factory(self).create_token(SyntaxKind::QuestionToken))
         } else {
             None
         };
@@ -1279,7 +1279,7 @@ impl NodeBuilder {
                         None,
                     )?
                 } else {
-                    get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
+                    get_factory(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
                 };
                 if property_is_reverse_mapped {
                     context
@@ -1294,7 +1294,7 @@ impl NodeBuilder {
             let modifiers: Option<Vec<Id<Node>>> =
                 if self.type_checker.is_readonly_symbol(property_symbol)? {
                     Some(vec![
-                        get_factory().create_token(SyntaxKind::ReadonlyKeyword)
+                        get_factory(self).create_token(SyntaxKind::ReadonlyKeyword)
                     ])
                 } else {
                     None
@@ -1302,7 +1302,7 @@ impl NodeBuilder {
             if modifiers.is_some() {
                 context.increment_approximate_length_by(9);
             }
-            let property_signature = get_factory().create_property_signature(
+            let property_signature = get_factory(self).create_property_signature(
                 modifiers,
                 property_name,
                 optional_token,

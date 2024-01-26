@@ -76,15 +76,16 @@ pub fn create_member_access_for_property_name(
 fn create_react_namespace(
     react_namespace: Option<&str>,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    let factory = get_parse_node_factory();
+    let factory = get_parse_node_factory(arena);
     factory
         .create_identifier(react_namespace.non_empty().unwrap_or("React"))
         .and_set_parent(get_parse_tree_node(
             Some(parent),
             Option::<fn(Id<Node>) -> bool>::None,
-            &*factory,
-        ), &*factory)
+            arena,
+        ), arena)
 }
 
 fn create_jsx_factory_expression_from_entity_name(

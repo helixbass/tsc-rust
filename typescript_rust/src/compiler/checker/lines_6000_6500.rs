@@ -123,17 +123,17 @@ impl NodeBuilder {
                     stopper,
                 )?;
                 if is_indexed_access_type_node(&lhs.ref_(self)) {
-                    return Ok(get_factory().create_indexed_access_type_node(
+                    return Ok(get_factory(self).create_indexed_access_type_node(
                         lhs.clone(),
-                        get_factory().create_literal_type_node(
-                            get_factory().create_string_literal(symbol_name, None, None),
+                        get_factory(self).create_literal_type_node(
+                            get_factory(self).create_string_literal(symbol_name, None, None),
                         ),
                     ));
                 } else {
-                    return Ok(get_factory().create_indexed_access_type_node(
-                        get_factory().create_type_reference_node(lhs.clone(), type_parameter_nodes),
-                        get_factory().create_literal_type_node(
-                            get_factory().create_string_literal(symbol_name, None, None),
+                    return Ok(get_factory(self).create_indexed_access_type_node(
+                        get_factory(self).create_type_reference_node(lhs.clone(), type_parameter_nodes),
+                        get_factory(self).create_literal_type_node(
+                            get_factory(self).create_string_literal(symbol_name, None, None),
                         ),
                     ));
                 }
@@ -141,7 +141,7 @@ impl NodeBuilder {
         }
 
         let identifier = set_emit_flags(
-            get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
+            get_factory(self).create_identifier_full(&symbol_name, type_parameter_nodes, None),
             EmitFlags::NoAsciiEscaping,
             self,
         );
@@ -160,7 +160,7 @@ impl NodeBuilder {
                     "Impossible construct - an export of an indexed access cannot be reachable",
                 ));
             }
-            return Ok(get_factory().create_qualified_name(lhs.clone(), identifier));
+            return Ok(get_factory(self).create_qualified_name(lhs.clone(), identifier));
         }
         Ok(identifier)
     }
@@ -224,7 +224,7 @@ impl NodeBuilder {
         )?;
         // TODO: the Typescript version has & SyntaxKind.Identifier which is presumably a bug?
         if result.ref_(self).kind() != SyntaxKind::Identifier {
-            return Ok(get_factory().create_identifier("(Missing type parameter)"));
+            return Ok(get_factory(self).create_identifier("(Missing type parameter)"));
         }
         if context
             .flags()
@@ -250,7 +250,7 @@ impl NodeBuilder {
                 text = format!("{}_{}", rawtext, i);
             }
             if text != rawtext {
-                result = get_factory().create_identifier_full(
+                result = get_factory(self).create_identifier_full(
                     &text,
                     result.ref_(self).as_identifier().maybe_type_arguments(),
                     None,
@@ -316,14 +316,14 @@ impl NodeBuilder {
         }
 
         let identifier: Id<Node> = set_emit_flags(
-            get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
+            get_factory(self).create_identifier_full(&symbol_name, type_parameter_nodes, None),
             EmitFlags::NoAsciiEscaping,
             self,
         );
         identifier.ref_(self).set_symbol(symbol.clone());
 
         Ok(if index > 0 {
-            get_factory().create_qualified_name(
+            get_factory(self).create_qualified_name(
                 self.create_entity_name_from_symbol_chain(context, chain, index - 1)?,
                 identifier,
             )
@@ -373,7 +373,7 @@ impl NodeBuilder {
                 }),
             )
         {
-            return Ok(get_factory().create_string_literal(
+            return Ok(get_factory(self).create_string_literal(
                 self.get_specifier_for_module_symbol(symbol, context)?,
                 None,
                 None,
@@ -391,14 +391,14 @@ impl NodeBuilder {
 
         Ok(if index == 0 || can_use_property_access {
             let identifier = set_emit_flags(
-                get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
+                get_factory(self).create_identifier_full(&symbol_name, type_parameter_nodes, None),
                 EmitFlags::NoAsciiEscaping,
                 self,
             );
             identifier.ref_(self).set_symbol(symbol);
 
             if index > 0 {
-                get_factory().create_property_access_expression(
+                get_factory(self).create_property_access_expression(
                     self.create_expression_from_symbol_chain(context, chain, index - 1)?,
                     identifier,
                 )
@@ -412,7 +412,7 @@ impl NodeBuilder {
             }
             let mut expression: Option<Id<Node /*Expression*/>> = None;
             if is_single_or_double_quote(first_char) {
-                expression = Some(get_factory().create_string_literal(
+                expression = Some(get_factory(self).create_string_literal(
                     {
                         lazy_static! {
                             static ref escaped_char_regex: Regex = Regex::new(r"\\(.)").unwrap();
@@ -432,18 +432,18 @@ impl NodeBuilder {
                 Ok(symbol_name_parsed) if symbol_name_parsed.to_string() == symbol_name
             ) {
                 expression =
-                    Some(get_factory().create_numeric_literal(Number::from(&*symbol_name), None));
+                    Some(get_factory(self).create_numeric_literal(Number::from(&*symbol_name), None));
             }
             if expression.is_none() {
                 expression = Some(set_emit_flags(
-                    get_factory().create_identifier_full(&symbol_name, type_parameter_nodes, None),
+                    get_factory(self).create_identifier_full(&symbol_name, type_parameter_nodes, None),
                     EmitFlags::NoAsciiEscaping,
                     self,
                 ));
                 expression.as_ref().unwrap().ref_(self).set_symbol(symbol.clone());
             }
             let expression = expression.unwrap();
-            get_factory().create_element_access_expression(
+            get_factory(self).create_element_access_expression(
                 self.create_expression_from_symbol_chain(context, chain, index - 1)?,
                 expression,
             )
@@ -542,15 +542,15 @@ impl NodeBuilder {
                 None,
             ) && !self.type_checker.is_numeric_literal_name(&name)
             {
-                return Ok(Some(get_factory().create_string_literal(
+                return Ok(Some(get_factory(self).create_string_literal(
                     name,
                     Some(single_quote == Some(true)),
                     None,
                 )));
             }
             if self.type_checker.is_numeric_literal_name(&name) && starts_with(&name, "-") {
-                return Ok(Some(get_factory().create_computed_property_name(
-                    get_factory().create_numeric_literal(Number::from(&*name), None),
+                return Ok(Some(get_factory(self).create_computed_property_name(
+                    get_factory(self).create_numeric_literal(Number::from(&*name), None),
                 )));
             }
             return Ok(Some(
@@ -562,7 +562,7 @@ impl NodeBuilder {
             .flags()
             .intersects(TypeFlags::UniqueESSymbol)
         {
-            return Ok(Some(get_factory().create_computed_property_name(
+            return Ok(Some(get_factory(self).create_computed_property_name(
                 self.symbol_to_expression_(
                     name_type.ref_(self).symbol(),
                     context,
@@ -584,14 +584,14 @@ impl NodeBuilder {
             Some(get_emit_script_target(&self.type_checker.compiler_options.ref_(self))),
             None,
         ) {
-            get_factory().create_identifier(&name)
+            get_factory(self).create_identifier(&name)
         } else if string_named != Some(true)
             && self.type_checker.is_numeric_literal_name(&name)
             && name.parse::<f64>().unwrap() >= 0.0
         {
-            get_factory().create_numeric_literal(Number::from(&*name), None)
+            get_factory(self).create_numeric_literal(Number::from(&*name), None)
         } else {
-            get_factory().create_string_literal(name, Some(single_quote == Some(true)), None)
+            get_factory(self).create_string_literal(name, Some(single_quote == Some(true)), None)
         }
     }
 
@@ -871,7 +871,7 @@ impl NodeBuilder {
                         context,
                     )?
                 } else {
-                    get_factory().clone_node(node)
+                    get_factory(self).clone_node(node)
                 };
                 name.ref_(self).set_symbol(sym);
                 return Ok(TrackExistingEntityNameReturn {
@@ -921,7 +921,7 @@ impl NodeBuilder {
             return Ok(None);
         }
         Ok(if transformed == existing {
-            let ret = get_factory().clone_node(existing);
+            let ret = get_factory(self).clone_node(existing);
             set_text_range(&*ret.ref_(self), Some(&*existing.ref_(self)));
             Some(ret)
         } else {
@@ -939,21 +939,21 @@ impl NodeBuilder {
     ) -> io::Result<VisitResult> {
         if is_jsdoc_all_type(&node.ref_(self)) || node.ref_(self).kind() == SyntaxKind::JSDocNamepathType {
             return Ok(Some(
-                get_factory()
+                get_factory(self)
                     .create_keyword_type_node(SyntaxKind::AnyKeyword)
                     .into(),
             ));
         }
         if is_jsdoc_unknown_type(&node.ref_(self)) {
             return Ok(Some(
-                get_factory()
+                get_factory(self)
                     .create_keyword_type_node(SyntaxKind::UnknownKeyword)
                     .into(),
             ));
         }
         if is_jsdoc_nullable_type(&node.ref_(self)) {
             return Ok(Some(
-                get_factory()
+                get_factory(self)
                     .create_union_type_node(vec![
                         try_visit_node(
                             node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
@@ -969,14 +969,14 @@ impl NodeBuilder {
                             Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
-                        get_factory().create_literal_type_node(get_factory().create_null()),
+                        get_factory(self).create_literal_type_node(get_factory(self).create_null()),
                     ])
                     .into(),
             ));
         }
         if is_jsdoc_optional_type(&node.ref_(self)) {
             return Ok(Some(
-                get_factory()
+                get_factory(self)
                     .create_union_type_node(vec![
                         try_visit_node(
                             node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
@@ -992,7 +992,7 @@ impl NodeBuilder {
                             Option::<fn(Id<Node>) -> bool>::None,
                             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                         )?,
-                        get_factory().create_keyword_type_node(SyntaxKind::UndefinedKeyword),
+                        get_factory(self).create_keyword_type_node(SyntaxKind::UndefinedKeyword),
                     ])
                     .into(),
             ));
@@ -1018,7 +1018,7 @@ impl NodeBuilder {
         }
         if is_jsdoc_variadic_type(&node.ref_(self)) {
             return Ok(Some(
-                get_factory()
+                get_factory(self)
                     .create_array_type_node(try_visit_node(
                         node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap(),
                         Some(|node: Id<Node>| {
@@ -1038,7 +1038,7 @@ impl NodeBuilder {
         }
         if is_jsdoc_type_literal(&node.ref_(self)) {
             return Ok(Some(
-                get_factory().create_type_literal_node(
+                get_factory(self).create_type_literal_node(
                     try_maybe_map(
                         node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.as_deref(),
                         |t: &Id<Node>, _| -> io::Result<Id<Node>> {
@@ -1071,7 +1071,7 @@ impl NodeBuilder {
                                 )
                             })?;
 
-                            Ok(get_factory().create_property_signature(
+                            Ok(get_factory(self).create_property_signature(
                                 Option::<Gc<NodeArray>>::None,
                                 name,
                                 if t_as_jsdoc_property_like_tag.is_bracketed ||
@@ -1079,7 +1079,7 @@ impl NodeBuilder {
                                         t_as_jsdoc_property_like_tag.type_expression,
                                         Some(t_type_expression) if is_jsdoc_optional_type(&t_type_expression.ref_(self))
                                     ) {
-                                    Some(get_factory().create_token(
+                                    Some(get_factory(self).create_token(
                                         SyntaxKind::QuestionToken,
                                     ))
                                 } else {
@@ -1095,7 +1095,7 @@ impl NodeBuilder {
                                         )
                                     })
                                 })?.unwrap_or_else(|| {
-                                    get_factory().create_keyword_type_node(
+                                    get_factory(self).create_keyword_type_node(
                                         SyntaxKind::AnyKeyword
                                     )
                                 }))
@@ -1117,7 +1117,7 @@ impl NodeBuilder {
         {
             return Ok(Some(
                 set_original_node(
-                    get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword),
+                    get_factory(self).create_keyword_type_node(SyntaxKind::AnyKeyword),
                     Some(node),
                     self,
                 )
@@ -1128,11 +1128,11 @@ impl NodeBuilder {
             && is_jsdoc_index_signature(node, self)
         {
             return Ok(Some(
-                get_factory()
-                    .create_type_literal_node(Some(vec![get_factory().create_index_signature(
+                get_factory(self)
+                    .create_type_literal_node(Some(vec![get_factory(self).create_index_signature(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
-                        vec![get_factory().create_parameter_declaration(
+                        vec![get_factory(self).create_parameter_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             None,
@@ -1188,7 +1188,7 @@ impl NodeBuilder {
             if is_jsdoc_construct_signature(node, self) {
                 let mut new_type_node: Option<Id<Node>> = None;
                 return Ok(Some(
-                    get_factory().create_constructor_type_node(
+                    get_factory(self).create_constructor_type_node(
                         node_as_jsdoc_function_type.maybe_modifiers(),
                         try_maybe_visit_nodes(
                             node_as_jsdoc_function_type.maybe_type_parameters().as_deref(),
@@ -1209,7 +1209,7 @@ impl NodeBuilder {
                                     None
                                 } else {
                                     Some(
-                                        get_factory().create_parameter_declaration(
+                                        get_factory(self).create_parameter_declaration(
                                             Option::<Gc<NodeArray>>::None,
                                             Option::<Gc<NodeArray>>::None,
                                             self.get_effective_dot_dot_dot_for_parameter(p),
@@ -1234,7 +1234,7 @@ impl NodeBuilder {
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )?.unwrap_or_else(|| {
-                                get_factory().create_keyword_type_node(
+                                get_factory(self).create_keyword_type_node(
                                     SyntaxKind::AnyKeyword
                                 )
                             }),
@@ -1243,7 +1243,7 @@ impl NodeBuilder {
                 ));
             } else {
                 return Ok(Some(
-                    get_factory()
+                    get_factory(self)
                         .create_function_type_node(
                             try_maybe_visit_nodes(
                                 node_as_jsdoc_function_type
@@ -1267,7 +1267,7 @@ impl NodeBuilder {
                                 |&p: &Id<Node>, i| -> io::Result<Id<Node>> {
                                     let p_ref = p.ref_(self);
                                     let p_as_parameter_declaration = p_ref.as_parameter_declaration();
-                                    Ok(get_factory().create_parameter_declaration(
+                                    Ok(get_factory(self).create_parameter_declaration(
                                         Option::<Gc<NodeArray>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         self.get_effective_dot_dot_dot_for_parameter(p),
@@ -1307,7 +1307,7 @@ impl NodeBuilder {
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 )?
                                 .unwrap_or_else(|| {
-                                    get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
+                                    get_factory(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
                                 }),
                             ),
                         )

@@ -40,6 +40,7 @@ use crate::{
     SymbolVisibilityResult, SyntaxKind, TextRange, TransformNodesTransformationResult,
     TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
     InArena, OptionInArena, SymbolTracker,
+    get_factory_id,
 };
 
 lazy_static! {
@@ -121,7 +122,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
     {
         let prepends = host.get_prepend_nodes();
         if !source_files.is_empty() || !prepends.is_empty() {
-            let bundle: Id<Node> = get_factory().create_bundle(
+            let bundle: Id<Node> = get_factory(self).create_bundle(
                 source_files.into_iter().map(Option::Some).collect(),
                 Some(prepends),
             );
@@ -874,7 +875,7 @@ fn emit_js_file_or_bundle(
     let transform = transform_nodes(
         Some(resolver.clone()),
         Some(host.clone()),
-        get_factory(),
+        get_factory_id(self),
         compiler_options.clone(),
         &[source_file_or_bundle],
         script_transformers,
@@ -1041,7 +1042,7 @@ fn emit_declaration_file_or_bundle(
         })
     };
     let input_list_or_bundle = if out_file(&compiler_options.ref_(arena)).is_non_empty() {
-        vec![get_factory().create_bundle(
+        vec![get_factory(arena).create_bundle(
             files_for_emit.iter().cloned().map(Option::Some).collect(),
             if !is_source_file(&source_file_or_bundle.ref_(arena)) {
                 Some(source_file_or_bundle.ref_(arena).as_bundle().prepends.clone())
@@ -1064,7 +1065,7 @@ fn emit_declaration_file_or_bundle(
     let declaration_transform = transform_nodes(
         Some(resolver.clone()),
         Some(host.clone()),
-        get_factory(),
+        get_factory_id(arena),
         compiler_options.clone(),
         &input_list_or_bundle,
         declaration_transformers,
@@ -1914,7 +1915,7 @@ impl Printer {
             last_substitution: Default::default(),
             current_parenthesizer_rule: Default::default(),
             // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
-            parenthesizer: get_factory().parenthesizer(),
+            parenthesizer: get_factory(arena_ref).parenthesizer(),
             emit_binary_expression: Default::default(),
         }
     }

@@ -8,7 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
-    Program, Signature, DiagnosticReporter,
+    Program, Signature, DiagnosticReporter, NodeFactory,
 };
 
 #[derive(Default)]
@@ -37,6 +37,7 @@ pub struct AllArenas {
     pub programs: RefCell<Arena<Program>>,
     pub signatures: RefCell<Arena<Signature>>,
     pub diagnostic_reporters: RefCell<Arena<Box<dyn DiagnosticReporter>>>,
+    pub node_factories: RefCell<Arena<NodeFactory>>,
 }
 
 pub trait HasArena {
@@ -208,6 +209,14 @@ pub trait HasArena {
 
     fn alloc_diagnostic_reporter(&self, diagnostic_reporter: Box<dyn DiagnosticReporter>) -> Id<Box<dyn DiagnosticReporter>> {
         self.arena().alloc_diagnostic_reporter(diagnostic_reporter)
+    }
+
+    fn node_factory(&self, node_factory: Id<NodeFactory>) -> Ref<NodeFactory> {
+        self.arena().node_factory(node_factory)
+    }
+
+    fn alloc_node_factory(&self, node_factory: NodeFactory) -> Id<NodeFactory> {
+        self.arena().alloc_node_factory(node_factory)
     }
 }
 
@@ -434,6 +443,16 @@ impl HasArena for AllArenas {
         let id = self.diagnostic_reporters.borrow_mut().alloc(diagnostic_reporter);
         id
     }
+
+    #[track_caller]
+    fn node_factory(&self, node_factory: Id<NodeFactory>) -> Ref<NodeFactory> {
+        Ref::map(self.node_factories.borrow(), |node_factories| &node_factories[node_factory])
+    }
+
+    fn alloc_node_factory(&self, node_factory: NodeFactory) -> Id<NodeFactory> {
+        let id = self.node_factories.borrow_mut().alloc(node_factory);
+        id
+    }
 }
 
 pub trait InArena {
@@ -608,6 +627,14 @@ impl InArena for Id<Box<dyn DiagnosticReporter>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn DiagnosticReporter>> {
         has_arena.diagnostic_reporter(*self)
+    }
+}
+
+impl InArena for Id<NodeFactory> {
+    type Item = NodeFactory;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeFactory> {
+        has_arena.node_factory(*self)
     }
 }
 

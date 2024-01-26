@@ -615,13 +615,13 @@ impl CheckTypeRelatedTo {
                     .is_some()
                 {
                     let source_name =
-                        get_factory().get_declaration_name(
+                        get_factory(self).get_declaration_name(
                             source_symbol.ref_(self).maybe_value_declaration(),
                             None,
                             None,
                         );
                     let target_name =
-                        get_factory().get_declaration_name(
+                        get_factory(self).get_declaration_name(
                             target
                                 .ref_(self)
                                 .symbol()

@@ -172,7 +172,7 @@ impl ParenthesizerRulesConcrete
             left_operand,
         ) {
             self.factory
-                .create_parenthesized_expression(operand)
+                .ref_(self).create_parenthesized_expression(operand)
         } else {
             operand
         }
@@ -190,7 +190,7 @@ impl ParenthesizerRulesConcrete
                 .maybe_type_parameters()
                 .is_some()
         {
-            self.factory.create_parenthesized_type(node)
+            self.factory.ref_(self).create_parenthesized_type(node)
         } else {
             node
         }
@@ -219,7 +219,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
     fn parenthesize_expression_of_computed_property_name(&self, expression: Id<Node>) -> Id<Node> {
         if is_comma_sequence(expression, self) {
             self.factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
         } else {
             expression
         }
@@ -238,7 +238,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         {
             return self
                 .factory
-                .create_parenthesized_expression(condition);
+                .ref_(self).create_parenthesized_expression(condition);
         }
         condition
     }
@@ -247,7 +247,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         let emitted_expression = skip_partially_emitted_expressions(branch, self);
         if is_comma_sequence(emitted_expression, self) {
             self.factory
-                .create_parenthesized_expression(branch)
+                .ref_(self).create_parenthesized_expression(branch)
         } else {
             branch
         }
@@ -266,7 +266,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         }
         if needs_parens {
             self.factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
         } else {
             expression
         }
@@ -278,13 +278,13 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
             SyntaxKind::CallExpression => {
                 return self
                     .factory
-                    .create_parenthesized_expression(expression);
+                    .ref_(self).create_parenthesized_expression(expression);
             }
 
             SyntaxKind::NewExpression => {
                 return if leftmost_expr.ref_(self).as_new_expression().arguments.is_none() {
                     self.factory
-                        .create_parenthesized_expression(expression)
+                        .ref_(self).create_parenthesized_expression(expression)
                 } else {
                     expression
                 };
@@ -306,7 +306,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
 
         self
             .factory
-            .create_parenthesized_expression(expression)
+            .ref_(self).create_parenthesized_expression(expression)
             .set_text_range(Some(&*expression.ref_(self)), self)
     }
 
@@ -316,7 +316,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         } else {
             self
                 .factory
-                .create_parenthesized_expression(operand)
+                .ref_(self).create_parenthesized_expression(operand)
                 .set_text_range(Some(&*operand.ref_(self)), self)
         }
     }
@@ -327,7 +327,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         } else {
             self
                 .factory
-                .create_parenthesized_expression(operand)
+                .ref_(self).create_parenthesized_expression(operand)
                 .set_text_range(Some(&*operand.ref_(self)), self)
         }
     }
@@ -339,7 +339,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         let result = same_map(&elements, |&element, _| {
             self.parenthesize_expression_for_disallowed_comma(element)
         });
-        let node_array = self.factory.create_node_array(
+        let node_array = self.factory.ref_(self).create_node_array(
             Some(result),
             match &elements {
                 NodeArrayOrVec::NodeArray(elements) => Some(elements.has_trailing_comma),
@@ -372,7 +372,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         } else {
             self
                 .factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
                 .set_text_range(Some(&*expression.ref_(self)), self)
         }
     }
@@ -388,18 +388,18 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
                 kind,
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
             ) {
-                let updated = self.factory.update_call_expression(
+                let updated = self.factory.ref_(self).update_call_expression(
                     emitted_expression,
                     set_text_range_id_node(
                         self.factory
-                            .create_parenthesized_expression(callee),
+                            .ref_(self).create_parenthesized_expression(callee),
                         Some(&*callee.ref_(self)),
                         self,
                     ),
                     emitted_expression_as_call_expression.maybe_type_arguments(),
                     emitted_expression_as_call_expression.arguments.clone(),
                 );
-                return self.factory.restore_outer_expressions(
+                return self.factory.ref_(self).restore_outer_expressions(
                     Some(expression),
                     updated,
                     Some(OuterExpressionKinds::PartiallyEmittedExpressions),
@@ -414,7 +414,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         ) {
             return self
                 .factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
                 .set_text_range(Some(&*expression.ref_(self)), self);
         }
 
@@ -429,7 +429,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         {
             return self
                 .factory
-                .create_parenthesized_expression(body)
+                .ref_(self).create_parenthesized_expression(body)
                 .set_text_range(Some(&*body.ref_(self)), self);
         }
 
@@ -439,7 +439,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
     fn parenthesize_member_of_conditional_type(&self, member: Id<Node>) -> Id<Node> {
         if member.ref_(self).kind() == SyntaxKind::ConditionalType {
             self.factory
-                .create_parenthesized_type(member)
+                .ref_(self).create_parenthesized_type(member)
         } else {
             member
         }
@@ -452,7 +452,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
             | SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType => self
                 .factory
-                .create_parenthesized_type(member),
+                .ref_(self).create_parenthesized_type(member),
             _ => self.parenthesize_member_of_conditional_type(member),
         }
     }
@@ -461,7 +461,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         match member.ref_(self).kind() {
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
-                .create_parenthesized_type(member),
+                .ref_(self).create_parenthesized_type(member),
             _ => self.parenthesize_member_of_element_type(member),
         }
     }
@@ -474,7 +474,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
             NodeArrayOrVec::NodeArray(members) => members.to_vec(),
             NodeArrayOrVec::Vec(members) => members,
         };
-        self.factory.create_node_array(
+        self.factory.ref_(self).create_node_array(
             Some(same_map(&members, |&member, _| {
                 self.parenthesize_member_of_element_type(member)
             })),
@@ -490,7 +490,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
             type_arguments.as_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
-            return Some(self.factory.create_node_array(
+            return Some(self.factory.ref_(self).create_node_array(
                 maybe_same_map(type_arguments.as_deref(), |&type_arguments, index| {
                     self.parenthesize_ordinal_type_argument(type_arguments, index)
                 }),

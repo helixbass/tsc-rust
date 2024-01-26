@@ -129,7 +129,7 @@ impl SymbolTableToDeclarationStatements {
                 new_modifier_flags |= ModifierFlags::Default;
             }
             if new_modifier_flags != ModifierFlags::None {
-                node = get_factory().update_modifiers(
+                node = get_factory(self).update_modifiers(
                     node,
                     new_modifier_flags | get_effective_modifier_flags(node, self),
                 );
@@ -208,7 +208,7 @@ impl SymbolTableToDeclarationStatements {
             })?;
         self.add_result(
             set_synthetic_leading_comments(
-                get_factory().create_type_alias_declaration(
+                get_factory(self).create_type_alias_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     &*self.get_internal_symbol_name(symbol, symbol_name),
@@ -288,7 +288,7 @@ impl SymbolTableToDeclarationStatements {
         let heritage_clauses: Option<Vec<Id<Node>>> = if base_types.is_empty() {
             None
         } else {
-            Some(vec![get_factory().create_heritage_clause(
+            Some(vec![get_factory(self).create_heritage_clause(
                 SyntaxKind::ExtendsKeyword,
                 try_map_defined(Some(&base_types), |&b: &Id<Type>, _| {
                     self.try_serialize_as_type_reference(b, SymbolFlags::Value)
@@ -296,7 +296,7 @@ impl SymbolTableToDeclarationStatements {
             )])
         };
         self.add_result(
-            get_factory().create_interface_declaration(
+            get_factory(self).create_interface_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 &*self.get_internal_symbol_name(symbol, symbol_name),
@@ -390,12 +390,12 @@ impl SymbolTableToDeclarationStatements {
                 maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration(), self);
             let local_name = self.get_internal_symbol_name(symbol, symbol_name);
             let ns_body =
-                get_factory().create_module_block(Some(vec![get_factory()
+                get_factory(self).create_module_block(Some(vec![get_factory(self)
                     .create_export_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         false,
-                        Some(get_factory().create_named_exports(try_map_defined(
+                        Some(get_factory(self).create_named_exports(try_map_defined(
                             Some(&filter(&merged_members, |&n: &Id<Symbol>| {
                                 n.ref_(self).escaped_name() != InternalSymbolName::ExportEquals
                             })),
@@ -444,7 +444,7 @@ impl SymbolTableToDeclarationStatements {
                                         )
                                     },
                                 );
-                                Ok(Some(get_factory().create_export_specifier(
+                                Ok(Some(get_factory(self).create_export_specifier(
                                     false,
                                     if name == target_name {
                                         None
@@ -459,10 +459,10 @@ impl SymbolTableToDeclarationStatements {
                         None,
                     )]));
             self.add_result(
-                get_factory().create_module_declaration(
+                get_factory(self).create_module_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
-                    get_factory().create_identifier(&local_name),
+                    get_factory(self).create_identifier(&local_name),
                     Some(ns_body),
                     Some(NodeFlags::Namespace),
                 ),
@@ -480,9 +480,9 @@ impl SymbolTableToDeclarationStatements {
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
         self.add_result(
-            get_factory().create_enum_declaration(
+            get_factory(self).create_enum_declaration(
                 Option::<Gc<NodeArray>>::None,
-                Some(get_factory().create_modifiers_from_modifier_flags(
+                Some(get_factory(self).create_modifiers_from_modifier_flags(
                     if self.type_checker.is_const_enum_symbol(symbol) {
                         ModifierFlags::Const
                     } else {
@@ -504,13 +504,13 @@ impl SymbolTableToDeclarationStatements {
                                 .try_and_then(|p_declarations_0| {
                                     self.type_checker.get_constant_value_(p_declarations_0)
                                 })?;
-                            Ok(get_factory().create_enum_member(
+                            Ok(get_factory(self).create_enum_member(
                                 unescape_leading_underscores(p.ref_(self).escaped_name()),
                                 initialized_value.map(
                                     |initialized_value| match initialized_value {
-                                        StringOrNumber::String(initialized_value) => get_factory()
+                                        StringOrNumber::String(initialized_value) => get_factory(self)
                                             .create_string_literal(initialized_value, None, None),
-                                        StringOrNumber::Number(initialized_value) => get_factory()
+                                        StringOrNumber::Number(initialized_value) => get_factory(self)
                                             .create_numeric_literal(initialized_value, None),
                                     },
                                 ),
@@ -543,7 +543,7 @@ impl SymbolTableToDeclarationStatements {
                     SyntaxKind::FunctionDeclaration,
                     &self.context(),
                     Some(SignatureToSignatureDeclarationOptions {
-                        name: Some(get_factory().create_identifier(local_name)),
+                        name: Some(get_factory(self).create_identifier(local_name)),
                         private_symbol_visitor: Some(|symbol: Id<Symbol>| {
                             self.include_private_symbol(symbol);
                         }),
@@ -643,11 +643,11 @@ impl SymbolTableToDeclarationStatements {
                 .get(&"local")
                 .cloned()
                 .unwrap_or_default();
-            let mut fakespace = get_parse_node_factory().create_module_declaration(
+            let mut fakespace = get_parse_node_factory(self).create_module_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
-                get_factory().create_identifier(local_name),
-                Some(get_factory().create_module_block(Some(vec![]))),
+                get_factory(self).create_identifier(local_name),
+                Some(get_factory(self).create_module_block(Some(vec![]))),
                 Some(NodeFlags::Namespace),
             );
             set_parent(&fakespace.ref_(self), Some(self.enclosing_declaration));
@@ -687,15 +687,15 @@ impl SymbolTableToDeclarationStatements {
                     d_as_export_assignment.is_export_equals != Some(true)
                         && is_identifier(&d_as_export_assignment.expression.ref_(self))
                 } {
-                    get_factory().create_export_declaration(
+                    get_factory(self).create_export_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         false,
-                        Some(get_factory().create_named_exports(vec![
-                            get_factory().create_export_specifier(
+                        Some(get_factory(self).create_named_exports(vec![
+                            get_factory(self).create_export_specifier(
                                 false,
                                 Some(d.ref_(self).as_export_assignment().expression),
-                                get_factory().create_identifier(InternalSymbolName::Default),
+                                get_factory(self).create_identifier(InternalSymbolName::Default),
                             ),
                         ])),
                         None,
@@ -715,12 +715,12 @@ impl SymbolTableToDeclarationStatements {
             } else {
                 default_replaced
             };
-            fakespace = get_factory().update_module_declaration(
+            fakespace = get_factory(self).update_module_declaration(
                 fakespace,
                 fakespace.ref_(self).maybe_decorators(),
                 fakespace.ref_(self).maybe_modifiers(),
                 fakespace.ref_(self).as_module_declaration().name,
-                Some(get_factory().create_module_block(Some(export_modifier_stripped))),
+                Some(get_factory(self).create_module_block(Some(export_modifier_stripped))),
             );
             self.add_result(fakespace, modifier_flags);
         }
@@ -773,7 +773,7 @@ impl SymbolTableToDeclarationStatements {
             Ok(self.sanitize_jsdoc_implements_cleanup(
                 old_enclosing,
                 Some(
-                    get_factory().create_expression_with_type_arguments(
+                    get_factory(self).create_expression_with_type_arguments(
                         expr,
                         try_maybe_map(
                             e_as_expression_with_type_arguments
@@ -883,7 +883,7 @@ impl SymbolTableToDeclarationStatements {
             {
                 let mut heritage_clauses = vec![];
                 if !base_types.is_empty() {
-                    heritage_clauses.push(get_factory().create_heritage_clause(
+                    heritage_clauses.push(get_factory(self).create_heritage_clause(
                         SyntaxKind::ExtendsKeyword,
                         try_map(&base_types, |&b: &Id<Type>, _| {
                             self.serialize_base_type(b, static_base_type, local_name)
@@ -891,7 +891,7 @@ impl SymbolTableToDeclarationStatements {
                     ));
                 }
                 if !implements_expressions.is_empty() {
-                    heritage_clauses.push(get_factory().create_heritage_clause(
+                    heritage_clauses.push(get_factory(self).create_heritage_clause(
                         SyntaxKind::ImplementsKeyword,
                         implements_expressions,
                     ));
@@ -922,10 +922,10 @@ impl SymbolTableToDeclarationStatements {
             )
         });
         let private_properties: Vec<Id<Node>> = if has_private_identifier {
-            vec![get_factory().create_property_declaration(
+            vec![get_factory(self).create_property_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
-                get_factory().create_private_identifier("#private"),
+                get_factory(self).create_private_identifier("#private"),
                 None,
                 None,
                 None,
@@ -974,9 +974,9 @@ impl SymbolTableToDeclarationStatements {
                 Option::<fn(&Id<Signature>) -> bool>::None,
             );
         let constructors = if is_non_constructable_class_like_in_js_file {
-            vec![get_factory().create_constructor_declaration(
+            vec![get_factory(self).create_constructor_declaration(
                 Option::<Gc<NodeArray>>::None,
-                Some(get_factory().create_modifiers_from_modifier_flags(ModifierFlags::Private)),
+                Some(get_factory(self).create_modifiers_from_modifier_flags(ModifierFlags::Private)),
                 Some(vec![]),
                 None,
             )]
@@ -993,7 +993,7 @@ impl SymbolTableToDeclarationStatements {
         self.context().set_enclosing_declaration(old_enclosing);
         self.add_result(
             set_text_range_id_node(
-                get_factory().create_class_declaration(
+                get_factory(self).create_class_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(local_name),
@@ -1113,13 +1113,13 @@ impl SymbolTableToDeclarationStatements {
                     )?;
                     let property_name = node.ref_(self).as_binding_element().property_name;
                     self.add_result(
-                        get_factory().create_import_declaration(
+                        get_factory(self).create_import_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
-                            Some(get_factory().create_import_clause(
+                            Some(get_factory(self).create_import_clause(
                                 false,
                                 None,
-                                Some(get_factory().create_named_imports(vec![get_factory()
+                                Some(get_factory(self).create_named_imports(vec![get_factory(self)
                                                         .create_import_specifier(
                                                             false,
                                                             property_name
@@ -1127,16 +1127,16 @@ impl SymbolTableToDeclarationStatements {
                                                                     is_identifier(&property_name.ref_(self))
                                                                 })
                                                                 .map(|property_name| {
-                                                                    get_factory().create_identifier(
+                                                                    get_factory(self).create_identifier(
                                                                         id_text(&property_name.ref_(self)),
                                                                     )
                                                                 }),
-                                                            get_factory()
+                                                            get_factory(self)
                                                                 .create_identifier(local_name),
                                                         )
                                                         ])),
                             )),
-                            get_factory().create_string_literal(specifier, None, None),
+                            get_factory(self).create_string_literal(specifier, None, None),
                             None,
                         ),
                         ModifierFlags::None,
@@ -1172,30 +1172,30 @@ impl SymbolTableToDeclarationStatements {
                     &node_as_variable_declaration.maybe_initializer().unwrap().ref_(self),
                 ) {
                     let ref initializer = node_as_variable_declaration.maybe_initializer().unwrap();
-                    let unique_name = get_factory().create_unique_name(local_name, None);
+                    let unique_name = get_factory(self).create_unique_name(local_name, None);
                     let specifier = self.node_builder.get_specifier_for_module_symbol(
                         target.ref_(self).maybe_parent().unwrap_or(target),
                         &self.context(),
                     )?;
                     self.add_result(
-                        get_factory().create_import_equals_declaration(
+                        get_factory(self).create_import_equals_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             false,
                             unique_name.clone(),
-                            get_factory().create_external_module_reference(
-                                get_factory().create_string_literal(specifier, None, None),
+                            get_factory(self).create_external_module_reference(
+                                get_factory(self).create_string_literal(specifier, None, None),
                             ),
                         ),
                         ModifierFlags::None,
                     );
                     self.add_result(
-                        get_factory().create_import_equals_declaration(
+                        get_factory(self).create_import_equals_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             false,
-                            get_factory().create_identifier(local_name),
-                            get_factory().create_qualified_name(
+                            get_factory(self).create_identifier(local_name),
+                            get_factory(self).create_qualified_name(
                                 unique_name,
                                 initializer.ref_(self).as_property_access_expression().name,
                             ),
@@ -1219,11 +1219,11 @@ impl SymbolTableToDeclarationStatements {
                     .intersects(SymbolFlags::ValueModule)
                     && !is_variable_declaration(&node.ref_(self));
                 self.add_result(
-                    get_factory().create_import_equals_declaration(
+                    get_factory(self).create_import_equals_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         false,
-                        get_factory().create_identifier(local_name),
+                        get_factory(self).create_identifier(local_name),
                         if is_local_import {
                             self.node_builder.symbol_to_name(
                                 target,
@@ -1232,8 +1232,8 @@ impl SymbolTableToDeclarationStatements {
                                 false,
                             )?
                         } else {
-                            get_factory().create_external_module_reference(
-                                get_factory().create_string_literal(
+                            get_factory(self).create_external_module_reference(
+                                get_factory(self).create_string_literal(
                                     self.node_builder
                                         .get_specifier_for_module_symbol(target, &self.context())?,
                                     None,
@@ -1265,11 +1265,11 @@ impl SymbolTableToDeclarationStatements {
                     .intersects(SymbolFlags::ValueModule)
                     && !is_variable_declaration(&node.ref_(self));
                 self.add_result(
-                    get_factory().create_import_equals_declaration(
+                    get_factory(self).create_import_equals_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         false,
-                        get_factory().create_identifier(local_name),
+                        get_factory(self).create_identifier(local_name),
                         if is_local_import {
                             self.node_builder.symbol_to_name(
                                 target,
@@ -1278,8 +1278,8 @@ impl SymbolTableToDeclarationStatements {
                                 false,
                             )?
                         } else {
-                            get_factory().create_external_module_reference(
-                                get_factory().create_string_literal(
+                            get_factory(self).create_external_module_reference(
+                                get_factory(self).create_string_literal(
                                     self.node_builder
                                         .get_specifier_for_module_symbol(target, &self.context())?,
                                     None,
@@ -1297,7 +1297,7 @@ impl SymbolTableToDeclarationStatements {
             }
             SyntaxKind::NamespaceExportDeclaration => {
                 self.add_result(
-                    get_factory().create_namespace_export_declaration(id_text(
+                    get_factory(self).create_namespace_export_declaration(id_text(
                         &node.ref_(self).as_namespace_export_declaration().name().ref_(self),
                     )),
                     ModifierFlags::None,
@@ -1305,15 +1305,15 @@ impl SymbolTableToDeclarationStatements {
             }
             SyntaxKind::ImportClause => {
                 self.add_result(
-                    get_factory().create_import_declaration(
+                    get_factory(self).create_import_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
-                        Some(get_factory().create_import_clause(
+                        Some(get_factory(self).create_import_clause(
                             false,
-                            Some(get_factory().create_identifier(local_name)),
+                            Some(get_factory(self).create_identifier(local_name)),
                             None,
                         )),
-                        get_factory().create_string_literal(
+                        get_factory(self).create_string_literal(
                             self.node_builder.get_specifier_for_module_symbol(
                                 target.ref_(self).maybe_parent().unwrap_or(target),
                                 &self.context(),
@@ -1328,17 +1328,17 @@ impl SymbolTableToDeclarationStatements {
             }
             SyntaxKind::NamespaceImport => {
                 self.add_result(
-                    get_factory().create_import_declaration(
+                    get_factory(self).create_import_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
-                        Some(get_factory().create_import_clause(
+                        Some(get_factory(self).create_import_clause(
                             false,
                             None,
-                            Some(get_factory().create_namespace_import(
-                                get_factory().create_identifier(local_name),
+                            Some(get_factory(self).create_namespace_import(
+                                get_factory(self).create_identifier(local_name),
                             )),
                         )),
-                        get_factory().create_string_literal(
+                        get_factory(self).create_string_literal(
                             self.node_builder
                                 .get_specifier_for_module_symbol(target, &self.context())?,
                             None,
@@ -1351,17 +1351,17 @@ impl SymbolTableToDeclarationStatements {
             }
             SyntaxKind::NamespaceExport => {
                 self.add_result(
-                    get_factory().create_export_declaration(
+                    get_factory(self).create_export_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         false,
                         Some(
-                            get_factory().create_namespace_export(
-                                get_factory().create_identifier(local_name),
+                            get_factory(self).create_namespace_export(
+                                get_factory(self).create_identifier(local_name),
                             ),
                         ),
                         Some(
-                            get_factory().create_string_literal(
+                            get_factory(self).create_string_literal(
                                 self.node_builder
                                     .get_specifier_for_module_symbol(target, &self.context())?,
                                 None,
@@ -1375,23 +1375,23 @@ impl SymbolTableToDeclarationStatements {
             }
             SyntaxKind::ImportSpecifier => {
                 self.add_result(
-                    get_factory().create_import_declaration(
+                    get_factory(self).create_import_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
-                        Some(get_factory().create_import_clause(
+                        Some(get_factory(self).create_import_clause(
                             false,
                             None,
-                            Some(get_factory().create_named_imports(vec![
-                                get_factory().create_import_specifier(
+                            Some(get_factory(self).create_named_imports(vec![
+                                get_factory(self).create_import_specifier(
                                     false,
                                     (local_name != verbatim_target_name).then(|| {
-                                        get_factory().create_identifier(&verbatim_target_name)
+                                        get_factory(self).create_identifier(&verbatim_target_name)
                                     }),
-                                    get_factory().create_identifier(local_name),
+                                    get_factory(self).create_identifier(local_name),
                                 ),
                             ])),
                         )),
-                        get_factory().create_string_literal(
+                        get_factory(self).create_string_literal(
                             self.node_builder.get_specifier_for_module_symbol(
                                 target.ref_(self).maybe_parent().unwrap_or(target),
                                 &self.context(),
@@ -1419,7 +1419,7 @@ impl SymbolTableToDeclarationStatements {
                     specifier
                         .filter(|specifier| is_string_literal_like(&specifier.ref_(self)))
                         .map(|specifier| {
-                            get_factory().create_string_literal(
+                            get_factory(self).create_string_literal(
                                 specifier.ref_(self).as_literal_like_node().text().clone(),
                                 None,
                                 None,

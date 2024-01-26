@@ -148,8 +148,8 @@ impl TypeChecker {
         let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
         if _jsx_factory_entity.is_none() {
             *_jsx_factory_entity =
-                Some(get_factory().create_qualified_name(
-                    get_factory().create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
+                Some(get_factory(self).create_qualified_name(
+                    get_factory(self).create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
                     "createElement",
                 ));
         }

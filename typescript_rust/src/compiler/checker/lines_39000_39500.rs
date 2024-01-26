@@ -94,8 +94,8 @@ impl TypeChecker {
         for static_block in static_blocks {
             if static_block.ref_(self).pos() >= start_pos && static_block.ref_(self).pos() <= end_pos {
                 let reference: Id<Node> =
-                    get_factory().create_property_access_expression(
-                        get_factory().create_this(),
+                    get_factory(self).create_property_access_expression(
+                        get_factory(self).create_this(),
                         prop_name,
                     );
                 set_parent(
@@ -129,8 +129,8 @@ impl TypeChecker {
         prop_type: Id<Type>,
         constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<bool> {
-        let reference = get_factory().create_property_access_expression(
-            get_factory().create_this(),
+        let reference = get_factory(self).create_property_access_expression(
+            get_factory(self).create_this(),
             prop_name,
         );
         set_parent(

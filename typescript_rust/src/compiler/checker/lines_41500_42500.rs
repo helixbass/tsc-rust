@@ -417,7 +417,7 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_variable_like_or_accessor(&node.ref_(self))),
             self,
         ) else {
-            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
+            return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let symbol = self.get_symbol_of_node(declaration)?;
         let mut type_ = if let Some(symbol) = symbol.filter(|&symbol| {
@@ -461,7 +461,7 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_function_like(Some(&node.ref_(self)))),
             self,
         ) else {
-            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
+            return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let signature = self.get_signature_from_declaration_(signature_declaration)?;
         self.node_builder().type_to_type_node(
@@ -480,7 +480,7 @@ impl TypeChecker {
         tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let Some(expr) = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self) else {
-            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
+            return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
         self.node_builder().type_to_type_node(
@@ -582,9 +582,9 @@ impl TypeChecker {
                 Some(tracker),
             )?
         } else if type_ == self.true_type() {
-            Some(get_factory().create_true())
+            Some(get_factory(self).create_true())
         } else if type_ == self.false_type() {
-            Some(get_factory().create_false())
+            Some(get_factory(self).create_false())
         } else {
             None
         };
@@ -593,13 +593,13 @@ impl TypeChecker {
         }
         Ok(match &*type_.ref_(self) {
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
-                get_factory().create_big_int_literal(type_.value.clone())
+                get_factory(self).create_big_int_literal(type_.value.clone())
             }
             Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
-                get_factory().create_numeric_literal(type_.value.clone(), None)
+                get_factory(self).create_numeric_literal(type_.value.clone(), None)
             }
             Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
-                get_factory().create_string_literal(type_.value.clone(), None, None)
+                get_factory(self).create_string_literal(type_.value.clone(), None, None)
             }
             _ => unreachable!(),
         })

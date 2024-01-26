@@ -22,7 +22,7 @@ use crate::{
     is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
     is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression,
     is_parameter, is_property_access_expression, is_rest_parameter, last, length, map,
-    node_is_present, parse_node_factory, return_ok_default_if_none, set_parent, set_text_range,
+    node_is_present, get_parse_node_factory, return_ok_default_if_none, set_parent, set_text_range,
     set_text_range_pos_end, skip_outer_expressions, some, try_maybe_for_each, try_some,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
@@ -108,13 +108,12 @@ impl TypeChecker {
         is_spread: Option<bool>,
         tuple_name_source: Option<Id<Node> /*ParameterDeclaration | NamedTupleMember*/>,
     ) -> Id<Node> {
-        let result = parse_node_factory.with(|parse_node_factory_| {
-            parse_node_factory_.create_synthetic_expression(
+        let result =
+            get_parse_node_factory(self).create_synthetic_expression(
                 type_,
                 is_spread,
                 tuple_name_source,
-            )
-        });
+            );
         set_text_range(&*result.ref_(self), Some(&*parent.ref_(self)));
         set_parent(&result.ref_(self), Some(parent));
         result
@@ -578,7 +577,7 @@ impl TypeChecker {
                 diagnostic
             } else {
                 let error_span =
-                    get_factory().create_node_array(
+                    get_factory(self).create_node_array(
                         Some(match max {
                             UsizeOrNegativeInfinity::NegativeInfinity => args.to_owned(),
                             UsizeOrNegativeInfinity::Usize(max) => args[max..].to_owned(),

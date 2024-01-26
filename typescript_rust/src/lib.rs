@@ -204,7 +204,7 @@ pub use compiler::{
         node_converters::{create_node_converters, null_node_converters},
         node_factory::{
             create_input_files, create_node_factory, create_unparsed_source_file,
-            get_factory, get_synthetic_factory, has_node_array_changed,
+            get_factory, get_factory_id, get_synthetic_factory, has_node_array_changed,
             has_option_node_array_changed, has_option_str_or_node_changed, set_original_node,
             synthetic_factory,
             BaseNodeFactorySynthetic, NodeFactoryFlags,
@@ -315,8 +315,8 @@ pub use compiler::{
     parser::{
         create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively,
         for_each_child_recursively_bool, for_each_child_returns, get_parse_node_factory,
-        is_external_module, parse_base_node_factory, parse_isolated_entity_name,
-        parse_jsdoc_type_expression_for_tests, parse_json_text, parse_node_factory,
+        is_external_module, parse_isolated_entity_name,
+        parse_jsdoc_type_expression_for_tests, parse_json_text,
         try_for_each_child, try_for_each_child_bool, try_for_each_child_recursively_bool,
         update_source_file,
         ForEachChildRecursivelyCallbackReturn, IncrementalParser, IncrementalParserSyntaxCursor,

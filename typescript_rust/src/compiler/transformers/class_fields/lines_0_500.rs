@@ -785,7 +785,7 @@ impl TransformClassFields {
         }
         Some(
             self.factory
-                .create_identifier("")
+                .ref_(self).create_identifier("")
                 .set_original_node(Some(node), self)
                 .into(),
         )
@@ -876,9 +876,9 @@ impl TransformClassFields {
             let mut expressions = self.pending_expressions().clone();
             expressions.push(name_as_computed_property_name.expression.clone());
             self.set_pending_expressions(Some(_d()));
-            node = self.factory.update_computed_property_name(
+            node = self.factory.ref_(self).update_computed_property_name(
                 node,
-                self.factory.inline_expressions(&expressions),
+                self.factory.ref_(self).inline_expressions(&expressions),
             );
         }
         Some(node.into())
@@ -923,9 +923,9 @@ impl TransformClassFields {
         let function_name = self.get_hoisted_function_name(node);
         if let Some(function_name) = function_name {
             self.get_pending_expressions().push(
-                self.factory.create_assignment(
+                self.factory.ref_(self).create_assignment(
                     function_name.clone(),
-                    self.factory.create_function_expression(
+                    self.factory.ref_(self).create_function_expression(
                         maybe_filter(node.ref_(self).maybe_modifiers().as_double_deref(), |m: &Id<Node>| {
                             !is_static_modifier(&m.ref_(self))
                         }),
@@ -1006,7 +1006,7 @@ impl TransformClassFields {
             if !self.should_transform_private_elements_or_class_static_blocks {
                 return Some(
                     self.factory
-                        .update_property_declaration(
+                        .ref_(self).update_property_declaration(
                             node,
                             Option::<Gc<NodeArray>>::None,
                             maybe_visit_nodes(
@@ -1156,9 +1156,9 @@ impl TransformClassFields {
                     if let Some(super_class_reference) = super_class_reference {
                         return Some(
                             self.factory
-                                .create_reflect_get_call(
+                                .ref_(self).create_reflect_get_call(
                                     super_class_reference.clone(),
-                                    self.factory.create_string_literal_from_node(
+                                    self.factory.ref_(self).create_string_literal_from_node(
                                         node_as_property_access_expression.name(),
                                     ),
                                     Some(class_constructor.clone()),
@@ -1409,15 +1409,15 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                     return self
                         .transform_class_fields()
                         .factory
-                        .create_parenthesized_expression(
-                            self.transform_class_fields().factory.create_void_zero(),
+                        .ref_(self).create_parenthesized_expression(
+                            self.transform_class_fields().factory.ref_(self).create_void_zero(),
                         );
                 }
                 if let Some(class_constructor) = class_constructor {
                     return self
                         .transform_class_fields()
                         .factory
-                        .clone_node(class_constructor)
+                        .ref_(self).clone_node(class_constructor)
                         .set_original_node(Some(node), self)
                         .set_text_range(Some(&*node.ref_(self)), self);
                 }
@@ -1465,7 +1465,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                         return Ok(Some(
                             self.transform_class_fields()
                                 .factory
-                                .clone_node(class_alias)
+                                .ref_(self).clone_node(class_alias)
                                 .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
                                 .set_comment_range(&*node.ref_(self), self),
                         ));

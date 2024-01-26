@@ -8,6 +8,7 @@ use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
     CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars,
     SyntaxKind, Type,
+    HasArena,
 };
 
 bitflags! {
@@ -107,15 +108,15 @@ pub fn get_parse_base_node_factory() -> Gc<Box<dyn BaseNodeFactory>> {
     parse_base_node_factory.with(|parse_base_node_factory_| parse_base_node_factory_.clone())
 }
 
-thread_local! {
-    pub static parse_node_factory: Id<NodeFactory> = create_node_factory(
-        NodeFactoryFlags::NoParenthesizerRules,
-        get_parse_base_node_factory(),
-    );
-}
-
-pub fn get_parse_node_factory() -> Id<NodeFactory> {
-    parse_node_factory.with(|parse_node_factory_| parse_node_factory_.clone())
+pub fn get_parse_node_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
+    per_arena!(
+        NodeFactory,
+        arena,
+        arena.alloc_node_factory(create_node_factory(
+            NodeFactoryFlags::NoParenthesizerRules,
+            get_parse_base_node_factory(),
+        ))
+    ).ref_(arena)
 }
 
 pub(super) fn visit_node(cb_node: &mut impl FnMut(Id<Node>), node: Option<Id<Node>>) {

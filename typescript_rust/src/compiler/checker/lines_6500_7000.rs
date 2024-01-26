@@ -320,23 +320,23 @@ impl SymbolTableToDeclarationStatements {
                     let name = ns.ref_(self).as_module_declaration().name;
                     let mut body = ns_body;
                     if !excess_exports.is_empty() {
-                        ns = get_factory().update_module_declaration(
+                        ns = get_factory(self).update_module_declaration(
                             ns,
                             ns.ref_(self).maybe_decorators(),
                             ns.ref_(self).maybe_modifiers(),
                             ns.ref_(self).as_module_declaration().name,
                             Some({
-                                body = get_factory().update_module_block(
+                                body = get_factory(self).update_module_block(
                                     body,
-                                    get_factory().create_node_array(
+                                    get_factory(self).create_node_array(
                                         Some({
                                             let mut arg =
                                                 ns_body.ref_(self).as_module_block().statements.to_vec();
-                                            arg.push(get_factory().create_export_declaration(
+                                            arg.push(get_factory(self).create_export_declaration(
                                                 Option::<Gc<NodeArray>>::None,
                                                 Option::<Gc<NodeArray>>::None,
                                                 false,
-                                                Some(get_factory().create_named_exports(map(
+                                                Some(get_factory(self).create_named_exports(map(
                                                     flat_map(
                                                         Some(&excess_exports),
                                                         |&e: &Id<Node>, _| {
@@ -344,7 +344,7 @@ impl SymbolTableToDeclarationStatements {
                                                         },
                                                     ),
                                                     |id: Id<Node>, _| {
-                                                        get_factory().create_export_specifier(
+                                                        get_factory(self).create_export_specifier(
                                                             false,
                                                             Option::<Id<Node>>::None,
                                                             id,
@@ -431,11 +431,11 @@ impl SymbolTableToDeclarationStatements {
             });
             statements = {
                 let mut statements = non_exports;
-                statements.push(get_factory().create_export_declaration(
+                statements.push(get_factory(self).create_export_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     false,
-                    Some(get_factory().create_named_exports(flat_map(
+                    Some(get_factory(self).create_named_exports(flat_map(
                         Some(&exports),
                         |e: &Id<Node>, _| {
                             cast(
@@ -500,11 +500,11 @@ impl SymbolTableToDeclarationStatements {
                                     .position(|&item: &Id<Node>| item == s)
                                     .is_none()
                             });
-                            statements.push(get_factory().create_export_declaration(
+                            statements.push(get_factory(self).create_export_declaration(
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 false,
-                                Some(get_factory().create_named_exports(flat_map(
+                                Some(get_factory(self).create_named_exports(flat_map(
                                     Some(&group),
                                     |e: &Id<Node>, _| {
                                         cast(
@@ -588,13 +588,13 @@ impl SymbolTableToDeclarationStatements {
             if replacements.is_empty() {
                 ordered_remove_item_at(&mut statements, index);
             } else {
-                statements[index] = get_factory().update_export_declaration(
+                statements[index] = get_factory(self).update_export_declaration(
                     export_decl,
                     export_decl.ref_(self).maybe_decorators(),
                     export_decl.ref_(self).maybe_modifiers(),
                     export_decl_as_export_declaration.is_type_only,
                     Some(
-                        get_factory().update_named_exports(
+                        get_factory(self).update_named_exports(
                             export_decl_as_export_declaration
                                 .export_clause
                                 .unwrap(),
@@ -629,7 +629,7 @@ impl SymbolTableToDeclarationStatements {
                         .iter()
                         .any(|&statement| needs_scope_marker(statement, self)))
         {
-            statements.push(create_empty_exports(&get_factory()));
+            statements.push(create_empty_exports(&get_factory(self)));
         }
         statements
     }
@@ -652,7 +652,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> Id<Node> {
         let flags =
             (get_effective_modifier_flags(node, self) | ModifierFlags::Export) & !ModifierFlags::Ambient;
-        get_factory().update_modifiers(node, flags)
+        get_factory(self).update_modifiers(node, flags)
     }
 
     pub(super) fn remove_export_modifier(
@@ -660,7 +660,7 @@ impl SymbolTableToDeclarationStatements {
         node: Id<Node>, /*Extract<HasModifiers, Statement>*/
     ) -> Id<Node> {
         let flags = get_effective_modifier_flags(node, self) & !ModifierFlags::Export;
-        get_factory().update_modifiers(node, flags)
+        get_factory(self).update_modifiers(node, flags)
     }
 
     pub(super) fn visit_symbol_table(
@@ -913,13 +913,13 @@ impl SymbolTableToDeclarationStatements {
                             Some(property_access_require_parent_right)
                         };
                         self.add_result(
-                            get_factory().create_export_declaration(
+                            get_factory(self).create_export_declaration(
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 false,
-                                Some(get_factory().create_named_exports(
+                                Some(get_factory(self).create_named_exports(
                                     vec![
-                                        get_factory().create_export_specifier(
+                                        get_factory(self).create_export_specifier(
                                             false,
                                             alias,
                                             &*local_name,
@@ -937,11 +937,11 @@ impl SymbolTableToDeclarationStatements {
                         ).transpose()?;
                     } else {
                         let statement = set_text_range_id_node(
-                            get_factory().create_variable_statement(
+                            get_factory(self).create_variable_statement(
                                 Option::<Gc<NodeArray>>::None,
-                                    get_factory().create_variable_declaration_list(
+                                    get_factory(self).create_variable_declaration_list(
                                         vec![
-                                            get_factory().create_variable_declaration(
+                                            get_factory(self).create_variable_declaration(
                                                 Some(&*name),
                                                 None,
                                                 Some(self.node_builder.serialize_type_for_declaration(
@@ -971,13 +971,13 @@ impl SymbolTableToDeclarationStatements {
                         );
                         if name != local_name && !is_private {
                             self.add_result(
-                                get_factory().create_export_declaration(
+                                get_factory(self).create_export_declaration(
                                         Option::<Gc<NodeArray>>::None,
                                         Option::<Gc<NodeArray>>::None,
                                         false,
-                                        Some(get_factory().create_named_exports(
+                                        Some(get_factory(self).create_named_exports(
                                             vec![
-                                                get_factory().create_export_specifier(
+                                                get_factory(self).create_export_specifier(
                                                     false,
                                                     Some(&*name),
                                                     &*local_name,
@@ -1061,12 +1061,12 @@ impl SymbolTableToDeclarationStatements {
                             None,
                         )?);
                     self.add_result(
-                        get_factory().create_export_declaration(
+                        get_factory(self).create_export_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             false,
                             None,
-                            Some(get_factory().create_string_literal(
+                            Some(get_factory(self).create_string_literal(
                                 self.node_builder.get_specifier_for_module_symbol(
                                     resolved_module,
                                     &self.context(),
@@ -1083,23 +1083,23 @@ impl SymbolTableToDeclarationStatements {
         }
         if needs_post_export_default {
             self.add_result(
-                get_factory().create_export_assignment(
+                get_factory(self).create_export_assignment(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     Some(false),
-                    get_factory()
+                    get_factory(self)
                         .create_identifier(&self.get_internal_symbol_name(symbol, symbol_name)),
                 ),
                 ModifierFlags::None,
             );
         } else if needs_export_declaration {
             self.add_result(
-                get_factory().create_export_declaration(
+                get_factory(self).create_export_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     false,
-                    Some(get_factory().create_named_exports(vec![
-                        get_factory().create_export_specifier(
+                    Some(get_factory(self).create_named_exports(vec![
+                        get_factory(self).create_export_specifier(
                             false,
                             Some(&*self.get_internal_symbol_name(symbol, symbol_name)),
                             symbol_name,
@@ -1335,7 +1335,7 @@ impl MakeSerializePropertySymbolCreateProperty
         type_: Option<Id<Node /*TypeNode*/>>,
         initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        get_factory().create_property_declaration(
+        get_factory(self).create_property_declaration(
             decorators,
             modifiers,
             name,
@@ -1367,6 +1367,6 @@ impl MakeSerializePropertySymbolCreateProperty
         type_: Option<Id<Node /*TypeNode*/>>,
         _initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        get_factory().create_property_signature(mods, name, question, type_)
+        get_factory(self).create_property_signature(mods, name, question, type_)
     }
 }
