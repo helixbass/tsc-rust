@@ -387,11 +387,11 @@ impl TypeChecker {
         })?;
         let signature_yield_type = iteration_types
             .as_ref()
-            .map(|iteration_types| iteration_types.yield_type())
+            .map(|iteration_types| iteration_types.ref_(self).yield_type())
             .unwrap_or_else(|| self.any_type());
         let signature_next_type = iteration_types
             .as_ref()
-            .map(|iteration_types| iteration_types.next_type())
+            .map(|iteration_types| iteration_types.ref_(self).next_type())
             .unwrap_or_else(|| self.any_type());
         let resolved_signature_next_type = if is_async {
             self.get_awaited_type_(signature_next_type, Option::<Id<Node>>::None, None, None)?

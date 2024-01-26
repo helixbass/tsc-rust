@@ -428,7 +428,7 @@ impl TypeChecker {
                     if let Some(diagnostic) = diagnostic {
                         self.check_type_assignable_to(
                             sent_type,
-                            iteration_types.next_type(),
+                            iteration_types.ref_(self).next_type(),
                             error_node,
                             Some(diagnostic),
                             None,
@@ -442,12 +442,12 @@ impl TypeChecker {
                     self.include_undefined_in_index_signature(
                         iteration_types
                             .as_ref()
-                            .map(|iteration_types| iteration_types.yield_type()),
+                            .map(|iteration_types| iteration_types.ref_(self).yield_type()),
                     )?
                 } else {
                     iteration_types
                         .as_ref()
-                        .map(|iteration_types| iteration_types.yield_type())
+                        .map(|iteration_types| iteration_types.ref_(self).yield_type())
                 });
             }
         }
@@ -664,7 +664,7 @@ impl TypeChecker {
 
         let iteration_types = self.get_iteration_types_of_iterable(input_type, use_, error_node)?;
         Ok(iteration_types.as_ref().map(|iteration_types| {
-            iteration_types.get_by_key(get_iteration_types_key_from_iteration_type_kind(type_kind))
+            iteration_types.ref_(self).get_by_key(get_iteration_types_key_from_iteration_type_kind(type_kind))
         }))
     }
 
@@ -703,11 +703,11 @@ impl TypeChecker {
             ]));
             let mut iteration_types_cache = self.iteration_types_cache();
             let iteration_types = iteration_types_cache.entry(id).or_insert_with(|| {
-                Gc::new(IterationTypes::new(yield_type, return_type, next_type))
+                self.alloc_iteration_types(IterationTypes::new(yield_type, return_type, next_type))
             });
             return iteration_types.clone();
         }
-        Gc::new(IterationTypes::new(yield_type, return_type, next_type))
+        self.alloc_iteration_types(IterationTypes::new(yield_type, return_type, next_type))
     }
 
     pub(super) fn combine_iteration_types(
@@ -722,10 +722,10 @@ impl TypeChecker {
                 continue;
             }
             let iteration_types = iteration_types.clone().unwrap();
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 continue;
             }
-            if Gc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
+            if iteration_types == self.any_iteration_types() {
                 return Ok(self.any_iteration_types());
             }
             if yield_types.is_none() {
@@ -733,21 +733,21 @@ impl TypeChecker {
             }
             append(
                 yield_types.as_mut().unwrap(),
-                Some(iteration_types.yield_type()),
+                Some(iteration_types.ref_(self).yield_type()),
             );
             if return_types.is_none() {
                 return_types = Some(vec![]);
             }
             append(
                 return_types.as_mut().unwrap(),
-                Some(iteration_types.return_type()),
+                Some(iteration_types.ref_(self).return_type()),
             );
             if next_types.is_none() {
                 next_types = Some(vec![]);
             }
             append(
                 next_types.as_mut().unwrap(),
-                Some(iteration_types.next_type()),
+                Some(iteration_types.ref_(self).next_type()),
             );
         }
         if yield_types.is_some() || return_types.is_some() || next_types.is_some() {
@@ -799,7 +799,7 @@ impl TypeChecker {
         if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(type_, use_, error_node)?;
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 if let Some(error_node) = error_node {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -818,8 +818,8 @@ impl TypeChecker {
             IterationTypeCacheKey::IterationTypesOfIterable
         };
         let cached_types = self.get_cached_iteration_types(type_, cache_key);
-        if let Some(cached_types) = cached_types.as_ref() {
-            return Ok(if Gc::ptr_eq(cached_types, &self.no_iteration_types()) {
+        if let Some(cached_types) = cached_types {
+            return Ok(if cached_types == self.no_iteration_types() {
                 None
             } else {
                 Some(cached_types.clone())
@@ -833,7 +833,7 @@ impl TypeChecker {
                 use_,
                 error_node,
             )?;
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 if let Some(error_node) = error_node {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -863,7 +863,7 @@ impl TypeChecker {
         };
         self.set_cached_iteration_types(type_, cache_key, iteration_types.clone());
         Ok(
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 None
             } else {
                 Some(iteration_types)

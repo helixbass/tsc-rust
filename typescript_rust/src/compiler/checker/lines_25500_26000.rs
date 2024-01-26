@@ -429,7 +429,7 @@ impl TypeChecker {
                             use_,
                             Option::<Id<Node>>::None,
                         )?);
-                    contextual_return_type = iteration_types.return_type();
+                    contextual_return_type = iteration_types.ref_(self).return_type();
                 }
 
                 if function_flags.intersects(FunctionFlags::Async) {

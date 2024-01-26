@@ -11,7 +11,7 @@ use crate::{
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
-    ParenthesizerRules,
+    ParenthesizerRules, IterationTypes,
 };
 
 #[derive(Default)]
@@ -51,6 +51,7 @@ pub struct AllArenas {
     pub index_infos: RefCell<Arena<IndexInfo>>,
     pub current_parenthesizer_rules: RefCell<Arena<Box<dyn CurrentParenthesizerRule>>>,
     pub parenthesizer_rules: RefCell<Arena<Box<dyn ParenthesizerRules>>>,
+    pub iteration_types: RefCell<Arena<IterationTypes>>,
 }
 
 pub trait HasArena {
@@ -310,6 +311,14 @@ pub trait HasArena {
 
     fn alloc_parenthesizer_rules(&self, parenthesizer_rules: Box<dyn ParenthesizerRules>) -> Id<Box<dyn ParenthesizerRules>> {
         self.arena().alloc_parenthesizer_rules(parenthesizer_rules)
+    }
+
+    fn iteration_types(&self, iteration_types: Id<IterationTypes>) -> Ref<IterationTypes> {
+        self.arena().iteration_types(iteration_types)
+    }
+
+    fn alloc_iteration_types(&self, iteration_types: IterationTypes) -> Id<IterationTypes> {
+        self.arena().alloc_iteration_types(iteration_types)
     }
 }
 
@@ -646,6 +655,16 @@ impl HasArena for AllArenas {
         let id = self.parenthesizer_rules.borrow_mut().alloc(parenthesizer_rules);
         id
     }
+
+    #[track_caller]
+    fn iteration_types(&self, iteration_types: Id<IterationTypes>) -> Ref<IterationTypes> {
+        Ref::map(self.iteration_types.borrow(), |iteration_types_| &iteration_types_[iteration_types])
+    }
+
+    fn alloc_iteration_types(&self, iteration_types: IterationTypes) -> Id<IterationTypes> {
+        let id = self.iteration_types.borrow_mut().alloc(iteration_types);
+        id
+    }
 }
 
 pub trait InArena {
@@ -908,6 +927,14 @@ impl InArena for Id<Box<dyn ParenthesizerRules>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ParenthesizerRules>> {
         has_arena.parenthesizer_rules(*self)
+    }
+}
+
+impl InArena for Id<IterationTypes> {
+    type Item = IterationTypes;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, IterationTypes> {
+        has_arena.iteration_types(*self)
     }
 }
 

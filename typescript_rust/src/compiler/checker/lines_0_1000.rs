@@ -683,7 +683,7 @@ pub fn create_type_checker(
         enum_number_index_info: Default::default(),
 
         iteration_types_cache: Default::default(),
-        no_iteration_types: Gc::new(IterationTypes::new_no_iteration_types()),
+        no_iteration_types: arena_ref.alloc_iteration_types(IterationTypes::new_no_iteration_types()),
 
         any_iteration_types: Default::default(),
         any_iteration_types_except_next: Default::default(),

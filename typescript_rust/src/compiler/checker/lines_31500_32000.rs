@@ -560,13 +560,13 @@ impl TypeChecker {
             };
             let iterable_iterator_return_type =
                 if let Some(iteration_types) = iteration_types.as_ref() {
-                    iteration_types.return_type()
+                    iteration_types.ref_(self).return_type()
                 } else {
                     self.any_type()
                 };
             let iterable_iterator_next_type =
                 if let Some(iteration_types) = iteration_types.as_ref() {
-                    iteration_types.next_type()
+                    iteration_types.ref_(self).next_type()
                 } else {
                     self.undefined_type()
                 };
@@ -635,7 +635,7 @@ impl TypeChecker {
                         },
                         yield_expression_as_yield_expression.expression,
                     )?;
-                    next_type = iteration_types.map(|iteration_types| iteration_types.next_type());
+                    next_type = iteration_types.map(|iteration_types| iteration_types.ref_(self).next_type());
                 } else {
                     next_type = self.get_contextual_type_(yield_expression, None)?;
                 }
