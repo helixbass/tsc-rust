@@ -292,6 +292,7 @@ impl TypeChecker {
                         .build()
                         .unwrap(),
                     None,
+                    self,
                 )
             } else {
                 create_printer(
@@ -300,6 +301,7 @@ impl TypeChecker {
                         .build()
                         .unwrap(),
                     None,
+                    self,
                 )
             };
             let source_file = enclosing_declaration
@@ -395,6 +397,7 @@ impl TypeChecker {
                 .build()
                 .unwrap(),
             None,
+            self,
         );
         let source_file = enclosing_declaration
             .and_then(|enclosing_declaration| {
@@ -447,7 +450,7 @@ impl TypeChecker {
             .remove_comments(Some(type_ != self.unresolved_type()))
             .build()
             .unwrap();
-        let printer = create_printer(options, None);
+        let printer = create_printer(options, None, self);
         let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
             maybe_get_source_file_of_node(Some(enclosing_declaration), self)
         });
