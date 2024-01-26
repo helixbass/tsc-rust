@@ -716,19 +716,19 @@ impl TypeChecker {
 
     pub(super) fn clone_signature(&self, sig: Id<Signature>) -> Signature {
         let mut result = self.create_signature(
-            sig.declaration.clone(),
-            sig.maybe_type_parameters().clone(),
-            sig.maybe_this_parameter().clone(),
-            sig.parameters().to_owned(),
+            sig.ref_(self).declaration.clone(),
+            sig.ref_(self).maybe_type_parameters().clone(),
+            sig.ref_(self).maybe_this_parameter().clone(),
+            sig.ref_(self).parameters().to_owned(),
             None,
             None,
-            sig.min_argument_count(),
-            sig.flags & SignatureFlags::PropagatingFlags,
+            sig.ref_(self).min_argument_count(),
+            sig.ref_(self).flags & SignatureFlags::PropagatingFlags,
         );
-        result.target = sig.target.clone();
-        result.mapper = sig.mapper.clone();
-        result.composite_signatures = sig.composite_signatures.clone();
-        result.composite_kind = sig.composite_kind;
+        result.target = sig.ref_(self).target.clone();
+        result.mapper = sig.ref_(self).mapper.clone();
+        result.composite_signatures = sig.ref_(self).composite_signatures.clone();
+        result.composite_kind = sig.ref_(self).composite_kind;
         result
     }
 
@@ -780,7 +780,7 @@ impl TypeChecker {
         if let Some(existing) = existing {
             return existing;
         }
-        let ret = self.alloc_signature(self.create_optional_call_signature(&signature.ref_(self), call_chain_flags));
+        let ret = self.alloc_signature(self.create_optional_call_signature(signature, call_chain_flags));
         if key == "inner" {
             signature
                 .ref_(self).maybe_optional_call_signature_cache()
@@ -818,8 +818,8 @@ impl TypeChecker {
     ) -> io::Result<Vec<Vec<Id<Symbol>>>> {
         let skip_union_expanding = skip_union_expanding.unwrap_or(false);
         if signature_has_rest_parameter(sig) {
-            let rest_index = sig.parameters().len() - 1;
-            let rest_type = self.get_type_of_symbol(sig.parameters()[rest_index])?;
+            let rest_index = sig.ref_(self).parameters().len() - 1;
+            let rest_type = self.get_type_of_symbol(sig.ref_(self).parameters()[rest_index])?;
             if self.is_tuple_type(rest_type) {
                 return Ok(vec![self.expand_signature_parameters_with_tuple_members(
                     sig, rest_type, rest_index,
@@ -846,7 +846,7 @@ impl TypeChecker {
                 );
             }
         }
-        Ok(vec![sig.parameters().to_owned()])
+        Ok(vec![sig.ref_(self).parameters().to_owned()])
     }
 
     pub(super) fn expand_signature_parameters_with_tuple_members(
@@ -893,7 +893,7 @@ impl TypeChecker {
             Ok(symbol)
         })?;
         Ok(concatenate(
-            sig.parameters()[0..rest_index].to_owned(),
+            sig.ref_(self).parameters()[0..rest_index].to_owned(),
             rest_params,
         ))
     }
@@ -957,7 +957,7 @@ impl TypeChecker {
                         .as_deref(),
                     )?
                 } else {
-                    self.clone_signature(&base_sig.ref_(self))
+                    self.clone_signature(base_sig)
                 };
                 *sig.maybe_type_parameters_mut() = class_type
                     .ref_(self)
@@ -1064,7 +1064,7 @@ impl TypeChecker {
                     -1
                 });
             }
-            for signature in signature_list {
+            for &signature in signature_list {
                 if match result.as_deref() {
                     None => true,
                     Some(result) => self
@@ -1102,7 +1102,7 @@ impl TypeChecker {
                                 ));
                             }
                             let s_not_wrapped =
-                                self.create_union_signature(&signature.ref_(self), union_signatures);
+                                self.create_union_signature(signature, union_signatures);
                             *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
                             s = self.alloc_signature(s_not_wrapped);
                         }

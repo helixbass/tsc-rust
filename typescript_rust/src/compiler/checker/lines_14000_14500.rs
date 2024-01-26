@@ -916,8 +916,8 @@ impl TypeChecker {
     ) -> io::Result<Option<TypePredicate>> {
         let mut first: Option<Gc<TypePredicate>> = None;
         let mut types: Vec<Id<Type>> = vec![];
-        for sig in signatures {
-            let pred = self.get_type_predicate_of_signature(&sig.ref_(self))?;
+        for &sig in signatures {
+            let pred = self.get_type_predicate_of_signature(sig)?;
             if match pred.as_ref() {
                 None => true,
                 Some(pred) => matches!(

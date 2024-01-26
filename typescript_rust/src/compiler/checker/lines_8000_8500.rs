@@ -638,7 +638,7 @@ impl TypeChecker {
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
             TypeSystemPropertyName::ResolvedReturnType => {
-                target.as_signature().maybe_resolved_return_type().is_some()
+                target.as_signature().ref_(self).maybe_resolved_return_type().is_some()
             }
             TypeSystemPropertyName::ImmediateBaseConstraint => target
                 .as_type()

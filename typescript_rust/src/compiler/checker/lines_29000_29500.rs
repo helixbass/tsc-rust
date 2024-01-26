@@ -175,9 +175,9 @@ impl TypeChecker {
         signature: Id<Signature>,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> bool {
-        let num_type_parameters = length(signature.maybe_type_parameters().as_deref());
+        let num_type_parameters = length(signature.ref_(self).maybe_type_parameters().as_deref());
         let min_type_argument_count =
-            self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref());
+            self.get_min_type_argument_count(signature.ref_(self).maybe_type_parameters().as_deref());
         !some(
             type_arguments.map(|type_arguments| &**type_arguments),
             Option::<fn(&Id<Node>) -> bool>::None,
@@ -279,7 +279,7 @@ impl TypeChecker {
             InferenceFlags::None,
             compare_types,
         );
-        let rest_type = self.get_effective_rest_type(&contextual_signature.ref_(self))?;
+        let rest_type = self.get_effective_rest_type(contextual_signature)?;
         let mapper = inference_context.map(|inference_context| {
             if matches!(
                 rest_type,
@@ -296,8 +296,8 @@ impl TypeChecker {
             contextual_signature.clone()
         };
         self.apply_to_parameter_types(
-            &source_signature.ref_(self),
-            &signature.ref_(self),
+            source_signature,
+            signature,
             |source: Id<Type>, target: Id<Type>| {
                 self.infer_types(&context.inferences(), source, target, None, None)
             },
@@ -469,9 +469,9 @@ impl TypeChecker {
             }
         }
 
-        let rest_type = self.get_non_array_rest_type(&signature.ref_(self))?;
+        let rest_type = self.get_non_array_rest_type(signature)?;
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature.ref_(self))? - 1, args.len())
+            cmp::min(self.get_parameter_count(signature)? - 1, args.len())
         } else {
             args.len()
         };
@@ -502,7 +502,7 @@ impl TypeChecker {
             }
         }
 
-        let this_type = self.get_this_type_of_signature(&signature.ref_(self))?;
+        let this_type = self.get_this_type_of_signature(signature)?;
         if let Some(this_type) = this_type {
             let this_argument_node = self.get_this_argument_of_call(node);
             self.infer_types(
@@ -517,7 +517,7 @@ impl TypeChecker {
         for i in 0..arg_count {
             let arg = args[i];
             if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature.ref_(self), i)?;
+                let param_type = self.get_type_at_position(signature, i)?;
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
                     param_type,
@@ -870,19 +870,19 @@ impl TypeChecker {
 
         let mut has_first_param_signatures = false;
         let mut max_param_count = 0;
-        for sig in &call_signatures {
-            let firstparam = self.get_type_at_position(&sig.ref_(self), 0)?;
+        for &sig in &call_signatures {
+            let firstparam = self.get_type_at_position(sig, 0)?;
             let signatures_of_param =
                 self.get_signatures_of_type(firstparam, SignatureKind::Call)?;
             if length(Some(&*signatures_of_param)) == 0 {
                 continue;
             }
-            for param_sig in &signatures_of_param {
+            for &param_sig in &signatures_of_param {
                 has_first_param_signatures = true;
-                if self.has_effective_rest_parameter(&param_sig.ref_(self))? {
+                if self.has_effective_rest_parameter(param_sig)? {
                     return Ok(true);
                 }
-                let param_count = self.get_parameter_count(&param_sig.ref_(self))?;
+                let param_count = self.get_parameter_count(param_sig)?;
                 if param_count > max_param_count {
                     max_param_count = param_count;
                 }
@@ -892,8 +892,8 @@ impl TypeChecker {
             return Ok(true);
         }
         let mut absolute_min_arg_count = usize::MAX;
-        for tag_sig in &tag_call_signatures {
-            let tag_required_arg_count = self.get_min_argument_count(&tag_sig.ref_(self), None)?;
+        for &tag_sig in &tag_call_signatures {
+            let tag_required_arg_count = self.get_min_argument_count(tag_sig, None)?;
             if tag_required_arg_count < absolute_min_arg_count {
                 absolute_min_arg_count = tag_required_arg_count;
             }
@@ -983,7 +983,7 @@ impl TypeChecker {
             }
             return Ok(None);
         }
-        let this_type = self.get_this_type_of_signature(&signature.ref_(self))?;
+        let this_type = self.get_this_type_of_signature(signature)?;
         if let Some(this_type) = this_type.filter(|&this_type| {
             this_type != self.void_type() && node.ref_(self).kind() != SyntaxKind::NewExpression
         }) {
@@ -1016,16 +1016,16 @@ impl TypeChecker {
         }
         let head_message =
             &Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
-        let rest_type = self.get_non_array_rest_type(&signature.ref_(self))?;
+        let rest_type = self.get_non_array_rest_type(signature)?;
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature.ref_(self))? - 1, args.len())
+            cmp::min(self.get_parameter_count(signature)? - 1, args.len())
         } else {
             args.len()
         };
         for i in 0..arg_count {
             let arg = args[i];
             if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature.ref_(self), i)?;
+                let param_type = self.get_type_at_position(signature, i)?;
                 let arg_type =
                     self.check_expression_with_contextual_type(arg, param_type, None, check_mode)?;
                 let check_arg_type = if check_mode.intersects(CheckMode::SkipContextSensitive) {

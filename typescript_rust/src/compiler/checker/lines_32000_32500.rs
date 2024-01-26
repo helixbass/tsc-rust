@@ -62,7 +62,7 @@ impl TypeChecker {
                         return Ok(links_context_free_type);
                     }
                     let return_type = self.get_return_type_from_body(node, check_mode)?;
-                    let return_only_signature = Gc::new(self.create_signature(
+                    let return_only_signature = self.alloc_signature(self.create_signature(
                         None,
                         None,
                         None,
@@ -128,11 +128,9 @@ impl TypeChecker {
                     self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?,
                     SignatureKind::Call,
                 )?;
-                let signature = first_or_undefined(&signatures_of_type);
-                if signature.is_none() {
+                let Some(signature) = first_or_undefined(&signatures_of_type).copied() else {
                     return Ok(());
-                }
-                let signature = signature.unwrap();
+                };
                 if self.is_context_sensitive(node)? {
                     if let Some(contextual_signature) = contextual_signature.as_ref() {
                         let inference_context = self.get_inference_context(node);
@@ -148,7 +146,7 @@ impl TypeChecker {
                         }
                         let instantiated_contextual_signature =
                             if let Some(inference_context) = inference_context.as_ref() {
-                                Gc::new(self.instantiate_signature(
+                                self.alloc_signature(self.instantiate_signature(
                                     contextual_signature.clone(),
                                     inference_context.mapper(),
                                     None,
@@ -166,11 +164,11 @@ impl TypeChecker {
                 }
                 if contextual_signature.is_some()
                     && self.get_return_type_from_annotation(node)?.is_none()
-                    && signature.maybe_resolved_return_type().is_none()
+                    && signature.ref_(self).maybe_resolved_return_type().is_none()
                 {
                     let return_type = self.get_return_type_from_body(node, check_mode)?;
-                    if signature.maybe_resolved_return_type().is_none() {
-                        *signature.maybe_resolved_return_type_mut() = Some(return_type);
+                    if signature.ref_(self).maybe_resolved_return_type().is_none() {
+                        *signature.ref_(self).maybe_resolved_return_type_mut() = Some(return_type);
                     }
                 }
                 self.check_signature_declaration(node)?;

@@ -257,7 +257,7 @@ impl TypeChecker {
             return Ok(type_);
         }
         let contextual_signature = self.get_contextual_signature(func)?;
-        if let Some(contextual_signature) = contextual_signature.as_ref() {
+        if let Some(contextual_signature) = contextual_signature {
             let index = func_as_function_like_declaration
                 .parameters()
                 .into_iter()
@@ -277,9 +277,9 @@ impl TypeChecker {
                         Some(&last) if last == parameter
                     )
                 {
-                    Some(self.get_rest_type_at_position(&contextual_signature.ref_(self), index)?)
+                    Some(self.get_rest_type_at_position(contextual_signature, index)?)
                 } else {
-                    self.try_get_type_at_position(&contextual_signature.ref_(self), index)?
+                    self.try_get_type_at_position(contextual_signature, index)?
                 },
             );
         }
@@ -626,7 +626,7 @@ impl TypeChecker {
         }
         let rest_index = TryInto::<isize>::try_into(signature.ref_(self).parameters().len()).unwrap() - 1;
         Ok(
-            if signature_has_rest_parameter(&signature.ref_(self))
+            if signature_has_rest_parameter(signature)
                 && TryInto::<isize>::try_into(arg_index).unwrap() >= rest_index
             {
                 let rest_index: usize = rest_index.try_into().unwrap();
@@ -639,7 +639,7 @@ impl TypeChecker {
                     None,
                 )?
             } else {
-                self.get_type_at_position(&signature.ref_(self), arg_index)?
+                self.get_type_at_position(signature, arg_index)?
             },
         )
     }

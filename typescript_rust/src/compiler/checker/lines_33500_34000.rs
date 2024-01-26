@@ -305,8 +305,7 @@ impl TypeChecker {
                 .clone()
                 .or_else(|| construct_signature.clone());
             if let Some(signature) = signature
-                .as_ref()
-                .filter(|signature| signature.maybe_type_parameters().is_some())
+                .filter(|signature| signature.ref_(self).maybe_type_parameters().is_some())
             {
                 let contextual_type = self.get_apparent_type_of_contextual_type(
                     node,
@@ -324,9 +323,8 @@ impl TypeChecker {
                     )?;
                     if let Some(contextual_signature) =
                         contextual_signature
-                            .as_ref()
                             .filter(|contextual_signature| {
-                                contextual_signature.maybe_type_parameters().is_none()
+                                contextual_signature.ref_(self).maybe_type_parameters().is_none()
                             })
                     {
                         if check_mode.intersects(CheckMode::SkipGenericFunctions) {
@@ -341,8 +339,8 @@ impl TypeChecker {
                         let return_signature = return_type.try_and_then(|return_type| {
                             self.get_single_call_or_construct_signature(return_type)
                         })?;
-                        if return_signature.as_ref().matches(|return_signature| {
-                            return_signature.maybe_type_parameters().is_none()
+                        if return_signature.matches(|return_signature| {
+                            return_signature.ref_(self).maybe_type_parameters().is_none()
                                 && !every(
                                     &context.inferences(),
                                     |inference: &Gc<InferenceInfo>, _| {
@@ -352,7 +350,7 @@ impl TypeChecker {
                         }) {
                             let unique_type_parameters = self.get_unique_type_parameters(
                                 &context,
-                                signature.maybe_type_parameters().as_ref().unwrap(),
+                                signature.ref_(self).maybe_type_parameters().as_ref().unwrap(),
                             );
                             let instantiated_signature = self
                                 .get_signature_instantiation_without_filling_in_type_arguments(
@@ -364,7 +362,7 @@ impl TypeChecker {
                                     Gc::new(self.create_inference_info(info.type_parameter))
                                 });
                             self.apply_to_parameter_types(
-                                &instantiated_signature,
+                                instantiated_signature,
                                 contextual_signature,
                                 |source: Id<Type>, target: Id<Type>| {
                                     self.infer_types(
@@ -570,7 +568,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let signature = self.get_single_call_signature(func_type)?;
         signature
-            .filter(|signature| signature.maybe_type_parameters().is_none())
+            .filter(|signature| signature.ref_(self).maybe_type_parameters().is_none())
             .try_map(|signature| self.get_return_type_of_signature(signature))
     }
 

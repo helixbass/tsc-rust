@@ -758,7 +758,7 @@ impl TypeChecker {
                 let container = get_this_container(node, false, self);
                 if is_function_like(Some(&container.ref_(self))) {
                     let sig = self.get_signature_from_declaration_(container)?;
-                    let sig_this_parameter = sig.maybe_this_parameter().clone();
+                    let sig_this_parameter = sig.ref_(self).maybe_this_parameter().clone();
                     if sig_this_parameter.is_some() {
                         return Ok(sig_this_parameter);
                     }

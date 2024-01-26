@@ -260,8 +260,8 @@ impl GetFlowTypeOfReference {
             } else {
                 None
             };
-            let predicate = signature.as_ref().try_and_then(|signature| {
-                self.type_checker.get_type_predicate_of_signature(&signature.ref_(self))
+            let predicate = signature.try_and_then(|signature| {
+                self.type_checker.get_type_predicate_of_signature(signature)
             })?;
             if let Some(predicate) = predicate.as_ref().filter(|predicate| {
                 matches!(

@@ -931,7 +931,7 @@ impl TypeChecker {
                     )? {
                         if !self.check_type_argument_constraints(
                             base_type_node,
-                            constructor.maybe_type_parameters().as_ref().unwrap(),
+                            constructor.ref_(self).maybe_type_parameters().as_ref().unwrap(),
                         )? {
                             break;
                         }
@@ -986,7 +986,7 @@ impl TypeChecker {
                         )?;
                         if construct_signatures
                             .iter()
-                            .any(|signature| signature.flags.intersects(SignatureFlags::Abstract))
+                            .any(|signature| signature.ref_(self).flags.intersects(SignatureFlags::Abstract))
                             && !has_syntactic_modifier(node, ModifierFlags::Abstract, self)
                         {
                             self.error(
@@ -1016,7 +1016,7 @@ impl TypeChecker {
                     if try_for_each_bool(
                         &constructors,
                         |sig: &Id<Signature>, _| -> io::Result<_> {
-                            Ok(!self.is_js_constructor(sig.declaration)?
+                            Ok(!self.is_js_constructor(sig.ref_(self).declaration)?
                                 && !self.is_type_identical_to(
                                     self.get_return_type_of_signature(sig.clone())?,
                                     base_type,

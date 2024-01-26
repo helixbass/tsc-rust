@@ -291,7 +291,7 @@ impl NodeBuilder {
 
         let expanded_params = self
             .type_checker
-            .get_expanded_parameters(&signature.ref_(self), Some(true))?
+            .get_expanded_parameters(signature, Some(true))?
             .into_iter()
             .next()
             .unwrap();
@@ -333,7 +333,7 @@ impl NodeBuilder {
         let mut return_type_node: Option<Id<Node /*TypeNode*/>> = None;
         let type_predicate = self
             .type_checker
-            .get_type_predicate_of_signature(&signature.ref_(self))?;
+            .get_type_predicate_of_signature(signature)?;
         if let Some(type_predicate) = type_predicate.as_ref() {
             let asserts_modifier: Option<Id<Node>> = if matches!(
                 type_predicate.kind,
@@ -375,7 +375,7 @@ impl NodeBuilder {
                     self.serialize_return_type_for_signature(
                         context,
                         return_type,
-                        &signature.ref_(self),
+                        signature,
                         options
                             .as_ref()
                             .and_then(|options| options.private_symbol_visitor.as_ref()),

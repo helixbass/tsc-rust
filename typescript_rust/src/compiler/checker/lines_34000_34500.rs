@@ -211,7 +211,7 @@ impl TypeChecker {
 
         let signature = self.get_signature_from_declaration_(parent)?;
         let type_predicate =
-            return_ok_default_if_none!(self.get_type_predicate_of_signature(&signature)?);
+            return_ok_default_if_none!(self.get_type_predicate_of_signature(signature)?);
 
         let node_ref = node.ref_(self);
         let node_as_type_predicate_node = node_ref.as_type_predicate_node();
@@ -226,8 +226,8 @@ impl TypeChecker {
         } else {
             #[allow(clippy::suspicious_else_formatting)]
             if let Some(type_predicate_parameter_index) = type_predicate.parameter_index {
-                if signature_has_rest_parameter(&signature)
-                    && type_predicate_parameter_index == signature.parameters().len() - 1
+                if signature_has_rest_parameter(&signature.ref_(self))
+                    && type_predicate_parameter_index == signature.ref_(self).parameters().len() - 1
                 {
                     self.error(
                         Some(parameter_name),
@@ -241,7 +241,7 @@ impl TypeChecker {
                         self.check_type_assignable_to(
                             type_predicate_type,
                             self.get_type_of_symbol(
-                                signature.parameters()[type_predicate_parameter_index],
+                                signature.ref_(self).parameters()[type_predicate_parameter_index],
                             )?,
                             node_as_type_predicate_node.type_,
                             None,

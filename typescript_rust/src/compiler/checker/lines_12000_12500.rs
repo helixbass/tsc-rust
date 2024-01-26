@@ -928,7 +928,7 @@ impl TypeChecker {
             let parameter_index: usize = parameter_index.try_into().unwrap();
             return Ok(parameter_index
                 >= self.get_min_argument_count(
-                    &signature.ref_(self),
+                    signature,
                     Some(
                         MinArgumentCountFlags::StrongArityForUntypedJS
                             | MinArgumentCountFlags::VoidIsNonOptional,

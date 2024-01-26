@@ -25,7 +25,7 @@ impl TypeChecker {
         signature: Id<Signature>,
         fallback_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        Ok(if !signature.parameters().is_empty() {
+        Ok(if !signature.ref_(self).parameters().is_empty() {
             self.get_type_at_position(signature, 0)?
         } else {
             fallback_type
@@ -38,14 +38,14 @@ impl TypeChecker {
         context: Id<Signature>,
         inference_context: &InferenceContext,
     ) -> io::Result<()> {
-        let len = signature.parameters().len()
+        let len = signature.ref_(self).parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
             } else {
                 0
             };
         for i in 0..len {
-            let declaration = signature.parameters()[i]
+            let declaration = signature.ref_(self).parameters()[i]
                 .ref_(self)
                 .maybe_value_declaration()
                 .unwrap();
@@ -59,27 +59,27 @@ impl TypeChecker {
                     self.infer_types(
                         &inference_context.inferences(),
                         self.get_type_from_type_node_(type_node)?,
-                        self.get_type_at_position(&context, i)?,
+                        self.get_type_at_position(context, i)?,
                         None,
                         None,
                     )?;
                 }
             }
         }
-        let rest_type = self.get_effective_rest_type(&context)?;
+        let rest_type = self.get_effective_rest_type(context)?;
         if let Some(rest_type) = rest_type.filter(|&rest_type| {
             rest_type
                 .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
         }) {
-            let instantiated_context = self.instantiate_signature(
+            let instantiated_context = self.alloc_signature(self.instantiate_signature(
                 context.clone(),
                 inference_context.non_fixing_mapper(),
                 None,
-            )?;
-            self.assign_contextual_parameter_types(signature, &instantiated_context)?;
-            let rest_pos = self.get_parameter_count(&context)? - 1;
+            )?);
+            self.assign_contextual_parameter_types(signature, instantiated_context)?;
+            let rest_pos = self.get_parameter_count(context)? - 1;
             self.infer_types(
                 &inference_context.inferences(),
                 self.get_rest_type_at_position(signature, rest_pos)?,
@@ -97,15 +97,15 @@ impl TypeChecker {
         signature: Id<Signature>,
         context: Id<Signature>,
     ) -> io::Result<()> {
-        if let Some(context_type_parameters) = context.maybe_type_parameters().as_ref() {
-            if signature.maybe_type_parameters().is_none() {
-                *signature.maybe_type_parameters_mut() = Some(context_type_parameters.clone());
+        if let Some(context_type_parameters) = context.ref_(self).maybe_type_parameters().as_ref() {
+            if signature.ref_(self).maybe_type_parameters().is_none() {
+                *signature.ref_(self).maybe_type_parameters_mut() = Some(context_type_parameters.clone());
             } else {
                 return Ok(());
             }
         }
-        if let Some(context_this_parameter) = *context.maybe_this_parameter() {
-            let parameter = signature.maybe_this_parameter().clone();
+        if let Some(context_this_parameter) = *context.ref_(self).maybe_this_parameter() {
+            let parameter = signature.ref_(self).maybe_this_parameter().clone();
             if match parameter {
                 None => true,
                 Some(parameter) => matches!(
@@ -114,23 +114,23 @@ impl TypeChecker {
                 ),
             } {
                 if parameter.is_none() {
-                    *signature.maybe_this_parameter_mut() =
+                    *signature.ref_(self).maybe_this_parameter_mut() =
                         Some(self.create_symbol_with_type(context_this_parameter, None));
                 }
                 self.assign_parameter_type(
-                    signature.maybe_this_parameter().unwrap(),
+                    signature.ref_(self).maybe_this_parameter().unwrap(),
                     Some(self.get_type_of_symbol(context_this_parameter)?),
                 )?;
             }
         }
-        let len = signature.parameters().len()
+        let len = signature.ref_(self).parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
             } else {
                 0
             };
         for i in 0..len {
-            let parameter = signature.parameters()[i];
+            let parameter = signature.ref_(self).parameters()[i];
             if get_effective_type_annotation_node(
                 parameter.ref_(self).maybe_value_declaration().unwrap(),
                 self,
@@ -141,8 +141,8 @@ impl TypeChecker {
                 self.assign_parameter_type(parameter, contextual_parameter_type)?;
             }
         }
-        if signature_has_rest_parameter(signature) {
-            let parameter = *last(signature.parameters());
+        if signature_has_rest_parameter(&signature.ref_(self)) {
+            let parameter = *last(signature.ref_(self).parameters());
             if is_transient_symbol(&parameter.ref_(self))
                 || get_effective_type_annotation_node(
                     parameter.ref_(self).maybe_value_declaration().unwrap(),
@@ -162,10 +162,10 @@ impl TypeChecker {
         &self,
         signature: Id<Signature>,
     ) -> io::Result<()> {
-        if let Some(signature_this_parameter) = *signature.maybe_this_parameter() {
+        if let Some(signature_this_parameter) = *signature.ref_(self).maybe_this_parameter() {
             self.assign_parameter_type(signature_this_parameter, None)?;
         }
-        for &parameter in signature.parameters() {
+        for &parameter in signature.ref_(self).parameters() {
             self.assign_parameter_type(parameter, None)?;
         }
 
@@ -454,10 +454,7 @@ impl TypeChecker {
                 let contextual_type =
                     contextual_signature.try_and_then(|contextual_signature| -> io::Result<_> {
                         Ok(
-                            if Gc::ptr_eq(
-                                &contextual_signature,
-                                &self.get_signature_from_declaration_(func)?,
-                            ) {
+                            if contextual_signature == self.get_signature_from_declaration_(func)? {
                                 if is_generator {
                                     None
                                 } else {

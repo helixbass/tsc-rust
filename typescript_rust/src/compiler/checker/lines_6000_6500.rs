@@ -759,7 +759,7 @@ impl NodeBuilder {
                 context.maybe_enclosing_declaration()
             {
                 let annotation = signature
-                    .declaration
+                    .ref_(self).declaration
                     .and_then(|signature_declaration| {
                         get_effective_return_type_node(signature_declaration, self)
                     });
@@ -777,7 +777,7 @@ impl NodeBuilder {
                             && annotated.ref_(self).as_type_parameter().is_this_type == Some(true)
                         {
                             self.type_checker
-                                .instantiate_type(annotated, signature.mapper.clone())?
+                                .instantiate_type(annotated, signature.ref_(self).mapper.clone())?
                         } else {
                             annotated
                         };

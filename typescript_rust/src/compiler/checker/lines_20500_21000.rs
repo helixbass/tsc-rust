@@ -29,7 +29,7 @@ impl TypeChecker {
         if source == target {
             return Ok(Ternary::True);
         }
-        if !self.is_matching_signature(&source.ref_(self), &target.ref_(self), partial_match)? {
+        if !self.is_matching_signature(source, target, partial_match)? {
             return Ok(Ternary::False);
         }
         if length(source.ref_(self).maybe_type_parameters().as_deref())
@@ -73,9 +73,9 @@ impl TypeChecker {
         }
         let mut result = Ternary::True;
         if !ignore_this_types {
-            let source_this_type = self.get_this_type_of_signature(&source.ref_(self))?;
+            let source_this_type = self.get_this_type_of_signature(source)?;
             if let Some(source_this_type) = source_this_type {
-                let target_this_type = self.get_this_type_of_signature(&target.ref_(self))?;
+                let target_this_type = self.get_this_type_of_signature(target)?;
                 if let Some(target_this_type) = target_this_type {
                     let related = compare_types(source_this_type, target_this_type)?;
                     if related == Ternary::False {
@@ -85,10 +85,10 @@ impl TypeChecker {
                 }
             }
         }
-        let target_len = self.get_parameter_count(&target.ref_(self))?;
+        let target_len = self.get_parameter_count(target)?;
         for i in 0..target_len {
-            let s = self.get_type_at_position(&source.ref_(self), i)?;
-            let t = self.get_type_at_position(&target.ref_(self), i)?;
+            let s = self.get_type_at_position(source, i)?;
+            let t = self.get_type_at_position(target, i)?;
             let related = compare_types(t, s)?;
             if related == Ternary::False {
                 return Ok(Ternary::False);
@@ -96,8 +96,8 @@ impl TypeChecker {
             result &= related;
         }
         if !ignore_return_types {
-            let source_type_predicate = self.get_type_predicate_of_signature(&source.ref_(self))?;
-            let target_type_predicate = self.get_type_predicate_of_signature(&target.ref_(self))?;
+            let source_type_predicate = self.get_type_predicate_of_signature(source)?;
+            let target_type_predicate = self.get_type_predicate_of_signature(target)?;
             result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
                 self.try_compare_type_predicates_identical(
                     source_type_predicate,

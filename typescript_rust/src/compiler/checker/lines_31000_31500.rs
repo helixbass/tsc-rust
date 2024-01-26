@@ -636,20 +636,20 @@ impl TypeChecker {
         pos: usize,
         override_rest_type: Option<Id<Type>>,
     ) -> io::Result<__String> {
-        let param_count = signature.parameters().len()
+        let param_count = signature.ref_(self).parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
             } else {
                 0
             };
         if pos < param_count {
-            return Ok(signature.parameters()[pos]
+            return Ok(signature.ref_(self).parameters()[pos]
                 .ref_(self)
                 .escaped_name()
                 .to_owned());
         }
         let rest_parameter = signature
-            .parameters()
+            .ref_(self).parameters()
             .get(param_count)
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
@@ -676,14 +676,14 @@ impl TypeChecker {
         signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<(__String, bool)>> {
-        let param_count = signature.parameters().len()
+        let param_count = signature.ref_(self).parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
             } else {
                 0
             };
         if pos < param_count {
-            let param = signature.parameters()[pos];
+            let param = signature.ref_(self).parameters()[pos];
             return Ok(
                 if self.is_parameter_declaration_with_identifier_name(param) {
                     Some((param.ref_(self).escaped_name().to_owned(), false))
@@ -694,7 +694,7 @@ impl TypeChecker {
         }
 
         let rest_parameter = signature
-            .parameters()
+            .ref_(self).parameters()
             .get(param_count)
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
@@ -758,20 +758,20 @@ impl TypeChecker {
         signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<Id<Node>>> {
-        let param_count = signature.parameters().len()
+        let param_count = signature.ref_(self).parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
             } else {
                 0
             };
         if pos < param_count {
-            let decl = signature.parameters()[pos]
+            let decl = signature.ref_(self).parameters()[pos]
                 .ref_(self)
                 .maybe_value_declaration();
             return Ok(decl.filter(|&decl| self.is_valid_declaration_for_tuple_label(decl)));
         }
         let rest_parameter = signature
-            .parameters()
+            .ref_(self).parameters()
             .get(param_count)
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
@@ -809,7 +809,7 @@ impl TypeChecker {
         signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<Id<Type>>> {
-        let param_count = signature.parameters().len()
+        let param_count = signature.ref_(self).parameters().len()
             - if signature_has_rest_parameter(signature) {
                 1
             } else {
@@ -817,11 +817,11 @@ impl TypeChecker {
             };
         if pos < param_count {
             return Ok(Some(
-                self.get_type_of_parameter(signature.parameters()[pos])?,
+                self.get_type_of_parameter(signature.ref_(self).parameters()[pos])?,
             ));
         }
-        if signature_has_rest_parameter(signature) {
-            let rest_type = self.get_type_of_symbol(signature.parameters()[param_count])?;
+        if signature_has_rest_parameter(&signature.ref_(self)) {
+            let rest_type = self.get_type_of_symbol(signature.ref_(self).parameters()[param_count])?;
             let index = pos - param_count;
             if !self.is_tuple_type(rest_type) || {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
@@ -901,9 +901,9 @@ impl TypeChecker {
     }
 
     pub(super) fn get_parameter_count(&self, signature: Id<Signature>) -> io::Result<usize> {
-        let length = signature.parameters().len();
-        if signature_has_rest_parameter(signature) {
-            let rest_type = self.get_type_of_symbol(signature.parameters()[length - 1])?;
+        let length = signature.ref_(self).parameters().len();
+        if signature_has_rest_parameter(&signature.ref_(self)) {
+            let rest_type = self.get_type_of_symbol(signature.ref_(self).parameters()[length - 1])?;
             if self.is_tuple_type(rest_type) {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
                 return Ok(
@@ -932,11 +932,11 @@ impl TypeChecker {
             None => false,
             Some(flags) => flags.intersects(MinArgumentCountFlags::VoidIsNonOptional),
         };
-        if void_is_non_optional || signature.maybe_resolved_min_argument_count().is_none() {
+        if void_is_non_optional || signature.ref_(self).maybe_resolved_min_argument_count().is_none() {
             let mut min_argument_count = None;
-            if signature_has_rest_parameter(signature) {
+            if signature_has_rest_parameter(&signature.ref_(self)) {
                 let rest_type = self
-                    .get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
+                    .get_type_of_symbol(signature.ref_(self).parameters()[signature.ref_(self).parameters().len() - 1])?;
                 if self.is_tuple_type(rest_type) {
                     let rest_type_target =
                         rest_type.ref_(self).as_type_reference_interface().target();
@@ -949,19 +949,19 @@ impl TypeChecker {
                         .unwrap_or(rest_type_target.ref_(self).as_tuple_type().fixed_length);
                     if required_count > 0 {
                         min_argument_count =
-                            Some(signature.parameters().len() - 1 + required_count);
+                            Some(signature.ref_(self).parameters().len() - 1 + required_count);
                     }
                 }
             }
             if min_argument_count.is_none() {
                 if !strong_arity_for_untyped_js
                     && signature
-                        .flags
+                        .ref_(self).flags
                         .intersects(SignatureFlags::IsUntypedSignatureInJSFile)
                 {
                     return Ok(0);
                 }
-                min_argument_count = Some(signature.min_argument_count());
+                min_argument_count = Some(signature.ref_(self).min_argument_count());
             }
             let mut min_argument_count = min_argument_count.unwrap();
             if void_is_non_optional {
@@ -992,15 +992,15 @@ impl TypeChecker {
                     i -= 1;
                 }
             }
-            signature.set_resolved_min_argument_count(min_argument_count);
+            signature.ref_(self).set_resolved_min_argument_count(min_argument_count);
         }
-        Ok(signature.resolved_min_argument_count())
+        Ok(signature.ref_(self).resolved_min_argument_count())
     }
 
     pub(super) fn has_effective_rest_parameter(&self, signature: Id<Signature>) -> io::Result<bool> {
-        if signature_has_rest_parameter(signature) {
+        if signature_has_rest_parameter(&signature.ref_(self)) {
             let rest_type =
-                self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
+                self.get_type_of_symbol(signature.ref_(self).parameters()[signature.ref_(self).parameters().len() - 1])?;
             return Ok(!self.is_tuple_type(rest_type)
                 || rest_type
                     .ref_(self)
@@ -1017,9 +1017,9 @@ impl TypeChecker {
         &self,
         signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
-        if signature_has_rest_parameter(signature) {
+        if signature_has_rest_parameter(&signature.ref_(self)) {
             let rest_type =
-                self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
+                self.get_type_of_symbol(signature.ref_(self).parameters()[signature.ref_(self).parameters().len() - 1])?;
             if !self.is_tuple_type(rest_type) {
                 return Ok(Some(rest_type));
             }

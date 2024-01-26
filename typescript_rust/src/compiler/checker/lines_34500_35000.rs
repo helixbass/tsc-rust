@@ -1170,7 +1170,7 @@ impl TypeChecker {
                     )? {
                         add_related_info(
                             &self.error(
-                                signature.declaration,
+                                signature.ref_(self).declaration,
                                 &Diagnostics::This_overload_signature_is_not_compatible_with_its_implementation_signature,
                                 None,
                             ).ref_(self),

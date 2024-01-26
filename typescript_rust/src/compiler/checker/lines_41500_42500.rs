@@ -110,7 +110,7 @@ impl TypeChecker {
             let signatures_of_symbol = self.get_signatures_of_symbol(symbol)?;
             return Ok(signatures_of_symbol.len() > 1
                 || signatures_of_symbol.len() == 1
-                    && signatures_of_symbol[0].declaration != Some(node));
+                    && signatures_of_symbol[0].ref_(self).declaration != Some(node));
         }
         Ok(false)
     }
@@ -1038,7 +1038,7 @@ impl TypeChecker {
                                     {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Id<Signature>| -> io::Result<_> {
+                                            Some(|&signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 3)
                                             }),
                                         )? {
@@ -1057,7 +1057,7 @@ impl TypeChecker {
                                     {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Id<Signature>| -> io::Result<_> {
+                                            Some(|&signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 4)
                                             }),
                                         )? {
@@ -1074,7 +1074,7 @@ impl TypeChecker {
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Id<Signature>| -> io::Result<_> {
+                                            Some(|&signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 2)
                                             }),
                                         )? {

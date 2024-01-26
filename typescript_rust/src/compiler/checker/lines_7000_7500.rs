@@ -535,7 +535,7 @@ impl SymbolTableToDeclarationStatements {
         let signatures = self
             .type_checker
             .get_signatures_of_type(type_, SignatureKind::Call)?;
-        for sig in &signatures {
+        for &sig in &signatures {
             let decl = self
                 .node_builder
                 .signature_to_signature_declaration_helper(
@@ -555,7 +555,7 @@ impl SymbolTableToDeclarationStatements {
             self.add_result(
                 set_text_range_id_node(
                     decl,
-                    self.get_signature_text_range_location(&sig.ref_(self)).refed(self).as_deref(),
+                    self.get_signature_text_range_location(sig).refed(self).as_deref(),
                     self,
                 ),
                 modifier_flags,
@@ -590,7 +590,7 @@ impl SymbolTableToDeclarationStatements {
         signature: Id<Signature>,
     ) -> Option<Id<Node>> {
         if let Some(signature_declaration) = signature
-            .declaration
+            .ref_(self).declaration
             .filter(|signature_declaration| signature_declaration.ref_(self).maybe_parent().is_some())
         {
             let signature_declaration_parent = signature_declaration.ref_(self).parent();
@@ -606,7 +606,7 @@ impl SymbolTableToDeclarationStatements {
                 return signature_declaration_parent.ref_(self).maybe_parent();
             }
         }
-        signature.declaration
+        signature.ref_(self).declaration
     }
 
     pub(super) fn serialize_as_namespace_declaration(

@@ -348,7 +348,7 @@ impl TypeChecker {
             .symbol_links()
             .borrow_mut()
             .type_ = Some(result);
-        Ok(Gc::new(self.create_signature(
+        Ok(self.alloc_signature(self.create_signature(
             Some(declaration),
             None,
             None,
@@ -471,10 +471,10 @@ impl TypeChecker {
         signatures: &[Id<Signature>],
     ) -> bool {
         !signatures.is_empty()
-            && every(signatures, |signature: &Id<Signature>, _| {
-                signature.min_argument_count() == 0
-                    && !signature_has_rest_parameter(signature)
-                    && signature.parameters().len()
+            && every(signatures, |&signature: &Id<Signature>, _| {
+                signature.ref_(self).min_argument_count() == 0
+                    && !signature_has_rest_parameter(&signature.ref_(self))
+                    && signature.ref_(self).parameters().len()
                         < self.get_decorator_argument_count(decorator, signature)
             })
     }
@@ -516,8 +516,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Signature>> {
         let links = self.get_node_links(node);
         let cached = (*links).borrow().resolved_signature.clone();
-        if let Some(cached) = cached.as_ref().filter(|cached| {
-            !Gc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
+        if let Some(cached) = cached.filter(|&cached| {
+            cached != self.resolving_signature() && candidates_out_array.is_none()
         }) {
             return Ok(cached.clone());
         }
@@ -527,7 +527,7 @@ impl TypeChecker {
             candidates_out_array,
             check_mode.unwrap_or(CheckMode::Normal),
         )?;
-        if !Gc::ptr_eq(&result, &self.resolving_signature()) {
+        if result != self.resolving_signature() {
             links.borrow_mut().resolved_signature =
                 if self.flow_loop_start() == self.flow_loop_count() {
                     Some(result.clone())
@@ -794,7 +794,7 @@ impl TypeChecker {
         }
 
         let signature = self.get_resolved_signature_(node, None, check_mode)?;
-        if Gc::ptr_eq(&signature, &self.resolving_signature()) {
+        if signature == self.resolving_signature() {
             return Ok(self.non_inferrable_type());
         }
 
@@ -805,7 +805,7 @@ impl TypeChecker {
         }
 
         if node.ref_(self).kind() == SyntaxKind::NewExpression {
-            let declaration = signature.declaration;
+            let declaration = signature.ref_(self).declaration;
 
             if declaration.try_matches(|declaration| -> io::Result<_> {
                 Ok(!matches!(
@@ -848,7 +848,7 @@ impl TypeChecker {
             && node.ref_(self).as_call_expression().question_dot_token.is_none()
             && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionStatement
             && return_type.ref_(self).flags().intersects(TypeFlags::Void)
-            && self.get_type_predicate_of_signature(&signature)?.is_some()
+            && self.get_type_predicate_of_signature(signature)?.is_some()
         {
             let node_ref = node.ref_(self);
             let node_as_call_expression = node_ref.as_call_expression();
@@ -911,7 +911,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if let Some(signature_declaration) =
             signature
-                .declaration
+                .ref_(self).declaration
                 .filter(|signature_declaration| {
                     signature_declaration
                         .ref_(self).flags()

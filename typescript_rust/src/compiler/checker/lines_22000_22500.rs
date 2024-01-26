@@ -668,8 +668,8 @@ impl InferTypes {
                     ),
             );
             self.type_checker.apply_to_parameter_types(
-                &source.ref_(self),
-                &target.ref_(self),
+                source,
+                target,
                 |s: Id<Type>, t: Id<Type>| self.infer_from_contravariant_types(s, t),
             )?;
             self.set_bivariant(save_bivariant);

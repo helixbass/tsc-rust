@@ -1003,7 +1003,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         Ok(
             if self.get_jsx_reference_kind(node)? != JsxReferenceKind::Component {
-                self.get_jsx_props_type_from_call_signature(&signature.ref_(self), node)?
+                self.get_jsx_props_type_from_call_signature(signature, node)?
             } else {
                 self.get_jsx_props_type_from_class_type(signature, node)?
             },

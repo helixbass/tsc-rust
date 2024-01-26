@@ -1509,7 +1509,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_properties()
                     }
 
-                    fn maybe_call_signatures(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Signature>>>> {
+                    fn maybe_call_signatures(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Signature>>>> {
                         self.#first_field_name.maybe_call_signatures()
                     }
 
@@ -1530,7 +1530,7 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
@@ -1559,19 +1559,19 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_properties(properties)
                     }
 
-                    fn call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         self.#first_field_name.call_signatures()
                     }
 
-                    fn set_call_signatures(&self, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_call_signatures(&self, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         self.#first_field_name.set_call_signatures(call_signatures)
                     }
 
-                    fn construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         self.#first_field_name.construct_signatures()
                     }
 
-                    fn set_construct_signatures(&self, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_construct_signatures(&self, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         self.#first_field_name.set_construct_signatures(construct_signatures)
                     }
 
@@ -1639,19 +1639,19 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_declared_properties(declared_properties)
                     }
 
-                    fn declared_call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn declared_call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         self.#first_field_name.declared_call_signatures()
                     }
 
-                    fn set_declared_call_signatures(&self, declared_call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_declared_call_signatures(&self, declared_call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         self.#first_field_name.set_declared_call_signatures(declared_call_signatures)
                     }
 
-                    fn declared_construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn declared_construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         self.#first_field_name.declared_construct_signatures()
                     }
 
-                    fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         self.#first_field_name.set_declared_construct_signatures(declared_construct_signatures)
                     }
 
@@ -2095,7 +2095,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_call_signatures(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::gc::Gc<crate::Signature>>>> {
+                    fn maybe_call_signatures(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Signature>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_call_signatures()),*
                         }
@@ -2124,7 +2124,7 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
@@ -2165,25 +2165,25 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.call_signatures()),*
                         }
                     }
 
-                    fn set_call_signatures(&self, call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_call_signatures(&self, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_call_signatures(call_signatures)),*
                         }
                     }
 
-                    fn construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.construct_signatures()),*
                         }
                     }
 
-                    fn set_construct_signatures(&self, construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_construct_signatures(&self, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_construct_signatures(construct_signatures)),*
                         }
@@ -2275,25 +2275,25 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn declared_call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn declared_call_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.declared_call_signatures()),*
                         }
                     }
 
-                    fn set_declared_call_signatures(&self, declared_call_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_declared_call_signatures(&self, declared_call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_declared_call_signatures(declared_call_signatures)),*
                         }
                     }
 
-                    fn declared_construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::Signature>>> {
+                    fn declared_construct_signatures(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::Signature>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.declared_construct_signatures()),*
                         }
                     }
 
-                    fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::gc::Gc<crate::Signature>>) {
+                    fn set_declared_construct_signatures(&self, declared_construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_declared_construct_signatures(declared_construct_signatures)),*
                         }

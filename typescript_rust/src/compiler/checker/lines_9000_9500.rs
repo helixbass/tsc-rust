@@ -686,7 +686,7 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        self.get_this_type_of_signature(&self.get_signature_from_declaration_(declaration)?.ref_(self))
+        self.get_this_type_of_signature(self.get_signature_from_declaration_(declaration)?)
     }
 
     pub(super) fn get_type_of_accessors(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {

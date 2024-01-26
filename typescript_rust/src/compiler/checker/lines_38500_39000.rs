@@ -320,7 +320,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if !signatures.is_empty() {
-            let declaration = signatures[0].declaration;
+            let declaration = signatures[0].ref_(self).declaration;
             if matches!(
                 declaration,
                 Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private, self)

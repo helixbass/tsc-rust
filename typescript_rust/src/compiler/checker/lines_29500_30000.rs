@@ -309,7 +309,7 @@ impl TypeChecker {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
             SyntaxKind::PropertyDeclaration => 2,
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                if self.language_version == ScriptTarget::ES3 || signature.parameters().len() <= 2 {
+                if self.language_version == ScriptTarget::ES3 || signature.ref_(self).parameters().len() <= 2 {
                     2
                 } else {
                     3
@@ -455,9 +455,9 @@ impl TypeChecker {
         let mut min_above = usize::MAX;
 
         let mut closest_signature: Option<Id<Signature>> = None;
-        for sig in signatures {
-            let min_parameter = self.get_min_argument_count(&sig.ref_(self), None)?;
-            let max_parameter = self.get_parameter_count(&sig.ref_(self))?;
+        for &sig in signatures {
+            let min_parameter = self.get_min_argument_count(sig, None)?;
+            let max_parameter = self.get_parameter_count(sig)?;
             if min_parameter < min {
                 min = min_parameter;
                 closest_signature = Some(sig.clone());
@@ -480,7 +480,7 @@ impl TypeChecker {
         }
         let has_rest_parameter = try_some(
             Some(signatures),
-            Some(|signature: &Id<Signature>| self.has_effective_rest_parameter(&signature.ref_(self))),
+            Some(|&signature: &Id<Signature>| self.has_effective_rest_parameter(signature)),
         )?;
         let parameter_range = if has_rest_parameter {
             min.to_string()
@@ -848,7 +848,7 @@ impl TypeChecker {
                                 node,
                                 &args,
                                 &mut arg_check_mode,
-                                &last.ref_(self),
+                                last,
                                 &d.ref_(self),
                             )?;
                             self.diagnostics().add(d.clone());
@@ -964,7 +964,7 @@ impl TypeChecker {
                         node,
                         &args,
                         &mut arg_check_mode,
-                        &candidates_for_argument_error_present[0].ref_(self),
+                        candidates_for_argument_error_present[0],
                         &diag.ref_(self),
                     )?;
                     self.diagnostics().add(diag);
@@ -991,7 +991,7 @@ impl TypeChecker {
                 )?;
             } else {
                 let signatures_with_correct_type_argument_arity =
-                    filter(signatures, |s: &Id<Signature>| {
+                    filter(signatures, |&s: &Id<Signature>| {
                         self.has_correct_type_argument_arity(s, type_arguments.as_deref())
                     });
                 if signatures_with_correct_type_argument_arity.is_empty() {
@@ -1041,8 +1041,7 @@ impl TypeChecker {
         let old_candidate_for_type_argument_error = candidate_for_type_argument_error.clone();
 
         let failed_signature_declarations = failed
-            .declaration
-            .as_ref()
+            .ref_(self).declaration
             .and_then(|failed_declaration| failed_declaration.ref_(self).maybe_symbol())
             .and_then(|failed_declaration_symbol| {
                 failed_declaration_symbol
@@ -1062,7 +1061,7 @@ impl TypeChecker {
         };
         if let Some(impl_decl) = impl_decl {
             let candidate = self.get_signature_from_declaration_(impl_decl)?;
-            let is_single_non_generic_candidate = candidate.maybe_type_parameters().is_none();
+            let is_single_non_generic_candidate = candidate.ref_(self).maybe_type_parameters().is_none();
             let mut candidates = vec![candidate];
             if self
                 .choose_overload(
@@ -1123,7 +1122,7 @@ impl TypeChecker {
         *candidate_for_type_argument_error = None;
 
         if is_single_non_generic_candidate {
-            let candidate = &candidates[0];
+            let candidate = candidates[0];
             if some(
                 type_arguments.map(|type_arguments| &**type_arguments),
                 Option::<fn(&Id<Node>) -> bool>::None,
@@ -1169,7 +1168,7 @@ impl TypeChecker {
             let mut check_candidate: Id<Signature>;
             let mut inference_context: Option<Gc<InferenceContext>> = None;
 
-            if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
+            if let Some(ref candidate_type_parameters) = candidate.ref_(self).maybe_type_parameters().clone() {
                 let type_argument_types: Option<Vec<Id<Type>>>;
                 if some(
                     type_arguments.map(|type_arguments| &**type_arguments),
@@ -1213,7 +1212,7 @@ impl TypeChecker {
                 check_candidate = self.get_signature_instantiation(
                     candidate.clone(),
                     type_argument_types.as_deref(),
-                    is_in_js_file(candidate.declaration.refed(self).as_deref()),
+                    is_in_js_file(candidate.ref_(self).declaration.refed(self).as_deref()),
                     inference_context
                         .as_ref()
                         .and_then(|inference_context| {
@@ -1225,7 +1224,7 @@ impl TypeChecker {
                     && !self.has_correct_arity(
                         node,
                         args,
-                        &check_candidate,
+                        check_candidate,
                         Some(signature_help_trailing_comma),
                     )?
                 {
@@ -1269,7 +1268,7 @@ impl TypeChecker {
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),
                         Some(&type_argument_types),
-                        is_in_js_file(candidate.declaration.refed(self).as_deref()),
+                        is_in_js_file(candidate.ref_(self).declaration.refed(self).as_deref()),
                         /*inferenceContext &&*/
                         inference_context
                             .maybe_inferred_type_parameters()
@@ -1279,7 +1278,7 @@ impl TypeChecker {
                         && !self.has_correct_arity(
                             node,
                             args,
-                            &check_candidate,
+                            check_candidate,
                             Some(signature_help_trailing_comma),
                         )?
                     {

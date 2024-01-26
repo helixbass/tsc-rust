@@ -1257,8 +1257,8 @@ impl CheckTypeRelatedTo {
                 return Ok(Ternary::False);
             }
             if !self.constructor_visibilities_are_compatible(
-                &source_signatures[0].ref_(self),
-                &target_signatures[0].ref_(self),
+                source_signatures[0],
+                target_signatures[0],
                 report_errors,
             )? {
                 return Ok(Ternary::False);
@@ -1288,7 +1288,7 @@ impl CheckTypeRelatedTo {
                     target_signatures[i].clone(),
                     true,
                     report_errors,
-                    incompatible_reporter(self, &source_signatures[i].ref_(self), &target_signatures[i].ref_(self)),
+                    incompatible_reporter(self, source_signatures[i], target_signatures[i]),
                 )?;
                 if related == Ternary::False {
                     return Ok(Ternary::False);
@@ -1308,7 +1308,7 @@ impl CheckTypeRelatedTo {
                 target_signature.clone(),
                 erase_generics,
                 report_errors,
-                incompatible_reporter(self, &source_signature.ref_(self), &target_signature.ref_(self)),
+                incompatible_reporter(self, source_signature, target_signature),
             )?;
             if result == Ternary::False
                 && report_errors
@@ -1354,7 +1354,7 @@ impl CheckTypeRelatedTo {
                         t.clone(),
                         true,
                         should_elaborate_errors,
-                        incompatible_reporter(self, &s.ref_(self), &t.ref_(self)),
+                        incompatible_reporter(self, s, t),
                     )?;
                     if related != Ternary::False {
                         result &= related;
@@ -1395,7 +1395,7 @@ impl CheckTypeRelatedTo {
         siga: Id<Signature>,
         sigb: Id<Signature>,
     ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> {
-        if siga.parameters().is_empty() && sigb.parameters().is_empty() {
+        if siga.ref_(self).parameters().is_empty() && sigb.ref_(self).parameters().is_empty() {
             Self::report_incompatible_call_signature_return_no_arguments
         } else {
             Self::report_incompatible_call_signature_return_some_arguments
@@ -1443,7 +1443,7 @@ impl CheckTypeRelatedTo {
         siga: Id<Signature>,
         sigb: Id<Signature>,
     ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> {
-        if siga.parameters().is_empty() && sigb.parameters().is_empty() {
+        if siga.ref_(self).parameters().is_empty() && sigb.ref_(self).parameters().is_empty() {
             Self::report_incompatible_construct_signature_return_no_arguments
         } else {
             Self::report_incompatible_construct_signature_return_some_arguments

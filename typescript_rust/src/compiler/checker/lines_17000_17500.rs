@@ -1223,7 +1223,7 @@ impl TypeChecker {
                 }
             }
             && s.ref_(self).parameters().len() == 1
-            && signature_has_rest_parameter(&s.ref_(self))
+            && signature_has_rest_parameter(s)
             && (self.get_type_of_parameter(s.ref_(self).parameters()[0])? == self.any_array_type()
                 || self.is_type_any(Some(self.get_type_of_parameter(s.ref_(self).parameters()[0])?)))
             && self.is_type_any(Some(self.get_return_type_of_signature(s)?)))
@@ -1248,13 +1248,13 @@ impl TypeChecker {
             return Ok(Ternary::True);
         }
 
-        let target_count = self.get_parameter_count(&target.ref_(self))?;
-        let source_has_more_parameters = !self.has_effective_rest_parameter(&target.ref_(self))?
+        let target_count = self.get_parameter_count(target)?;
+        let source_has_more_parameters = !self.has_effective_rest_parameter(target)?
             && if check_mode.intersects(SignatureCheckMode::StrictArity) {
-                self.has_effective_rest_parameter(&source.ref_(self))?
-                    || self.get_parameter_count(&source.ref_(self))? > target_count
+                self.has_effective_rest_parameter(source)?
+                    || self.get_parameter_count(source)? > target_count
             } else {
-                self.get_min_argument_count(&source.ref_(self), None)? > target_count
+                self.get_min_argument_count(source, None)? > target_count
             };
         if source_has_more_parameters {
             return Ok(Ternary::False);
@@ -1276,9 +1276,9 @@ impl TypeChecker {
             )?;
         }
 
-        let source_count = self.get_parameter_count(&source.ref_(self))?;
-        let source_rest_type = self.get_non_array_rest_type(&source.ref_(self))?;
-        let target_rest_type = self.get_non_array_rest_type(&target.ref_(self))?;
+        let source_count = self.get_parameter_count(source)?;
+        let source_rest_type = self.get_non_array_rest_type(source)?;
+        let target_rest_type = self.get_non_array_rest_type(target)?;
         if source_rest_type.is_some() || target_rest_type.is_some() {
             self.instantiate_type(
                 source_rest_type
@@ -1306,11 +1306,11 @@ impl TypeChecker {
             );
         let mut result = Ternary::True;
 
-        let source_this_type = self.get_this_type_of_signature(&source.ref_(self))?;
+        let source_this_type = self.get_this_type_of_signature(source)?;
         if let Some(source_this_type) =
             source_this_type.filter(|&source_this_type| source_this_type != self.void_type())
         {
-            let target_this_type = self.get_this_type_of_signature(&target.ref_(self))?;
+            let target_this_type = self.get_this_type_of_signature(target)?;
             if let Some(target_this_type) = target_this_type {
                 let related = if !strict_variance {
                     let mut related =
@@ -1357,17 +1357,17 @@ impl TypeChecker {
                 rest_index,
                 Some(rest_index) if i == rest_index
             ) {
-                Some(self.get_rest_type_at_position(&source.ref_(self), i)?)
+                Some(self.get_rest_type_at_position(source, i)?)
             } else {
-                self.try_get_type_at_position(&source.ref_(self), i)?
+                self.try_get_type_at_position(source, i)?
             };
             let target_type = if matches!(
                 rest_index,
                 Some(rest_index) if i == rest_index
             ) {
-                Some(self.get_rest_type_at_position(&target.ref_(self), i)?)
+                Some(self.get_rest_type_at_position(target, i)?)
             } else {
-                self.try_get_type_at_position(&target.ref_(self), i)?
+                self.try_get_type_at_position(target, i)?
             };
             if let Some(source_type) = source_type {
                 if let Some(target_type) = target_type {
@@ -1382,10 +1382,10 @@ impl TypeChecker {
                         self.get_single_call_signature(self.get_non_nullable_type(target_type)?)?
                     };
                     let callbacks = matches!(
-                        (source_sig.as_ref(), target_sig.as_ref()),
+                        (source_sig, target_sig),
                         (Some(source_sig), Some(target_sig)) if
-                            self.get_type_predicate_of_signature(&source_sig.ref_(self))?.is_none() &&
-                            self.get_type_predicate_of_signature(&target_sig.ref_(self))?.is_none() &&
+                            self.get_type_predicate_of_signature(source_sig)?.is_none() &&
+                            self.get_type_predicate_of_signature(target_sig)?.is_none() &&
                             self.get_falsy_flags(source_type) & TypeFlags::Nullable ==
                             self.get_falsy_flags(target_type) & TypeFlags::Nullable
                     );
@@ -1424,8 +1424,8 @@ impl TypeChecker {
                     };
                     if related != Ternary::False
                         && check_mode.intersects(SignatureCheckMode::StrictArity)
-                        && i >= self.get_min_argument_count(&source.ref_(self), None)?
-                        && i < self.get_min_argument_count(&target.ref_(self), None)?
+                        && i >= self.get_min_argument_count(source, None)?
+                        && i < self.get_min_argument_count(target, None)?
                         && compare_types.call(source_type, target_type, Some(false))?
                             != Ternary::False
                     {
@@ -1439,11 +1439,11 @@ impl TypeChecker {
                                 ),
                                 Some(vec![
                                     unescape_leading_underscores(
-                                        &*self.get_parameter_name_at_position(&source.ref_(self), i, None)?,
+                                        &*self.get_parameter_name_at_position(source, i, None)?,
                                     )
                                     .to_owned(),
                                     unescape_leading_underscores(
-                                        &*self.get_parameter_name_at_position(&target.ref_(self), i, None)?,
+                                        &*self.get_parameter_name_at_position(target, i, None)?,
                                     )
                                     .to_owned(),
                                 ]),
@@ -1493,9 +1493,9 @@ impl TypeChecker {
                 self.get_return_type_of_signature(source.clone())?
             };
 
-            let target_type_predicate = self.get_type_predicate_of_signature(&target.ref_(self))?;
+            let target_type_predicate = self.get_type_predicate_of_signature(target)?;
             if let Some(target_type_predicate) = target_type_predicate.as_ref() {
-                let source_type_predicate = self.get_type_predicate_of_signature(&source.ref_(self))?;
+                let source_type_predicate = self.get_type_predicate_of_signature(source)?;
                 if let Some(source_type_predicate) = source_type_predicate.as_ref() {
                     result &= self.compare_type_predicate_related_to(
                         source_type_predicate,

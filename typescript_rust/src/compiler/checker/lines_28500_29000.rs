@@ -345,9 +345,9 @@ impl TypeChecker {
         if let Some(prop) = prop {
             let s = self.get_single_call_signature(self.get_type_of_symbol(prop)?)?;
             return Ok(matches!(
-                s.as_ref(),
-                Some(s) if self.get_min_argument_count(&s.ref_(self), None)? >= 1 &&
-                    self.is_type_assignable_to(keyed_type, self.get_type_at_position(&s.ref_(self), 0)?)?
+                s,
+                Some(s) if self.get_min_argument_count(s, None)? >= 1 &&
+                    self.is_type_assignable_to(keyed_type, self.get_type_at_position(s, 0)?)?
             ));
         }
         Ok(false)
@@ -845,7 +845,7 @@ impl TypeChecker {
         let mut specialized_index: isize = -1;
         let mut splice_index: usize;
         Debug_.assert(result.is_empty(), None);
-        for signature in signatures {
+        for &signature in signatures {
             let symbol = signature
                 .ref_(self).declaration
                 .try_and_then(|signature_declaration| {
@@ -877,7 +877,7 @@ impl TypeChecker {
             }
             last_symbol = symbol.clone();
 
-            if signature_has_literal_types(&signature.ref_(self)) {
+            if signature_has_literal_types(signature) {
                 specialized_index += 1;
                 splice_index = specialized_index.try_into().unwrap();
                 cutoff_index += 1;

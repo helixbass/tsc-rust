@@ -1061,8 +1061,8 @@ impl TypeChecker {
                     Some(signatures[0].clone())
                 } else if try_some(
                     Some(&signatures),
-                    Some(|signature: &Id<Signature>| {
-                        self.has_type_predicate_or_never_return_type(&signature.ref_(self))
+                    Some(|&signature: &Id<Signature>| {
+                        self.has_type_predicate_or_never_return_type(signature)
                     }),
                 )? {
                     Some(self.get_resolved_signature_(node, None, None)?)
@@ -1070,8 +1070,8 @@ impl TypeChecker {
                     None
                 };
             signature = Some(
-                if let Some(candidate) = candidate.try_filter(|candidate| {
-                    self.has_type_predicate_or_never_return_type(&candidate.ref_(self))
+                if let Some(candidate) = candidate.try_filter(|&candidate| {
+                    self.has_type_predicate_or_never_return_type(candidate)
                 })? {
                     candidate
                 } else {
@@ -1094,7 +1094,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(self.get_type_predicate_of_signature(signature)?.is_some()
             || matches!(
-                signature.declaration,
+                signature.ref_(self).declaration,
                 Some(signature_declaration) if self.get_return_type_from_annotation(
                     signature_declaration
                 )?.unwrap_or_else(|| self.unknown_type()).ref_(self).flags().intersects(TypeFlags::Never)
@@ -1213,8 +1213,8 @@ impl TypeChecker {
                 let flow_ref = flow.ref_(self);
                 let flow_as_flow_call = flow_ref.as_flow_call();
                 let signature = self.get_effects_signature(flow_as_flow_call.node)?;
-                if let Some(signature) = signature.as_ref() {
-                    let predicate = self.get_type_predicate_of_signature(&signature.ref_(self))?;
+                if let Some(signature) = signature {
+                    let predicate = self.get_type_predicate_of_signature(signature)?;
                     if let Some(predicate) = predicate.as_ref().filter(|predicate| {
                         predicate.kind == TypePredicateKind::AssertsIdentifier
                             && predicate.type_.is_none()

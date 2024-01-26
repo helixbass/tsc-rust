@@ -678,8 +678,8 @@ impl TypeChecker {
         target: Id<Signature>,
         mut callback: impl FnMut(Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<()> {
-        let source_type_predicate = self.get_type_predicate_of_signature(&source.ref_(self))?;
-        let target_type_predicate = self.get_type_predicate_of_signature(&target.ref_(self))?;
+        let source_type_predicate = self.get_type_predicate_of_signature(source)?;
+        let target_type_predicate = self.get_type_predicate_of_signature(target)?;
         let mut took_if_branch = false;
         if let Some(source_type_predicate) = source_type_predicate.as_ref() {
             if let Some(target_type_predicate) = target_type_predicate.as_ref() {
