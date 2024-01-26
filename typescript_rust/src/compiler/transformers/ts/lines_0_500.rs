@@ -276,7 +276,7 @@ impl TransformTypeScript {
     pub(super) fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> io::Result<Id<Node>> {
         let node_ref = node.ref_(self);
         let node_as_bundle = node_ref.as_bundle();
-        Ok(self.factory.create_bundle(
+        Ok(self.factory.ref_(self).create_bundle(
             node_as_bundle
                 .source_files
                 .iter()
@@ -524,7 +524,7 @@ impl TransformTypeScript {
         if is_statement(node, self) && has_syntactic_modifier(node, ModifierFlags::Ambient, self) {
             return Ok(Some(
                 self.factory
-                    .create_not_emitted_statement(node)
+                    .ref_(self).create_not_emitted_statement(node)
                     .into(),
             ));
         }
@@ -577,7 +577,7 @@ impl TransformTypeScript {
             | SyntaxKind::Decorator => None,
             SyntaxKind::TypeAliasDeclaration => Some(
                 self.factory
-                    .create_not_emitted_statement(node)
+                    .ref_(self).create_not_emitted_statement(node)
                     .into(),
             ),
             SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node)?,
@@ -585,7 +585,7 @@ impl TransformTypeScript {
             SyntaxKind::Constructor => self.visit_constructor(node)?,
             SyntaxKind::InterfaceDeclaration => Some(
                 self.factory
-                    .create_not_emitted_statement(node)
+                    .ref_(self).create_not_emitted_statement(node)
                     .into(),
             ),
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
@@ -772,20 +772,20 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                         .object_assignment_initializer
                         .as_ref()
                 {
-                    let initializer = self.transform_type_script().factory.create_assignment(
+                    let initializer = self.transform_type_script().factory.ref_(self).create_assignment(
                         exported_name,
                         node_object_assignment_initializer.clone(),
                     );
                     return Ok(self
                         .transform_type_script()
                         .factory
-                        .create_property_assignment(name, initializer)
+                        .ref_(self).create_property_assignment(name, initializer)
                         .set_text_range(Some(&*node.ref_(self)), self));
                 }
                 return Ok(self
                     .transform_type_script()
                     .factory
-                    .create_property_assignment(name, exported_name)
+                    .ref_(self).create_property_assignment(name, exported_name)
                     .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
@@ -846,7 +846,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                         return Ok(Some(
                             self.transform_type_script()
                                 .factory
-                                .clone_node(class_alias)
+                                .ref_(self).clone_node(class_alias)
                                 .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
                                 .set_comment_range(&*node.ref_(self), self),
                         ));
@@ -889,10 +889,10 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     return Ok(Some(
                         self.transform_type_script()
                             .factory
-                            .create_property_access_expression(
+                            .ref_(self).create_property_access_expression(
                                 self.transform_type_script()
                                     .factory
-                                    .get_generated_name_for_node(Some(container), None),
+                                    .ref_(self).get_generated_name_for_node(Some(container), None),
                                 node,
                             )
                             .set_text_range(Some(&*node.ref_(self)), self),
@@ -931,11 +931,11 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                 StringOrNumber::String(constant_value) => self
                     .transform_type_script()
                     .factory
-                    .create_string_literal(constant_value, None, None),
+                    .ref_(self).create_string_literal(constant_value, None, None),
                 StringOrNumber::Number(constant_value) => self
                     .transform_type_script()
                     .factory
-                    .create_numeric_literal(constant_value, None),
+                    .ref_(self).create_numeric_literal(constant_value, None),
             };
             if self.transform_type_script().compiler_options.ref_(self).remove_comments != Some(true) {
                 let original_node = maybe_get_original_node_full(

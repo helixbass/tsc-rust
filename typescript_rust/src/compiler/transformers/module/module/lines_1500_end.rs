@@ -91,14 +91,14 @@ impl TransformModule {
 
         if has_syntactic_modifier(decl, ModifierFlags::Export, self) {
             let export_name = if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
-                self.factory.create_identifier("default")
+                self.factory.ref_(self).create_identifier("default")
             } else {
-                self.factory.get_declaration_name(Some(decl), None, None)
+                self.factory.ref_(self).get_declaration_name(Some(decl), None, None)
             };
             self.append_export_statement(
                 statements,
                 export_name,
-                self.factory.get_local_name(decl, None, None),
+                self.factory.ref_(self).get_local_name(decl, None, None),
                 Some(&*decl.ref_(self)),
                 None,
                 None,
@@ -119,7 +119,7 @@ impl TransformModule {
         live_binding: Option<bool>,
     ) /*: Statement[] | undefined */
     {
-        let name = self.factory.get_declaration_name(Some(decl), None, None);
+        let name = self.factory.ref_(self).get_declaration_name(Some(decl), None, None);
         let current_module_info = self.current_module_info();
         let export_specifiers = current_module_info.export_specifiers.get(id_text(&*name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
@@ -164,32 +164,32 @@ impl TransformModule {
     pub(super) fn create_underscore_underscore_es_module(&self) -> Id<Node> {
         if self.language_version == ScriptTarget::ES3 {
             self.factory
-                .create_expression_statement(self.create_export_expression(
-                    self.factory.create_identifier("__esModule"),
-                    self.factory.create_true(),
+                .ref_(self).create_expression_statement(self.create_export_expression(
+                    self.factory.ref_(self).create_identifier("__esModule"),
+                    self.factory.ref_(self).create_true(),
                     Option::<&Node>::None,
                     None,
                 ))
         } else {
             self.factory
-                .create_expression_statement(self.factory.create_call_expression(
-                    self.factory.create_property_access_expression(
-                        self.factory.create_identifier("Object"),
+                .ref_(self).create_expression_statement(self.factory.ref_(self).create_call_expression(
+                    self.factory.ref_(self).create_property_access_expression(
+                        self.factory.ref_(self).create_identifier("Object"),
                         "defineProperty",
                     ),
                     Option::<Gc<NodeArray>>::None,
                     Some(vec![
-                                self.factory.create_identifier("exports"),
+                                self.factory.ref_(self).create_identifier("exports"),
                                 self.factory
-                                    .create_string_literal("__esModule".to_owned(), None, None)
+                                    .ref_(self).create_string_literal("__esModule".to_owned(), None, None)
                                     ,
                                 self.factory
-                                    .create_object_literal_expression(
+                                    .ref_(self).create_object_literal_expression(
                                         Some(vec![self
                                             .factory
-                                            .create_property_assignment(
+                                            .ref_(self).create_property_assignment(
                                                 "value",
-                                                self.factory.create_true(),
+                                                self.factory.ref_(self).create_true(),
                                             )
                                             ]),
                                         None,
@@ -211,7 +211,7 @@ impl TransformModule {
     ) -> Id<Node> {
         let statement = self
             .factory
-            .create_expression_statement(self.create_export_expression(
+            .ref_(self).create_expression_statement(self.create_export_expression(
                 name,
                 value,
                 Option::<&Node>::None,
@@ -234,34 +234,34 @@ impl TransformModule {
         live_binding: Option<bool>,
     ) -> Id<Node> {
         if live_binding == Some(true) && self.language_version != ScriptTarget::ES3 {
-            self.factory.create_call_expression(
-                self.factory.create_property_access_expression(
-                    self.factory.create_identifier("Object"),
+            self.factory.ref_(self).create_call_expression(
+                self.factory.ref_(self).create_property_access_expression(
+                    self.factory.ref_(self).create_identifier("Object"),
                     "defineProperty",
                 ),
                 Option::<Gc<NodeArray>>::None,
                 Some(vec![
-                    self.factory.create_identifier("exports"),
-                    self.factory.create_string_literal_from_node(name),
-                    self.factory.create_object_literal_expression(
+                    self.factory.ref_(self).create_identifier("exports"),
+                    self.factory.ref_(self).create_string_literal_from_node(name),
+                    self.factory.ref_(self).create_object_literal_expression(
                         Some(vec![
-                            self.factory.create_property_assignment(
+                            self.factory.ref_(self).create_property_assignment(
                                 "enumerable",
-                                self.factory.create_true(),
+                                self.factory.ref_(self).create_true(),
                             ),
-                            self.factory.create_property_assignment(
+                            self.factory.ref_(self).create_property_assignment(
                                 "get",
-                                self.factory.create_function_expression(
+                                self.factory.ref_(self).create_function_expression(
                                     Option::<Gc<NodeArray>>::None,
                                     None,
                                     Option::<Id<Node>>::None,
                                     Option::<Gc<NodeArray>>::None,
                                     Some(vec![]),
                                     None,
-                                    self.factory.create_block(
+                                    self.factory.ref_(self).create_block(
                                         vec![self
                                             .factory
-                                            .create_return_statement(Some(value))],
+                                            .ref_(self).create_return_statement(Some(value))],
                                         None,
                                     ),
                                 ),
@@ -272,10 +272,10 @@ impl TransformModule {
                 ]),
             )
         } else {
-            self.factory.create_assignment(
-                self.factory.create_property_access_expression(
-                    self.factory.create_identifier("exports"),
-                    self.factory.clone_node(name),
+            self.factory.ref_(self).create_assignment(
+                self.factory.ref_(self).create_property_access_expression(
+                    self.factory.ref_(self).create_identifier("exports"),
+                    self.factory.ref_(self).clone_node(name),
                 ),
                 value,
             )

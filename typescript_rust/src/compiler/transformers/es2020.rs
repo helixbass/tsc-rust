@@ -133,8 +133,8 @@ impl TransformES2020 {
         if is_synthetic_reference(&expression.ref_(self)) {
             let expression_ref = expression.ref_(self);
             let expression_as_synthetic_reference_expression = expression_ref.as_synthetic_reference_expression();
-            return self.factory.create_synthetic_reference_expression(
-                self.factory.update_parenthesized_expression(
+            return self.factory.ref_(self).create_synthetic_reference_expression(
+                self.factory.ref_(self).update_parenthesized_expression(
                     node,
                     expression_as_synthetic_reference_expression
                         .expression
@@ -146,7 +146,7 @@ impl TransformES2020 {
             );
         }
         self.factory
-            .update_parenthesized_expression(node, expression)
+            .ref_(self).update_parenthesized_expression(node, expression)
     }
 
     fn visit_non_optional_property_or_element_access_expression(
@@ -170,7 +170,7 @@ impl TransformES2020 {
         let mut this_arg: Option<Id<Node /*Expression*/>> = Default::default();
         if capture_this_arg {
             if !is_simple_copiable_expression(&expression.ref_(self)) {
-                this_arg = Some(self.factory.create_temp_variable(
+                this_arg = Some(self.factory.ref_(self).create_temp_variable(
                     Some(|node: Id<Node>| {
                         self.context.ref_(self).hoist_variable_declaration(node);
                     }),
@@ -178,14 +178,14 @@ impl TransformES2020 {
                 ));
                 expression = self
                     .factory
-                    .create_assignment(this_arg.clone().unwrap(), expression);
+                    .ref_(self).create_assignment(this_arg.clone().unwrap(), expression);
             } else {
                 this_arg = Some(expression);
             }
         }
 
         expression = if node.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
-            self.factory.update_property_access_expression(
+            self.factory.ref_(self).update_property_access_expression(
                 node,
                 expression.clone(),
                 visit_node(
@@ -196,7 +196,7 @@ impl TransformES2020 {
                 ),
             )
         } else {
-            self.factory.update_element_access_expression(
+            self.factory.ref_(self).update_element_access_expression(
                 node,
                 expression.clone(),
                 visit_node(
@@ -209,7 +209,7 @@ impl TransformES2020 {
         };
         if let Some(this_arg) = this_arg {
             self.factory
-                .create_synthetic_reference_expression(expression, this_arg)
+                .ref_(self).create_synthetic_reference_expression(expression, this_arg)
         } else {
             expression
         }
@@ -245,7 +245,7 @@ impl TransformES2020 {
                 let expression_as_synthetic_reference_expression = expression_ref.as_synthetic_reference_expression();
                 return self
                     .factory
-                    .create_function_call_call(
+                    .ref_(self).create_function_call_call(
                         expression_as_synthetic_reference_expression
                             .expression
                             .clone(),
@@ -256,7 +256,7 @@ impl TransformES2020 {
                     )
                     .set_text_range(Some(&*node.ref_(self)), self);
             }
-            return self.factory.update_call_expression(
+            return self.factory.ref_(self).update_call_expression(
                 node,
                 expression,
                 Option::<Gc<NodeArray>>::None,
@@ -311,7 +311,7 @@ impl TransformES2020 {
         };
         let mut captured_left/*Expression*/ = left_expression;
         if !is_simple_copiable_expression(&left_expression.ref_(self)) {
-            captured_left = self.factory.create_temp_variable(
+            captured_left = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 }),
@@ -319,7 +319,7 @@ impl TransformES2020 {
             );
             left_expression = self
                 .factory
-                .create_assignment(captured_left.clone(), left_expression.clone());
+                .ref_(self).create_assignment(captured_left.clone(), left_expression.clone());
         }
         let mut right_expression = captured_left;
         let mut this_arg: Option<Id<Node /*Expression*/>> = Default::default();
@@ -329,7 +329,7 @@ impl TransformES2020 {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
                     if i == chain.len() - 1 && capture_this_arg {
                         if !is_simple_copiable_expression(&right_expression.ref_(self)) {
-                            this_arg = Some(self.factory.create_temp_variable(
+                            this_arg = Some(self.factory.ref_(self).create_temp_variable(
                                 Some(|node: Id<Node>| {
                                     self.context.ref_(self).hoist_variable_declaration(node);
                                 }),
@@ -337,13 +337,13 @@ impl TransformES2020 {
                             ));
                             right_expression = self
                                 .factory
-                                .create_assignment(this_arg.clone().unwrap(), right_expression);
+                                .ref_(self).create_assignment(this_arg.clone().unwrap(), right_expression);
                         } else {
                             this_arg = Some(right_expression.clone());
                         }
                     }
                     right_expression = if segment.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
-                        self.factory.create_property_access_expression(
+                        self.factory.ref_(self).create_property_access_expression(
                             right_expression,
                             visit_node(
                                 segment.ref_(self).as_property_access_expression().name,
@@ -353,7 +353,7 @@ impl TransformES2020 {
                             ),
                         )
                     } else {
-                        self.factory.create_element_access_expression(
+                        self.factory.ref_(self).create_element_access_expression(
                             right_expression,
                             visit_node(
                                 segment.ref_(self).as_element_access_expression().argument_expression,
@@ -367,10 +367,10 @@ impl TransformES2020 {
                 SyntaxKind::CallExpression => {
                     if i == 0 && left_this_arg.is_some() {
                         let left_this_arg = left_this_arg.unwrap();
-                        right_expression = self.factory.create_function_call_call(
+                        right_expression = self.factory.ref_(self).create_function_call_call(
                             right_expression,
                             if left_this_arg.ref_(self).kind() == SyntaxKind::SuperKeyword {
-                                self.factory.create_this()
+                                self.factory.ref_(self).create_this()
                             } else {
                                 left_this_arg.clone()
                             },
@@ -383,7 +383,7 @@ impl TransformES2020 {
                             ),
                         );
                     } else {
-                        right_expression = self.factory.create_call_expression(
+                        right_expression = self.factory.ref_(self).create_call_expression(
                             right_expression,
                             Option::<Gc<NodeArray>>::None,
                             Some(visit_nodes(
@@ -402,18 +402,18 @@ impl TransformES2020 {
         }
 
         let target = if is_delete {
-            self.factory.create_conditional_expression(
+            self.factory.ref_(self).create_conditional_expression(
                 self.create_not_null_condition(left_expression, captured_left, Some(true)),
                 None,
-                self.factory.create_true(),
+                self.factory.ref_(self).create_true(),
                 None,
-                self.factory.create_delete_expression(right_expression),
+                self.factory.ref_(self).create_delete_expression(right_expression),
             )
         } else {
-            self.factory.create_conditional_expression(
+            self.factory.ref_(self).create_conditional_expression(
                 self.create_not_null_condition(left_expression, captured_left, Some(true)),
                 None,
-                self.factory.create_void_zero(),
+                self.factory.ref_(self).create_void_zero(),
                 None,
                 right_expression,
             )
@@ -421,7 +421,7 @@ impl TransformES2020 {
         .set_text_range(Some(&*node.ref_(self)), self);
         if let Some(this_arg) = this_arg {
             self.factory
-                .create_synthetic_reference_expression(target, this_arg)
+                .ref_(self).create_synthetic_reference_expression(target, this_arg)
         } else {
             target
         }
@@ -433,29 +433,29 @@ impl TransformES2020 {
         right: Id<Node>, /*Expression*/
         invert: Option<bool>,
     ) -> Id<Node> {
-        self.factory.create_binary_expression(
-            self.factory.create_binary_expression(
+        self.factory.ref_(self).create_binary_expression(
+            self.factory.ref_(self).create_binary_expression(
                 left,
-                self.factory.create_token(if invert == Some(true) {
+                self.factory.ref_(self).create_token(if invert == Some(true) {
                     SyntaxKind::EqualsEqualsEqualsToken
                 } else {
                     SyntaxKind::ExclamationEqualsEqualsToken
                 }),
-                self.factory.create_null(),
+                self.factory.ref_(self).create_null(),
             ),
-            self.factory.create_token(if invert == Some(true) {
+            self.factory.ref_(self).create_token(if invert == Some(true) {
                 SyntaxKind::BarBarToken
             } else {
                 SyntaxKind::AmpersandAmpersandToken
             }),
-            self.factory.create_binary_expression(
+            self.factory.ref_(self).create_binary_expression(
                 right,
-                self.factory.create_token(if invert == Some(true) {
+                self.factory.ref_(self).create_token(if invert == Some(true) {
                     SyntaxKind::EqualsEqualsEqualsToken
                 } else {
                     SyntaxKind::ExclamationEqualsEqualsToken
                 }),
-                self.factory.create_void_zero(),
+                self.factory.ref_(self).create_void_zero(),
             ),
         )
     }
@@ -474,17 +474,17 @@ impl TransformES2020 {
         );
         let mut right = left;
         if !is_simple_copiable_expression(&left.ref_(self)) {
-            right = self.factory.create_temp_variable(
+            right = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 }),
                 None,
             );
-            left = self.factory.create_assignment(right.clone(), left);
+            left = self.factory.ref_(self).create_assignment(right.clone(), left);
         }
         Some(
             self.factory
-                .create_conditional_expression(
+                .ref_(self).create_conditional_expression(
                     self.create_not_null_condition(left, right.clone(), None),
                     None,
                     right,
@@ -517,7 +517,7 @@ impl TransformES2020 {
                 )
                 .set_original_node(Some(node), self)
             } else {
-                self.factory.update_delete_expression(
+                self.factory.ref_(self).update_delete_expression(
                     node,
                     visit_node(
                         node_as_delete_expression.expression,

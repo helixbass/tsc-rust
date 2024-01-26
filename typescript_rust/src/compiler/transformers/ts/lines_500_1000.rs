@@ -31,7 +31,7 @@ impl TransformTypeScript {
             && !(is_external_module(&node.ref_(self)) && self.module_kind >= ModuleKind::ES2015)
             && !is_json_source_file(&node.ref_(self));
 
-        Ok(self.factory.update_source_file(
+        Ok(self.factory.ref_(self).update_source_file(
             node,
             try_visit_lexical_environment_full(
                 &node.ref_(self).as_source_file().statements(),
@@ -161,7 +161,7 @@ impl TransformTypeScript {
 
         let name = node_as_class_declaration.maybe_name().or_else(|| {
             if facts.intersects(ClassFacts::NeedsName) {
-                Some(self.factory.get_generated_name_for_node(Some(node), None))
+                Some(self.factory.ref_(self).get_generated_name_for_node(Some(node), None))
             } else {
                 None
             }
@@ -189,17 +189,17 @@ impl TransformTypeScript {
                 ),
                 SyntaxKind::CloseBraceToken,
             );
-            let local_name = self.factory.get_internal_name(node, None, None);
+            let local_name = self.factory.ref_(self).get_internal_name(node, None, None);
 
             let outer = self
                 .factory
-                .create_partially_emitted_expression(local_name, None)
+                .ref_(self).create_partially_emitted_expression(local_name, None)
                 .set_text_range_end(closing_brace_location.end(), self)
                 .set_emit_flags(EmitFlags::NoComments, self);
 
             let statement = self
                 .factory
-                .create_return_statement(Some(outer))
+                .ref_(self).create_return_statement(Some(outer))
                 .set_text_range_pos(closing_brace_location.pos(), self)
                 .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps, self);
             statements.push(statement);
@@ -212,16 +212,16 @@ impl TransformTypeScript {
 
             let iife = self
                 .factory
-                .create_immediately_invoked_arrow_function(statements, None, None)
+                .ref_(self).create_immediately_invoked_arrow_function(statements, None, None)
                 .set_emit_flags(EmitFlags::TypeScriptClassWrapper, self);
 
             let var_statement = self
                 .factory
-                .create_variable_statement(
+                .ref_(self).create_variable_statement(
                     Option::<Gc<NodeArray>>::None,
-                    self.factory.create_variable_declaration_list(
-                        vec![self.factory.create_variable_declaration(
-                            Some(self.factory.get_local_name(node, Some(false), Some(false))),
+                    self.factory.ref_(self).create_variable_declaration_list(
+                        vec![self.factory.ref_(self).create_variable_declaration(
+                            Some(self.factory.ref_(self).get_local_name(node, Some(false), Some(false))),
                             None,
                             None,
                             Some(iife),
@@ -244,15 +244,15 @@ impl TransformTypeScript {
             if facts.intersects(ClassFacts::IsDefaultExternalExport) {
                 statements.push(
                     self.factory
-                        .create_export_default(self.factory.get_local_name(
+                        .ref_(self).create_export_default(self.factory.ref_(self).get_local_name(
                             node,
                             Some(false),
                             Some(true),
                         )),
                 );
             } else if facts.intersects(ClassFacts::IsNamedExternalExport) {
-                statements.push(self.factory.create_external_module_export(
-                    self.factory.get_local_name(node, Some(false), Some(true)),
+                statements.push(self.factory.ref_(self).create_external_module_export(
+                    self.factory.ref_(self).get_local_name(node, Some(false), Some(true)),
                 ));
             }
         }
@@ -260,7 +260,7 @@ impl TransformTypeScript {
         if statements.len() > 1 {
             statements.push(
                 self.factory
-                    .create_end_of_declaration_marker(node),
+                    .ref_(self).create_end_of_declaration_marker(node),
             );
             set_emit_flags(
                 class_statement,
@@ -295,7 +295,7 @@ impl TransformTypeScript {
                 )
             });
 
-        let class_declaration = self.factory.create_class_declaration(
+        let class_declaration = self.factory.ref_(self).create_class_declaration(
             Option::<Gc<NodeArray>>::None,
             modifiers,
             name,
@@ -335,9 +335,9 @@ impl TransformTypeScript {
 
         let decl_name = if self.language_version <= ScriptTarget::ES2015 {
             self.factory
-                .get_internal_name(node, Some(false), Some(true))
+                .ref_(self).get_internal_name(node, Some(false), Some(true))
         } else {
-            self.factory.get_local_name(node, Some(false), Some(true))
+            self.factory.ref_(self).get_local_name(node, Some(false), Some(true))
         };
 
         let heritage_clauses = try_maybe_visit_nodes(
@@ -352,7 +352,7 @@ impl TransformTypeScript {
         let members = self.transform_class_members(node)?;
         let class_expression = self
             .factory
-            .create_class_expression(
+            .ref_(self).create_class_expression(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 name,
@@ -365,16 +365,16 @@ impl TransformTypeScript {
 
         Ok(self
             .factory
-            .create_variable_statement(
+            .ref_(self).create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
-                self.factory.create_variable_declaration_list(
-                    vec![self.factory.create_variable_declaration(
+                self.factory.ref_(self).create_variable_declaration_list(
+                    vec![self.factory.ref_(self).create_variable_declaration(
                         Some(decl_name),
                         None,
                         None,
                         Some(if let Some(class_alias) = class_alias {
                             self.factory
-                                .create_assignment(class_alias, class_expression)
+                                .ref_(self).create_assignment(class_alias, class_expression)
                         } else {
                             class_expression
                         }),
@@ -404,7 +404,7 @@ impl TransformTypeScript {
 
         Ok(self
             .factory
-            .create_class_expression(
+            .ref_(self).create_class_expression(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 node_as_class_expression.maybe_name(),
@@ -442,7 +442,7 @@ impl TransformTypeScript {
                 if is_identifier(&parameter_as_parameter_declaration.name().ref_(self)) {
                     members.push(
                         self.factory
-                            .create_property_declaration(
+                            .ref_(self).create_property_declaration(
                                 Option::<Gc<NodeArray>>::None,
                                 Option::<Gc<NodeArray>>::None,
                                 parameter_as_parameter_declaration.name(),
@@ -472,7 +472,7 @@ impl TransformTypeScript {
         );
         Ok(self
             .factory
-            .create_node_array(Some(members), None)
+            .ref_(self).create_node_array(Some(members), None)
             .set_text_range(Some(&*node_as_class_like_declaration.members())))
     }
 

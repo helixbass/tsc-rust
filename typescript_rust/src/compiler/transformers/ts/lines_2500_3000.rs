@@ -90,7 +90,7 @@ impl TransformTypeScript {
     ) -> bool {
         let statement = self
             .factory
-            .create_variable_statement(
+            .ref_(self).create_variable_statement(
                 maybe_visit_nodes(
                     node.ref_(self).maybe_modifiers().as_deref(),
                     Some(|node: Id<Node>| self.modifier_visitor(node)),
@@ -98,9 +98,9 @@ impl TransformTypeScript {
                     None,
                     None,
                 ),
-                self.factory.create_variable_declaration_list(
-                    vec![self.factory.create_variable_declaration(
-                        Some(self.factory.get_local_name(node, Some(false), Some(true))),
+                self.factory.ref_(self).create_variable_declaration_list(
+                    vec![self.factory.ref_(self).create_variable_declaration(
+                        Some(self.factory.ref_(self).get_local_name(node, Some(false), Some(true))),
                         None,
                         None,
                         None,
@@ -139,7 +139,7 @@ impl TransformTypeScript {
         } else {
             let merge_marker = self
                 .factory
-                .create_merge_declaration_marker(statement)
+                .ref_(self).create_merge_declaration_marker(statement)
                 .set_emit_flags(EmitFlags::NoComments | EmitFlags::HasEndOfDeclarationMarker, self);
             statements.push(merge_marker);
             false
@@ -155,7 +155,7 @@ impl TransformTypeScript {
         if !self.should_emit_module_declaration(node) {
             return Ok(Some(
                 self.factory
-                    .create_not_emitted_statement(node)
+                    .ref_(self).create_not_emitted_statement(node)
                     .into(),
             ));
         }
@@ -185,40 +185,40 @@ impl TransformTypeScript {
         let container_name = self.get_namespace_container_name(node);
 
         let export_name = if has_syntactic_modifier(node, ModifierFlags::Export, self) {
-            self.factory.get_external_module_or_namespace_export_name(
+            self.factory.ref_(self).get_external_module_or_namespace_export_name(
                 self.maybe_current_namespace_container_name(),
                 node,
                 Some(false),
                 Some(true),
             )
         } else {
-            self.factory.get_local_name(node, Some(false), Some(true))
+            self.factory.ref_(self).get_local_name(node, Some(false), Some(true))
         };
 
-        let mut module_arg = self.factory.create_logical_or(
+        let mut module_arg = self.factory.ref_(self).create_logical_or(
             export_name.clone(),
-            self.factory.create_assignment(
+            self.factory.ref_(self).create_assignment(
                 export_name,
                 self.factory
-                    .create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
+                    .ref_(self).create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
             ),
         );
 
         if self.has_namespace_qualified_export_name(node) {
-            let local_name = self.factory.get_local_name(node, Some(false), Some(true));
+            let local_name = self.factory.ref_(self).get_local_name(node, Some(false), Some(true));
 
-            module_arg = self.factory.create_assignment(local_name, module_arg);
+            module_arg = self.factory.ref_(self).create_assignment(local_name, module_arg);
         }
 
         let module_statement = self
             .factory
-            .create_expression_statement(self.factory.create_call_expression(
-                self.factory.create_function_expression(
+            .ref_(self).create_expression_statement(self.factory.ref_(self).create_call_expression(
+                self.factory.ref_(self).create_function_expression(
                     Option::<Gc<NodeArray>>::None,
                     None,
                     Option::<Id<Node>>::None,
                     Option::<Gc<NodeArray>>::None,
-                    Some(vec![self.factory.create_parameter_declaration(
+                    Some(vec![self.factory.ref_(self).create_parameter_declaration(
                         Option::<Gc<NodeArray>>::None,
                         Option::<Gc<NodeArray>>::None,
                         None,
@@ -245,7 +245,7 @@ impl TransformTypeScript {
 
         statements.push(
             self.factory
-                .create_end_of_declaration_marker(node),
+                .ref_(self).create_end_of_declaration_marker(node),
         );
         Ok(Some(statements.into()))
     }
@@ -328,9 +328,9 @@ impl TransformTypeScript {
 
         let block = self
             .factory
-            .create_block(
+            .ref_(self).create_block(
                 set_text_range_node_array(
-                    self.factory.create_node_array(Some(statements), None),
+                    self.factory.ref_(self).create_node_array(Some(statements), None),
                     statements_location.as_ref(),
                 ),
                 Some(true),
@@ -395,7 +395,7 @@ impl TransformTypeScript {
             {
                 Some(
                     self.factory
-                        .update_import_declaration(
+                        .ref_(self).update_import_declaration(
                             node,
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
@@ -432,7 +432,7 @@ impl TransformTypeScript {
         Ok(if name.is_some() || named_bindings.is_some() {
             Some(
                 self.factory
-                    .update_import_clause(node, false, name, named_bindings)
+                    .ref_(self).update_import_clause(node, false, name, named_bindings)
                     .into(),
             )
         } else {

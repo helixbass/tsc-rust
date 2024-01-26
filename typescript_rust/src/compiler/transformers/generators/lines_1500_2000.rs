@@ -23,18 +23,18 @@ impl TransformGenerators {
         if self.contains_yield(Some(node)) {
             let keys_array = self.declare_local(None);
             let key = self.declare_local(None);
-            let keys_index = self.factory.create_loop_variable(None);
+            let keys_index = self.factory.ref_(self).create_loop_variable(None);
             let initializer = node_as_for_in_statement.initializer;
             self.context.ref_(self).hoist_variable_declaration(keys_index);
             self.emit_assignment(
                 keys_array.clone(),
                 self.factory
-                    .create_array_literal_expression(Option::<Gc<NodeArray>>::None, None),
+                    .ref_(self).create_array_literal_expression(Option::<Gc<NodeArray>>::None, None),
                 Option::<&Node>::None,
             );
 
             self.emit_statement(
-                self.factory.create_for_in_statement(
+                self.factory.ref_(self).create_for_in_statement(
                     key.clone(),
                     visit_node(
                         node_as_for_in_statement.expression,
@@ -42,10 +42,10 @@ impl TransformGenerators {
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     ),
-                    self.factory.create_expression_statement(
-                        self.factory.create_call_expression(
+                    self.factory.ref_(self).create_expression_statement(
+                        self.factory.ref_(self).create_call_expression(
                             self.factory
-                                .create_property_access_expression(keys_array.clone(), "push"),
+                                .ref_(self).create_property_access_expression(keys_array.clone(), "push"),
                             Option::<Gc<NodeArray>>::None,
                             Some(vec![key]),
                         ),
@@ -55,7 +55,7 @@ impl TransformGenerators {
 
             self.emit_assignment(
                 keys_index.clone(),
-                self.factory.create_numeric_literal(Number::new(0.0), None),
+                self.factory.ref_(self).create_numeric_literal(Number::new(0.0), None),
                 Option::<&Node>::None,
             );
 
@@ -66,10 +66,10 @@ impl TransformGenerators {
             self.mark_label(condition_label);
             self.emit_break_when_false(
                 end_label,
-                self.factory.create_less_than(
+                self.factory.ref_(self).create_less_than(
                     keys_index.clone(),
                     self.factory
-                        .create_property_access_expression(keys_array.clone(), "length"),
+                        .ref_(self).create_property_access_expression(keys_array.clone(), "length"),
                 ),
                 Option::<&Node>::None,
             );
@@ -82,7 +82,7 @@ impl TransformGenerators {
                         .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
                 }
 
-                self.factory.clone_node(
+                self.factory.ref_(self).clone_node(
                     initializer_as_variable_declaration_list.declarations[0]
                         .ref_(self).as_variable_declaration()
                         .name(),
@@ -99,7 +99,7 @@ impl TransformGenerators {
             self.emit_assignment(
                 variable,
                 self.factory
-                    .create_element_access_expression(keys_array, keys_index.clone()),
+                    .ref_(self).create_element_access_expression(keys_array, keys_index.clone()),
                 Option::<&Node>::None,
             );
             self.transform_and_emit_embedded_statement(node_as_for_in_statement.statement);
@@ -107,7 +107,7 @@ impl TransformGenerators {
             self.mark_label(increment_label);
             self.emit_statement(
                 self.factory
-                    .create_expression_statement(self.factory.create_postfix_increment(keys_index)),
+                    .ref_(self).create_expression_statement(self.factory.create_postfix_increment(keys_index)),
             );
 
             self.emit_break(condition_label, Option::<&Node>::None);
@@ -140,7 +140,7 @@ impl TransformGenerators {
                     .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
             }
 
-            node = self.factory.update_for_in_statement(
+            node = self.factory.ref_(self).update_for_in_statement(
                 node,
                 initializer_as_variable_declaration_list.declarations[0]
                     .ref_(self).as_variable_declaration()
@@ -155,7 +155,7 @@ impl TransformGenerators {
                     node.ref_(self).as_for_in_statement().statement,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
-                    Some(&|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
+                    Some(&|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),
                 ),
             );
         } else {
@@ -362,7 +362,7 @@ impl TransformGenerators {
                             break;
                         }
 
-                        pending_clauses.push(self.factory.create_case_clause(
+                        pending_clauses.push(self.factory.ref_(self).create_case_clause(
                             visit_node(
                                 clause_as_case_clause.expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
@@ -381,9 +381,9 @@ impl TransformGenerators {
 
                 if !pending_clauses.is_empty() {
                     let pending_clauses_len = pending_clauses.len();
-                    self.emit_statement(self.factory.create_switch_statement(
+                    self.emit_statement(self.factory.ref_(self).create_switch_statement(
                         expression.clone(),
-                        self.factory.create_case_block(pending_clauses),
+                        self.factory.ref_(self).create_case_block(pending_clauses),
                     ));
                     clauses_written += pending_clauses_len;
                     pending_clauses = _d();
@@ -556,7 +556,7 @@ impl TransformGenerators {
             return node;
         }
 
-        let temp = self.factory.create_temp_variable(
+        let temp = self.factory.ref_(self).create_temp_variable(
             Some(|node: Id<Node>| {
                 self.context.ref_(self).hoist_variable_declaration(node);
             }),
@@ -570,9 +570,9 @@ impl TransformGenerators {
         let temp = name.map_or_else(
             || {
                 self.factory
-                    .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
+                    .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None)
             },
-            |name| self.factory.create_unique_name(name, None),
+            |name| self.factory.ref_(self).create_unique_name(name, None),
         );
         self.context.ref_(self).hoist_variable_declaration(temp);
         temp

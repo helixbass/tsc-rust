@@ -160,10 +160,10 @@ impl TransformEcmascriptModule {
             let mut result = self.update_external_module(node)?;
             self.set_current_source_file(None);
             if let Some(import_require_statements) = self.maybe_import_require_statements() {
-                result = self.factory.update_source_file(
+                result = self.factory.ref_(self).update_source_file(
                     result,
                     self.factory
-                        .create_node_array(
+                        .ref_(self).create_node_array(
                             {
                                 let mut statements = result.ref_(self).as_source_file().statements().to_vec();
                                 insert_statements_after_custom_prologue(
@@ -195,16 +195,16 @@ impl TransformEcmascriptModule {
             {
                 return Ok(result);
             }
-            return Ok(self.factory.update_source_file(
+            return Ok(self.factory.ref_(self).update_source_file(
                 result,
                 self.factory
-                    .create_node_array(
+                    .ref_(self).create_node_array(
                         Some(
                             result
                                 .ref_(self).as_source_file()
                                 .statements()
                                 .to_vec()
-                                .and_push(create_empty_exports(&self.factory)),
+                                .and_push(create_empty_exports(&self.factory.ref_(self))),
                         ),
                         None,
                     )
@@ -225,7 +225,7 @@ impl TransformEcmascriptModule {
         let node_as_source_file = node_ref.as_source_file();
         let external_helpers_import_declaration =
             create_external_helpers_import_declaration_if_needed(
-                &self.factory,
+                &self.factory.ref_(self),
                 &self.emit_helpers(),
                 node,
                 &self.compiler_options.ref_(self),
@@ -236,7 +236,7 @@ impl TransformEcmascriptModule {
         Ok(match external_helpers_import_declaration {
             Some(external_helpers_import_declaration) => {
                 let mut statements: Vec<Id<Node /*Statement*/>> = _d();
-                let statement_offset = self.factory.copy_prologue(
+                let statement_offset = self.factory.ref_(self).copy_prologue(
                     &node_as_source_file.statements(),
                     &mut statements,
                     None,
@@ -253,10 +253,10 @@ impl TransformEcmascriptModule {
                     )?
                     .owned_iter(),
                 );
-                self.factory.update_source_file(
+                self.factory.ref_(self).update_source_file(
                     node,
                     self.factory
-                        .create_node_array(Some(statements), None)
+                        .ref_(self).create_node_array(Some(statements), None)
                         .set_text_range(Some(&*node_as_source_file.statements())),
                     None,
                     None,
@@ -293,7 +293,7 @@ impl TransformEcmascriptModule {
         import_node: Id<Node>, /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/
     ) -> io::Result<Id<Node>> {
         let module_name = get_external_module_name_literal(
-            &self.factory,
+            &self.factory.ref_(self),
             import_node,
             Debug_.check_defined(self.maybe_current_source_file(), None),
             &**self.host.ref_(self),
@@ -306,48 +306,48 @@ impl TransformEcmascriptModule {
         }
 
         if self.maybe_import_require_statements().is_none() {
-            let create_require_name = self.factory.create_unique_name(
+            let create_require_name = self.factory.ref_(self).create_unique_name(
                 "_createRequire",
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             );
-            let import_statement = self.factory.create_import_declaration(
+            let import_statement = self.factory.ref_(self).create_import_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
-                Some(self.factory.create_import_clause(
+                Some(self.factory.ref_(self).create_import_clause(
                     false,
                     None,
-                    Some(self.factory.create_named_imports(vec![
-                        self.factory.create_import_specifier(
+                    Some(self.factory.ref_(self).create_named_imports(vec![
+                        self.factory.ref_(self).create_import_specifier(
                             false,
-                            Some(self.factory.create_identifier("createRequire")),
+                            Some(self.factory.ref_(self).create_identifier("createRequire")),
                             create_require_name.clone(),
                         ),
                     ])),
                 )),
                 self.factory
-                    .create_string_literal("module".to_owned(), None, None),
+                    .ref_(self).create_string_literal("module".to_owned(), None, None),
                 None,
             );
-            let require_helper_name = self.factory.create_unique_name(
+            let require_helper_name = self.factory.ref_(self).create_unique_name(
                 "__require",
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             );
-            let require_statement = self.factory.create_variable_statement(
+            let require_statement = self.factory.ref_(self).create_variable_statement(
                 Option::<Gc<NodeArray>>::None,
-                self.factory.create_variable_declaration_list(
-                    vec![self.factory.create_variable_declaration(
+                self.factory.ref_(self).create_variable_declaration_list(
+                    vec![self.factory.ref_(self).create_variable_declaration(
                         Some(require_helper_name),
                         None,
                         None,
-                        Some(self.factory.create_call_expression(
-                            self.factory.clone_node(create_require_name),
+                        Some(self.factory.ref_(self).create_call_expression(
+                            self.factory.ref_(self).clone_node(create_require_name),
                             Option::<Gc<NodeArray>>::None,
-                            Some(vec![self.factory.create_property_access_expression(
-                                self.factory.create_meta_property(
+                            Some(vec![self.factory.ref_(self).create_property_access_expression(
+                                self.factory.ref_(self).create_meta_property(
                                     SyntaxKind::ImportKeyword,
-                                    self.factory.create_identifier("meta"),
+                                    self.factory.ref_(self).create_identifier("meta"),
                                 ),
-                                self.factory.create_identifier("url"),
+                                self.factory.ref_(self).create_identifier("url"),
                             )]),
                         )),
                     )],
@@ -371,8 +371,8 @@ impl TransformEcmascriptModule {
             .ref_(self).as_variable_declaration()
             .name();
         Debug_.assert_node(Some(name), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), None);
-        Ok(self.factory.create_call_expression(
-            self.factory.clone_node(name),
+        Ok(self.factory.ref_(self).create_call_expression(
+            self.factory.ref_(self).clone_node(name),
             Option::<Gc<NodeArray>>::None,
             Some(args),
         ))
@@ -392,13 +392,13 @@ impl TransformEcmascriptModule {
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         statements.get_or_insert_default_().push(
             self.factory
-                .create_variable_statement(
+                .ref_(self).create_variable_statement(
                     Option::<Gc<NodeArray>>::None,
-                    self.factory.create_variable_declaration_list(
-                        vec![self.factory.create_variable_declaration(
+                    self.factory.ref_(self).create_variable_declaration_list(
+                        vec![self.factory.ref_(self).create_variable_declaration(
                             Some(
                                 self.factory
-                                    .clone_node(node_as_import_equals_declaration.name()),
+                                    .ref_(self).clone_node(node_as_import_equals_declaration.name()),
                             ),
                             None,
                             None,
@@ -430,12 +430,12 @@ impl TransformEcmascriptModule {
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             statements
                 .get_or_insert_default_()
-                .push(self.factory.create_export_declaration(
+                .push(self.factory.ref_(self).create_export_declaration(
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
                     node_as_import_equals_declaration.is_type_only,
-                    Some(self.factory.create_named_exports(vec![
-                        self.factory.create_export_specifier(
+                    Some(self.factory.ref_(self).create_named_exports(vec![
+                        self.factory.ref_(self).create_export_specifier(
                             false,
                             Option::<Id<Node>>::None,
                             id_text(&node_as_import_equals_declaration.name().ref_(self)),
@@ -482,16 +482,16 @@ impl TransformEcmascriptModule {
         let old_identifier = node_export_clause_as_namespace_export.name;
         let synth_name = self
             .factory
-            .get_generated_name_for_node(Some(old_identifier), None);
+            .ref_(self).get_generated_name_for_node(Some(old_identifier), None);
         let import_decl = self
             .factory
-            .create_import_declaration(
+            .ref_(self).create_import_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
-                Some(self.factory.create_import_clause(
+                Some(self.factory.ref_(self).create_import_clause(
                     false,
                     None,
-                    Some(self.factory.create_namespace_import(synth_name.clone())),
+                    Some(self.factory.ref_(self).create_namespace_import(synth_name.clone())),
                 )),
                 node_module_specifier.clone(),
                 node_as_export_declaration.assert_clause.clone(),
@@ -499,14 +499,14 @@ impl TransformEcmascriptModule {
             .set_original_node(Some(node_export_clause), self);
 
         let export_decl = if is_export_namespace_as_default_declaration(node, self) {
-            self.factory.create_export_default(synth_name)
+            self.factory.ref_(self).create_export_default(synth_name)
         } else {
-            self.factory.create_export_declaration(
+            self.factory.ref_(self).create_export_declaration(
                 Option::<Gc<NodeArray>>::None,
                 Option::<Gc<NodeArray>>::None,
                 false,
-                Some(self.factory.create_named_exports(vec![
-                    self.factory.create_export_specifier(
+                Some(self.factory.ref_(self).create_named_exports(vec![
+                    self.factory.ref_(self).create_export_specifier(
                         false,
                         Some(synth_name),
                         old_identifier.clone(),
@@ -635,7 +635,7 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
             .get(name)
             .cloned();
         if substitution.is_none() {
-            substitution = Some(self.transform_ecmascript_module().factory.create_unique_name(
+            substitution = Some(self.transform_ecmascript_module().factory.ref_(self).create_unique_name(
                 name,
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             ));

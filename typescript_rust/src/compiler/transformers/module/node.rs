@@ -112,7 +112,7 @@ impl TransformNodeModule {
     fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> io::Result<Id<Node>> {
         let node_ref = node.ref_(self);
         let node_as_bundle = node_ref.as_bundle();
-        Ok(self.context.ref_(self).factory().create_bundle(
+        Ok(self.context.ref_(self).factory().ref_(self).create_bundle(
             try_map(
                 &node_as_bundle.source_files,
                 |source_file: &Option<Id<Node>>, _| -> io::Result<_> {

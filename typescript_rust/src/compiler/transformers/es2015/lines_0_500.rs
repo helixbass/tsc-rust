@@ -328,7 +328,7 @@ impl TransformES2015 {
     pub(super) fn record_tagged_template_string(&self, temp: Id<Node> /*Identifier*/) {
         self.maybe_tagged_template_string_declarations_mut()
             .get_or_insert_default_()
-            .push(self.factory.create_variable_declaration(
+            .push(self.factory.ref_(self).create_variable_declaration(
                 Some(temp),
                 None,
                 None,
@@ -690,7 +690,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                 return Ok(self
                     .transform_es2015()
                     .factory
-                    .get_generated_name_for_node(Some(original), None)
+                    .ref_(self).get_generated_name_for_node(Some(original), None)
                     .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
@@ -755,7 +755,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
                 return Ok(self
                     .transform_es2015()
                     .factory
-                    .get_generated_name_for_node(get_name_of_declaration(Some(declaration), self), None)
+                    .ref_(self).get_generated_name_for_node(get_name_of_declaration(Some(declaration), self), None)
                     .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
@@ -812,7 +812,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
             return self
                 .transform_es2015()
                 .factory
-                .create_unique_name(
+                .ref_(self).create_unique_name(
                     "_this",
                     Some(
                         GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,

@@ -64,13 +64,13 @@ impl TransformES2019 {
         let node_ref = node.ref_(self);
         let node_as_catch_clause = node_ref.as_catch_clause();
         if node_as_catch_clause.variable_declaration.is_none() {
-            return self.factory.update_catch_clause(
+            return self.factory.ref_(self).update_catch_clause(
                 node,
                 Some(
-                    self.factory.create_variable_declaration(
+                    self.factory.ref_(self).create_variable_declaration(
                         Some(
                             self.factory
-                                .create_temp_variable(Option::<fn(Id<Node>)>::None, None),
+                                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None),
                         ),
                         None,
                         None,

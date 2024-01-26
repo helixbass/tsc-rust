@@ -998,7 +998,7 @@ impl TransformGenerators {
         {
             node = self
                 .factory
-                .create_function_declaration(
+                .ref_(self).create_function_declaration(
                     Option::<Gc<NodeArray>>::None,
                     node.ref_(self).maybe_modifiers(),
                     None,
@@ -1047,7 +1047,7 @@ impl TransformGenerators {
         {
             node = self
                 .factory
-                .create_function_expression(
+                .ref_(self).create_function_expression(
                     Option::<Gc<NodeArray>>::None,
                     None,
                     node.ref_(self).as_function_expression().maybe_name(),
@@ -1155,7 +1155,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                         return Ok(self
                             .transform_generators()
                             .factory
-                            .clone_node(name)
+                            .ref_(self).clone_node(name)
                             .set_text_range(Some(&*name.ref_(self)), self)
                             .and_set_parent(name.ref_(self).maybe_parent(), self)
                             .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)

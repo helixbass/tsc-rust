@@ -95,18 +95,18 @@ impl TransformES2016 {
         if is_element_access_expression(&left.ref_(self)) {
             let left_ref = left.ref_(self);
             let left_as_element_access_expression = left_ref.as_element_access_expression();
-            let expression_temp = self.factory.create_temp_variable(
+            let expression_temp = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                 None,
             );
-            let argument_expression_temp = self.factory.create_temp_variable(
+            let argument_expression_temp = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                 None,
             );
             target = set_text_range_id_node(
-                self.factory.create_element_access_expression(
+                self.factory.ref_(self).create_element_access_expression(
                     set_text_range_id_node(
-                        self.factory.create_assignment(
+                        self.factory.ref_(self).create_assignment(
                             expression_temp.clone(),
                             left_as_element_access_expression.expression.clone(),
                         ),
@@ -114,7 +114,7 @@ impl TransformES2016 {
                         self,
                     ),
                     set_text_range_id_node(
-                        self.factory.create_assignment(
+                        self.factory.ref_(self).create_assignment(
                             argument_expression_temp.clone(),
                             left_as_element_access_expression
                                 .argument_expression
@@ -129,21 +129,21 @@ impl TransformES2016 {
             );
             value = set_text_range_id_node(
                 self.factory
-                    .create_element_access_expression(expression_temp, argument_expression_temp),
+                    .ref_(self).create_element_access_expression(expression_temp, argument_expression_temp),
                 Some(&*left.ref_(self)),
                 self,
             );
         } else if is_property_access_expression(&left.ref_(self)) {
             let left_ref = left.ref_(self);
             let left_as_property_access_expression = left_ref.as_property_access_expression();
-            let expression_temp = self.factory.create_temp_variable(
+            let expression_temp = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| self.context.ref_(self).hoist_variable_declaration(node)),
                 None,
             );
             target = set_text_range_id_node(
-                self.factory.create_property_access_expression(
+                self.factory.ref_(self).create_property_access_expression(
                     set_text_range_id_node(
-                        self.factory.create_assignment(
+                        self.factory.ref_(self).create_assignment(
                             expression_temp.clone(),
                             left_as_property_access_expression.expression.clone(),
                         ),
@@ -156,7 +156,7 @@ impl TransformES2016 {
                 self,
             );
             value = set_text_range_id_node(
-                self.factory.create_property_access_expression(
+                self.factory.ref_(self).create_property_access_expression(
                     expression_temp,
                     left_as_property_access_expression.name,
                 ),
@@ -168,10 +168,10 @@ impl TransformES2016 {
             value = left.clone();
         }
         set_text_range_id_node(
-            self.factory.create_assignment(
+            self.factory.ref_(self).create_assignment(
                 target,
                 set_text_range_id_node(
-                    self.factory.create_global_method_call(
+                    self.factory.ref_(self).create_global_method_call(
                         "Math",
                         "pow",
                         vec![value, right.clone()],
@@ -205,7 +205,7 @@ impl TransformES2016 {
         );
         set_text_range_id_node(
             self.factory
-                .create_global_method_call("Math", "pow", vec![left, right]),
+                .ref_(self).create_global_method_call("Math", "pow", vec![left, right]),
             Some(&*node.ref_(self)),
             self,
         )

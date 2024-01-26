@@ -183,7 +183,7 @@ impl TransformES5OnSubstituteNodeOverrider {
             return self
                 .transform_es5()
                 .factory
-                .create_element_access_expression(
+                .ref_(self).create_element_access_expression(
                     node_as_property_access_expression.expression.clone(),
                     literal_name,
                 )
@@ -201,7 +201,7 @@ impl TransformES5OnSubstituteNodeOverrider {
         let literal_name = is_identifier(&node_as_property_assignment.name().ref_(self))
             .then_and(|| self.try_substitute_reserved_name(node_as_property_assignment.name()));
         if let Some(literal_name) = literal_name {
-            return self.transform_es5().factory.update_property_assignment(
+            return self.transform_es5().factory.ref_(self).update_property_assignment(
                 node,
                 literal_name,
                 node_as_property_assignment.initializer.clone(),
@@ -222,7 +222,7 @@ impl TransformES5OnSubstituteNodeOverrider {
             return Some(
                 self.transform_es5()
                     .factory
-                    .create_string_literal_from_node(name)
+                    .ref_(self).create_string_literal_from_node(name)
                     .set_text_range(Some(&*name.ref_(self)), self),
             );
         }

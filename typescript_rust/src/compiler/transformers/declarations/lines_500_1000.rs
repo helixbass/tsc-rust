@@ -1006,7 +1006,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_set_accessor_declaration(
+                        Some(self.factory.ref_(self).update_set_accessor_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
                             self.ensure_modifiers(input),
@@ -1040,7 +1040,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_property_declaration(
+                        Some(self.factory.ref_(self).update_property_declaration(
                             input,
                             Option::<Gc<NodeArray>>::None,
                             self.ensure_modifiers(input),
@@ -1076,7 +1076,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_property_signature(
+                        Some(self.factory.ref_(self).update_property_signature(
                             input,
                             self.ensure_modifiers(input),
                             input_as_property_signature.name(),
@@ -1111,7 +1111,7 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_method_signature(
+                            self.factory.ref_(self).update_method_signature(
                                 input,
                                 self.ensure_modifiers(input),
                                 input_as_method_signature.name(),
@@ -1146,7 +1146,7 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_call_signature(
+                            self.factory.ref_(self).update_call_signature(
                                 input,
                                 self.ensure_type_params(
                                     input,
@@ -1180,7 +1180,7 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_index_signature(
+                            self.factory.ref_(self).update_index_signature(
                                 input,
                                 Option::<Gc<NodeArray>>::None,
                                 self.ensure_modifiers(input),
@@ -1198,7 +1198,7 @@ impl TransformDeclarations {
                                 )?
                                 .unwrap_or_else(|| {
                                     self.factory
-                                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                                        .ref_(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
                                 }),
                             ),
                         ),
@@ -1222,7 +1222,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_variable_declaration(
+                        Some(self.factory.ref_(self).update_variable_declaration(
                             input,
                             input_as_variable_declaration.maybe_name(),
                             None,
@@ -1249,7 +1249,7 @@ impl TransformDeclarations {
                             &old_diag,
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
-                            Some(self.factory.update_type_parameter_declaration(
+                            Some(self.factory.ref_(self).update_type_parameter_declaration(
                                 input,
                                 input_as_type_parameter_declaration.name(),
                                 None,
@@ -1311,7 +1311,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_conditional_type_node(
+                        Some(self.factory.ref_(self).update_conditional_type_node(
                             input,
                             check_type,
                             extends_type,
@@ -1331,7 +1331,7 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_function_type_node(
+                            self.factory.ref_(self).update_function_type_node(
                                 input,
                                 try_maybe_visit_nodes(
                                     input_as_function_type_node
@@ -1369,7 +1369,7 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_constructor_type_node(
+                            self.factory.ref_(self).update_constructor_type_node(
                                 input,
                                 self.ensure_modifiers(input),
                                 try_maybe_visit_nodes(
@@ -1419,9 +1419,9 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_import_type_node(
+                            self.factory.ref_(self).update_import_type_node(
                                 input,
-                                self.factory.update_literal_type_node(
+                                self.factory.ref_(self).update_literal_type_node(
                                     input_as_import_type_node.argument,
                                     self.rewrite_module_specifier(
                                         input,

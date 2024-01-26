@@ -45,13 +45,13 @@ impl TransformDeclarations {
             return Ok(None);
         }
         Ok(Some(
-            self.factory.update_variable_statement(
+            self.factory.ref_(self).update_variable_statement(
                 input,
                 Some(
                     self.factory
-                        .create_node_array(self.ensure_modifiers(input), None),
+                        .ref_(self).create_node_array(self.ensure_modifiers(input), None),
                 ),
-                self.factory.update_variable_declaration_list(
+                self.factory.ref_(self).update_variable_declaration_list(
                     input_as_variable_statement.declaration_list,
                     nodes,
                 ),
@@ -85,7 +85,7 @@ impl TransformDeclarations {
             Ok(if is_binding_pattern(Some(&*e_name.ref_(self))) {
                 Some(self.recreate_binding_pattern(e_name)?)
             } else {
-                Some(vec![self.factory.create_variable_declaration(
+                Some(vec![self.factory.ref_(self).create_variable_declaration(
                     Some(e_name),
                     None,
                     self.ensure_type(e, None, None)?,
@@ -152,7 +152,7 @@ impl TransformDeclarations {
         }
         Some(
             self.factory
-                .create_modifiers_from_modifier_flags(new_flags)
+                .ref_(self).create_modifiers_from_modifier_flags(new_flags)
                 .into(),
         )
     }
@@ -205,16 +205,16 @@ impl TransformDeclarations {
         &self,
         nodes: Option<&NodeArray /*<HeritageClause>*/>,
     ) -> io::Result<Gc<NodeArray>> {
-        Ok(self.factory.create_node_array(
+        Ok(self.factory.ref_(self).create_node_array(
             nodes.try_map(|nodes| -> io::Result<_> {
                 let mut ret = vec![];
                 for &clause in nodes {
                     let clause_ref = clause.ref_(self);
                     let clause_as_heritage_clause = clause_ref.as_heritage_clause();
-                    let clause = self.factory.update_heritage_clause(
+                    let clause = self.factory.ref_(self).update_heritage_clause(
                         clause,
                         try_visit_nodes(
-                            &self.factory.create_node_array(
+                            &self.factory.ref_(self).create_node_array(
                                 Some(
                                     clause_as_heritage_clause
                                         .types
@@ -269,7 +269,7 @@ pub(super) fn mask_modifiers(
     modifier_additions: Option<ModifierFlags>,
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*Modifier*/>> {
-    get_factory().create_modifiers_from_modifier_flags(mask_modifier_flags(
+    get_factory(arena).create_modifiers_from_modifier_flags(mask_modifier_flags(
         node,
         modifier_mask,
         modifier_additions,
