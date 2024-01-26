@@ -100,9 +100,9 @@ impl BaseNodeFactory for ParseBaseNodeFactory {
     }
 }
 
-pub fn get_parse_base_node_factory() -> Id<Box<dyn BaseNodeFactory>> {
+pub fn get_parse_base_node_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory>> {
     per_arena!(
-        Id<Box dyn BaseNodeFactory>,
+        Id<Box<dyn BaseNodeFactory>>,
         arena,
         arena.alloc_base_node_factory(Box::new(ParseBaseNodeFactory::new()))
     )
@@ -114,7 +114,7 @@ pub fn get_parse_node_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, Node
         arena,
         create_node_factory(
             NodeFactoryFlags::NoParenthesizerRules,
-            get_parse_base_node_factory(),
+            get_parse_base_node_factory(arena),
             arena,
         )
     ).ref_(arena)

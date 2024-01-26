@@ -399,7 +399,7 @@ impl ParserType {
             // TODO: restore this to be being the parser itself
             // (as the implementor of BaseNodeFactory)?
             // ret.clone(),
-            super::get_parse_base_node_factory(),
+            super::get_parse_base_node_factory(arena),
             arena,
         ));
         ret
