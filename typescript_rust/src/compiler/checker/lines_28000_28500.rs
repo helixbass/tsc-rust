@@ -1086,7 +1086,7 @@ impl TypeChecker {
         is_unchecked_js: bool,
     ) -> io::Result<()> {
         let mut error_info: Option<DiagnosticMessageChain> = None;
-        let mut related_info: Option<Gc<DiagnosticRelatedInformation>> = None;
+        let mut related_info: Option<Id<DiagnosticRelatedInformation>> = None;
         if !is_private_identifier(&prop_node.ref_(self))
             && containing_type
                 .ref_(self)

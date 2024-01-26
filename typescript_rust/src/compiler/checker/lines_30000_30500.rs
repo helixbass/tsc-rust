@@ -419,7 +419,7 @@ impl TypeChecker {
                     )?]),
                 );
             } else {
-                let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
+                let mut related_information: Option<Id<DiagnosticRelatedInformation>> = None;
                 if node_as_call_expression.arguments.len() == 1 {
                     let source_file = get_source_file_of_node(node, self);
                     let source_file_ref = source_file.ref_(self);

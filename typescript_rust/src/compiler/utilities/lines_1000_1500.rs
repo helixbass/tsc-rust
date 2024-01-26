@@ -67,7 +67,7 @@ pub fn create_diagnostic_for_node_in_source_file(
 pub fn create_diagnostic_for_node_from_message_chain(
     node: Id<Node>,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>, arena: &impl HasArena,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>, arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node, arena);
     let span = get_error_span_for_node(source_file, node, arena);
@@ -110,7 +110,7 @@ pub fn create_file_diagnostic_from_message_chain(
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     assert_diagnostic_location(Some(file), start, length);
     DiagnosticWithLocation::new(BaseDiagnostic::new(
@@ -133,7 +133,7 @@ pub fn create_file_diagnostic_from_message_chain(
 pub fn create_diagnostic_for_file_from_message_chain(
     source_file: Id<Node>, /*SourceFile*/
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(

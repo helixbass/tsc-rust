@@ -604,7 +604,7 @@ impl TypeChecker {
                                 && !get_function_flags(Some(container), self)
                                     .intersects(FunctionFlags::Async)
                         }) {
-                            let related_info: Gc<DiagnosticRelatedInformation> = Gc::new(
+                            let related_info: Id<DiagnosticRelatedInformation> = Gc::new(
                                 create_diagnostic_for_node(
                                     container,
                                     &Diagnostics::Did_you_mean_to_mark_this_function_as_async,

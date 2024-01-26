@@ -33,7 +33,7 @@ impl TypeChecker {
         error_target: Id<Node>,
         apparent_type: Id<Type>,
         kind: SignatureKind,
-        related_information: Option<Gc<DiagnosticRelatedInformation>>,
+        related_information: Option<Id<DiagnosticRelatedInformation>>,
     ) -> io::Result<()> {
         let InvocationErrorDetails {
             message_chain,

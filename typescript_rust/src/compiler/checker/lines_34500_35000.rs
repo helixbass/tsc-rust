@@ -1076,7 +1076,7 @@ impl TypeChecker {
             && symbol.ref_(self).flags().intersects(SymbolFlags::Function)
         {
             if let Some(declarations) = declarations.as_ref() {
-                let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =
+                let related_diagnostics: Vec<Id<DiagnosticRelatedInformation>> =
                     filter(declarations, |d: &Id<Node>| {
                         d.ref_(self).kind() == SyntaxKind::ClassDeclaration
                     })

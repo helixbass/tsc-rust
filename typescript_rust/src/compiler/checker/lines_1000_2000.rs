@@ -334,7 +334,7 @@ impl TypeChecker {
     ) -> Id<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
         if maybe_missing_await {
-            let related: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+            let related: Id<DiagnosticRelatedInformation> = create_diagnostic_for_node(
                 location,
                 &Diagnostics::Did_you_forget_to_use_await,
                 None,
@@ -814,19 +814,19 @@ impl TypeChecker {
                         *err_related_information = Some(vec![]);
                     }
                 }
-                let leading_message: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+                let leading_message: Id<DiagnosticRelatedInformation> = create_diagnostic_for_node(
                     adjusted_node,
                     &Diagnostics::_0_was_also_declared_here,
                     Some(vec![symbol_name.to_owned()]),
                     self,
                 )
                 .into();
-                let follow_on_message: Gc<DiagnosticRelatedInformation> =
+                let follow_on_message: Id<DiagnosticRelatedInformation> =
                     create_diagnostic_for_node(adjusted_node, &Diagnostics::and_here, None, self).into();
                 if length(err.ref_(self).maybe_related_information().as_deref()) >= 5
                     || some(
                         err.ref_(self).maybe_related_information().as_deref(),
-                        Some(|r: &Gc<DiagnosticRelatedInformation>| {
+                        Some(|r: &Id<DiagnosticRelatedInformation>| {
                             compare_diagnostics(&**r, &*follow_on_message, self) == Comparison::EqualTo
                                 || compare_diagnostics(&**r, &*leading_message, self)
                                     == Comparison::EqualTo

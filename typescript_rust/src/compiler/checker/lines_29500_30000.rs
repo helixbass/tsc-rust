@@ -918,7 +918,7 @@ impl TypeChecker {
                         &Diagnostics::No_overload_matches_this_call,
                         None,
                     );
-                    let related: Vec<Gc<DiagnosticRelatedInformation>> =
+                    let related: Vec<Id<DiagnosticRelatedInformation>> =
                         flat_map(Some(&*diags), |d: &Id<Diagnostic>, _| {
                             d.ref_(self).maybe_related_information()
                                 .clone()

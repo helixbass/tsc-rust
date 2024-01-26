@@ -1217,10 +1217,10 @@ impl Diagnostic {
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
     fn maybe_related_information(&self)
-        -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>>;
+        -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>>;
+    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
     fn maybe_skipped_on(&self) -> Ref<Option<String>>;
     fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
@@ -1228,7 +1228,7 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
 #[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
-    related_information: GcCell<Option<Vec<Gc<DiagnosticRelatedInformation>>>>,
+    related_information: GcCell<Option<Vec<Id<DiagnosticRelatedInformation>>>>,
     #[unsafe_ignore_trace]
     skipped_on: RefCell<Option<String /*keyof CompilerOptions*/>>,
 }
@@ -1236,7 +1236,7 @@ pub struct BaseDiagnostic {
 impl BaseDiagnostic {
     pub fn new(
         diagnostic_related_information: BaseDiagnosticRelatedInformation,
-        related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+        related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
     ) -> Self {
         Self {
             _diagnostic_related_information: diagnostic_related_information,
@@ -1299,13 +1299,13 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 impl DiagnosticInterface for BaseDiagnostic {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow_mut()
     }
 
@@ -1429,7 +1429,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 impl DiagnosticInterface for Diagnostic {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => {
                 diagnostic.maybe_related_information()
@@ -1443,7 +1443,7 @@ impl DiagnosticInterface for Diagnostic {
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => {
                 diagnostic.maybe_related_information_mut()
@@ -1831,13 +1831,13 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 impl DiagnosticInterface for DiagnosticWithLocation {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information_mut()
     }
 
@@ -1861,12 +1861,6 @@ impl From<DiagnosticWithLocation> for DiagnosticRelatedInformation {
         DiagnosticRelatedInformation::Diagnostic(Diagnostic::DiagnosticWithLocation(
             diagnostic_with_location,
         ))
-    }
-}
-
-impl From<DiagnosticWithLocation> for Gc<DiagnosticRelatedInformation> {
-    fn from(diagnostic_with_location: DiagnosticWithLocation) -> Self {
-        Gc::new(diagnostic_with_location.into())
     }
 }
 
@@ -1938,13 +1932,13 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<DiagnosticRelatedInformation>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information_mut()
     }
 

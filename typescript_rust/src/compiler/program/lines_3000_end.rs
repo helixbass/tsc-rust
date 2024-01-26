@@ -1163,7 +1163,7 @@ impl Program {
         args: Option<Vec<String>>,
     ) -> Id<Diagnostic> {
         let mut file_include_reasons: Option<Vec<DiagnosticMessageChain>> = None;
-        let mut related_info: Option<Vec<Gc<DiagnosticRelatedInformation>>> = None;
+        let mut related_info: Option<Vec<Id<DiagnosticRelatedInformation>>> = None;
         let mut location_reason = if is_referenced_file(file_processing_reason.refed(self).as_deref()) {
             file_processing_reason.clone()
         } else {
@@ -1256,7 +1256,7 @@ impl Program {
         &self,
         file_include_reasons: &mut Option<Vec<DiagnosticMessageChain>>,
         location_reason: &mut Option<Id<FileIncludeReason>>,
-        related_info: &mut Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+        related_info: &mut Option<Vec<Id<DiagnosticRelatedInformation>>>,
         file_processing_reason: &mut Option<Id<FileIncludeReason>>,
         reason: Id<FileIncludeReason>,
     ) {
@@ -1321,7 +1321,7 @@ impl Program {
     pub fn file_include_reason_to_related_information(
         &self,
         reason: &FileIncludeReason,
-    ) -> Option<Gc<DiagnosticRelatedInformation /*DiagnosticWithLocation*/>> {
+    ) -> Option<Id<DiagnosticRelatedInformation /*DiagnosticWithLocation*/>> {
         if is_referenced_file(Some(reason)) {
             let reference_location = get_referenced_file_location(
                 |path| self.get_source_file_by_path(path),

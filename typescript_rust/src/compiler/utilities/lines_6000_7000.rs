@@ -39,7 +39,7 @@ use crate::{
 
 pub fn create_compiler_diagnostic_from_message_chain(
     chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
 ) -> BaseDiagnostic {
     BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
@@ -2032,7 +2032,7 @@ pub fn slice_after_eq<'a, TItem: PartialEq>(
 
 pub fn add_related_info(
     diagnostic: &Diagnostic,
-    related_information: Vec<Gc<DiagnosticRelatedInformation>>,
+    related_information: Vec<Id<DiagnosticRelatedInformation>>,
 ) {
     if related_information.is_empty() {
         return /*diagnostic*/;
@@ -2051,7 +2051,7 @@ pub fn add_related_info(
 
 pub fn add_related_info_rc(
     diagnostic: Id<Diagnostic>,
-    related_information: Vec<Gc<DiagnosticRelatedInformation>>,
+    related_information: Vec<Id<DiagnosticRelatedInformation>>,
     arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     add_related_info(&diagnostic.ref_(arena), related_information);

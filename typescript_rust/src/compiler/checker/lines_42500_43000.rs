@@ -286,7 +286,7 @@ impl TypeChecker {
                         },
                     );
 
-                    let diagnostics: Vec<Gc<DiagnosticRelatedInformation>> = non_simple_parameters
+                    let diagnostics: Vec<Id<DiagnosticRelatedInformation>> = non_simple_parameters
                         .iter()
                         .enumerate()
                         .map(|(index, parameter)| {

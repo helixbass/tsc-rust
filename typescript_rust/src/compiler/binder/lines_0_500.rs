@@ -1114,7 +1114,7 @@ impl BinderType {
                                 }
                             }
 
-                            let mut related_information: Vec<Gc<DiagnosticRelatedInformation>> =
+                            let mut related_information: Vec<Id<DiagnosticRelatedInformation>> =
                                 vec![];
                             if is_type_alias_declaration(&node.ref_(self))
                                 && node_is_missing(Some(&node.ref_(self).as_type_alias_declaration().type_.ref_(self)))
