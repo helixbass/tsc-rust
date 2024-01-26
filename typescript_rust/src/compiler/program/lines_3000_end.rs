@@ -2492,7 +2492,7 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     }
 
     fn directory_exists(&self, path: &str) -> Option<bool> {
-        self.host.ref_(self).:irectory_exists(path)
+        self.host.ref_(self).directory_exists(path)
     }
 
     fn get_directories(&self, path: &str) -> Option<Vec<String>> {
