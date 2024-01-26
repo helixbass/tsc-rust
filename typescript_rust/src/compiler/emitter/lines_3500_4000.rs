@@ -311,7 +311,7 @@ impl Printer {
         let node_as_case_clause = node_ref.as_case_clause();
         self.emit_expression(
             Some(node_as_case_clause.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -465,7 +465,7 @@ impl Printer {
         }
         self.emit_expression(
             Some(initializer),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -495,7 +495,7 @@ impl Printer {
                 self.write_space();
                 self.emit_expression(
                     Some(node_object_assignment_initializer),
-                    Some(Gc::new(Box::new(
+                    Some(self.alloc_current_parenthesizer_rule(Box::new(
                         ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                             self.parenthesizer(),
                         ),
@@ -521,7 +521,7 @@ impl Printer {
         );
         self.emit_expression(
             Some(node_as_spread_assignment.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -540,7 +540,7 @@ impl Printer {
             node_as_enum_member.initializer,
             node_as_enum_member.name.ref_(self).end(),
             node,
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),

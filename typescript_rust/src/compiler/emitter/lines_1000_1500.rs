@@ -401,7 +401,7 @@ impl Printer {
                         self.maybe_current_parenthesizer_rule().as_ref()
                     {
                         self.set_last_substitution(Some(
-                            current_parenthesizer_rule.call(last_substitution),
+                            current_parenthesizer_rule.ref_(self).call(last_substitution),
                         ));
                     }
                     return Ok(Printer::pipeline_emit_with_substitution);
@@ -737,7 +737,7 @@ impl Printer {
                         if let Some(current_parenthesizer_rule) =
                             self.maybe_current_parenthesizer_rule()
                         {
-                            node = current_parenthesizer_rule.call(node);
+                            node = current_parenthesizer_rule.ref_(self).call(node);
                         }
                     }
                 }

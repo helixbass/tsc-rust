@@ -10,7 +10,7 @@ use crate::{
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
-    CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo,
+    CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
 };
 
 #[derive(Default)]
@@ -48,6 +48,7 @@ pub struct AllArenas {
     pub printers: RefCell<Arena<Printer>>,
     pub diagnostic_related_informations: RefCell<Arena<DiagnosticRelatedInformation>>,
     pub index_infos: RefCell<Arena<IndexInfo>>,
+    pub current_parenthesizer_rules: RefCell<Arena<Box<dyn CurrentParenthesizerRule>>>,
 }
 
 pub trait HasArena {
@@ -291,6 +292,14 @@ pub trait HasArena {
 
     fn alloc_index_info(&self, index_info: IndexInfo) -> Id<IndexInfo> {
         self.arena().alloc_index_info(index_info)
+    }
+
+    fn current_parenthesizer_rule(&self, current_parenthesizer_rule: Id<Box<dyn CurrentParenthesizerRule>>) -> Ref<Box<dyn CurrentParenthesizerRule>> {
+        self.arena().current_parenthesizer_rule(current_parenthesizer_rule)
+    }
+
+    fn alloc_current_parenthesizer_rule(&self, current_parenthesizer_rule: Box<dyn CurrentParenthesizerRule>) -> Id<Box<dyn CurrentParenthesizerRule>> {
+        self.arena().alloc_current_parenthesizer_rule(current_parenthesizer_rule)
     }
 }
 
@@ -607,6 +616,16 @@ impl HasArena for AllArenas {
         let id = self.index_infos.borrow_mut().alloc(index_info);
         id
     }
+
+    #[track_caller]
+    fn current_parenthesizer_rule(&self, current_parenthesizer_rule: Id<Box<dyn CurrentParenthesizerRule>>) -> Ref<Box<dyn CurrentParenthesizerRule>> {
+        Ref::map(self.current_parenthesizer_rules.borrow(), |current_parenthesizer_rules| &current_parenthesizer_rules[current_parenthesizer_rule])
+    }
+
+    fn alloc_current_parenthesizer_rule(&self, current_parenthesizer_rule: Box<dyn CurrentParenthesizerRule>) -> Id<Box<dyn CurrentParenthesizerRule>> {
+        let id = self.current_parenthesizer_rules.borrow_mut().alloc(current_parenthesizer_rule);
+        id
+    }
 }
 
 pub trait InArena {
@@ -853,6 +872,14 @@ impl InArena for Id<IndexInfo> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, IndexInfo> {
         has_arena.index_info(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn CurrentParenthesizerRule>> {
+    type Item = Box<dyn CurrentParenthesizerRule>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CurrentParenthesizerRule>> {
+        has_arena.current_parenthesizer_rule(*self)
     }
 }
 

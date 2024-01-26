@@ -367,7 +367,7 @@ impl Printer {
             Some(parent_node),
             type_arguments,
             ListFormat::TypeArguments,
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
             None,

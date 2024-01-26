@@ -361,7 +361,7 @@ impl Printer {
         self.write_punctuation("[");
         self.emit_expression(
             Some(node.ref_(self).as_computed_property_name().expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),

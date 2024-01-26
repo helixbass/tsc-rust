@@ -167,7 +167,7 @@ impl Printer {
                 |node_type| node_type.ref_(self).end(),
             ),
             node,
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -268,7 +268,7 @@ impl Printer {
                 self.write_space();
                 self.emit_expression(
                     Some(body),
-                    Some(Gc::new(Box::new(
+                    Some(self.alloc_current_parenthesizer_rule(Box::new(
                         ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule::new(
                             self.parenthesizer(),
                         ),
@@ -886,13 +886,13 @@ impl Printer {
         self.emit_expression(
             Some(node_as_export_assignment.expression),
             if node_as_export_assignment.is_export_equals == Some(true) {
-                Some(Gc::new(Box::new(
+                Some(self.alloc_current_parenthesizer_rule(Box::new(
                     ParenthesizeRightSideOfBinaryCurrentParenthesizerRule::new(
                         self.parenthesizer(),
                     ),
                 )))
             } else {
-                Some(Gc::new(Box::new(
+                Some(self.alloc_current_parenthesizer_rule(Box::new(
                     ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule::new(
                         self.parenthesizer(),
                     ),
