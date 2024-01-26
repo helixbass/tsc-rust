@@ -2107,10 +2107,14 @@ pub(super) fn update_host_for_use_source_of_project_reference_redirect(
     UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
         on_program_create_complete: {
             let host_compiler_host_clone = host.compiler_host.clone();
-            Rc::new(move || {
-                host_compiler_host_clone.ref_(arena).set_overriding_file_exists(None);
-                host_compiler_host_clone.ref_(arena).set_overriding_directory_exists(None);
-                host_compiler_host_clone.ref_(arena).set_overriding_get_directories(None);
+            Rc::new({
+                let arena_ptr: *const AllArenas = arena.arena();
+                move || {
+                    let arena = unsafe { &*arena_ptr };
+                    host_compiler_host_clone.ref_(arena).set_overriding_file_exists(None);
+                    host_compiler_host_clone.ref_(arena).set_overriding_directory_exists(None);
+                    host_compiler_host_clone.ref_(arena).set_overriding_get_directories(None);
+                }
             })
         },
         directory_exists: Some(overrider.clone()),
