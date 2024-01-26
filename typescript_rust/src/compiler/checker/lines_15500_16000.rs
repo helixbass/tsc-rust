@@ -1025,7 +1025,8 @@ impl TypeChecker {
                     .into(),
                 );
                 let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-                let mut result_links = result_links.borrow_mut();
+                let result_links_ref = result_links.ref_(self);
+                let mut result_links = result_links_ref.borrow_mut();
                 result_links.type_ = Some(if is_setonly_accessor {
                     self.undefined_type()
                 } else {
@@ -1038,7 +1039,7 @@ impl TypeChecker {
                         .ref_(self)
                         .set_declarations(prop_declarations.clone());
                 }
-                result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
+                result_links.name_type = (*self.get_symbol_links(prop).ref_(self)).borrow().name_type.clone();
                 result_links.synthetic_origin = Some(prop.clone());
                 members.insert(prop.ref_(self).escaped_name().to_owned(), result);
             }
@@ -1226,7 +1227,8 @@ impl TypeChecker {
                         .into(),
                     );
                     let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-                    let mut result_links = result_links.borrow_mut();
+                    let result_links_ref = result_links.ref_(self);
+                    let mut result_links = result_links_ref.borrow_mut();
                     result_links.type_ = Some(self.get_union_type(
                         &[
                             self.get_type_of_symbol(left_prop)?,
@@ -1242,7 +1244,7 @@ impl TypeChecker {
                     if let Some(declarations) = declarations {
                         result.ref_(self).set_declarations(declarations);
                     }
-                    result_links.name_type = (*self.get_symbol_links(left_prop))
+                    result_links.name_type = (*self.get_symbol_links(left_prop).ref_(self))
                         .borrow()
                         .name_type
                         .clone();

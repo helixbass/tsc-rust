@@ -26,6 +26,7 @@ use crate::{
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
     TransformNodesTransformationResult,
     Program,
+    HasArena,
 };
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
@@ -1388,10 +1389,10 @@ pub struct BaseTransientSymbol {
 }
 
 impl BaseTransientSymbol {
-    pub fn new(base_symbol: BaseSymbol, check_flags: CheckFlags) -> Self {
+    pub fn new(base_symbol: BaseSymbol, check_flags: CheckFlags, arena: &impl HasArena) -> Self {
         Self {
             _symbol: base_symbol,
-            _symbol_links: _d(),
+            _symbol_links: arena.alloc_symbol_links(_d()),
             check_flags: Cell::new(check_flags),
         }
     }

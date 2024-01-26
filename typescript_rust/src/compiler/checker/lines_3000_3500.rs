@@ -269,7 +269,7 @@ impl TypeChecker {
                     });
                 (*alias_declaration_links.ref_(self)).borrow_mut().type_only_declaration =
                     Some(type_only.or_else(|| {
-                        match (*self.get_symbol_links(export_symbol))
+                        match (*self.get_symbol_links(export_symbol).ref_(self))
                             .borrow()
                             .type_only_declaration
                             .clone()

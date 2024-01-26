@@ -425,7 +425,7 @@ impl TypeChecker {
     ) -> TransientSymbol {
         self.increment_symbol_count();
         let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
-        let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
+        let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None), self);
         symbol.into()
     }
 
