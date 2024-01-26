@@ -990,7 +990,7 @@ impl EmitResolverCreateResolver {
                     return;
                 }
                 let resolved_directive = resolved_directive.clone().unwrap();
-                let resolved_directive_ref = resolved_directive.ref_(self);
+                let resolved_directive_ref = resolved_directive.ref_(arena);
                 let resolved_directive_resolved_file_name = resolved_directive_ref.resolved_file_name.as_ref();
                 if resolved_directive_resolved_file_name.non_empty().is_none() {
                     return;
