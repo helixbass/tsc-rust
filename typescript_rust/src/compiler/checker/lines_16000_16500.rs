@@ -83,9 +83,9 @@ impl TypeChecker {
 
     pub(super) fn get_index_info_with_readonly(
         &self,
-        info: &Gc<IndexInfo>,
+        info: Id<IndexInfo>,
         readonly: bool,
-    ) -> Gc<IndexInfo> {
+    ) -> Id<IndexInfo> {
         if info.is_readonly != readonly {
             Gc::new(self.create_index_info(
                 info.key_type.clone(),
@@ -747,14 +747,14 @@ impl TypeChecker {
 
     pub(super) fn instantiate_index_infos(
         &self,
-        index_infos: &[Gc<IndexInfo>],
+        index_infos: &[Id<IndexInfo>],
         mapper: Id<TypeMapper>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         Ok(self
             .try_instantiate_list(
                 Some(index_infos),
                 Some(mapper.clone()),
-                |index_info: &Gc<IndexInfo>, mapper| {
+                |index_info: &Id<IndexInfo>, mapper| {
                     self.instantiate_index_info(index_info, mapper.unwrap())
                 },
             )?

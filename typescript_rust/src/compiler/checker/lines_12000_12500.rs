@@ -691,10 +691,10 @@ impl TypeChecker {
 
     pub(super) fn find_index_info(
         &self,
-        index_infos: &[Gc<IndexInfo>],
+        index_infos: &[Id<IndexInfo>],
         key_type: Id<Type>,
-    ) -> Option<Gc<IndexInfo>> {
-        find(index_infos, |info: &Gc<IndexInfo>, _| {
+    ) -> Option<Id<IndexInfo>> {
+        find(index_infos, |info: &Id<IndexInfo>, _| {
             info.key_type == key_type
         })
         .map(Clone::clone)
@@ -702,12 +702,12 @@ impl TypeChecker {
 
     pub(super) fn find_applicable_index_info(
         &self,
-        index_infos: &[Gc<IndexInfo>],
+        index_infos: &[Id<IndexInfo>],
         key_type: Id<Type>,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
-        let mut string_index_info: Option<Gc<IndexInfo>> = None;
-        let mut applicable_info: Option<Gc<IndexInfo>> = None;
-        let mut applicable_infos: Option<Vec<Gc<IndexInfo>>> = None;
+    ) -> io::Result<Option<Id<IndexInfo>>> {
+        let mut string_index_info: Option<Id<IndexInfo>> = None;
+        let mut applicable_info: Option<Id<IndexInfo>> = None;
+        let mut applicable_infos: Option<Vec<Id<IndexInfo>>> = None;
         for info in index_infos {
             if info.key_type == self.string_type() {
                 string_index_info = Some(info.clone());
@@ -726,7 +726,7 @@ impl TypeChecker {
             Some(Gc::new(self.create_index_info(
                 self.unknown_type(),
                 self.get_intersection_type(
-                    &map(&applicable_infos, |info: &Gc<IndexInfo>, _| {
+                    &map(&applicable_infos, |info: &Id<IndexInfo>, _| {
                         info.type_.clone()
                     }),
                     Option::<Id<Symbol>>::None,
@@ -734,7 +734,7 @@ impl TypeChecker {
                 )?,
                 reduce_left(
                     &applicable_infos,
-                    |is_readonly, info: &Gc<IndexInfo>, _| is_readonly && info.is_readonly,
+                    |is_readonly, info: &Id<IndexInfo>, _| is_readonly && info.is_readonly,
                     true,
                     None,
                     None,
@@ -771,7 +771,7 @@ impl TypeChecker {
     pub(super) fn get_index_infos_of_structured_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         if type_
             .ref_(self)
             .flags()
@@ -786,7 +786,7 @@ impl TypeChecker {
     pub(super) fn get_index_infos_of_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         self.get_index_infos_of_structured_type(self.get_reduced_apparent_type(type_)?)
     }
 
@@ -794,7 +794,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         key_type: Id<Type>,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         Ok(self.find_index_info(&self.get_index_infos_of_type(type_)?, key_type))
     }
 
@@ -812,10 +812,10 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         key_type: Id<Type>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         try_filter(
             &self.get_index_infos_of_type(type_)?,
-            |info: &Gc<IndexInfo>| self.is_applicable_index_type(key_type, info.key_type),
+            |info: &Id<IndexInfo>| self.is_applicable_index_type(key_type, info.key_type),
         )
     }
 
@@ -823,7 +823,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         key_type: Id<Type>,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         self.find_applicable_index_info(&*self.get_index_infos_of_type(type_)?, key_type)
     }
 
@@ -831,7 +831,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         name: &str, /*__String*/
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         self.get_applicable_index_info(
             type_,
             if self.is_late_bound_name(name) {

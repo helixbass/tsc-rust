@@ -310,7 +310,7 @@ pub struct TypeChecker {
     pub(crate) resolving_signature: Option<Id<Signature>>,
     pub(crate) silent_never_signature: Option<Id<Signature>>,
 
-    pub(crate) enum_number_index_info: Option<Gc<IndexInfo>>,
+    pub(crate) enum_number_index_info: Option<Id<IndexInfo>>,
 
     pub(crate) iteration_types_cache: GcCell<HashMap<String, Gc<IterationTypes>>>,
     pub(crate) no_iteration_types: Gc<IterationTypes>,

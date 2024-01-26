@@ -512,7 +512,7 @@ impl TypeChecker {
         let mut members: Gc<GcCell<SymbolTable>>;
         let mut call_signatures: Vec<Id<Signature>>;
         let mut construct_signatures: Vec<Id<Signature>>;
-        let mut index_infos: Vec<Gc<IndexInfo>>;
+        let mut index_infos: Vec<Id<IndexInfo>>;
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.ref_(self).maybe_symbol() {
                 self.get_members_of_symbol(source_symbol)?

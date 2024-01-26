@@ -224,7 +224,7 @@ impl TypeChecker {
     pub(super) fn get_union_index_infos(
         &self,
         types: &[Id<Type>],
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         let source_infos = self.get_index_infos_of_type(types[0])?;
         // if (sourceInfos) {
         let mut result = vec![];
@@ -368,7 +368,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let mut call_signatures: Vec<Id<Signature>> = vec![];
         let mut construct_signatures: Vec<Id<Signature>> = vec![];
-        let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
+        let mut index_infos: Vec<Id<IndexInfo>> = vec![];
         let types = &type_.ref_(self).as_intersection_type().types().to_owned();
         let mixin_flags = self.find_mixins(types)?;
         let mixin_count = count_where(Some(&mixin_flags), |b: &bool, _| *b);
@@ -396,7 +396,7 @@ impl TypeChecker {
             )?;
             index_infos = try_reduce_left(
                 &self.get_index_infos_of_type(t)?,
-                |mut infos: Vec<Gc<IndexInfo>>, new_info: &Gc<IndexInfo>, _| -> io::Result<_> {
+                |mut infos: Vec<Id<IndexInfo>>, new_info: &Id<IndexInfo>, _| -> io::Result<_> {
                     self.append_index_info(&mut infos, new_info, false)?;
                     Ok(infos)
                 },
@@ -444,8 +444,8 @@ impl TypeChecker {
 
     pub(super) fn append_index_info(
         &self,
-        index_infos: &mut Vec<Gc<IndexInfo>>,
-        new_info: &Gc<IndexInfo>,
+        index_infos: &mut Vec<Id<IndexInfo>>,
+        new_info: Id<IndexInfo>,
         union: bool,
     ) -> io::Result<()> {
         // if (indexInfos) {
@@ -560,7 +560,7 @@ impl TypeChecker {
             )?;
         } else {
             let mut members = self.empty_symbols();
-            let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
+            let mut index_infos: Vec<Id<IndexInfo>> = vec![];
             if symbol.ref_(self).maybe_exports().is_some() {
                 members = self.get_exports_of_symbol(symbol)?;
                 if symbol == self.global_this_symbol() {
@@ -573,7 +573,7 @@ impl TypeChecker {
                     members = Gc::new(GcCell::new(vars_only));
                 }
             }
-            let mut base_constructor_index_info: Option<Gc<IndexInfo>> = None;
+            let mut base_constructor_index_info: Option<Id<IndexInfo>> = None;
             self.set_structured_type_members(
                 type_.ref_(self).as_object_type(),
                 members.clone(),
@@ -970,7 +970,7 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<()> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-        let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
+        let mut index_infos: Vec<Id<IndexInfo>> = vec![];
         self.set_structured_type_members(
             type_.ref_(self).as_mapped_type(),
             self.empty_symbols(),
@@ -1061,7 +1061,7 @@ impl TypeChecker {
         modifiers_type: Id<Type>,
         template_modifiers: MappedTypeModifiers,
         template_type: Id<Type>,
-        index_infos: &mut Vec<Gc<IndexInfo>>,
+        index_infos: &mut Vec<Id<IndexInfo>>,
         key_type: Id<Type>,
     ) -> io::Result<()> {
         let prop_name_type = if let Some(name_type) = name_type {
@@ -1107,7 +1107,7 @@ impl TypeChecker {
         name_type: Option<Id<Type>>,
         template_type: Id<Type>,
         type_parameter: Id<Type>,
-        index_infos: &mut Vec<Gc<IndexInfo>>,
+        index_infos: &mut Vec<Id<IndexInfo>>,
         key_type: Id<Type>,
         prop_name_type: Id<Type>,
     ) -> io::Result<()> {

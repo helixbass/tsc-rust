@@ -1850,7 +1850,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         kind: IndexKind,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         self.get_index_info_of_type_(
             type_,
             if kind == IndexKind::String {
@@ -2047,7 +2047,7 @@ impl TypeChecker {
     pub fn get_index_infos_at_location(
         &self,
         node_in: Id<Node>,
-    ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
+    ) -> io::Result<Option<Vec<Id<IndexInfo>>>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None,
@@ -3064,7 +3064,7 @@ impl TypeChecker {
         self.silent_never_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn enum_number_index_info(&self) -> Gc<IndexInfo> {
+    pub(super) fn enum_number_index_info(&self) -> Id<IndexInfo> {
         self.enum_number_index_info.as_ref().unwrap().clone()
     }
 

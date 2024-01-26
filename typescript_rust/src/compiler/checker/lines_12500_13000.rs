@@ -1027,7 +1027,7 @@ impl TypeChecker {
     pub(super) fn get_index_infos_of_symbol(
         &self,
         symbol: Id<Symbol>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         let index_symbol = self.get_index_symbol(symbol);
         Ok(if let Some(index_symbol) = index_symbol {
             self.get_index_infos_of_index_symbol(index_symbol)?
@@ -1039,11 +1039,11 @@ impl TypeChecker {
     pub(super) fn get_index_infos_of_index_symbol(
         &self,
         index_symbol: Id<Symbol>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         if let Some(index_symbol_declarations) =
             index_symbol.ref_(self).maybe_declarations().as_ref()
         {
-            let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
+            let mut index_infos: Vec<Id<IndexInfo>> = vec![];
             for &declaration in index_symbol_declarations {
                 let declaration_ref = declaration.ref_(self);
                 let declaration_as_index_signature_declaration =

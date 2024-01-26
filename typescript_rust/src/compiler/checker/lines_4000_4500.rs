@@ -251,7 +251,7 @@ impl TypeChecker {
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
-        index_infos: Vec<Gc<IndexInfo>>,
+        index_infos: Vec<Id<IndexInfo>>,
     ) -> io::Result<()> /*-> BaseObjectType*/ {
         type_.resolve(
             members.clone(),
@@ -278,7 +278,7 @@ impl TypeChecker {
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
-        index_infos: Vec<Gc<IndexInfo>>,
+        index_infos: Vec<Id<IndexInfo>>,
     ) -> io::Result<BaseObjectType> {
         let type_ = self.create_object_type(ObjectFlags::Anonymous, symbol);
         self.set_structured_type_members(
@@ -297,7 +297,7 @@ impl TypeChecker {
         members: Gc<GcCell<SymbolTable>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
-        index_infos: Vec<Gc<IndexInfo>>,
+        index_infos: Vec<Id<IndexInfo>>,
     ) -> io::Result<Id<Type>> {
         Ok(self.alloc_type(
             BaseInterfaceType::new(

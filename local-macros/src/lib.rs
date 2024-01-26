@@ -1540,7 +1540,7 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
@@ -1585,7 +1585,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_construct_signatures(construct_signatures)
                     }
 
-                    fn index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::IndexInfo>>> {
+                    fn index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>> {
                         self.#first_field_name.index_infos()
                     }
 
@@ -1665,11 +1665,11 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_declared_construct_signatures(declared_construct_signatures)
                     }
 
-                    fn declared_index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::IndexInfo>>> {
+                    fn declared_index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>> {
                         self.#first_field_name.declared_index_infos()
                     }
 
-                    fn set_declared_index_infos(&self, declared_index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn set_declared_index_infos(&self, declared_index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         self.#first_field_name.set_declared_index_infos(declared_index_infos)
                     }
                 }
@@ -2134,7 +2134,7 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::gc::Gc<::gc::GcCell<crate::SymbolTable>>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
@@ -2199,7 +2199,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::IndexInfo>>> {
+                    fn index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.index_infos()),*
                         }
@@ -2309,13 +2309,13 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn declared_index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::gc::Gc<crate::IndexInfo>>> {
+                    fn declared_index_infos(&self) -> ::gc::GcCellRef<::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.declared_index_infos()),*
                         }
                     }
 
-                    fn set_declared_index_infos(&self, declared_index_infos: ::std::vec::Vec<::gc::Gc<crate::IndexInfo>>) {
+                    fn set_declared_index_infos(&self, declared_index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_declared_index_infos(declared_index_infos)),*
                         }

@@ -435,7 +435,7 @@ pub struct BaseObjectType {
     properties: GcCell<Option<GcVec<Id<Symbol>>>>,
     call_signatures: GcCell<Option<Vec<Id<Signature>>>>,
     construct_signatures: GcCell<Option<Vec<Id<Signature>>>>,
-    index_infos: GcCell<Option<Vec<Gc<IndexInfo>>>>,
+    index_infos: GcCell<Option<Vec<Id<IndexInfo>>>>,
     object_type_without_abstract_construct_signatures: GcCell<Option<Id<Type>>>,
     // AnonymousType fields
     pub target: Option<Id<Type>>,
@@ -545,7 +545,7 @@ pub trait ResolvableTypeInterface {
         properties: GcVec<Id<Symbol>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
-        index_infos: Vec<Gc<IndexInfo>>,
+        index_infos: Vec<Id<IndexInfo>>,
     );
     fn is_resolved(&self) -> bool;
 }
@@ -557,7 +557,7 @@ impl ResolvableTypeInterface for BaseObjectType {
         properties: GcVec<Id<Symbol>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
-        index_infos: Vec<Gc<IndexInfo>>,
+        index_infos: Vec<Id<IndexInfo>>,
     ) {
         *self.members.borrow_mut() = Some(members);
         *self.properties.borrow_mut() = Some(properties);
@@ -608,7 +608,7 @@ impl ResolvedTypeInterface for BaseObjectType {
         *self.construct_signatures.borrow_mut() = Some(construct_signatures);
     }
 
-    fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>> {
+    fn index_infos(&self) -> GcCellRef<Vec<Id<IndexInfo>>> {
         GcCellRef::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
     }
 
@@ -720,7 +720,7 @@ pub struct BaseInterfaceType {
     declared_properties: GcCell<Option<Vec<Id<Symbol>>>>,
     declared_call_signatures: GcCell<Option<Vec<Id<Signature>>>>,
     declared_construct_signatures: GcCell<Option<Vec<Id<Signature>>>>,
-    declared_index_infos: GcCell<Option<Vec<Gc<IndexInfo>>>>,
+    declared_index_infos: GcCell<Option<Vec<Id<IndexInfo>>>>,
     // GenericType fields
     instantiations: GcCell<Option<HashMap<String, Id<Type /*TypeReference*/>>>>,
     #[unsafe_ignore_trace]
@@ -852,13 +852,13 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
         *self.declared_construct_signatures.borrow_mut() = Some(declared_construct_signatures);
     }
 
-    fn declared_index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>> {
+    fn declared_index_infos(&self) -> GcCellRef<Vec<Id<IndexInfo>>> {
         GcCellRef::map(self.declared_index_infos.borrow(), |declared_index_infos| {
             declared_index_infos.as_ref().unwrap()
         })
     }
 
-    fn set_declared_index_infos(&self, declared_index_infos: Vec<Gc<IndexInfo>>) {
+    fn set_declared_index_infos(&self, declared_index_infos: Vec<Id<IndexInfo>>) {
         *self.declared_index_infos.borrow_mut() = Some(declared_index_infos);
     }
 }
@@ -870,8 +870,8 @@ pub trait InterfaceTypeWithDeclaredMembersInterface {
     fn set_declared_call_signatures(&self, declared_call_signatures: Vec<Id<Signature>>);
     fn declared_construct_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;
     fn set_declared_construct_signatures(&self, declared_construct_signatures: Vec<Id<Signature>>);
-    fn declared_index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>>;
-    fn set_declared_index_infos(&self, declared_index_infos: Vec<Gc<IndexInfo>>);
+    fn declared_index_infos(&self) -> GcCellRef<Vec<Id<IndexInfo>>>;
+    fn set_declared_index_infos(&self, declared_index_infos: Vec<Id<IndexInfo>>);
 }
 
 impl GenericableTypeInterface for BaseInterfaceType {
@@ -1146,7 +1146,7 @@ pub struct BaseUnionOrIntersectionType {
     properties: GcCell<Option<GcVec<Id<Symbol>>>>,
     call_signatures: GcCell<Option<Vec<Id<Signature>>>>,
     construct_signatures: GcCell<Option<Vec<Id<Signature>>>>,
-    index_infos: GcCell<Option<Vec<Gc<IndexInfo>>>>,
+    index_infos: GcCell<Option<Vec<Id<IndexInfo>>>>,
 }
 
 impl BaseUnionOrIntersectionType {
@@ -1209,7 +1209,7 @@ impl ResolvableTypeInterface for BaseUnionOrIntersectionType {
         properties: GcVec<Id<Symbol>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
-        index_infos: Vec<Gc<IndexInfo>>,
+        index_infos: Vec<Id<IndexInfo>>,
     ) {
         *self.members.borrow_mut() = Some(members);
         *self.properties.borrow_mut() = Some(properties);
@@ -1260,7 +1260,7 @@ impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
         *self.construct_signatures.borrow_mut() = Some(construct_signatures);
     }
 
-    fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>> {
+    fn index_infos(&self) -> GcCellRef<Vec<Id<IndexInfo>>> {
         GcCellRef::map(self.index_infos.borrow(), |option| option.as_ref().unwrap())
     }
 

@@ -29,7 +29,7 @@ impl TypeChecker {
     pub(super) fn get_index_infos_at_location_(
         &self,
         node: Id<Node>,
-    ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
+    ) -> io::Result<Option<Vec<Id<IndexInfo>>>> {
         if is_identifier(&node.ref_(self))
             && is_property_access_expression(&node.ref_(self).parent().ref_(self))
             && node.ref_(self).parent().ref_(self).as_property_access_expression().name == node
@@ -48,7 +48,7 @@ impl TypeChecker {
                 |&t: &Id<Type>, _| {
                     try_filter(
                         &*self.get_index_infos_of_type(t)?,
-                        |info: &Gc<IndexInfo>| {
+                        |info: &Id<IndexInfo>| {
                             self.is_applicable_index_type(key_type, info.key_type)
                         },
                     )

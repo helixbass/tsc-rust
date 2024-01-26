@@ -176,7 +176,7 @@ pub trait ResolvedTypeInterface:
     fn set_call_signatures(&self, call_signatures: Vec<Id<Signature>>);
     fn construct_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;
     fn set_construct_signatures(&self, construct_signatures: Vec<Id<Signature>>);
-    fn index_infos(&self) -> GcCellRef<Vec<Gc<IndexInfo>>>;
+    fn index_infos(&self) -> GcCellRef<Vec<Id<IndexInfo>>>;
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Id<Type>>;
     fn set_object_type_without_abstract_construct_signatures(
         &self,

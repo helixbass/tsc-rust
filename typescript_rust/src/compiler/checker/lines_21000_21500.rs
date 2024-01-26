@@ -220,7 +220,7 @@ impl TypeChecker {
             vec![],
             try_map(
                 &self.get_index_infos_of_type(type_)?,
-                |info: &Gc<IndexInfo>, _| -> io::Result<_> {
+                |info: &Id<IndexInfo>, _| -> io::Result<_> {
                     Ok(Gc::new(self.create_index_info(
                         info.key_type.clone(),
                         self.get_widened_type(info.type_)?,

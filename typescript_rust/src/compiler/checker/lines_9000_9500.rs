@@ -134,7 +134,7 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-        let mut string_index_info: Option<Gc<IndexInfo>> = None;
+        let mut string_index_info: Option<Id<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         try_for_each(

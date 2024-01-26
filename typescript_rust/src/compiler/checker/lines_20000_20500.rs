@@ -84,7 +84,7 @@ impl CheckTypeRelatedTo {
         let index_infos = self.type_checker.get_index_infos_of_type(target)?;
         let target_has_string_index = some(
             Some(&index_infos),
-            Some(|info: &Gc<IndexInfo>| info.key_type == self.type_checker.string_type()),
+            Some(|info: &Id<IndexInfo>| info.key_type == self.type_checker.string_type()),
         );
         let mut result = Ternary::True;
         for target_info in &index_infos {

@@ -1263,7 +1263,7 @@ impl TypeChecker {
             Gc::new(GcCell::new(members)),
             vec![],
             vec![],
-            same_map(&index_infos, |info: &Gc<IndexInfo>, _| {
+            same_map(&index_infos, |info: &Id<IndexInfo>, _| {
                 self.get_index_info_with_readonly(info, readonly)
             }),
         )?;

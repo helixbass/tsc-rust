@@ -31,7 +31,7 @@ impl TypeChecker {
         pattern_with_computed_properties: bool,
         in_destructuring_pattern: bool,
     ) -> io::Result<Id<Type>> {
-        let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
+        let mut index_infos: Vec<Id<IndexInfo>> = vec![];
         if has_computed_string_property {
             index_infos.push(Gc::new(self.get_object_literal_index_info(
                 node,

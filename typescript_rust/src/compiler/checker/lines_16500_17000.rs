@@ -942,7 +942,7 @@ impl TypeChecker {
         &self,
         info: &IndexInfo,
         mapper: Id<TypeMapper>,
-    ) -> io::Result<Gc<IndexInfo>> {
+    ) -> io::Result<Id<IndexInfo>> {
         Ok(Gc::new(self.create_index_info(
             info.key_type.clone(),
             self.instantiate_type(info.type_, Some(mapper))?,
