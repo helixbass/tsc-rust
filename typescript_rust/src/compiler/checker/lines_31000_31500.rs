@@ -632,7 +632,7 @@ impl TypeChecker {
 
     pub(super) fn get_parameter_name_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
         override_rest_type: Option<Id<Type>>,
     ) -> io::Result<__String> {
@@ -673,7 +673,7 @@ impl TypeChecker {
 
     pub fn get_parameter_identifier_name_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<(__String, bool)>> {
         let param_count = signature.parameters().len()
@@ -755,7 +755,7 @@ impl TypeChecker {
 
     pub(super) fn get_nameable_declaration_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<Id<Node>>> {
         let param_count = signature.parameters().len()
@@ -796,7 +796,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Id<Type>> {
         Ok(self
@@ -806,7 +806,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_type_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<Id<Type>>> {
         let param_count = signature.parameters().len()
@@ -843,7 +843,7 @@ impl TypeChecker {
 
     pub(super) fn get_rest_type_at_position(
         &self,
-        source: &Signature,
+        source: Id<Signature>,
         pos: usize,
     ) -> io::Result<Id<Type>> {
         let parameter_count = self.get_parameter_count(source)?;
@@ -900,7 +900,7 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_parameter_count(&self, signature: &Signature) -> io::Result<usize> {
+    pub(super) fn get_parameter_count(&self, signature: Id<Signature>) -> io::Result<usize> {
         let length = signature.parameters().len();
         if signature_has_rest_parameter(signature) {
             let rest_type = self.get_type_of_symbol(signature.parameters()[length - 1])?;
@@ -921,7 +921,7 @@ impl TypeChecker {
 
     pub(super) fn get_min_argument_count(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         flags: Option<MinArgumentCountFlags>,
     ) -> io::Result<usize> {
         let strong_arity_for_untyped_js = match flags {
@@ -997,7 +997,7 @@ impl TypeChecker {
         Ok(signature.resolved_min_argument_count())
     }
 
-    pub(super) fn has_effective_rest_parameter(&self, signature: &Signature) -> io::Result<bool> {
+    pub(super) fn has_effective_rest_parameter(&self, signature: Id<Signature>) -> io::Result<bool> {
         if signature_has_rest_parameter(signature) {
             let rest_type =
                 self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
@@ -1015,7 +1015,7 @@ impl TypeChecker {
 
     pub(super) fn get_effective_rest_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
         if signature_has_rest_parameter(signature) {
             let rest_type =
@@ -1037,7 +1037,7 @@ impl TypeChecker {
 
     pub(super) fn get_non_array_rest_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
         let rest_type = self.get_effective_rest_type(signature)?;
         rest_type.try_filter(|&rest_type| -> io::Result<_> {
@@ -1053,7 +1053,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_first_parameter_of_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Id<Type>> {
         self.get_type_of_first_parameter_of_signature_with_fallback(signature, self.never_type())
     }

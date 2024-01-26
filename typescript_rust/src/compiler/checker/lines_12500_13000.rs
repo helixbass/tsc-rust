@@ -448,7 +448,7 @@ impl TypeChecker {
 
     pub(super) fn get_this_type_of_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
         signature
             .maybe_this_parameter()
@@ -457,7 +457,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_predicate_of_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Option<Gc<TypePredicate>>> {
         if signature.maybe_resolved_type_predicate().is_none() {
             if let Some(signature_target) = signature.target.as_ref() {
@@ -523,7 +523,7 @@ impl TypeChecker {
     pub(super) fn create_type_predicate_from_type_predicate_node(
         &self,
         node: Id<Node>, /*TypePredicateNode*/
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<TypePredicate> {
         let node_ref = node.ref_(self);
         let node_as_type_predicate_node = node_ref.as_type_predicate_node();
@@ -733,7 +733,7 @@ impl TypeChecker {
     }
 
     #[allow(dead_code)]
-    pub(super) fn get_rest_type_of_signature(&self, signature: &Signature) -> io::Result<Id<Type>> {
+    pub(super) fn get_rest_type_of_signature(&self, signature: Id<Signature>) -> io::Result<Id<Type>> {
         Ok(self
             .try_get_rest_type_of_signature(signature)?
             .unwrap_or_else(|| self.any_type()))
@@ -741,7 +741,7 @@ impl TypeChecker {
 
     pub(super) fn try_get_rest_type_of_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
         if signature_has_rest_parameter(signature) {
             let signature_parameters = signature.parameters();
@@ -829,7 +829,7 @@ impl TypeChecker {
 
     pub(super) fn create_signature_type_mapper(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         type_arguments: Option<&[Id<Type>]>,
     ) -> Id<TypeMapper> {
         self.create_type_mapper(

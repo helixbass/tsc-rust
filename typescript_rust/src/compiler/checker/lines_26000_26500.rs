@@ -1012,7 +1012,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_from_call_signature(
         &self,
-        sig: &Signature,
+        sig: Id<Signature>,
         context: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         let mut props_type =

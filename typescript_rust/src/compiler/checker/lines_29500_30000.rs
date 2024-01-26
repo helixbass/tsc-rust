@@ -303,7 +303,7 @@ impl TypeChecker {
     pub(super) fn get_decorator_argument_count(
         &self,
         node: Id<Node>, /*Decorator*/
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> usize {
         match node.ref_(self).parent().ref_(self).kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
@@ -1033,7 +1033,7 @@ impl TypeChecker {
         node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
-        failed: &Signature,
+        failed: Id<Signature>,
         diagnostic: &Diagnostic,
     ) -> io::Result<()> {
         let old_candidates_for_argument_error = candidates_for_argument_error.clone();

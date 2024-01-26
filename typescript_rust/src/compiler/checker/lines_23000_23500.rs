@@ -1090,7 +1090,7 @@ impl TypeChecker {
 
     pub(super) fn has_type_predicate_or_never_return_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<bool> {
         Ok(self.get_type_predicate_of_signature(signature)?.is_some()
             || matches!(

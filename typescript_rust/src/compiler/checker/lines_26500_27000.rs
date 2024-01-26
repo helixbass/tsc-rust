@@ -236,8 +236,8 @@ impl TypeChecker {
 
     pub(super) fn combine_intersection_parameters(
         &self,
-        left: &Signature,
-        right: &Signature,
+        left: Id<Signature>,
+        right: Id<Signature>,
         mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let left_count = self.get_parameter_count(left)?;
@@ -429,7 +429,7 @@ impl TypeChecker {
 
     pub(super) fn is_arity_smaller(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         target: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         let mut target_parameter_count = 0;

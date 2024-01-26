@@ -750,7 +750,7 @@ impl NodeBuilder {
         &self,
         context: &NodeBuilderContext,
         type_: Id<Type>,
-        signature: &Signature,
+        signature: Id<Signature>,
         include_private_symbol: Option<&impl Fn(Id<Symbol>)>,
         bundled: Option<bool>,
     ) -> io::Result<Id<Node>> {

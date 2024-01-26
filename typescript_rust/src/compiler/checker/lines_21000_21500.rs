@@ -631,8 +631,8 @@ impl TypeChecker {
 
     pub(super) fn apply_to_parameter_types(
         &self,
-        source: &Signature,
-        target: &Signature,
+        source: Id<Signature>,
+        target: Id<Signature>,
         mut callback: impl FnMut(Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<()> {
         let source_count = self.get_parameter_count(source)?;

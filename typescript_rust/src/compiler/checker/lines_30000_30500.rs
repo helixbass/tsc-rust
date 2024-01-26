@@ -149,7 +149,7 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn get_num_non_rest_parameters(&self, signature: &Signature) -> usize {
+    pub(super) fn get_num_non_rest_parameters(&self, signature: Id<Signature>) -> usize {
         let num_params = signature.parameters().len();
         if signature_has_rest_parameter(signature) {
             num_params - 1
@@ -716,7 +716,7 @@ impl TypeChecker {
     pub(super) fn is_constructor_accessible(
         &self,
         node: Id<Node>, /*NewExpression*/
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<bool> {
         if
         /* !signature ||*/

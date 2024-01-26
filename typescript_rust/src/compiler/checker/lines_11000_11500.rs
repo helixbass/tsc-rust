@@ -39,8 +39,8 @@ impl TypeChecker {
 
     pub(super) fn combine_union_parameters(
         &self,
-        left: &Signature,
-        right: &Signature,
+        left: Id<Signature>,
+        right: Id<Signature>,
         mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let left_count = self.get_parameter_count(left)?;

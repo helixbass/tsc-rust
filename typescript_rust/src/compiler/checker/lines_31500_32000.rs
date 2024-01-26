@@ -22,7 +22,7 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_type_of_first_parameter_of_signature_with_fallback(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         fallback_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(if !signature.parameters().is_empty() {
@@ -34,7 +34,7 @@ impl TypeChecker {
 
     pub(super) fn infer_from_annotated_parameters(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         context: Id<Signature>,
         inference_context: &InferenceContext,
     ) -> io::Result<()> {
@@ -94,8 +94,8 @@ impl TypeChecker {
 
     pub(super) fn assign_contextual_parameter_types(
         &self,
-        signature: &Signature,
-        context: &Signature,
+        signature: Id<Signature>,
+        context: Id<Signature>,
     ) -> io::Result<()> {
         if let Some(context_type_parameters) = context.maybe_type_parameters().as_ref() {
             if signature.maybe_type_parameters().is_none() {
@@ -160,7 +160,7 @@ impl TypeChecker {
 
     pub(super) fn assign_non_contextual_parameter_types(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<()> {
         if let Some(signature_this_parameter) = *signature.maybe_this_parameter() {
             self.assign_parameter_type(signature_this_parameter, None)?;

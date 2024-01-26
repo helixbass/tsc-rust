@@ -196,8 +196,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn constructor_visibilities_are_compatible(
         &self,
-        source_signature: &Signature,
-        target_signature: &Signature,
+        source_signature: Id<Signature>,
+        target_signature: Id<Signature>,
         report_errors: bool,
     ) -> io::Result<bool> {
         let (Some(source_signature_declaration), Some(target_signature_declaration)) = (
@@ -1062,8 +1062,8 @@ impl TypeChecker {
 
     pub(super) fn is_matching_signature(
         &self,
-        source: &Signature,
-        target: &Signature,
+        source: Id<Signature>,
+        target: Id<Signature>,
         partial_match: bool,
     ) -> io::Result<bool> {
         let source_parameter_count = self.get_parameter_count(source)?;

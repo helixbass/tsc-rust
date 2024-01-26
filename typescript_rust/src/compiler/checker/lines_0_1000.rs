@@ -1890,7 +1890,7 @@ impl TypeChecker {
 
     pub fn get_parameter_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         parameter_index: usize,
     ) -> io::Result<Id<Type>> {
         self.get_type_at_position(signature, parameter_index)

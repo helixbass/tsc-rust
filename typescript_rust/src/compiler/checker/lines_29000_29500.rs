@@ -63,7 +63,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
         args: &[Id<Node /*Expression*/>],
-        signature: &Signature,
+        signature: Id<Signature>,
         signature_help_trailing_comma: Option<bool>,
     ) -> io::Result<bool> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
@@ -172,7 +172,7 @@ impl TypeChecker {
 
     pub(super) fn has_correct_type_argument_arity(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         type_arguments: Option<&NodeArray /*<TypeNode>*/>,
     ) -> bool {
         let num_type_parameters = length(signature.maybe_type_parameters().as_deref());

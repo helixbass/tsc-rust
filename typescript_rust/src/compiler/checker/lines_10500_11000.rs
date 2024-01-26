@@ -714,7 +714,7 @@ impl TypeChecker {
         sig
     }
 
-    pub(super) fn clone_signature(&self, sig: &Signature) -> Signature {
+    pub(super) fn clone_signature(&self, sig: Id<Signature>) -> Signature {
         let mut result = self.create_signature(
             sig.declaration.clone(),
             sig.maybe_type_parameters().clone(),
@@ -734,7 +734,7 @@ impl TypeChecker {
 
     pub(super) fn create_union_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         union_signatures: Vec<Id<Signature>>,
     ) -> Signature {
         let mut result = self.clone_signature(signature);
@@ -799,7 +799,7 @@ impl TypeChecker {
 
     pub(super) fn create_optional_call_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         call_chain_flags: SignatureFlags,
     ) -> Signature {
         Debug_.assert(
@@ -813,7 +813,7 @@ impl TypeChecker {
 
     pub(super) fn get_expanded_parameters(
         &self,
-        sig: &Signature,
+        sig: Id<Signature>,
         skip_union_expanding: Option<bool>,
     ) -> io::Result<Vec<Vec<Id<Symbol>>>> {
         let skip_union_expanding = skip_union_expanding.unwrap_or(false);
@@ -851,7 +851,7 @@ impl TypeChecker {
 
     pub(super) fn expand_signature_parameters_with_tuple_members(
         &self,
-        sig: &Signature,
+        sig: Id<Signature>,
         rest_type: Id<Type>, /*TupleTypeReference*/
         rest_index: usize,
     ) -> io::Result<Vec<Id<Symbol>>> {

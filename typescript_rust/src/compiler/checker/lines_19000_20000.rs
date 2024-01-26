@@ -1269,8 +1269,8 @@ impl CheckTypeRelatedTo {
         let save_error_info = self.capture_error_calculation_state();
         let incompatible_reporter: fn(
             &Self,
-            &Signature,
-            &Signature,
+            Id<Signature>,
+            Id<Signature>,
         ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> = if kind == SignatureKind::Construct {
             Self::report_incompatible_construct_signature_return
         } else {
@@ -1392,8 +1392,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn report_incompatible_call_signature_return(
         &self,
-        siga: &Signature,
-        sigb: &Signature,
+        siga: Id<Signature>,
+        sigb: Id<Signature>,
     ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> {
         if siga.parameters().is_empty() && sigb.parameters().is_empty() {
             Self::report_incompatible_call_signature_return_no_arguments
@@ -1440,8 +1440,8 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn report_incompatible_construct_signature_return(
         &self,
-        siga: &Signature,
-        sigb: &Signature,
+        siga: Id<Signature>,
+        sigb: Id<Signature>,
     ) -> fn(&Self, Id<Type>, Id<Type>) -> io::Result<()> {
         if siga.parameters().is_empty() && sigb.parameters().is_empty() {
             Self::report_incompatible_construct_signature_return_no_arguments

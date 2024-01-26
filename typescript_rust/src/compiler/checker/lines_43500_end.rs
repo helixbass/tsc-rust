@@ -1647,10 +1647,10 @@ pub(super) fn get_iteration_types_key_from_iteration_type_kind(
     }
 }
 
-pub(super) fn signature_has_rest_parameter(s: &Signature) -> bool {
+pub(super) fn signature_has_rest_parameter(s: Id<Signature>) -> bool {
     s.flags.intersects(SignatureFlags::HasRestParameter)
 }
 
-pub(super) fn signature_has_literal_types(s: &Signature) -> bool {
+pub(super) fn signature_has_literal_types(s: Id<Signature>) -> bool {
     s.flags.intersects(SignatureFlags::HasLiteralTypes)
 }

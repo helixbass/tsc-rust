@@ -587,7 +587,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn get_signature_text_range_location(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> Option<Id<Node>> {
         if let Some(signature_declaration) = signature
             .declaration
