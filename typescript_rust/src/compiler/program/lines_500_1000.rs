@@ -76,7 +76,7 @@ impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     }
 }
 
-impl LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>
+impl LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>
     for LoadWithLocalCacheLoaderResolveTypeReferenceDirective
 {
     fn call(
@@ -84,7 +84,7 @@ impl LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>
         types_ref: &str,
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> io::Result<Gc<ResolvedTypeReferenceDirective>> {
+    ) -> io::Result<Id<ResolvedTypeReferenceDirective>> {
         Ok(resolve_type_reference_directive(
             types_ref,
             Some(containing_file),
@@ -1551,14 +1551,14 @@ impl Program {
 
     pub(super) fn resolved_type_reference_directives(
         &self,
-    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>> {
+    ) -> Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>> {
         self.resolved_type_reference_directives.borrow().clone()
     }
 
     pub(super) fn set_resolved_type_reference_directives(
         &self,
         resolved_type_reference_directives: Gc<
-            GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>,
+            GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>,
         >,
     ) {
         *self.resolved_type_reference_directives.borrow_mut() = resolved_type_reference_directives;
@@ -1975,7 +1975,7 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
         type_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>>;
+    ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -1998,7 +1998,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         type_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         Ok(self
             .host
             .resolve_type_reference_directives(
@@ -2019,12 +2019,12 @@ impl HasArena for ActualResolveTypeReferenceDirectiveNamesWorkerHost {
 
 #[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
-    loader: Gc<Box<dyn LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>>>,
+    loader: Gc<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
     pub fn new(
-        loader: Gc<Box<dyn LoadWithLocalCacheLoader<Gc<ResolvedTypeReferenceDirective>>>>,
+        loader: Gc<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -2038,7 +2038,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         type_reference_directive_names: &[String],
         containing_file: &str,
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         Ok(load_with_local_cache(
             /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
             containing_file,
@@ -2136,7 +2136,7 @@ impl TypeCheckerHost for Program {
 
     fn get_resolved_type_reference_directives(
         &self,
-    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>> {
+    ) -> Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>> {
         self.resolved_type_reference_directives()
     }
 

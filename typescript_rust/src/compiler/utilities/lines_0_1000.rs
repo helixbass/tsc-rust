@@ -645,7 +645,7 @@ pub fn set_resolved_module(
 pub fn set_resolved_type_reference_directive(
     source_file: &Node, /*SourceFile*/
     type_reference_directive_name: &str,
-    resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
+    resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
 ) {
     let mut source_file_resolved_type_reference_directive_names = source_file
         .as_source_file()

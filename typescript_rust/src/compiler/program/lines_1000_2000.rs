@@ -73,7 +73,7 @@ impl Program {
         &self,
         type_directive_names: &[String],
         containing_file: impl Into<StringOrRcNode>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         if type_directive_names.is_empty() {
             return Ok(vec![]);
         }
@@ -1065,8 +1065,8 @@ impl Program {
                     .maybe_resolved_type_reference_directive_names()
                     .as_ref(),
                 Some(old_source_file),
-                |a: &Option<Gc<ResolvedTypeReferenceDirective>>,
-                 b: &Option<Gc<ResolvedTypeReferenceDirective>>| {
+                |a: &Option<Id<ResolvedTypeReferenceDirective>>,
+                 b: &Option<Id<ResolvedTypeReferenceDirective>>| {
                     type_directive_is_equal_to(a.as_ref().unwrap(), b.as_ref().unwrap())
                 },
                 self,

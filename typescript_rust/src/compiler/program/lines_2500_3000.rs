@@ -907,7 +907,7 @@ impl Program {
     pub fn process_type_reference_directive(
         &self,
         type_reference_directive: &str,
-        resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
+        resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
         reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
         // tracing?.push(tracing.Phase.Program, "processTypeReferenceDirective", { directive: typeReferenceDirective, hasResolved: !!resolveModuleNamesReusingOldState, refKind: reason.kind, refPath: isReferencedFile(reason) ? reason.file : undefined });
@@ -924,7 +924,7 @@ impl Program {
     pub fn process_type_reference_directive_worker(
         &self,
         type_reference_directive: &str,
-        resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
+        resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
         reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
         let previous_resolution = (*self.resolved_type_reference_directives())

@@ -151,7 +151,7 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>>;
     fn get_resolved_type_reference_directives(
         &self,
-    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>;
+    ) -> Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 

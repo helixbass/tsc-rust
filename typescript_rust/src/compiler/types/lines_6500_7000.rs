@@ -319,7 +319,7 @@ pub struct ResolvedTypeReferenceDirective {
 
 #[derive(Trace, Finalize)]
 pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
-    pub resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
+    pub resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
     pub failed_lookup_locations: Vec<String>,
 }
 
@@ -409,7 +409,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         _containing_file: &str,
         _redirected_reference: Option<&ResolvedProjectReference>,
         _options: &CompilerOptions,
-    ) -> Option<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+    ) -> Option<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         None
     }
     fn get_environment_variable(&self, _name: &str) -> Option<String> {

@@ -971,7 +971,7 @@ impl SymlinkCache {
         &self,
         files: &[Id<Node /*SourceFile*/>],
         type_reference_directives: Option<
-            &HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>,
+            &HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>,
         >,
     ) {
         Debug_.assert(!self.has_processed_resolutions(), None);
@@ -1044,8 +1044,8 @@ impl HasArena for SymlinkCache {
 }
 
 enum ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    ResolvedModuleFull(Gc<ResolvedModuleFull>),
-    ResolvedTypeReferenceDirective(Gc<ResolvedTypeReferenceDirective>),
+    ResolvedModuleFull(Id<ResolvedModuleFull>),
+    ResolvedTypeReferenceDirective(Id<ResolvedTypeReferenceDirective>),
 }
 
 impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
@@ -1070,10 +1070,10 @@ impl From<Gc<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceD
     }
 }
 
-impl From<Gc<ResolvedTypeReferenceDirective>>
+impl From<Id<ResolvedTypeReferenceDirective>>
     for ResolvedModuleFullOrResolvedTypeReferenceDirective
 {
-    fn from(value: Gc<ResolvedTypeReferenceDirective>) -> Self {
+    fn from(value: Id<ResolvedTypeReferenceDirective>) -> Self {
         Self::ResolvedTypeReferenceDirective(value)
     }
 }

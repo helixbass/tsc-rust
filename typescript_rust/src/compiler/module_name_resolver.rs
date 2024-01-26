@@ -690,7 +690,7 @@ pub fn resolve_type_reference_directive(
         primary = false;
     }
 
-    let mut resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>> = None;
+    let mut resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>> = None;
     if let Some(resolved) = resolved {
         let PathAndPackageId {
             file_name,

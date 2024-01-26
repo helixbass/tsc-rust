@@ -219,7 +219,7 @@ pub struct SourceFileContents {
     resolved_modules:
         GcCell<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
-        GcCell<Option<ModeAwareCache<Option<Gc<ResolvedTypeReferenceDirective>>>>>,
+        GcCell<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>>,
     imports: GcCell<Option<Vec<Id<Node /*StringLiteralLike*/>>>>,
     module_augmentations: GcCell<Option<Vec<Id<Node /*StringLiteral | Identifier*/>>>>,
     pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
@@ -650,7 +650,7 @@ impl SourceFile {
 
     pub fn maybe_resolved_type_reference_directive_names(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Gc<ResolvedTypeReferenceDirective>>>>> {
+    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>> {
         self.contents
             .resolved_type_reference_directive_names
             .borrow_mut()
@@ -1630,7 +1630,7 @@ pub struct Program {
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        GcCell<Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>>,
+        GcCell<Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>>,
     pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Gc<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,
