@@ -1692,6 +1692,7 @@ impl TransformES2018 {
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
                     None,
+                    self,
                 )
             } else {
                 node.ref_(self).maybe_modifiers()
@@ -1772,6 +1773,7 @@ impl TransformES2018 {
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
                     None,
+                    self,
                 )
             } else {
                 node.ref_(self).maybe_modifiers()
@@ -1861,6 +1863,7 @@ impl TransformES2018 {
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
                     None,
+                    self,
                 )
             } else {
                 node.ref_(self).maybe_modifiers()

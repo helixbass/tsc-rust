@@ -258,6 +258,7 @@ impl TransformDeclarations {
                                 Some(|node: Id<Node>| is_type_parameter_declaration(&node.ref_(self))),
                                 None,
                                 None,
+                                self,
                             )?,
                             try_visit_node(
                                 input_as_type_alias_declaration
@@ -305,6 +306,7 @@ impl TransformDeclarations {
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 None,
                                 None,
+                                self,
                             )?,
                         ),
                     ),
@@ -530,6 +532,7 @@ impl TransformDeclarations {
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
+                        self,
                     )?;
                     let mut late_statements =
                         self.transform_and_replace_late_painted_statements(&statements)?;
@@ -558,6 +561,7 @@ impl TransformDeclarations {
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 None,
                                 None,
+                                self,
                             );
                         }
                     }
@@ -718,6 +722,7 @@ impl TransformDeclarations {
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
+                        self,
                     )?
                     .map(|node_array| node_array.to_vec()),
                 );
@@ -813,6 +818,7 @@ impl TransformDeclarations {
                                                             Option::<fn(Id<Node>) -> bool>::None,
                                                             None,
                                                             None,
+                                                            self,
                                                         )?,
                                                     ))
                                             },
@@ -850,6 +856,7 @@ impl TransformDeclarations {
                                         Option::<fn(Id<Node>) -> bool>::None,
                                         None,
                                         None,
+                                        self,
                                     )?,
                                 ))
                             },

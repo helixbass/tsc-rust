@@ -292,6 +292,7 @@ impl TransformTypeScript {
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
                     None,
+                    self,
                 )
             });
 
@@ -308,6 +309,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
             self.transform_class_members(node)?,
         );
@@ -348,6 +350,7 @@ impl TransformTypeScript {
             Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
             None,
             None,
+            self,
         )?;
         let members = self.transform_class_members(node)?;
         let class_expression = self
@@ -415,6 +418,7 @@ impl TransformTypeScript {
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,
                     None,
+                    self,
                 )?,
                 self.transform_class_members(node)?,
             )
@@ -466,6 +470,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?),
             None,
             None,

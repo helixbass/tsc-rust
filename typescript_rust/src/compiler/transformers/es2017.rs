@@ -660,6 +660,7 @@ impl TransformES2017 {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
             node_as_method_declaration.maybe_asterisk_token(),
             node_as_method_declaration.name(),
@@ -703,6 +704,7 @@ impl TransformES2017 {
                         Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                         None,
                         None,
+                        self,
                     )?,
                     node_as_function_declaration.maybe_asterisk_token(),
                     node_as_function_declaration.maybe_name(),
@@ -744,6 +746,7 @@ impl TransformES2017 {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
             node_as_function_expression.maybe_asterisk_token(),
             node_as_function_expression.maybe_name(),
@@ -781,6 +784,7 @@ impl TransformES2017 {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
             Option::<Gc<NodeArray>>::None,
             try_visit_parameter_list(
@@ -1123,6 +1127,7 @@ impl TransformES2017 {
                     Some(|node| is_statement(node, self)),
                     start,
                     None,
+                    self,
                 )?,
             )
         } else {

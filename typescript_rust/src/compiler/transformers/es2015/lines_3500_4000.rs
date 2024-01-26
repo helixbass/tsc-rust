@@ -133,6 +133,7 @@ impl TransformES2015 {
             Some(|node| is_statement(node, self)),
             None,
             None,
+            self,
         )?;
         Ok(self.factory.update_block(
             block,
@@ -311,6 +312,7 @@ impl TransformES2015 {
                         Some(|node| is_expression(node, self)),
                         None,
                         None,
+                        self,
                     )?,
                 )
                 .into(),
@@ -344,6 +346,7 @@ impl TransformES2015 {
             Some(|node| is_statement(node, self)),
             None,
             None,
+            self,
         )?;
         self.set_converted_loop_state(saved_converted_loop_state);
 
@@ -616,6 +619,7 @@ impl TransformES2015 {
                             Some(|node| is_expression(node, self)),
                             None,
                             None,
+                            self,
                         )?,
                     )
                     .set_text_range(Some(&*node.ref_(self)), self)

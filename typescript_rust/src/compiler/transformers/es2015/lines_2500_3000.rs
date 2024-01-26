@@ -287,6 +287,7 @@ impl TransformES2015 {
                         Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
                         Some(0),
                         Some(num_initial_properties),
+                        self,
                     )?,
                     node_as_object_literal_expression.multi_line,
                 )

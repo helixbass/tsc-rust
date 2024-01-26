@@ -1011,7 +1011,7 @@ impl Printer {
             .question_dot_token
             .clone()
             .unwrap_or_else(|| {
-                let token: Id<Node> = get_factory().create_token(SyntaxKind::DotToken);
+                let token: Id<Node> = get_factory(self).create_token(SyntaxKind::DotToken);
                 set_text_range_pos_end(
                     &*token.ref_(self),
                     node_as_property_access_expression.expression.ref_(self).end(),

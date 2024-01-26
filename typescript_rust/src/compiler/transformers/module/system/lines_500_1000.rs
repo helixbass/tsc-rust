@@ -156,6 +156,7 @@ impl TransformSystemModule {
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
+                            self,
                         ),
                         node_as_function_declaration.maybe_asterisk_token(),
                         Some(
@@ -169,6 +170,7 @@ impl TransformSystemModule {
                             Some(|node| is_parameter_declaration(node, self)),
                             None,
                             None,
+                            self,
                         )?,
                         None,
                         try_maybe_visit_node(
@@ -230,6 +232,7 @@ impl TransformSystemModule {
                                     Some(|node: Id<Node>| is_decorator(&node.ref_(self))),
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 Option::<Gc<NodeArray>>::None,
                                 node_as_class_declaration.maybe_name(),
@@ -242,6 +245,7 @@ impl TransformSystemModule {
                                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 try_visit_nodes(
                                     &node_as_class_declaration.members(),
@@ -249,6 +253,7 @@ impl TransformSystemModule {
                                     Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                                     None,
                                     None,
+                                    self,
                                 )?,
                             )
                             .set_text_range(Some(&*node.ref_(self)), self),

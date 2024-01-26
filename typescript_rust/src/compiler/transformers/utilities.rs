@@ -268,7 +268,7 @@ pub fn collect_external_module_info(
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
-                                .push(context.factory().get_declaration_name(
+                                .push(context.factory().ref_(arena).get_declaration_name(
                                     Some(node),
                                     None,
                                     None,
@@ -295,7 +295,7 @@ pub fn collect_external_module_info(
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
-                                .push(context.factory().get_declaration_name(
+                                .push(context.factory().ref_(arena).get_declaration_name(
                                     Some(node),
                                     None,
                                     None,
@@ -322,7 +322,7 @@ pub fn collect_external_module_info(
     }
 
     let external_helpers_import_declaration = create_external_helpers_import_declaration_if_needed(
-        &context.factory(),
+        &context.factory().ref_(arena),
         &context.get_emit_helper_factory(),
         source_file,
         compiler_options,

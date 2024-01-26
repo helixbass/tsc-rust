@@ -590,6 +590,7 @@ impl TransformES2015 {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
             node_as_function_declaration.maybe_asterisk_token(),
             name,
@@ -730,6 +731,7 @@ impl TransformES2015 {
                     Some(|node| is_statement(node, self)),
                     statement_offset,
                     None,
+                    self,
                 )?
                 .as_double_deref(),
                 None,

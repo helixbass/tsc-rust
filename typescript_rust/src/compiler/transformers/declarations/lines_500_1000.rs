@@ -322,6 +322,7 @@ impl TransformDeclarations {
                 Option::<fn(Id<Node>) -> bool>::None,
                 None,
                 None,
+                self,
             )?
         })
     }
@@ -639,6 +640,7 @@ impl TransformDeclarations {
             Option::<fn(Id<Node>) -> bool>::None,
             None,
             None,
+            self,
         ))
     }
 
@@ -1341,6 +1343,7 @@ impl TransformDeclarations {
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 self.update_params_list(
                                     input,
@@ -1380,6 +1383,7 @@ impl TransformDeclarations {
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 self.update_params_list(
                                     input,
@@ -1441,6 +1445,7 @@ impl TransformDeclarations {
                                     Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 Some(input_as_import_type_node.is_type_of()),
                             ),

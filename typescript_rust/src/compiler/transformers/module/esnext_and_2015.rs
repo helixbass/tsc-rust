@@ -250,6 +250,7 @@ impl TransformEcmascriptModule {
                         Some(|node| is_statement(node, self)),
                         Some(statement_offset),
                         None,
+                        self,
                     )?
                     .owned_iter(),
                 );

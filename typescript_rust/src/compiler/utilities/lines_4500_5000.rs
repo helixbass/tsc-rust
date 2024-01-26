@@ -571,11 +571,11 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
     }
 }
 
-pub fn create_modifiers(modifier_flags: ModifierFlags) -> Option<ModifiersArray> {
+pub fn create_modifiers(modifier_flags: ModifierFlags, arena: &impl HasArena) -> Option<ModifiersArray> {
     if modifier_flags != ModifierFlags::None {
         Some(
-            get_factory().create_node_array(
-                Some(get_factory().create_modifiers_from_modifier_flags(modifier_flags)),
+            get_factory(arena).create_node_array(
+                Some(get_factory(arena).create_modifiers_from_modifier_flags(modifier_flags)),
                 None,
             )
         )

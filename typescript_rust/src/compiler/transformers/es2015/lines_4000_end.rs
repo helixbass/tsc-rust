@@ -77,6 +77,7 @@ impl TransformES2015 {
                 Some(|node| is_expression(node, self)),
                 None,
                 None,
+                self,
             )?),
             Some(multi_line),
         );

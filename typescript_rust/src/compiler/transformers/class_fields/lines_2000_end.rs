@@ -26,6 +26,7 @@ impl TransformClassFields {
                             Some(|node| is_expression(node, self)),
                             None,
                             None,
+                            self,
                         ),
                     )
                     .into(),
@@ -43,6 +44,7 @@ impl TransformClassFields {
                             Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
                             None,
                             None,
+                            self,
                         ),
                     )
                     .into(),

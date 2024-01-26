@@ -643,6 +643,7 @@ impl TransformDeclarations {
                                         Option::<fn(Id<Node>) -> bool>::None,
                                         None,
                                         None,
+                                        self,
                                     )?
                                 };
                                 let new_file =
@@ -704,6 +705,7 @@ impl TransformDeclarations {
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
+                                    self,
                                 )?
                             };
                             Ok(Some(
@@ -835,6 +837,7 @@ impl TransformDeclarations {
                 Option::<fn(Id<Node>) -> bool>::None,
                 None,
                 None,
+                self,
             )?;
             combined_statements = set_text_range_node_array(
                 self.factory.ref_(self).create_node_array(
@@ -1114,6 +1117,7 @@ impl TransformDeclarations {
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
+                        self,
                     )?,
                 )
             } else {
@@ -1127,6 +1131,7 @@ impl TransformDeclarations {
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
+                        self,
                     )?,
                 )
             }

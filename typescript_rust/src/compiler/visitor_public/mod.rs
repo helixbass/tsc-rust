@@ -93,8 +93,9 @@ pub fn visit_nodes(
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
+    arena: &impl HasArena,
 ) -> Gc<NodeArray> {
-    maybe_visit_nodes(Some(nodes), visitor, test, start, count).unwrap()
+    maybe_visit_nodes(Some(nodes), visitor, test, start, count, arena).unwrap()
 }
 
 pub fn maybe_visit_nodes(
@@ -103,6 +104,7 @@ pub fn maybe_visit_nodes(
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
+    arena: &impl HasArena,
 ) -> Option<Gc<NodeArray>> {
     let nodes = nodes?;
     if visitor.is_none() {
@@ -175,7 +177,7 @@ pub fn maybe_visit_nodes(
 
     if let Some(updated) = updated {
         let updated_array =
-            get_factory().create_node_array(Some(updated), has_trailing_comma);
+            get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
         set_text_range_pos_end(&*updated_array, pos, end);
         return Some(updated_array);
     }
@@ -190,8 +192,9 @@ pub fn try_visit_nodes(
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
+    arena: &impl HasArena,
 ) -> io::Result<Gc<NodeArray>> {
-    Ok(try_maybe_visit_nodes(Some(nodes), visitor, test, start, count)?.unwrap())
+    Ok(try_maybe_visit_nodes(Some(nodes), visitor, test, start, count, arena)?.unwrap())
 }
 
 pub fn try_maybe_visit_nodes(
@@ -200,6 +203,7 @@ pub fn try_maybe_visit_nodes(
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
+    arena: &impl HasArena,
 ) -> io::Result<Option<Gc<NodeArray>>> {
     if nodes.is_none() {
         return Ok(None);
@@ -275,7 +279,7 @@ pub fn try_maybe_visit_nodes(
 
     if let Some(updated) = updated {
         let updated_array =
-            get_factory().create_node_array(Some(updated), has_trailing_comma);
+            get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
         set_text_range_pos_end(&*updated_array, pos, end);
         return Ok(Some(updated_array));
     }
@@ -342,6 +346,7 @@ pub fn visit_lexical_environment(
                     test.map(|test| |node: Id<Node>| test(node)),
                     start,
                     count,
+                    arena,
                 )
             }
         };
@@ -354,9 +359,9 @@ pub fn visit_lexical_environment(
     )
     .unwrap();
     if ensure_use_strict == Some(true) {
-        statements = context.factory().ensure_use_strict(&statements);
+        statements = context.factory().ref_(arena).ensure_use_strict(&statements);
     }
-    get_factory()
+    get_factory(arena)
         .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
         .as_node_array()
 }
@@ -420,6 +425,7 @@ pub fn try_visit_lexical_environment_full(
                     test.map(|test| |node: Id<Node>| test(node)),
                     start,
                     count,
+                    arena,
                 )
             }
         };
@@ -432,9 +438,9 @@ pub fn try_visit_lexical_environment_full(
     )?
     .unwrap();
     if ensure_use_strict == Some(true) {
-        statements = context.factory().ensure_use_strict(&statements);
+        statements = context.factory().ref_(arena).ensure_use_strict(&statements);
     }
-    Ok(get_factory()
+    Ok(get_factory(arena)
         .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
         .as_node_array())
 }
@@ -492,6 +498,7 @@ pub fn visit_parameter_list_full(
                 test.map(|test| |node: Id<Node>| test(node)),
                 start,
                 count,
+                arena,
             )
         }
     };
@@ -578,6 +585,7 @@ pub fn try_visit_parameter_list_full(
                     test.map(|test| |node: Id<Node>| test(node)),
                     start,
                     count,
+                    arena,
                 )
             }
         };
@@ -630,7 +638,7 @@ fn add_default_value_assignments_if_needed(
         |result| {
             context
                 .factory()
-                .create_node_array(Some(result), Some(parameters.has_trailing_comma))
+                .ref_(arena).create_node_array(Some(result), Some(parameters.has_trailing_comma))
                 .set_text_range(Some(parameters))
         },
     )
@@ -673,32 +681,32 @@ fn add_default_value_assignment_for_binding_pattern(
     let parameter_ref = parameter.ref_(arena);
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
-    context.add_initialization_statement(factory.create_variable_statement(
+    context.add_initialization_statement(factory.ref_(arena).create_variable_statement(
         Option::<Gc<NodeArray>>::None,
-        factory.create_variable_declaration_list(
+        factory.ref_(arena).create_variable_declaration_list(
             vec![
-                    factory.create_variable_declaration(
+                    factory.ref_(arena).create_variable_declaration(
                         parameter_as_parameter_declaration.maybe_name(),
                         None,
                         parameter_as_parameter_declaration.maybe_type(),
                         Some(
                             parameter_as_parameter_declaration.maybe_initializer().map_or_else(
-                                || factory.get_generated_name_for_node(
+                                || factory.ref_(arena).get_generated_name_for_node(
                                     Some(parameter),
                                     None,
                                 ),
-                                |parameter_initializer| factory.create_conditional_expression(
-                                    factory.create_strict_equality(
-                                        factory.get_generated_name_for_node(
+                                |parameter_initializer| factory.ref_(arena).create_conditional_expression(
+                                    factory.ref_(arena).create_strict_equality(
+                                        factory.ref_(arena).get_generated_name_for_node(
                                             Some(parameter),
                                             None,
                                         ),
-                                        factory.create_void_zero()
+                                        factory.ref_(arena).create_void_zero()
                                     ),
                                     None,
                                     parameter_initializer,
                                     None,
-                                    factory.get_generated_name_for_node(
+                                    factory.ref_(arena).get_generated_name_for_node(
                                         Some(parameter),
                                         None,
                                     ),
@@ -710,12 +718,12 @@ fn add_default_value_assignment_for_binding_pattern(
             None,
         ),
     ));
-    factory.update_parameter_declaration(
+    factory.ref_(arena).update_parameter_declaration(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
         parameter.ref_(arena).maybe_modifiers(),
         parameter_as_parameter_declaration.dot_dot_dot_token,
-        Some(factory.get_generated_name_for_node(Some(parameter), None)),
+        Some(factory.ref_(arena).get_generated_name_for_node(Some(parameter), None)),
         parameter_as_parameter_declaration.question_token,
         parameter_as_parameter_declaration.maybe_type(),
         None,
@@ -733,15 +741,15 @@ fn add_default_value_assignment_for_initializer(
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(
-        factory.create_if_statement(
-            factory.create_type_check(factory.clone_node(name), "undefined"),
+        factory.ref_(arena).create_if_statement(
+            factory.ref_(arena).create_type_check(factory.ref_(arena).clone_node(name), "undefined"),
             factory
-                .create_block(
-                    vec![factory.create_expression_statement(
+                .ref_(arena).create_block(
+                    vec![factory.ref_(arena).create_expression_statement(
                         factory
-                            .create_assignment(
+                            .ref_(arena).create_assignment(
                                 factory
-                                    .clone_node(name)
+                                    .ref_(arena).clone_node(name)
                                     .set_emit_flags(EmitFlags::NoSourceMap, arena),
                                 initializer.set_emit_flags(
                                     EmitFlags::NoSourceMap
@@ -766,7 +774,7 @@ fn add_default_value_assignment_for_initializer(
             None,
         ),
     );
-    factory.update_parameter_declaration(
+    factory.ref_(arena).update_parameter_declaration(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
         parameter.ref_(arena).maybe_modifiers(),
@@ -835,17 +843,17 @@ pub fn visit_function_body_full(
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
-            return Some(context.factory().create_block(declarations, None));
+            return Some(context.factory().ref_(arena).create_block(declarations, None));
         }
         let updated = updated.unwrap();
         let block = context
             .factory()
-            .converters()
+            .ref_(arena).converters()
             .convert_to_function_block(updated, None);
-        let statements = get_factory()
+        let statements = get_factory(arena)
             .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
             .as_node_array();
-        return Some(context.factory().update_block(block, statements));
+        return Some(context.factory().ref_(arena).update_block(block, statements));
     }
     updated
 }
@@ -908,17 +916,17 @@ pub fn try_visit_function_body_full(
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
-            return Ok(Some(context.factory().create_block(declarations, None)));
+            return Ok(Some(context.factory().ref_(arena).create_block(declarations, None)));
         }
         let updated = updated.unwrap();
         let block = context
             .factory()
-            .converters()
+            .ref_(arena).converters()
             .convert_to_function_block(updated, None);
-        let statements = get_factory()
+        let statements = get_factory(arena)
             .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
             .as_node_array();
-        return Ok(Some(context.factory().update_block(block, statements)));
+        return Ok(Some(context.factory().ref_(arena).update_block(block, statements)));
     }
     Ok(updated)
 }
@@ -943,7 +951,7 @@ pub fn try_visit_iteration_body(
         body,
         Some(visitor),
         Some(|node: Id<Node>| is_statement(node, arena)),
-        Some(|nodes: &[Id<Node>]| context.factory().lift_to_block(nodes)),
+        Some(|nodes: &[Id<Node>]| context.factory().ref_(arena).lift_to_block(nodes)),
     )?;
     let declarations = context.end_block_scope();
     if let Some(mut declarations) = declarations.non_empty()
@@ -951,10 +959,10 @@ pub fn try_visit_iteration_body(
     {
         if is_block(&updated.ref_(arena)) {
             declarations.extend(updated.ref_(arena).as_block().statements.iter().cloned());
-            return Ok(context.factory().update_block(updated, declarations));
+            return Ok(context.factory().ref_(arena).update_block(updated, declarations));
         }
         declarations.push(updated);
-        return Ok(context.factory().create_block(declarations, None));
+        return Ok(context.factory().ref_(arena).create_block(declarations, None));
     }
     Ok(updated)
 }

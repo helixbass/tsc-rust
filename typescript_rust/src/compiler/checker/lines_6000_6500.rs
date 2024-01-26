@@ -1195,6 +1195,7 @@ impl NodeBuilder {
                             Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None, None,
+                            self,
                         )?,
                         try_map_defined(
                             Some(&node_as_jsdoc_function_type.parameters()),
@@ -1261,6 +1262,7 @@ impl NodeBuilder {
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 None,
                                 None,
+                                self,
                             )?,
                             try_map(
                                 &node_as_jsdoc_function_type.parameters(),

@@ -476,6 +476,7 @@ impl TransformSystemModule {
             Some(|node| is_statement(node, self)),
             Some(statement_offset),
             None,
+            self,
         )?;
 
         add_range(

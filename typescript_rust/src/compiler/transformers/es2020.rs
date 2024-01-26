@@ -239,6 +239,7 @@ impl TransformES2020 {
                 Some(|node| is_expression(node, self)),
                 None,
                 None,
+                self,
             );
             if is_synthetic_reference(&expression.ref_(self)) {
                 let expression_ref = expression.ref_(self);
@@ -380,6 +381,7 @@ impl TransformES2020 {
                                 Some(|node| is_expression(node, self)),
                                 None,
                                 None,
+                                self,
                             ),
                         );
                     } else {
@@ -392,6 +394,7 @@ impl TransformES2020 {
                                 Some(|node| is_expression(node, self)),
                                 None,
                                 None,
+                                self,
                             )),
                         );
                     }

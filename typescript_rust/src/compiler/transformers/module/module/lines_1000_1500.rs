@@ -321,6 +321,7 @@ impl TransformModule {
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
+                            self,
                         ),
                         node_as_function_declaration.maybe_asterisk_token(),
                         Some(
@@ -334,6 +335,7 @@ impl TransformModule {
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
+                            self,
                         )?,
                         None,
                         try_maybe_visit_each_child(
@@ -388,6 +390,7 @@ impl TransformModule {
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
+                            self,
                         ),
                         Some(
                             self.factory
@@ -402,6 +405,7 @@ impl TransformModule {
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
+                            self,
                         )?,
                         try_visit_nodes(
                             &node_as_class_declaration.members(),
@@ -409,6 +413,7 @@ impl TransformModule {
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
+                            self,
                         )?,
                     )
                     .set_text_range(Some(&*node.ref_(self)), self)
@@ -469,6 +474,7 @@ impl TransformModule {
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
+                            self,
                         );
                     }
                     variables.get_or_insert_default_().push(variable.clone());

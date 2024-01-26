@@ -44,6 +44,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             ),
             node_as_method_declaration.maybe_asterisk_token(),
             self.visit_property_name_of_class_element(node)?,
@@ -101,6 +102,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             ),
             self.visit_property_name_of_class_element(node)?,
             try_visit_parameter_list(
@@ -150,6 +152,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             ),
             self.visit_property_name_of_class_element(node)?,
             try_visit_parameter_list(
@@ -202,6 +205,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             ),
             node_as_function_declaration.maybe_asterisk_token(),
             node_as_function_declaration.maybe_name(),
@@ -249,6 +253,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             ),
             node_as_function_expression.maybe_asterisk_token(),
             node_as_function_expression.maybe_name(),
@@ -286,6 +291,7 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             ),
             Option::<Gc<NodeArray>>::None,
             try_visit_parameter_list(
@@ -548,6 +554,7 @@ impl TransformTypeScript {
                         Some(|node| is_expression(node, self)),
                         None,
                         None,
+                        self,
                     )?,
                 )
                 .into(),
@@ -577,6 +584,7 @@ impl TransformTypeScript {
                         Some(|node| is_expression(node, self)),
                         None,
                         None,
+                        self,
                     )?,
                 )
                 .into(),

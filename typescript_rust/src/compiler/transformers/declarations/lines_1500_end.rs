@@ -40,6 +40,7 @@ impl TransformDeclarations {
             Option::<fn(Id<Node>) -> bool>::None,
             None,
             None,
+            self,
         )?));
         if nodes.is_empty() {
             return Ok(None);
@@ -241,6 +242,7 @@ impl TransformDeclarations {
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
                             None,
+                            self,
                         )?,
                     );
                     if

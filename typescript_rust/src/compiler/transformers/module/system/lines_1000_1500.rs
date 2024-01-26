@@ -504,6 +504,7 @@ impl TransformSystemModule {
                 Some(|node: Id<Node>| is_case_or_default_clause(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
         );
 
@@ -533,6 +534,7 @@ impl TransformSystemModule {
                         Some(|node| is_statement(node, self)),
                         None,
                         None,
+                        self,
                     )?,
                 )
                 .into(),

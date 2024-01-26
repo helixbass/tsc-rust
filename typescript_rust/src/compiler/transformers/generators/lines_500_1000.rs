@@ -554,6 +554,7 @@ impl TransformGenerators {
                 Some(|node| is_expression(node, self)),
                 Some(0),
                 Some(num_initial_elements),
+                self,
             );
             self.emit_assignment(
                 temp.unwrap(),

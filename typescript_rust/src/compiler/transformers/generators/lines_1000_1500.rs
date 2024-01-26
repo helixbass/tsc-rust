@@ -89,6 +89,7 @@ impl TransformGenerators {
                     Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
                     Some(0),
                     Some(num_initial_properties),
+                    self,
                 )),
                 multi_line,
             ),

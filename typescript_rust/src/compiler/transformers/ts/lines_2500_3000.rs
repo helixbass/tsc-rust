@@ -97,6 +97,7 @@ impl TransformTypeScript {
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
                     None,
+                    self,
                 ),
                 self.factory.ref_(self).create_variable_declaration_list(
                     vec![self.factory.ref_(self).create_variable_declaration(
@@ -282,6 +283,7 @@ impl TransformTypeScript {
                             Some(|node| is_statement(node, self)),
                             None,
                             None,
+                            self,
                         )?),
                         None,
                         None,
@@ -462,9 +464,10 @@ impl TransformTypeScript {
                 Some(|node: Id<Node>| is_import_specifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?;
             (allow_empty || !elements.is_empty())
-                .then(|| self.factory.update_named_imports(node, elements).into())
+                .then(|| self.factory.ref_(self).update_named_imports(node, elements).into())
         })
     }
 
@@ -529,7 +532,7 @@ impl TransformTypeScript {
         )?;
         Ok(export_clause.map(|export_clause| {
             self.factory
-                .update_export_declaration(
+                .ref_(self).update_export_declaration(
                     node,
                     Option::<Gc<NodeArray>>::None,
                     Option::<Gc<NodeArray>>::None,
@@ -555,9 +558,10 @@ impl TransformTypeScript {
             Some(|node: Id<Node>| is_export_specifier(&node.ref_(self))),
             None,
             None,
+            self,
         )?;
         Ok((allow_empty || !elements.is_empty())
-            .then(|| self.factory.update_named_exports(node, elements).into()))
+            .then(|| self.factory.ref_(self).update_named_exports(node, elements).into()))
     }
 
     pub(super) fn visit_namespace_exports(
@@ -566,7 +570,7 @@ impl TransformTypeScript {
     ) -> io::Result<VisitResult> /*<NamespaceExport>*/ {
         Ok(Some(
             self.factory
-                .update_namespace_export(
+                .ref_(self).update_namespace_export(
                     node,
                     try_visit_node(
                         node.ref_(self).as_namespace_export().name,
@@ -631,7 +635,7 @@ impl TransformTypeScript {
             {
                 return Ok(Some(
                     self.factory
-                        .create_import_declaration(
+                        .ref_(self).create_import_declaration(
                             Option::<Gc<NodeArray>>::None,
                             Option::<Gc<NodeArray>>::None,
                             None,
@@ -663,7 +667,7 @@ impl TransformTypeScript {
         }
 
         let module_reference = create_expression_from_entity_name(
-            &*self.factory,
+            &self.factory.ref_(self),
             node_as_import_equals_declaration.module_reference,
         )
         .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoNestedComments, self);
@@ -671,18 +675,19 @@ impl TransformTypeScript {
         Ok(Some(
             if self.is_named_external_module_export(node) || !self.is_export_of_namespace(node) {
                 self.factory
-                    .create_variable_statement(
+                    .ref_(self).create_variable_statement(
                         maybe_visit_nodes(
                             node.ref_(self).maybe_modifiers().as_deref(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
                             None,
+                            self,
                         ),
-                        self.factory.create_variable_declaration_list(
+                        self.factory.ref_(self).create_variable_declaration_list(
                             vec![self
                                 .factory
-                                .create_variable_declaration(
+                                .ref_(self).create_variable_declaration(
                                     node_as_import_equals_declaration.maybe_name(),
                                     None,
                                     None,

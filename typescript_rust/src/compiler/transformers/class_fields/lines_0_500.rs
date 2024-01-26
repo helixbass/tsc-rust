@@ -1015,6 +1015,7 @@ impl TransformClassFields {
                                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                                 None,
                                 None,
+                                self,
                             ),
                             node_as_property_declaration.name(),
                             None,

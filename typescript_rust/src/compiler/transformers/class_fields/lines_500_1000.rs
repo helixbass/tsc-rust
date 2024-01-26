@@ -416,6 +416,7 @@ impl TransformClassFields {
                                     Some(|node| is_expression(node, self)),
                                     None,
                                     None,
+                                    self,
                                 )
                                 .owned_iter(),
                             ),
@@ -450,6 +451,7 @@ impl TransformClassFields {
                                 Some(|node| is_expression(node, self)),
                                 None,
                                 None,
+                                self,
                             )
                             .owned_iter(),
                         ),
@@ -489,6 +491,7 @@ impl TransformClassFields {
                                 Some(|node| is_expression(node, self)),
                                 None,
                                 None,
+                                self,
                             ),
                         )
                         .set_original_node(Some(node), self)
@@ -633,6 +636,7 @@ impl TransformClassFields {
                 Some(|node| is_statement(node, self)),
                 None,
                 None,
+                self,
             );
             statements = self
                 .factory
