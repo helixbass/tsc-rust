@@ -1004,13 +1004,13 @@ impl SymlinkCache {
             return;
         }
         let resolution = resolution.unwrap();
-        if resolution.maybe_original_path().is_none()
-            || resolution.maybe_resolved_file_name().is_none()
+        if resolution.maybe_original_path(self).is_none()
+            || resolution.maybe_resolved_file_name(self).is_none()
         {
             return;
         }
-        let resolved_file_name = resolution.maybe_resolved_file_name().unwrap();
-        let original_path = resolution.maybe_original_path().unwrap();
+        let resolved_file_name = resolution.maybe_resolved_file_name(self).unwrap();
+        let ref original_path = resolution.maybe_original_path(self).unwrap();
         self.set_symlinked_file(
             &to_path(original_path, Some(&self.cwd), |file_name| {
                 self.get_canonical_file_name.call(file_name)
@@ -1044,22 +1044,22 @@ impl HasArena for SymlinkCache {
 }
 
 enum ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    ResolvedModuleFull(Id<ResolvedModuleFull>),
+    ResolvedModuleFull(Gc<ResolvedModuleFull>),
     ResolvedTypeReferenceDirective(Id<ResolvedTypeReferenceDirective>),
 }
 
 impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    pub fn maybe_original_path(&self) -> Option<&String> {
+    pub fn maybe_original_path(&self, arena: &impl HasArena) -> Option<String> {
         match self {
-            Self::ResolvedModuleFull(value) => value.original_path.as_ref(),
-            Self::ResolvedTypeReferenceDirective(value) => value.original_path.as_ref(),
+            Self::ResolvedModuleFull(value) => value.original_path.clone(),
+            Self::ResolvedTypeReferenceDirective(value) => value.ref_(arena).original_path.clone(),
         }
     }
 
-    pub fn maybe_resolved_file_name(&self) -> Option<&String> {
+    pub fn maybe_resolved_file_name(&self, arena: &impl HasArena) -> Option<String> {
         match self {
-            Self::ResolvedModuleFull(value) => Some(&value.resolved_file_name),
-            Self::ResolvedTypeReferenceDirective(value) => value.resolved_file_name.as_ref(),
+            Self::ResolvedModuleFull(value) => Some(value.resolved_file_name.clone()),
+            Self::ResolvedTypeReferenceDirective(value) => value.ref_(arena).resolved_file_name.clone(),
         }
     }
 }

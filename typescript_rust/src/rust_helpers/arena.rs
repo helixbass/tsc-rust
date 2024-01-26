@@ -8,7 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
-    Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver,
+    Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
 };
 
 #[derive(Default)]
@@ -40,6 +40,7 @@ pub struct AllArenas {
     pub node_factories: RefCell<Arena<NodeFactory>>,
     pub base_node_factories: RefCell<Arena<Box<dyn BaseNodeFactory>>>,
     pub emit_resolvers: RefCell<Arena<Box<dyn EmitResolver>>>,
+    pub resolved_type_reference_directives: RefCell<Arena<ResolvedTypeReferenceDirective>>,
 }
 
 pub trait HasArena {
@@ -235,6 +236,14 @@ pub trait HasArena {
 
     fn alloc_emit_resolver(&self, emit_resolver: Box<dyn EmitResolver>) -> Id<Box<dyn EmitResolver>> {
         self.arena().alloc_emit_resolver(emit_resolver)
+    }
+
+    fn resolved_type_reference_directive(&self, resolved_type_reference_directive: Id<ResolvedTypeReferenceDirective>) -> Ref<ResolvedTypeReferenceDirective> {
+        self.arena().resolved_type_reference_directive(resolved_type_reference_directive)
+    }
+
+    fn alloc_resolved_type_reference_directive(&self, resolved_type_reference_directive: ResolvedTypeReferenceDirective) -> Id<ResolvedTypeReferenceDirective> {
+        self.arena().alloc_resolved_type_reference_directive(resolved_type_reference_directive)
     }
 }
 
@@ -491,6 +500,16 @@ impl HasArena for AllArenas {
         let id = self.emit_resolvers.borrow_mut().alloc(emit_resolver);
         id
     }
+
+    #[track_caller]
+    fn resolved_type_reference_directive(&self, resolved_type_reference_directive: Id<ResolvedTypeReferenceDirective>) -> Ref<ResolvedTypeReferenceDirective> {
+        Ref::map(self.resolved_type_reference_directives.borrow(), |resolved_type_reference_directives| &resolved_type_reference_directives[resolved_type_reference_directive])
+    }
+
+    fn alloc_resolved_type_reference_directive(&self, resolved_type_reference_directive: ResolvedTypeReferenceDirective) -> Id<ResolvedTypeReferenceDirective> {
+        let id = self.resolved_type_reference_directives.borrow_mut().alloc(resolved_type_reference_directive);
+        id
+    }
 }
 
 pub trait InArena {
@@ -689,6 +708,14 @@ impl InArena for Id<Box<dyn EmitResolver>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn EmitResolver>> {
         has_arena.emit_resolver(*self)
+    }
+}
+
+impl InArena for Id<ResolvedTypeReferenceDirective> {
+    type Item = ResolvedTypeReferenceDirective;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedTypeReferenceDirective> {
+        has_arena.resolved_type_reference_directive(*self)
     }
 }
 

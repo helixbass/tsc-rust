@@ -933,47 +933,46 @@ impl Program {
             .cloned()
             .flatten();
         if matches!(
-            previous_resolution.as_ref(),
-            Some(previous_resolution) if previous_resolution.primary
+            previous_resolution,
+            Some(previous_resolution) if previous_resolution.ref_(self).primary
         ) {
             return Ok(());
         }
         let mut save_resolution = true;
-        if let Some(resolved_type_reference_directive) =
-            resolved_type_reference_directive.as_deref()
+        if let Some(resolved_type_reference_directive) = resolved_type_reference_directive
         {
-            if resolved_type_reference_directive.is_external_library_import == Some(true) {
+            if resolved_type_reference_directive.ref_(self).is_external_library_import == Some(true) {
                 self.set_current_node_modules_depth(self.current_node_modules_depth() + 1);
             }
 
-            if resolved_type_reference_directive.primary {
+            if resolved_type_reference_directive.ref_(self).primary {
                 self.process_source_file(
                     resolved_type_reference_directive
-                        .resolved_file_name
+                        .ref_(self).resolved_file_name
                         .as_ref()
                         .unwrap(),
                     false,
                     false,
-                    resolved_type_reference_directive.package_id.as_ref(),
+                    resolved_type_reference_directive.ref_(self).package_id.as_ref(),
                     reason,
                 )?;
             } else {
-                if let Some(previous_resolution) = previous_resolution.as_ref() {
-                    if resolved_type_reference_directive.resolved_file_name
-                        != previous_resolution.resolved_file_name
+                if let Some(previous_resolution) = previous_resolution {
+                    if resolved_type_reference_directive.ref_(self).resolved_file_name
+                        != previous_resolution.ref_(self).resolved_file_name
                     {
                         let other_file_text = self
                             .host()
                             .read_file(
                                 resolved_type_reference_directive
-                                    .resolved_file_name
+                                    .ref_(self).resolved_file_name
                                     .as_ref()
                                     .unwrap(),
                             )
                             .unwrap();
                         let existing_file = self
                             .get_source_file_(
-                                previous_resolution.resolved_file_name.as_ref().unwrap(),
+                                previous_resolution.ref_(self).resolved_file_name.as_ref().unwrap(),
                             )
                             .unwrap();
                         if !matches!(
@@ -986,8 +985,8 @@ impl Program {
                                 &Diagnostics::Conflicting_definitions_for_0_found_at_1_and_2_Consider_installing_a_specific_version_of_this_library_to_resolve_the_conflict,
                                 Some(vec![
                                     type_reference_directive.to_owned(),
-                                    resolved_type_reference_directive.resolved_file_name.clone().unwrap(),
-                                    previous_resolution.resolved_file_name.clone().unwrap(),
+                                    resolved_type_reference_directive.ref_(self).resolved_file_name.clone().unwrap(),
+                                    previous_resolution.ref_(self).resolved_file_name.clone().unwrap(),
                                 ])
                             );
                         }
@@ -996,18 +995,18 @@ impl Program {
                 } else {
                     self.process_source_file(
                         resolved_type_reference_directive
-                            .resolved_file_name
+                            .ref_(self).resolved_file_name
                             .as_ref()
                             .unwrap(),
                         false,
                         false,
-                        resolved_type_reference_directive.package_id.as_ref(),
+                        resolved_type_reference_directive.ref_(self).package_id.as_ref(),
                         reason,
                     )?;
                 }
             }
 
-            if resolved_type_reference_directive.is_external_library_import == Some(true) {
+            if resolved_type_reference_directive.ref_(self).is_external_library_import == Some(true) {
                 self.set_current_node_modules_depth(self.current_node_modules_depth() - 1);
             }
         } else {

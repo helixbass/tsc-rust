@@ -1067,7 +1067,7 @@ impl Program {
                 Some(old_source_file),
                 |a: &Option<Id<ResolvedTypeReferenceDirective>>,
                  b: &Option<Id<ResolvedTypeReferenceDirective>>| {
-                    type_directive_is_equal_to(a.as_ref().unwrap(), b.as_ref().unwrap())
+                    type_directive_is_equal_to(&a.unwrap().ref_(self), &b.unwrap().ref_(self))
                 },
                 self,
             );

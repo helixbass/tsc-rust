@@ -729,7 +729,7 @@ pub(crate) fn get_referenced_file_location(
                         )
                         .flatten()
                 })
-                .and_then(|resolved| resolved.package_id.clone());
+                .and_then(|resolved| resolved.ref_(arena).package_id.clone());
         }
         FileIncludeKind::LibReferenceDirective => {
             let file_lib_reference_directives = file_as_source_file.lib_reference_directives();
@@ -1244,7 +1244,7 @@ impl Program {
                                     .get(i)
                                     .cloned()
                                     .flatten()
-                                    .and_then(|resolution| resolution.package_id.clone()),
+                                    .and_then(|resolution| resolution.ref_(self).package_id.clone()),
                             },
                         )),
                     )?;

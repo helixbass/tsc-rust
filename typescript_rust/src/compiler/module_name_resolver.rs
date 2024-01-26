@@ -582,7 +582,7 @@ pub fn resolve_type_reference_directive(
                     containing_directory.clone().unwrap(),
                 ])
             );
-            trace_result(host, type_reference_directive_name, result);
+            trace_result(host, type_reference_directive_name, result, arena);
         }
         return Ok(result.clone());
     }
@@ -701,7 +701,7 @@ pub fn resolve_type_reference_directive(
         } else {
             real_path(&file_name, host, trace_enabled)
         };
-        resolved_type_reference_directive = Some(Gc::new(ResolvedTypeReferenceDirective {
+        resolved_type_reference_directive = Some(arena.alloc_resolved_type_reference_directive(ResolvedTypeReferenceDirective {
             primary,
             resolved_file_name: Some(resolved_file_name.clone()),
             original_path: if are_paths_equal(&file_name, &resolved_file_name, host) {
@@ -727,7 +727,7 @@ pub fn resolve_type_reference_directive(
         per_folder_cache.set(type_reference_directive_name, None, result.clone());
     }
     if trace_enabled {
-        trace_result(host, type_reference_directive_name, &result);
+        trace_result(host, type_reference_directive_name, &result, arena);
     }
     Ok(result)
 }
@@ -736,14 +736,14 @@ fn trace_result(
     host: &dyn ModuleResolutionHost,
     type_reference_directive_name: &str,
     result: &ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    arena: &impl HasArena,
 ) {
     if result
         .resolved_type_reference_directive
-        .as_ref()
         .and_then(|result_resolved_type_reference_directive| {
             result_resolved_type_reference_directive
-                .resolved_file_name
-                .as_ref()
+                .ref_(arena).resolved_file_name
+                .clone()
         })
         .is_none()
     {
@@ -754,9 +754,8 @@ fn trace_result(
         );
     } else if let Some(result_resolved_type_reference_directive_package_id) = result
         .resolved_type_reference_directive
-        .as_ref()
         .unwrap()
-        .package_id
+        .ref_(arena).package_id
         .as_ref()
     {
         trace(
@@ -764,9 +763,9 @@ fn trace_result(
             &Diagnostics::Type_reference_directive_0_was_successfully_resolved_to_1_with_Package_ID_2_primary_Colon_3,
             Some(vec![
                 type_reference_directive_name.to_owned(),
-                result.resolved_type_reference_directive.as_ref().unwrap().resolved_file_name.clone().unwrap(),
+                result.resolved_type_reference_directive.unwrap().ref_(arena).resolved_file_name.clone().unwrap(),
                 package_id_to_string(result_resolved_type_reference_directive_package_id),
-                result.resolved_type_reference_directive.as_ref().unwrap().primary.to_string(),
+                result.resolved_type_reference_directive.unwrap().ref_(arena).primary.to_string(),
             ])
         );
     } else {
@@ -777,16 +776,14 @@ fn trace_result(
                 type_reference_directive_name.to_owned(),
                 result
                     .resolved_type_reference_directive
-                    .as_ref()
                     .unwrap()
-                    .resolved_file_name
+                    .ref_(arena).resolved_file_name
                     .clone()
                     .unwrap(),
                 result
                     .resolved_type_reference_directive
-                    .as_ref()
                     .unwrap()
-                    .primary
+                    .ref_(arena).primary
                     .to_string(),
             ]),
         );
