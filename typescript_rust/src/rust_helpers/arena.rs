@@ -8,7 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
-    Program, Signature,
+    Program, Signature, DiagnosticReporter,
 };
 
 #[derive(Default)]
@@ -36,6 +36,7 @@ pub struct AllArenas {
     pub diagnostics: RefCell<Arena<Diagnostic>>,
     pub programs: RefCell<Arena<Program>>,
     pub signatures: RefCell<Arena<Signature>>,
+    pub diagnostic_reporters: RefCell<Arena<Box<dyn DiagnosticReporter>>>,
 }
 
 pub trait HasArena {
@@ -199,6 +200,14 @@ pub trait HasArena {
 
     fn alloc_signature(&self, signature: Signature) -> Id<Signature> {
         self.arena().alloc_signature(signature)
+    }
+
+    fn diagnostic_reporter(&self, diagnostic_reporter: Id<Box<dyn DiagnosticReporter>>) -> Ref<Box<dyn DiagnosticReporter>> {
+        self.arena().diagnostic_reporter(diagnostic_reporter)
+    }
+
+    fn alloc_diagnostic_reporter(&self, diagnostic_reporter: Box<dyn DiagnosticReporter>) -> Id<Box<dyn DiagnosticReporter>> {
+        self.arena().alloc_diagnostic_reporter(diagnostic_reporter)
     }
 }
 
@@ -415,6 +424,16 @@ impl HasArena for AllArenas {
         let id = self.signatures.borrow_mut().alloc(signature);
         id
     }
+
+    #[track_caller]
+    fn diagnostic_reporter(&self, diagnostic_reporter: Id<Box<dyn DiagnosticReporter>>) -> Ref<Box<dyn DiagnosticReporter>> {
+        Ref::map(self.diagnostic_reporters.borrow(), |diagnostic_reporters| &diagnostic_reporters[diagnostic_reporter])
+    }
+
+    fn alloc_diagnostic_reporter(&self, diagnostic_reporter: Box<dyn DiagnosticReporter>) -> Id<Box<dyn DiagnosticReporter>> {
+        let id = self.diagnostic_reporters.borrow_mut().alloc(diagnostic_reporter);
+        id
+    }
 }
 
 pub trait InArena {
@@ -581,6 +600,14 @@ impl InArena for Id<Signature> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Signature> {
         has_arena.signature(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn DiagnosticReporter>> {
+    type Item = Box<dyn System>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn DiagnosticReporter>> {
+        has_arena.diagnostic_reporter(*self)
     }
 }
 

@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use gc::Gc;
+use id_arena::Id;
 
 use crate::{
     BuilderProgram, CancellationToken, CreateProgram, CustomTransformers, DiagnosticReporter,
@@ -78,7 +79,7 @@ impl<TBuilderProgram: BuilderProgram> SolutionBuilder<TBuilderProgram> {
 pub fn create_builder_status_reporter(
     _system: &dyn System,
     _pretty: Option<bool>,
-) -> Gc<Box<dyn DiagnosticReporter>> {
+) -> Id<Box<dyn DiagnosticReporter>> {
     unimplemented!()
 }
 
@@ -88,8 +89,8 @@ pub fn create_solution_builder_host<
 >(
     _system: Option<&dyn System>,
     _create_program: Option<TCreateProgram>,
-    _report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
-    _report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    _report_diagnostic: Option<Id<Box<dyn DiagnosticReporter>>>,
+    _report_solution_builder_status: Option<Id<Box<dyn DiagnosticReporter>>>,
     _report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
 ) -> SolutionBuilderHostConcrete<TBuilderProgram> {
     unimplemented!()
@@ -123,8 +124,8 @@ pub fn create_solution_builder_with_watch_host<
 >(
     _system: Option<&dyn System>,
     _create_program: Option<TCreateProgram>,
-    _report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
-    _report_solution_builder_status: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    _report_diagnostic: Option<Id<Box<dyn DiagnosticReporter>>>,
+    _report_solution_builder_status: Option<Id<Box<dyn DiagnosticReporter>>>,
     _report_watch_status: Option<Rc<dyn WatchStatusReporter>>,
 ) -> SolutionBuilderWithWatchHostConcrete<TBuilderProgram> {
     unimplemented!()

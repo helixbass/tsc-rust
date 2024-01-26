@@ -75,7 +75,7 @@ pub fn create_diagnostic_reporter(
     system: Id<Box<dyn System>>,
     pretty: Option<bool>,
     arena: &impl HasArena,
-) -> Gc<Box<dyn DiagnosticReporter>> {
+) -> Id<Box<dyn DiagnosticReporter>> {
     let host: Gc<SysFormatDiagnosticsHost> =
         if system == get_sys(arena)
         /*&& sysFormatDiagnosticsHost*/
@@ -84,7 +84,7 @@ pub fn create_diagnostic_reporter(
         } else {
             Gc::new(SysFormatDiagnosticsHost::new(system.clone(), arena))
         };
-    Gc::new(Box::new(DiagnosticReporterConcrete::new(
+    arena.alloc_diagnostic_reporter(Box::new(DiagnosticReporterConcrete::new(
         host, pretty, system,
     )))
 }
@@ -262,7 +262,7 @@ pub fn parse_config_file_with_system(
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     system: Id<Box<dyn System>>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<ParsedCommandLine>> {
     let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic);
@@ -280,13 +280,13 @@ pub fn parse_config_file_with_system(
 #[derive(Trace, Finalize)]
 struct ParseConfigFileWithSystemHost {
     system: Id<Box<dyn System>>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
 }
 
 impl ParseConfigFileWithSystemHost {
     pub fn new(
         system: Id<Box<dyn System>>,
-        report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+        report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     ) -> Self {
         Self {
             system,
@@ -337,7 +337,7 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>) {
-        report_unrecoverable_diagnostic(&**self.system.ref_(self), &**self.report_diagnostic, diagnostic)
+        report_unrecoverable_diagnostic(&**self.system.ref_(self), &**self.report_diagnostic.ref_(self), diagnostic)
     }
 }
 
@@ -866,7 +866,7 @@ struct EmitFilesAndReportErrorsReturn {
 
 fn emit_files_and_report_errors(
     program: Id<Program>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
@@ -938,7 +938,7 @@ fn emit_files_and_report_errors(
 
     let diagnostics = sort_and_deduplicate_diagnostics(&all_diagnostics, arena);
     for diagnostic in diagnostics.iter() {
-        report_diagnostic.call(diagnostic.clone())?;
+        report_diagnostic.ref_(arena).call(diagnostic.clone())?;
     }
     if let Some(mut write) = write {
         let current_dir = program.ref_(arena).get_current_directory();
@@ -962,7 +962,7 @@ fn emit_files_and_report_errors(
 
 pub fn emit_files_and_report_errors_and_get_exit_status(
     program: Id<Program>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
@@ -1067,7 +1067,7 @@ pub struct IncrementalCompilationOptions<'a> {
     pub config_file_parsing_diagnostics: Option<&'a [Id<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
     pub host: Option<Gc<Box<dyn CompilerHost>>>,
-    pub report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    pub report_diagnostic: Option<Id<Box<dyn DiagnosticReporter>>>,
     pub report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     pub after_program_emit_and_diagnostics:
         Option<&'a dyn FnMut(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>)>,

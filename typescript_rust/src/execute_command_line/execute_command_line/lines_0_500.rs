@@ -103,10 +103,10 @@ pub(super) fn get_count_key(program: &Program, file: Id<Node> /*SourceFile*/) ->
 
 pub(super) fn update_report_diagnostic(
     sys: Id<Box<dyn System>>,
-    existing: Gc<Box<dyn DiagnosticReporter>>,
+    existing: Id<Box<dyn DiagnosticReporter>>,
     options: CompilerOptionsOrBuildOptions,
     arena: &impl HasArena,
-) -> Gc<Box<dyn DiagnosticReporter>> {
+) -> Id<Box<dyn DiagnosticReporter>> {
     if should_be_pretty(&**sys.ref_(arena), options, arena) {
         create_diagnostic_reporter(sys, Some(true), arena)
     } else {
@@ -848,7 +848,7 @@ pub(super) fn execute_command_line_worker(
 ) -> io::Result<()> {
     let mut report_diagnostic = create_diagnostic_reporter(sys.clone(), None, arena);
     if matches!(command_line.options.ref_(arena).build, Some(true)) {
-        report_diagnostic.call(arena.alloc_diagnostic(
+        report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::Option_build_must_be_the_first_command_line_argument,
                 None,
@@ -872,7 +872,7 @@ pub(super) fn execute_command_line_worker(
 
     if !(*command_line.errors).borrow().is_empty() {
         for error in (*command_line.errors).borrow().iter() {
-            report_diagnostic.call(error.clone())?;
+            report_diagnostic.ref_(arena).call(error.clone())?;
         }
         sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
@@ -880,7 +880,7 @@ pub(super) fn execute_command_line_worker(
     if matches!(command_line.options.ref_(arena).init, Some(true)) {
         write_config_file(
             &**sys.ref_(arena),
-            &**report_diagnostic,
+            &**report_diagnostic.ref_(arena),
             &command_line.options.ref_(arena),
             &command_line.file_names,
         );
@@ -902,7 +902,7 @@ pub(super) fn execute_command_line_worker(
     if matches!(command_line.options.ref_(arena).watch, Some(true))
         && matches!(command_line.options.ref_(arena).list_files_only, Some(true))
     {
-        report_diagnostic.call(arena.alloc_diagnostic(
+        report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::Options_0_and_1_cannot_be_combined,
                 Some(vec!["watch".to_owned(), "listFilesOnly".to_owned()]),
@@ -914,7 +914,7 @@ pub(super) fn execute_command_line_worker(
 
     if let Some(command_line_options_project) = command_line.options.ref_(arena).project.as_ref() {
         if !command_line.file_names.is_empty() {
-            report_diagnostic.call(arena.alloc_diagnostic(
+            report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
                 create_compiler_diagnostic(
                     &Diagnostics::Option_project_cannot_be_mixed_with_source_files_on_a_command_line,
                     None
@@ -931,7 +931,7 @@ pub(super) fn execute_command_line_worker(
                 &vec![Some("tsconfig.json")],
             ));
             if !sys.ref_(arena).file_exists(config_file_name.as_ref().unwrap()) {
-                report_diagnostic.call(arena.alloc_diagnostic(
+                report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
                     create_compiler_diagnostic(
                         &Diagnostics::Cannot_find_a_tsconfig_json_file_at_the_specified_directory_Colon_0,
                         Some(vec![command_line_options_project.to_owned()])
@@ -943,7 +943,7 @@ pub(super) fn execute_command_line_worker(
         } else {
             config_file_name = Some(file_or_directory);
             if !sys.ref_(arena).file_exists(config_file_name.as_ref().unwrap()) {
-                report_diagnostic.call(arena.alloc_diagnostic(
+                report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
                     create_compiler_diagnostic(
                         &Diagnostics::The_specified_path_does_not_exist_Colon_0,
                         Some(vec![command_line_options_project.to_owned()]),
@@ -961,7 +961,7 @@ pub(super) fn execute_command_line_worker(
 
     if command_line.file_names.is_empty() && config_file_name.is_none() {
         if matches!(command_line.options.ref_(arena).show_config, Some(true)) {
-            report_diagnostic.call(arena.alloc_diagnostic(
+            report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
                 create_compiler_diagnostic(
                     &Diagnostics::Cannot_find_a_tsconfig_json_file_at_the_current_directory_Colon_0,
                     Some(vec![normalize_path(&sys.ref_(arena).get_current_directory()?)]),
@@ -1004,7 +1004,7 @@ pub(super) fn execute_command_line_worker(
                     arena,
                 );
                 for error in (*config_parse_result.errors).borrow().iter() {
-                    report_diagnostic.call(error.clone())?;
+                    report_diagnostic.ref_(arena).call(error.clone())?;
                 }
                 sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
             }
@@ -1028,7 +1028,7 @@ pub(super) fn execute_command_line_worker(
             arena,
         );
         if is_watch_set(&config_parse_result.options.ref_(arena)) {
-            if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic, arena)? {
+            if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic.ref_(arena), arena)? {
                 return Ok(());
             }
             create_watch_of_config_file(
@@ -1074,7 +1074,7 @@ pub(super) fn execute_command_line_worker(
             arena,
         );
         if is_watch_set(&command_line_options.ref_(arena)) {
-            if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic, arena)? {
+            if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic.ref_(arena), arena)? {
                 return Ok(());
             }
             create_watch_of_files_and_compiler_options(
