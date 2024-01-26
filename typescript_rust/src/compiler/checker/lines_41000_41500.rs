@@ -436,7 +436,8 @@ impl TypeChecker {
         } else if symbol.ref_(self).flags().intersects(SymbolFlags::Transient) {
             let (left_spread, right_spread, synthetic_origin) = {
                 let symbol_links = symbol.ref_(self).as_transient_symbol().symbol_links();
-                let symbol_links = (*symbol_links.ref_(self)).borrow();
+                let symbol_links_ref = symbol_links.ref_(self);
+                let symbol_links = (*symbol_links_ref).borrow();
                 (
                     symbol_links.left_spread.clone(),
                     symbol_links.right_spread.clone(),

@@ -409,7 +409,8 @@ impl TypeChecker {
                 links.type_ = Some(type_);
             }
         }
-        let links = (*links.ref_(self)).borrow();
+        let links_ref = links.ref_(self);
+        let links = (*links_ref).borrow();
         Ok(links.type_.clone().unwrap())
     }
 

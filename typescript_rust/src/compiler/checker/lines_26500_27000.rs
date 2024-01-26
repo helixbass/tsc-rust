@@ -1176,7 +1176,8 @@ impl TypeChecker {
 
                 {
                     let prop_links = prop.ref_(self).as_transient_symbol().symbol_links();
-                    let mut prop_links = prop_links.ref_(self).borrow_mut();
+                    let prop_links_ref = prop_links.ref_(self);
+                    let mut prop_links = prop_links_ref.borrow_mut();
                     prop_links.type_ = Some(type_);
                     prop_links.target = Some(member_present.clone());
                 }

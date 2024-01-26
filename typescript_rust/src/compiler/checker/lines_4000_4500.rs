@@ -521,7 +521,8 @@ impl TypeChecker {
             meaning.bits()
         );
         {
-            let mut links = (*links.ref_(self)).borrow_mut();
+            let links_ref = links.ref_(self);
+            let mut links = (*links_ref).borrow_mut();
             let cache = links.accessible_chain_cache.as_mut().unwrap();
             if cache.contains_key(&key) {
                 return Ok(cache.get(&key).unwrap().clone());
