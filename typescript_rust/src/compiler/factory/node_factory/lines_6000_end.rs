@@ -629,12 +629,12 @@ pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
     node
 }
 
-thread_local! {
-    pub static synthetic_factory: Gc<Box<dyn BaseNodeFactory>> = Gc::new(Box::new(BaseNodeFactorySynthetic::new()));
-}
-
-pub fn get_synthetic_factory() -> Gc<Box<dyn BaseNodeFactory>> {
-    synthetic_factory.with(|synthetic_factory_| synthetic_factory_.clone())
+pub fn get_synthetic_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory>> {
+    per_arena!(
+        Box<dyn BaseNodeFactory>,
+        arena,
+        arena.alloc_base_node_factory(Box::new(BaseNodeFactorySynthetic::new()))
+    )
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -688,7 +688,7 @@ pub fn get_factory_id(arena: &impl HasArena) -> Id<NodeFactory> {
         arena,
         create_node_factory(
             NodeFactoryFlags::NoIndentationOnFreshPropertyAccess,
-            get_synthetic_factory(),
+            get_synthetic_factory(arena),
             arena,
         )
     )

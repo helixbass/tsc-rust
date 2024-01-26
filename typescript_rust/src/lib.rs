@@ -206,7 +206,6 @@ pub use compiler::{
             create_input_files, create_node_factory, create_unparsed_source_file,
             get_factory, get_factory_id, get_synthetic_factory, has_node_array_changed,
             has_option_node_array_changed, has_option_str_or_node_changed, set_original_node,
-            synthetic_factory,
             BaseNodeFactorySynthetic, NodeFactoryFlags,
             NumberOrRcNode, ReadFileCallback, StrOrRcNode, StringOrNumber,
             StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,

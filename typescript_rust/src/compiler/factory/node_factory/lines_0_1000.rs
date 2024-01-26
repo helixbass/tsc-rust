@@ -55,14 +55,14 @@ bitflags! {
 
 pub fn create_node_factory(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
-    base_factory: Gc<Box<dyn BaseNodeFactory>>,
+    base_factory: Id<Box<dyn BaseNodeFactory>>,
     arena: &impl HasArena,
 ) -> Id<NodeFactory> {
     NodeFactory::new(flags, base_factory, arena)
 }
 
 impl NodeFactory {
-    pub fn new(flags: NodeFactoryFlags, base_factory: Gc<Box<dyn BaseNodeFactory>>, arena: &impl HasArena) -> Id<Self> {
+    pub fn new(flags: NodeFactoryFlags, base_factory: Id<Box<dyn BaseNodeFactory>>, arena: &impl HasArena) -> Id<Self> {
         let factory_ = arena.alloc_node_factory(Self {
             base_factory,
             flags,

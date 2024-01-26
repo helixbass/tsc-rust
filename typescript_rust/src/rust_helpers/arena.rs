@@ -8,7 +8,7 @@ use crate::{
     Node, Symbol, Type, TypeInterface, TypeMapper, TransformNodesTransformationResult, TransformerInterface, Transformer,
     TransformerFactoryInterface, EmitTextWriter, SymbolTracker, EmitHost, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
-    Program, Signature, DiagnosticReporter, NodeFactory,
+    Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory,
 };
 
 #[derive(Default)]
@@ -38,6 +38,7 @@ pub struct AllArenas {
     pub signatures: RefCell<Arena<Signature>>,
     pub diagnostic_reporters: RefCell<Arena<Box<dyn DiagnosticReporter>>>,
     pub node_factories: RefCell<Arena<NodeFactory>>,
+    pub base_node_factories: RefCell<Arena<Box<dyn BaseNodeFactory>>>,
 }
 
 pub trait HasArena {
@@ -217,6 +218,14 @@ pub trait HasArena {
 
     fn alloc_node_factory(&self, node_factory: NodeFactory) -> Id<NodeFactory> {
         self.arena().alloc_node_factory(node_factory)
+    }
+
+    fn base_node_factory(&self, base_node_factory: Id<Box<dyn BaseNodeFactory>>) -> Ref<Box<dyn BaseNodeFactory>> {
+        self.arena().base_node_factory(base_node_factory)
+    }
+
+    fn alloc_base_node_factory(&self, base_node_factory: Box<dyn BaseNodeFactory>) -> Id<Box<dyn BaseNodeFactory>> {
+        self.arena().alloc_base_node_factory(base_node_factory)
     }
 }
 
@@ -453,6 +462,16 @@ impl HasArena for AllArenas {
         let id = self.node_factories.borrow_mut().alloc(node_factory);
         id
     }
+
+    #[track_caller]
+    fn base_node_factory(&self, base_node_factory: Id<Box<dyn BaseNodeFactory>>) -> Ref<Box<dyn BaseNodeFactory>> {
+        Ref::map(self.base_node_factories.borrow(), |base_node_factories| &base_node_factories[base_node_factory])
+    }
+
+    fn alloc_base_node_factory(&self, base_node_factory: Box<dyn BaseNodeFactory>) -> Id<Box<dyn BaseNodeFactory>> {
+        let id = self.base_node_factories.borrow_mut().alloc(base_node_factory);
+        id
+    }
 }
 
 pub trait InArena {
@@ -635,6 +654,14 @@ impl InArena for Id<NodeFactory> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeFactory> {
         has_arena.node_factory(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn BaseNodeFactory>> {
+    type Item = Box<dyn BaseNodeFactory>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn BaseNodeFactory>> {
+        has_arena.base_node_factory(*self)
     }
 }
 

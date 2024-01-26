@@ -187,7 +187,7 @@ pub trait NodeConverters: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub struct NodeFactory {
-    pub base_factory: Gc<Box<dyn BaseNodeFactory>>,
+    pub base_factory: Id<Box<dyn BaseNodeFactory>>,
     #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
     pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules>>>>,

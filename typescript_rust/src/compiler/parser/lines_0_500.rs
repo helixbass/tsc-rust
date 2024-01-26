@@ -100,12 +100,12 @@ impl BaseNodeFactory for ParseBaseNodeFactory {
     }
 }
 
-thread_local! {
-    pub static parse_base_node_factory: Gc<Box<dyn BaseNodeFactory>> = Gc::new(Box::new(ParseBaseNodeFactory::new()));
-}
-
-pub fn get_parse_base_node_factory() -> Gc<Box<dyn BaseNodeFactory>> {
-    parse_base_node_factory.with(|parse_base_node_factory_| parse_base_node_factory_.clone())
+pub fn get_parse_base_node_factory() -> Id<Box<dyn BaseNodeFactory>> {
+    per_arena!(
+        Id<Box dyn BaseNodeFactory>,
+        arena,
+        arena.alloc_base_node_factory(Box::new(ParseBaseNodeFactory::new()))
+    )
 }
 
 pub fn get_parse_node_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
