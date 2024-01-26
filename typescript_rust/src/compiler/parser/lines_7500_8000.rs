@@ -1100,8 +1100,8 @@ impl BaseNodeFactory for ParserType {
 // }
 
 #[allow(non_snake_case)]
-pub(super) fn Parser() -> Gc<ParserType> {
-    ParserType::new()
+pub(super) fn Parser(arena: &impl HasArena) -> Gc<ParserType> {
+    ParserType::new(arena)
 }
 // fn Parser() -> MutexGuard<'static, ParserType> {
 //     ParserMut.lock().unwrap()

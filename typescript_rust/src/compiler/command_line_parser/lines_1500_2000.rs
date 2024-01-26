@@ -534,7 +534,7 @@ pub fn get_parsed_command_line_of_config_file(
     }
     let config_file_text = enum_unwrapped!(config_file_text, [StringOrRcDiagnostic, String]);
 
-    let result = parse_json_text(config_file_name, config_file_text);
+    let result = parse_json_text(config_file_name, config_file_text, arena);
     let cwd = host.get_current_directory()?;
     let result_ref = result.ref_(arena);
     let result_as_source_file = result_ref.as_source_file();
@@ -586,7 +586,7 @@ pub fn parse_config_file_text_to_json(
     json_text: String,
     arena: &impl HasArena,
 ) -> io::Result<ReadConfigFileReturn> {
-    let json_source_file = parse_json_text(file_name, json_text);
+    let json_source_file = parse_json_text(file_name, json_text, arena);
     let json_source_file_parse_diagnostics = json_source_file.ref_(arena).as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
         json_source_file,
@@ -614,7 +614,7 @@ pub fn read_json_config_file(
     let text_or_diagnostic = try_read_file(file_name, read_file, arena);
     match text_or_diagnostic {
         StringOrRcDiagnostic::String(text_or_diagnostic) => {
-            parse_json_text(file_name, text_or_diagnostic)
+            parse_json_text(file_name, text_or_diagnostic, arena)
         }
         StringOrRcDiagnostic::RcDiagnostic(text_or_diagnostic) => {
             let base_node = BaseNode::new(

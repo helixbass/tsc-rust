@@ -656,6 +656,7 @@ impl TypeChecker {
                         .as_without_captured_span()
                         .clone(),
                     self.language_version,
+                    self,
                 );
                 *file_as_source_file.maybe_local_jsx_fragment_factory() = ret.clone();
                 return ret;
@@ -669,6 +670,7 @@ impl TypeChecker {
             return parse_isolated_entity_name(
                 compiler_options_jsx_fragment_factory.clone(),
                 self.language_version,
+                self,
             );
         }
         None

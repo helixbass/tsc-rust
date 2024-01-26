@@ -204,8 +204,8 @@ impl TransformTypeScript {
         node: Id<Node>, /*EntityName*/
     ) -> Id<Node /*SerializedEntityNameAsExpression*/> {
         match node.ref_(self).kind() {
-            SyntaxKind::Identifier => get_parse_node_factory()
-                .ref_(self).clone_node(node)
+            SyntaxKind::Identifier => get_parse_node_factory(self)
+                .clone_node(node)
                 .set_text_range(Some(&*node.ref_(self)), self)
                 .and_set_parent(node.ref_(self).maybe_parent(), self)
                 .and_set_original(None, self)

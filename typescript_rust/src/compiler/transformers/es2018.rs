@@ -2362,10 +2362,10 @@ impl TransformES2018OnSubstituteNodeOverrider {
             return self.transform_es2018().factory.ref_(self).create_call_expression(
                 self.transform_es2018()
                     .factory
-                    .create_property_access_expression(argument_expression, "call"),
+                    .ref_(self).create_property_access_expression(argument_expression, "call"),
                 Option::<Gc<NodeArray>>::None,
                 Some(
-                    vec![self.transform_es2018().factory.create_this()]
+                    vec![self.transform_es2018().factory.ref_(self).create_this()]
                         .and_extend(node_as_call_expression.arguments.iter().cloned()),
                 ),
             );

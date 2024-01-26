@@ -107,7 +107,7 @@ impl TransformGenerators {
             self.mark_label(increment_label);
             self.emit_statement(
                 self.factory
-                    .ref_(self).create_expression_statement(self.factory.create_postfix_increment(keys_index)),
+                    .ref_(self).create_expression_statement(self.factory.ref_(self).create_postfix_increment(keys_index)),
             );
 
             self.emit_break(condition_label, Option::<&Node>::None);

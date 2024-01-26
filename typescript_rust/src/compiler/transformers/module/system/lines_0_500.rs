@@ -321,7 +321,7 @@ impl TransformSystemModule {
             &**self.host.ref_(self),
             &self.compiler_options.ref_(self),
         );
-        let dependencies = self.factory.create_array_literal_expression(
+        let dependencies = self.factory.ref_(self).create_array_literal_expression(
             Some(map(
                 &dependency_groups,
                 |dependency_group: &DependencyGroup, _| dependency_group.name.clone(),

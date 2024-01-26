@@ -104,7 +104,7 @@ fn create_jsx_factory_expression_from_entity_name(
         let right = factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right.ref_(factory)));
         factory.create_property_access_expression(left, right)
     } else {
-        create_react_namespace(Some(id_text(&jsx_factory.ref_(factory))), parent)
+        create_react_namespace(Some(id_text(&jsx_factory.ref_(factory))), parent, factory)
     }
 }
 
@@ -117,7 +117,7 @@ pub fn create_jsx_factory_expression(
     jsx_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
-                create_react_namespace(react_namespace, parent),
+                create_react_namespace(react_namespace, parent, factory),
                 "createElement",
             )
         },
@@ -136,7 +136,7 @@ pub fn create_jsx_fragment_factory_expression(
     jsx_fragment_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
-                create_react_namespace(Some(react_namespace), parent),
+                create_react_namespace(Some(react_namespace), parent, factory),
                 "Fragment",
             )
         },

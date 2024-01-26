@@ -73,6 +73,7 @@ impl TypeChecker {
                                 .as_without_captured_span()
                                 .clone(),
                             self.language_version,
+                            self,
                         );
                         maybe_visit_node(
                             file_local_jsx_fragment_factory.clone(),
@@ -122,6 +123,7 @@ impl TypeChecker {
                 *_jsx_factory_entity = parse_isolated_entity_name(
                     compiler_options_jsx_factory.clone(),
                     self.language_version,
+                    self,
                 );
                 maybe_visit_node(
                     _jsx_factory_entity.clone(),
@@ -180,6 +182,7 @@ impl TypeChecker {
                     .as_without_captured_span()
                     .clone(),
                 self.language_version,
+                self,
             );
             maybe_visit_node(
                 file_local_jsx_factory.clone(),

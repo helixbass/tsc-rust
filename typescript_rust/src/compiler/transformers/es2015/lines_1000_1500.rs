@@ -414,7 +414,7 @@ impl TransformES2015 {
                     self.factory.ref_(self).create_block(
                         vec![self
                             .factory
-                            .ref_(self).create_expression_statement(self.ref_(self).factory.create_assignment(
+                            .ref_(self).create_expression_statement(self.factory.ref_(self).create_assignment(
                                 self.factory.ref_(self).create_element_access_expression(
                                     expression_name.clone(),
                                     if rest_index == 0 {

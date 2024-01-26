@@ -955,7 +955,7 @@ impl Program {
                     None,
                 );
             }
-            if parse_isolated_entity_name(options_jsx_factory.clone(), language_version).is_none() {
+            if parse_isolated_entity_name(options_jsx_factory.clone(), language_version, self).is_none() {
                 self.create_option_value_diagnostic(
                     "jsxFactory",
                     &Diagnostics::Invalid_value_for_jsxFactory_0_is_not_a_valid_identifier_or_qualified_name,
@@ -1013,7 +1013,7 @@ impl Program {
                     None,
                 );
             }
-            if parse_isolated_entity_name(options_jsx_fragment_factory.clone(), language_version)
+            if parse_isolated_entity_name(options_jsx_fragment_factory.clone(), language_version, self)
                 .is_none()
             {
                 self.create_option_value_diagnostic(
@@ -2686,6 +2686,7 @@ pub(crate) fn create_prepend_nodes(
                     None,
                     None,
                     None,
+                    arena,
                 );
                 nodes.push(node);
             }

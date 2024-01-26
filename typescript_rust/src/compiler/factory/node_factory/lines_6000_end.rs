@@ -686,10 +686,11 @@ pub fn get_factory_id(arena: &impl HasArena) -> Id<NodeFactory> {
     per_arena!(
         NodeFactory,
         arena,
-        arena.alloc_node_factory(create_node_factory(
+        create_node_factory(
             NodeFactoryFlags::NoIndentationOnFreshPropertyAccess,
-            get_synthetic_factory()
-        ))
+            get_synthetic_factory(),
+            arena,
+        )
     )
 }
 
@@ -734,8 +735,9 @@ pub fn create_input_files(
     build_info_path: Option<String>,
     build_info: Option<Gc<BuildInfo>>,
     old_file_of_current_emit: Option<bool>,
+    arena: &impl HasArena,
 ) -> Id<Node /*InputFiles*/> {
-    let mut node: InputFiles = get_parse_node_factory().create_input_files_raw().into();
+    let mut node: InputFiles = get_parse_node_factory(arena).create_input_files_raw().into();
     match javascript_text_or_read_file_text.into() {
         StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
             node.initialize_with_read_file_callback(
@@ -763,7 +765,7 @@ pub fn create_input_files(
             );
         }
     }
-    get_parse_node_factory().alloc_node(node.into())
+    arena.alloc_node(node.into())
 }
 
 pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {

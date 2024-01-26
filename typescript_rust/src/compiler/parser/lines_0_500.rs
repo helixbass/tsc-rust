@@ -8,7 +8,7 @@ use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
     CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars,
     SyntaxKind, Type,
-    HasArena, per_arena,
+    HasArena, InArena, per_arena,
 };
 
 bitflags! {
@@ -112,11 +112,11 @@ pub fn get_parse_node_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, Node
     per_arena!(
         NodeFactory,
         arena,
-        arena.alloc_node_factory(create_node_factory(
+        create_node_factory(
             NodeFactoryFlags::NoParenthesizerRules,
             get_parse_base_node_factory(),
             arena,
-        ))
+        )
     ).ref_(arena)
 }
 

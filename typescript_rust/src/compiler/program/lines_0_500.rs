@@ -454,6 +454,7 @@ impl CompilerHost for CompilerHostConcrete {
                 language_version,
                 self.set_parent_nodes,
                 None,
+                self,
             )
         })
     }

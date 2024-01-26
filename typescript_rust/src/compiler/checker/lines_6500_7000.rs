@@ -1346,6 +1346,12 @@ impl MakeSerializePropertySymbolCreateProperty
     }
 }
 
+impl HasArena for MakeSerializePropertySymbolCreatePropertyDeclaration {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 #[derive(Trace, Finalize)]
 pub(super) struct MakeSerializePropertySymbolCreatePropertySignature;
 
@@ -1368,5 +1374,11 @@ impl MakeSerializePropertySymbolCreateProperty
         _initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
         get_factory(self).create_property_signature(mods, name, question, type_)
+    }
+}
+
+impl HasArena for MakeSerializePropertySymbolCreatePropertySignature {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

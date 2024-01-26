@@ -2,7 +2,10 @@ use gc::Gc;
 use id_arena::Id;
 
 use super::{Instruction, Label, TransformGenerators};
-use crate::{EmitFlags, Node, NodeExt, ReadonlyTextRange};
+use crate::{
+    EmitFlags, Node, NodeExt, ReadonlyTextRange,
+    InArena,
+};
 
 impl TransformGenerators {
     pub(super) fn write_throw(

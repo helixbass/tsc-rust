@@ -190,6 +190,7 @@ pub fn create_source_file(
     language_version: ScriptTarget,
     set_parent_nodes: Option<bool>,
     script_kind: Option<ScriptKind>,
+    arena: &impl HasArena,
 ) -> io::Result<Id<Node /*SourceFile*/>> {
     let set_parent_nodes = set_parent_nodes.unwrap_or(false);
     // tracing?.push(tracing.Phase.Parse, "createSourceFile", { path: fileName }, /*separateBeginAndEnd*/ true);
@@ -198,7 +199,7 @@ pub fn create_source_file(
 
     // perfLogger.logStartParseSourceFile(fileName);
     if language_version == ScriptTarget::JSON {
-        result = Parser().parse_source_file(
+        result = Parser(arena).parse_source_file(
             file_name,
             source_text,
             language_version,
@@ -207,7 +208,7 @@ pub fn create_source_file(
             Some(ScriptKind::JSON),
         )?;
     } else {
-        result = Parser().parse_source_file(
+        result = Parser(arena).parse_source_file(
             file_name,
             source_text,
             language_version,
@@ -227,12 +228,13 @@ pub fn create_source_file(
 pub fn parse_isolated_entity_name(
     text: String,
     language_version: ScriptTarget,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*EntityName*/>> {
-    Parser().parse_isolated_entity_name(text, language_version)
+    Parser(arena).parse_isolated_entity_name(text, language_version)
 }
 
-pub fn parse_json_text(file_name: &str, source_text: String) -> Id<Node /*JsonSourceFile*/> {
-    Parser().parse_json_text(file_name, source_text, None, None, None)
+pub fn parse_json_text(file_name: &str, source_text: String, arena: &impl HasArena) -> Id<Node /*JsonSourceFile*/> {
+    Parser(arena).parse_json_text(file_name, source_text, None, None, None)
 }
 
 pub fn is_external_module(file: &Node /*SourceFile*/) -> bool {
@@ -266,12 +268,13 @@ pub(crate) fn parse_isolated_jsdoc_comment(
     content: String,
     start: Option<usize>,
     length: Option<usize>,
+    arena: &impl HasArena,
 ) -> Option<ParsedIsolatedJSDocComment> {
-    let result = Parser().JSDocParser_parse_isolated_jsdoc_comment(content, start, length);
+    let result = Parser(arena).JSDocParser_parse_isolated_jsdoc_comment(content, start, length);
     if let Some(result) = result.as_ref()
     /*&& result.jsDoc*/
     {
-        Parser().fixup_parent_references(result.js_doc);
+        Parser(arena).fixup_parent_references(result.js_doc);
     }
 
     result
@@ -281,8 +284,9 @@ pub fn parse_jsdoc_type_expression_for_tests(
     content: String,
     start: Option<usize>,
     length: Option<usize>,
+    arena: &impl HasArena,
 ) -> Option<ParsedJSDocTypeExpression> {
-    Parser().JSDocParser_parse_jsdoc_type_expression_for_tests(content, start, length)
+    Parser(arena).JSDocParser_parse_jsdoc_type_expression_for_tests(content, start, length)
 }
 
 #[allow(non_snake_case)]
@@ -347,7 +351,7 @@ pub struct ParserType {
 }
 
 impl ParserType {
-    pub(super) fn new() -> Gc<Self> {
+    pub(super) fn new(arena: &impl HasArena) -> Gc<Self> {
         let ret = Gc::new(ParserType {
             scanner: RefCell::new(create_scanner(
                 ScriptTarget::Latest,
@@ -396,6 +400,7 @@ impl ParserType {
             // (as the implementor of BaseNodeFactory)?
             // ret.clone(),
             super::get_parse_base_node_factory(),
+            arena,
         ));
         ret
     }
