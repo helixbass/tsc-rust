@@ -5,7 +5,7 @@ use super::TransformClassFields;
 use crate::{
     get_factory, is_array_literal_expression, is_expression, is_object_literal_element_like,
     visit_nodes, Node, NodeArray, VisitResult,
-    InArena,
+    HasArena, InArena,
 };
 
 impl TransformClassFields {

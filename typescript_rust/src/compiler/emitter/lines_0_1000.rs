@@ -122,7 +122,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
     {
         let prepends = host.get_prepend_nodes();
         if !source_files.is_empty() || !prepends.is_empty() {
-            let bundle: Id<Node> = get_factory(self).create_bundle(
+            let bundle: Id<Node> = get_factory(arena).create_bundle(
                 source_files.into_iter().map(Option::Some).collect(),
                 Some(prepends),
             );
@@ -875,7 +875,7 @@ fn emit_js_file_or_bundle(
     let transform = transform_nodes(
         Some(resolver.clone()),
         Some(host.clone()),
-        get_factory_id(self),
+        get_factory_id(arena),
         compiler_options.clone(),
         &[source_file_or_bundle],
         script_transformers,
