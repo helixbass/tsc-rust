@@ -535,8 +535,8 @@ impl TypeChecker {
         let container = get_this_container(node, false, self);
         if is_function_like(Some(&container.ref_(self))) {
             let signature = self.get_signature_from_declaration_(container)?;
-            let signature_this_parameter = signature.ref_(self).maybe_this_parameter();
-            if let Some(&signature_this_parameter) = signature_this_parameter.as_ref() {
+            let signature_this_parameter = *signature.ref_(self).maybe_this_parameter();
+            if let Some(signature_this_parameter) = signature_this_parameter {
                 return self.get_explicit_type_of_symbol(signature_this_parameter, None);
             }
         }

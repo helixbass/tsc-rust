@@ -744,7 +744,8 @@ impl TypeChecker {
         signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
         if signature_has_rest_parameter(&signature.ref_(self)) {
-            let signature_parameters = signature.ref_(self).parameters();
+            let signature_ref = signature.ref_(self);
+            let signature_parameters = signature_ref.parameters();
             let sig_rest_type =
                 self.get_type_of_symbol(signature_parameters[signature_parameters.len() - 1])?;
             let rest_type = if self.is_tuple_type(sig_rest_type) {

@@ -295,6 +295,7 @@ impl NodeBuilder {
             .into_iter()
             .next()
             .unwrap();
+        let signature_ref = signature.ref_(self);
         let mut parameters = if some(
             Some(&*expanded_params),
             Some(|&p: &Id<Symbol>| {
@@ -302,7 +303,7 @@ impl NodeBuilder {
                     && get_check_flags(&p.ref_(self)).intersects(CheckFlags::RestParameter)
             }),
         ) {
-            signature.ref_(self).parameters()
+            signature_ref.parameters()
         } else {
             &*expanded_params
         }
