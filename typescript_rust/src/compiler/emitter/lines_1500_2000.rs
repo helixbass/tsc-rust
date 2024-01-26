@@ -11,7 +11,7 @@ use crate::{
     EmitHelperText, EmitHint, GetOrInsertDefault, HasTypeArgumentsInterface, ListFormat,
     ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
     SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
-    InArena,
+    HasArena, InArena,
 };
 
 impl Printer {

@@ -17,7 +17,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
     SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
     SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
-    InArena,
+    HasArena, InArena,
 };
 
 impl Printer {

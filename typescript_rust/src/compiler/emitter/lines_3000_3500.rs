@@ -15,7 +15,7 @@ use crate::{
     HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
     ListFormat, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Printer,
     ReadonlyTextRange, SyntaxKind, TextRange,
-    InArena,
+    HasArena, InArena,
 };
 
 impl Printer {

@@ -16,7 +16,7 @@ use crate::{
     JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
     Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, StrOrNodeArray,
     SyntaxKind, TextRange,
-    InArena, OptionInArena,
+    HasArena, InArena, OptionInArena,
     get_factory,
 };
 
