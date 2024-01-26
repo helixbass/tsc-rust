@@ -10,13 +10,14 @@ use crate::{
     get_comment_range, get_emit_flags, get_line_and_character_of_position,
     get_text_of_jsdoc_comment, is_jsx_closing_element, is_jsx_opening_element,
     is_prologue_directive, is_unparsed_source, node_is_synthesized,
-    range_start_positions_are_on_same_line, with_factory, BundleFileSection, BundleFileSectionKind,
+    range_start_positions_are_on_same_line, BundleFileSection, BundleFileSectionKind,
     EmitFlags, FileReference, HasInitializerInterface, HasStatementsInterface,
     HasTypeArgumentsInterface, HasTypeParametersInterface, JSDocTagInterface,
     JSDocTypeLikeTagInterface, ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface,
     Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange, SourceFileLike, StrOrNodeArray,
     SyntaxKind, TextRange,
     InArena, OptionInArena,
+    get_factory,
 };
 
 impl Printer {
@@ -743,12 +744,10 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_list(
             Some(lit),
-            Some(&with_factory(|factory| {
-                factory.create_node_array(
-                    lit.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.clone(),
-                    None,
-                )
-            })),
+            Some(&get_factory().create_node_array(
+                lit.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.clone(),
+                None,
+            )),
             ListFormat::JSDocComment,
             None,
             None,
@@ -767,9 +766,7 @@ impl Printer {
         if let Some(sig_type_parameters) = sig_as_jsdoc_signature.maybe_type_parameters().as_ref() {
             self.emit_list(
                 Some(sig),
-                Some(&with_factory(|factory| {
-                    factory.create_node_array(Some(sig_type_parameters.clone()), None)
-                })),
+                Some(&get_factory().create_node_array(Some(sig_type_parameters.clone()), None)),
                 ListFormat::JSDocComment,
                 None,
                 None,
@@ -779,9 +776,7 @@ impl Printer {
         // if (sig.parameters) {
         self.emit_list(
             Some(sig),
-            Some(&with_factory(|factory| {
-                factory.create_node_array(Some(sig_as_jsdoc_signature.parameters.clone()), None)
-            })),
+            Some(&get_factory().create_node_array(Some(sig_as_jsdoc_signature.parameters.clone()), None)),
             ListFormat::JSDocComment,
             None,
             None,

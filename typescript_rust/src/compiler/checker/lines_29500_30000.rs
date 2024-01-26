@@ -16,7 +16,7 @@ use crate::{
     add_related_info, are_option_gcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_file_diagnostic, every, factory, filter, find, first, flat_map, flatten, for_each,
+    create_file_diagnostic, every, filter, find, first, flat_map, flatten, for_each,
     get_error_span_for_node, get_first_identifier, get_source_file_of_node, id_text,
     is_access_expression, is_binding_pattern, is_call_expression,
     is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
@@ -31,6 +31,7 @@ use crate::{
     RelationComparisonResult, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
     OptionInArena,
+    get_factory,
 };
 
 impl TypeChecker {
@@ -576,15 +577,14 @@ impl TypeChecker {
                 }
                 diagnostic
             } else {
-                let error_span = factory.with(|factory_| {
-                    factory_.create_node_array(
+                let error_span =
+                    get_factory().create_node_array(
                         Some(match max {
                             UsizeOrNegativeInfinity::NegativeInfinity => args.to_owned(),
                             UsizeOrNegativeInfinity::Usize(max) => args[max..].to_owned(),
                         }),
                         None,
-                    )
-                });
+                    );
                 let pos = first(&error_span).ref_(self).pos();
                 let mut end = last(&error_span).ref_(self).end();
                 if end == pos {

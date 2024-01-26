@@ -4,7 +4,7 @@ use gc::Gc;
 use id_arena::Id;
 
 use crate::{
-    is_block, is_statement, set_text_range_pos_end, single_or_undefined, with_factory, Debug_,
+    is_block, is_statement, set_text_range_pos_end, single_or_undefined, Debug_,
     HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayExt, NodeExt, NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange,
     SingleNodeOrVecNode, TransformationContext, VisitResult, VisitResultInterface,
@@ -175,7 +175,7 @@ pub fn maybe_visit_nodes(
 
     if let Some(updated) = updated {
         let updated_array =
-            with_factory(|factory_| factory_.create_node_array(Some(updated), has_trailing_comma));
+            get_factory().create_node_array(Some(updated), has_trailing_comma);
         set_text_range_pos_end(&*updated_array, pos, end);
         return Some(updated_array);
     }
@@ -275,7 +275,7 @@ pub fn try_maybe_visit_nodes(
 
     if let Some(updated) = updated {
         let updated_array =
-            with_factory(|factory_| factory_.create_node_array(Some(updated), has_trailing_comma));
+            get_factory().create_node_array(Some(updated), has_trailing_comma);
         set_text_range_pos_end(&*updated_array, pos, end);
         return Ok(Some(updated_array));
     }

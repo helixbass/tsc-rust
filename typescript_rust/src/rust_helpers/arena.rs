@@ -700,3 +700,23 @@ impl InArena for IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory {
         }
     }
 }
+
+#[macro_export]
+macro_rules! per_arena {
+    ($type:ty, $arena:expr, $initializer:expr $(,)?) => {{
+        use std::cell::RefCell;
+        use std::collections::HashMap;
+        use id_arena::Id;
+        use $crate::AllArenas;
+
+        thread_local! {
+            static PER_ARENA: RefCell<HashMap<*const AllArenas, Id<$type>>> = RefCell::new(HashMap::new());
+        }
+
+        PER_ARENA.with(|per_arena| {
+            let mut per_arena = per_arena.borrow_mut();
+            let arena_ptr: *const AllArenas = $arena.arena();
+            *per_arena.entry(arena_ptr).or_insert_with(|| $initializer)
+        })
+    }}
+}

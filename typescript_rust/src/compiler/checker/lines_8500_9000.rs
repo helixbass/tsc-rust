@@ -6,7 +6,7 @@ use id_arena::Id;
 use super::{IterationUse, TypeFacts};
 use crate::{
     add_related_info, concatenate, copy_entries, create_diagnostic_for_node, create_symbol_table,
-    every, factory, filter, get_assigned_expando_initializer, get_assignment_declaration_kind,
+    every, filter, get_assigned_expando_initializer, get_assignment_declaration_kind,
     get_assignment_declaration_property_access_kind, get_combined_modifier_flags,
     get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
     get_effective_modifier_flags, get_effective_type_annotation_node, get_jsdoc_type,
@@ -26,6 +26,7 @@ use crate::{
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionReduction,
     index_of_eq, OptionInArena,
+    get_factory,
 };
 
 impl TypeChecker {
@@ -662,22 +663,18 @@ impl TypeChecker {
             },
         );
         let reference: Id<Node> = if are_all_module_exports {
-            factory.with(|factory_| {
-                factory_.create_property_access_expression(
-                    factory_.create_property_access_expression(
-                        factory_.create_identifier("module"),
-                        factory_.create_identifier("exports"),
-                    ),
-                    access_name,
-                )
-            })
+            get_factory().create_property_access_expression(
+                get_factory().create_property_access_expression(
+                    get_factory().create_identifier("module"),
+                    get_factory().create_identifier("exports"),
+                ),
+                access_name,
+            )
         } else {
-            factory.with(|factory_| {
-                factory_.create_property_access_expression(
-                    factory_.create_identifier("exports"),
-                    access_name,
-                )
-            })
+            get_factory().create_property_access_expression(
+                get_factory().create_identifier("exports"),
+                access_name,
+            )
         };
         if are_all_module_exports {
             set_parent(
@@ -710,24 +707,19 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
-            factory.with(|factory_| {
-                factory_
-                    .create_private_identifier(
-                        (&*symbol.ref_(self).escaped_name())
-                            .split("@")
-                            .nth(1)
-                            .unwrap(),
-                    )
-                    .into()
-            })
+            get_factory()
+                .create_private_identifier(
+                    (&*symbol.ref_(self).escaped_name())
+                        .split("@")
+                        .nth(1)
+                        .unwrap(),
+                )
+                .into()
         } else {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
         for &static_block in static_blocks {
-            let reference = factory.with(|factory_| {
-                factory_
-                    .create_property_access_expression(factory_.create_this(), access_name.clone())
-            });
+            let reference = get_factory().create_property_access_expression(get_factory().create_this(), access_name.clone());
             set_parent(
                 &reference.ref_(self).as_property_access_expression().expression.ref_(self),
                 Some(reference),
@@ -766,22 +758,18 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
-            factory.with(|factory_| {
-                factory_
-                    .create_private_identifier(
-                        (&*symbol.ref_(self).escaped_name())
-                            .split("@")
-                            .nth(1)
-                            .unwrap(),
-                    )
-                    .into()
-            })
+            get_factory()
+                .create_private_identifier(
+                    (&*symbol.ref_(self).escaped_name())
+                        .split("@")
+                        .nth(1)
+                        .unwrap(),
+                )
+                .into()
         } else {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
-        let reference = factory.with(|factory_| {
-            factory_.create_property_access_expression(factory_.create_this(), access_name)
-        });
+        let reference = get_factory().create_property_access_expression(get_factory().create_this(), access_name);
         set_parent(
             &reference.ref_(self).as_property_access_expression().expression.ref_(self),
             Some(reference),

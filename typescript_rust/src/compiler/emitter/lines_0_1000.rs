@@ -14,7 +14,7 @@ use crate::{
     compute_common_source_directory_of_filenames, create_diagnostic_collection,
     create_get_canonical_file_name, create_source_map_generator, create_text_writer,
     directory_separator_str, encode_uri, ensure_path_is_non_module_name,
-    ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
+    ensure_trailing_directory_separator, file_extension_is, file_extension_is_one_of,
     filter, get_are_declaration_maps_enabled, get_base_file_name,
     get_declaration_emit_extension_for_path, get_declaration_emit_output_file_path,
     get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
@@ -1914,7 +1914,7 @@ impl Printer {
             last_substitution: Default::default(),
             current_parenthesizer_rule: Default::default(),
             // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
-            parenthesizer: factory.with(|factory_| factory_.parenthesizer()),
+            parenthesizer: get_factory().parenthesizer(),
             emit_binary_expression: Default::default(),
         }
     }

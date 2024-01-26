@@ -12,7 +12,7 @@ use super::{
     SignatureToSignatureDeclarationOptions,
 };
 use crate::{
-    contains, contains_gc, count_where, factory, filter, first, get_check_flags,
+    contains, contains_gc, count_where, filter, first, get_check_flags,
     get_declaration_modifier_flags_from_symbol, get_factory, get_name_of_declaration,
     get_object_flags, get_parse_tree_node, is_binary_expression, is_class_like,
     is_element_access_expression, is_identifier, is_import_type_node,
@@ -450,14 +450,13 @@ impl NodeBuilder {
         {
             return node;
         }
-        let ret = factory.with(|factory_| {
-            factory_.clone_node(visit_each_child(
+        let ret =
+            get_factory().clone_node(visit_each_child(
                 node,
                 |node: Id<Node>| Some(self.deep_clone_or_reuse_node(node).into()),
                 &*null_transformation_context,
                 self,
-            ))
-        });
+            ));
         set_text_range(&*ret.ref_(self), Some(&*node.ref_(self)));
         ret
     }
@@ -504,9 +503,7 @@ impl NodeBuilder {
             {
                 context.increment_approximate_length_by(2);
                 return Ok(set_emit_flags(
-                    factory.with(|factory_| {
-                        factory_.create_type_literal_node(Option::<Gc<NodeArray>>::None)
-                    }),
+                    get_factory().create_type_literal_node(Option::<Gc<NodeArray>>::None),
                     EmitFlags::SingleLine,
                     self,
                 ));
@@ -621,7 +618,7 @@ impl NodeBuilder {
         context.set_flags(context.flags() | NodeBuilderFlags::InObjectTypeLiteral);
         let members = self.create_type_nodes_from_resolved_type(context, resolved)?;
         context.set_flags(saved_flags);
-        let type_literal_node = factory.with(|factory_| factory_.create_type_literal_node(members));
+        let type_literal_node = get_factory().create_type_literal_node(members);
         context.increment_approximate_length_by(2);
         set_emit_flags(
             type_literal_node,
@@ -898,20 +895,20 @@ impl NodeBuilder {
             let mut qualifier: Option<Id<Node>> = root_as_import_type_node.qualifier;
             if let Some(qualifier_present) = qualifier {
                 if is_identifier(&qualifier_present.ref_(self)) {
-                    qualifier = Some(factory.with(|factory_| {
-                        factory_.update_identifier(qualifier_present, type_arguments.cloned())
-                    }));
+                    qualifier = Some(
+                        get_factory().update_identifier(qualifier_present, type_arguments.cloned())
+                    );
                 } else {
-                    qualifier = Some(factory.with(|factory_| {
-                        factory_.update_qualified_name(
+                    qualifier = Some(
+                        get_factory().update_qualified_name(
                             qualifier_present,
                             qualifier_present.ref_(self).as_qualified_name().left,
-                            factory_.update_identifier(
+                            get_factory().update_identifier(
                                 qualifier_present.ref_(self).as_qualified_name().right,
                                 type_arguments.cloned(),
                             ),
                         )
-                    }));
+                    );
                 }
             }
             let type_arguments = ref_.ref_(self).as_type_reference_node().maybe_type_arguments();
@@ -919,22 +916,20 @@ impl NodeBuilder {
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 qualifier = Some(if let Some(qualifier) = qualifier {
-                    factory.with(|factory_| factory_.create_qualified_name(qualifier, id))
+                    get_factory().create_qualified_name(qualifier, id)
                 } else {
                     id
                 });
             }
-            factory.with(|factory_| {
-                factory_
-                    .update_import_type_node(
-                        root,
-                        root_as_import_type_node.argument.clone(),
-                        qualifier,
-                        type_arguments.map(NodeArray::rc_wrapper),
-                        Some(root_as_import_type_node.is_type_of()),
-                    )
-                    .into()
-            })
+            get_factory()
+                .update_import_type_node(
+                    root,
+                    root_as_import_type_node.argument.clone(),
+                    qualifier,
+                    type_arguments.map(NodeArray::rc_wrapper),
+                    Some(root_as_import_type_node.is_type_of()),
+                )
+                .into()
         } else {
             let root_ref = root.ref_(self);
             let root_as_type_reference_node = root_ref.as_type_reference_node();
@@ -942,30 +937,24 @@ impl NodeBuilder {
             let type_arguments = type_arguments.as_ref();
             let mut type_name: Id<Node> = root_as_type_reference_node.type_name;
             if is_identifier(&type_name.ref_(self)) {
-                type_name = factory.with(|factory_| {
-                    factory_.update_identifier(type_name, type_arguments.cloned())
-                });
+                type_name = get_factory().update_identifier(type_name, type_arguments.cloned());
             } else {
-                type_name = factory.with(|factory_| {
-                    factory_.update_qualified_name(
-                        type_name,
-                        type_name.ref_(self).as_qualified_name().left,
-                        factory_.update_identifier(
-                            type_name.ref_(self).as_qualified_name().right,
-                            type_arguments.cloned(),
-                        ),
-                    )
-                });
+                type_name = get_factory().update_qualified_name(
+                    type_name,
+                    type_name.ref_(self).as_qualified_name().left,
+                    get_factory().update_identifier(
+                        type_name.ref_(self).as_qualified_name().right,
+                        type_arguments.cloned(),
+                    ),
+                );
             }
             let type_arguments = ref_.ref_(self).as_type_reference_node().maybe_type_arguments();
             let type_arguments = type_arguments.as_ref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
-                type_name = factory.with(|factory_| factory_.create_qualified_name(type_name, id));
+                type_name = get_factory().create_qualified_name(type_name, id);
             }
-            factory.with(|factory_| {
-                factory_.update_type_reference_node(root, type_name, type_arguments.cloned())
-            })
+            get_factory().update_type_reference_node(root, type_name, type_arguments.cloned())
         }
     }
 
@@ -991,9 +980,9 @@ impl NodeBuilder {
         resolved_type: Id<Type>, /*ResolvedType*/
     ) -> io::Result<Option<Vec<Id<Node /*TypeElement*/>>>> {
         if self.check_truncation_length(context) {
-            return Ok(Some(vec![factory.with(|factory_| {
-                factory_.create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
-            })]));
+            return Ok(Some(vec![
+                get_factory().create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
+            ]));
         }
         let mut type_elements: Vec<Id<Node>> = vec![];
         for signature in &*resolved_type
@@ -1077,14 +1066,14 @@ impl NodeBuilder {
                 }
             }
             if self.check_truncation_length(context) && i + 2 < properties.len() - 1 {
-                type_elements.push(factory.with(|factory_| {
-                    factory_.create_property_signature(
+                type_elements.push(
+                    get_factory().create_property_signature(
                         Option::<Gc<NodeArray>>::None,
                         &*format!("... {} more ...", properties.len() - 1),
                         None,
                         None,
                     )
-                }));
+                );
                 self.add_property_to_element_list(
                     properties[properties.len() - 1],
                     context,
@@ -1107,18 +1096,14 @@ impl NodeBuilder {
     ) -> Id<Node> {
         context.increment_approximate_length_by(3);
         if !context.flags().intersects(NodeBuilderFlags::NoTruncation) {
-            return factory.with(|factory_| {
-                factory_.create_type_reference_node(
-                    factory_.create_identifier("..."),
-                    Option::<Gc<NodeArray>>::None,
-                )
-            });
+            return get_factory().create_type_reference_node(
+                get_factory().create_identifier("..."),
+                Option::<Gc<NodeArray>>::None,
+            );
         }
-        factory.with(|factory_| {
-            self.alloc_node(KeywordTypeNode::from(
-                factory_.create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
-            ).into())
-        })
+        self.alloc_node(KeywordTypeNode::from(
+            get_factory().create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
+        ).into())
     }
 
     pub(super) fn should_use_placeholder_for_property(
@@ -1308,9 +1293,9 @@ impl NodeBuilder {
 
             let modifiers: Option<Vec<Id<Node>>> =
                 if self.type_checker.is_readonly_symbol(property_symbol)? {
-                    Some(vec![factory.with(|factory_| {
-                        factory_.create_token(SyntaxKind::ReadonlyKeyword)
-                    })])
+                    Some(vec![
+                        get_factory().create_token(SyntaxKind::ReadonlyKeyword)
+                    ])
                 } else {
                     None
                 };

@@ -8,7 +8,7 @@ use super::{
     get_set_accessor_value_parameter,
 };
 use crate::{
-    compute_line_and_character_of_position, factory, flat_map, get_jsdoc_deprecated_tag_no_cache,
+    compute_line_and_character_of_position, flat_map, get_jsdoc_deprecated_tag_no_cache,
     get_jsdoc_override_tag_no_cache, get_jsdoc_private_tag_no_cache,
     get_jsdoc_protected_tag_no_cache, get_jsdoc_public_tag_no_cache,
     get_jsdoc_readonly_tag_no_cache, get_jsdoc_return_type, get_jsdoc_tags, get_jsdoc_type,
@@ -21,6 +21,7 @@ use crate::{
     text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange, DetachedCommentInfo,
     EmitTextWriter, HasArena, InArena, ModifierFlags, ModifiersArray, Node, NodeFlags,
     NodeInterface, ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
+    get_factory,
 };
 
 pub fn get_effective_type_annotation_node(
@@ -572,12 +573,12 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
 
 pub fn create_modifiers(modifier_flags: ModifierFlags) -> Option<ModifiersArray> {
     if modifier_flags != ModifierFlags::None {
-        Some(factory.with(|factory_| {
-            factory_.create_node_array(
-                Some(factory_.create_modifiers_from_modifier_flags(modifier_flags)),
+        Some(
+            get_factory().create_node_array(
+                Some(get_factory().create_modifiers_from_modifier_flags(modifier_flags)),
                 None,
             )
-        }))
+        )
     } else {
         None
     }

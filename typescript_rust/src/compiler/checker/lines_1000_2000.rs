@@ -35,14 +35,14 @@ use crate::{
     FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
     NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, PragmaArgumentName,
     PragmaName, ReadonlyTextRange, ScriptTarget, VisitResult, __String, create_diagnostic_for_node,
-    escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
+    escape_leading_underscores, get_first_identifier, get_or_update_indexmap,
     get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
     maybe_visit_each_child, maybe_visit_node, parse_isolated_entity_name, try_find_ancestor,
     unescape_leading_underscores, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
     DiagnosticMessage, HasArena, InArena, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags,
     SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
     TransientSymbolInterface, TypeChecker, _d,
-    push_if_unique_eq, index_of_eq,
+    push_if_unique_eq, index_of_eq, get_factory,
 };
 
 impl TypeChecker {
@@ -147,12 +147,11 @@ impl TypeChecker {
         let _jsx_namespace = _jsx_namespace.clone().unwrap();
         let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
         if _jsx_factory_entity.is_none() {
-            *_jsx_factory_entity = factory.with(|factory_| {
-                Some(factory_.create_qualified_name(
-                    factory_.create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
+            *_jsx_factory_entity =
+                Some(get_factory().create_qualified_name(
+                    get_factory().create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
                     "createElement",
-                ))
-            });
+                ));
         }
         _jsx_namespace
     }

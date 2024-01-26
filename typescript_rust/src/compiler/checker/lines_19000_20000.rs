@@ -16,7 +16,7 @@ use super::{
     TypeComparerIsRelatedToWorker, TypeFacts,
 };
 use crate::{
-    are_option_gcs_equal, cartesian_product, create_diagnostic_for_node, factory,
+    are_option_gcs_equal, cartesian_product, create_diagnostic_for_node,
     get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
     is_named_declaration, is_private_identifier, length, push_if_unique_gc, reduce_left, some,
     CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
@@ -24,6 +24,7 @@ use crate::{
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,
     TypeInterface, VarianceFlags, __String, get_check_flags, get_object_flags, push_if_unique_eq,
     return_ok_default_if_none, HasArena, InArena,
+    get_factory,
 };
 
 impl CheckTypeRelatedTo {
@@ -613,15 +614,14 @@ impl CheckTypeRelatedTo {
                     .get_property_of_type_(source, &symbol_table_key, None)?
                     .is_some()
                 {
-                    let source_name = factory.with(|factory_| {
-                        factory_.get_declaration_name(
+                    let source_name =
+                        get_factory().get_declaration_name(
                             source_symbol.ref_(self).maybe_value_declaration(),
                             None,
                             None,
-                        )
-                    });
-                    let target_name = factory.with(|factory_| {
-                        factory_.get_declaration_name(
+                        );
+                    let target_name =
+                        get_factory().get_declaration_name(
                             target
                                 .ref_(self)
                                 .symbol()
@@ -629,8 +629,7 @@ impl CheckTypeRelatedTo {
                                 .maybe_value_declaration(),
                             None,
                             None,
-                        )
-                    });
+                        );
                     self.report_error(
                         Cow::Borrowed(&Diagnostics::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2),
                         Some(vec![

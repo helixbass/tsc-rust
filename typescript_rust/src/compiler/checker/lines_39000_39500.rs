@@ -7,7 +7,7 @@ use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
     try_for_each, try_maybe_for_each, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, __String, are_option_gcs_equal, cast_present, declaration_name_to_string,
-    escape_leading_underscores, factory, for_each, get_declaration_of_kind,
+    escape_leading_underscores, for_each, get_declaration_of_kind,
     get_effective_modifier_flags, get_enclosing_block_scope_container, get_factory,
     get_interface_base_type_nodes, get_name_of_declaration, get_text_of_identifier_or_literal,
     get_text_of_property_name, has_abstract_modifier, is_ambient_module, is_binding_pattern,
@@ -93,12 +93,11 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         for static_block in static_blocks {
             if static_block.ref_(self).pos() >= start_pos && static_block.ref_(self).pos() <= end_pos {
-                let reference: Id<Node> = factory.with(|factory_| {
-                    factory_.create_property_access_expression(
-                        factory_.create_this(),
+                let reference: Id<Node> =
+                    get_factory().create_property_access_expression(
+                        get_factory().create_this(),
                         prop_name,
-                    )
-                });
+                    );
                 set_parent(
                     &reference.ref_(self).as_property_access_expression().expression.ref_(self),
                     Some(reference),

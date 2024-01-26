@@ -24,6 +24,7 @@ use crate::{
     SyntaxKind, TransformFlags,
     HasArena, InArena,
     maybe_append_if_unique_eq,
+    per_arena_getter,
 };
 
 impl NodeFactory {
@@ -636,12 +637,6 @@ pub fn get_synthetic_factory() -> Gc<Box<dyn BaseNodeFactory>> {
     synthetic_factory.with(|synthetic_factory_| synthetic_factory_.clone())
 }
 
-pub fn with_factory<TReturn>(
-    callback: impl FnOnce(&Id<NodeFactory>) -> TReturn,
-) -> TReturn {
-    factory.with(|factory_| callback(factory_))
-}
-
 #[derive(Debug, Trace, Finalize)]
 pub struct BaseNodeFactorySynthetic {}
 
@@ -687,13 +682,15 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
     }
 }
 
-thread_local! {
-    pub static factory: Id<NodeFactory> =
-        create_node_factory(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess, get_synthetic_factory());
-}
-
-pub fn get_factory() -> Id<NodeFactory> {
-    factory.with(|factory_| factory_.clone())
+pub fn get_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
+    per_arena!(
+        NodeFactory,
+        arena,
+        arena.alloc_node_factory(create_node_factory(
+            NodeFactoryFlags::NoIndentationOnFreshPropertyAccess,
+            get_synthetic_factory()
+        ))
+    ).ref_(arena)
 }
 
 pub enum PseudoBigIntOrString {
