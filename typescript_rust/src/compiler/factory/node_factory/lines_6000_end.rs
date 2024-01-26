@@ -637,7 +637,7 @@ pub fn get_synthetic_factory() -> Gc<Box<dyn BaseNodeFactory>> {
 }
 
 pub fn with_factory<TReturn>(
-    callback: impl FnOnce(&Gc<NodeFactory>) -> TReturn,
+    callback: impl FnOnce(&Id<NodeFactory>) -> TReturn,
 ) -> TReturn {
     factory.with(|factory_| callback(factory_))
 }
@@ -688,11 +688,11 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
 }
 
 thread_local! {
-    pub static factory: Gc<NodeFactory> =
+    pub static factory: Id<NodeFactory> =
         create_node_factory(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess, get_synthetic_factory());
 }
 
-pub fn get_factory() -> Gc<NodeFactory> {
+pub fn get_factory() -> Id<NodeFactory> {
     factory.with(|factory_| factory_.clone())
 }
 

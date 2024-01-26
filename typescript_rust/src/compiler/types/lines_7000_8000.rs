@@ -203,7 +203,7 @@ bitflags! {
 }
 
 pub trait CoreTransformationContext: Trace + Finalize {
-    fn factory(&self) -> Gc<NodeFactory>;
+    fn factory(&self) -> Id<NodeFactory>;
 
     fn get_compiler_options(&self) -> Id<CompilerOptions>;
 

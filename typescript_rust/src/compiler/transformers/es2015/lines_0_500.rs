@@ -188,7 +188,7 @@ pub(super) struct TransformES2015 {
     #[unsafe_ignore_trace]
     pub(super) _arena_id: Cell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
-    pub(super) factory: Gc<NodeFactory>,
+    pub(super) factory: Id<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) resolver: Gc<Box<dyn EmitResolver>>,
     pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,

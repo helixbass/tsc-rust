@@ -27,7 +27,7 @@ struct TransformEcmascriptModule {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
     host: Id<Box<dyn EmitHost>>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Id<CompilerOptions>,

@@ -15,19 +15,19 @@ use crate::{
 };
 
 pub fn create_node_converters(
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
 ) -> NodeConvertersConcrete {
     NodeConvertersConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
 pub struct NodeConvertersConcrete {
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
 }
 
 impl NodeConvertersConcrete
 {
-    pub fn new(factory: Gc<NodeFactory>) -> Self {
+    pub fn new(factory: Id<NodeFactory>) -> Self {
         Self { factory }
     }
 }

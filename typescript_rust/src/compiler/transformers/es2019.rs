@@ -18,7 +18,7 @@ struct TransformES2019 {
     _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
 }
 
 impl TransformES2019 {

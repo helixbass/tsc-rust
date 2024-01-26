@@ -53,7 +53,7 @@ struct TransformES2017 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
     resolver: Gc<Box<dyn EmitResolver>>,
     compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]

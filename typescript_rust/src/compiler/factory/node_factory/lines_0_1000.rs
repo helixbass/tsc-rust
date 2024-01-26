@@ -56,7 +56,7 @@ bitflags! {
 pub fn create_node_factory(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
     base_factory: Gc<Box<dyn BaseNodeFactory>>,
-) -> Gc<NodeFactory> {
+) -> Id<NodeFactory> {
     NodeFactory::new(flags, base_factory)
 }
 

@@ -330,7 +330,7 @@ pub fn no_emit_notification(
 pub fn transform_nodes(
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
     options: Id<CompilerOptions>,
     nodes: &[Id<Node>],
     transformers: &[TransformerFactory],
@@ -413,7 +413,7 @@ pub struct TransformNodesTransformationResult {
     resolver: Option<Gc<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
     created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
 }
 
 impl TransformNodesTransformationResult {
@@ -432,7 +432,7 @@ impl TransformNodesTransformationResult {
         options: Id<CompilerOptions>,
         resolver: Option<Gc<Box<dyn EmitResolver>>>,
         host: Option<Id<Box<dyn EmitHost>>>,
-        factory: Gc<NodeFactory>,
+        factory: Id<NodeFactory>,
         arena: *const AllArenas,
     ) -> Id<Self> {
         let arena_ref = unsafe { &*arena };
@@ -741,7 +741,7 @@ impl TransformNodesTransformationResult {
 }
 
 impl CoreTransformationContext for TransformNodesTransformationResult {
-    fn factory(&self) -> Gc<NodeFactory> {
+    fn factory(&self) -> Id<NodeFactory> {
         self.factory.clone()
     }
 
@@ -1360,7 +1360,7 @@ impl TransformationContextNull {
 }
 
 impl CoreTransformationContext for TransformationContextNull {
-    fn factory(&self) -> Gc<NodeFactory> {
+    fn factory(&self) -> Id<NodeFactory> {
         get_factory()
     }
 

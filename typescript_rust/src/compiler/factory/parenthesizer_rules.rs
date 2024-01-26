@@ -16,19 +16,19 @@ use crate::{
 };
 
 pub fn create_parenthesizer_rules(
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
 ) -> ParenthesizerRulesConcrete {
     ParenthesizerRulesConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
 pub struct ParenthesizerRulesConcrete {
-    factory: Gc<NodeFactory>,
+    factory: Id<NodeFactory>,
 }
 
 impl ParenthesizerRulesConcrete
 {
-    pub fn new(factory: Gc<NodeFactory>) -> Self {
+    pub fn new(factory: Id<NodeFactory>) -> Self {
         Self { factory }
     }
 

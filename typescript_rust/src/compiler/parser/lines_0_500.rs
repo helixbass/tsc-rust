@@ -108,13 +108,13 @@ pub fn get_parse_base_node_factory() -> Gc<Box<dyn BaseNodeFactory>> {
 }
 
 thread_local! {
-    pub static parse_node_factory: Gc<NodeFactory> = create_node_factory(
+    pub static parse_node_factory: Id<NodeFactory> = create_node_factory(
         NodeFactoryFlags::NoParenthesizerRules,
         get_parse_base_node_factory(),
     );
 }
 
-pub fn get_parse_node_factory() -> Gc<NodeFactory> {
+pub fn get_parse_node_factory() -> Id<NodeFactory> {
     parse_node_factory.with(|parse_node_factory_| parse_node_factory_.clone())
 }
 

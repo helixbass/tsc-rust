@@ -11,7 +11,7 @@ pub fn rewrite_gc_type_to_id_type_rule() -> Arc<dyn Rule> {
               (generic_type
                  type: (type_identifier) @gc (#eq? @gc "Gc")
                  type_arguments: (type_arguments
-                   (type_identifier) @type (#eq? @type "Signature")
+                   (type_identifier) @type (#eq? @type "NodeFactory")
                  )
               )
             "# => {
@@ -19,7 +19,7 @@ pub fn rewrite_gc_type_to_id_type_rule() -> Arc<dyn Rule> {
                 callback => |node, context| {
                     context.report(
                         violation! {
-                            message => "Gc<Signature> -> Id<Signature>",
+                            message => "Gc<NodeFactory> -> Id<NodeFactory>",
                             node => node,
                             fix => |fixer| {
                                 fixer.replace_text(node, "Id");
