@@ -324,7 +324,7 @@ pub fn collect_external_module_info(
 
     let external_helpers_import_declaration = create_external_helpers_import_declaration_if_needed(
         &context.factory().ref_(arena),
-        &context.get_emit_helper_factory(),
+        &context.get_emit_helper_factory().ref_(arena),
         source_file,
         compiler_options,
         Some(has_export_stars_to_export_values),

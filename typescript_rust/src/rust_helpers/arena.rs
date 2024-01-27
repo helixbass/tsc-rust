@@ -13,7 +13,7 @@ use crate::{
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
-    GetCanonicalFileName,
+    GetCanonicalFileName, EmitHelperFactory,
 };
 
 #[derive(Default)]
@@ -62,6 +62,7 @@ pub struct AllArenas {
     pub transformation_context_on_emit_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     pub source_map_generators: RefCell<Arena<Box<dyn SourceMapGenerator>>>,
     pub get_canonical_file_names: RefCell<Arena<Box<dyn GetCanonicalFileName>>>,
+    pub emit_helper_factories: RefCell<Arena<EmitHelperFactory>>,
 }
 
 pub trait HasArena {
@@ -393,6 +394,14 @@ pub trait HasArena {
 
     fn alloc_get_canonical_file_name(&self, get_canonical_file_name: Box<dyn GetCanonicalFileName>) -> Id<Box<dyn GetCanonicalFileName>> {
         self.arena().alloc_get_canonical_file_name(get_canonical_file_name)
+    }
+
+    fn emit_helper_factory(&self, emit_helper_factory: Id<EmitHelperFactory>) -> Ref<EmitHelperFactory> {
+        self.arena().emit_helper_factory(emit_helper_factory)
+    }
+
+    fn alloc_emit_helper_factory(&self, emit_helper_factory: EmitHelperFactory) -> Id<EmitHelperFactory> {
+        self.arena().alloc_emit_helper_factory(emit_helper_factory)
     }
 }
 
@@ -819,6 +828,16 @@ impl HasArena for AllArenas {
         let id = self.get_canonical_file_names.borrow_mut().alloc(get_canonical_file_name);
         id
     }
+
+    #[track_caller]
+    fn emit_helper_factory(&self, emit_helper_factory: Id<EmitHelperFactory>) -> Ref<EmitHelperFactory> {
+        Ref::map(self.emit_helper_factories.borrow(), |emit_helper_factories| &emit_helper_factories[emit_helper_factory])
+    }
+
+    fn alloc_emit_helper_factory(&self, emit_helper_factory: EmitHelperFactory) -> Id<EmitHelperFactory> {
+        let id = self.emit_helper_factories.borrow_mut().alloc(emit_helper_factory);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1153,6 +1172,14 @@ impl InArena for Id<Box<dyn GetCanonicalFileName>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetCanonicalFileName>> {
         has_arena.get_canonical_file_name(*self)
+    }
+}
+
+impl InArena for Id<EmitHelperFactory> {
+    type Item = EmitHelperFactory;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, EmitHelperFactory> {
+        has_arena.emit_helper_factory(*self)
     }
 }
 

@@ -967,7 +967,7 @@ fn flatten_object_binding_or_assignment_pattern(
             let rhs_value = flatten_context
                 .context()
                 .ref_(arena).get_emit_helper_factory()
-                .create_rest_helper(
+                .ref_(arena).create_rest_helper(
                     value,
                     &elements,
                     computed_temp_variables.as_deref(),
@@ -1011,7 +1011,7 @@ fn flatten_array_binding_or_assignment_pattern(
             flatten_context
                 .context()
                 .ref_(arena).get_emit_helper_factory()
-                .create_read_helper(
+                .ref_(arena).create_read_helper(
                     value,
                     (!(num_elements > 0
                         && get_rest_indicator_of_binding_or_assignment_element(

@@ -925,7 +925,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Accessor => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_set_helper(
+                .ref_(self).create_class_private_field_set_helper(
                     receiver,
                     info.brand_check_identifier(),
                     right,
@@ -937,7 +937,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Method => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_set_helper(
+                .ref_(self).create_class_private_field_set_helper(
                     receiver,
                     info.brand_check_identifier(),
                     right,
@@ -947,7 +947,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Field => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_set_helper(
+                .ref_(self).create_class_private_field_set_helper(
                     receiver,
                     info.brand_check_identifier(),
                     right,

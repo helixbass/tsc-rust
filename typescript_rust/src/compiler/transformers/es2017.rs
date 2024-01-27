@@ -997,7 +997,7 @@ impl TransformES2017 {
                 self.factory.ref_(self).create_return_statement(Some(
                     self.context
                         .ref_(self).get_emit_helper_factory()
-                        .create_awaiter_helper(
+                        .ref_(self).create_awaiter_helper(
                             self.in_has_lexical_this_context(),
                             has_lexical_arguments,
                             promise_constructor.clone(),
@@ -1067,7 +1067,7 @@ impl TransformES2017 {
             let expression = self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_awaiter_helper(
+                .ref_(self).create_awaiter_helper(
                     self.in_has_lexical_this_context(),
                     has_lexical_arguments,
                     promise_constructor,

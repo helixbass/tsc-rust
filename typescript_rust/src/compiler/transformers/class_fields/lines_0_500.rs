@@ -818,7 +818,7 @@ impl TransformClassFields {
             return Some(
                 self.context
                     .ref_(self).get_emit_helper_factory()
-                    .create_class_private_field_in_helper(
+                    .ref_(self).create_class_private_field_in_helper(
                         (*info).borrow().brand_check_identifier(),
                         receiver,
                     )
@@ -1078,7 +1078,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Accessor => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_get_helper(
+                .ref_(self).create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1089,7 +1089,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Method => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_get_helper(
+                .ref_(self).create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1098,7 +1098,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Field => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_get_helper(
+                .ref_(self).create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
