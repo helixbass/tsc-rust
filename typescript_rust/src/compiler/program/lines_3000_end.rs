@@ -352,7 +352,7 @@ impl Program {
         self.project_reference_redirects_mut()
             .insert(source_file_path, Some(resolved_ref.clone()));
         if let Some(command_line_project_references) = command_line.ref_(self).project_references.as_ref() {
-            resolved_ref.set_references(Some(
+            resolved_ref.ref_(self).set_references(Some(
                 command_line_project_references
                     .into_iter()
                     .map(|command_line_project_reference| {
