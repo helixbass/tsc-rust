@@ -89,10 +89,10 @@ impl From<CustomTransformerFactory> for TransformerFactoryOrCustomTransformerFac
 }
 
 pub struct CustomTransformers {
-    pub before: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
-    pub after: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub before: Option<Vec<Id<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub after: Option<Vec<Id<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
     pub after_declarations:
-        Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
+        Option<Vec<Id<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
 }
 
 pub struct EmitTransformers {

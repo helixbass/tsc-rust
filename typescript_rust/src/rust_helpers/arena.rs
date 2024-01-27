@@ -14,7 +14,7 @@ use crate::{
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
-    ParsedCommandLine, CancellationToken, ResolvedProjectReference,
+    ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
 };
 
 #[derive(Default)]
@@ -68,6 +68,7 @@ pub struct AllArenas {
     pub parsed_command_lines: RefCell<Arena<ParsedCommandLine>>,
     pub cancellation_tokens: RefCell<Arena<Box<dyn CancellationToken>>>,
     pub resolved_project_references: RefCell<Arena<ResolvedProjectReference>>,
+    pub transformer_factory_or_custom_transformer_factories: RefCell<Arena<TransformerFactoryOrCustomTransformerFactory>>,
 }
 
 pub trait HasArena {
@@ -439,6 +440,14 @@ pub trait HasArena {
 
     fn alloc_resolved_project_reference(&self, resolved_project_reference: ResolvedProjectReference) -> Id<ResolvedProjectReference> {
         self.arena().alloc_resolved_project_reference(resolved_project_reference)
+    }
+
+    fn transformer_factory_or_custom_transformer_factory(&self, transformer_factory_or_custom_transformer_factory: Id<TransformerFactoryOrCustomTransformerFactory>) -> Ref<TransformerFactoryOrCustomTransformerFactory> {
+        self.arena().transformer_factory_or_custom_transformer_factory(transformer_factory_or_custom_transformer_factory)
+    }
+
+    fn alloc_transformer_factory_or_custom_transformer_factory(&self, transformer_factory_or_custom_transformer_factory: TransformerFactoryOrCustomTransformerFactory) -> Id<TransformerFactoryOrCustomTransformerFactory> {
+        self.arena().alloc_transformer_factory_or_custom_transformer_factory(transformer_factory_or_custom_transformer_factory)
     }
 }
 
@@ -915,6 +924,16 @@ impl HasArena for AllArenas {
         let id = self.resolved_project_references.borrow_mut().alloc(resolved_project_reference);
         id
     }
+
+    #[track_caller]
+    fn transformer_factory_or_custom_transformer_factory(&self, transformer_factory_or_custom_transformer_factory: Id<TransformerFactoryOrCustomTransformerFactory>) -> Ref<TransformerFactoryOrCustomTransformerFactory> {
+        Ref::map(self.transformer_factory_or_custom_transformer_factories.borrow(), |transformer_factory_or_custom_transformer_factories| &transformer_factory_or_custom_transformer_factories[transformer_factory_or_custom_transformer_factory])
+    }
+
+    fn alloc_transformer_factory_or_custom_transformer_factory(&self, transformer_factory_or_custom_transformer_factory: TransformerFactoryOrCustomTransformerFactory) -> Id<TransformerFactoryOrCustomTransformerFactory> {
+        let id = self.transformer_factory_or_custom_transformer_factories.borrow_mut().alloc(transformer_factory_or_custom_transformer_factory);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1289,6 +1308,14 @@ impl InArena for Id<ResolvedProjectReference> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedProjectReference> {
         has_arena.resolved_project_reference(*self)
+    }
+}
+
+impl InArena for Id<TransformerFactoryOrCustomTransformerFactory> {
+    type Item = TransformerFactoryOrCustomTransformerFactory;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TransformerFactoryOrCustomTransformerFactory> {
+        has_arena.transformer_factory_or_custom_transformer_factory(*self)
     }
 }
 

@@ -232,7 +232,7 @@ pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
 }
 
 fn wrap_custom_transformer_factory(
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
     handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<SourceFile | Bundle>*/ {
@@ -244,13 +244,13 @@ fn wrap_custom_transformer_factory(
 
 #[derive(Trace, Finalize)]
 pub struct WrapCustomTransformerFactory {
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
     handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
 }
 
 impl WrapCustomTransformerFactory {
     pub fn new(
-        transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
+        transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
         handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
     ) -> Self {
         Self {
@@ -262,7 +262,7 @@ impl WrapCustomTransformerFactory {
 
 impl TransformerFactoryInterface for WrapCustomTransformerFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        match &*self.transformer {
+        match &*self.transformer.ref_(self) {
             TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
                 let custom_transformer = transformer.ref_(self).call(context.clone());
                 self.handle_default.ref_(self).call(context, custom_transformer)
@@ -282,14 +282,14 @@ impl HasArena for WrapCustomTransformerFactory {
 }
 
 fn wrap_script_transformer_factory(
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
     wrap_custom_transformer_factory(transformer, chain_bundle(arena), arena)
 }
 
 fn wrap_declaration_transformer_factory(
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
     wrap_custom_transformer_factory(transformer, passthrough_transformer(arena), arena)
