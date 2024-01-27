@@ -278,6 +278,7 @@ pub fn get_module_specifier(
             arena,
         ),
         &Default::default(),
+        arena,
     )
 }
 
@@ -288,6 +289,7 @@ fn get_module_specifier_worker(
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     preferences: Preferences,
     user_preferences: &UserPreferences,
+    arena: &impl HasArena,
 ) -> io::Result<String> {
     let info = get_info(importing_source_file_name, host);
     let module_paths = get_all_module_paths(
@@ -296,6 +298,7 @@ fn get_module_specifier_worker(
         host,
         user_preferences,
         None,
+        arena,
     );
     first_defined(&module_paths, |module_path: &ModulePath, _| {
         try_get_module_name_as_node_module(module_path, &info, host, compiler_options, None)
@@ -417,6 +420,7 @@ pub fn get_module_specifiers_with_cache_info(
             &importing_source_file_as_source_file.path(),
             &module_source_file_as_source_file.original_file_name(),
             host,
+            arena,
         )
     });
     let result = compute_module_specifiers(
@@ -916,6 +920,7 @@ fn get_all_module_paths(
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     preferences: &UserPreferences,
     imported_file_path: Option<Path>,
+    arena: &impl HasArena,
 ) -> Vec<ModulePath> {
     let imported_file_path = imported_file_path.unwrap_or_else(|| {
         to_path(
@@ -932,7 +937,7 @@ fn get_all_module_paths(
             return cached_module_paths;
         }
     }
-    let module_paths = get_all_module_paths_worker(importing_file_path, imported_file_name, host);
+    let module_paths = get_all_module_paths_worker(importing_file_path, imported_file_name, host, arena);
     if let Some(cache) = cache.as_ref() {
         cache.set_module_paths(
             importing_file_path,
@@ -948,6 +953,7 @@ fn get_all_module_paths_worker(
     importing_file_name: &Path,
     imported_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    arena: &impl HasArena,
 ) -> Vec<ModulePath> {
     let get_canonical_file_name =
         host_get_canonical_file_name(|| host.use_case_sensitive_file_names());
@@ -971,6 +977,7 @@ fn get_all_module_paths_worker(
             imported_file_from_node_modules = imported_file_from_node_modules || is_in_node_modules;
             None
         },
+        arena,
     );
 
     let mut sorted_paths: Vec<ModulePath> = vec![];
