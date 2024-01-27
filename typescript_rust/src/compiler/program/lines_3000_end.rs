@@ -163,7 +163,7 @@ impl Program {
                 set_resolved_module(
                     &file.ref_(self),
                     &module_names[index],
-                    resolution.cloned(),
+                    resolution,
                     get_mode_for_resolution_at_index(file_as_source_file, index, self),
                 );
 
@@ -186,7 +186,7 @@ impl Program {
                 let elide_import = is_js_file_from_node_modules
                     && self.current_node_modules_depth() > self.max_node_module_js_depth;
                 let should_add_file = !resolved_file_name.is_empty()
-                    && get_resolution_diagnostic(&options_for_file.ref_(self), resolution).is_none()
+                    && get_resolution_diagnostic(&options_for_file.ref_(self), &resolution.ref_(self)).is_none()
                     && options_for_file.ref_(self).no_resolve != Some(true)
                     && index < file_as_source_file.maybe_imports().as_ref().unwrap().len()
                     && !elide_import
