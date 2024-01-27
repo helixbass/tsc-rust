@@ -34,7 +34,7 @@ pub type RedirectTargetsMap = MultiMap<Path, String>;
 #[derive(Builder, Trace, Finalize)]
 #[builder(setter(into, strip_option))]
 pub struct ResolvedProjectReference {
-    pub command_line: Gc<ParsedCommandLine>,
+    pub command_line: Id<ParsedCommandLine>,
     pub source_file: Id<Node /*SourceFile*/>,
     #[builder(setter(skip))]
     references: GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,

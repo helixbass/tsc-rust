@@ -2663,7 +2663,7 @@ impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
 
 pub(crate) fn create_prepend_nodes(
     project_references: Option<&[Rc<ProjectReference>]>,
-    mut get_command_line: impl FnMut(&ProjectReference, usize) -> Option<Gc<ParsedCommandLine>>,
+    mut get_command_line: impl FnMut(&ProjectReference, usize) -> Option<Id<ParsedCommandLine>>,
     read_file: Gc<Box<dyn ReadFileCallback>>,
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*InputFiles*/>> {

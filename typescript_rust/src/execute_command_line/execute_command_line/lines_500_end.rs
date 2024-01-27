@@ -109,7 +109,7 @@ pub fn execute_command_line(
 pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
     Program(Id<Program>),
     EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
-    ParsedCommandLine(Rc<ParsedCommandLine>),
+    ParsedCommandLine(Id<ParsedCommandLine>),
 }
 
 impl From<Id<Program>>
@@ -505,7 +505,7 @@ pub(super) fn create_watch_of_config_file(
     system: Id<Box<dyn System>>,
     cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
     report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
-    config_parse_result: Rc<ParsedCommandLine>,
+    config_parse_result: Id<ParsedCommandLine>,
     options_to_extend: Id<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     _extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
