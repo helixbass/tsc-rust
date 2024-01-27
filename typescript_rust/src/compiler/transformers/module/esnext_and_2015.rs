@@ -542,13 +542,13 @@ impl HasArena for TransformEcmascriptModule {
 #[derive(Trace, Finalize)]
 struct TransformEcmascriptModuleOnEmitNodeOverrider {
     transform_ecmascript_module: Transformer,
-    previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformEcmascriptModuleOnEmitNodeOverrider {
     fn new(
         transform_ecmascript_module: Transformer,
-        previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_ecmascript_module,

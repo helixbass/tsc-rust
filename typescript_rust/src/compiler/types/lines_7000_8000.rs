@@ -269,10 +269,10 @@ pub trait TransformationContext: CoreTransformationContext + HasArena {
     fn override_on_emit_node(
         &self,
         overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     );
-    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>;
+    fn pop_overridden_on_emit_node(&self) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>;
 
     fn add_diagnostic(&self, diag: Id<Diagnostic /*DiagnosticWithLocation*/>);
 }

@@ -910,13 +910,13 @@ impl HasArena for TransformModule {
 #[derive(Trace, Finalize)]
 struct TransformModuleOnEmitNodeOverrider {
     transform_module: Transformer,
-    previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformModuleOnEmitNodeOverrider {
     fn new(
         transform_module: Transformer,
-        previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_module,

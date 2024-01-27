@@ -98,13 +98,13 @@ impl HasArena for TransformES5 {
 #[derive(Trace, Finalize)]
 struct TransformES5OnEmitNodeOverrider {
     transform_es5: Transformer,
-    previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformES5OnEmitNodeOverrider {
     fn new(
         transform_es5: Transformer,
-        previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es5,

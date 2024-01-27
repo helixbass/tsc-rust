@@ -371,9 +371,9 @@ pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Self>>>,
     on_emit_node_outermost_override_or_original_method:
-        GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
+        GcCell<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     on_emit_node_previous_override_or_original_method:
-        GcCell<Option<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>>,
+        GcCell<Option<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>>,
     on_substitute_node_outermost_override_or_original_method:
         GcCell<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
     on_substitute_node_previous_override_or_original_method:
@@ -1210,8 +1210,8 @@ impl TransformationContext for TransformNodesTransformationResult {
     fn override_on_emit_node(
         &self,
         overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
         let mut on_emit_node_outermost_override_or_original_method = self
             .on_emit_node_outermost_override_or_original_method
@@ -1224,7 +1224,7 @@ impl TransformationContext for TransformNodesTransformationResult {
             .borrow_mut() = Some(previous_on_emit_node);
     }
 
-    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+    fn pop_overridden_on_emit_node(&self) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
         let previous = self.on_emit_node_previous_override_or_original_method.borrow().clone().expect("Should only call .pop_overridden_on_emit_node() when there's currently an override");
         let current = self
             .on_emit_node_outermost_override_or_original_method
@@ -1463,14 +1463,14 @@ impl TransformationContext for TransformationContextNull {
     fn override_on_emit_node(
         &self,
         _overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
         )
-            -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
         unreachable!("maybe?")
     }
 
-    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+    fn pop_overridden_on_emit_node(&self) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
         unreachable!("maybe?")
     }
 
