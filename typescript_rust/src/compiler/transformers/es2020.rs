@@ -574,6 +574,12 @@ impl TransformerFactoryInterface for TransformES2020Factory {
     }
 }
 
+impl HasArena for TransformES2020Factory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 pub fn transform_es2020(arena: &impl HasArena) -> TransformerFactory {
     arena.alloc_transformer_factory(Box::new(TransformES2020Factory::new()))
 }
