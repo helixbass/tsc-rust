@@ -59,7 +59,7 @@ impl TransformNodeModule {
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(TransformNodeModuleOnSubstituteNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformNodeModuleOnSubstituteNodeOverrider::new(
                 ret,
                 previous_on_substitute_node,
             )))
@@ -233,13 +233,13 @@ impl TransformationContextOnSubstituteNodeOverrider
             self.transform_node_module()
                 .set_current_source_file(Some(node));
             self.previous_on_substitute_node
-                .on_substitute_node(hint, node)
+                .ref_(self).on_substitute_node(hint, node)
         } else {
             let current_source_file = self.transform_node_module().maybe_current_source_file();
             if current_source_file.is_none() {
                 return self
                     .previous_on_substitute_node
-                    .on_substitute_node(hint, node);
+                    .ref_(self).on_substitute_node(hint, node);
             }
             let current_source_file = current_source_file.unwrap();
             if current_source_file
@@ -250,11 +250,11 @@ impl TransformationContextOnSubstituteNodeOverrider
                 return self
                     .transform_node_module()
                     .esm_on_substitute_node
-                    .on_substitute_node(hint, node);
+                    .ref_(self).on_substitute_node(hint, node);
             }
             self.transform_node_module()
                 .cjs_on_substitute_node
-                .on_substitute_node(hint, node)
+                .ref_(self).on_substitute_node(hint, node)
         }
     }
 }

@@ -82,7 +82,7 @@ impl TransformSystemModule {
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
                 TransformSystemModuleOnSubstituteNodeOverrider::new(
                     ret,
                     previous_on_substitute_node,
@@ -1220,7 +1220,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node)?;
+            .ref_(self).on_substitute_node(hint, node)?;
         if self.is_substitution_prevented(node) {
             return Ok(node);
         }

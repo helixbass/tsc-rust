@@ -13,7 +13,7 @@ use crate::{
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
-    GetCanonicalFileName, EmitHelperFactory,
+    GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
 };
 
 #[derive(Default)]
@@ -63,6 +63,7 @@ pub struct AllArenas {
     pub source_map_generators: RefCell<Arena<Box<dyn SourceMapGenerator>>>,
     pub get_canonical_file_names: RefCell<Arena<Box<dyn GetCanonicalFileName>>>,
     pub emit_helper_factories: RefCell<Arena<EmitHelperFactory>>,
+    pub transformation_context_on_substitute_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
 }
 
 pub trait HasArena {
@@ -402,6 +403,14 @@ pub trait HasArena {
 
     fn alloc_emit_helper_factory(&self, emit_helper_factory: EmitHelperFactory) -> Id<EmitHelperFactory> {
         self.arena().alloc_emit_helper_factory(emit_helper_factory)
+    }
+
+    fn transformation_context_on_substitute_node_overrider(&self, transformation_context_on_substitute_node_overrider: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>) -> Ref<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+        self.arena().transformation_context_on_substitute_node_overrider(transformation_context_on_substitute_node_overrider)
+    }
+
+    fn alloc_transformation_context_on_substitute_node_overrider(&self, transformation_context_on_substitute_node_overrider: Box<dyn TransformationContextOnSubstituteNodeOverrider>) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+        self.arena().alloc_transformation_context_on_substitute_node_overrider(transformation_context_on_substitute_node_overrider)
     }
 }
 
@@ -838,6 +847,16 @@ impl HasArena for AllArenas {
         let id = self.emit_helper_factories.borrow_mut().alloc(emit_helper_factory);
         id
     }
+
+    #[track_caller]
+    fn transformation_context_on_substitute_node_overrider(&self, transformation_context_on_substitute_node_overrider: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>) -> Ref<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+        Ref::map(self.transformation_context_on_substitute_node_overriders.borrow(), |transformation_context_on_substitute_node_overriders| &transformation_context_on_substitute_node_overriders[transformation_context_on_substitute_node_overrider])
+    }
+
+    fn alloc_transformation_context_on_substitute_node_overrider(&self, transformation_context_on_substitute_node_overrider: Box<dyn TransformationContextOnSubstituteNodeOverrider>) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+        let id = self.transformation_context_on_substitute_node_overriders.borrow_mut().alloc(transformation_context_on_substitute_node_overrider);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1180,6 +1199,14 @@ impl InArena for Id<EmitHelperFactory> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, EmitHelperFactory> {
         has_arena.emit_helper_factory(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+    type Item = Box<dyn TransformationContextOnSubstituteNodeOverrider>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+        has_arena.transformation_context_on_substitute_node_overrider(*self)
     }
 }
 

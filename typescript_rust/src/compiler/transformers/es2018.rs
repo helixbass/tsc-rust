@@ -128,7 +128,7 @@ impl TransformES2018 {
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(TransformES2018OnSubstituteNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformES2018OnSubstituteNodeOverrider::new(
                 ret,
                 previous_on_substitute_node,
             )))
@@ -2415,7 +2415,7 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2018OnSubstit
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node)?;
+            .ref_(self).on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression
             && self.transform_es2018().enclosing_super_container_flags() != NodeCheckFlags::None
         {

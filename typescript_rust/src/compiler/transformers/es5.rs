@@ -53,7 +53,7 @@ impl TransformES5 {
             *downcast_transformer_ref::<TransformES5>(ret, arena_ref).no_substitution.borrow_mut() = Some(Default::default());
         }
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(TransformES5OnSubstituteNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformES5OnSubstituteNodeOverrider::new(
                 ret,
                 previous_on_substitute_node,
             )))
@@ -238,12 +238,12 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES5OnSubstitute
         ) {
             return self
                 .previous_on_substitute_node
-                .on_substitute_node(hint, node);
+                .ref_(self).on_substitute_node(hint, node);
         }
 
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node)?;
+            .ref_(self).on_substitute_node(hint, node)?;
         if is_property_access_expression(&node.ref_(self)) {
             return Ok(self.substitute_property_access_expression(node));
         } else if is_property_assignment(&node.ref_(self)) {
