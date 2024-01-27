@@ -846,6 +846,7 @@ impl TransformES2018 {
             set_text_range_node_array(
                 self.factory.ref_(self).create_node_array(Some(statement), None),
                 Some(&*node.ref_(self).as_source_file().statements()),
+                self,
             ),
             None,
             None,
@@ -967,7 +968,7 @@ impl TransformES2018 {
             |result| {
                 self.factory
                     .ref_(self).create_node_array(Some(result), None)
-                    .set_text_range(Some(&*node_as_comma_list_expression.elements))
+                    .set_text_range(Some(&*node_as_comma_list_expression.elements), self)
             },
         );
         self.factory.ref_(self).update_comma_list_expression(node, elements)
@@ -1269,7 +1270,7 @@ impl TransformES2018 {
                     .ref_(self).create_block(
                         self.factory
                             .ref_(self).create_node_array(Some(statements), None)
-                            .set_text_range(statements_location.as_ref()),
+                            .set_text_range(statements_location.as_ref(), self),
                         Some(true),
                     )
                     .set_text_range(body_location.refed(self).as_deref(), self),
@@ -1324,7 +1325,7 @@ impl TransformES2018 {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(statements_location.as_deref()),
+                    .set_text_range(statements_location.as_deref(), self),
                 Some(true),
             )
             .set_text_range(body_location.refed(self).as_deref(), self)
@@ -2089,7 +2090,7 @@ impl TransformES2018 {
                 block,
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*block_as_block.statements)),
+                    .set_text_range(Some(&*block_as_block.statements), self),
             );
         }
         body

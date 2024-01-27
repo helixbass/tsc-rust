@@ -441,7 +441,7 @@ fn binding_or_assignment_pattern_assigns_to_name(
     escaped_name: &str, /*__String*/
     arena: &impl HasArena,
 ) -> bool {
-    let elements = get_elements_of_binding_or_assignment_pattern(&pattern.ref_(arena));
+    let elements = get_elements_of_binding_or_assignment_pattern(pattern, arena);
     for element in elements {
         if binding_or_assignment_element_assigns_to_name(element, escaped_name, arena) {
             return true;
@@ -472,7 +472,7 @@ fn binding_or_assignment_pattern_contains_non_literal_computed_name(
     pattern: Id<Node>, /*BindingOrAssignmentPattern*/
     arena: &impl HasArena,
 ) -> bool {
-    get_elements_of_binding_or_assignment_pattern(&pattern.ref_(arena)).any(|element| {
+    get_elements_of_binding_or_assignment_pattern(pattern, arena).into_iter().any(|element| {
         binding_or_assignment_element_contains_non_literal_computed_name(element, arena)
     })
 }
@@ -880,7 +880,7 @@ fn flatten_object_binding_or_assignment_pattern(
     location: &impl ReadonlyTextRange,
     arena: &impl HasArena,
 ) -> io::Result<()> {
-    let elements = get_elements_of_binding_or_assignment_pattern(&pattern.ref_(arena)).collect_vec();
+    let elements = get_elements_of_binding_or_assignment_pattern(pattern, arena);
     let num_elements = elements.len();
     if num_elements != 1 {
         let reuse_identifier_expressions =
@@ -1003,7 +1003,7 @@ fn flatten_array_binding_or_assignment_pattern(
     location: &impl ReadonlyTextRange,
     arena: &impl HasArena,
 ) -> io::Result<()> {
-    let elements = get_elements_of_binding_or_assignment_pattern(&pattern.ref_(arena)).collect_vec();
+    let elements = get_elements_of_binding_or_assignment_pattern(pattern, arena);
     let num_elements = elements.len();
     if flatten_context.level() < FlattenLevel::ObjectRest && flatten_context.downlevel_iteration() {
         value = ensure_identifier(
@@ -1150,7 +1150,8 @@ fn is_simple_binding_or_assignment_element(
         return false;
     }
     if is_binding_or_assigment_pattern(&target.ref_(arena)) {
-        return get_elements_of_binding_or_assignment_pattern(&target.ref_(arena))
+        return get_elements_of_binding_or_assignment_pattern(target, arena)
+            .into_iter()
             .all(|element| is_simple_binding_or_assignment_element(element, arena));
     }
     is_identifier(&target.ref_(arena))

@@ -237,7 +237,7 @@ pub fn create_for_of_binding_statement(
     bound_value: Id<Node>, /*Expression*/
 ) -> Id<Node /*Statement*/> {
     if is_variable_declaration_list(&node.ref_(factory)) {
-        let first_declaration = *first(&node.ref_(factory).as_variable_declaration_list().declarations);
+        let first_declaration = *first(&node.ref_(factory).as_variable_declaration_list().declarations.ref_(self));
         let updated_declaration = factory.update_variable_declaration(
             first_declaration,
             first_declaration.ref_(factory).as_variable_declaration().maybe_name(),
@@ -322,7 +322,7 @@ fn create_expression_for_accessor_declaration(
         get_accessor,
         set_accessor,
         ..
-    } = get_all_accessor_declarations(properties, property, factory);
+    } = get_all_accessor_declarations(&properties.ref_(factory), property, factory);
     if property == first_accessor {
         return Some(
             factory
@@ -482,7 +482,7 @@ pub fn create_expression_for_object_literal_element_like(
         SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
             create_expression_for_accessor_declaration(
                 factory,
-                &node_as_object_literal_expression.properties,
+                node_as_object_literal_expression.properties,
                 property,
                 receiver,
                 node_as_object_literal_expression.multi_line == Some(true),
@@ -1037,14 +1037,15 @@ pub fn get_target_of_binding_or_assignment_element(
 }
 
 pub fn get_elements_of_binding_or_assignment_pattern(
-    name: &Node, /*BindingOrAssignmentPattern*/
-) -> impl Iterator<Item = Id<Node /*BindingOrAssignmentElement*/>> {
+    name: Id<Node /*BindingOrAssignmentPattern*/>,
+    arena: &impl HasArena,
+) -> Vec<Id<Node /*BindingOrAssignmentElement*/>> {
     match name.kind() {
         SyntaxKind::ObjectBindingPattern
         | SyntaxKind::ArrayBindingPattern
-        | SyntaxKind::ArrayLiteralExpression => name.as_has_elements().elements().owned_iter(),
+        | SyntaxKind::ArrayLiteralExpression => name.ref_(arena).as_has_elements().elements().ref_(arena).to_vec(),
         SyntaxKind::ObjectLiteralExpression => {
-            name.as_object_literal_expression().properties.owned_iter()
+            name.ref_(arena).as_object_literal_expression().properties.ref_(arena).to_vec()
         }
         _ => panic!("Unexpected kind"),
     }

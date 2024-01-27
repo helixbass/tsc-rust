@@ -28,7 +28,8 @@ pub fn set_text_range_id_node(
 pub fn set_text_range_node_array(
     node_array: Id<NodeArray>,
     location: Option<&impl ReadonlyTextRange>,
+    arena: &impl HasArena,
 ) -> Id<NodeArray> {
-    set_text_range(&*node_array, location);
+    set_text_range(&*node_array.ref_(arena), location);
     node_array
 }

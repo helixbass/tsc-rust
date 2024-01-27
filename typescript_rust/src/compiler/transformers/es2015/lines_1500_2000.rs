@@ -802,7 +802,7 @@ impl TransformES2015 {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(statements_location.as_ref()),
+                    .set_text_range(statements_location.as_ref(), self),
                 Some(multi_line),
             )
             .set_text_range(node_as_function_like_declaration.maybe_body().refed(self).as_deref(), self);

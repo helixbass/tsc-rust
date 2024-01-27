@@ -677,6 +677,7 @@ impl TransformDeclarations {
                                                                     None,
                                                                 ),
                                                                 Some(&*source_file_as_source_file.statements()),
+                                                                self,
                                                             )
                                                         )
                                                     )
@@ -845,6 +846,7 @@ impl TransformDeclarations {
                     None,
                 ),
                 Some(&*node_as_source_file.statements()),
+                self,
             );
             self.refs()
                 .values()
@@ -871,6 +873,7 @@ impl TransformDeclarations {
                         None,
                     ),
                     Some(&*combined_statements),
+                    self,
                 );
             }
         }

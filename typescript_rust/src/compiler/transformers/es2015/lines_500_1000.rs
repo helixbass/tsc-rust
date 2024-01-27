@@ -74,7 +74,7 @@ impl TransformES2015 {
             node,
             self.factory
                 .ref_(self).create_node_array(Some(concatenate(prologue, statements)), None)
-                .set_text_range(Some(&*node_as_source_file.statements())),
+                .set_text_range(Some(&*node_as_source_file.statements()), self),
             None,
             None,
             None,
@@ -546,7 +546,7 @@ impl TransformES2015 {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*node_as_class_like_declaration.members())),
+                    .set_text_range(Some(&*node_as_class_like_declaration.members()), self),
                 Some(true),
             )
             .set_emit_flags(EmitFlags::NoComments, self))
@@ -667,7 +667,7 @@ impl TransformES2015 {
         let statements_array = self
             .factory
             .ref_(self).create_node_array(Some(statements), None)
-            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members()));
+            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members()), self);
 
         self.factory
             .ref_(self).create_block(statements_array, Some(true))
@@ -826,7 +826,7 @@ impl TransformES2015 {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(concatenate(prologue, statements)), None)
-                    .set_text_range(Some(&*constructor_body_as_block.statements)),
+                    .set_text_range(Some(&*constructor_body_as_block.statements), self),
                 Some(true),
             )
             .set_text_range(Some(&*constructor_body.ref_(self)), self))

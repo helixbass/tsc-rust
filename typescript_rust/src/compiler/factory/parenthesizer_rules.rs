@@ -342,7 +342,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         let node_array = self.factory.ref_(self).create_node_array(
             Some(result),
             match &elements {
-                NodeArrayOrVec::NodeArray(elements) => Some(elements.has_trailing_comma),
+                NodeArrayOrVec::NodeArray(elements) => Some(elements.ref_(self).has_trailing_comma),
                 NodeArrayOrVec::Vec(_) => None,
             },
         );
@@ -355,7 +355,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         // );
         match elements {
             NodeArrayOrVec::NodeArray(elements) => {
-                set_text_range(&*node_array, Some(&*elements));
+                set_text_range(&*node_array.ref_(self), Some(&*elements.ref_(self)));
             }
             NodeArrayOrVec::Vec(_) => (),
         }
@@ -471,7 +471,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         members: NodeArrayOrVec,
     ) -> Id<NodeArray> {
         let members = match members {
-            NodeArrayOrVec::NodeArray(members) => members.to_vec(),
+            NodeArrayOrVec::NodeArray(members) => members.ref_(self).to_vec(),
             NodeArrayOrVec::Vec(members) => members,
         };
         self.factory.ref_(self).create_node_array(

@@ -355,7 +355,7 @@ impl TransformSystemModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements())),
+                    .set_text_range(Some(&*node_as_source_file.statements()), self),
                 None,
                 None,
                 None,

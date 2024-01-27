@@ -299,7 +299,7 @@ impl TransformModule {
                 node,
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*node_as_source_file.statements())),
+                    .set_text_range(Some(&*node_as_source_file.statements()), self),
                 None,
                 None,
                 None,
@@ -426,7 +426,7 @@ impl TransformModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements())),
+                    .set_text_range(Some(&*node_as_source_file.statements()), self),
                 None,
                 None,
                 None,
@@ -630,7 +630,7 @@ impl TransformModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements())),
+                    .set_text_range(Some(&*node_as_source_file.statements()), self),
                 None,
                 None,
                 None,

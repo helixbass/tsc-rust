@@ -334,6 +334,7 @@ impl TransformTypeScript {
                 set_text_range_node_array(
                     self.factory.ref_(self).create_node_array(Some(statements), None),
                     statements_location.as_ref(),
+                    self,
                 ),
                 Some(true),
             )

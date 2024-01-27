@@ -371,7 +371,7 @@ impl TransformClassFields {
         );
         self.factory
             .ref_(self).create_node_array(Some(members), None)
-            .set_text_range(Some(&*node_as_class_like_declaration.members()))
+            .set_text_range(Some(&*node_as_class_like_declaration.members()), self)
     }
 
     pub(super) fn create_brand_check_weak_set_for_private_methods(&self) {
@@ -593,7 +593,7 @@ impl TransformClassFields {
                                     .statements
                                     .clone()
                             },
-                        ))),
+                        )), self),
                     Some(true),
                 )
                 .set_text_range(

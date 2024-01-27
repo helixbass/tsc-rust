@@ -507,11 +507,8 @@ impl NodeFactory {
         if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_method_signature.name() != name
             || node_as_method_signature.maybe_question_token() != question_token
-            || !are_option_gcs_equal(
-                node_as_method_signature.maybe_type_parameters().as_ref(),
-                type_parameters.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_method_signature.parameters(), &parameters)
+            || node_as_method_signature.maybe_type_parameters() != type_parameters
+            || node_as_method_signature.parameters() != parameters
             || node_as_method_signature.maybe_type() != type_
         {
             self.update_base_signature_declaration(
@@ -566,7 +563,7 @@ impl NodeFactory {
         if question_token_is_some {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
             .intersects(ModifierFlags::Async)
         {
             if asterisk_token_is_some {
@@ -599,18 +596,17 @@ impl NodeFactory {
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
         let parameters = parameters.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_method_declaration.maybe_asterisk_token() != asterisk_token
             || node_as_method_declaration.name() != name
             || node_as_method_declaration.maybe_question_token() != question_token
             || has_option_node_array_changed(
                 node_as_method_declaration
-                    .maybe_type_parameters()
-                    .as_deref(),
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
-            || has_node_array_changed(&node_as_method_declaration.parameters(), &parameters)
+            || has_node_array_changed(node_as_method_declaration.parameters(), &parameters)
             || node_as_method_declaration.maybe_type() != type_
             || node_as_method_declaration.maybe_body() != body
         {
@@ -665,8 +661,8 @@ impl NodeFactory {
         let node_as_class_static_block_declaration = node_ref.as_class_static_block_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_class_static_block_declaration.body != body
         {
             self.update(
@@ -714,9 +710,9 @@ impl NodeFactory {
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let parameters = parameters.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
-            || has_node_array_changed(&node_as_constructor_declaration.parameters(), &parameters)
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
+            || has_node_array_changed(node_as_constructor_declaration.parameters(), &parameters)
             || node_as_constructor_declaration.maybe_body() != body
         {
             self.update_base_function_like_declaration(
@@ -766,10 +762,10 @@ impl NodeFactory {
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let parameters = parameters.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_get_accessor_declaration.name() != name
-            || has_node_array_changed(&node_as_get_accessor_declaration.parameters(), &parameters)
+            || has_node_array_changed(node_as_get_accessor_declaration.parameters(), &parameters)
             || node_as_get_accessor_declaration.maybe_type() != type_
             || node_as_get_accessor_declaration.maybe_body() != body
         {
@@ -820,10 +816,10 @@ impl NodeFactory {
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let parameters = parameters.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_set_accessor_declaration.name() != name
-            || has_node_array_changed(&node_as_set_accessor_declaration.parameters(), &parameters)
+            || has_node_array_changed(node_as_set_accessor_declaration.parameters(), &parameters)
             || node_as_set_accessor_declaration.maybe_body() != body
         {
             self.update_base_function_like_declaration(
@@ -865,14 +861,9 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_call_signature_declaration = node_ref.as_call_signature_declaration();
-        if !are_option_gcs_equal(
-            node_as_call_signature_declaration
-                .maybe_type_parameters()
-                .as_ref(),
-            type_parameters.as_ref(),
-        ) || !Gc::ptr_eq(
-            &node_as_call_signature_declaration.parameters(),
-            &parameters,
+        if node_as_call_signature_declaration
+                .maybe_type_parameters() != type_parameters
+        ) || node_as_call_signature_declaration.parameters() != parameters
         ) || node_as_call_signature_declaration.maybe_type() != type_
         {
             self.update_base_signature_declaration(
@@ -914,15 +905,10 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_construct_signature_declaration = node_ref.as_construct_signature_declaration();
-        if !are_option_gcs_equal(
-            node_as_construct_signature_declaration
-                .maybe_type_parameters()
-                .as_ref(),
-            type_parameters.as_ref(),
-        ) || !Gc::ptr_eq(
-            &node_as_construct_signature_declaration.parameters(),
-            &parameters,
-        ) || node_as_construct_signature_declaration.maybe_type() != type_
+        if node_as_construct_signature_declaration
+                .maybe_type_parameters() != type_parameters
+            || node_as_construct_signature_declaration.parameters() != parameters
+            || node_as_construct_signature_declaration.maybe_type() != type_
         {
             self.update_base_signature_declaration(
                 self.create_construct_signature(type_parameters, parameters, type_),
@@ -969,14 +955,14 @@ impl NodeFactory {
         let modifiers = modifiers.map(Into::into);
         let parameters = parameters.into();
         if !has_node_array_changed(
-            &node_as_index_signature_declaration.parameters(),
+            node_as_index_signature_declaration.parameters(),
             &parameters,
         ) || node_as_index_signature_declaration.maybe_type() != Some(type_)
             || !has_option_node_array_changed(
-                node.ref_(self).maybe_decorators().as_deref(),
+                node.ref_(self).maybe_decorators(),
                 decorators.as_ref(),
             ) || !has_option_node_array_changed(
-                node.ref_(self).maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers(),
                 modifiers.as_ref(),
             )
         {
@@ -1095,7 +1081,7 @@ impl NodeFactory {
         let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
         if node_as_type_reference_node.type_name != type_name
             || has_option_node_array_changed(
-                node_type_arguments.as_deref(),
+                node_type_arguments,
                 type_arguments.as_ref(),
             )
         {
@@ -1138,10 +1124,8 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_function_type_node = node_ref.as_function_type_node();
-        if !are_option_gcs_equal(
-            node_as_function_type_node.maybe_type_parameters().as_ref(),
-            type_parameters.as_ref(),
-        ) || !Gc::ptr_eq(&node_as_function_type_node.parameters(), &parameters)
+        if node_as_function_type_node.maybe_type_parameters() != type_parameters
+            || node_as_function_type_node.parameters() != parameters
             || node_as_function_type_node.maybe_type() != type_
         {
             self.update_base_signature_declaration(
@@ -1186,14 +1170,10 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_constructor_type_node = node_ref.as_constructor_type_node();
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
-            || !are_option_gcs_equal(
-                node_as_constructor_type_node
-                    .maybe_type_parameters()
-                    .as_ref(),
-                type_parameters.as_ref(),
-            )
-            || !Gc::ptr_eq(&node_as_constructor_type_node.parameters(), &parameters)
+        if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
+            || node_as_constructor_type_node
+                    .maybe_type_parameters() != type_parameters
+            || node_as_constructor_type_node.parameters() != parameters
             || node_as_constructor_type_node.maybe_type() != type_
         {
             self.update_base_signature_declaration(
@@ -1245,7 +1225,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_type_literal_node = node_ref.as_type_literal_node();
-        if !Gc::ptr_eq(&node_as_type_literal_node.members, &members) {
+        if node_as_type_literal_node.members != members {
             self.update(self.create_type_literal_node(Some(members)), node)
         } else {
             node
@@ -1297,7 +1277,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_tuple_type_node = node_ref.as_tuple_type_node();
         let elements = elements.into();
-        if has_node_array_changed(&node_as_tuple_type_node.elements, &elements) {
+        if has_node_array_changed(node_as_tuple_type_node.elements, &elements) {
             self.update(self.create_tuple_type_node(Some(elements)), node)
         } else {
             node
@@ -1416,7 +1396,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_union_or_intersection_type = node_ref.as_union_or_intersection_type_node();
-        if !Gc::ptr_eq(&node_as_union_or_intersection_type.types(), &types) {
+        if node_as_union_or_intersection_type.types() != types {
             self.update(
                 self.create_union_or_intersection_type_node(node.ref_(self).kind(), types),
                 node,

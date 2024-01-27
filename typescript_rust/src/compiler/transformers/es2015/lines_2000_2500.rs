@@ -169,7 +169,7 @@ impl TransformES2015 {
             |result| {
                 self.factory
                     .ref_(self).create_node_array(Some(result), None)
-                    .set_text_range(Some(&*node_as_comma_list_expression.elements))
+                    .set_text_range(Some(&*node_as_comma_list_expression.elements), self)
             },
         );
         Ok(self.factory.ref_(self).update_comma_list_expression(node, elements))
@@ -902,7 +902,7 @@ impl TransformES2015 {
                                 )),
                                 None,
                             )
-                            .set_text_range(Some(&*statement_as_block.statements)),
+                            .set_text_range(Some(&*statement_as_block.statements), self),
                     )
                 } else {
                     statements.push(statement);

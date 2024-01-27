@@ -159,6 +159,7 @@ pub(super) fn visit_nodes(
     cb_node: &mut impl FnMut(Id<Node>),
     cb_nodes: Option<&mut impl FnMut(Id<NodeArray>)>,
     nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -166,7 +167,7 @@ pub(super) fn visit_nodes(
                 cb_nodes(nodes);
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     cb_node(node);
                 }
             }
@@ -178,6 +179,7 @@ pub(super) fn try_visit_nodes<TError>(
     cb_node: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
     cb_nodes: Option<&mut impl FnMut(Id<NodeArray>) -> Result<(), TError>>,
     nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) -> Result<(), TError> {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -185,7 +187,7 @@ pub(super) fn try_visit_nodes<TError>(
                 cb_nodes(nodes)?;
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     cb_node(node)?;
                 }
             }
@@ -199,6 +201,7 @@ pub(super) fn visit_nodes_returns<TReturn>(
     cb_node: &mut impl FnMut(Id<Node>) -> Option<TReturn>,
     cb_nodes: Option<&mut impl FnMut(Id<NodeArray>) -> Option<TReturn>>,
     nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -206,7 +209,7 @@ pub(super) fn visit_nodes_returns<TReturn>(
                 return cb_nodes(nodes);
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     let result = cb_node(node);
                     if result.is_some() {
                         return result;
@@ -222,6 +225,7 @@ pub(super) fn try_visit_nodes_returns<TReturn, TError>(
     cb_node: &mut impl FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
     cb_nodes: Option<&mut impl FnMut(Id<NodeArray>) -> Result<Option<TReturn>, TError>>,
     nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) -> Result<Option<TReturn>, TError> {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -229,7 +233,7 @@ pub(super) fn try_visit_nodes_returns<TReturn, TError>(
                 return cb_nodes(nodes);
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     let result = cb_node(node)?;
                     if result.is_some() {
                         return Ok(result);

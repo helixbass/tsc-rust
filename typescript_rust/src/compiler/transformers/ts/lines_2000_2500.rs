@@ -802,7 +802,7 @@ impl TransformTypeScript {
         Ok(self.factory.ref_(self).create_block(
             self.factory
                 .ref_(self).create_node_array(Some(statements), None)
-                .set_text_range(Some(&*node_as_enum_declaration.members)),
+                .set_text_range(Some(&*node_as_enum_declaration.members), self),
             Some(true),
         ))
     }

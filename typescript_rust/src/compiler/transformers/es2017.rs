@@ -1098,6 +1098,7 @@ impl TransformES2017 {
                             None,
                         ),
                         Some(&*block_as_block.statements),
+                        self,
                     ),
                 );
             } else {

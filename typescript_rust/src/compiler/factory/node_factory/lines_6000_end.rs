@@ -554,10 +554,10 @@ pub(super) fn propagate_children_flags(children: Option<&NodeArray>) -> Transfor
 
 pub(super) fn aggregate_children_flags(children: Id<NodeArray>, arena: &impl HasArena) {
     let mut subtree_flags = TransformFlags::None;
-    for &child in children.iter() {
+    for &child in children.ref_(arena).iter() {
         subtree_flags |= propagate_child_flags(Some(child), arena);
     }
-    children.set_transform_flags(Some(subtree_flags));
+    children.ref_(arena).set_transform_flags(Some(subtree_flags));
 }
 
 pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> TransformFlags {

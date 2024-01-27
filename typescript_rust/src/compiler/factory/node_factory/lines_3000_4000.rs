@@ -20,7 +20,7 @@ use crate::{
     SignatureDeclarationInterface, StrOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
     ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
     VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
-    InArena,
+    InArena, OptionInArena,
 };
 
 impl NodeFactory {
@@ -48,7 +48,7 @@ impl NodeFactory {
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
-                | propagate_children_flags(node.maybe_type_arguments().as_deref())
+                | propagate_children_flags(node.maybe_type_arguments().refed(self).as_deref())
                 | TransformFlags::ContainsES2015,
         );
         node
@@ -66,8 +66,7 @@ impl NodeFactory {
         if node_as_expression_with_type_arguments.expression != expression
         || has_option_node_array_changed(
             node_as_expression_with_type_arguments
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
             type_arguments.as_ref(),
         ) {
             self.update(
@@ -275,7 +274,7 @@ impl NodeFactory {
             self.create_node_array(Some(statements), None),
             multi_line,
         );
-        node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
+        node.add_transform_flags(propagate_children_flags(Some(&node.statements.ref_(self))));
         node
     }
 
@@ -287,7 +286,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_block = node_ref.as_block();
         let statements = statements.into();
-        if has_node_array_changed(&node_as_block.statements, &statements) {
+        if has_node_array_changed(node_as_block.statements, &statements) {
             self.update(
                 self.create_block(statements, node_as_block.multi_line),
                 node,
@@ -321,7 +320,7 @@ impl NodeFactory {
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(node.declaration_list), self));
-        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
             .intersects(ModifierFlags::Ambient)
         {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -338,7 +337,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_variable_statement = node_ref.as_variable_statement();
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_variable_statement.declaration_list != declaration_list
         {
             self.update(
@@ -977,7 +976,7 @@ impl NodeFactory {
         let node =
             VariableDeclarationList::new(node, self.create_node_array(Some(declarations), None));
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.declarations))
+            propagate_children_flags(Some(&node.declarations.ref_(self)))
                 | TransformFlags::ContainsHoistedDeclarationOrCompletion,
         );
         if flags.intersects(NodeFlags::BlockScoped) {
@@ -997,7 +996,7 @@ impl NodeFactory {
         let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
         let declarations = declarations.into();
         if has_node_array_changed(
-            &node_as_variable_declaration_list.declarations,
+            node_as_variable_declaration_list.declarations,
             &declarations,
         ) {
             self.update(
@@ -1040,7 +1039,7 @@ impl NodeFactory {
         node.asterisk_token = asterisk_token;
         let node = FunctionDeclaration::new(node);
         if node.maybe_body().is_none()
-            || modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+            || modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
                 .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1049,7 +1048,7 @@ impl NodeFactory {
                 propagate_child_flags(node.maybe_asterisk_token(), self)
                     | TransformFlags::ContainsHoistedDeclarationOrCompletion,
             );
-            if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+            if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
                 .intersects(ModifierFlags::Async)
             {
                 match node.maybe_asterisk_token() {
@@ -1085,17 +1084,16 @@ impl NodeFactory {
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
         let parameters = parameters.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_function_declaration.maybe_asterisk_token() != asterisk_token
             || node_as_function_declaration.maybe_name() != name
             || has_option_node_array_changed(
                 node_as_function_declaration
-                    .maybe_type_parameters()
-                    .as_deref(),
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
-            || has_node_array_changed(&node_as_function_declaration.parameters(), &parameters)
+            || has_node_array_changed(node_as_function_declaration.parameters(), &parameters)
             || node_as_function_declaration.maybe_type() != type_
             || node_as_function_declaration.maybe_body() != body
         {
@@ -1146,7 +1144,7 @@ impl NodeFactory {
             members,
         );
         let node = ClassDeclaration::new(node);
-        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
             .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1185,20 +1183,19 @@ impl NodeFactory {
         let type_parameters = type_parameters.map(Into::into);
         let heritage_clauses = heritage_clauses.map(Into::into);
         let members = members.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_class_declaration.maybe_name() != name
             || has_option_node_array_changed(
-                node_as_class_declaration.maybe_type_parameters().as_deref(),
+                node_as_class_declaration.maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || has_option_node_array_changed(
                 node_as_class_declaration
-                    .maybe_heritage_clauses()
-                    .as_deref(),
+                    .maybe_heritage_clauses(),
                 heritage_clauses.as_ref(),
             )
-            || has_node_array_changed(&node_as_class_declaration.members(), &members)
+            || has_node_array_changed(node_as_class_declaration.members(), &members)
         {
             self.update(
                 self.create_class_declaration(
@@ -1256,22 +1253,20 @@ impl NodeFactory {
         let type_parameters = type_parameters.map(Into::into);
         let heritage_clauses = heritage_clauses.map(Into::into);
         let members = members.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_interface_declaration.name() != name
             || has_option_node_array_changed(
                 node_as_interface_declaration
-                    .maybe_type_parameters()
-                    .as_deref(),
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || has_option_node_array_changed(
                 node_as_interface_declaration
-                    .maybe_heritage_clauses()
-                    .as_deref(),
+                    .maybe_heritage_clauses(),
                 heritage_clauses.as_ref(),
             )
-            || has_node_array_changed(&node_as_interface_declaration.members(), &members)
+            || has_node_array_changed(node_as_interface_declaration.members(), &members)
         {
             self.update(
                 self.create_interface_declaration(
@@ -1324,13 +1319,12 @@ impl NodeFactory {
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_type_alias_declaration.name() != name
             || has_option_node_array_changed(
                 node_as_type_alias_declaration
-                    .maybe_type_parameters()
-                    .as_deref(),
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || node_as_type_alias_declaration.maybe_type().unwrap() != type_
@@ -1366,7 +1360,7 @@ impl NodeFactory {
         );
         let node = EnumDeclaration::new(node, self.create_node_array(members, None));
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.members)) | TransformFlags::ContainsTypeScript,
+            propagate_children_flags(Some(&node.members.ref_(self))) | TransformFlags::ContainsTypeScript,
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,
@@ -1387,12 +1381,12 @@ impl NodeFactory {
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let members = members.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_enum_declaration.name() != name
             || match members.as_ref() {
                 None => true,
-                Some(members) => has_node_array_changed(&node_as_enum_declaration.members, members),
+                Some(members) => has_node_array_changed(node_as_enum_declaration.members, members),
             }
         {
             self.update(
@@ -1424,7 +1418,7 @@ impl NodeFactory {
                         | NodeFlags::GlobalAugmentation)),
         );
         let node = ModuleDeclaration::new(node, name, body);
-        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
             .intersects(ModifierFlags::Ambient)
         {
             node.set_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1453,8 +1447,8 @@ impl NodeFactory {
         let node_as_module_declaration = node_ref.as_module_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_module_declaration.name != name
             || node_as_module_declaration.body != body
         {
@@ -1480,7 +1474,7 @@ impl NodeFactory {
     ) -> ModuleBlock {
         let node = self.create_base_node(SyntaxKind::ModuleBlock);
         let node = ModuleBlock::new(node, self.create_node_array(statements, None));
-        node.add_transform_flags(propagate_children_flags(Some(&node.statements)));
+        node.add_transform_flags(propagate_children_flags(Some(&node.statements.ref_(self))));
         node
     }
 
@@ -1492,7 +1486,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_module_block = node_ref.as_module_block();
         let statements = statements.into();
-        if has_node_array_changed(&node_as_module_block.statements, &statements) {
+        if has_node_array_changed(node_as_module_block.statements, &statements) {
             self.update(self.create_module_block(Some(statements)), node)
         } else {
             node
@@ -1506,7 +1500,7 @@ impl NodeFactory {
     ) -> CaseBlock {
         let node = self.create_base_node(SyntaxKind::CaseBlock);
         let node = CaseBlock::new(node, self.create_node_array(Some(clauses), None));
-        node.add_transform_flags(propagate_children_flags(Some(&node.clauses)));
+        node.add_transform_flags(propagate_children_flags(Some(&node.clauses.ref_(self))));
         node
     }
 
@@ -1518,7 +1512,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_case_block = node_ref.as_case_block();
         let clauses = clauses.into();
-        if has_node_array_changed(&node_as_case_block.clauses, &clauses) {
+        if has_node_array_changed(node_as_case_block.clauses, &clauses) {
             self.update(self.create_case_block(clauses), node)
         } else {
             node
@@ -1588,8 +1582,8 @@ impl NodeFactory {
         let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_import_equals_declaration.is_type_only != is_type_only
             || node_as_import_equals_declaration.module_reference != module_reference
         {
@@ -1640,8 +1634,8 @@ impl NodeFactory {
         let node_as_import_declaration = node_ref.as_import_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_import_declaration.import_clause != import_clause
             || node_as_import_declaration.module_specifier != module_specifier
             || node_as_import_declaration.assert_clause != assert_clause

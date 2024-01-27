@@ -278,7 +278,7 @@ impl NodeFactory {
         );
         node.set_flags(node.flags() | flags);
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.statements()))
+            propagate_children_flags(Some(&node.statements().ref_(self)))
                 | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
         node
@@ -316,7 +316,7 @@ impl NodeFactory {
         node.set_has_no_default_lib(has_no_default_lib);
         node.set_lib_reference_directives(lib_reference_directives);
         node.set_transform_flags(
-            propagate_children_flags(Some(&node.statements()))
+            propagate_children_flags(Some(&node.statements().ref_(self)))
                 | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
         node.set_implied_node_format(source_as_source_file.maybe_implied_node_format());
@@ -346,7 +346,7 @@ impl NodeFactory {
         let lib_reference_directives = lib_reference_directives
             .unwrap_or_else(|| node_as_source_file.lib_reference_directives());
         let statements = statements.into();
-        if has_node_array_changed(&node_as_source_file.statements(), &statements)
+        if has_node_array_changed(node_as_source_file.statements(), &statements)
             || node_as_source_file.is_declaration_file() != is_declaration_file
             || !are_option_rcs_equal(
                 node_as_source_file.maybe_referenced_files().as_ref(),
@@ -533,7 +533,7 @@ impl NodeFactory {
             && node.ref_(self).maybe_id().is_none()
         {
             if is_comma_list_expression(&node.ref_(self)) {
-                return node.ref_(self).as_comma_list_expression().elements.to_vec().into();
+                return node.ref_(self).as_comma_list_expression().elements.ref_(self).to_vec().into();
             }
             if is_binary_expression(&node.ref_(self)) {
                 let node_ref = node.ref_(self);
@@ -567,7 +567,7 @@ impl NodeFactory {
             ),
         );
         node.set_transform_flags(
-            node.transform_flags() | propagate_children_flags(Some(&node.elements)),
+            node.transform_flags() | propagate_children_flags(Some(&node.elements.ref_(self))),
         );
         node
     }
@@ -580,7 +580,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_comma_list_expression = node_ref.as_comma_list_expression();
         let elements = elements.into();
-        if has_node_array_changed(&node_as_comma_list_expression.elements, &elements) {
+        if has_node_array_changed(node_as_comma_list_expression.elements, &elements) {
             self.update(self.create_comma_list_expression(elements), node)
         } else {
             node
@@ -999,14 +999,14 @@ impl NodeFactory {
             | SyntaxKind::StringLiteral => false,
             SyntaxKind::ArrayLiteralExpression => {
                 let target_ref = target.ref_(self);
-                let elements = &target_ref.as_array_literal_expression().elements;
-                if elements.is_empty() {
+                let elements = target_ref.as_array_literal_expression().elements;
+                if elements.ref_(self).is_empty() {
                     return false;
                 }
                 true
             }
             SyntaxKind::ObjectLiteralExpression => {
-                !target.ref_(self).as_object_literal_expression().properties.is_empty()
+                !target.ref_(self).as_object_literal_expression().properties.ref_(self).is_empty()
             }
             _ => true,
         }
@@ -1427,21 +1427,21 @@ impl NodeFactory {
         &self,
         statements: Id<NodeArray>, /*<Statement>*/
     ) -> Id<NodeArray /*<Statement>*/> {
-        let found_use_strict = find_use_strict_prologue(statements, self);
+        let found_use_strict = find_use_strict_prologue(&statements.ref_(self), self);
 
         if found_use_strict.is_none() {
             return self
                 .create_node_array(
                     Some(
                         vec![self.create_use_strict_prologue()]
-                            .and_extend(statements.iter().cloned()),
+                            .and_extend(statements.ref_(self).iter().cloned()),
                     ),
                     None,
                 )
-                .set_text_range(Some(statements));
+                .set_text_range(Some(&*statements.ref_(self)), self);
         }
 
-        statements.rc_wrapper()
+        statements
     }
 
     pub fn lift_to_block(&self, nodes: &[Id<Node>]) -> Id<Node /*Statement*/> {
@@ -1585,8 +1585,8 @@ impl NodeFactory {
 
         match statements {
             NodeArrayOrVec::NodeArray(statements) => self
-                .create_node_array(Some(left), Some(statements.has_trailing_comma))
-                .set_text_range(Some(&*statements))
+                .create_node_array(Some(left), Some(statements.ref_(self).has_trailing_comma))
+                .set_text_range(Some(&*statements.ref_(self)), self)
                 .into(),
             NodeArrayOrVec::Vec(statements) => statements.into(),
         }

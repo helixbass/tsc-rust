@@ -478,7 +478,7 @@ impl TransformTypeScript {
         Ok(self
             .factory
             .ref_(self).create_node_array(Some(members), None)
-            .set_text_range(Some(&*node_as_class_like_declaration.members())))
+            .set_text_range(Some(&*node_as_class_like_declaration.members()), self))
     }
 
     pub(super) fn get_decorated_class_elements<'a>(

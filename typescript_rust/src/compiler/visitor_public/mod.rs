@@ -637,7 +637,7 @@ fn add_default_value_assignments_if_needed(
             context
                 .factory()
                 .ref_(arena).create_node_array(Some(result), Some(parameters.has_trailing_comma))
-                .set_text_range(Some(parameters))
+                .set_text_range(Some(parameters), arena)
         },
     )
 }

@@ -161,8 +161,8 @@ pub trait NodeArrayExt {
 }
 
 impl NodeArrayExt for Id<NodeArray> {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self {
-        set_text_range_node_array(self, location)
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>, arena: &impl HasArena) -> Self {
+        set_text_range_node_array(self, location, arena)
     }
 }
 
