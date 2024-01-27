@@ -1098,13 +1098,13 @@ impl HasArena for TransformGenerators {
 #[derive(Trace, Finalize)]
 struct TransformGeneratorsOnSubstituteNodeOverrider {
     transform_generators: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformGeneratorsOnSubstituteNodeOverrider {
     fn new(
         transform_generators: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_generators,

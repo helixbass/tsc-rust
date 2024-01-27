@@ -654,13 +654,13 @@ impl HasArena for TransformES2015OnEmitNodeOverrider {
 #[derive(Trace, Finalize)]
 struct TransformES2015OnSubstituteNodeOverrider {
     transform_es2015: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformES2015OnSubstituteNodeOverrider {
     pub(super) fn new(
         transform_es2015: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es2015,

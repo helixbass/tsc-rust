@@ -735,13 +735,13 @@ impl HasArena for TransformTypeScriptOnEmitNodeOverrider {
 #[derive(Trace, Finalize)]
 struct TransformTypeScriptOnSubstituteNodeOverrider {
     transform_type_script: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn new(
         transform_type_script: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_type_script,

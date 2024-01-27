@@ -18,10 +18,10 @@ struct TransformNodeModule {
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     esm_transform: Transformer,
-    esm_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    esm_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     esm_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     cjs_transform: Transformer,
-    cjs_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    cjs_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     cjs_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
 }
@@ -206,13 +206,13 @@ impl HasArena for TransformNodeModuleOnEmitNodeOverrider {
 #[derive(Trace, Finalize)]
 struct TransformNodeModuleOnSubstituteNodeOverrider {
     transform_node_module: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformNodeModuleOnSubstituteNodeOverrider {
     fn new(
         transform_node_module: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_node_module,

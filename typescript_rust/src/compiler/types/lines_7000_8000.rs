@@ -248,13 +248,13 @@ pub trait TransformationContext: CoreTransformationContext + HasArena {
     fn override_on_substitute_node(
         &self,
         overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
         )
-            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     );
     fn pop_overridden_on_substitute_node(
         &self,
-    ) -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>;
+    ) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>;
 
     fn enable_emit_notification(&self, kind: SyntaxKind);
 

@@ -1358,13 +1358,13 @@ impl HasArena for TransformClassFieldsOnEmitNodeOverrider {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsOnSubstituteNodeOverrider {
     transform_class_fields: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn new(
         transform_class_fields: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_class_fields,
