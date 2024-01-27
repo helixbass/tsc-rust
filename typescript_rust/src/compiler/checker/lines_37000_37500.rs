@@ -128,7 +128,7 @@ impl TypeChecker {
         if let Some(node_initializer) = node_as_for_statement.initializer {
             if node_initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
                 try_for_each(
-                    &node_initializer.ref_(self).as_variable_declaration_list().declarations,
+                    &*node_initializer.ref_(self).as_variable_declaration_list().declarations.ref_(self),
                     |&declaration: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_variable_declaration(declaration)?;
                         Ok(None)
@@ -253,7 +253,7 @@ impl TypeChecker {
                 .initializer
                 .ref_(self).as_variable_declaration_list()
                 .declarations
-                .get(0)
+                .ref_(self).get(0)
                 .copied();
             if let Some(variable) = variable.filter(|variable| {
                 is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
@@ -332,8 +332,8 @@ impl TypeChecker {
             .unwrap();
         let variable_declaration_list_ref = variable_declaration_list.ref_(self);
         let variable_declaration_list = variable_declaration_list_ref.as_variable_declaration_list();
-        if !variable_declaration_list.declarations.is_empty() {
-            let decl = variable_declaration_list.declarations[0];
+        if !variable_declaration_list.declarations.ref_(self).is_empty() {
+            let decl = variable_declaration_list.declarations.ref_(self)[0];
             self.check_variable_declaration(decl)?;
         }
 

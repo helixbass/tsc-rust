@@ -620,14 +620,14 @@ impl Printer {
         let parent_node_array = get_containing_node_array(previous_node);
         let prev_node_index = parent_node_array.as_ref().and_then(|parent_node_array| {
             parent_node_array
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&node| node == previous_node)
         });
         matches!(
             prev_node_index,
             Some(prev_node_index) if matches!(
-                parent_node_array.as_ref().and_then(|parent_node_array| {
-                    parent_node_array.into_iter().position(|&node| node == next_node)
+                parent_node_array.and_then(|parent_node_array| {
+                    parent_node_array.ref_(self).into_iter().position(|&node| node == next_node)
                 }),
                 Some(value) if value == prev_node_index + 1
             )

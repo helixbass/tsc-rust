@@ -200,7 +200,7 @@ impl NodeConverters for NodeConvertersConcrete
             let node_as_object_binding_pattern = node_ref.as_object_binding_pattern();
             return self.factory.ref_(self).create_object_literal_expression_raw(
                 Some(map(
-                    &node_as_object_binding_pattern.elements,
+                    &*node_as_object_binding_pattern.elements.ref_(self),
                     |&element, _| self.convert_to_object_assignment_element(element),
                 )),
                 None,
@@ -221,7 +221,7 @@ impl NodeConverters for NodeConvertersConcrete
             let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
             return self.factory.ref_(self).create_array_literal_expression_raw(
                 Some(map(
-                    &node_as_array_binding_pattern.elements,
+                    &*node_as_array_binding_pattern.elements.ref_(self),
                     |&element, _| self.convert_to_array_assignment_element(element),
                 )),
                 None,

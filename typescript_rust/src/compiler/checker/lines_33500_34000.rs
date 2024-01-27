@@ -66,7 +66,7 @@ impl TypeChecker {
                         .name()
                         .ref_(self).as_array_binding_pattern()
                         .elements
-                        .len()
+                        .ref_(self).len()
             {
                 self.pad_tuple_type(type_, declaration.ref_(self).as_parameter_declaration().name())?
             } else {
@@ -85,9 +85,9 @@ impl TypeChecker {
         let mut element_types = self.get_type_arguments(type_)?;
         let type_target = type_.ref_(self).as_type_reference().target;
         let mut element_flags = type_target.ref_(self).as_tuple_type().element_flags.clone();
-        for i in self.get_type_reference_arity(type_)..pattern_elements.len() {
-            let e = pattern_elements[i];
-            if i < pattern_elements.len() - 1
+        for i in self.get_type_reference_arity(type_)..pattern_elements.ref_(self).len() {
+            let e = pattern_elements.ref_(self)[i];
+            if i < pattern_elements.ref_(self).len() - 1
                 || !(e.ref_(self).kind() == SyntaxKind::BindingElement
                     && e.ref_(self).as_binding_element().dot_dot_dot_token.is_some())
             {

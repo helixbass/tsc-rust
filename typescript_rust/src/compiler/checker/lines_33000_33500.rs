@@ -517,7 +517,7 @@ impl TypeChecker {
         // TODO: try and avoid String cloning here? 
         let mut texts = vec![node_as_template_expression.head.ref_(self).as_literal_like_node().text().clone()];
         let mut types = vec![];
-        for span in node_as_template_expression.template_spans.iter() {
+        for span in node_as_template_expression.template_spans.ref_(self).iter() {
             let span_ref = span.ref_(self);
             let span = span_ref.as_template_span();
             let type_ = self.check_expression(span.expression, None, None)?;

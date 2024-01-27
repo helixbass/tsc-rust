@@ -26,11 +26,11 @@ impl TypeChecker {
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
-        let properties = &node_ref.as_object_literal_expression().properties;
-        if self.strict_null_checks && properties.is_empty() {
+        let properties = node_ref.as_object_literal_expression().properties;
+        if self.strict_null_checks && properties.ref_(self).is_empty() {
             return self.check_non_null_type(source_type, node);
         }
-        for i in 0..properties.len() {
+        for i in 0..properties.ref_(self).len() {
             self.check_object_literal_destructuring_property_assignment(
                 node,
                 source_type,
@@ -52,8 +52,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let right_is_this = right_is_this.unwrap_or(false);
         let node_ref = node.ref_(self);
-        let properties = &node_ref.as_object_literal_expression().properties;
-        let property = properties[property_index];
+        let properties = node_ref.as_object_literal_expression().properties;
+        let property = properties.ref_(self)[property_index];
         Ok(match property.ref_(self).kind() {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 let name = property.ref_(self).as_named_declaration().name();
@@ -94,7 +94,7 @@ impl TypeChecker {
                 )?)
             }
             SyntaxKind::SpreadAssignment => {
-                if property_index < properties.len() - 1 {
+                if property_index < properties.ref_(self).len() - 1 {
                     self.error(
                         Some(property),
                         &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
@@ -107,7 +107,7 @@ impl TypeChecker {
                     }
                     let mut non_rest_names: Vec<Id<Node /*PropertyName*/>> = vec![];
                     if let Some(all_properties) = all_properties {
-                        for other_property in all_properties {
+                        for other_property in &*all_properties.ref_(self) {
                             if !is_spread_assignment(&other_property.ref_(self)) {
                                 non_rest_names.push(other_property.ref_(self).as_named_declaration().name());
                             }
@@ -167,9 +167,9 @@ impl TypeChecker {
         } else {
             Some(possibly_out_of_bounds_type.clone())
         };
-        for i in 0..elements.len() {
+        for i in 0..elements.ref_(self).len() {
             let mut type_ = possibly_out_of_bounds_type.clone();
-            if node_as_array_literal_expression.elements[i].ref_(self).kind() == SyntaxKind::SpreadElement {
+            if node_as_array_literal_expression.elements.ref_(self)[i].ref_(self).kind() == SyntaxKind::SpreadElement {
                 in_bounds_type = Some(in_bounds_type.try_unwrap_or_else(|| {
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
@@ -201,8 +201,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node_ref = node.ref_(self);
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
-        let elements = &node_as_array_literal_expression.elements;
-        let element = elements[element_index];
+        let elements = node_as_array_literal_expression.elements;
+        let element = elements.ref_(self)[element_index];
         if element.ref_(self).kind() != SyntaxKind::OmittedExpression {
             if element.ref_(self).kind() != SyntaxKind::SpreadElement {
                 let index_type = self.get_number_literal_type(Number::new(element_index as f64));
@@ -245,7 +245,7 @@ impl TypeChecker {
                     None,
                 )?));
             }
-            if element_index < elements.len() - 1 {
+            if element_index < elements.ref_(self).len() - 1 {
                 self.error(
                     Some(element),
                     &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
@@ -264,7 +264,7 @@ impl TypeChecker {
                     );
                 } else {
                     self.check_grammar_for_disallowed_trailing_comma(
-                        Some(&node_as_array_literal_expression.elements),
+                        Some(node_as_array_literal_expression.elements),
                         Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
                     );
                     let type_ = if self

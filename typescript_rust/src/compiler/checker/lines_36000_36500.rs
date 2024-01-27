@@ -333,7 +333,7 @@ impl TypeChecker {
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         add_diagnostic: &mut impl FnMut(Id<Node>, UnusedKind, Id<Diagnostic>),
     ) -> io::Result<()> {
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             match member.ref_(self).kind() {
                 SyntaxKind::MethodDeclaration
                 | SyntaxKind::PropertyDeclaration
@@ -474,7 +474,7 @@ impl TypeChecker {
                     .maybe_type_parameters()
                     .as_ref()
                     .unwrap()
-                    .into_iter()
+                    .ref_(self).into_iter()
                     .all(|&type_parameter| self.is_type_parameter_unused(type_parameter))
             {
                 if try_add_to_set(&mut seen_parents_with_every_unused, parent) {
@@ -484,11 +484,10 @@ impl TypeChecker {
                     } else {
                         range_of_type_parameters(
                             &source_file.ref_(self),
-                            parent
+                            &parent
                                 .ref_(self).as_has_type_parameters()
                                 .maybe_type_parameters()
-                                .as_ref()
-                                .unwrap(),
+                                .unwrap().ref_(self),
                         )
                     };
                     let only = parent
@@ -664,9 +663,9 @@ impl TypeChecker {
                         && is_object_binding_pattern(&declaration.ref_(self).parent().ref_(self))
                     {
                         let declaration_parent = declaration.ref_(self).parent();
-                        let last_element = *last(&declaration_parent.ref_(self).as_object_binding_pattern().elements);
+                        let last_element = *last(&declaration_parent.ref_(self).as_object_binding_pattern().elements.ref_(self));
                         if declaration == last_element
-                            || last(&declaration_parent.ref_(self).as_object_binding_pattern().elements)
+                            || last(&declaration_parent.ref_(self).as_object_binding_pattern().elements.ref_(self))
                                 .ref_(self).as_binding_element()
                                 .dot_dot_dot_token
                                 .is_none()
@@ -756,7 +755,7 @@ impl TypeChecker {
                     import_clause_named_bindings
                         .ref_(self).as_named_imports()
                         .elements
-                        .len()
+                        .ref_(self).len()
                 }
             } else {
                 0
@@ -805,7 +804,7 @@ impl TypeChecker {
             } else {
                 UnusedKind::Local
             };
-            if binding_pattern.ref_(self).as_has_elements().elements().len() == binding_elements.len() {
+            if binding_pattern.ref_(self).as_has_elements().elements().ref_(self).len() == binding_elements.len() {
                 if binding_elements.len() == 1
                     && binding_pattern.ref_(self).parent().ref_(self).kind() == SyntaxKind::VariableDeclaration
                     && binding_pattern.ref_(self).parent().ref_(self).parent().ref_(self).kind()
@@ -867,7 +866,7 @@ impl TypeChecker {
             if declaration_list
                 .ref_(self).as_variable_declaration_list()
                 .declarations
-                .len()
+                .ref_(self).len()
                 == declarations.len()
             {
                 add_diagnostic(
@@ -929,7 +928,7 @@ impl TypeChecker {
             SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern => self
                 .binding_name_text(
                     cast_present(
-                        *first(&**name.ref_(self).as_has_elements().elements()),
+                        *first(&name.ref_(self).as_has_elements().elements().ref_(self)),
                         |element: &Id<Node>| is_binding_element(&element.ref_(self)),
                     )
                     .ref_(self).as_binding_element()
@@ -971,7 +970,7 @@ impl TypeChecker {
         if is_function_or_module_block(node, self) {
             let save_flow_analysis_disabled = self.flow_analysis_disabled();
             try_for_each(
-                &node_as_has_statements.statements(),
+                &*node_as_has_statements.statements().ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
@@ -980,7 +979,7 @@ impl TypeChecker {
             self.set_flow_analysis_disabled(save_flow_analysis_disabled);
         } else {
             try_for_each(
-                &node_as_has_statements.statements(),
+                &*node_as_has_statements.statements().ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
@@ -1010,7 +1009,7 @@ impl TypeChecker {
         }
 
         for_each(
-            &node.ref_(self).as_signature_declaration().parameters(),
+            &*node.ref_(self).as_signature_declaration().parameters().ref_(self),
             |&p: &Id<Node>, _| -> Option<()> {
                 if matches!(
                     p.ref_(self).as_parameter_declaration().maybe_name(),

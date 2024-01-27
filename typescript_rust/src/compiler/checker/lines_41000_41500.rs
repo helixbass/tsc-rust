@@ -260,7 +260,7 @@ impl TypeChecker {
                 .get_type_of_assignment_pattern_(node)?
                 .unwrap_or_else(|| self.error_type());
             let property_index = index_of_node(
-                &node.ref_(self).as_object_literal_expression().properties,
+                &node.ref_(self).as_object_literal_expression().properties.ref_(self),
                 expr.ref_(self).parent(),
                 self,
             );
@@ -291,7 +291,7 @@ impl TypeChecker {
                 let ret = node
                     .ref_(self).as_array_literal_expression()
                     .elements
-                    .iter()
+                    .ref_(self).iter()
                     .position(|&element| element == expr)
                     .unwrap();
                 ret
@@ -786,7 +786,7 @@ impl TypeChecker {
                     export_clause,
                     Some(export_clause) if is_namespace_export(&export_clause.ref_(self)) ||
                         try_some(
-                            Some(&*export_clause.ref_(self).as_named_exports().elements),
+                            Some(&*export_clause.ref_(self).as_named_exports().elements.ref_(self)),
                             Some(|&element: &Id<Node>| self.is_value_alias_declaration(element))
                         )?
                 )

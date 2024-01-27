@@ -17,7 +17,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
     SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
     SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl Printer {
@@ -67,7 +67,7 @@ impl Printer {
     ) -> io::Result<()> {
         Ok(if is_source_file(&source_file_or_bundle.ref_(self)) {
             self.emit_prologue_directives(
-                &source_file_or_bundle.ref_(self).as_source_file().statements(),
+                &source_file_or_bundle.ref_(self).as_source_file().statements().ref_(self),
                 Some(source_file_or_bundle),
                 &mut None,
                 None,
@@ -85,7 +85,7 @@ impl Printer {
             for source_file in &source_file_or_bundle_as_bundle.source_files {
                 let source_file = source_file.unwrap();
                 self.emit_prologue_directives(
-                    &source_file.ref_(self).as_source_file().statements(),
+                    &source_file.ref_(self).as_source_file().statements().ref_(self),
                     Some(source_file),
                     &mut seen_prologue_directives,
                     Some(true),
@@ -109,7 +109,7 @@ impl Printer {
             let mut end = 0;
             let source_file_ref = source_file.ref_(self);
             let source_file_as_source_file = source_file_ref.as_source_file();
-            for &statement in &source_file_as_source_file.statements() {
+            for &statement in &*source_file_as_source_file.statements().ref_(self) {
                 if !is_prologue_directive(statement, self) {
                     break;
                 }
@@ -221,7 +221,7 @@ impl Printer {
         modifiers: Option<Id<NodeArray> /*<Modifier>*/>,
     ) -> io::Result<()> {
         Ok(
-            if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.is_empty()) {
+            if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.ref_(self).is_empty()) {
                 self.emit_list(
                     Some(node),
                     Some(modifiers),
@@ -422,7 +422,7 @@ impl Printer {
         parent_node: Id<Node>,  /*FunctionTypeNode | ArrowFunction*/
         parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> bool {
-        let parameter = single_or_undefined(Some(parameters));
+        let parameter = single_or_undefined(Some(&parameters.ref_(self)));
         matches!(
             parameter,
             Some(parameter) if parameter.ref_(self).pos() == parent_node.ref_(self).pos() &&
@@ -433,15 +433,15 @@ impl Printer {
                     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
                     parent_node_as_arrow_function.maybe_type().is_none() &&
                         !some(
-                            parent_node.ref_(self).maybe_decorators().as_double_deref(),
+                            parent_node.ref_(self).maybe_decorators().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parent_node.ref_(self).maybe_modifiers().as_double_deref(),
+                            parent_node.ref_(self).maybe_modifiers().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parent_node_as_arrow_function.maybe_type_parameters().as_double_deref(),
+                            parent_node_as_arrow_function.maybe_type_parameters().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
@@ -583,7 +583,7 @@ impl Printer {
         let start = start.unwrap_or(0);
         let count = count.unwrap_or_else(|| {
             if let Some(children) = children {
-                children.len() - start
+                children.ref_(self).len() - start
             } else {
                 0
             }
@@ -595,7 +595,7 @@ impl Printer {
 
         let is_empty = match children {
             None => true,
-            Some(children) => start >= children.len(),
+            Some(children) => start >= children.ref_(self).len(),
         } || count == 0;
         if is_empty && format.intersects(ListFormat::OptionalIfEmpty) {
             self.on_before_emit_node_array(children);
@@ -607,7 +607,7 @@ impl Printer {
             self.write_punctuation(get_opening_bracket(format));
             if is_empty {
                 if let Some(children) = children {
-                    self.emit_trailing_comments_of_position(children.pos(), Some(true), None);
+                    self.emit_trailing_comments_of_position(children.ref_(self).pos(), Some(true), None);
                 }
             }
         }
@@ -637,7 +637,7 @@ impl Printer {
                 !format.intersects(ListFormat::NoInterveningComments);
             let mut should_emit_intervening_comments = may_emit_intervening_comments;
             let leading_line_terminator_count =
-                self.get_leading_line_terminator_count(parent_node, children, format);
+                self.get_leading_line_terminator_count(parent_node, &children.ref_(self), format);
             if leading_line_terminator_count > 0 {
                 self.write_line(Some(leading_line_terminator_count));
                 should_emit_intervening_comments = false;
@@ -653,7 +653,7 @@ impl Printer {
             let mut previous_source_file_text_kind: Option<BundleFileSectionKind> = None;
             let mut should_decrease_indent_after_emit = false;
             for i in 0..count {
-                let child = children[start + i];
+                let child = children.ref_(self)[start + i];
 
                 if format.intersects(ListFormat::AsteriskDelimited) {
                     self.write_line(None);
@@ -720,7 +720,7 @@ impl Printer {
                 });
             let skip_trailing_comments =
                 self.comments_disabled() || emit_flags.intersects(EmitFlags::NoTrailingComments);
-            let has_trailing_comma = children.has_trailing_comma
+            let has_trailing_comma = children.ref_(self).has_trailing_comma
                 && format.intersects(ListFormat::AllowTrailingComma)
                 && format.intersects(ListFormat::CommaDelimited);
             if has_trailing_comma {
@@ -748,7 +748,7 @@ impl Printer {
                 {
                     self.emit_leading_comments_of_position(
                         if has_trailing_comma {
-                            let children_end = children.end();
+                            let children_end = children.ref_(self).end();
                             if children_end != 0 {
                                 Some(children_end)
                             } else {
@@ -770,7 +770,7 @@ impl Printer {
 
             let closing_line_terminator_count = self.get_closing_line_terminator_count(
                 parent_node,
-                children.rc_wrapper().into(),
+                children.into(),
                 format,
             );
             if closing_line_terminator_count != 0 {
@@ -786,7 +786,7 @@ impl Printer {
         Ok(if format.intersects(ListFormat::BracketsMask) {
             if is_empty {
                 if let Some(children) = children {
-                    self.emit_leading_comments_of_position(children.end());
+                    self.emit_leading_comments_of_position(children.ref_(self).end());
                 }
             }
             self.write_punctuation(get_closing_bracket(format));

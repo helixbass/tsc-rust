@@ -316,8 +316,8 @@ impl Printer {
             }) {
                 if self.maybe_preserve_source_newlines() == Some(true) {
                     let end = if let NodeArrayOrSlice::NodeArray(children) = &children {
-                        if !position_is_synthesized(children.end()) {
-                            children.end()
+                        if !position_is_synthesized(children.ref_(self).end()) {
+                            children.ref_(self).end()
                         } else {
                             last_child.ref_(self).end()
                         }
@@ -466,7 +466,7 @@ impl Printer {
     }
 
     pub(super) fn is_empty_block(&self, block: Id<Node> /*BlockLike*/) -> bool {
-        block.ref_(self).as_has_statements().statements().is_empty()
+        block.ref_(self).as_has_statements().statements().ref_(self).is_empty()
             && range_end_is_on_same_line_as_range_start(&*block.ref_(self), &*block.ref_(self), &self.current_source_file().ref_(self))
     }
 
@@ -623,7 +623,7 @@ impl Printer {
         match node.ref_(self).kind() {
             SyntaxKind::Block => {
                 for_each(
-                    &node.ref_(self).as_block().statements,
+                    &*node.ref_(self).as_block().statements.ref_(self),
                     |&statement: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
@@ -651,7 +651,7 @@ impl Printer {
             }
             SyntaxKind::CaseBlock => {
                 for_each(
-                    &node.ref_(self).as_case_block().clauses,
+                    &*node.ref_(self).as_case_block().clauses.ref_(self),
                     |&clause: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(clause));
                         None
@@ -660,7 +660,7 @@ impl Printer {
             }
             SyntaxKind::CaseClause | SyntaxKind::DefaultClause => {
                 for_each(
-                    &node.ref_(self).as_has_statements().statements(),
+                    &*node.ref_(self).as_has_statements().statements().ref_(self),
                     |&statement: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(statement));
                         None
@@ -685,7 +685,7 @@ impl Printer {
             }
             SyntaxKind::VariableDeclarationList => {
                 for_each(
-                    &node.ref_(self).as_variable_declaration_list().declarations,
+                    &*node.ref_(self).as_variable_declaration_list().declarations.ref_(self),
                     |&declaration: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(declaration));
                         None
@@ -704,7 +704,7 @@ impl Printer {
                 self.generate_name_if_needed(node_as_function_declaration.maybe_name());
                 if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::ReuseTempVariableScope) {
                     for_each(
-                        &node_as_function_declaration.parameters(),
+                        &*node_as_function_declaration.parameters().ref_(self),
                         |&parameter: &Id<Node>, _| -> Option<()> {
                             self.generate_names(Some(parameter));
                             None
@@ -715,7 +715,7 @@ impl Printer {
             }
             SyntaxKind::ObjectBindingPattern | SyntaxKind::ArrayBindingPattern => {
                 for_each(
-                    &node.ref_(self).as_has_elements().elements(),
+                    &*node.ref_(self).as_has_elements().elements().ref_(self),
                     |&element: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
@@ -739,7 +739,7 @@ impl Printer {
             }
             SyntaxKind::NamedImports => {
                 for_each(
-                    &node.ref_(self).as_named_imports().elements,
+                    &*node.ref_(self).as_named_imports().elements.ref_(self),
                     |&element: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(element));
                         None
@@ -811,7 +811,7 @@ impl Printer {
 
 #[derive(Clone)]
 pub enum NodeArrayOrSlice<'a> {
-    NodeArray(Id<NodeArray>),
+    NodeArray(&'a NodeArray),
     Slice(&'a [Id<Node>]),
 }
 
@@ -824,8 +824,8 @@ impl<'a> NodeArrayOrSlice<'a> {
     }
 }
 
-impl<'a> From<Id<NodeArray>> for NodeArrayOrSlice<'a> {
-    fn from(value: Id<NodeArray>) -> Self {
+impl<'a> From<&'a NodeArray> for NodeArrayOrSlice<'a> {
+    fn from(value: &'a NodeArray) -> Self {
         Self::NodeArray(value)
     }
 }

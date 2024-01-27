@@ -237,7 +237,7 @@ impl NodeFactory {
             if question_token_is_some {
                 node.add_transform_flags(TransformFlags::ContainsTypeScript);
             }
-            if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+            if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
                 .intersects(ModifierFlags::ParameterPropertyModifier)
             {
                 node.add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
@@ -265,8 +265,8 @@ impl NodeFactory {
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let name = name.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || has_option_str_or_node_changed(
                 node_as_parameter_declaration.maybe_name().as_ref(),
                 name.as_ref(),
@@ -352,7 +352,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_property_signature = node_ref.as_property_signature();
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_property_signature.name() != name
             || node_as_property_signature.question_token != question_token
             || node_as_property_signature.maybe_type() != type_
@@ -409,7 +409,7 @@ impl NodeFactory {
             node.ref_(self).add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }
         if question_or_exclamation_token_is_some
-            || modifiers_to_flags(node.ref_(self).maybe_modifiers().as_double_deref(), self)
+            || modifiers_to_flags(node.ref_(self).maybe_modifiers().refed(self).as_double_deref(), self)
                 .intersects(ModifierFlags::Ambient)
         {
             node.ref_(self).add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -432,8 +432,8 @@ impl NodeFactory {
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let name = name.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || !matches!(
                 &name,
                 StrOrRcNode::RcNode(name) if node_as_property_declaration.name() == *name
@@ -504,7 +504,7 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_method_signature = node_ref.as_method_signature();
         let modifiers = modifiers.map(Into::into);
-        if has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_method_signature.name() != name
             || node_as_method_signature.maybe_question_token() != question_token
             || !are_option_gcs_equal(

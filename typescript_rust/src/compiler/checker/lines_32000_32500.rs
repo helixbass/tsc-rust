@@ -277,7 +277,7 @@ impl TypeChecker {
         let d_ref = d.ref_(self);
         let d_as_call_expression = d_ref.as_call_expression();
         let object_lit_type =
-            self.check_expression_cached(d_as_call_expression.arguments[2], None)?;
+            self.check_expression_cached(d_as_call_expression.arguments.ref_(self)[2], None)?;
         let value_type = self.get_type_of_property_of_type_(object_lit_type, "value")?;
         if value_type.is_some() {
             let writable_prop = self.get_property_of_type_(object_lit_type, "writable", None)?;

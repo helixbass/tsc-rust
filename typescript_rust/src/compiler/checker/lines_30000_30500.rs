@@ -333,6 +333,7 @@ impl TypeChecker {
                         base_type_node
                             .ref_(self).as_expression_with_type_arguments()
                             .maybe_type_arguments()
+                            .refed(self)
                             .as_double_deref(),
                         base_type_node,
                     )?;
@@ -420,7 +421,7 @@ impl TypeChecker {
                 );
             } else {
                 let mut related_information: Option<Id<DiagnosticRelatedInformation>> = None;
-                if node_as_call_expression.arguments.len() == 1 {
+                if node_as_call_expression.arguments.ref_(self).len() == 1 {
                     let source_file = get_source_file_of_node(node, self);
                     let source_file_ref = source_file.ref_(self);
                     let text = source_file_ref.as_source_file().text_as_chars();
@@ -538,10 +539,10 @@ impl TypeChecker {
         let node_as_new_expression = node_ref.as_new_expression();
         if let Some(node_arguments) = node_as_new_expression.arguments.as_ref() {
             if self.language_version < ScriptTarget::ES5 {
-                let spread_index = self.get_spread_argument_index(node_arguments);
+                let spread_index = self.get_spread_argument_index(&node_arguments.ref_(self));
                 if let Some(spread_index) = spread_index {
                     self.error(
-                        Some(node_arguments[spread_index]),
+                        Some(node_arguments.ref_(self)[spread_index]),
                         &Diagnostics::Spread_operator_in_new_expressions_is_only_available_when_targeting_ECMAScript_5_and_higher,
                         None,
                     );
@@ -909,7 +910,7 @@ impl TypeChecker {
                 .ref_(self).parent()
                 .ref_(self).as_call_expression()
                 .arguments
-                .is_empty()
+                .ref_(self).is_empty()
         {
             let resolved_symbol = (*self.get_node_links(error_target))
                 .borrow()

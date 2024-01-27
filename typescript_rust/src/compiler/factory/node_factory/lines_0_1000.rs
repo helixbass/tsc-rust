@@ -26,7 +26,7 @@ use crate::{
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
     ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral,
     StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, OptionInArena,
 };
 
 thread_local! {
@@ -596,23 +596,23 @@ impl NodeFactory {
             NodeArrayOrVec::NodeArray(elements) => {
                 if match has_trailing_comma {
                     None => true,
-                    Some(has_trailing_comma) => elements.has_trailing_comma == has_trailing_comma,
+                    Some(has_trailing_comma) => elements.ref_(self).has_trailing_comma == has_trailing_comma,
                 } {
-                    if elements.maybe_transform_flags().is_none() {
-                        aggregate_children_flags(&elements, self);
+                    if elements.ref_(self).maybe_transform_flags().is_none() {
+                        aggregate_children_flags(elements, self);
                     }
-                    Debug_.attach_node_array_debug_info(&elements);
+                    Debug_.attach_node_array_debug_info(elements);
                     return elements;
                 }
 
-                let mut array = NodeArray::new(
-                    elements.to_vec(),
-                    elements.pos(),
-                    elements.end(),
+                let array = NodeArray::new(
+                    elements.ref_(self).to_vec(),
+                    elements.ref_(self).pos(),
+                    elements.ref_(self).end(),
                     has_trailing_comma.unwrap(),
-                    elements.maybe_transform_flags(),
+                    elements.ref_(self).maybe_transform_flags(),
                 );
-                Debug_.attach_node_array_debug_info(&mut array);
+                Debug_.attach_node_array_debug_info(array);
                 array
             }
             NodeArrayOrVec::Vec(elements) => {
@@ -620,8 +620,8 @@ impl NodeFactory {
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
                 let array =
                     NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None);
-                aggregate_children_flags(&array, self);
-                Debug_.attach_node_array_debug_info(&array);
+                aggregate_children_flags(array, self);
+                Debug_.attach_node_array_debug_info(array);
                 array
             }
         }
@@ -643,8 +643,8 @@ impl NodeFactory {
         let node = self.create_base_node(kind);
         node.set_decorators(self.as_node_array(decorators));
         node.set_modifiers(self.as_node_array(modifiers));
-        let flags = propagate_children_flags(node.maybe_decorators().as_deref())
-            | propagate_children_flags(node.maybe_modifiers().as_deref());
+        let flags = propagate_children_flags(node.maybe_decorators().refed(self).as_deref())
+            | propagate_children_flags(node.maybe_modifiers().refed(self).as_deref());
         node.add_transform_flags(flags);
         // node.symbol = undefined!;
         // node.localSymbol = undefined!;
@@ -704,7 +704,7 @@ impl NodeFactory {
     ) -> BaseGenericNamedDeclaration {
         let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
         let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
-        let flags = propagate_children_flags(node.maybe_type_parameters().as_deref());
+        let flags = propagate_children_flags(node.maybe_type_parameters().refed(self).as_deref());
         node.add_transform_flags(flags);
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -739,7 +739,7 @@ impl NodeFactory {
         let node =
             BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.parameters()))
+            propagate_children_flags(Some(&node.parameters().ref_(self)))
                 | propagate_child_flags(node.maybe_type(), self),
         );
         if node.maybe_type().is_some() {
@@ -840,7 +840,7 @@ impl NodeFactory {
         let node =
             BaseInterfaceOrClassLikeDeclaration::new(node, self.as_node_array(heritage_clauses));
         node.add_transform_flags(propagate_children_flags(
-            node.maybe_heritage_clauses().as_deref(),
+            node.maybe_heritage_clauses().refed(self).as_deref(),
         ));
         node
     }
@@ -872,7 +872,7 @@ impl NodeFactory {
             heritage_clauses,
         );
         let node = ClassLikeDeclarationBase::new(node, self.create_node_array(Some(members), None));
-        node.add_transform_flags(propagate_children_flags(Some(&node.members())));
+        node.add_transform_flags(propagate_children_flags(Some(&node.members().ref_(self))));
         node
     }
 
@@ -1104,7 +1104,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let type_arguments = type_arguments.map(Into::into);
         let node_type_arguments = node.ref_(self).as_identifier().maybe_type_arguments();
-        if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
+        if has_option_node_array_changed(node_type_arguments, type_arguments.as_ref()) {
             self.update(
                 self.create_identifier_full(id_text(&node.ref_(self)), type_arguments, None),
                 node,
@@ -1280,7 +1280,7 @@ pub fn has_option_node_array_changed(
     match (existing, maybe_changed) {
         (None, None) => false,
         (Some(existing), Some(NodeArrayOrVec::NodeArray(maybe_changed))) => {
-            !ptr::eq(existing, &**maybe_changed)
+            existing != *maybe_changed
         }
         _ => true,
     }

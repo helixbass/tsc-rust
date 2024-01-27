@@ -546,7 +546,7 @@ pub(super) fn propagate_child_flags(child: Option<Id<Node>>, arena: &impl HasAre
     }
 }
 
-pub(super) fn propagate_children_flags(children: Option<Id<NodeArray>>) -> TransformFlags {
+pub(super) fn propagate_children_flags(children: Option<&NodeArray>) -> TransformFlags {
     children.map_or(TransformFlags::None, |children| {
         children.maybe_transform_flags().unwrap()
     })

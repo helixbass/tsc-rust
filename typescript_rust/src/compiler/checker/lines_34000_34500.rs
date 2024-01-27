@@ -138,7 +138,7 @@ impl TypeChecker {
             if func
                 .ref_(self).as_signature_declaration()
                 .parameters()
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&parameter| parameter == node)
                 != Some(0)
             {
@@ -254,7 +254,7 @@ impl TypeChecker {
             /*if (parameterName)*/
             {
                 let mut has_reported_error = false;
-                for parameter in &parent.ref_(self).as_signature_declaration().parameters() {
+                for parameter in &*parent.ref_(self).as_signature_declaration().parameters().ref_(self) {
                     let name = parameter.ref_(self).as_named_declaration().name();
                     if is_binding_pattern(Some(&name.ref_(self)))
                         && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
@@ -308,7 +308,7 @@ impl TypeChecker {
         predicate_variable_node: Id<Node>,
         predicate_variable_name: &str,
     ) -> bool {
-        for element in &pattern.ref_(self).as_has_elements().elements() {
+        for element in &*pattern.ref_(self).as_has_elements().elements().ref_(self) {
             if is_omitted_expression(&element.ref_(self)) {
                 continue;
             }
@@ -386,7 +386,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_signature_declaration = node_ref.as_signature_declaration();
         try_for_each(
-            &node_as_signature_declaration.parameters(),
+            &*node_as_signature_declaration.parameters().ref_(self),
             |&parameter: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_parameter(parameter)?;
                 Ok(None)
@@ -491,7 +491,7 @@ impl TypeChecker {
         let mut instance_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut static_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut private_identifiers: HashMap<__String, DeclarationMeaning> = HashMap::new();
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             if member.ref_(self).kind() == SyntaxKind::Constructor {
                 for &param in &member.ref_(self).as_constructor_declaration().parameters() {
                     if is_parameter_property_declaration(param, member, self)
@@ -622,7 +622,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<()> {
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             let member_name_node = member.ref_(self).as_named_declaration().maybe_name();
             let is_static_member = is_static(member, self);
             if is_static_member {
@@ -659,7 +659,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeLiteralNode | InterfaceDeclaration*/
     ) {
         let mut names: HashMap<String, bool> = HashMap::new();
-        for member in &node.ref_(self).as_has_members().members() {
+        for member in &*node.ref_(self).as_has_members().members().ref_(self) {
             if member.ref_(self).kind() == SyntaxKind::PropertySignature {
                 let member_name: String;
                 let name = member.ref_(self).as_named_declaration().name();
@@ -721,11 +721,11 @@ impl TypeChecker {
                 if declaration
                     .ref_(self).as_index_signature_declaration()
                     .parameters()
-                    .len()
+                    .ref_(self).len()
                     == 1
                 {
                     if let Some(declaration_parameters_0_type) =
-                        declaration.ref_(self).as_index_signature_declaration().parameters()[0]
+                        declaration.ref_(self).as_index_signature_declaration().parameters().ref_(self)[0]
                             .ref_(self).as_parameter_declaration()
                             .maybe_type()
                     {

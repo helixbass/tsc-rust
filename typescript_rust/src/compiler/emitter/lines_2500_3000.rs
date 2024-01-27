@@ -41,11 +41,11 @@ impl Printer {
         self.emit(node_as_call_expression.question_dot_token, None)?;
         self.emit_type_arguments(
             node,
-            node_as_call_expression.maybe_type_arguments().as_deref(),
+            node_as_call_expression.maybe_type_arguments(),
         )?;
         self.emit_expression_list(
             Some(node),
-            Some(&node_as_call_expression.arguments),
+            Some(node_as_call_expression.arguments),
             ListFormat::CallExpressionArguments,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -81,11 +81,11 @@ impl Printer {
         )?;
         self.emit_type_arguments(
             node,
-            node_as_new_expression.maybe_type_arguments().as_deref(),
+            node_as_new_expression.maybe_type_arguments(),
         )?;
         self.emit_expression_list(
             Some(node),
-            node_as_new_expression.arguments.as_deref(),
+            node_as_new_expression.arguments,
             ListFormat::NewExpressionArguments,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
@@ -124,8 +124,7 @@ impl Printer {
         self.emit_type_arguments(
             node,
             node_as_tagged_template_expression
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         )?;
         self.write_space();
         self.emit_expression(Some(node_as_tagged_template_expression.template), None)?;
@@ -198,8 +197,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ArrowFunction*/
     ) -> io::Result<()> {
-        self.emit_decorators(node, node.ref_(self).maybe_decorators().as_deref())?;
-        self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
+        self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
+        self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_arrow_function_head(node))?;
 
         Ok(())
@@ -213,9 +212,9 @@ impl Printer {
         let node_as_arrow_function = node_ref.as_arrow_function();
         self.emit_type_parameters(
             node,
-            node_as_arrow_function.maybe_type_parameters().as_deref(),
+            node_as_arrow_function.maybe_type_parameters(),
         )?;
-        self.emit_parameters_for_arrow(node, &node_as_arrow_function.parameters())?;
+        self.emit_parameters_for_arrow(node, node_as_arrow_function.parameters())?;
         self.emit_type_annotation(node_as_arrow_function.maybe_type())?;
         self.write_space();
         self.emit(
@@ -461,7 +460,7 @@ impl Printer {
         self.emit(Some(node_as_template_expression.head), None)?;
         self.emit_list(
             Some(node),
-            Some(&node_as_template_expression.template_spans),
+            Some(node_as_template_expression.template_spans),
             ListFormat::TemplateExpressionSpans,
             None,
             None,
@@ -547,8 +546,7 @@ impl Printer {
         self.emit_type_arguments(
             node,
             node_as_expression_with_type_arguments
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         )?;
 
         Ok(())
@@ -647,7 +645,7 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(&node.ref_(self).as_has_statements().statements()),
+            Some(node.ref_(self).as_has_statements().statements()),
             format,
             None,
             None,
@@ -655,7 +653,7 @@ impl Printer {
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBraceToken,
-            node.ref_(self).as_has_statements().statements().end(),
+            node.ref_(self).as_has_statements().statements().ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             node,
             Some(format.intersects(ListFormat::MultiLine)),
@@ -668,7 +666,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<()> {
-        self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
+        self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit(Some(node.ref_(self).as_variable_statement().declaration_list), None)?;
         self.write_trailing_semicolon();
 

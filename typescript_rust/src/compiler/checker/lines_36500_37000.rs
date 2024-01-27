@@ -216,7 +216,7 @@ impl TypeChecker {
     pub(super) fn check_reflect_collision(&self, node: Id<Node>) {
         let mut has_collision = false;
         if is_class_expression(&node.ref_(self)) {
-            for &member in &node.ref_(self).as_class_expression().members() {
+            for &member in &*node.ref_(self).as_class_expression().members().ref_(self) {
                 if self
                     .get_node_check_flags(member)
                     .intersects(NodeCheckFlags::ContainsSuperPropertyInStaticInitializer)
@@ -473,7 +473,7 @@ impl TypeChecker {
             }
 
             try_for_each(
-                &node_name.ref_(self).as_has_elements().elements(),
+                &*node_name.ref_(self).as_has_elements().elements().ref_(self),
                 |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(element))?;
                     Ok(None)
@@ -500,7 +500,7 @@ impl TypeChecker {
         if is_binding_pattern(Some(&node_name.ref_(self))) {
             let need_check_initializer = node_as_has_initializer.maybe_initializer().is_some()
                 && node.ref_(self).parent().ref_(self).parent().ref_(self).kind() != SyntaxKind::ForInStatement;
-            let need_check_widened_type = node_name.ref_(self).as_has_elements().elements().is_empty();
+            let need_check_widened_type = node_name.ref_(self).as_has_elements().elements().ref_(self).is_empty();
             if need_check_initializer || need_check_widened_type {
                 let widened_type =
                     self.get_widened_type_for_variable_like_declaration(node, None)?;
@@ -554,7 +554,7 @@ impl TypeChecker {
                     && (initializer
                         .ref_(self).as_object_literal_expression()
                         .properties
-                        .is_empty()
+                        .ref_(self).is_empty()
                         || is_prototype_access(node_name, self))
                     && matches!(
                         symbol.ref_(self).maybe_exports().as_ref(),
@@ -766,10 +766,10 @@ impl TypeChecker {
             self.check_grammar_for_disallowed_let_or_const_statement(node);
         }
         try_for_each(
-            &node_as_variable_statement
+            &*node_as_variable_statement
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
-                .declarations,
+                .declarations.ref_(self),
             |&declaration, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(declaration))?;
                 Ok(None)

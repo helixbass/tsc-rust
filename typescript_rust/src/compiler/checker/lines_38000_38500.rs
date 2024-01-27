@@ -20,6 +20,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, ObjectFlags, OptionTry,
     ReadonlyTextRange, ScriptTarget, Signature, SignatureFlags, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, TypeFlags, TypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -73,7 +74,7 @@ impl TypeChecker {
             self.check_expression(node_as_switch_statement.expression, None, None)?;
         let expression_is_literal = self.is_literal_type(expression_type);
         try_for_each(
-            &node_as_switch_statement.case_block.ref_(self).as_case_block().clauses,
+            &*node_as_switch_statement.case_block.ref_(self).as_case_block().clauses.ref_(self),
             |&clause: &Id<Node>, _| -> io::Result<Option<()>> {
                 if clause.ref_(self).kind() == SyntaxKind::DefaultClause && !has_duplicate_default_clause {
                     if first_default_clause.is_none() {
@@ -117,7 +118,7 @@ impl TypeChecker {
                 let clause_ref = clause.ref_(self);
                 let clause_as_case_or_default_clause = clause_ref.as_case_or_default_clause();
                 try_for_each(
-                    &clause_as_case_or_default_clause.statements(),
+                    &*clause_as_case_or_default_clause.statements().ref_(self),
                     |&statement: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(statement))?;
                         Ok(None)
@@ -330,7 +331,7 @@ impl TypeChecker {
         if let Some(type_declaration) = type_declaration
             .filter(|type_declaration| is_class_like(&type_declaration.ref_(self)))
         {
-            for &member in &type_declaration.ref_(self).as_class_like_declaration().members() {
+            for &member in &*type_declaration.ref_(self).as_class_like_declaration().members().ref_(self) {
                 if !is_static(member, self) && !self.has_bindable_name(member)? {
                     let symbol = self.get_symbol_of_node(member)?.unwrap();
                     self.check_index_constraint_for_property(
@@ -786,7 +787,7 @@ impl TypeChecker {
         node: Id<Node>, /*ClassExpression*/
     ) -> io::Result<()> {
         try_for_each(
-            &node.ref_(self).as_class_expression().members(),
+            &*node.ref_(self).as_class_expression().members().ref_(self),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)
@@ -804,16 +805,16 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_class_declaration = node_ref.as_class_declaration();
         if some(
-            node.ref_(self).maybe_decorators().as_double_deref(),
+            node.ref_(self).maybe_decorators().refed(self).as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) && some(
-            Some(&node_as_class_declaration.members()),
+            Some(&node_as_class_declaration.members().ref_(self)),
             Some(|&p: &Id<Node>| {
                 has_static_modifier(p, self) && is_private_identifier_class_element_declaration(p, self)
             }),
         ) {
             self.grammar_error_on_node(
-                node.ref_(self).maybe_decorators().as_ref().unwrap()[0],
+                node.ref_(self).maybe_decorators().as_ref().unwrap().ref_(self)[0],
                 &Diagnostics::Class_decorators_can_t_be_used_with_static_private_identifier_Consider_removing_the_experimental_decorator,
                 None,
             );
@@ -829,7 +830,7 @@ impl TypeChecker {
         }
         self.check_class_like_declaration(node)?;
         try_for_each(
-            &node_as_class_declaration.members(),
+            &*node_as_class_declaration.members().ref_(self),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)
@@ -875,7 +876,7 @@ impl TypeChecker {
             try_maybe_for_each(
                 base_type_node_as_expression_with_type_arguments
                     .maybe_type_arguments()
-                    .as_ref(),
+                    .refed(self).as_deref(),
                 |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(type_argument))?;
                     Ok(None)
@@ -910,13 +911,13 @@ impl TypeChecker {
                 if some(
                     base_type_node_as_expression_with_type_arguments
                         .maybe_type_arguments()
-                        .as_double_deref(),
+                        .refed(self).as_double_deref(),
                     Option::<fn(&Id<Node>) -> bool>::None,
                 ) {
                     try_maybe_for_each(
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
-                            .as_ref(),
+                            .refed(self).as_deref(),
                         |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                             self.check_source_element(Some(type_argument))?;
                             Ok(None)
@@ -926,7 +927,7 @@ impl TypeChecker {
                         static_base_type,
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
-                            .as_double_deref(),
+                            .refed(self).as_double_deref(),
                         base_type_node,
                     )? {
                         if !self.check_type_argument_constraints(
@@ -1010,7 +1011,7 @@ impl TypeChecker {
                         static_base_type,
                         base_type_node_as_expression_with_type_arguments
                             .maybe_type_arguments()
-                            .as_double_deref(),
+                            .refed(self).as_double_deref(),
                         base_type_node,
                     )?;
                     if try_for_each_bool(

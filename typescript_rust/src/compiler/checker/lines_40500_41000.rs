@@ -818,7 +818,7 @@ impl TypeChecker {
                 }
                 if is_call_expression(&parent.ref_(self))
                     && is_bindable_object_define_property_call(parent, self)
-                    && parent.ref_(self).as_call_expression().arguments[1] == node
+                    && parent.ref_(self).as_call_expression().arguments.ref_(self)[1] == node
                 {
                     return self.get_symbol_of_node(parent);
                 }

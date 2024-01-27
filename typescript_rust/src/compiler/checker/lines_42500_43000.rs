@@ -86,7 +86,7 @@ impl TypeChecker {
     ) -> bool {
         let node_modifiers = node.ref_(self).maybe_modifiers();
         let node_modifiers = node_modifiers.as_ref().unwrap();
-        node_modifiers.len() > 1 || node_modifiers[0].ref_(self).kind() != allowed_modifier
+        node_modifiers.ref_(self).len() > 1 || node_modifiers.ref_(self)[0].ref_(self).kind() != allowed_modifier
     }
 
     pub(super) fn check_grammar_async_modifier(
@@ -117,10 +117,10 @@ impl TypeChecker {
         diag: Option<&'static DiagnosticMessage>,
     ) -> bool {
         let diag = diag.unwrap_or(&Diagnostics::Trailing_comma_not_allowed);
-        if let Some(list) = list.filter(|list| list.has_trailing_comma) {
+        if let Some(list) = list.filter(|list| list.ref_(self).has_trailing_comma) {
             return self.grammar_error_at_pos(
-                list[0],
-                list.end() - TryInto::<isize>::try_into(",".len()).unwrap(),
+                list.ref_(self)[0],
+                list.ref_(self).end() - TryInto::<isize>::try_into(",".len()).unwrap(),
                 TryInto::<isize>::try_into(",".len()).unwrap(),
                 diag,
                 None,
@@ -135,12 +135,12 @@ impl TypeChecker {
         file: Id<Node>, /*SourceFile*/
     ) -> bool {
         if let Some(type_parameters) =
-            type_parameters.filter(|type_parameters| type_parameters.is_empty())
+            type_parameters.filter(|type_parameters| type_parameters.ref_(self).is_empty())
         {
-            let start = type_parameters.pos() - TryInto::<isize>::try_into("<".len()).unwrap();
+            let start = type_parameters.ref_(self).pos() - TryInto::<isize>::try_into("<".len()).unwrap();
             let end = skip_trivia(
                 &file.ref_(self).as_source_file().text_as_chars(),
-                type_parameters.end(),
+                type_parameters.ref_(self).end(),
                 None,
                 None,
                 None,
@@ -161,10 +161,10 @@ impl TypeChecker {
         parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<bool> {
         let mut seen_optional_parameter = false;
-        let parameter_count = parameters.len();
+        let parameter_count = parameters.ref_(self).len();
 
         for i in 0..parameter_count {
-            let parameter = parameters[i];
+            let parameter = parameters.ref_(self)[i];
             let parameter_ref = parameter.ref_(self);
             let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
             if let Some(parameter_dot_dot_dot_token) = parameter_as_parameter_declaration
@@ -257,10 +257,10 @@ impl TypeChecker {
             let use_strict_directive = node_as_function_like_declaration
                 .maybe_body()
                 .filter(|node_body| is_block(&node_body.ref_(self)))
-                .and_then(|node_body| find_use_strict_prologue(&node_body.ref_(self).as_block().statements, self));
+                .and_then(|node_body| find_use_strict_prologue(&node_body.ref_(self).as_block().statements.ref_(self), self));
             if let Some(use_strict_directive) = use_strict_directive {
                 let non_simple_parameters =
-                    self.get_non_simple_parameters(&node_as_function_like_declaration.parameters());
+                    self.get_non_simple_parameters(&node_as_function_like_declaration.parameters().ref_(self));
                 if length(Some(&*non_simple_parameters)) > 0 {
                     for_each(
                         &non_simple_parameters,
@@ -329,11 +329,10 @@ impl TypeChecker {
         Ok(self.check_grammar_decorators_and_modifiers(node)
             || self.check_grammar_type_parameter_list(
                 node_as_signature_declaration
-                    .maybe_type_parameters()
-                    .as_deref(),
+                    .maybe_type_parameters(),
                 file,
             )
-            || self.check_grammar_parameter_list(&node_as_signature_declaration.parameters())?
+            || self.check_grammar_parameter_list(node_as_signature_declaration.parameters())?
             || self.check_grammar_arrow_function(node, file)
             || is_function_like_declaration(&node.ref_(self))
                 && self.check_grammar_for_use_strict_simple_parameter_list(node))
@@ -347,8 +346,7 @@ impl TypeChecker {
         self.check_grammar_class_declaration_heritage_clauses(node)
             || self.check_grammar_type_parameter_list(
                 node.ref_(self).as_has_type_parameters()
-                    .maybe_type_parameters()
-                    .as_deref(),
+                    .maybe_type_parameters(),
                 file,
             )
     }
@@ -368,9 +366,9 @@ impl TypeChecker {
             .maybe_type_parameters()
             .as_ref()
             .filter(|node_type_parameters| {
-                !(node_type_parameters.len() > 1
-                    || node_type_parameters.has_trailing_comma
-                    || node_type_parameters[0]
+                !(node_type_parameters.ref_(self).len() > 1
+                    || node_type_parameters.ref_(self).has_trailing_comma
+                    || node_type_parameters.ref_(self)[0]
                         .ref_(self).as_type_parameter_declaration()
                         .constraint
                         .is_some())
@@ -383,7 +381,7 @@ impl TypeChecker {
                 &[Extension::Mts.to_str(), Extension::Cts.to_str()],
             ) {
                 self.grammar_error_on_node(
-                    node_type_parameters[0],
+                    node_type_parameters.ref_(self)[0],
                     &Diagnostics::This_syntax_is_reserved_in_files_with_the_mts_or_cts_extension_Add_a_trailing_comma_or_explicit_constraint,
                     None,
                 );
@@ -415,8 +413,8 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let node_ref = node.ref_(self);
         let node_as_signature_declaration = node_ref.as_signature_declaration();
-        let parameter = node_as_signature_declaration.parameters().get(0).cloned();
-        if node_as_signature_declaration.parameters().len() != 1 {
+        let parameter = node_as_signature_declaration.parameters().ref_(self).get(0).cloned();
+        if node_as_signature_declaration.parameters().ref_(self).len() != 1 {
             if let Some(parameter) = parameter.as_ref() {
                 return Ok(self.grammar_error_on_node(
                     parameter.ref_(self).as_parameter_declaration().name(),
@@ -432,7 +430,7 @@ impl TypeChecker {
             }
         }
         self.check_grammar_for_disallowed_trailing_comma(
-            Some(&node_as_signature_declaration.parameters()),
+            Some(node_as_signature_declaration.parameters()),
             Some(&Diagnostics::An_index_signature_cannot_have_a_trailing_comma),
         );
         let parameter = parameter.unwrap();
@@ -525,13 +523,13 @@ impl TypeChecker {
         type_arguments: Option<Id<NodeArray> /*<TypeNode>*/>,
     ) -> bool {
         if let Some(type_arguments) =
-            type_arguments.filter(|type_arguments| type_arguments.is_empty())
+            type_arguments.filter(|type_arguments| type_arguments.ref_(self).is_empty())
         {
             let source_file = get_source_file_of_node(node, self);
-            let start = type_arguments.pos() - TryInto::<isize>::try_into("<".len()).unwrap();
+            let start = type_arguments.ref_(self).pos() - TryInto::<isize>::try_into("<".len()).unwrap();
             let end = skip_trivia(
                 &source_file.ref_(self).as_source_file().text_as_chars(),
-                type_arguments.end(),
+                type_arguments.ref_(self).end(),
                 None,
                 None,
                 None,
@@ -581,7 +579,7 @@ impl TypeChecker {
         args: Option<Id<NodeArray> /*<Expression>*/>,
     ) -> bool {
         if let Some(args) = args {
-            for &arg in args {
+            for &arg in &*args.ref_(self) {
                 if arg.ref_(self).kind() == SyntaxKind::OmittedExpression {
                     return self.grammar_error_at_pos(
                         arg,
@@ -609,24 +607,24 @@ impl TypeChecker {
     ) -> bool {
         let node_ref = node.ref_(self);
         let node_as_heritage_clause = node_ref.as_heritage_clause();
-        let types = &node_as_heritage_clause.types;
+        let types = node_as_heritage_clause.types;
         if self.check_grammar_for_disallowed_trailing_comma(Some(types), None) {
             return true;
         }
         if
         /*types &&*/
-        types.is_empty() {
+        types.ref_(self).is_empty() {
             let list_type = token_to_string(node_as_heritage_clause.token);
             return self.grammar_error_at_pos(
                 node,
-                types.pos(),
+                types.ref_(self).pos(),
                 0,
                 &Diagnostics::_0_list_cannot_be_empty,
                 Some(vec![list_type.unwrap().to_owned()]),
             );
         }
         some(
-            Some(&**types),
+            Some(&*types.ref_(self)),
             Some(|&type_: &Id<Node>| self.check_grammar_expression_with_type_arguments(type_)),
         )
     }
@@ -639,7 +637,7 @@ impl TypeChecker {
             node,
             node.ref_(self).as_expression_with_type_arguments()
                 .maybe_type_arguments()
-                .as_deref(),
+                .refed(self).as_deref(),
         )
     }
 
@@ -654,7 +652,7 @@ impl TypeChecker {
             if let Some(node_heritage_clauses) =
                 node.ref_(self).as_class_like_declaration().maybe_heritage_clauses()
             {
-                for &heritage_clause in &node_heritage_clauses {
+                for &heritage_clause in &*node_heritage_clauses.ref_(self) {
                     let heritage_clause_ref = heritage_clause.ref_(self);
                     let heritage_clause_as_heritage_clause = heritage_clause_ref.as_heritage_clause();
                     if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
@@ -716,7 +714,7 @@ impl TypeChecker {
         if let Some(node_heritage_clauses) =
             node.ref_(self).as_interface_declaration().maybe_heritage_clauses()
         {
-            for &heritage_clause in &node_heritage_clauses {
+            for &heritage_clause in &*node_heritage_clauses.ref_(self) {
                 let heritage_clause_ref = heritage_clause.ref_(self);
                 let heritage_clause_as_heritage_clause = heritage_clause_ref.as_heritage_clause();
                 if heritage_clause_as_heritage_clause.token == SyntaxKind::ExtendsKeyword {
@@ -838,7 +836,7 @@ impl TypeChecker {
     ) -> bool {
         let mut seen: HashMap<__String, DeclarationMeaning> = HashMap::new();
 
-        for prop in &node.ref_(self).as_object_literal_expression().properties {
+        for prop in &*node.ref_(self).as_object_literal_expression().properties.ref_(self) {
             if prop.ref_(self).kind() == SyntaxKind::SpreadAssignment {
                 if in_destructuring {
                     let expression =

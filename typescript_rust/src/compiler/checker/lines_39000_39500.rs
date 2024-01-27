@@ -36,7 +36,7 @@ impl TypeChecker {
             return Ok(());
         }
         let constructor = self.find_constructor_declaration(node);
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             if get_effective_modifier_flags(member, self).intersects(ModifierFlags::Ambient) {
                 continue;
             }
@@ -165,7 +165,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_interface_declaration
                 .maybe_type_parameters()
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
         )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
@@ -210,7 +210,7 @@ impl TypeChecker {
             self.check_object_type_for_duplicate_declarations(node);
         }
         try_maybe_for_each(
-            get_interface_base_type_nodes(node, self).as_ref(),
+            get_interface_base_type_nodes(node, self).refed(self).as_deref(),
             |&heritage_element: &Id<Node>, _| -> io::Result<Option<()>> {
                 let heritage_element_ref = heritage_element.ref_(self);
                 let heritage_element_as_expression_with_type_arguments = heritage_element_ref.as_expression_with_type_arguments();
@@ -232,7 +232,7 @@ impl TypeChecker {
         )?;
 
         try_for_each(
-            &node_as_interface_declaration.members,
+            &*node_as_interface_declaration.members.ref_(self),
             |&member, _| -> io::Result<_> {
                 self.check_source_element(Some(member))?;
                 Ok(Option::<()>::None)
@@ -262,7 +262,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
         )?;
         if node_as_type_alias_declaration.type_.ref_(self).kind() == SyntaxKind::IntrinsicKeyword {
             if !intrinsic_type_kinds.contains_key(
@@ -273,7 +273,7 @@ impl TypeChecker {
             ) || length(
                 node_as_type_alias_declaration
                     .maybe_type_parameters()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
             ) != 1
             {
                 self.error(
@@ -302,7 +302,7 @@ impl TypeChecker {
         {
             node_links.borrow_mut().flags |= NodeCheckFlags::EnumValuesComputed;
             let mut auto_value: Option<Number> = Some(Number::new(0.0));
-            for &member in &node.ref_(self).as_enum_declaration().members {
+            for &member in &*node.ref_(self).as_enum_declaration().members.ref_(self) {
                 let value = self.compute_member_value(member, auto_value)?;
                 self.get_node_links(member).borrow_mut().enum_member_value = value.clone();
                 auto_value = if let Some(StringOrNumber::Number(value)) = value.as_ref() {
@@ -658,7 +658,7 @@ impl TypeChecker {
         let node_as_enum_declaration = node_ref.as_enum_declaration();
         self.check_collisions_for_declaration_name(node, node_as_enum_declaration.maybe_name());
         self.check_exports_on_merged_declarations(node)?;
-        for &member in &node_as_enum_declaration.members {
+        for &member in &*node_as_enum_declaration.members.ref_(self) {
             self.check_enum_member(member);
         }
 
@@ -699,11 +699,11 @@ impl TypeChecker {
 
                     let declaration_ref = declaration.ref_(self);
                     let enum_declaration = declaration_ref.as_enum_declaration();
-                    if enum_declaration.members.is_empty() {
+                    if enum_declaration.members.ref_(self).is_empty() {
                         return None;
                     }
 
-                    let first_enum_member = enum_declaration.members[0];
+                    let first_enum_member = enum_declaration.members.ref_(self)[0];
                     let first_enum_member_ref = first_enum_member.ref_(self);
                     let first_enum_member_as_enum_member = first_enum_member_ref.as_enum_member();
                     if first_enum_member_as_enum_member.initializer.is_none() {
@@ -874,7 +874,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Transient);
                     if check_body {
                         if let Some(node_body) = node_as_module_declaration.body {
-                            for &statement in &node_body.ref_(self).as_module_block().statements {
+                            for &statement in &*node_body.ref_(self).as_module_block().statements.ref_(self) {
                                 self.check_module_augmentation_element(
                                     statement,
                                     is_global_augmentation,
@@ -933,11 +933,11 @@ impl TypeChecker {
     ) -> io::Result<()> {
         match node.ref_(self).kind() {
             SyntaxKind::VariableStatement => {
-                for &decl in &node
+                for &decl in &*node
                     .ref_(self).as_variable_statement()
                     .declaration_list
                     .ref_(self).as_variable_declaration_list()
-                    .declarations
+                    .declarations.ref_(self)
                 {
                     self.check_module_augmentation_element(decl, is_global_augmentation)?;
                 }
@@ -959,7 +959,7 @@ impl TypeChecker {
             SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
                 let name = node.ref_(self).as_named_declaration().maybe_name();
                 if is_binding_pattern(name.refed(self).as_deref()) {
-                    for &el in &name.unwrap().ref_(self).as_has_elements().elements() {
+                    for &el in &*name.unwrap().ref_(self).as_has_elements().elements().ref_(self) {
                         self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }
                 }

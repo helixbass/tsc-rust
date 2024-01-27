@@ -372,7 +372,7 @@ impl TypeChecker {
                         )?;
                         if module_existed.is_some() {
                             try_for_each(
-                                &import_clause_named_bindings.ref_(self).as_named_imports().elements,
+                                &*import_clause_named_bindings.ref_(self).as_named_imports().elements.ref_(self),
                                 |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                                     self.check_import_binding(element)?;
                                     Ok(None)
@@ -501,7 +501,7 @@ impl TypeChecker {
             && matches!(
                 node_as_export_declaration.export_clause,
                 Some(node_export_clause) if is_named_exports(&node_export_clause.ref_(self)) &&
-                    length(Some(&node_export_clause.ref_(self).as_named_exports().elements)) > 0
+                    length(Some(&*node_export_clause.ref_(self).as_named_exports().elements.ref_(self))) > 0
             )
             && self.language_version == ScriptTarget::ES3
         {
@@ -517,7 +517,7 @@ impl TypeChecker {
                 .filter(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self)))
             {
                 try_for_each(
-                    &node_export_clause.ref_(self).as_named_exports().elements,
+                    &*node_export_clause.ref_(self).as_named_exports().elements.ref_(self),
                     |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_export_specifier(element)?;
                         Ok(None)
@@ -701,7 +701,7 @@ impl TypeChecker {
         &self,
         source_file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        for &statement in &source_file.ref_(self).as_source_file().statements() {
+        for &statement in &*source_file.ref_(self).as_source_file().statements().ref_(self) {
             if self.can_convert_import_declaration_to_type_only(statement)?
                 || self.can_convert_import_equals_declaration_to_type_only(statement)?
             {

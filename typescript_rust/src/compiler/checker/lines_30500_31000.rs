@@ -25,6 +25,7 @@ use crate::{
     NodeFlags, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -394,13 +395,13 @@ impl TypeChecker {
             if length(
                 node_as_jsx_opening_like_element
                     .maybe_type_arguments()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
             ) > 0
             {
                 try_maybe_for_each(
                     node_as_jsx_opening_like_element
                         .maybe_type_arguments()
-                        .as_ref(),
+                        .refed(self).as_deref(),
                     |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(type_argument))?;
                         Ok(None)
@@ -409,17 +410,16 @@ impl TypeChecker {
                 self.diagnostics().add(self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
-                        node_as_jsx_opening_like_element
+                        &node_as_jsx_opening_like_element
                             .maybe_type_arguments()
-                            .as_ref()
-                            .unwrap(),
+                            .unwrap().ref_(self),
                         &Diagnostics::Expected_0_type_arguments_but_got_1,
                         Some(vec![
                             0usize.to_string(),
                             length(
                                 node_as_jsx_opening_like_element
                                     .maybe_type_arguments()
-                                    .as_double_deref(),
+                                    .refed(self).as_double_deref(),
                             )
                             .to_string(),
                         ]),
@@ -788,10 +788,9 @@ impl TypeChecker {
         if !self.check_grammar_type_arguments(
             node,
             node.ref_(self).as_has_type_arguments()
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         ) {
-            self.check_grammar_arguments(node.ref_(self).as_has_arguments().maybe_arguments().as_deref());
+            self.check_grammar_arguments(node.ref_(self).as_has_arguments().maybe_arguments());
         }
 
         let signature = self.get_resolved_signature_(node, None, check_mode)?;
@@ -830,7 +829,7 @@ impl TypeChecker {
 
         if is_in_js_file(Some(&node.ref_(self))) && self.is_common_js_require(node)? {
             return self.resolve_external_module_type_by_literal(
-                node.ref_(self).as_has_arguments().maybe_arguments().unwrap()[0],
+                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().ref_(self)[0],
             );
         }
 

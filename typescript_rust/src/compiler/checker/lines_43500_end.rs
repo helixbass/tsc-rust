@@ -48,7 +48,7 @@ impl TypeChecker {
             }
         } else {
             let elements = name.ref_(self).as_has_elements().elements();
-            for element in &elements {
+            for element in &*elements.ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     return self.check_es_module_marker(element.ref_(self).as_binding_element().name());
                 }
@@ -71,7 +71,7 @@ impl TypeChecker {
             }
         } else {
             let elements = name.ref_(self).as_has_elements().elements();
-            for element in &elements {
+            for element in &*elements.ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.check_grammar_name_in_let_or_const_declarations(
                         element.ref_(self).as_binding_element().name(),
@@ -90,7 +90,7 @@ impl TypeChecker {
         let declaration_list_as_variable_declaration_list = declaration_list_ref.as_variable_declaration_list();
         let declarations = &declaration_list_as_variable_declaration_list.declarations;
         if self.check_grammar_for_disallowed_trailing_comma(
-            Some(&declaration_list_as_variable_declaration_list.declarations),
+            Some(declaration_list_as_variable_declaration_list.declarations),
             None,
         ) {
             return true;
@@ -98,12 +98,12 @@ impl TypeChecker {
 
         if declaration_list_as_variable_declaration_list
             .declarations
-            .is_empty()
+            .ref_(self).is_empty()
         {
             return self.grammar_error_at_pos(
                 declaration_list,
-                declarations.pos(),
-                declarations.end() - declarations.pos(),
+                declarations.ref_(self).pos(),
+                declarations.ref_(self).end() - declarations.ref_(self).pos(),
                 &Diagnostics::Variable_declaration_list_cannot_be_empty,
                 None,
             );
@@ -287,8 +287,8 @@ impl TypeChecker {
             // })
             .map(|node_type_parameters| {
                 Box::new(ReadonlyTextRangeConcrete::new(
-                    node_type_parameters.pos(),
-                    node_type_parameters.end(),
+                    node_type_parameters.ref_(self).pos(),
+                    node_type_parameters.ref_(self).end(),
                 )) as Box<dyn ReadonlyTextRange>
             })
             .or_else(|| {
@@ -364,7 +364,7 @@ impl TypeChecker {
                     == SyntaxKind::InKeyword
         } {
             return Ok(self.grammar_error_on_node(
-                node.ref_(self).parent().ref_(self).as_has_members().members()[0],
+                node.ref_(self).parent().ref_(self).as_has_members().members().ref_(self)[0],
                 &Diagnostics::A_mapped_type_may_not_declare_properties_or_methods,
                 None,
             ));
@@ -487,7 +487,7 @@ impl TypeChecker {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> bool {
-        for &decl in &file.ref_(self).as_source_file().statements() {
+        for &decl in &*file.ref_(self).as_source_file().statements().ref_(self) {
             if is_declaration(decl, self) || decl.ref_(self).kind() == SyntaxKind::VariableStatement {
                 if self.check_grammar_top_level_element_for_required_declare_modifier(decl) {
                     return true;
@@ -687,7 +687,7 @@ impl TypeChecker {
         named_bindings: Id<Node>, /*NamedImportsOrExports*/
     ) -> bool {
         for_each_bool(
-            &named_bindings.ref_(self).as_has_elements().elements(),
+            &*named_bindings.ref_(self).as_has_elements().elements().ref_(self),
             |&specifier: &Id<Node>, _| {
                 if specifier.ref_(self).as_has_is_type_only().is_type_only() {
                     return self.grammar_error_on_first_token(
@@ -727,12 +727,12 @@ impl TypeChecker {
             );
         }
 
-        let node_arguments = &node_as_call_expression.arguments;
+        let node_arguments = node_as_call_expression.arguments;
         if self.module_kind != ModuleKind::ESNext {
             self.check_grammar_for_disallowed_trailing_comma(Some(node_arguments), None);
 
-            if node_arguments.len() > 1 {
-                let assertion_argument = node_arguments[1];
+            if node_arguments.ref_(self).len() > 1 {
+                let assertion_argument = node_arguments.ref_(self)[1];
                 return self.grammar_error_on_node(
                     assertion_argument,
                     &Diagnostics::Dynamic_imports_only_support_a_second_argument_when_the_module_option_is_set_to_esnext,
@@ -741,7 +741,7 @@ impl TypeChecker {
             }
         }
 
-        if node_arguments.is_empty() || node_arguments.len() > 2 {
+        if node_arguments.ref_(self).is_empty() || node_arguments.ref_(self).len() > 2 {
             return self.grammar_error_on_node(
                 node,
                 &Diagnostics::Dynamic_imports_can_only_accept_a_module_specifier_and_an_optional_assertion_as_arguments,
@@ -749,7 +749,7 @@ impl TypeChecker {
             );
         }
 
-        let spread_element = find(node_arguments, |argument: &Id<Node>, _| {
+        let spread_element = find(&node_arguments.ref_(self), |argument: &Id<Node>, _| {
             is_spread_element(&argument.ref_(self))
         }).copied();
         if let Some(spread_element) = spread_element {

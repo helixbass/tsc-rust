@@ -53,7 +53,7 @@ mod _NodeArrayDeriveTraceScope {
             end: isize,
             has_trailing_comma: bool,
             transform_flags: Option<TransformFlags>,
-        ) -> Gc<Self> {
+        ) -> Id<Self> {
             let ret = Gc::new(NodeArray {
                 _nodes: nodes,
                 pos: Cell::new(pos),

@@ -1189,7 +1189,7 @@ impl TypeChecker {
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
         ) {
             let accessors = get_all_accessor_declarations(
-                &node.ref_(self).parent().ref_(self).as_class_like_declaration().members(),
+                &node.ref_(self).parent().ref_(self).as_class_like_declaration().members().ref_(self),
                 node,
                 self,
             );
@@ -1218,7 +1218,7 @@ impl TypeChecker {
         let mut last_readonly: Option<Id<Node>> = None;
         let mut last_override: Option<Id<Node>> = None;
         let mut flags = ModifierFlags::None;
-        for &modifier in node.ref_(self).maybe_modifiers().as_ref().unwrap() {
+        for &modifier in &*node.ref_(self).maybe_modifiers().unwrap().ref_(self) {
             if modifier.ref_(self).kind() != SyntaxKind::ReadonlyKeyword {
                 if matches!(
                     node.ref_(self).kind(),

@@ -16,7 +16,7 @@ use crate::{
     CancellationToken, Diagnostic, Diagnostics, HasStatementsInterface,
     ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
-    InArena,
+    InArena, OptionInArena,
 };
 
 impl TypeChecker {
@@ -53,8 +53,8 @@ impl TypeChecker {
                 node.ref_(self).maybe_js_doc().as_ref(),
                 |jsdoc: &Id<Node>, _| -> io::Result<Option<()>> {
                     let jsdoc_ref = jsdoc.ref_(self);
-                    let tags = jsdoc_ref.as_jsdoc().tags.as_ref();
-                    try_maybe_for_each(tags, |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
+                    let tags = jsdoc_ref.as_jsdoc().tags;
+                    try_maybe_for_each(tags.refed(self).as_deref(), |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(tag))?;
                         Ok(None)
                     })?;
@@ -347,7 +347,7 @@ impl TypeChecker {
 
         let parent = node.ref_(self).parent();
         if is_parameter(&parent.ref_(self)) && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self)) {
-            if *last(&parent.ref_(self).parent().ref_(self).as_jsdoc_function_type().parameters()) != parent {
+            if *last(&parent.ref_(self).parent().ref_(self).as_jsdoc_function_type().parameters().ref_(self)) != parent {
                 self.error(
                     Some(node),
                     &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
@@ -383,7 +383,7 @@ impl TypeChecker {
         if match host {
             None => true,
             Some(host) => !matches!(
-                last(&host.ref_(self).as_signature_declaration().parameters()).ref_(self).maybe_symbol(),
+                last(&host.ref_(self).as_signature_declaration().parameters().ref_(self)).ref_(self).maybe_symbol(),
                 Some(symbol) if symbol == param
             ),
         } {
@@ -417,7 +417,7 @@ impl TypeChecker {
                             .ref_(self).as_jsdoc_callback_tag()
                             .type_expression
                             .ref_(self).as_jsdoc_signature()
-                            .parameters,
+                            .parameters.ref_(self),
                     )
                     .copied()
                 } else {
@@ -425,7 +425,7 @@ impl TypeChecker {
                         &**host
                             .unwrap()
                             .ref_(self).as_signature_declaration()
-                            .parameters(),
+                            .parameters().ref_(self),
                     )
                     .copied()
                 };
@@ -610,7 +610,7 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_source_file = node_ref.as_source_file();
             try_for_each(
-                &node_as_source_file.statements(),
+                &*node_as_source_file.statements().ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
