@@ -167,7 +167,7 @@ impl Program {
             return None;
         }
         self.for_each_resolved_project_reference(|resolved_ref: Gc<ResolvedProjectReference>| {
-            let resolved_ref_command_line_options_ref = resolved_ref.command_line.options.ref_(self);
+            let resolved_ref_command_line_options_ref = resolved_ref.command_line.ref_(self).options.ref_(self);
             let out = out_file(&resolved_ref_command_line_options_ref)?;
             if out.is_empty() {
                 return None;
@@ -675,7 +675,7 @@ impl Program {
              index: usize| {
                 let new_ref = parent
                     .map(|parent| {
-                        parent.command_line.project_references.as_ref().unwrap()[index].clone()
+                        parent.command_line.ref_(self).project_references.as_ref().unwrap()[index].clone()
                     })
                     .unwrap_or_else(|| {
                         self.maybe_project_references().as_ref().unwrap()[index].clone()
@@ -686,8 +686,8 @@ impl Program {
                         None => true,
                         Some(new_resolved_ref) => {
                             new_resolved_ref.source_file != old_resolved_ref.source_file
-                             || old_resolved_ref.command_line.file_names
-                                != new_resolved_ref.command_line.file_names
+                             || old_resolved_ref.command_line.ref_(self).file_names
+                                != new_resolved_ref.command_line.ref_(self).file_names
                         }
                     }
                 } else {
@@ -703,7 +703,7 @@ impl Program {
                         )
                         .unwrap()
                         .command_line
-                        .project_references
+                        .ref_(self).project_references
                         .clone()
                     } else {
                         self.maybe_project_references().clone()

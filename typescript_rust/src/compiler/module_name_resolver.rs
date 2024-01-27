@@ -534,7 +534,7 @@ pub fn resolve_type_reference_directive(
 ) -> io::Result<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
-        options = redirected_reference.command_line.options.clone();
+        options = redirected_reference.command_line.ref_(arena).options.clone();
     }
 
     let containing_directory =
@@ -1065,7 +1065,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
                     None => true,
                     Some(options) => options_have_module_resolution_changes(
                         &options.ref_(self),
-                        &redirected_reference.command_line.options.ref_(self),
+                        &redirected_reference.command_line.ref_(self).options.ref_(self),
                     ),
                 } {
                     Gc::new(GcCell::new(HashMap::new()))
@@ -1632,7 +1632,7 @@ pub fn resolve_module_name(
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference.as_ref() {
-        compiler_options = redirected_reference.command_line.options.clone();
+        compiler_options = redirected_reference.command_line.ref_(arena).options.clone();
     }
     if trace_enabled {
         trace(

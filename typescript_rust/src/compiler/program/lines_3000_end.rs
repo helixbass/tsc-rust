@@ -153,7 +153,7 @@ impl Program {
             Debug_.assert(resolutions.len() == module_names.len(), None);
             let options_for_file = if self.use_source_of_project_reference_redirect() {
                 self.get_redirect_reference_for_resolution(file)
-                    .map(|value| value.command_line.options.clone())
+                    .map(|value| value.command_line.ref_(self).options.clone())
             } else {
                 None
             }
@@ -340,7 +340,7 @@ impl Program {
         source_file_as_source_file.set_path(source_file_path.clone());
         source_file_as_source_file.set_resolved_path(Some(source_file_path.clone()));
         source_file_as_source_file.set_original_file_name(Some(ref_path));
-        let command_line = Gc::new(command_line.unwrap());
+        let command_line = self.alloc_parsed_command_line(command_line.unwrap());
 
         let resolved_ref = Gc::new(
             ResolvedProjectReferenceBuilder::default()
@@ -1552,7 +1552,7 @@ impl Program {
              index|
              -> Option<()> {
                 let ref_ = if let Some(parent) = parent {
-                    parent.command_line.project_references.clone().unwrap()
+                    parent.command_line.ref_(self).project_references.clone().unwrap()
                 } else {
                     self.maybe_project_references().clone().unwrap()
                 }[index]
@@ -1568,10 +1568,10 @@ impl Program {
                     return None;
                 }
                 let resolved_ref = resolved_ref.unwrap();
-                let options = resolved_ref.command_line.options;
+                let options = resolved_ref.command_line.ref_(self).options;
                 if options.ref_(self).composite != Some(true) || options.ref_(self).no_emit == Some(true) {
                     let inputs = if let Some(parent) = parent {
-                        parent.command_line.file_names.clone()
+                        parent.command_line.ref_(self).file_names.clone()
                     } else {
                         self.root_names().clone()
                     };
@@ -2209,7 +2209,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
             self.host_for_each_resolved_project_reference
                 .call(&mut |ref_| {
-                    let ref_command_line_options_ref = ref_.command_line.options.ref_(self);
+                    let ref_command_line_options_ref = ref_.command_line.ref_(self).options.ref_(self);
                     let out = out_file(&ref_command_line_options_ref);
                     if let Some(out) = out {
                         set_of_declaration_directories
@@ -2678,7 +2678,7 @@ pub(crate) fn create_prepend_nodes(
             if let Some(resolved_ref_opts) = resolved_ref_opts
             /*&& resolvedRefOpts.options*/
             {
-                let resolved_ref_opts_options_ref = resolved_ref_opts.options.ref_(arena);
+                let resolved_ref_opts_options_ref = resolved_ref_opts.ref_(arena).options.ref_(arena);
                 let out = out_file(&resolved_ref_opts_options_ref);
                 if out.filter(|out| !out.is_empty()).is_none() {
                     continue;
@@ -2690,7 +2690,7 @@ pub(crate) fn create_prepend_nodes(
                     declaration_file_path,
                     declaration_map_path,
                     build_info_path,
-                } = get_output_paths_for_bundle(&resolved_ref_opts.options.ref_(arena), true);
+                } = get_output_paths_for_bundle(&resolved_ref_opts.ref_(arena).options.ref_(arena), true);
                 let node = create_input_files(
                     read_file.clone(),
                     js_file_path.clone().unwrap(),

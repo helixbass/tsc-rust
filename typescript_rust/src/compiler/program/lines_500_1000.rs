@@ -496,7 +496,7 @@ fn for_each_project_reference_worker<TReturn>(
                 cb_ref,
                 cb_resolved_ref,
                 seen_resolved_refs,
-                resolved_ref.command_line.project_references.as_deref(),
+                resolved_ref.command_line.ref_(arena).project_references.as_deref(),
                 resolved_ref.maybe_references().as_deref(),
                 Some(&**resolved_ref),
                 arena,
@@ -558,7 +558,7 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
                 cb_ref,
                 cb_resolved_ref,
                 seen_resolved_refs,
-                resolved_ref.command_line.project_references.as_deref(),
+                resolved_ref.command_line.ref_(arena).project_references.as_deref(),
                 resolved_ref.maybe_references().as_deref(),
                 Some(&**resolved_ref),
                 arena,
@@ -1122,13 +1122,13 @@ impl Program {
                                 return Ok(());
                             }
                             let parsed_ref = parsed_ref.as_ref().unwrap();
-                            let parsed_ref_command_line_options_ref = parsed_ref.command_line.options.ref_(self);
+                            let parsed_ref_command_line_options_ref = parsed_ref.command_line.ref_(self).options.ref_(self);
                             let out = out_file(
                                 &parsed_ref_command_line_options_ref,
                             );
                             if self.use_source_of_project_reference_redirect() {
-                                if out.is_non_empty() || get_emit_module_kind(&parsed_ref.command_line.options.ref_(self)) == ModuleKind::None {
-                                    for file_name in &parsed_ref.command_line.file_names {
+                                if out.is_non_empty() || get_emit_module_kind(&parsed_ref.command_line.ref_(self).options.ref_(self)) == ModuleKind::None {
+                                    for file_name in &parsed_ref.command_line.ref_(self).file_names {
                                         self.process_project_reference_file(
                                             file_name,
                                             self.alloc_file_include_reason(FileIncludeReason::ProjectReferenceFile(
@@ -1151,19 +1151,19 @@ impl Program {
                                             }
                                         ))
                                     )?;
-                                } else if get_emit_module_kind(&parsed_ref.command_line.options.ref_(self)) == ModuleKind::None {
+                                } else if get_emit_module_kind(&parsed_ref.command_line.ref_(self).options.ref_(self)) == ModuleKind::None {
                                     let mut got_common_source_directory: Option<String> = Default::default();
-                                    for file_name in &parsed_ref.command_line.file_names {
+                                    for file_name in &parsed_ref.command_line.ref_(self).file_names {
                                         if !file_extension_is(file_name, Extension::Dts.to_str()) && !file_extension_is(file_name, Extension::Json.to_str()) {
                                             self.process_project_reference_file(
                                                 &get_output_declaration_file_name(
                                                     file_name,
-                                                    &parsed_ref.command_line,
+                                                    &parsed_ref.command_line.ref_(self),
                                                     !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                                                     Some(&mut || {
                                                         got_common_source_directory.get_or_insert_with(|| {
                                                             get_common_source_directory_of_config(
-                                                                &parsed_ref.command_line,
+                                                                &parsed_ref.command_line.ref_(self),
                                                                 !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                                                                 self,
                                                             )

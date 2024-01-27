@@ -14,6 +14,7 @@ use crate::{
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
+    ParsedCommandLine,
 };
 
 #[derive(Default)]
@@ -64,6 +65,7 @@ pub struct AllArenas {
     pub get_canonical_file_names: RefCell<Arena<Box<dyn GetCanonicalFileName>>>,
     pub emit_helper_factories: RefCell<Arena<EmitHelperFactory>>,
     pub transformation_context_on_substitute_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
+    pub parsed_command_lines: RefCell<Arena<ParsedCommandLine>>,
 }
 
 pub trait HasArena {
@@ -411,6 +413,14 @@ pub trait HasArena {
 
     fn alloc_transformation_context_on_substitute_node_overrider(&self, transformation_context_on_substitute_node_overrider: Box<dyn TransformationContextOnSubstituteNodeOverrider>) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
         self.arena().alloc_transformation_context_on_substitute_node_overrider(transformation_context_on_substitute_node_overrider)
+    }
+
+    fn parsed_command_line(&self, parsed_command_line: Id<ParsedCommandLine>) -> Ref<ParsedCommandLine> {
+        self.arena().parsed_command_line(parsed_command_line)
+    }
+
+    fn alloc_parsed_command_line(&self, parsed_command_line: ParsedCommandLine) -> Id<ParsedCommandLine> {
+        self.arena().alloc_parsed_command_line(parsed_command_line)
     }
 }
 
@@ -857,6 +867,16 @@ impl HasArena for AllArenas {
         let id = self.transformation_context_on_substitute_node_overriders.borrow_mut().alloc(transformation_context_on_substitute_node_overrider);
         id
     }
+
+    #[track_caller]
+    fn parsed_command_line(&self, parsed_command_line: Id<ParsedCommandLine>) -> Ref<ParsedCommandLine> {
+        Ref::map(self.parsed_command_lines.borrow(), |parsed_command_lines| &parsed_command_lines[parsed_command_line])
+    }
+
+    fn alloc_parsed_command_line(&self, parsed_command_line: ParsedCommandLine) -> Id<ParsedCommandLine> {
+        let id = self.parsed_command_lines.borrow_mut().alloc(parsed_command_line);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1207,6 +1227,14 @@ impl InArena for Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
         has_arena.transformation_context_on_substitute_node_overrider(*self)
+    }
+}
+
+impl InArena for Id<ParsedCommandLine> {
+    type Item = ParsedCommandLine;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ParsedCommandLine> {
+        has_arena.parsed_command_line(*self)
     }
 }
 

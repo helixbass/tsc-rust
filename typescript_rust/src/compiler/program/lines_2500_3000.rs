@@ -442,7 +442,7 @@ impl Program {
             let redirect_project = self.get_project_reference_redirect_project(&file_name);
             if let Some(redirect_project) = redirect_project.as_ref() {
                 if matches!(
-                    out_file(&redirect_project.command_line.options.ref_(self)),
+                    out_file(&redirect_project.command_line.ref_(self).options.ref_(self)),
                     Some(out_file) if !out_file.is_empty()
                 ) {
                     return Ok(None);
@@ -652,13 +652,13 @@ impl Program {
         referenced_project: &ResolvedProjectReference,
         file_name: &str,
     ) -> String {
-        let referenced_project_command_line_options_ref = referenced_project.command_line.options.ref_(self);
+        let referenced_project_command_line_options_ref = referenced_project.command_line.ref_(self).options.ref_(self);
         let out = out_file(&referenced_project_command_line_options_ref);
         out.non_empty().map_or_else(
             || {
                 get_output_declaration_file_name(
                     file_name,
-                    &referenced_project.command_line,
+                    &referenced_project.command_line.ref_(self),
                     !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                     Option::<&mut fn() -> String>::None,
                     self,
@@ -687,7 +687,7 @@ impl Program {
                         {
                             referenced_project
                                 .command_line
-                                .file_names
+                                .ref_(self).file_names
                                 .iter()
                                 .for_each(|f| {
                                     map_from_file_to_project_reference_redirects.insert(
@@ -743,7 +743,7 @@ impl Program {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
                     |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
-                        let resolved_ref_command_line_options_ref = resolved_ref.command_line.options.ref_(self);
+                        let resolved_ref_command_line_options_ref = resolved_ref.command_line.ref_(self).options.ref_(self);
                         let out = out_file(&resolved_ref_command_line_options_ref);
                         if let Some(out) = out {
                             let output_dts = change_extension(out, Extension::Dts.to_str());
@@ -761,7 +761,7 @@ impl Program {
                                 }
                                 got_common_source_directory =
                                     Some(get_common_source_directory_of_config(
-                                        &resolved_ref.command_line,
+                                        &resolved_ref.command_line.ref_(self),
                                         !CompilerHost::use_case_sensitive_file_names(
                                             &**self.host().ref_(self),
                                         ),
@@ -770,14 +770,14 @@ impl Program {
                                 got_common_source_directory.clone().unwrap()
                             };
                             for_each(
-                                &resolved_ref.command_line.file_names,
+                                &resolved_ref.command_line.ref_(self).file_names,
                                 |file_name: &String, _| -> Option<()> {
                                     if !file_extension_is(file_name, Extension::Dts.to_str())
                                         && !file_extension_is(file_name, Extension::Json.to_str())
                                     {
                                         let output_dts = get_output_declaration_file_name(
                                             file_name,
-                                            &resolved_ref.command_line,
+                                            &resolved_ref.command_line.ref_(self),
                                             !CompilerHost::use_case_sensitive_file_names(
                                                 &**self.host().ref_(self),
                                             ),

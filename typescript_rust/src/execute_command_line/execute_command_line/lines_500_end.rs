@@ -514,7 +514,7 @@ pub(super) fn create_watch_of_config_file(
     let mut watch_compiler_host =
         create_watch_compiler_host_of_config_file(CreateWatchCompilerHostOfConfigFileInput {
             config_file_name: config_parse_result
-                .options
+                .ref_(arena).options
                 .ref_(arena).config_file_path
                 .as_ref()
                 .unwrap(),
@@ -524,7 +524,7 @@ pub(super) fn create_watch_of_config_file(
             report_diagnostic: Some(&**report_diagnostic.ref_(arena)),
             report_watch_status: Some(create_watch_status_reporter(
                 system.clone(),
-                config_parse_result.options.clone().into(),
+                config_parse_result.ref_(arena).options.clone().into(),
                 arena,
             )),
             create_program: Option::<&dyn CreateProgram<BuilderProgramDummy>>::None,
