@@ -2074,7 +2074,7 @@ pub(super) fn update_host_for_use_source_of_project_reference_redirect(
     host: HostForUseSourceOfProjectReferenceRedirect,
     arena: &impl HasArena,
 ) -> UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
-    let overrider: Gc<Box<dyn ModuleResolutionHostOverrider>> = Gc::new(Box::new(
+    let overrider: Id<Box<dyn ModuleResolutionHostOverrider>> = arena.alloc_module_resolution_host_overrider(Box::new(
         UpdateHostForUseSourceOfProjectReferenceRedirectOverrider::new(
             host.compiler_host.clone(),
             host.get_symlink_cache.clone(),
@@ -2124,8 +2124,8 @@ pub(super) fn update_host_for_use_source_of_project_reference_redirect(
 
 pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
     pub on_program_create_complete: Rc<dyn Fn()>,
-    pub directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
-    pub file_exists: Gc<Box<dyn ModuleResolutionHostOverrider>>,
+    pub directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    pub file_exists: Id<Box<dyn ModuleResolutionHostOverrider>>,
 }
 
 #[derive(Trace, Finalize)]

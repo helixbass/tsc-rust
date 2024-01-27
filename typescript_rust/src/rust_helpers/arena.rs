@@ -11,7 +11,7 @@ use crate::{
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
-    ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath,
+    ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
 };
 
 #[derive(Default)]
@@ -55,6 +55,7 @@ pub struct AllArenas {
     pub type_predicates: RefCell<Arena<TypePredicate>>,
     pub active_labels: RefCell<Arena<ActiveLabel>>,
     pub to_paths: RefCell<Arena<Box<dyn ToPath>>>,
+    pub module_resolution_host_overriders: RefCell<Arena<Box<dyn ModuleResolutionHostOverrider>>>,
 }
 
 pub trait HasArena {
@@ -346,6 +347,14 @@ pub trait HasArena {
 
     fn alloc_to_path(&self, to_path: Box<dyn ToPath>) -> Id<Box<dyn ToPath>> {
         self.arena().alloc_to_path(to_path)
+    }
+
+    fn module_resolution_host_overrider(&self, module_resolution_host_overrider: Id<Box<dyn ModuleResolutionHostOverrider>>) -> Ref<Box<dyn ModuleResolutionHostOverrider>> {
+        self.arena().module_resolution_host_overrider(module_resolution_host_overrider)
+    }
+
+    fn alloc_module_resolution_host_overrider(&self, module_resolution_host_overrider: Box<dyn ModuleResolutionHostOverrider>) -> Id<Box<dyn ModuleResolutionHostOverrider>> {
+        self.arena().alloc_module_resolution_host_overrider(module_resolution_host_overrider)
     }
 }
 
@@ -722,6 +731,16 @@ impl HasArena for AllArenas {
         let id = self.to_paths.borrow_mut().alloc(to_path);
         id
     }
+
+    #[track_caller]
+    fn module_resolution_host_overrider(&self, module_resolution_host_overrider: Id<Box<dyn ModuleResolutionHostOverrider>>) -> Ref<Box<dyn ModuleResolutionHostOverrider>> {
+        Ref::map(self.module_resolution_host_overriders.borrow(), |module_resolution_host_overriders| &module_resolution_host_overriders[module_resolution_host_overrider])
+    }
+
+    fn alloc_module_resolution_host_overrider(&self, module_resolution_host_overrider: Box<dyn ModuleResolutionHostOverrider>) -> Id<Box<dyn ModuleResolutionHostOverrider>> {
+        let id = self.module_resolution_host_overriders.borrow_mut().alloc(module_resolution_host_overrider);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1016,6 +1035,14 @@ impl InArena for Id<Box<dyn ToPath>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ToPath>> {
         has_arena.to_path(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ModuleResolutionHostOverrider>> {
+    type Item = Box<dyn ModuleResolutionHostOverrider>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ModuleResolutionHostOverrider>> {
+        has_arena.module_resolution_host_overrider(*self)
     }
 }
 

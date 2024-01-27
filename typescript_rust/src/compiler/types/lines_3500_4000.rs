@@ -1699,8 +1699,8 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
 
-    pub(crate) file_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
-    pub(crate) directory_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    pub(crate) file_exists_rc: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    pub(crate) directory_exists_rc: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) should_create_new_source_file: Cell<Option<bool>>,

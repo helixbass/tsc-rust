@@ -167,7 +167,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_file_exists(
         &self,
-        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -182,7 +182,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_read_file(
         &self,
-        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -205,7 +205,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_directory_exists(
         &self,
-        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -224,7 +224,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_realpath(
         &self,
-        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -247,7 +247,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_get_directories(
         &self,
-        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }

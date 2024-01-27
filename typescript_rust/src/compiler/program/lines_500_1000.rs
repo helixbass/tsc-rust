@@ -1779,13 +1779,13 @@ impl Program {
         self.use_source_of_project_reference_redirect.get().unwrap()
     }
 
-    pub(super) fn file_exists_rc(&self) -> Gc<Box<dyn ModuleResolutionHostOverrider>> {
+    pub(super) fn file_exists_rc(&self) -> Id<Box<dyn ModuleResolutionHostOverrider>> {
         self.file_exists_rc.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_directory_exists_rc(
         &self,
-    ) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
+    ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
         self.directory_exists_rc.borrow().clone()
     }
 
@@ -2081,7 +2081,7 @@ impl ModuleSpecifierResolutionHost for Program {
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        self.file_exists_rc().file_exists(path)
+        self.file_exists_rc().ref_(self).file_exists(path)
     }
 
     fn get_current_directory(&self) -> String {
@@ -2090,7 +2090,7 @@ impl ModuleSpecifierResolutionHost for Program {
 
     fn directory_exists(&self, path: &str) -> Option<bool> {
         self.maybe_directory_exists_rc()
-            .and_then(|directory_exists_rc| directory_exists_rc.directory_exists(path))
+            .and_then(|directory_exists_rc| directory_exists_rc.ref_(self).directory_exists(path))
     }
 
     fn read_file(&self, path: &str) -> Option<io::Result<Option<String>>> {

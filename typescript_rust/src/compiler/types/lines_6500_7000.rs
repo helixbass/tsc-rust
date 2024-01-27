@@ -28,12 +28,12 @@ pub trait ModuleResolutionHost {
     fn file_exists_non_overridden(&self, file_name: &str) -> bool;
     fn set_overriding_file_exists(
         &self,
-        overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn set_overriding_read_file(
         &self,
-        overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>>;
     fn trace(&self, _s: &str) {}
@@ -47,7 +47,7 @@ pub trait ModuleResolutionHost {
     }
     fn set_overriding_directory_exists(
         &self,
-        overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn realpath(&self, _path: &str) -> Option<String> {
         None
@@ -58,7 +58,7 @@ pub trait ModuleResolutionHost {
     fn is_realpath_supported(&self) -> bool;
     fn set_overriding_realpath(
         &self,
-        overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn get_current_directory(&self) -> Option<io::Result<String>> {
         None
@@ -72,7 +72,7 @@ pub trait ModuleResolutionHost {
     }
     fn set_overriding_get_directories(
         &self,
-        overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
         None
@@ -92,7 +92,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_file_exists(
         &self,
-        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -103,7 +103,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_directory_exists(
         &self,
-        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -114,7 +114,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_realpath(
         &self,
-        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -125,7 +125,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_get_directories(
         &self,
-        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -140,7 +140,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_read_file(
         &self,
-        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -369,7 +369,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn is_write_file_supported(&self) -> bool;
     fn set_overriding_write_file(
         &self,
-        overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn get_current_directory(&self) -> io::Result<String>;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
@@ -457,7 +457,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn is_create_directory_supported(&self) -> bool;
     fn set_overriding_create_directory(
         &self,
-        overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
         None
