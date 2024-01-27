@@ -737,7 +737,7 @@ pub fn file_include_reason_to_diagnostics(
         }
         FileIncludeReason::ProjectReferenceFile(reason) => {
             let is_output = reason.kind == FileIncludeKind::OutputFromProjectReference;
-            let referenced_resolved_ref: Gc<ResolvedProjectReference> = Debug_.check_defined(
+            let referenced_resolved_ref: Id<ResolvedProjectReference> = Debug_.check_defined(
                 program.get_resolved_project_references().as_ref().and_then(
                     |resolved_project_references| {
                         resolved_project_references

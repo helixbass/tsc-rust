@@ -528,7 +528,7 @@ pub fn resolve_type_reference_directive(
     containing_file: Option<&str>,
     mut options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
@@ -974,7 +974,7 @@ pub trait PerDirectoryResolutionCache<TValue: Trace + Finalize> {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Gc<ModeAwareCache<TValue>>;
     fn clear(&self);
     fn update(&self, options: &CompilerOptions);
@@ -995,7 +995,7 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
         &self,
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Gc<PerModuleNameCache>;
     fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache;
 }
@@ -1050,7 +1050,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
 
     pub fn get_or_create_map_of_cache_redirects(
         &self,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Gc<GcCell<HashMap<String, Gc<TCache>>>> {
         if redirected_reference.is_none() {
             return self.own_map.borrow().clone();
@@ -1163,7 +1163,7 @@ impl HasArena for PackageJsonInfoCacheConcrete {
 
 fn get_or_create_cache<TCache: Trace + Finalize, TCreate: FnMut() -> TCache>(
     cache_with_redirects: &CacheWithRedirects<TCache>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     key: &str,
     mut create: TCreate,
 ) -> Gc<TCache> {
@@ -1207,7 +1207,7 @@ impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Gc<ModeAwareCache<TValue>> {
         let path = to_path(directory_name, Some(&self.current_directory), |path| {
             self.get_canonical_file_name.ref_(self).call(path)
@@ -1479,7 +1479,7 @@ impl PerDirectoryResolutionCache<Gc<ResolvedModuleWithFailedLookupLocations>>
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Gc<ModeAwareCache<Gc<ResolvedModuleWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
@@ -1499,7 +1499,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
         &self,
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Gc<PerModuleNameCache> {
         Debug_.assert(
             !is_external_module_name_relative(non_relative_module_name),
@@ -1585,7 +1585,7 @@ impl PerDirectoryResolutionCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLook
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Gc<ModeAwareCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
@@ -1626,7 +1626,7 @@ pub fn resolve_module_name(
     mut compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
@@ -2116,7 +2116,7 @@ fn node12_module_name_resolver(
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
@@ -2141,7 +2141,7 @@ fn node_next_module_name_resolver(
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
@@ -2165,7 +2165,7 @@ fn node_next_module_name_resolver_worker(
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
@@ -2210,7 +2210,7 @@ pub fn node_module_name_resolver(
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     lookup_config: Option<bool>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
@@ -2241,7 +2241,7 @@ fn node_module_name_resolver_worker(
     host: &dyn ModuleResolutionHost,
     cache: Option<Gc<ModuleResolutionCache>>,
     extensions: &[Extensions],
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
@@ -2308,7 +2308,7 @@ fn try_resolve(
     state: &ModuleResolutionState,
     features: NodeResolutionFeatures,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     host: &dyn ModuleResolutionHost,
     compiler_options: &CompilerOptions,
     trace_enabled: bool,
@@ -3242,7 +3242,7 @@ fn load_module_from_self_name_reference(
     directory: &str,
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
     let use_case_sensitive_file_names = state.host.use_case_sensitive_file_names();
@@ -3312,7 +3312,7 @@ fn load_module_from_exports(
     subpath: &str,
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
 ) -> io::Result<SearchResult<Resolved>> {
     let scope_package_json_exports = scope.package_json_content.get("exports");
     if scope_package_json_exports.is_none() {
@@ -3393,7 +3393,7 @@ fn load_module_from_imports(
     _directory: &str,
     _state: &ModuleResolutionState,
     _cache: Option<&ModuleResolutionCache>,
-    _redirected_reference: Option<&ResolvedProjectReference>,
+    _redirected_reference: Option<Id<ResolvedProjectReference>>,
 ) -> SearchResult<Resolved> {
     unimplemented!()
 }
@@ -3402,7 +3402,7 @@ fn load_module_from_imports_or_exports(
     extensions: Extensions,
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     module_name: &str,
     lookup_table: &serde_json::Map<String, serde_json::Value>,
     scope: &PackageJsonInfo,
@@ -3495,7 +3495,7 @@ fn get_load_module_from_target_import_or_export<'a>(
     extensions: Extensions,
     state: &'a ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     module_name: &'a str,
     scope: &'a PackageJsonInfo,
     is_imports: bool,
@@ -3515,7 +3515,7 @@ struct LoadModuleFromTargetImportOrExport<'a> {
     extensions: Extensions,
     state: &'a ModuleResolutionState<'a>,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     module_name: &'a str,
     scope: &'a PackageJsonInfo,
     is_imports: bool,
@@ -3731,7 +3731,7 @@ fn load_module_from_nearest_node_modules_directory(
     directory: &str,
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
     load_module_from_nearest_node_modules_directory_worker(
@@ -3771,7 +3771,7 @@ fn load_module_from_nearest_node_modules_directory_worker(
     state: &ModuleResolutionState,
     types_scope_only: bool,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
     let per_module_name_cache = cache.as_ref().map(|cache| {
@@ -3822,7 +3822,7 @@ fn load_module_from_immediate_node_modules_directory(
     state: &ModuleResolutionState,
     types_scope_only: bool,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
     let node_modules_folder = combine_paths(directory, &[Some("node_modules")]);
@@ -3896,7 +3896,7 @@ fn load_module_from_specific_node_modules_directory(
     node_modules_directory_exists: bool,
     state: &ModuleResolutionState,
     cache: Option<Gc<ModuleResolutionCache>>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
     let candidate = normalize_path(&combine_paths(node_modules_directory, &[Some(module_name)]));
@@ -4237,7 +4237,7 @@ pub fn classic_name_resolver(
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     cache: Option<&impl NonRelativeModuleNameResolutionCache>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
@@ -4292,7 +4292,7 @@ fn classic_name_resolver_try_resolve(
     containing_directory: &str,
     state: &ModuleResolutionState,
     cache: Option<&impl NonRelativeModuleNameResolutionCache>,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     extensions: Extensions,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {

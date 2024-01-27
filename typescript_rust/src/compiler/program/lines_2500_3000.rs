@@ -633,7 +633,7 @@ impl Program {
     pub fn get_project_reference_redirect_project(
         &self,
         file_name: &str,
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> Option<Id<ResolvedProjectReference>> {
         if !self
             .maybe_resolved_project_references()
             .as_ref()
@@ -649,7 +649,7 @@ impl Program {
 
     pub fn get_project_reference_output_name(
         &self,
-        referenced_project: &ResolvedProjectReference,
+        referenced_project: Id<ResolvedProjectReference>,
         file_name: &str,
     ) -> String {
         let referenced_project_command_line_options_ref = referenced_project.command_line.ref_(self).options.ref_(self);
@@ -671,14 +671,14 @@ impl Program {
     pub fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> Option<Id<ResolvedProjectReference>> {
         let mut map_from_file_to_project_reference_redirects =
             self.maybe_map_from_file_to_project_reference_redirects();
         let map_from_file_to_project_reference_redirects =
             map_from_file_to_project_reference_redirects.get_or_insert_with(|| {
                 let mut map_from_file_to_project_reference_redirects = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |referenced_project: Gc<ResolvedProjectReference>| -> Option<()> {
+                    |referenced_project: Id<ResolvedProjectReference>| -> Option<()> {
                         let referenced_project_source_file_ref = referenced_project.source_file.ref_(self);
                         let referenced_project_source_file_path =
                             referenced_project_source_file_ref.as_source_file().path();
@@ -709,12 +709,9 @@ impl Program {
         })
     }
 
-    pub fn for_each_resolved_project_reference<
-        TReturn,
-        TCallback: FnMut(Gc<ResolvedProjectReference>) -> Option<TReturn>,
-    >(
+    pub fn for_each_resolved_project_reference<TReturn>(
         &self,
-        mut cb: TCallback,
+        mut cb: impl FnMut(Id<ResolvedProjectReference>) -> Option<TReturn>,
     ) -> Option<TReturn> {
         for_each_resolved_project_reference(
             self.maybe_resolved_project_references_mut().as_deref(),
@@ -742,7 +739,7 @@ impl Program {
             .get_or_insert_with(|| {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
-                    |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
+                    |resolved_ref: Id<ResolvedProjectReference>| -> Option<()> {
                         let resolved_ref_command_line_options_ref = resolved_ref.command_line.ref_(self).options.ref_(self);
                         let out = out_file(&resolved_ref_command_line_options_ref);
                         if let Some(out) = out {
@@ -812,7 +809,7 @@ impl Program {
     pub(super) fn get_resolved_project_reference_by_path(
         &self,
         project_reference_path: &Path,
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> Option<Id<ResolvedProjectReference>> {
         self.maybe_project_reference_redirects()
             .as_ref()
             .and_then(|project_reference_redirects| {
@@ -1178,7 +1175,7 @@ impl ProgramForEachResolvedProjectReference {
 }
 
 impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference {
-    fn call(&self, cb: &mut dyn FnMut(Gc<ResolvedProjectReference>)) {
+    fn call(&self, cb: &mut dyn FnMut(Id<ResolvedProjectReference>)) {
         for_each_resolved_project_reference(
             self.program
                 .ref_(self).maybe_resolved_project_references_mut()

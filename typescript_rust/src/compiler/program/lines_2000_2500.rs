@@ -817,7 +817,7 @@ impl Program {
             .program_diagnostics()
             .get_diagnostics(Some(&**options_config_file.ref_(self).as_source_file().file_name()));
         self.for_each_resolved_project_reference(
-            |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
+            |resolved_ref: Id<ResolvedProjectReference>| -> Option<()> {
                 diagnostics.append(&mut self.program_diagnostics().get_diagnostics(Some(
                     &**resolved_ref.source_file.ref_(self).as_source_file().file_name(),
                 )));

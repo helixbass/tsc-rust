@@ -49,7 +49,7 @@ pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
         &self,
         name: &str,
         containing_file: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<TValue>;
 }
 
@@ -83,7 +83,7 @@ impl LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>
         &self,
         types_ref: &str,
         containing_file: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Id<ResolvedTypeReferenceDirective>> {
         Ok(resolve_type_reference_directive(
             types_ref,
@@ -109,7 +109,7 @@ impl HasArena for LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
 pub(crate) fn load_with_local_cache<TValue: Clone>(
     names: &[String],
     containing_file: &str,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     loader: &dyn LoadWithLocalCacheLoader<TValue>,
 ) -> io::Result<Vec<TValue>> {
     if names.is_empty() {
@@ -210,7 +210,7 @@ pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
         name: &str,
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<TValue>;
 }
 
@@ -243,7 +243,7 @@ impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
         module_name: &str,
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Option<Gc<ResolvedModuleFull>>> {
         Ok(resolve_module_name(
             module_name,
@@ -271,7 +271,7 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     names: &[String],
     containing_file: Id<Node>, /*SourceFile*/
     containing_file_name: &str,
-    redirected_reference: Option<Gc<ResolvedProjectReference>>,
+    redirected_reference: Option<Id<ResolvedProjectReference>>,
     loader: &dyn LoadWithModeAwareCacheLoader<TValue>,
     arena: &impl HasArena,
 ) -> io::Result<Vec<TValue>> {
@@ -309,20 +309,20 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
 }
 
 pub fn for_each_resolved_project_reference<TReturn>(
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
-    mut cb: impl FnMut(Gc<ResolvedProjectReference>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+    resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
+    mut cb: impl FnMut(Id<ResolvedProjectReference>, Option<Id<ResolvedProjectReference>>) -> Option<TReturn>,
     arena: &impl HasArena,
 ) -> Option<TReturn> {
     for_each_project_reference(
         None,
         resolved_project_references,
-        |resolved_ref: Option<Gc<ResolvedProjectReference>>,
-         parent: Option<&ResolvedProjectReference>,
+        |resolved_ref: Option<Id<ResolvedProjectReference>>,
+         parent: Option<Id<ResolvedProjectReference>>,
          _| { resolved_ref.and_then(|resolved_ref| cb(resolved_ref, parent)) },
         Option::<
             fn(
                 Option<&[Rc<ProjectReference>]>,
-                Option<&ResolvedProjectReference>,
+                Option<Id<ResolvedProjectReference>>,
             ) -> Option<TReturn>,
         >::None,
         arena,
@@ -331,14 +331,14 @@ pub fn for_each_resolved_project_reference<TReturn>(
 
 pub fn for_each_project_reference<TReturn>(
     project_references: Option<&[Rc<ProjectReference>]>,
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
     mut cb_resolved_ref: impl FnMut(
-        Option<Gc<ResolvedProjectReference>>,
-        Option<&ResolvedProjectReference>,
+        Option<Id<ResolvedProjectReference>>,
+        Option<Id<ResolvedProjectReference>>,
         usize,
     ) -> Option<TReturn>,
     cb_ref: Option<
-        impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+        impl Fn(Option<&[Rc<ProjectReference>]>, Option<Id<ResolvedProjectReference>>) -> Option<TReturn>,
     >,
     arena: &impl HasArena,
 ) -> Option<TReturn> {
@@ -357,16 +357,16 @@ pub fn for_each_project_reference<TReturn>(
 
 pub fn try_for_each_project_reference<TReturn, TError>(
     project_references: Option<&[Rc<ProjectReference>]>,
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
     mut cb_resolved_ref: impl FnMut(
-        Option<Gc<ResolvedProjectReference>>,
-        Option<&ResolvedProjectReference>,
+        Option<Id<ResolvedProjectReference>>,
+        Option<Id<ResolvedProjectReference>>,
         usize,
     ) -> Result<Option<TReturn>, TError>,
     cb_ref: Option<
         impl Fn(
             Option<&[Rc<ProjectReference>]>,
-            Option<&ResolvedProjectReference>,
+            Option<Id<ResolvedProjectReference>>,
         ) -> Result<Option<TReturn>, TError>,
     >,
     arena: &impl HasArena,
@@ -387,25 +387,25 @@ pub fn try_for_each_project_reference<TReturn, TError>(
 #[allow(dead_code)]
 pub fn for_each_project_reference_bool(
     project_references: Option<&[Rc<ProjectReference>]>,
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
     mut cb_resolved_ref: impl FnMut(
-        Option<Gc<ResolvedProjectReference>>,
-        Option<&ResolvedProjectReference>,
+        Option<Id<ResolvedProjectReference>>,
+        Option<Id<ResolvedProjectReference>>,
         usize,
     ) -> bool,
     cb_ref: Option<
-        impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> bool,
+        impl Fn(Option<&[Rc<ProjectReference>]>, Option<Id<ResolvedProjectReference>>) -> bool,
     >,
     arena: &impl HasArena,
 ) -> bool {
     for_each_project_reference(
         project_references,
         resolved_project_references,
-        |a: Option<Gc<ResolvedProjectReference>>,
-         b: Option<&ResolvedProjectReference>,
+        |a: Option<Id<ResolvedProjectReference>>,
+         b: Option<Id<ResolvedProjectReference>>,
          c: usize| { cb_resolved_ref(a, b, c).then_some(()) },
         cb_ref.as_ref().map(|cb_ref| {
-            |a: Option<&[Rc<ProjectReference>]>, b: Option<&ResolvedProjectReference>| {
+            |a: Option<&[Rc<ProjectReference>]>, b: Option<Id<ResolvedProjectReference>>| {
                 cb_ref(a, b).then_some(())
             }
         }),
@@ -416,16 +416,16 @@ pub fn for_each_project_reference_bool(
 
 pub fn try_for_each_project_reference_bool<TError>(
     project_references: Option<&[Rc<ProjectReference>]>,
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
+    resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
     mut cb_resolved_ref: impl FnMut(
-        Option<Gc<ResolvedProjectReference>>,
-        Option<&ResolvedProjectReference>,
+        Option<Id<ResolvedProjectReference>>,
+        Option<Id<ResolvedProjectReference>>,
         usize,
     ) -> Result<bool, TError>,
     cb_ref: Option<
         impl Fn(
             Option<&[Rc<ProjectReference>]>,
-            Option<&ResolvedProjectReference>,
+            Option<Id<ResolvedProjectReference>>,
         ) -> Result<bool, TError>,
     >,
     arena: &impl HasArena,
@@ -433,11 +433,11 @@ pub fn try_for_each_project_reference_bool<TError>(
     Ok(try_for_each_project_reference(
         project_references,
         resolved_project_references,
-        |a: Option<Gc<ResolvedProjectReference>>,
-         b: Option<&ResolvedProjectReference>,
+        |a: Option<Id<ResolvedProjectReference>>,
+         b: Option<Id<ResolvedProjectReference>>,
          c: usize| { Ok(cb_resolved_ref(a, b, c)?.then_some(())) },
         cb_ref.as_ref().map(|cb_ref| {
-            |a: Option<&[Rc<ProjectReference>]>, b: Option<&ResolvedProjectReference>| {
+            |a: Option<&[Rc<ProjectReference>]>, b: Option<Id<ResolvedProjectReference>>| {
                 Ok(cb_ref(a, b)?.then_some(()))
             }
         }),
@@ -448,17 +448,17 @@ pub fn try_for_each_project_reference_bool<TError>(
 
 fn for_each_project_reference_worker<TReturn>(
     cb_ref: Option<
-        &impl Fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> Option<TReturn>,
+        &impl Fn(Option<&[Rc<ProjectReference>]>, Option<Id<ResolvedProjectReference>>) -> Option<TReturn>,
     >,
     cb_resolved_ref: &mut impl FnMut(
-        Option<Gc<ResolvedProjectReference>>,
-        Option<&ResolvedProjectReference>,
+        Option<Id<ResolvedProjectReference>>,
+        Option<Id<ResolvedProjectReference>>,
         usize,
     ) -> Option<TReturn>,
     seen_resolved_refs: &mut Option<HashSet<Path>>,
     project_references: Option<&[Rc<ProjectReference>]>,
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
-    parent: Option<&ResolvedProjectReference>,
+    resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
+    parent: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> Option<TReturn> {
     if let Some(cb_ref) = cb_ref {
@@ -470,7 +470,7 @@ fn for_each_project_reference_worker<TReturn>(
 
     maybe_for_each(
         resolved_project_references,
-        |resolved_ref: &Option<Gc<ResolvedProjectReference>>, index| {
+        |resolved_ref: &Option<Id<ResolvedProjectReference>>, index| {
             if matches!(
                 resolved_ref.as_ref(),
                 Some(resolved_ref) if matches!(
@@ -509,18 +509,18 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
     cb_ref: Option<
         &impl Fn(
             Option<&[Rc<ProjectReference>]>,
-            Option<&ResolvedProjectReference>,
+            Option<Id<ResolvedProjectReference>>,
         ) -> Result<Option<TReturn>, TError>,
     >,
     cb_resolved_ref: &mut impl FnMut(
-        Option<Gc<ResolvedProjectReference>>,
-        Option<&ResolvedProjectReference>,
+        Option<Id<ResolvedProjectReference>>,
+        Option<Id<ResolvedProjectReference>>,
         usize,
     ) -> Result<Option<TReturn>, TError>,
     seen_resolved_refs: &mut Option<HashSet<Path>>,
     project_references: Option<&[Rc<ProjectReference>]>,
-    resolved_project_references: Option<&[Option<Gc<ResolvedProjectReference>>]>,
-    parent: Option<&ResolvedProjectReference>,
+    resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
+    parent: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> Result<Option<TReturn>, TError> {
     if let Some(cb_ref) = cb_ref {
@@ -532,7 +532,7 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
 
     try_maybe_for_each(
         resolved_project_references,
-        |resolved_ref: &Option<Gc<ResolvedProjectReference>>, index| {
+        |resolved_ref: &Option<Id<ResolvedProjectReference>>, index| {
             if matches!(
                 resolved_ref.as_ref(),
                 Some(resolved_ref) if matches!(
@@ -1730,33 +1730,33 @@ impl Program {
 
     pub(super) fn maybe_resolved_project_references(
         &self,
-    ) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRef<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
     }
 
     pub(super) fn maybe_resolved_project_references_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow_mut()
     }
 
     pub(super) fn maybe_project_reference_redirects(
         &self,
-    ) -> GcCellRef<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRef<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>> {
         self.project_reference_redirects.borrow()
     }
 
     pub(super) fn maybe_project_reference_redirects_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRefMut<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>> {
         self.project_reference_redirects.borrow_mut()
     }
 
     pub(super) fn project_reference_redirects_mut(
         &self,
     ) -> GcCellRefMut<
-        Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>,
-        HashMap<Path, Option<Gc<ResolvedProjectReference>>>,
+        Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>,
+        HashMap<Path, Option<Id<ResolvedProjectReference>>>,
     > {
         gc_cell_ref_mut_unwrapped(&self.project_reference_redirects)
     }
@@ -1826,7 +1826,7 @@ impl ProgramGetResolvedProjectReferences {
 }
 
 impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
-    fn call(&self) -> Option<Vec<Option<Gc<ResolvedProjectReference>>>> {
+    fn call(&self) -> Option<Vec<Option<Id<ResolvedProjectReference>>>> {
         self.program.ref_(self).get_resolved_project_references().clone()
     }
 }
@@ -1872,7 +1872,7 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
         containing_file: Id<Node>, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>>;
 }
 
@@ -1895,7 +1895,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
         containing_file: Id<Node>, /*SourceFile*/
         containing_file_name: &str,
         reused_names: Option<&[String]>,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         Ok(self
             .host
@@ -1951,7 +1951,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
         containing_file: Id<Node>, /*SourceFile*/
         containing_file_name: &str,
         _reused_names: Option<&[String]>,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
         load_with_mode_aware_cache(
             /*Debug.checkEachDefined(*/ module_names, /*)*/
@@ -1975,7 +1975,7 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
         &self,
         type_directive_names: &[String],
         containing_file: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>>;
 }
 
@@ -1998,7 +1998,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         &self,
         type_directive_names: &[String],
         containing_file: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         Ok(self
             .host
@@ -2038,7 +2038,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
         &self,
         type_reference_directive_names: &[String],
         containing_file: &str,
-        redirected_reference: Option<Gc<ResolvedProjectReference>>,
+        redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         Ok(load_with_local_cache(
             /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
@@ -2171,7 +2171,7 @@ impl SourceFileMayBeEmittedHost for Program {
     fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> Option<Id<ResolvedProjectReference>> {
         self.get_resolved_project_reference_to_redirect(file_name)
     }
 

@@ -14,7 +14,7 @@ use crate::{
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
-    ParsedCommandLine, CancellationToken,
+    ParsedCommandLine, CancellationToken, ResolvedProjectReference,
 };
 
 #[derive(Default)]
@@ -67,6 +67,7 @@ pub struct AllArenas {
     pub transformation_context_on_substitute_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
     pub parsed_command_lines: RefCell<Arena<ParsedCommandLine>>,
     pub cancellation_tokens: RefCell<Arena<Box<dyn CancellationToken>>>,
+    pub resolved_project_references: RefCell<Arena<ResolvedProjectReference>>,
 }
 
 pub trait HasArena {
@@ -430,6 +431,14 @@ pub trait HasArena {
 
     fn alloc_cancellation_token(&self, cancellation_token: Box<dyn CancellationToken>) -> Id<Box<dyn CancellationToken>> {
         self.arena().alloc_cancellation_token(cancellation_token)
+    }
+
+    fn resolved_project_reference(&self, resolved_project_reference: Id<ResolvedProjectReference>) -> Ref<ResolvedProjectReference> {
+        self.arena().resolved_project_reference(resolved_project_reference)
+    }
+
+    fn alloc_resolved_project_reference(&self, resolved_project_reference: ResolvedProjectReference) -> Id<ResolvedProjectReference> {
+        self.arena().alloc_resolved_project_reference(resolved_project_reference)
     }
 }
 
@@ -896,6 +905,16 @@ impl HasArena for AllArenas {
         let id = self.cancellation_tokens.borrow_mut().alloc(cancellation_token);
         id
     }
+
+    #[track_caller]
+    fn resolved_project_reference(&self, resolved_project_reference: Id<ResolvedProjectReference>) -> Ref<ResolvedProjectReference> {
+        Ref::map(self.resolved_project_references.borrow(), |resolved_project_references| &resolved_project_references[resolved_project_reference])
+    }
+
+    fn alloc_resolved_project_reference(&self, resolved_project_reference: ResolvedProjectReference) -> Id<ResolvedProjectReference> {
+        let id = self.resolved_project_references.borrow_mut().alloc(resolved_project_reference);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1262,6 +1281,14 @@ impl InArena for Id<Box<dyn CancellationToken>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CancellationToken>> {
         has_arena.cancellation_token(*self)
+    }
+}
+
+impl InArena for Id<ResolvedProjectReference> {
+    type Item = ResolvedProjectReference;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedProjectReference> {
+        has_arena.resolved_project_reference(*self)
     }
 }
 

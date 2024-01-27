@@ -266,7 +266,7 @@ impl Program {
     pub fn parse_project_reference_config_file(
         &self,
         ref_: &ProjectReference,
-    ) -> io::Result<Option<Gc<ResolvedProjectReference>>> {
+    ) -> io::Result<Option<Id<ResolvedProjectReference>>> {
         if self.maybe_project_reference_redirects_mut().is_none() {
             *self.maybe_project_reference_redirects_mut() = Some(HashMap::new());
         }
@@ -1443,7 +1443,7 @@ impl Program {
                         }
                     },
                     Option::<
-                        fn(Option<&[Rc<ProjectReference>]>, Option<&ResolvedProjectReference>) -> _,
+                        fn(Option<&[Rc<ProjectReference>]>, Option<Id<ResolvedProjectReference>>) -> _,
                     >::None,
                     self,
                 )?;
@@ -1547,8 +1547,8 @@ impl Program {
         for_each_project_reference(
             self.maybe_project_references().as_deref(),
             self.maybe_resolved_project_references_mut().as_deref(),
-            |resolved_ref: Option<Gc<ResolvedProjectReference>>,
-             parent: Option<&ResolvedProjectReference>,
+            |resolved_ref: Option<Id<ResolvedProjectReference>>,
+             parent: Option<Id<ResolvedProjectReference>>,
              index|
              -> Option<()> {
                 let ref_ = if let Some(parent) = parent {
@@ -1644,7 +1644,7 @@ impl Program {
             Option::<
                 fn(
                     Option<&[Rc<ProjectReference>]>,
-                    Option<&ResolvedProjectReference>,
+                    Option<Id<ResolvedProjectReference>>,
                 ) -> Option<()>,
             >::None,
             self,
@@ -2289,11 +2289,11 @@ pub trait GetSymlinkCache: Trace + Finalize {
 }
 
 pub trait GetResolvedProjectReferences: Trace + Finalize {
-    fn call(&self) -> Option<Vec<Option<Gc<ResolvedProjectReference>>>>;
+    fn call(&self) -> Option<Vec<Option<Id<ResolvedProjectReference>>>>;
 }
 
 pub trait ForEachResolvedProjectReference: Trace + Finalize {
-    fn call(&self, callback: &mut dyn FnMut(Gc<ResolvedProjectReference>));
+    fn call(&self, callback: &mut dyn FnMut(Id<ResolvedProjectReference>));
 }
 
 pub(crate) fn emit_skipped_with_no_diagnostics() -> EmitResult {

@@ -1686,9 +1686,9 @@ pub struct Program {
     pub(crate) files_by_name_ignore_case: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
 
     pub(crate) resolved_project_references:
-        GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
+        GcCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
     pub(crate) project_reference_redirects:
-        GcCell<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>>,
+        GcCell<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>>,
     #[unsafe_ignore_trace]
     pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
     #[unsafe_ignore_trace]

@@ -37,15 +37,15 @@ pub struct ResolvedProjectReference {
     pub command_line: Id<ParsedCommandLine>,
     pub source_file: Id<Node /*SourceFile*/>,
     #[builder(setter(skip))]
-    references: GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
+    references: GcCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
 }
 
 impl ResolvedProjectReference {
-    pub fn maybe_references(&self) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+    pub fn maybe_references(&self) -> GcCellRef<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.references.borrow()
     }
 
-    pub fn set_references(&self, references: Option<Vec<Option<Gc<ResolvedProjectReference>>>>) {
+    pub fn set_references(&self, references: Option<Vec<Option<Id<ResolvedProjectReference>>>>) {
         *self.references.borrow_mut() = references;
     }
 }

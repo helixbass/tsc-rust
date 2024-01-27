@@ -392,7 +392,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         _module_names: &[String],
         _containing_file: &str,
         _reused_names: Option<&[String]>,
-        _redirected_reference: Option<&ResolvedProjectReference>,
+        _redirected_reference: Option<Id<ResolvedProjectReference>>,
         _options: &CompilerOptions,
         _containing_source_file: Option<Id<Node> /*SourceFile*/>,
     ) -> Option<Vec<Option<ResolvedModuleFull>>> {
@@ -407,7 +407,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         &self,
         _type_reference_directive_names: &[String],
         _containing_file: &str,
-        _redirected_reference: Option<&ResolvedProjectReference>,
+        _redirected_reference: Option<Id<ResolvedProjectReference>>,
         _options: &CompilerOptions,
     ) -> Option<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         None
@@ -426,7 +426,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn on_release_parsed_command_line(
         &self,
         _config_file_name: &str,
-        _old_resolved_ref: Option<ResolvedProjectReference>,
+        _old_resolved_ref: Option<Id<ResolvedProjectReference>>,
         _option_options: &CompilerOptions,
     ) {
     }
@@ -1103,7 +1103,7 @@ pub trait SourceFileMayBeEmittedHost {
     fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<Gc<ResolvedProjectReference>>;
+    ) -> Option<Id<ResolvedProjectReference>>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 }
 
