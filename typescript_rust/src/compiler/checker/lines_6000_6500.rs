@@ -899,7 +899,7 @@ impl NodeBuilder {
         _bundled: Option<bool>,
     ) -> io::Result<Option<Id<Node>>> {
         if let Some(cancellation_token) = self.type_checker.maybe_cancellation_token() {
-            cancellation_token.throw_if_cancellation_requested();
+            cancellation_token.ref_(self).throw_if_cancellation_requested();
         }
         let mut had_error = false;
         let file = maybe_get_source_file_of_node(Some(existing), self);

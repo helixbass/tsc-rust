@@ -795,7 +795,7 @@ impl TypeChecker {
                 SyntaxKind::ClassExpression
                 | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction => {
-                    cancellation_token.throw_if_cancellation_requested();
+                    cancellation_token.ref_(self).throw_if_cancellation_requested();
                 }
                 _ => (),
             }

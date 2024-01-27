@@ -72,7 +72,7 @@ impl TypeChecker {
                     | SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::FunctionDeclaration
             ) {
-                cancellation_token.throw_if_cancellation_requested();
+                cancellation_token.ref_(self).throw_if_cancellation_requested();
             }
         }
         if kind >= SyntaxKind::FirstStatement
