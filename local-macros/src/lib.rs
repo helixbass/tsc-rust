@@ -136,19 +136,19 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.add_transform_flags(flags)
                     }
 
-                    fn maybe_decorators(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_decorators(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         self.#first_field_name.maybe_decorators()
                     }
 
-                    fn set_decorators(&self, decorators: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
+                    fn set_decorators(&self, decorators: ::std::option::Option<::id_arena::Id<crate::NodeArray>>) {
                         self.#first_field_name.set_decorators(decorators)
                     }
 
-                    fn maybe_modifiers(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_modifiers(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         self.#first_field_name.maybe_modifiers()
                     }
 
-                    fn set_modifiers(&self, modifiers: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<::id_arena::Id<crate::NodeArray>>) {
                         self.#first_field_name.set_modifiers(modifiers)
                     }
 
@@ -339,11 +339,11 @@ fn get_ast_struct_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         self.#first_field_name.maybe_type_parameters()
                     }
 
-                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::NodeArray>>> {
+                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::NodeArray>>> {
                         self.#first_field_name.maybe_type_parameters_mut()
                     }
                 }
@@ -435,7 +435,7 @@ fn get_ast_struct_interface_impl(
         "SignatureDeclarationInterface" => {
             quote! {
                 impl crate::SignatureDeclarationInterface for #ast_type_name {
-                    fn parameters(&self) -> ::gc::Gc<crate::NodeArray> {
+                    fn parameters(&self) -> ::id_arena::Id<crate::NodeArray> {
                         self.#first_field_name.parameters()
                     }
                 }
@@ -490,7 +490,7 @@ fn get_ast_struct_interface_impl(
         "InterfaceOrClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
-                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         self.#first_field_name.maybe_heritage_clauses()
                     }
                 }
@@ -499,7 +499,7 @@ fn get_ast_struct_interface_impl(
         "ClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::ClassLikeDeclarationInterface for #ast_type_name {
-                    fn members(&self) -> ::gc::Gc<crate::NodeArray> {
+                    fn members(&self) -> ::id_arena::Id<crate::NodeArray> {
                         self.#first_field_name.members()
                     }
                 }
@@ -621,25 +621,25 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_decorators(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_decorators(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_decorators()),*
                         }
                     }
 
-                    fn set_decorators(&self, decorators: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
+                    fn set_decorators(&self, decorators: ::std::option::Option<::id_arena::Id<crate::NodeArray>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_decorators(decorators)),*
                         }
                     }
 
-                    fn maybe_modifiers(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_modifiers(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_modifiers()),*
                         }
                     }
 
-                    fn set_modifiers(&self, modifiers: ::std::option::Option<::gc::Gc<crate::NodeArray>>) {
+                    fn set_modifiers(&self, modifiers: ::std::option::Option<::id_arena::Id<crate::NodeArray>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_modifiers(modifiers)),*
                         }
@@ -959,13 +959,13 @@ fn get_ast_enum_interface_impl(
         "HasTypeParametersInterface" => {
             quote! {
                 impl crate::HasTypeParametersInterface for #ast_type_name {
-                    fn maybe_type_parameters(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_type_parameters(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters()),*
                         }
                     }
 
-                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::NodeArray>>> {
+                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::NodeArray>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters_mut()),*
                         }
@@ -998,7 +998,7 @@ fn get_ast_enum_interface_impl(
         "SignatureDeclarationInterface" => {
             quote! {
                 impl crate::SignatureDeclarationInterface for #ast_type_name {
-                    fn parameters(&self) -> ::gc::Gc<crate::NodeArray> {
+                    fn parameters(&self) -> ::id_arena::Id<crate::NodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.parameters()),*
                         }
@@ -1090,7 +1090,7 @@ fn get_ast_enum_interface_impl(
         "InterfaceOrClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::InterfaceOrClassLikeDeclarationInterface for #ast_type_name {
-                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<::gc::Gc<crate::NodeArray>> {
+                    fn maybe_heritage_clauses(&self) -> ::std::option::Option<::id_arena::Id<crate::NodeArray>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_heritage_clauses()),*
                         }
@@ -1101,7 +1101,7 @@ fn get_ast_enum_interface_impl(
         "ClassLikeDeclarationInterface" => {
             quote! {
                 impl crate::ClassLikeDeclarationInterface for #ast_type_name {
-                    fn members(&self) -> ::gc::Gc<crate::NodeArray> {
+                    fn members(&self) -> ::id_arena::Id<crate::NodeArray> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.members()),*
                         }
