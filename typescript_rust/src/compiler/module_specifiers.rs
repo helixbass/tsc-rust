@@ -774,12 +774,13 @@ fn get_nearest_ancestor_directory_with_package_json(
     )
 }
 
-pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Option<TReturn>>(
+pub fn for_each_file_name_of_module<TReturn>(
     importing_file_name: &str,
     imported_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     prefer_sym_links: bool,
-    mut cb: TCallback,
+    mut cb: impl FnMut(&str, bool) -> Option<TReturn>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     let get_canonical_file_name =
         host_get_canonical_file_name(|| host.use_case_sensitive_file_names());
@@ -829,14 +830,10 @@ pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Opt
     }
 
     let symlink_cache = host.get_symlink_cache();
-    let symlinked_directories = symlink_cache
-        .as_ref()
-        .map(|symlink_cache| symlink_cache.get_symlinked_directories_by_realpath());
     let ref full_imported_file_name = get_normalized_absolute_path(imported_file_name, Some(&cwd));
-    let result = symlinked_directories.and_then(|symlinked_directories| {
-        symlinked_directories
-            .as_ref()
-            .and_then(|symlinked_directories| {
+    let result = symlink_cache
+        .and_then(|symlink_cache| {
+            symlink_cache.ref_(arena).get_symlinked_directories_by_realpath().as_ref().and_then(|symlinked_directories| {
                 for_each_ancestor_directory(
                     &get_directory_path(full_imported_file_name).into(),
                     |real_path_directory: &Path| -> Option<Option<TReturn>> {
@@ -891,7 +888,7 @@ pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Opt
                 )
                 .flatten()
             })
-    });
+        });
     result.or_else(|| {
         if prefer_sym_links {
             for_each(&targets, |p: &String, _| {

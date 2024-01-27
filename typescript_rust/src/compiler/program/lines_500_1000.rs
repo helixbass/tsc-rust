@@ -1510,7 +1510,7 @@ impl Program {
         self.config_parsing_host.borrow().clone().unwrap()
     }
 
-    pub(super) fn symlinks(&self) -> GcCellRefMut<Option<Gc<SymlinkCache>>> {
+    pub(super) fn symlinks(&self) -> GcCellRefMut<Option<Id<SymlinkCache>>> {
         self.symlinks.borrow_mut()
     }
 

@@ -459,7 +459,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         &self,
         overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
-    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
         None
     }
 

@@ -1613,7 +1613,7 @@ pub struct Program {
     pub(crate) processing_default_lib_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
     pub(crate) processing_other_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
     pub(crate) files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
-    pub(crate) symlinks: GcCell<Option<Gc<SymlinkCache>>>,
+    pub(crate) symlinks: GcCell<Option<Id<SymlinkCache>>>,
     #[unsafe_ignore_trace]
     pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: GcCell<Option<Gc<TypeChecker>>>,

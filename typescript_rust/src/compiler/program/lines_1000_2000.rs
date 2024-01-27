@@ -1575,7 +1575,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
             .ref_(self).is_source_of_project_reference_redirect_(file_name)
     }
 
-    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
         Some(self.program.ref_(self).get_symlink_cache())
     }
 

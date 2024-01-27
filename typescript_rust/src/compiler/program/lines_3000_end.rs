@@ -1981,13 +1981,13 @@ impl Program {
         ) == Comparison::EqualTo
     }
 
-    pub fn get_symlink_cache(&self) -> Gc<SymlinkCache> {
+    pub fn get_symlink_cache(&self) -> Id<SymlinkCache> {
         let host_symlink_cache = self.host().ref_(self).get_symlink_cache();
         if let Some(host_symlink_cache) = host_symlink_cache {
             return host_symlink_cache;
         }
         if self.symlinks().is_none() {
-            *self.symlinks() = Some(Gc::new(create_symlink_cache(
+            *self.symlinks() = Some(self.alloc_symlink_cache(create_symlink_cache(
                 &self.current_directory(),
                 self.alloc_get_canonical_file_name(Box::new(HostGetCanonicalFileName::new(self.host()))),
             )));
@@ -1995,8 +1995,8 @@ impl Program {
         let symlinks = self.symlinks().clone().unwrap();
         if
         /*files && resolvedTypeReferenceDirectives &&*/
-        !symlinks.has_processed_resolutions() {
-            symlinks.set_symlinks_from_resolutions(
+        !symlinks.ref_(self).has_processed_resolutions() {
+            symlinks.ref_(self).set_symlinks_from_resolutions(
                 &self.files(),
                 Some(&(*self.resolved_type_reference_directives()).borrow()),
             );
@@ -2044,7 +2044,7 @@ impl ProgramGetSymlinkCache {
 }
 
 impl GetSymlinkCache for ProgramGetSymlinkCache {
-    fn call(&self) -> Gc<SymlinkCache> {
+    fn call(&self) -> Id<SymlinkCache> {
         self.program.ref_(self).get_symlink_cache()
     }
 }
@@ -2246,7 +2246,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         }
         self.host_get_symlink_cache
             .call()
-            .get_symlinked_files()
+            .ref_(self).get_symlinked_files()
             .as_ref()
             .and_then(|symlinked_files| symlinked_files.get(&self.host_to_path.ref_(self).call(s)).cloned())
             .or_else(|| self.host_compiler_host.ref_(self).realpath_non_overridden(s))
@@ -2279,7 +2279,7 @@ impl HasArena for UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
 }
 
 pub trait GetSymlinkCache: Trace + Finalize {
-    fn call(&self) -> Gc<SymlinkCache>;
+    fn call(&self) -> Id<SymlinkCache>;
 }
 
 pub trait GetResolvedProjectReferences: Trace + Finalize {

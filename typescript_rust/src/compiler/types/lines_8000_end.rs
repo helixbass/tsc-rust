@@ -802,7 +802,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
-    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
         None
     }
     fn get_module_specifier_cache(&self) -> Option<Rc<dyn ModuleSpecifierCache>> {

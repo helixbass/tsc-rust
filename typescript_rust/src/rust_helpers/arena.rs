@@ -15,6 +15,7 @@ use crate::{
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
+    SymlinkCache,
 };
 
 #[derive(Default)]
@@ -69,6 +70,7 @@ pub struct AllArenas {
     pub cancellation_tokens: RefCell<Arena<Box<dyn CancellationToken>>>,
     pub resolved_project_references: RefCell<Arena<ResolvedProjectReference>>,
     pub transformer_factory_or_custom_transformer_factories: RefCell<Arena<TransformerFactoryOrCustomTransformerFactory>>,
+    pub symlink_caches: RefCell<Arena<SymlinkCache>>,
 }
 
 pub trait HasArena {
@@ -448,6 +450,14 @@ pub trait HasArena {
 
     fn alloc_transformer_factory_or_custom_transformer_factory(&self, transformer_factory_or_custom_transformer_factory: TransformerFactoryOrCustomTransformerFactory) -> Id<TransformerFactoryOrCustomTransformerFactory> {
         self.arena().alloc_transformer_factory_or_custom_transformer_factory(transformer_factory_or_custom_transformer_factory)
+    }
+
+    fn symlink_cache(&self, symlink_cache: Id<SymlinkCache>) -> Ref<SymlinkCache> {
+        self.arena().symlink_cache(symlink_cache)
+    }
+
+    fn alloc_symlink_cache(&self, symlink_cache: SymlinkCache) -> Id<SymlinkCache> {
+        self.arena().alloc_symlink_cache(symlink_cache)
     }
 }
 
@@ -934,6 +944,16 @@ impl HasArena for AllArenas {
         let id = self.transformer_factory_or_custom_transformer_factories.borrow_mut().alloc(transformer_factory_or_custom_transformer_factory);
         id
     }
+
+    #[track_caller]
+    fn symlink_cache(&self, symlink_cache: Id<SymlinkCache>) -> Ref<SymlinkCache> {
+        Ref::map(self.symlink_caches.borrow(), |symlink_caches| &symlink_caches[symlink_cache])
+    }
+
+    fn alloc_symlink_cache(&self, symlink_cache: SymlinkCache) -> Id<SymlinkCache> {
+        let id = self.symlink_caches.borrow_mut().alloc(symlink_cache);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1316,6 +1336,14 @@ impl InArena for Id<TransformerFactoryOrCustomTransformerFactory> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TransformerFactoryOrCustomTransformerFactory> {
         has_arena.transformer_factory_or_custom_transformer_factory(*self)
+    }
+}
+
+impl InArena for Id<SymlinkCache> {
+    type Item = SymlinkCache;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymlinkCache> {
+        has_arena.symlink_cache(*self)
     }
 }
 
