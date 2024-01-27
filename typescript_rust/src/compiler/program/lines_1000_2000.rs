@@ -167,7 +167,7 @@ impl Program {
             return None;
         }
         self.for_each_resolved_project_reference(|resolved_ref: Id<ResolvedProjectReference>| {
-            let resolved_ref_command_line_options_ref = resolved_ref.command_line.ref_(self).options.ref_(self);
+            let resolved_ref_command_line_options_ref = resolved_ref.ref_(self).command_line.ref_(self).options.ref_(self);
             let out = out_file(&resolved_ref_command_line_options_ref)?;
             if out.is_empty() {
                 return None;
@@ -675,7 +675,7 @@ impl Program {
              index: usize| {
                 let new_ref = parent
                     .map(|parent| {
-                        parent.command_line.ref_(self).project_references.as_ref().unwrap()[index].clone()
+                        parent.ref_(self).command_line.ref_(self).project_references.as_ref().unwrap()[index].clone()
                     })
                     .unwrap_or_else(|| {
                         self.maybe_project_references().as_ref().unwrap()[index].clone()
@@ -685,9 +685,9 @@ impl Program {
                     match new_resolved_ref {
                         None => true,
                         Some(new_resolved_ref) => {
-                            new_resolved_ref.source_file != old_resolved_ref.source_file
-                             || old_resolved_ref.command_line.ref_(self).file_names
-                                != new_resolved_ref.command_line.ref_(self).file_names
+                            new_resolved_ref.ref_(self).source_file != old_resolved_ref.ref_(self).source_file
+                             || old_resolved_ref.ref_(self).command_line.ref_(self).file_names
+                                != new_resolved_ref.ref_(self).command_line.ref_(self).file_names
                         }
                     }
                 } else {
@@ -699,10 +699,10 @@ impl Program {
                  parent: Option<Id<ResolvedProjectReference>>| {
                     let new_references = if let Some(parent) = parent {
                         self.get_resolved_project_reference_by_path(
-                            &parent.source_file.ref_(self).as_source_file().path(),
+                            &parent.ref_(self).source_file.ref_(self).as_source_file().path(),
                         )
                         .unwrap()
-                        .command_line
+                        .ref_(self).command_line
                         .ref_(self).project_references
                         .clone()
                     } else {
@@ -1211,7 +1211,7 @@ impl Program {
                     .cloned()
                     .flatten()
                     .map(|resolved_project_reference| {
-                        resolved_project_reference.command_line.clone()
+                        resolved_project_reference.ref_(self).command_line.clone()
                     })
             },
             Gc::new(Box::new(GetPrependNodesReadFileCallback::new(

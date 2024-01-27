@@ -153,7 +153,7 @@ impl Program {
             Debug_.assert(resolutions.len() == module_names.len(), None);
             let options_for_file = if self.use_source_of_project_reference_redirect() {
                 self.get_redirect_reference_for_resolution(file)
-                    .map(|value| value.command_line.ref_(self).options.clone())
+                    .map(|value| value.ref_(self).command_line.ref_(self).options.clone())
             } else {
                 None
             }
@@ -342,7 +342,7 @@ impl Program {
         source_file_as_source_file.set_original_file_name(Some(ref_path));
         let command_line = self.alloc_parsed_command_line(command_line.unwrap());
 
-        let resolved_ref = Gc::new(
+        let resolved_ref = self.alloc_resolved_project_reference(
             ResolvedProjectReferenceBuilder::default()
                 .command_line(command_line.clone())
                 .source_file(source_file)
@@ -1423,18 +1423,12 @@ impl Program {
                     self.maybe_project_references().as_deref(),
                     self.maybe_resolved_project_references_mut().as_deref(),
                     |resolved_ref, parent, index| {
-                        if matches!(
-                            resolved_ref.as_ref(),
-                            Some(resolved_ref) if Gc::ptr_eq(
-                                resolved_ref,
-                                &referenced_resolved_ref,
-                            )
-                        ) {
+                        if resolved_ref == Some(referenced_resolved_ref) {
                             Some((
                                 /*sourceFile:*/
                                 parent.map_or_else(
                                     || options_config_file.clone(),
-                                    |parent| parent.source_file.clone(),
+                                    |parent| parent.ref_(self).source_file.clone(),
                                 ),
                                 /*index:*/ index,
                             ))
@@ -1552,12 +1546,12 @@ impl Program {
              index|
              -> Option<()> {
                 let ref_ = if let Some(parent) = parent {
-                    parent.command_line.ref_(self).project_references.clone().unwrap()
+                    parent.ref_(self).command_line.ref_(self).project_references.clone().unwrap()
                 } else {
                     self.maybe_project_references().clone().unwrap()
                 }[index]
                     .clone();
-                let parent_file = parent.map(|parent| parent.source_file.clone());
+                let parent_file = parent.map(|parent| parent.ref_(self).source_file.clone());
                 if resolved_ref.is_none() {
                     self.create_diagnostic_for_reference(
                         parent_file,
@@ -1568,10 +1562,10 @@ impl Program {
                     return None;
                 }
                 let resolved_ref = resolved_ref.unwrap();
-                let options = resolved_ref.command_line.ref_(self).options;
+                let options = resolved_ref.ref_(self).command_line.ref_(self).options;
                 if options.ref_(self).composite != Some(true) || options.ref_(self).no_emit == Some(true) {
                     let inputs = if let Some(parent) = parent {
-                        parent.command_line.ref_(self).file_names.clone()
+                        parent.ref_(self).command_line.ref_(self).file_names.clone()
                     } else {
                         self.root_names().clone()
                     };
@@ -2209,7 +2203,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
             self.host_for_each_resolved_project_reference
                 .call(&mut |ref_| {
-                    let ref_command_line_options_ref = ref_.command_line.ref_(self).options.ref_(self);
+                    let ref_command_line_options_ref = ref_.ref_(self).command_line.ref_(self).options.ref_(self);
                     let out = out_file(&ref_command_line_options_ref);
                     if let Some(out) = out {
                         set_of_declaration_directories

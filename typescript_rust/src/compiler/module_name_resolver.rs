@@ -533,8 +533,8 @@ pub fn resolve_type_reference_directive(
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&options.ref_(arena), host);
-    if let Some(redirected_reference) = redirected_reference.as_ref() {
-        options = redirected_reference.command_line.ref_(arena).options.clone();
+    if let Some(redirected_reference) = redirected_reference {
+        options = redirected_reference.ref_(arena).command_line.ref_(arena).options.clone();
     }
 
     let containing_directory =
@@ -568,7 +568,7 @@ pub fn resolve_type_reference_directive(
                     host,
                     &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                     Some(vec![redirected_reference
-                        .source_file
+                        .ref_(arena).source_file
                         .ref_(arena).as_source_file()
                         .file_name()
                         .clone()]),
@@ -648,7 +648,7 @@ pub fn resolve_type_reference_directive(
                 host,
                 &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                 Some(vec![redirected_reference
-                    .source_file
+                    .ref_(arena).source_file
                     .ref_(arena).as_source_file()
                     .file_name()
                     .clone()]),
@@ -1056,7 +1056,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
             return self.own_map.borrow().clone();
         }
         let redirected_reference = redirected_reference.unwrap();
-        let redirected_reference_source_file_ref = redirected_reference.source_file.ref_(self);
+        let redirected_reference_source_file_ref = redirected_reference.ref_(self).source_file.ref_(self);
         let path = redirected_reference_source_file_ref.as_source_file().path();
         let mut redirects = (*self.redirects_map).borrow().get(&path).cloned();
         if redirects.is_none() {
@@ -1065,7 +1065,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
                     None => true,
                     Some(options) => options_have_module_resolution_changes(
                         &options.ref_(self),
-                        &redirected_reference.command_line.ref_(self).options.ref_(self),
+                        &redirected_reference.ref_(self).command_line.ref_(self).options.ref_(self),
                     ),
                 } {
                     Gc::new(GcCell::new(HashMap::new()))
@@ -1631,8 +1631,8 @@ pub fn resolve_module_name(
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
-    if let Some(redirected_reference) = redirected_reference.as_ref() {
-        compiler_options = redirected_reference.command_line.ref_(arena).options.clone();
+    if let Some(redirected_reference) = redirected_reference {
+        compiler_options = redirected_reference.ref_(arena).command_line.ref_(arena).options.clone();
     }
     if trace_enabled {
         trace(
@@ -1645,7 +1645,7 @@ pub fn resolve_module_name(
                 host,
                 &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                 Some(vec![redirected_reference
-                    .source_file
+                    .ref_(arena).source_file
                     .ref_(arena).as_source_file()
                     .file_name()
                     .clone()]),
@@ -2355,7 +2355,7 @@ fn try_resolve(
                 containing_directory,
                 state,
                 cache.as_deref(),
-                redirected_reference.as_deref(),
+                redirected_reference,
             );
         }
         if resolved.is_none() && features.intersects(NodeResolutionFeatures::SelfName) {

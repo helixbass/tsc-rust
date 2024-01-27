@@ -819,7 +819,7 @@ impl Program {
         self.for_each_resolved_project_reference(
             |resolved_ref: Id<ResolvedProjectReference>| -> Option<()> {
                 diagnostics.append(&mut self.program_diagnostics().get_diagnostics(Some(
-                    &**resolved_ref.source_file.ref_(self).as_source_file().file_name(),
+                    &**resolved_ref.ref_(self).source_file.ref_(self).as_source_file().file_name(),
                 )));
                 None
             },

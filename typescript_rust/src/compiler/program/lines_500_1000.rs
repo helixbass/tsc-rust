@@ -476,7 +476,7 @@ fn for_each_project_reference_worker<TReturn>(
                 Some(resolved_ref) if matches!(
                     seen_resolved_refs,
                     Some(seen_resolved_refs) if seen_resolved_refs.contains(
-                        &*resolved_ref.source_file.ref_(arena).as_source_file().path()
+                        &*resolved_ref.ref_(arena).source_file.ref_(arena).as_source_file().path()
                     )
                 )
             ) {
@@ -487,18 +487,18 @@ fn for_each_project_reference_worker<TReturn>(
             if result.is_some() || resolved_ref.is_none() {
                 return result;
             }
-            let resolved_ref = resolved_ref.as_ref().unwrap();
+            let resolved_ref = resolved_ref.unwrap();
 
             seen_resolved_refs
                 .get_or_insert_default_()
-                .insert(resolved_ref.source_file.ref_(arena).as_source_file().path().clone());
+                .insert(resolved_ref.ref_(arena).source_file.ref_(arena).as_source_file().path().clone());
             for_each_project_reference_worker(
                 cb_ref,
                 cb_resolved_ref,
                 seen_resolved_refs,
-                resolved_ref.command_line.ref_(arena).project_references.as_deref(),
-                resolved_ref.maybe_references().as_deref(),
-                Some(&**resolved_ref),
+                resolved_ref.ref_(arena).command_line.ref_(arena).project_references.as_deref(),
+                resolved_ref.ref_(arena).maybe_references().as_deref(),
+                Some(resolved_ref),
                 arena,
             )
         },
@@ -532,13 +532,13 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
 
     try_maybe_for_each(
         resolved_project_references,
-        |resolved_ref: &Option<Id<ResolvedProjectReference>>, index| {
+        |&resolved_ref: &Option<Id<ResolvedProjectReference>>, index| {
             if matches!(
-                resolved_ref.as_ref(),
+                resolved_ref,
                 Some(resolved_ref) if matches!(
                     seen_resolved_refs,
                     Some(seen_resolved_refs) if seen_resolved_refs.contains(
-                        &*resolved_ref.source_file.ref_(arena).as_source_file().path()
+                        &*resolved_ref.ref_(arena).source_file.ref_(arena).as_source_file().path()
                     )
                 )
             ) {
@@ -549,18 +549,18 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
             if result.is_some() || resolved_ref.is_none() {
                 return Ok(result);
             }
-            let resolved_ref = resolved_ref.as_ref().unwrap();
+            let resolved_ref = resolved_ref.unwrap();
 
             seen_resolved_refs
                 .get_or_insert_default_()
-                .insert(resolved_ref.source_file.ref_(arena).as_source_file().path().clone());
+                .insert(resolved_ref.ref_(arena).source_file.ref_(arena).as_source_file().path().clone());
             for_each_project_reference_worker_fallible(
                 cb_ref,
                 cb_resolved_ref,
                 seen_resolved_refs,
-                resolved_ref.command_line.ref_(arena).project_references.as_deref(),
-                resolved_ref.maybe_references().as_deref(),
-                Some(&**resolved_ref),
+                resolved_ref.ref_(arena).command_line.ref_(arena).project_references.as_deref(),
+                resolved_ref.ref_(arena).maybe_references().as_deref(),
+                Some(resolved_ref),
                 arena,
             )
         },
@@ -1122,13 +1122,13 @@ impl Program {
                                 return Ok(());
                             }
                             let parsed_ref = parsed_ref.as_ref().unwrap();
-                            let parsed_ref_command_line_options_ref = parsed_ref.command_line.ref_(self).options.ref_(self);
+                            let parsed_ref_command_line_options_ref = parsed_ref.ref_(self).command_line.ref_(self).options.ref_(self);
                             let out = out_file(
                                 &parsed_ref_command_line_options_ref,
                             );
                             if self.use_source_of_project_reference_redirect() {
-                                if out.is_non_empty() || get_emit_module_kind(&parsed_ref.command_line.ref_(self).options.ref_(self)) == ModuleKind::None {
-                                    for file_name in &parsed_ref.command_line.ref_(self).file_names {
+                                if out.is_non_empty() || get_emit_module_kind(&parsed_ref.ref_(self).command_line.ref_(self).options.ref_(self)) == ModuleKind::None {
+                                    for file_name in &parsed_ref.ref_(self).command_line.ref_(self).file_names {
                                         self.process_project_reference_file(
                                             file_name,
                                             self.alloc_file_include_reason(FileIncludeReason::ProjectReferenceFile(
@@ -1151,19 +1151,19 @@ impl Program {
                                             }
                                         ))
                                     )?;
-                                } else if get_emit_module_kind(&parsed_ref.command_line.ref_(self).options.ref_(self)) == ModuleKind::None {
+                                } else if get_emit_module_kind(&parsed_ref.ref_(self).command_line.ref_(self).options.ref_(self)) == ModuleKind::None {
                                     let mut got_common_source_directory: Option<String> = Default::default();
-                                    for file_name in &parsed_ref.command_line.ref_(self).file_names {
+                                    for file_name in &parsed_ref.ref_(self).command_line.ref_(self).file_names {
                                         if !file_extension_is(file_name, Extension::Dts.to_str()) && !file_extension_is(file_name, Extension::Json.to_str()) {
                                             self.process_project_reference_file(
                                                 &get_output_declaration_file_name(
                                                     file_name,
-                                                    &parsed_ref.command_line.ref_(self),
+                                                    &parsed_ref.ref_(self).command_line.ref_(self),
                                                     !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                                                     Some(&mut || {
                                                         got_common_source_directory.get_or_insert_with(|| {
                                                             get_common_source_directory_of_config(
-                                                                &parsed_ref.command_line.ref_(self),
+                                                                &parsed_ref.ref_(self).command_line.ref_(self),
                                                                 !CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)),
                                                                 self,
                                                             )
@@ -1903,7 +1903,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
                 /*Debug.checkEachDefined(*/ module_names, /*)*/
                 containing_file_name,
                 reused_names,
-                redirected_reference.as_deref(),
+                redirected_reference,
                 &self.options.ref_(self),
                 Some(containing_file),
             )
@@ -2005,7 +2005,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
             .ref_(self).resolve_type_reference_directives(
                 /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
                 containing_file,
-                redirected_reference.as_deref(),
+                redirected_reference,
                 &self.options.ref_(self),
             )
             .unwrap())

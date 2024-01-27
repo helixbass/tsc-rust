@@ -766,8 +766,8 @@ pub fn file_include_reason_to_diagnostics(
                     to_file_name(
                         {
                             let tmp: String = referenced_resolved_ref
-                                .source_file
-                                .ref_(program).as_source_file()
+                                .ref_(arena).source_file
+                                .ref_(arena).as_source_file()
                                 .file_name()
                                 .clone();
                             tmp
