@@ -15,7 +15,7 @@ use crate::{
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
-    SymlinkCache,
+    SymlinkCache, WriteFileCallback,
 };
 
 #[derive(Default)]
@@ -71,6 +71,7 @@ pub struct AllArenas {
     pub resolved_project_references: RefCell<Arena<ResolvedProjectReference>>,
     pub transformer_factory_or_custom_transformer_factories: RefCell<Arena<TransformerFactoryOrCustomTransformerFactory>>,
     pub symlink_caches: RefCell<Arena<SymlinkCache>>,
+    pub write_file_callbacks: RefCell<Arena<Box<dyn WriteFileCallback>>>,
 }
 
 pub trait HasArena {
@@ -458,6 +459,14 @@ pub trait HasArena {
 
     fn alloc_symlink_cache(&self, symlink_cache: SymlinkCache) -> Id<SymlinkCache> {
         self.arena().alloc_symlink_cache(symlink_cache)
+    }
+
+    fn write_file_callback(&self, write_file_callback: Id<Box<dyn WriteFileCallback>>) -> Ref<Box<dyn WriteFileCallback>> {
+        self.arena().write_file_callback(write_file_callback)
+    }
+
+    fn alloc_write_file_callback(&self, write_file_callback: Box<dyn WriteFileCallback>) -> Id<Box<dyn WriteFileCallback>> {
+        self.arena().alloc_write_file_callback(write_file_callback)
     }
 }
 
@@ -954,6 +963,16 @@ impl HasArena for AllArenas {
         let id = self.symlink_caches.borrow_mut().alloc(symlink_cache);
         id
     }
+
+    #[track_caller]
+    fn write_file_callback(&self, write_file_callback: Id<Box<dyn WriteFileCallback>>) -> Ref<Box<dyn WriteFileCallback>> {
+        Ref::map(self.write_file_callbacks.borrow(), |write_file_callbacks| &write_file_callbacks[write_file_callback])
+    }
+
+    fn alloc_write_file_callback(&self, write_file_callback: Box<dyn WriteFileCallback>) -> Id<Box<dyn WriteFileCallback>> {
+        let id = self.write_file_callbacks.borrow_mut().alloc(write_file_callback);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1344,6 +1363,14 @@ impl InArena for Id<SymlinkCache> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymlinkCache> {
         has_arena.symlink_cache(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn WriteFileCallback>> {
+    type Item = Box<dyn WriteFileCallback>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn WriteFileCallback>> {
+        has_arena.write_file_callback(*self)
     }
 }
 

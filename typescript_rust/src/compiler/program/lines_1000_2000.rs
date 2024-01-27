@@ -288,7 +288,7 @@ impl Program {
     pub fn emit(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         emit_only_dts_files: Option<bool>,
         transformers: Option<&CustomTransformers>,
@@ -318,7 +318,7 @@ impl Program {
     pub(super) fn emit_worker(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
         cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<&CustomTransformers>,
@@ -1157,7 +1157,7 @@ impl Program {
 
     pub(super) fn get_emit_host(
         &self,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
     ) -> Id<Box<dyn EmitHost>> {
         self.alloc_emit_host(Box::new(ProgramEmitHost::new(
             self.arena_id(),
@@ -1167,7 +1167,7 @@ impl Program {
 
     pub(super) fn emit_build_info(
         &self,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
         _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<EmitResult> {
         Debug_.assert(out_file(&self.options.ref_(self)).non_empty().is_none(), None);
@@ -1434,13 +1434,13 @@ impl HasArena for GetPrependNodesReadFileCallback {
 #[derive(Trace, Finalize)]
 pub struct ProgramEmitHost {
     program: Id<Program>,
-    write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+    write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
 }
 
 impl ProgramEmitHost {
     pub fn new(
         program: Id<Program>,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
     ) -> Self {
         Self {
             program,
@@ -1475,7 +1475,7 @@ impl EmitHost for ProgramEmitHost {
         source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         if let Some(write_file_callback) = self.write_file_callback.clone() {
-            write_file_callback.call(
+            write_file_callback.ref_(self).call(
                 file_name,
                 data,
                 write_byte_order_mark,

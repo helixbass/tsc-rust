@@ -2303,7 +2303,7 @@ pub(crate) fn emit_skipped_with_no_diagnostics() -> EmitResult {
 pub(crate) fn handle_no_emit_options(
     program: Id<Program>,
     source_file: Option<Id<Node> /*SourceFile*/>,
-    write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
+    write_file: Option<Id<Box<dyn WriteFileCallback>>>,
     cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<EmitResult>> {
