@@ -2213,7 +2213,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
                     let out = out_file(&ref_command_line_options_ref);
                     if let Some(out) = out {
                         set_of_declaration_directories
-                            .insert(get_directory_path(&self.host_to_path.call(out)).into());
+                            .insert(get_directory_path(&self.host_to_path.ref_(self).call(out)).into());
                     } else {
                         let declaration_dir = ref_command_line_options_ref
                             .declaration_dir
@@ -2221,7 +2221,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
                             .or_else(|| ref_command_line_options_ref.out_dir.as_ref());
                         if let Some(declaration_dir) = declaration_dir {
                             set_of_declaration_directories
-                                .insert(self.host_to_path.call(declaration_dir));
+                                .insert(self.host_to_path.ref_(self).call(declaration_dir));
                         }
                     }
                 });
@@ -2254,7 +2254,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             .call()
             .get_symlinked_files()
             .as_ref()
-            .and_then(|symlinked_files| symlinked_files.get(&self.host_to_path.call(s)).cloned())
+            .and_then(|symlinked_files| symlinked_files.get(&self.host_to_path.ref_(self).call(s)).cloned())
             .or_else(|| self.host_compiler_host.ref_(self).realpath_non_overridden(s))
     }
 

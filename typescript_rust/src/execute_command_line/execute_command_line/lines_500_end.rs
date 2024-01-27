@@ -346,7 +346,7 @@ pub(super) fn perform_compilation(
         create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&**host.ref_(arena)));
     change_compiler_host_like_to_use_cache(
         host.clone(),
-        Gc::new(Box::new(PerformCompilationToPath::new(
+        arena.alloc_to_path(Box::new(PerformCompilationToPath::new(
             current_directory,
             get_canonical_file_name,
         ))),

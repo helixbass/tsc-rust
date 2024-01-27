@@ -729,7 +729,7 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
 
     #[allow(dead_code)]
     pub fn read_file_with_cache(&self, file_name: &str) -> Option<String> {
-        let key = self.to_path.call(file_name);
+        let key = self.to_path.ref_(self).call(file_name);
         {
             let read_file_cache = self.read_file_cache.borrow();
             let value = read_file_cache.get(&*key);
@@ -753,7 +753,7 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
 
 impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider {
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
-        let key = self.to_path.call(file_name);
+        let key = self.to_path.ref_(self).call(file_name);
         {
             let read_file_cache = self.read_file_cache.borrow();
             let value = read_file_cache.get(&*key);
@@ -770,7 +770,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 
     fn file_exists(&self, file_name: &str) -> bool {
-        let key = self.to_path.call(file_name);
+        let key = self.to_path.ref_(self).call(file_name);
         {
             let value = self.file_exists_cache.borrow().get(&*key).copied();
             if let Some(value) = value {
@@ -792,7 +792,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
-        let key = self.to_path.call(file_name);
+        let key = self.to_path.ref_(self).call(file_name);
         self.file_exists_cache.borrow_mut().remove(&*key);
 
         let value_is_different = {
@@ -833,7 +833,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 
     fn directory_exists(&self, directory: &str) -> Option<bool> {
-        let key = self.to_path.call(directory);
+        let key = self.to_path.ref_(self).call(directory);
         {
             let directory_exists_cache = self.directory_exists_cache.borrow();
             let value = directory_exists_cache.get(&*key);
@@ -852,7 +852,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 
     fn create_directory(&self, directory: &str) -> io::Result<()> {
-        let key = self.to_path.call(directory);
+        let key = self.to_path.ref_(self).call(directory);
         self.directory_exists_cache.borrow_mut().remove(&*key);
         self.host.ref_(self).create_directory_non_overridden(directory)?;
 

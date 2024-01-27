@@ -11,7 +11,7 @@ use crate::{
     FileIncludeReason, System, SourceMapRange, EmitHelper, CompilerOptions, FlowNode, Diagnostic,
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
-    ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel,
+    ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath,
 };
 
 #[derive(Default)]
@@ -54,6 +54,7 @@ pub struct AllArenas {
     pub iteration_types: RefCell<Arena<IterationTypes>>,
     pub type_predicates: RefCell<Arena<TypePredicate>>,
     pub active_labels: RefCell<Arena<ActiveLabel>>,
+    pub to_paths: RefCell<Arena<Box<dyn ToPath>>>,
 }
 
 pub trait HasArena {
@@ -337,6 +338,14 @@ pub trait HasArena {
 
     fn alloc_active_label(&self, active_label: ActiveLabel) -> Id<ActiveLabel> {
         self.arena().alloc_active_label(active_label)
+    }
+
+    fn to_path(&self, to_path: Id<Box<dyn ToPath>>) -> Ref<Box<dyn ToPath>> {
+        self.arena().to_path(to_path)
+    }
+
+    fn alloc_to_path(&self, to_path: Box<dyn ToPath>) -> Id<Box<dyn ToPath>> {
+        self.arena().alloc_to_path(to_path)
     }
 }
 
@@ -703,6 +712,16 @@ impl HasArena for AllArenas {
         let id = self.active_labels.borrow_mut().alloc(active_label);
         id
     }
+
+    #[track_caller]
+    fn to_path(&self, to_path: Id<Box<dyn ToPath>>) -> Ref<Box<dyn ToPath>> {
+        Ref::map(self.to_paths.borrow(), |to_paths| &to_paths[to_path])
+    }
+
+    fn alloc_to_path(&self, to_path: Box<dyn ToPath>) -> Id<Box<dyn ToPath>> {
+        let id = self.to_paths.borrow_mut().alloc(to_path);
+        id
+    }
 }
 
 pub trait InArena {
@@ -989,6 +1008,14 @@ impl InArena for Id<ActiveLabel> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ActiveLabel> {
         has_arena.active_label(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ToPath>> {
+    type Item = Box<dyn ToPath>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ToPath>> {
+        has_arena.to_path(*self)
     }
 }
 

@@ -380,7 +380,7 @@ impl Program {
     }
 
     pub fn to_path_rc(&self) -> Id<Box<dyn ToPath>> {
-        Gc::new(Box::new(ProgramToPath::new(self.arena_id())))
+        self.alloc_to_path(Box::new(ProgramToPath::new(self.arena_id())))
     }
 
     pub fn get_common_source_directory(&self) -> String {
