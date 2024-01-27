@@ -235,23 +235,23 @@ pub fn for_each_child_returns<TReturn>(
         Node::ConstructorTypeNode(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_deref(),
+                        node.maybe_type_parameters(),
                         arena,
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(&node.parameters()),
+                            Some(node.parameters()),
                             arena,
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
@@ -262,23 +262,23 @@ pub fn for_each_child_returns<TReturn>(
         Node::CallSignatureDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_deref(),
+                        node.maybe_type_parameters(),
                         arena,
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(&node.parameters()),
+                            Some(node.parameters()),
                             arena,
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
@@ -289,23 +289,23 @@ pub fn for_each_child_returns<TReturn>(
         Node::ConstructSignatureDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_deref(),
+                        node.maybe_type_parameters(),
                         arena,
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(&node.parameters()),
+                            Some(node.parameters()),
                             arena,
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
@@ -316,23 +316,23 @@ pub fn for_each_child_returns<TReturn>(
         Node::IndexSignatureDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_parameters().as_deref(),
+                        node.maybe_type_parameters(),
                         arena,
                     )
                     .or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            Some(&node.parameters()),
+                            Some(node.parameters()),
                             arena,
                         )
                         .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
@@ -343,11 +343,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::MethodDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
@@ -358,7 +358,7 @@ pub fn for_each_child_returns<TReturn>(
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_deref(),
+                                                node.maybe_type_parameters(),
                                                 arena,
                                             )
                                             .or_else(
@@ -366,7 +366,7 @@ pub fn for_each_child_returns<TReturn>(
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(&node.parameters()),
+                                                        Some(node.parameters()),
                                                         arena,
                                                     )
                                                     .or_else(|| {
@@ -394,24 +394,24 @@ pub fn for_each_child_returns<TReturn>(
         Node::MethodSignature(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                         visit_nodes_returns(
                             &mut cb_node,
                             cb_nodes.as_mut(),
-                            node.maybe_type_parameters().as_deref(),
+                            node.maybe_type_parameters(),
                             arena,
                         )
                         .or_else(|| {
                             visit_nodes_returns(
                                 &mut cb_node,
                                 cb_nodes.as_mut(),
-                                Some(&node.parameters()),
+                                Some(node.parameters()),
                                 arena,
                             )
                             .or_else(|| visit_node_returns(&mut cb_node, node.maybe_type()))
@@ -423,11 +423,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::ConstructorDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -438,7 +438,7 @@ pub fn for_each_child_returns<TReturn>(
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_deref(),
+                                                node.maybe_type_parameters(),
                                                 arena,
                                             )
                                             .or_else(
@@ -446,7 +446,7 @@ pub fn for_each_child_returns<TReturn>(
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(&node.parameters()),
+                                                        Some(node.parameters()),
                                                         arena,
                                                     )
                                                     .or_else(|| {
@@ -474,11 +474,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::GetAccessorDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
@@ -489,7 +489,7 @@ pub fn for_each_child_returns<TReturn>(
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_deref(),
+                                                node.maybe_type_parameters(),
                                                 arena,
                                             )
                                             .or_else(
@@ -497,7 +497,7 @@ pub fn for_each_child_returns<TReturn>(
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(&node.parameters()),
+                                                        Some(node.parameters()),
                                                         arena,
                                                     )
                                                     .or_else(|| {
@@ -525,11 +525,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::SetAccessorDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
@@ -540,7 +540,7 @@ pub fn for_each_child_returns<TReturn>(
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_deref(),
+                                                node.maybe_type_parameters(),
                                                 arena,
                                             )
                                             .or_else(
@@ -548,7 +548,7 @@ pub fn for_each_child_returns<TReturn>(
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(&node.parameters()),
+                                                        Some(node.parameters()),
                                                         arena,
                                                     )
                                                     .or_else(|| {
@@ -576,11 +576,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::FunctionExpression(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -591,7 +591,7 @@ pub fn for_each_child_returns<TReturn>(
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_deref(),
+                                                node.maybe_type_parameters(),
                                                 arena,
                                             )
                                             .or_else(
@@ -599,7 +599,7 @@ pub fn for_each_child_returns<TReturn>(
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(&node.parameters()),
+                                                        Some(node.parameters()),
                                                         arena,
                                                     )
                                                     .or_else(|| {
@@ -627,11 +627,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::FunctionDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -642,7 +642,7 @@ pub fn for_each_child_returns<TReturn>(
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_deref(),
+                                                node.maybe_type_parameters(),
                                                 arena,
                                             )
                                             .or_else(
@@ -650,7 +650,7 @@ pub fn for_each_child_returns<TReturn>(
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(&node.parameters()),
+                                                        Some(node.parameters()),
                                                         arena,
                                                     )
                                                     .or_else(|| {
@@ -678,11 +678,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::ArrowFunction(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena).or_else(
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena).or_else(
                 || {
                     visit_node_returns(&mut cb_node, node.maybe_asterisk_token()).or_else(|| {
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
@@ -693,7 +693,7 @@ pub fn for_each_child_returns<TReturn>(
                                             visit_nodes_returns(
                                                 &mut cb_node,
                                                 cb_nodes.as_mut(),
-                                                node.maybe_type_parameters().as_deref(),
+                                                node.maybe_type_parameters(),
                                                 arena,
                                             )
                                             .or_else(
@@ -701,7 +701,7 @@ pub fn for_each_child_returns<TReturn>(
                                                     visit_nodes_returns(
                                                         &mut cb_node,
                                                         cb_nodes.as_mut(),
-                                                        Some(&node.parameters()),
+                                                        Some(node.parameters()),
                                                         arena,
                                                     )
                                                     .or_else(|| {
@@ -738,11 +738,11 @@ pub fn for_each_child_returns<TReturn>(
         Node::ClassStaticBlockDeclaration(node) => visit_nodes_returns(
             &mut cb_node,
             cb_nodes.as_mut(),
-            node.maybe_decorators().as_deref(),
+            node.maybe_decorators(),
             arena,
         )
         .or_else(|| {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers().as_deref(), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.maybe_modifiers(), arena)
                 .or_else(|| visit_node_returns(&mut cb_node, Some(node.body)))
         }),
         Node::TypeReferenceNode(node) => {
@@ -750,7 +750,7 @@ pub fn for_each_child_returns<TReturn>(
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.maybe_type_arguments().as_deref(),
+                    node.maybe_type_arguments(),
                     arena,
                 )
             })
@@ -763,19 +763,19 @@ pub fn for_each_child_returns<TReturn>(
         }
         Node::TypeQueryNode(node) => visit_node_returns(&mut cb_node, Some(node.expr_name)),
         Node::TypeLiteralNode(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.members), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.members), arena)
         }
         Node::ArrayTypeNode(node) => {
             visit_node_returns(&mut cb_node, Some(node.element_type.clone()))
         }
         Node::TupleTypeNode(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.elements), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)
         }
         Node::UnionTypeNode(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.types), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.types), arena)
         }
         Node::IntersectionTypeNode(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.types), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.types), arena)
         }
         Node::ConditionalTypeNode(node) => {
             visit_node_returns(&mut cb_node, Some(node.check_type)).or_else(|| {
@@ -792,7 +792,7 @@ pub fn for_each_child_returns<TReturn>(
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_arguments().as_deref(),
+                        node.maybe_type_arguments(),
                         arena,
                     )
                 })
@@ -813,7 +813,7 @@ pub fn for_each_child_returns<TReturn>(
                                     visit_nodes_returns(
                                         &mut cb_node,
                                         cb_nodes.as_mut(),
-                                        node.members.as_deref(),
+                                        node.members,
                                         arena,
                                     )
                                 })
@@ -832,16 +832,16 @@ pub fn for_each_child_returns<TReturn>(
             })
         }
         Node::ObjectBindingPattern(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.elements), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)
         }
         Node::ArrayBindingPattern(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.elements), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)
         }
         Node::ArrayLiteralExpression(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.elements), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.elements), arena)
         }
         Node::ObjectLiteralExpression(node) => {
-            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.properties), arena)
+            visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.properties), arena)
         }
         Node::PropertyAccessExpression(node) => {
             visit_node_returns(&mut cb_node, Some(node.expression)).or_else(|| {
@@ -861,11 +861,11 @@ pub fn for_each_child_returns<TReturn>(
                     visit_nodes_returns(
                         &mut cb_node,
                         cb_nodes.as_mut(),
-                        node.maybe_type_arguments().as_deref(),
+                        node.maybe_type_arguments(),
                         arena,
                     )
                     .or_else(|| {
-                        visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(&node.arguments), arena)
+                        visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), Some(node.arguments), arena)
                     })
                 })
             }),
@@ -874,11 +874,11 @@ pub fn for_each_child_returns<TReturn>(
                 visit_nodes_returns(
                     &mut cb_node,
                     cb_nodes.as_mut(),
-                    node.maybe_type_arguments().as_deref(),
+                    node.maybe_type_arguments(),
                     arena,
                 )
                 .or_else(|| {
-                    visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.arguments.as_deref(), arena)
+                    visit_nodes_returns(&mut cb_node, cb_nodes.as_mut(), node.arguments, arena)
                 })
             }),
         Node::TaggedTemplateExpression(node) => visit_node_returns(&mut cb_node, Some(node.tag))
