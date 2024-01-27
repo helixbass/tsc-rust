@@ -279,7 +279,7 @@ impl TypeChecker {
                 for &decl in symbol_declarations {
                     let members = get_members_of_declaration(&decl.ref_(self));
                     if let Some(members) = members {
-                        for &member in &members {
+                        for &member in &*members.ref_(self) {
                             if is_static == has_static_modifier(member, self)
                                 && self.has_late_bindable_name(member)?
                             {

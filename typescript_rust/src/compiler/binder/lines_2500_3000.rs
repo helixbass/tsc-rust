@@ -369,7 +369,7 @@ impl BinderType {
             }
             SyntaxKind::SourceFile => {
                 self.update_strict_mode_statement_list(
-                    &node.ref_(self).as_source_file().statements(),
+                    node.ref_(self).as_source_file().statements(),
                 );
                 self.bind_source_file_if_external_module();
             }
@@ -379,11 +379,11 @@ impl BinderType {
                 ) {
                     return;
                 }
-                self.update_strict_mode_statement_list(&node.ref_(self).as_block().statements);
+                self.update_strict_mode_statement_list(node.ref_(self).as_block().statements);
             }
             SyntaxKind::ModuleBlock => {
                 self.update_strict_mode_statement_list(
-                    &node.ref_(self).as_module_block().statements,
+                    node.ref_(self).as_module_block().statements,
                 );
             }
 
@@ -554,8 +554,8 @@ impl BinderType {
         node: Id<Node>, /*NamespaceExportDeclaration*/
     ) {
         if matches!(
-            node.ref_(self).maybe_modifiers().as_ref(),
-            Some(modifiers) if !modifiers.is_empty()
+            node.ref_(self).maybe_modifiers(),
+            Some(modifiers) if !modifiers.ref_(self).is_empty()
         ) {
             self.file()
                 .ref_(self)
@@ -698,7 +698,7 @@ impl BinderType {
             return;
         }
         let symbol = self.for_each_identifier_in_entity_name(
-            node.ref_(self).as_call_expression().arguments[0],
+            node.ref_(self).as_call_expression().arguments.ref_(self)[0],
             None,
             &mut |id, symbol, _| {
                 if let Some(symbol) = symbol {
@@ -806,11 +806,11 @@ impl BinderType {
             let assigned_expression_ref = assigned_expression.ref_(self);
             let assigned_expression_as_object_literal_expression = assigned_expression_ref.as_object_literal_expression();
             if every(
-                &assigned_expression_as_object_literal_expression.properties,
+                &assigned_expression_as_object_literal_expression.properties.ref_(self),
                 |property, _| is_shorthand_property_assignment(&property.ref_(self)),
             ) {
                 for_each(
-                    &assigned_expression_as_object_literal_expression.properties,
+                    &*assigned_expression_as_object_literal_expression.properties.ref_(self),
                     |&property, _| {
                         self.bind_export_assigned_object_member_alias(property);
                         Option::<()>::None

@@ -408,7 +408,7 @@ impl TypeChecker {
                         .name()
                         .ref_(self).as_has_elements()
                         .elements()
-                        .is_empty()
+                        .ref_(self).is_empty()
                 {
                     return false;
                 }

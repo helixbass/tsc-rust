@@ -16,6 +16,7 @@ use crate::{
     Number, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface,
     SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, TypeReferenceInterface, TypeSystemPropertyName, UnionReduction,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -104,10 +105,7 @@ impl TypeChecker {
                 if declaration.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     && get_interface_base_type_nodes(declaration, self).is_some()
                 {
-                    for &node in get_interface_base_type_nodes(declaration, self)
-                        .as_deref()
-                        .unwrap()
-                    {
+                    for &node in &*get_interface_base_type_nodes(declaration, self).unwrap().ref_(self) {
                         let base_type =
                             self.get_reduced_type(self.get_type_from_type_node_(node)?)?;
                         if !self.is_error_type(base_type) {
@@ -162,7 +160,7 @@ impl TypeChecker {
                 }
                 let base_type_nodes = get_interface_base_type_nodes(declaration, self);
                 if let Some(base_type_nodes) = base_type_nodes {
-                    for node in &*base_type_nodes {
+                    for node in &*base_type_nodes.ref_(self) {
                         let node_ref = node.ref_(self);
                         let node_as_expression_with_type_arguments =
                             node_ref.as_expression_with_type_arguments();
@@ -465,7 +463,7 @@ impl TypeChecker {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             for declaration in symbol_declarations {
                 if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
-                    for &member in &declaration.ref_(self).as_enum_declaration().members {
+                    for &member in &*declaration.ref_(self).as_enum_declaration().members.ref_(self) {
                         if matches!(
                             member.ref_(self).as_enum_member().initializer,
                             Some(initializer) if is_string_literal_like(&initializer.ref_(self))
@@ -519,7 +517,7 @@ impl TypeChecker {
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
                     if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
-                        for &member in &declaration.ref_(self).as_enum_declaration().members {
+                        for &member in &*declaration.ref_(self).as_enum_declaration().members.ref_(self) {
                             let value = self.get_enum_member_value(member)?;
                             let member_type =
                                 self.get_fresh_type_of_literal_type(self.get_enum_literal_type(
@@ -664,7 +662,7 @@ impl TypeChecker {
                 match node
                     .ref_(self).as_type_reference_node()
                     .maybe_type_arguments()
-                    .as_deref()
+                    .refed(self).as_deref()
                 {
                     None => true,
                     Some(type_arguments) => every(type_arguments, |&type_argument: &Id<Node>, _| {
@@ -713,7 +711,7 @@ impl TypeChecker {
             && node
                 .ref_(self).as_signature_declaration()
                 .parameters()
-                .iter()
+                .ref_(self).iter()
                 .all(|&parameter: &Id<Node>| self.is_thisless_variable_like_declaration(parameter))
             && type_parameters
                 .iter()

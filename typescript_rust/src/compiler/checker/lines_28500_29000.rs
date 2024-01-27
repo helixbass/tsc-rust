@@ -614,7 +614,7 @@ impl TypeChecker {
             let variable = initializer
                 .ref_(self).as_variable_declaration_list()
                 .declarations
-                .get(0)
+                .ref_(self).get(0)
                 .copied();
             if let Some(variable) = variable.filter(|variable| {
                 !is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
@@ -800,7 +800,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Signature>> {
         if self.call_like_expression_may_have_type_arguments(node) {
             try_maybe_for_each(
-                node.ref_(self).as_has_type_arguments().maybe_type_arguments().as_ref(),
+                node.ref_(self).as_has_type_arguments().maybe_type_arguments().refed(self).as_deref(),
                 |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(type_argument))?;
                     Ok(None)
@@ -814,7 +814,7 @@ impl TypeChecker {
             self.check_expression(node.ref_(self).as_jsx_opening_like_element().attributes(), None, None)?;
         } else if node.ref_(self).kind() != SyntaxKind::Decorator {
             try_maybe_for_each(
-                node.ref_(self).as_has_arguments().maybe_arguments().as_deref(),
+                node.ref_(self).as_has_arguments().maybe_arguments().refed(self).as_deref(),
                 |&argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_expression(argument, None, None)?;
                     Ok(None)

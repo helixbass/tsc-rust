@@ -467,7 +467,7 @@ impl TypeChecker {
         }
         let attributes_type = attributes_type.unwrap();
         let jsx_children_property_name = jsx_children_property_name.unwrap();
-        let real_children = get_semantic_jsx_children(&node_as_jsx_element.children, self);
+        let real_children = get_semantic_jsx_children(&node_as_jsx_element.children.ref_(self), self);
         let child_index = real_children
             .iter()
             .position(|&real_child| real_child == child)
@@ -578,7 +578,7 @@ impl TypeChecker {
                 contextual_type,
                 map(
                     try_filter(
-                        &node.ref_(self).as_object_literal_expression().properties,
+                        &node.ref_(self).as_object_literal_expression().properties.ref_(self),
                         |p| -> io::Result<_> {
                             Ok(p.ref_(self).maybe_symbol().is_some() &&
                                 p.ref_(self).kind() == SyntaxKind::PropertyAssignment &&
@@ -646,7 +646,7 @@ impl TypeChecker {
             contextual_type,
             map(
                 &try_filter(
-                    &node.ref_(self).as_jsx_attributes().properties,
+                    &node.ref_(self).as_jsx_attributes().properties.ref_(self),
                     |p: &Id<Node>| -> io::Result<_> {
                         Ok(p.ref_(self).maybe_symbol().is_some() &&
                             p.ref_(self).kind() == SyntaxKind::JsxAttribute &&
@@ -907,7 +907,7 @@ impl TypeChecker {
                     self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
                 self.get_contextual_type_for_element_expression(
                     type_,
-                    index_of_node(&array_literal.ref_(self).as_array_literal_expression().elements, node, self)
+                    index_of_node(&array_literal.ref_(self).as_array_literal_expression().elements.ref_(self), node, self)
                         .try_into()
                         .unwrap(),
                 )?

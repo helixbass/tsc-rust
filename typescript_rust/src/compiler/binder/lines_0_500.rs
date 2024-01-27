@@ -161,11 +161,11 @@ pub(super) fn get_module_instance_state_worker(
                 )
             {
                 let mut state = ModuleInstanceState::NonInstantiated;
-                for &specifier in &export_declaration
+                for &specifier in &*export_declaration
                     .export_clause
                     .unwrap()
                     .ref_(arena).as_named_exports()
-                    .elements
+                    .elements.ref_(arena)
                 {
                     let specifier_state =
                         get_module_instance_state_for_alias_target(specifier, visited.clone(), arena);
@@ -233,7 +233,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
         if is_block(&p_present.ref_(arena)) || is_module_block(&p_present.ref_(arena)) || is_source_file(&p_present.ref_(arena)) {
             let statements = p_present.ref_(arena).as_has_statements().statements();
             let mut found: Option<ModuleInstanceState> = None;
-            for &statement in &statements {
+            for &statement in &*statements.ref_(arena) {
                 if node_has_name(statement, name, arena) {
                     if statement.ref_(arena).maybe_parent().is_none() {
                         set_parent(&statement.ref_(arena), Some(p_present));
@@ -954,7 +954,7 @@ impl BinderType {
                 );
                 let function_type = node.ref_(self).parent();
                 let index = index_of_eq(
-                    &function_type.ref_(self).as_jsdoc_function_type().parameters(),
+                    &function_type.ref_(self).as_jsdoc_function_type().parameters().ref_(self),
                     &node,
                 );
                 Some(format!("arg{}", index).into())

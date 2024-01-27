@@ -308,7 +308,7 @@ impl TypeChecker {
                     this_expression.ref_(self).pos(),
                 )
             )
-            && length(container.ref_(self).parent().ref_(self).maybe_decorators().as_double_deref()) > 0
+            && length(container.ref_(self).parent().ref_(self).maybe_decorators().refed(self).as_double_deref()) > 0
         {
             self.error(
                 Some(this_expression),
@@ -627,7 +627,7 @@ impl TypeChecker {
                                         let container_parent_parent_parent =
                                             container_parent_parent.ref_(self).parent();
                                         is_call_expression(&container_parent_parent_parent.ref_(self)) &&
-                                            container_parent_parent_parent.ref_(self).as_call_expression().arguments.get(2).copied() == Some(container_parent_parent)
+                                            container_parent_parent_parent.ref_(self).as_call_expression().arguments.ref_(self).get(2).copied() == Some(container_parent_parent)
                                                 && get_assignment_declaration_kind(container_parent_parent_parent, self) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                                     }
                             }
@@ -640,7 +640,7 @@ impl TypeChecker {
                     .ref_(self).parent()
                     .ref_(self).parent()
                     .ref_(self).as_call_expression()
-                    .arguments[0]
+                    .arguments.ref_(self)[0]
                     .ref_(self).as_property_access_expression()
                     .expression,
             );
@@ -660,14 +660,14 @@ impl TypeChecker {
                     is_object_literal_expression(&container_parent.ref_(self)) && {
                         let container_parent_parent = container_parent.ref_(self).parent();
                         is_call_expression(&container_parent_parent.ref_(self))
-                            && container_parent_parent.ref_(self).as_call_expression().arguments.get(2).copied() == Some(container_parent)
+                            && container_parent_parent.ref_(self).as_call_expression().arguments.ref_(self).get(2).copied() == Some(container_parent)
                             && get_assignment_declaration_kind(container_parent_parent, self)
                                 == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                     }
                 }
         } {
             return Some(
-                container.ref_(self).parent().ref_(self).parent().ref_(self).as_call_expression().arguments[0]
+                container.ref_(self).parent().ref_(self).parent().ref_(self).as_call_expression().arguments.ref_(self)[0]
                     .ref_(self).as_property_access_expression()
                     .expression,
             );
@@ -686,15 +686,15 @@ impl TypeChecker {
             let jsdoc_type_ref = jsdoc_type.ref_(self);
             let js_doc_function_type = jsdoc_type_ref.as_jsdoc_function_type();
             let js_doc_function_type_parameters = js_doc_function_type.parameters();
-            if !js_doc_function_type_parameters.is_empty()
+            if !js_doc_function_type_parameters.ref_(self).is_empty()
                 && matches!(
-                    js_doc_function_type_parameters[0].ref_(self).as_parameter_declaration().maybe_name(),
+                    js_doc_function_type_parameters.ref_(self)[0].ref_(self).as_parameter_declaration().maybe_name(),
                     Some(name) if name.ref_(self).as_identifier().escaped_text == InternalSymbolName::This
                 )
             {
                 return Ok(Some(
                     self.get_type_from_type_node_(
-                        js_doc_function_type_parameters[0]
+                        js_doc_function_type_parameters.ref_(self)[0]
                             .ref_(self).as_parameter_declaration()
                             .maybe_type()
                             .unwrap(),

@@ -15,7 +15,7 @@ use crate::{
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
-    SymlinkCache, WriteFileCallback, ResolvedModuleFull,
+    SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray,
 };
 
 #[derive(Default)]
@@ -73,6 +73,7 @@ pub struct AllArenas {
     pub symlink_caches: RefCell<Arena<SymlinkCache>>,
     pub write_file_callbacks: RefCell<Arena<Box<dyn WriteFileCallback>>>,
     pub resolved_module_fulls: RefCell<Arena<ResolvedModuleFull>>,
+    pub node_arrays: RefCell<Arena<NodeArray>>,
 }
 
 pub trait HasArena {
@@ -476,6 +477,14 @@ pub trait HasArena {
 
     fn alloc_resolved_module_full(&self, resolved_module_full: ResolvedModuleFull) -> Id<ResolvedModuleFull> {
         self.arena().alloc_resolved_module_full(resolved_module_full)
+    }
+
+    fn node_array(&self, node_array: Id<NodeArray>) -> Ref<NodeArray> {
+        self.arena().node_array(node_array)
+    }
+
+    fn alloc_node_array(&self, node_array: NodeArray) -> Id<NodeArray> {
+        self.arena().alloc_node_array(node_array)
     }
 }
 
@@ -992,6 +1001,16 @@ impl HasArena for AllArenas {
         let id = self.resolved_module_fulls.borrow_mut().alloc(resolved_module_full);
         id
     }
+
+    #[track_caller]
+    fn node_array(&self, node_array: Id<NodeArray>) -> Ref<NodeArray> {
+        Ref::map(self.node_arrays.borrow(), |node_arrays| &node_arrays[node_array])
+    }
+
+    fn alloc_node_array(&self, node_array: NodeArray) -> Id<NodeArray> {
+        let id = self.node_arrays.borrow_mut().alloc(node_array);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1401,6 +1420,14 @@ impl InArena for Id<ResolvedModuleFull> {
     }
 }
 
+impl InArena for Id<NodeArray> {
+    type Item = NodeArray;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeArray> {
+        has_arena.node_array(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -1436,6 +1463,14 @@ impl OptionInArena for Option<Id<Program>> {
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Program>> {
         self.map(|program| has_arena.program(program))
+    }
+}
+
+impl OptionInArena for Option<Id<NodeArray>> {
+    type Item = NodeArray;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, NodeArray>> {
+        self.map(|node_array| has_arena.node_array(node_array))
     }
 }
 

@@ -923,7 +923,7 @@ impl TypeChecker {
         if node_as_parameter_declaration.maybe_initializer().is_some() {
             let signature = self.get_signature_from_declaration_(node.ref_(self).parent())?;
             let parameter_index = index_of_eq(
-                &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters(),
+                &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
                 &node,
             );
             Debug_.assert(parameter_index >= 0, None);
@@ -942,12 +942,12 @@ impl TypeChecker {
             return Ok(node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()
                 && index_of_eq(
-                    &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters(),
+                    &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
                     &node,
                 ) >= iife
                     .ref_(self).as_call_expression()
                     .arguments
-                    .len()
+                    .ref_(self).len()
                     .try_into()
                     .unwrap());
         }

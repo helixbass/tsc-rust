@@ -45,7 +45,7 @@ impl TypeChecker {
                 pattern
                     .ref_(self).as_array_binding_pattern()
                     .elements
-                    .iter()
+                    .ref_(self).iter()
                     .position(|&element| element == node)
                     .unwrap(),
             )?
@@ -180,11 +180,11 @@ impl TypeChecker {
         let links = self.get_node_links(switch_statement);
         if (*links).borrow().switch_types.is_none() {
             let mut switch_types = vec![];
-            for &clause in &switch_statement
+            for &clause in &*switch_statement
                 .ref_(self).as_switch_statement()
                 .case_block
                 .ref_(self).as_case_block()
-                .clauses
+                .clauses.ref_(self)
             {
                 switch_types.push(self.get_type_of_switch_clause(clause)?);
             }
@@ -200,11 +200,11 @@ impl TypeChecker {
         retain_default: bool,
     ) -> Vec<Option<String>> {
         let mut witnesses: Vec<Option<String>> = vec![];
-        for clause in &switch_statement
+        for clause in &*switch_statement
             .ref_(self).as_switch_statement()
             .case_block
             .ref_(self).as_case_block()
-            .clauses
+            .clauses.ref_(self)
         {
             if clause.ref_(self).kind() == SyntaxKind::CaseClause {
                 let clause_ref = clause.ref_(self);
@@ -1113,7 +1113,7 @@ impl TypeChecker {
             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
         ) {
             return Some(
-                call_expression_as_call_expression.arguments[predicate.ref_(self).parameter_index.unwrap()]
+                call_expression_as_call_expression.arguments.ref_(self)[predicate.ref_(self).parameter_index.unwrap()]
                     .clone(),
             );
         }
@@ -1141,7 +1141,7 @@ impl TypeChecker {
             block
                 .ref_(self).as_has_statements()
                 .statements()
-                .pos()
+                .ref_(self).pos()
                 .try_into()
                 .unwrap(),
         );
@@ -1221,7 +1221,7 @@ impl TypeChecker {
                     }) {
                         let predicate_argument =
                             flow_as_flow_call.node.ref_(self).as_call_expression().arguments
-                                [predicate.ref_(self).parameter_index.unwrap()];
+                                .ref_(self)[predicate.ref_(self).parameter_index.unwrap()];
                         if
                         /*predicateArgument &&*/
                         self.is_false_expression(predicate_argument) {

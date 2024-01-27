@@ -20,6 +20,7 @@ use crate::{
     Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
     TypeSystemPropertyName,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -597,12 +598,12 @@ impl TypeChecker {
                     let outer_type_parameters =
                         self.get_outer_type_parameters(node_present, include_this_types)?;
                     return Ok(
-                        if let Some(node_tags) = node_present.ref_(self).as_jsdoc().tags.as_deref() {
+                        if let Some(node_tags) = node_present.ref_(self).as_jsdoc().tags.refed(self).as_deref() {
                             self.append_type_parameters(
                                 outer_type_parameters,
                                 &flat_map(Some(node_tags), |t: &Id<Node>, _| {
                                     if is_jsdoc_template_tag(&t.ref_(self)) {
-                                        t.ref_(self).as_jsdoc_template_tag().type_parameters.to_vec()
+                                        t.ref_(self).as_jsdoc_template_tag().type_parameters.ref_(self).to_vec()
                                     } else {
                                         vec![]
                                     }
@@ -1169,7 +1170,7 @@ impl TypeChecker {
                 base_type_node
                     .ref_(self).as_expression_with_type_arguments()
                     .maybe_type_arguments()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
                 base_type_node,
             )?;
             if constructors.is_empty() {

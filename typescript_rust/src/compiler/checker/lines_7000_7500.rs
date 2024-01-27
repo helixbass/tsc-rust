@@ -778,7 +778,7 @@ impl SymbolTableToDeclarationStatements {
                         try_maybe_map(
                             e_as_expression_with_type_arguments
                                 .maybe_type_arguments()
-                                .as_deref(),
+                                .refed(self).as_deref(),
                             |&a: &Id<Node>, _| -> io::Result<_> {
                                 self.node_builder
                                     .serialize_existing_type_node(

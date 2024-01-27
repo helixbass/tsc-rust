@@ -29,6 +29,7 @@ use crate::{
     Number, ObjectFlags, OptionTry, ReadonlyTextRange, Signature, SignatureDeclarationInterface,
     Symbol, SymbolAccessibility, SymbolFlags,
     get_source_file_of_node,
+    OptionInArena,
 };
 
 impl NodeBuilder {
@@ -667,7 +668,7 @@ impl NodeBuilder {
                 existing
                     .ref_(self).as_type_reference_node()
                     .maybe_type_arguments()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
             ) >= self.type_checker.get_min_type_argument_count(
                 type_
                     .ref_(self)
@@ -1040,7 +1041,7 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory(self).create_type_literal_node(
                     try_maybe_map(
-                        node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.as_deref(),
+                        node.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.refed(self).as_deref(),
                         |t: &Id<Node>, _| -> io::Result<Id<Node>> {
                             let t_ref = t.ref_(self);
                             let t_as_jsdoc_property_like_tag = t_ref.as_jsdoc_property_like_tag();
@@ -1141,9 +1142,8 @@ impl NodeBuilder {
                             try_maybe_visit_node(
                                 node.ref_(self).as_has_type_arguments()
                                     .maybe_type_arguments()
-                                    .as_ref()
                                     .unwrap()
-                                    .get(0)
+                                    .ref_(self).get(0)
                                     .copied(),
                                 Some(|node: Id<Node>| {
                                     self.visit_existing_node_tree_symbols(
@@ -1162,9 +1162,8 @@ impl NodeBuilder {
                         try_maybe_visit_node(
                             node.ref_(self).as_has_type_arguments()
                                 .maybe_type_arguments()
-                                .as_ref()
                                 .unwrap()
-                                .get(1)
+                                .ref_(self).get(1)
                                 .copied(),
                             Some(|node: Id<Node>| {
                                 self.visit_existing_node_tree_symbols(
@@ -1191,14 +1190,14 @@ impl NodeBuilder {
                     get_factory(self).create_constructor_type_node(
                         node_as_jsdoc_function_type.maybe_modifiers(),
                         try_maybe_visit_nodes(
-                            node_as_jsdoc_function_type.maybe_type_parameters().as_deref(),
+                            node_as_jsdoc_function_type.maybe_type_parameters(),
                             Some(|node: Id<Node>| self.visit_existing_node_tree_symbols(context, had_error, include_private_symbol, file, node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None, None,
                             self,
                         )?,
                         try_map_defined(
-                            Some(&node_as_jsdoc_function_type.parameters()),
+                            Some(&*node_as_jsdoc_function_type.parameters().ref_(self)),
                             |&p: &Id<Node>, i| -> io::Result<Option<Id<Node>>> {
                                 let p_ref = p.ref_(self);
                                 let p_as_parameter_declaration = p_ref.as_parameter_declaration();
@@ -1248,8 +1247,7 @@ impl NodeBuilder {
                         .create_function_type_node(
                             try_maybe_visit_nodes(
                                 node_as_jsdoc_function_type
-                                    .maybe_type_parameters()
-                                    .as_deref(),
+                                    .maybe_type_parameters(),
                                 Some(|node: Id<Node>| {
                                     self.visit_existing_node_tree_symbols(
                                         context,
@@ -1265,7 +1263,7 @@ impl NodeBuilder {
                                 self,
                             )?,
                             try_map(
-                                &node_as_jsdoc_function_type.parameters(),
+                                &*node_as_jsdoc_function_type.parameters().ref_(self),
                                 |&p: &Id<Node>, i| -> io::Result<Id<Node>> {
                                     let p_ref = p.ref_(self);
                                     let p_as_parameter_declaration = p_ref.as_parameter_declaration();
@@ -1352,7 +1350,7 @@ impl NodeBuilder {
                     node_symbol,
                     Some(node_symbol) if !node_as_import_type_node.is_type_of() &&
                         !node_symbol.ref_(self).flags().intersects(SymbolFlags::Type) ||
-                        !(length(node_as_import_type_node.maybe_type_arguments().as_double_deref()) >=
+                        !(length(node_as_import_type_node.maybe_type_arguments().refed(self).as_double_deref()) >=
                             self.type_checker.get_min_type_argument_count(
                                 self.type_checker.get_local_type_parameters_of_class_or_interface_or_type_alias(
                                     node_symbol

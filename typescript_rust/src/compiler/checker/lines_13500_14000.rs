@@ -13,6 +13,7 @@ use crate::{
     InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, Type,
     TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -82,7 +83,7 @@ impl TypeChecker {
         node: Id<Node>, /*NodeWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         try_maybe_map(
-            node.ref_(self).as_has_type_arguments().maybe_type_arguments().as_ref(),
+            node.ref_(self).as_has_type_arguments().maybe_type_arguments().refed(self).as_deref(),
             |&type_argument, _| self.get_type_from_type_node_(type_argument),
         )
         .transpose()
@@ -813,20 +814,21 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_tuple_type_node = node_ref.as_tuple_type_node();
         let element_flags = map(
-            &node_as_tuple_type_node.elements,
+            &*node_as_tuple_type_node.elements.ref_(self),
             |&element: &Id<Node>, _| self.get_tuple_element_flags(element),
         );
         let missing_name = some(
-            Some(&node_as_tuple_type_node.elements),
+            Some(&*node_as_tuple_type_node.elements.ref_(self)),
             Some(|e: &Id<Node>| e.ref_(self).kind() != SyntaxKind::NamedTupleMember),
         );
+        let node_elements_ref = node_as_tuple_type_node.elements.ref_(self);
         self.get_tuple_target_type(
             &element_flags,
             readonly,
             if missing_name {
                 None
             } else {
-                Some(&node_as_tuple_type_node.elements)
+                Some(&node_elements_ref)
             },
         )
     }
@@ -842,7 +844,7 @@ impl TypeChecker {
                     self.may_resolve_type_alias(node.ref_(self).as_array_type_node().element_type)?
                 } else if node.ref_(self).kind() == SyntaxKind::TupleType {
                     try_some(
-                        Some(&node.ref_(self).as_tuple_type_node().elements),
+                        Some(&*node.ref_(self).as_tuple_type_node().elements).ref_(self),
                         Some(|&element: &Id<Node>| self.may_resolve_type_alias(element)),
                     )?
                 } else {
@@ -850,7 +852,7 @@ impl TypeChecker {
                         || try_some(
                             node.ref_(self).as_type_reference_node()
                                 .maybe_type_arguments()
-                                .as_double_deref(),
+                                .refed(self).as_double_deref(),
                             Some(|&type_argument: &Id<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
@@ -914,7 +916,7 @@ impl TypeChecker {
                     )?
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => try_some(
-                Some(&node.ref_(self).as_union_or_intersection_type_node().types()),
+                Some(&*node.ref_(self).as_union_or_intersection_type_node().types().ref_(self)),
                 Some(|&type_: &Id<Node>| self.may_resolve_type_alias(type_)),
             )?,
             SyntaxKind::IndexedAccessType => {
@@ -946,7 +948,7 @@ impl TypeChecker {
                 links.borrow_mut().resolved_type = Some(self.empty_object_type());
             } else if !(node.ref_(self).kind() == SyntaxKind::TupleType
                 && some(
-                    Some(&*node.ref_(self).as_tuple_type_node().elements),
+                    Some(&*node.ref_(self).as_tuple_type_node().elements.ref_(self)),
                     Some(|&e: &Id<Node>| {
                         self.get_tuple_element_flags(e)
                             .intersects(ElementFlags::Variadic)
@@ -956,7 +958,7 @@ impl TypeChecker {
             {
                 links.borrow_mut().resolved_type = Some(
                     if node.ref_(self).kind() == SyntaxKind::TupleType
-                        && node.ref_(self).as_tuple_type_node().elements.is_empty()
+                        && node.ref_(self).as_tuple_type_node().elements.ref_(self).is_empty()
                     {
                         target
                     } else {
@@ -974,7 +976,7 @@ impl TypeChecker {
                     vec![self.get_type_from_type_node_(node.ref_(self).as_array_type_node().element_type)?]
                 } else {
                     try_map(
-                        &node.ref_(self).as_tuple_type_node().elements,
+                        &*node.ref_(self).as_tuple_type_node().elements.ref_(self),
                         |&element: &Id<Node>, _| self.get_type_from_type_node_(element),
                     )?
                 };

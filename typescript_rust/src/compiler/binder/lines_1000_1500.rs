@@ -523,7 +523,7 @@ impl BinderType {
         self.bind(Some(node_as_switch_statement.case_block));
         self.add_antecedent(&post_switch_label.ref_(self), self.current_flow());
         let has_default = for_each_bool(
-            &node_as_switch_statement.case_block.ref_(self).as_case_block().clauses,
+            &*node_as_switch_statement.case_block.ref_(self).as_case_block().clauses.ref_(self),
             |c, _| c.ref_(self).kind() == SyntaxKind::DefaultClause,
         );
         node_as_switch_statement.set_possibly_exhaustive(Some(
@@ -547,7 +547,7 @@ impl BinderType {
     pub(super) fn bind_case_block(&self, node: Id<Node> /*CaseBlock*/) {
         let node_ref = node.ref_(self);
         let node_as_case_block = node_ref.as_case_block();
-        let clauses = &*node_as_case_block.clauses;
+        let clauses = &*node_as_case_block.clauses.ref_(self);
         let is_narrowing_switch =
             self.is_narrowing_expression(node.ref_(self).parent().ref_(self).as_switch_statement().expression);
         let mut fallthrough_flow = self.unreachable_flow();
@@ -604,7 +604,7 @@ impl BinderType {
         let node_as_case_clause = node_ref.as_case_clause();
         self.bind(Some(node_as_case_clause.expression));
         self.set_current_flow(save_current_flow);
-        self.bind_each(Some(&node_as_case_clause.statements));
+        self.bind_each(Some(&node_as_case_clause.statements.ref_(self)));
     }
 
     pub(super) fn bind_expression_statement(&self, node: Id<Node> /*ExpressionStatement*/) {
@@ -676,7 +676,7 @@ impl BinderType {
                 node,
             )));
         } else if node.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression {
-            for &e in &*node.ref_(self).as_array_literal_expression().elements {
+            for &e in &*node.ref_(self).as_array_literal_expression().elements.ref_(self) {
                 if e.ref_(self).kind() == SyntaxKind::SpreadElement {
                     self.bind_assignment_target_flow(e.ref_(self).as_spread_element().expression);
                 } else {
@@ -684,7 +684,7 @@ impl BinderType {
                 }
             }
         } else if node.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
-            for p in &*node.ref_(self).as_object_literal_expression().properties {
+            for p in &*node.ref_(self).as_object_literal_expression().properties.ref_(self) {
                 if p.ref_(self).kind() == SyntaxKind::PropertyAssignment {
                     self.bind_destructuring_target_flow(
                         p.ref_(self).as_property_assignment().maybe_initializer().unwrap(),

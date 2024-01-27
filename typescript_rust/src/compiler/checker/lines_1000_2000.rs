@@ -1336,8 +1336,10 @@ impl TypeChecker {
                                     .ref_(self).parent()
                                     .ref_(self).as_class_like_declaration()
                                     .members()
-                                    .owned_iter()
-                                    .filter(|node| is_class_static_block_declaration(&node.ref_(self)));
+                                    .ref_(self).iter()
+                                    .filter(|node| is_class_static_block_declaration(&node.ref_(self)))
+                                    .copied()
+                                    .collect::<Vec<_>>();
                                 if self.is_property_initialized_in_static_blocks(
                                     prop_name,
                                     type_,
@@ -1439,7 +1441,7 @@ impl TypeChecker {
                 if links.declaration_requires_scope_change.is_none() {
                     links.declaration_requires_scope_change = Some(
                         for_each_bool(
-                            &function_location.unwrap().parameters(),
+                            &*function_location.unwrap().parameters().ref_(self),
                             |&node: &Id<Node>, _| self.requires_scope_change(target, node),
                         ) || false,
                     );

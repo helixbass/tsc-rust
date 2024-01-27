@@ -74,7 +74,7 @@ impl TypeChecker {
         }
         Ok(Some(format!(
             "{}",
-            index_of_eq(&parent.ref_(self).as_has_elements().elements(), &node)
+            index_of_eq(&parent.ref_(self).as_has_elements().elements().ref_(self), &node)
         )))
     }
 
@@ -153,7 +153,7 @@ impl TypeChecker {
                     return Ok(Some(self.error_type()));
                 }
                 let mut literal_members: Vec<Id<Node /*PropertyName*/>> = vec![];
-                for element in &pattern.ref_(self).as_object_binding_pattern().elements {
+                for element in &*pattern.ref_(self).as_object_binding_pattern().elements.ref_(self) {
                     let element_ref = element.ref_(self);
                     let element_as_binding_element = element_ref.as_binding_element();
                     if element_as_binding_element.dot_dot_dot_token.is_none() {
@@ -199,7 +199,7 @@ impl TypeChecker {
                 Some(pattern),
             )?;
             let index: usize = index_of_eq(
-                &pattern.ref_(self).as_array_binding_pattern().elements,
+                &pattern.ref_(self).as_array_binding_pattern().elements.ref_(self),
                 &declaration,
             )
             .try_into()
@@ -296,7 +296,7 @@ impl TypeChecker {
     pub(super) fn is_empty_array_literal(&self, node: Id<Node> /*Expression*/) -> bool {
         let expr = skip_parentheses(node, Some(true), self);
         expr.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression
-            && expr.ref_(self).as_array_literal_expression().elements.is_empty()
+            && expr.ref_(self).as_array_literal_expression().elements.ref_(self).is_empty()
     }
 
     pub(super) fn add_optionality(
@@ -450,7 +450,7 @@ impl TypeChecker {
                     if is_function_type_node(&type_tag.ref_(self)) {
                         let signature = self.get_signature_from_declaration_(type_tag)?;
                         let pos: usize = index_of_eq(
-                            &func.ref_(self).as_function_like_declaration().parameters(),
+                            &func.ref_(self).as_function_like_declaration().parameters().ref_(self),
                             &declaration,
                         )
                         .try_into()
@@ -529,7 +529,7 @@ impl TypeChecker {
                     .try_map(|type_| self.add_optionality(type_, Some(true), Some(is_optional)));
             } else {
                 let static_blocks = filter(
-                    &declaration.ref_(self).parent().ref_(self).as_class_like_declaration().members(),
+                    &declaration.ref_(self).parent().ref_(self).as_class_like_declaration().members().ref_(self),
                     |member: &Id<Node>| is_class_static_block_declaration(&member.ref_(self)),
                 );
                 let type_ = if !static_blocks.is_empty() {
@@ -1004,7 +1004,7 @@ impl TypeChecker {
         }
         let init = return_ok_default_if_none!(init);
         if !is_object_literal_expression(&init.ref_(self))
-            || !init.ref_(self).as_object_literal_expression().properties.is_empty()
+            || !init.ref_(self).as_object_literal_expression().properties.ref_(self).is_empty()
         {
             return Ok(None);
         }
@@ -1105,7 +1105,7 @@ impl TypeChecker {
                 return self.get_type_of_symbol(resolved_symbol);
             }
             let object_lit_type =
-                self.check_expression_cached(expression.ref_(self).as_call_expression().arguments[2], None)?;
+                self.check_expression_cached(expression.ref_(self).as_call_expression().arguments.ref_(self)[2], None)?;
             let value_type = self.get_type_of_property_of_type_(object_lit_type, "value")?;
             if let Some(value_type) = value_type {
                 return Ok(value_type);

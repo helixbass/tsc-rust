@@ -559,7 +559,7 @@ impl TypeChecker {
                         if self.is_common_js_require(namespace_value_declaration_initializer)? {
                             let module_name = namespace_value_declaration_initializer
                                 .ref_(self).as_call_expression()
-                                .arguments[0];
+                                .arguments.ref_(self)[0];
                             let module_sym = self.resolve_external_module_name_(
                                 module_name,
                                 module_name,
@@ -899,7 +899,7 @@ impl TypeChecker {
         let context_specifier = if is_string_literal_like(&location.ref_(self)) {
             Some(location)
         } else {
-            find_ancestor(Some(location), |node| is_import_call(node, self), self).and_then(|ancestor| ancestor.ref_(self).as_call_expression().arguments.get(0).copied()).or_else(|| {
+            find_ancestor(Some(location), |node| is_import_call(node, self), self).and_then(|ancestor| ancestor.ref_(self).as_call_expression().arguments.ref_(self).get(0).copied()).or_else(|| {
                 find_ancestor(Some(location), |node| is_import_declaration(&node.ref_(self)), self).map(|ancestor| ancestor.ref_(self).as_import_declaration().module_specifier)
             }).or_else(|| {
                 find_ancestor(Some(location), |node| is_external_module_import_equals_declaration(node, self), self).map(|ancestor| ancestor.ref_(self).as_import_equals_declaration().module_reference.ref_(self).as_external_module_reference().expression)

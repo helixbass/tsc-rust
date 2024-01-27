@@ -297,9 +297,9 @@ impl GetFlowTypeOfReference {
                     .ref_(self).as_identifier()
                     .escaped_text
                     == "hasOwnProperty"
-                && call_expression_as_call_expression.arguments.len() == 1
+                && call_expression_as_call_expression.arguments.ref_(self).len() == 1
             {
-                let argument = call_expression_as_call_expression.arguments[0];
+                let argument = call_expression_as_call_expression.arguments.ref_(self)[0];
                 if is_string_literal_like(&argument.ref_(self))
                     && matches!(
                         self.type_checker.get_accessed_property_name(self.reference)?.as_ref(),

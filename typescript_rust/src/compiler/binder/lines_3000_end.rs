@@ -52,7 +52,7 @@ impl BinderType {
         node: Id<Node>, /*BindableObjectDefinePropertyCall*/
     ) {
         let namespace_symbol = self.lookup_symbol_for_property_access(
-            node.ref_(self).as_call_expression().arguments[0]
+            node.ref_(self).as_call_expression().arguments.ref_(self)[0]
                 .ref_(self).as_property_access_expression()
                 .expression,
             None,
@@ -93,13 +93,13 @@ impl BinderType {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
         let mut namespace_symbol = self.lookup_symbol_for_property_access(
-            node_as_call_expression.arguments[0],
+            node_as_call_expression.arguments.ref_(self)[0],
             None,
         );
         let is_toplevel = node.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile;
         namespace_symbol = self.bind_potentially_missing_namespaces(
             namespace_symbol,
-            node_as_call_expression.arguments[0],
+            node_as_call_expression.arguments.ref_(self)[0],
             is_toplevel,
             false,
             false,
@@ -335,9 +335,9 @@ impl BinderType {
             let declaration_as_call_expression = declaration_ref.as_call_expression();
             if some(
                 Some(
-                    &declaration_as_call_expression.arguments[2]
+                    &*declaration_as_call_expression.arguments.ref_(self)[2]
                         .ref_(self).as_object_literal_expression()
-                        .properties,
+                        .properties.ref_(self),
                 ),
                 Some(|&p: &Id<Node>| {
                     let id = get_name_of_declaration(Some(p), self);
@@ -352,9 +352,9 @@ impl BinderType {
             }
             if some(
                 Some(
-                    &declaration_as_call_expression.arguments[2]
+                    &*declaration_as_call_expression.arguments.ref_(self)[2]
                         .ref_(self).as_object_literal_expression()
-                        .properties,
+                        .properties.ref_(self),
                 ),
                 Some(|&p: &Id<Node>| {
                     let id = get_name_of_declaration(Some(p), self);
@@ -701,7 +701,7 @@ impl BinderType {
                 format!(
                     "__{}",
                     index_of_eq(
-                        &*node.ref_(self).parent().ref_(self).as_signature_declaration().parameters(),
+                        &*node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
                         &node,
                     )
                 ),
@@ -933,7 +933,7 @@ impl BinderType {
                                 .declaration_list
                                 .ref_(self).as_variable_declaration_list()
                                 .declarations
-                                .iter()
+                                .ref_(self).iter()
                                 .any(|d| {
                                     d.ref_(self).as_variable_declaration().maybe_initializer().is_some()
                                 }));
@@ -958,7 +958,7 @@ fn each_unreachable_range(node: Id<Node>, mut cb: impl FnMut(Id<Node>, Id<Node>)
         let node_parent = node.ref_(arena).parent();
         let node_parent_ref = node_parent.ref_(arena);
         let statements = &node_parent_ref.as_block().statements;
-        let slice = slice_after_eq(statements, &node);
+        let slice = slice_after_eq(&statements.ref_(arena), &node);
         get_ranges_where(
             slice,
             |&node| is_executable_statement(node, arena),
@@ -979,7 +979,7 @@ fn is_executable_statement(s: Id<Node> /*Statement*/, arena: &impl HasArena) -> 
                 .declaration_list
                 .ref_(arena).as_variable_declaration_list()
                 .declarations
-                .iter()
+                .ref_(arena).iter()
                 .any(|d| d.ref_(arena).as_variable_declaration().maybe_initializer().is_none()))
 }
 

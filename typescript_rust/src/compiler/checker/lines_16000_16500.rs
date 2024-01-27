@@ -495,8 +495,8 @@ impl TypeChecker {
             SyntaxKind::TupleType => {
                 let node_ref = node.ref_(self);
                 let node_as_tuple_type_node = node_ref.as_tuple_type_node();
-                if node_as_tuple_type_node.elements.len() == 1 {
-                    let node = node_as_tuple_type_node.elements[0];
+                if node_as_tuple_type_node.elements.ref_(self).len() == 1 {
+                    let node = node_as_tuple_type_node.elements.ref_(self)[0];
                     if node.ref_(self).kind() == SyntaxKind::RestType
                         || node.ref_(self).kind() == SyntaxKind::NamedTupleMember
                             && node.ref_(self).as_named_tuple_member().dot_dot_dot_token.is_some()

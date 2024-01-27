@@ -109,7 +109,7 @@ impl TypeChecker {
             let declaration_as_signature_declaration = declaration_ref.as_signature_declaration();
             for (i, &param) in declaration_as_signature_declaration
                 .parameters()
-                .iter()
+                .ref_(self).iter()
                 .enumerate()
                 .skip(if is_js_construct_signature { 1 } else { 0 })
             {
@@ -164,7 +164,7 @@ impl TypeChecker {
                             || is_rest_parameter(param, self)
                             || matches!(
                                 iife,
-                                Some(iife) if parameters.len() > iife.ref_(self).as_call_expression().arguments.len()
+                                Some(iife) if parameters.len() > iife.ref_(self).as_call_expression().arguments.ref_(self).len()
                             ) && type_.is_none()
                             || self.is_jsdoc_optional_parameter(param)
                     };
@@ -250,7 +250,7 @@ impl TypeChecker {
             return Ok(false);
         }
         let last_param =
-            last_or_undefined(&declaration.ref_(self).as_signature_declaration().parameters()).copied();
+            last_or_undefined(&declaration.ref_(self).as_signature_declaration().parameters().ref_(self)).copied();
         let last_param_tags = if let Some(last_param) = last_param {
             Either::Left(get_jsdoc_parameter_tags(last_param, self))
         } else {
@@ -691,7 +691,7 @@ impl TypeChecker {
         if is_jsdoc_construct_signature(declaration, self) {
             return Ok(Some(
                 self.get_type_from_type_node_(
-                    declaration.ref_(self).as_signature_declaration().parameters()[0]
+                    declaration.ref_(self).as_signature_declaration().parameters().ref_(self)[0]
                         .ref_(self).as_parameter_declaration()
                         .maybe_type()
                         .unwrap(),
@@ -1050,10 +1050,10 @@ impl TypeChecker {
                     declaration_ref.as_index_signature_declaration();
                 if declaration_as_index_signature_declaration
                     .parameters()
-                    .len()
+                    .ref_(self).len()
                     == 1
                 {
-                    let parameter = declaration_as_index_signature_declaration.parameters()[0];
+                    let parameter = declaration_as_index_signature_declaration.parameters().ref_(self)[0];
                     if let Some(parameter_type) = parameter.ref_(self).as_parameter_declaration().maybe_type()
                     {
                         self.try_for_each_type(

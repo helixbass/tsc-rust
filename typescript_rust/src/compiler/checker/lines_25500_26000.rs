@@ -220,7 +220,7 @@ impl TypeChecker {
             let args = self.get_effective_call_arguments(iife)?;
             let index_of_parameter = func_as_function_like_declaration
                 .parameters()
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&param| param == parameter)
                 .unwrap();
             if parameter_as_parameter_declaration
@@ -260,7 +260,7 @@ impl TypeChecker {
         if let Some(contextual_signature) = contextual_signature {
             let index = func_as_function_like_declaration
                 .parameters()
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&param| param == parameter)
                 .unwrap()
                 - if get_this_parameter(func, self).is_some() {
@@ -273,7 +273,7 @@ impl TypeChecker {
                     .dot_dot_dot_token
                     .is_some()
                     && matches!(
-                        last_or_undefined(&func_as_function_like_declaration.parameters()),
+                        last_or_undefined(&func_as_function_like_declaration.parameters().ref_(self)),
                         Some(&last) if last == parameter
                     )
                 {
@@ -344,7 +344,7 @@ impl TypeChecker {
         let parent_type = parent_type.unwrap();
         if parent.ref_(self).as_named_declaration().name().ref_(self).kind() == SyntaxKind::ArrayBindingPattern {
             let index = index_of_node(
-                &declaration.ref_(self).parent().ref_(self).as_has_elements().elements(),
+                &declaration.ref_(self).parent().ref_(self).as_has_elements().elements().ref_(self),
                 declaration,
                 self,
             );

@@ -274,7 +274,7 @@ impl TypeChecker {
             self.get_jsx_namespace_at(Some(opening_like_element))?,
         )?;
 
-        for &attribute_decl in &attributes.ref_(self).as_jsx_attributes().properties {
+        for &attribute_decl in &*attributes.ref_(self).as_jsx_attributes().properties.ref_(self) {
             let member = attribute_decl.ref_(self).maybe_symbol();
             if is_jsx_attribute(&attribute_decl.ref_(self)) {
                 let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
@@ -419,7 +419,7 @@ impl TypeChecker {
             let parent_ref = parent.ref_(self);
             let parent_as_jsx_element = parent_ref.as_jsx_element();
             parent_as_jsx_element.opening_element == opening_like_element &&
-                !parent_as_jsx_element.children.is_empty()
+                !parent_as_jsx_element.children.ref_(self).is_empty()
         }) {
             let children_types = self.check_jsx_children(parent, check_mode)?;
 
@@ -582,7 +582,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut children_types: Vec<Id<Type>> = vec![];
-        for &child in &node.ref_(self).as_has_children().children() {
+        for &child in &*node.ref_(self).as_has_children().children().ref_(self) {
             if child.ref_(self).kind() == SyntaxKind::JsxText {
                 if !child.ref_(self).as_jsx_text().contains_only_trivia_white_spaces {
                     children_types.push(self.string_type());

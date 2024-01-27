@@ -173,13 +173,12 @@ impl TypeChecker {
                     if parent == Some(container) {
                         return !(is_jsdoc_template_tag(&decl_parent.ref_(self))
                             && find(
-                                decl_parent
+                                &decl_parent
                                     .ref_(self)
                                     .parent()
                                     .ref_(self).as_jsdoc()
                                     .tags
-                                    .as_deref()
-                                    .unwrap(),
+                                    .unwrap().ref_(self),
                                 |tag: &Id<Node>, _| is_jsdoc_type_alias(&tag.ref_(self)),
                             )
                             .is_some());
@@ -502,7 +501,7 @@ impl TypeChecker {
             },
             self,
         );
-        if matches!(container, Some(container) if container.ref_(self).as_type_literal_node().members.len() == 1)
+        if matches!(container, Some(container) if container.ref_(self).as_type_literal_node().members.ref_(self).len() == 1)
         {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
             return Ok(type_.ref_(self).flags().intersects(TypeFlags::Union)
@@ -780,7 +779,7 @@ impl TypeChecker {
                 common_js_property_access_as_property_access_expression.expression,
                 self,
             );
-            let name = leftmost.ref_(self).as_call_expression().arguments[0];
+            let name = leftmost.ref_(self).as_call_expression().arguments.ref_(self)[0];
             return Ok(
                 if is_identifier(&common_js_property_access_as_property_access_expression.name.ref_(self)) {
                     self.resolve_symbol(

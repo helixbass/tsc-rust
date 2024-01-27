@@ -230,7 +230,7 @@ impl TypeChecker {
                 || is_import_call(reference_parent, self)
             {
                 let reference = if is_import_call(reference_parent, self) {
-                    reference_parent.ref_(self).as_call_expression().arguments[0]
+                    reference_parent.ref_(self).as_call_expression().arguments.ref_(self)[0]
                 } else {
                     reference_parent.ref_(self).as_import_declaration().module_specifier
                 };

@@ -25,7 +25,7 @@ use crate::{
     ReadonlyTextRange, RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
     TypeMapper,
-    OptionInArena,
+    OptionInArena, AsDoubleDeref,
 };
 
 impl TypeChecker {
@@ -82,7 +82,7 @@ impl TypeChecker {
                     &node_as_tagged_template_expression
                         .template
                         .ref_(self).as_template_expression()
-                        .template_spans,
+                        .template_spans.ref_(self),
                 );
                 let last_span_ref = last_span.ref_(self);
                 let last_span_as_template_span = last_span_ref.as_template_span();
@@ -131,7 +131,7 @@ impl TypeChecker {
             };
 
             call_is_incomplete =
-                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().end() == node.ref_(self).end();
+                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().ref_(self).end() == node.ref_(self).end();
 
             let spread_arg_index = self.get_spread_argument_index(args);
             if let Some(spread_arg_index) = spread_arg_index {
@@ -179,12 +179,12 @@ impl TypeChecker {
         let min_type_argument_count =
             self.get_min_type_argument_count(signature.ref_(self).maybe_type_parameters().as_deref());
         !some(
-            type_arguments.map(|type_arguments| &**type_arguments),
+            type_arguments.refed(self).as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) || {
             let type_arguments = type_arguments.unwrap();
-            type_arguments.len() >= min_type_argument_count
-                && type_arguments.len() <= num_type_parameters
+            type_arguments.ref_(self).len() >= min_type_argument_count
+                && type_arguments.ref_(self).len() <= num_type_parameters
         }
     }
 

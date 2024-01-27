@@ -138,7 +138,7 @@ impl TypeChecker {
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         try_for_each(
-            &pattern.ref_(self).as_object_binding_pattern().elements,
+            &*pattern.ref_(self).as_object_binding_pattern().elements.ref_(self),
             |&e: &Id<Node>, _| -> io::Result<_> {
                 let e_ref = e.ref_(self);
                 let e_as_binding_element = e_ref.as_binding_element();
@@ -220,8 +220,8 @@ impl TypeChecker {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
-        let ref elements = pattern.ref_(self).as_has_elements().elements();
-        let last_element = last_or_undefined(&**elements).copied();
+        let elements = pattern.ref_(self).as_has_elements().elements();
+        let last_element = last_or_undefined(&elements.ref_(self)).copied();
         let rest_element = last_element.filter(|last_element| {
             last_element.ref_(self).kind() == SyntaxKind::BindingElement
                 && last_element
@@ -229,14 +229,14 @@ impl TypeChecker {
                     .dot_dot_dot_token
                     .is_some()
         });
-        if elements.is_empty() || elements.len() == 1 && rest_element.is_some() {
+        if elements.ref_(self).is_empty() || elements.ref_(self).len() == 1 && rest_element.is_some() {
             return Ok(if self.language_version >= ScriptTarget::ES2015 {
                 self.create_iterable_type(self.any_type())?
             } else {
                 self.any_array_type()
             });
         }
-        let element_types = try_map(elements, |&e: &Id<Node>, _| -> io::Result<_> {
+        let element_types = try_map(&*elements.ref_(self), |&e: &Id<Node>, _| -> io::Result<_> {
             Ok(if is_omitted_expression(&e.ref_(self)) {
                 self.any_type()
             } else {
@@ -248,17 +248,17 @@ impl TypeChecker {
             })
         })?;
         let min_length: usize = (find_last_index_returns_isize(
-            &**elements,
+            &elements.ref_(self),
             |&e: &Id<Node>, _| {
                 !(rest_element == Some(e)
                     || is_omitted_expression(&e.ref_(self))
                     || self.has_default_value(e))
             },
-            Some(elements.len() - 1),
+            Some(elements.ref_(self).len() - 1),
         ) + 1)
             .try_into()
             .unwrap();
-        let element_flags = map(elements, |&e: &Id<Node>, i| {
+        let element_flags = map(&*elements.ref_(self), |&e: &Id<Node>, i| {
             if rest_element == Some(e) {
                 ElementFlags::Rest
             } else if i >= min_length {
@@ -501,13 +501,13 @@ impl TypeChecker {
         if is_source_file(&declaration.ref_(self)) && is_json_source_file(&declaration.ref_(self)) {
             let declaration_ref = declaration.ref_(self);
             let declaration_as_source_file = declaration_ref.as_source_file();
-            if declaration_as_source_file.statements().is_empty() {
+            if declaration_as_source_file.statements().ref_(self).is_empty() {
                 return Ok(self.empty_object_type());
             }
             return self.get_widened_type(
                 self.get_widened_literal_type(
                     self.check_expression(
-                        declaration_as_source_file.statements()[0]
+                        declaration_as_source_file.statements().ref_(self)[0]
                             .ref_(self).as_expression_statement()
                             .expression,
                         None,

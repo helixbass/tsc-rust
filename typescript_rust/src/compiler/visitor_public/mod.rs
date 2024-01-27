@@ -205,18 +205,16 @@ pub fn try_maybe_visit_nodes(
     count: Option<usize>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Id<NodeArray>>> {
-    if nodes.is_none() {
+    let Some(nodes) = nodes else {
         return Ok(None);
-    }
-    let nodes = nodes.unwrap();
-    if visitor.is_none() {
-        return Ok(Some(nodes.rc_wrapper()));
-    }
-    let mut visitor = visitor.unwrap();
+    };
+    let Some(mut visitor) = visitor else {
+        return Ok(Some(nodes));
+    };
 
     let mut updated: Option<Vec<Id<Node>>> = Default::default();
 
-    let length = nodes.len();
+    let length = nodes.ref_(arena).len();
     let start = start.unwrap_or(0); /*start < 0*/
 
     let count = if count.is_none() || count.unwrap() > length - start {
@@ -230,11 +228,11 @@ pub fn try_maybe_visit_nodes(
     let mut end: isize = -1;
     if start > 0 || count < length {
         updated = Some(vec![]);
-        has_trailing_comma = Some(nodes.has_trailing_comma && start + count == length);
+        has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma && start + count == length);
     }
 
     for i in 0..count {
-        let node = nodes.get(i + start).copied();
+        let node = nodes.ref_(arena).get(i + start).copied();
         let visited = node.try_and_then(|node| visitor(node))?;
         if updated.is_some()
             || match visited.as_ref() {
@@ -246,10 +244,10 @@ pub fn try_maybe_visit_nodes(
             }
         {
             if updated.is_none() {
-                updated = Some(nodes[0..i].to_owned());
-                has_trailing_comma = Some(nodes.has_trailing_comma);
-                pos = nodes.pos();
-                end = nodes.end();
+                updated = Some(nodes.ref_(arena)[0..i].to_owned());
+                has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma);
+                pos = nodes.ref_(arena).pos();
+                end = nodes.ref_(arena).end();
             }
             if let Some(visited) = visited {
                 match &visited {
@@ -284,7 +282,7 @@ pub fn try_maybe_visit_nodes(
         return Ok(Some(updated_array));
     }
 
-    Ok(Some(nodes.rc_wrapper()))
+    Ok(Some(nodes))
 }
 
 pub fn visit_lexical_environment(

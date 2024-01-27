@@ -19,6 +19,7 @@ use crate::{
     Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
     Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -113,13 +114,13 @@ impl TypeChecker {
                     || try_some(
                         node_as_signature_declaration
                             .maybe_type_parameters()
-                            .as_double_deref(),
+                            .refed(self).as_double_deref(),
                         Some(|&type_parameter: &Id<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
                     )?
                     || try_some(
-                        Some(&node_as_signature_declaration.parameters()),
+                        Some(&*node_as_signature_declaration.parameters().ref_(self)),
                         Some(|&parameter: &Id<Node>| self.contains_reference(tp, parameter)),
                     )?
                     || matches!(
@@ -967,11 +968,11 @@ impl TypeChecker {
                 self.is_context_sensitive_function_like_declaration(node)?
             }
             SyntaxKind::ObjectLiteralExpression => try_some(
-                Some(&node.ref_(self).as_object_literal_expression().properties),
+                Some(&*node.ref_(self).as_object_literal_expression().properties.ref_(self)),
                 Some(|&property: &Id<Node>| self.is_context_sensitive(property)),
             )?,
             SyntaxKind::ArrayLiteralExpression => try_some(
-                Some(&node.ref_(self).as_array_literal_expression().elements),
+                Some(&*node.ref_(self).as_array_literal_expression().elements.ref_(self)),
                 Some(|&element: &Id<Node>| self.is_context_sensitive(element)),
             )?,
             SyntaxKind::ConditionalExpression => {
@@ -997,11 +998,11 @@ impl TypeChecker {
             }
             SyntaxKind::JsxAttributes => {
                 try_some(
-                    Some(&node.ref_(self).as_jsx_attributes().properties),
+                    Some(&*node.ref_(self).as_jsx_attributes().properties.ref_(self)),
                     Some(|&property: &Id<Node>| self.is_context_sensitive(property)),
                 )? || is_jsx_opening_element(&node.ref_(self).parent().ref_(self))
                     && try_some(
-                        Some(&node.ref_(self).parent().ref_(self).parent().ref_(self).as_jsx_element().children),
+                        Some(&*node.ref_(self).parent().ref_(self).parent().ref_(self).as_jsx_element().children.ref_(self)),
                         Some(|&child: &Id<Node>| self.is_context_sensitive(child)),
                     )?
             }

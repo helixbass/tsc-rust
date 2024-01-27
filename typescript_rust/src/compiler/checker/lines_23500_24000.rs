@@ -575,13 +575,13 @@ impl GetFlowTypeOfReference {
                 } else if predicate.ref_(self).kind == TypePredicateKind::AssertsIdentifier
                     && matches!(
                         predicate.ref_(self).parameter_index,
-                        Some(predicate_parameter_index) if predicate_parameter_index < flow_as_flow_call.node.ref_(self).as_call_expression().arguments.len()
+                        Some(predicate_parameter_index) if predicate_parameter_index < flow_as_flow_call.node.ref_(self).as_call_expression().arguments.ref_(self).len()
                     )
                 {
                     self.narrow_type_by_assertion(
                         type_,
                         flow_as_flow_call.node.ref_(self).as_call_expression().arguments
-                            [predicate.ref_(self).parameter_index.unwrap()],
+                            .ref_(self)[predicate.ref_(self).parameter_index.unwrap()],
                     )?
                 } else {
                     type_.clone()
@@ -639,7 +639,7 @@ impl GetFlowTypeOfReference {
                 if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::EvolvingArray) {
                     let mut evolved_type = type_.clone();
                     if node.ref_(self).kind() == SyntaxKind::CallExpression {
-                        for &arg in &node.ref_(self).as_call_expression().arguments {
+                        for &arg in &*node.ref_(self).as_call_expression().arguments.ref_(self) {
                             evolved_type = self
                                 .type_checker
                                 .add_evolving_array_element_type(evolved_type, arg)?;

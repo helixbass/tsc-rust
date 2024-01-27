@@ -275,7 +275,7 @@ impl SymbolTableToDeclarationStatements {
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
                 .declarations
-                .iter()
+                .ref_(self).iter()
                 .map(|&declaration| get_name_of_declaration(Some(declaration), self))
                 .filter(|&declaration| self.is_identifier_and_not_undefined(declaration))
                 .map(Option::unwrap)
@@ -331,7 +331,7 @@ impl SymbolTableToDeclarationStatements {
                                     get_factory(self).create_node_array(
                                         Some({
                                             let mut arg =
-                                                ns_body.ref_(self).as_module_block().statements.to_vec();
+                                                ns_body.ref_(self).as_module_block().statements.ref_(self).to_vec();
                                             arg.push(get_factory(self).create_export_declaration(
                                                 Option::<Id<NodeArray>>::None,
                                                 Option::<Id<NodeArray>>::None,
@@ -375,12 +375,12 @@ impl SymbolTableToDeclarationStatements {
                         self.set_results(vec![]);
                         let body_ref = body.ref_(self);
                         let body_as_module_block = body_ref.as_module_block();
-                        let mixin_export_flag = !body_as_module_block.statements.iter().any(|&s| {
+                        let mixin_export_flag = !body_as_module_block.statements.ref_(self).iter().any(|&s| {
                             has_syntactic_modifier(s, ModifierFlags::Export, self)
                                 || is_export_assignment(&s.ref_(self))
                                 || is_export_declaration(&s.ref_(self))
                         });
-                        body_as_module_block.statements.iter().for_each(|&s| {
+                        body_as_module_block.statements.ref_(self).iter().for_each(|&s| {
                             self.add_result(
                                 s,
                                 if mixin_export_flag {
@@ -444,7 +444,7 @@ impl SymbolTableToDeclarationStatements {
                             )
                             .ref_(self).as_named_exports()
                             .elements
-                            .to_vec()
+                            .ref_(self).to_vec()
                         },
                     ))),
                     None,
@@ -515,7 +515,7 @@ impl SymbolTableToDeclarationStatements {
                                         )
                                         .ref_(self).as_named_exports()
                                         .elements
-                                        .to_vec()
+                                        .ref_(self).to_vec()
                                     },
                                 ))),
                                 group[0].ref_(self).as_export_declaration().module_specifier,
@@ -556,12 +556,12 @@ impl SymbolTableToDeclarationStatements {
             let export_decl_as_export_declaration = export_decl_ref.as_export_declaration();
             let replacements = map_defined(
                 Some(
-                    &export_decl_as_export_declaration
+                    &*export_decl_as_export_declaration
                         .export_clause
                         .as_ref()
                         .unwrap()
                         .ref_(self).as_named_exports()
-                        .elements,
+                        .elements.ref_(self),
                 ),
                 |e: &Id<Node>, _| {
                     let e_ref = e.ref_(self);
@@ -883,7 +883,7 @@ impl SymbolTableToDeclarationStatements {
                                 .ref_(self).parent()
                                 .ref_(self).as_variable_declaration_list()
                                 .declarations
-                                .len()
+                                .ref_(self).len()
                                 == 1
                     }) {
                         text_range = text_range_present.ref_(self).parent().ref_(self).maybe_parent();

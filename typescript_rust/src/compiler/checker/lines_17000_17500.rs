@@ -288,7 +288,7 @@ impl TypeChecker {
             return Ok(false);
         }
         if some(
-            Some(&node_as_arrow_function.parameters()),
+            Some(&*node_as_arrow_function.parameters().ref_(self)),
             Some(|parameter: &Id<Node>| has_type(&parameter.ref_(self))),
         ) {
             return Ok(false);
@@ -710,12 +710,12 @@ impl TypeChecker {
     ) -> Vec<ElaborationIteratorItem> {
         let node_ref = node.ref_(self);
         let node_as_jsx_attributes = node_ref.as_jsx_attributes();
-        if length(Some(&node_as_jsx_attributes.properties)) == 0 {
+        if length(Some(&*node_as_jsx_attributes.properties.ref_(self))) == 0 {
             return vec![];
         }
         node_as_jsx_attributes
             .properties
-            .iter()
+            .ref_(self).iter()
             .flat_map(|prop| {
                 if is_jsx_spread_attribute(&prop.ref_(self))
                     || self.is_hyphenated_jsx_name(&id_text(&prop.ref_(self).as_jsx_attribute().name.ref_(self)))
@@ -741,12 +741,12 @@ impl TypeChecker {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_ref = node.ref_(self);
         let node_as_jsx_element = node_ref.as_jsx_element();
-        if length(Some(&node_as_jsx_element.children)) == 0 {
+        if length(Some(&*node_as_jsx_element.children.ref_(self))) == 0 {
             return Ok(vec![]);
         }
         let mut member_offset = 0;
         try_flat_map(
-            Some(&node_as_jsx_element.children),
+            Some(&*node_as_jsx_element.children.ref_(self)),
             |&child, i| -> io::Result<_> {
                 let name_type =
                     self.get_number_literal_type(Number::new((i - member_offset) as f64));
@@ -844,7 +844,7 @@ impl TypeChecker {
                 None,
             )?;
             let valid_children =
-                get_semantic_jsx_children(&containing_element.ref_(self).as_jsx_element().children, self);
+                get_semantic_jsx_children(&containing_element.ref_(self).as_jsx_element().children.ref_(self), self);
             if length(Some(&valid_children)) == 0 {
                 return Ok(result);
             }
@@ -1020,12 +1020,12 @@ impl TypeChecker {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_ref = node.ref_(self);
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
-        let len = length(Some(&node_as_array_literal_expression.elements));
+        let len = length(Some(&*node_as_array_literal_expression.elements.ref_(self)));
         let mut ret = vec![];
         if len == 0 {
             return Ok(ret);
         }
-        for (i, elem) in node_as_array_literal_expression.elements.iter().enumerate() {
+        for (i, elem) in node_as_array_literal_expression.elements.ref_(self).iter().enumerate() {
             if self.is_tuple_like_type(target)?
                 && self
                     .get_property_of_type_(target, &i.to_string(), None)?
@@ -1094,11 +1094,11 @@ impl TypeChecker {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        if length(Some(&node_as_object_literal_expression.properties)) == 0 {
+        if length(Some(&node_as_object_literal_expression.properties.ref_(self))) == 0 {
             return Ok(vec![]);
         }
         try_flat_map(
-            Some(&node_as_object_literal_expression.properties),
+            Some(&*node_as_object_literal_expression.properties.ref_(self)),
             |&prop: &Id<Node>, _| -> io::Result<_> {
                 if is_spread_assignment(&prop.ref_(self)) {
                     return Ok(vec![]);

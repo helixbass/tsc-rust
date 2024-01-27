@@ -461,7 +461,7 @@ impl TypeChecker {
             links.borrow_mut().resolved_type = Some(
                 self.get_intersection_type(
                     &try_map(
-                        &*node.ref_(self).as_intersection_type_node().types,
+                        &*node.ref_(self).as_intersection_type_node().types.ref_(self),
                         |&type_: &Id<Node>, _| self.get_type_from_type_node_(type_),
                     )?,
                     alias_symbol,
@@ -981,7 +981,7 @@ impl TypeChecker {
                 .clone()];
             texts.extend(
                 map(
-                    &*node_as_template_literal_type_node.template_spans,
+                    &*node_as_template_literal_type_node.template_spans.ref_(self),
                     |span: &Id<Node>, _| {
                         span.ref_(self).as_template_literal_type_span()
                             .literal
@@ -995,7 +995,7 @@ impl TypeChecker {
             links.borrow_mut().resolved_type = Some(self.get_template_literal_type(
                 &texts,
                 &try_map(
-                    &*node_as_template_literal_type_node.template_spans,
+                    &*node_as_template_literal_type_node.template_spans.ref_(self),
                     |span: &Id<Node>, _| {
                         self.get_type_from_type_node_(span.ref_(self).as_template_literal_type_span().type_)
                     },

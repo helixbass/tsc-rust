@@ -580,7 +580,7 @@ impl TypeChecker {
         let key_property_name = self.get_key_property_name(union_type)?;
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
             find(
-                &node.ref_(self).as_object_literal_expression().properties,
+                &node.ref_(self).as_object_literal_expression().properties.ref_(self),
                 |p: &Id<Node>, _| {
                     let Some(p_symbol) = p.ref_(self).maybe_symbol() else {
                         return false;
@@ -620,7 +620,7 @@ impl TypeChecker {
         reference: Id<Node>,
     ) -> io::Result<bool> {
         if let Some(expression_arguments) = expression.ref_(self).as_has_arguments().maybe_arguments() {
-            for &argument in &expression_arguments {
+            for &argument in &*expression_arguments.ref_(self) {
                 if self.is_or_contains_matching_reference(reference, argument)? {
                     return Ok(true);
                 }
@@ -1065,7 +1065,7 @@ impl TypeChecker {
             self.get_assigned_type(node)?,
             node.ref_(self).as_array_literal_expression()
                 .elements
-                .iter()
+                .ref_(self).iter()
                 .position(|&el| el == element)
                 .unwrap(),
         )

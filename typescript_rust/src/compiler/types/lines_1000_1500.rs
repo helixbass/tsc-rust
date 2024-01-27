@@ -21,7 +21,6 @@ mod _NodeArrayDeriveTraceScope {
 
     #[derive(Clone, Trace, Finalize)]
     pub struct NodeArray {
-        _rc_wrapper: GcCell<Option<Id<NodeArray>>>,
         _nodes: Vec<Id<Node>>,
         #[unsafe_ignore_trace]
         pos: Cell<isize>,
@@ -37,7 +36,6 @@ mod _NodeArrayDeriveTraceScope {
     impl std::fmt::Debug for NodeArray {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct("NodeArray")
-                // .field("_rc_wrapper", &self._rc_wrapper)
                 .field("_nodes", &self._nodes)
                 .field("pos", &self.pos)
                 .field("end", &self.end)
@@ -58,27 +56,17 @@ mod _NodeArrayDeriveTraceScope {
         ) -> Gc<Self> {
             let ret = Gc::new(NodeArray {
                 _nodes: nodes,
-                _rc_wrapper: Default::default(),
                 pos: Cell::new(pos),
                 end: Cell::new(end),
                 has_trailing_comma,
                 transform_flags: Cell::new(transform_flags),
                 is_missing_list: Cell::new(false),
             });
-            *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
             ret
-        }
-
-        pub fn rc_wrapper(&self) -> Gc<Self> {
-            self._rc_wrapper.borrow().clone().unwrap()
         }
 
         pub fn iter(&self) -> NodeArrayIter {
             NodeArrayIter(self._nodes.iter())
-        }
-
-        pub fn owned_iter(&self) -> NodeArrayOwnedIter {
-            self.rc_wrapper().into()
         }
 
         pub fn to_vec(&self) -> Vec<Id<Node>> {
@@ -155,35 +143,6 @@ mod _NodeArrayDeriveTraceScope {
 
         fn into_iter(self) -> Self::IntoIter {
             self.iter()
-        }
-    }
-
-    #[derive(Clone, Trace, Finalize)]
-    pub struct NodeArrayOwnedIter {
-        node_array: Id<NodeArray>,
-        index: usize,
-    }
-
-    impl From<Id<NodeArray>> for NodeArrayOwnedIter {
-        fn from(value: Id<NodeArray>) -> Self {
-            Self {
-                node_array: value,
-                index: 0,
-            }
-        }
-    }
-
-    impl Iterator for NodeArrayOwnedIter {
-        type Item = Id<Node>;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            if self.index >= self.node_array.len() {
-                None
-            } else {
-                let ret = self.node_array[self.index].clone();
-                self.index += 1;
-                Some(ret)
-            }
         }
     }
 

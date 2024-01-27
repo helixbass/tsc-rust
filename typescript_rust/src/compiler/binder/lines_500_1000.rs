@@ -352,7 +352,7 @@ impl BinderType {
         for_each_child(
             node,
             |node| self.bind(Some(node)),
-            Some(|nodes: Id<NodeArray>| self.bind_each(Some(nodes))),
+            Some(|nodes: Id<NodeArray>| self.bind_each(Some(&nodes.ref_(self)))),
             self,
         );
     }
@@ -416,11 +416,11 @@ impl BinderType {
             SyntaxKind::SourceFile => {
                 let node_ref = node.ref_(self);
                 let node_as_source_file = node_ref.as_source_file();
-                self.bind_each_functions_first(Some(&node_as_source_file.statements()));
+                self.bind_each_functions_first(Some(&node_as_source_file.statements().ref_(self)));
                 self.bind(Some(node_as_source_file.end_of_file_token()));
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
-                self.bind_each_functions_first(Some(&node.ref_(self).as_has_statements().statements()));
+                self.bind_each_functions_first(Some(&node.ref_(self).as_has_statements().statements().ref_(self)));
             }
             SyntaxKind::BindingElement => self.bind_binding_element_flow(node),
             SyntaxKind::ObjectLiteralExpression
@@ -496,7 +496,7 @@ impl BinderType {
         let expr_ref = expr.ref_(self);
         let expr_as_call_expression = expr_ref.as_call_expression();
         // if (expr.arguments) {
-        for &argument in &expr_as_call_expression.arguments {
+        for &argument in &*expr_as_call_expression.arguments.ref_(self) {
             if self.contains_narrowable_reference(argument) {
                 return true;
             }

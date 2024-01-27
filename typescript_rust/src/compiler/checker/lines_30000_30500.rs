@@ -209,11 +209,11 @@ impl TypeChecker {
         } else {
             None
         };
-        let instantiated = if let Some(type_argument_nodes) = type_argument_nodes.as_ref() {
+        let instantiated = if let Some(type_argument_nodes) = type_argument_nodes {
             self.alloc_signature(self.create_signature_instantiation(
                 candidate.clone(),
                 Some(&*self.get_type_arguments_from_nodes(
-                    type_argument_nodes,
+                    &type_argument_nodes.ref_(self),
                     type_parameters,
                     is_in_js_file(Some(&node.ref_(self))),
                 )?),
@@ -319,7 +319,7 @@ impl TypeChecker {
         if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
             let super_type = self.check_super_expression(node_as_call_expression.expression)?;
             if self.is_type_any(Some(super_type)) {
-                for &arg in &node_as_call_expression.arguments {
+                for &arg in &*node_as_call_expression.arguments.ref_(self) {
                     self.check_expression(arg, None, None)?;
                 }
                 return Ok(self.any_signature());

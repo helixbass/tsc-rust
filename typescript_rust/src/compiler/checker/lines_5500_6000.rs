@@ -632,10 +632,10 @@ impl NodeBuilder {
         {
             parameter_declaration
                 .and_then(|parameter_declaration| {
-                    parameter_declaration.ref_(self).maybe_modifiers().as_ref().map(
+                    parameter_declaration.ref_(self).maybe_modifiers().map(
                         |parameter_declaration_modifiers| {
                             parameter_declaration_modifiers
-                                .into_iter()
+                                .ref_(self).into_iter()
                                 .map(|&modifier| get_factory(self).clone_node(modifier))
                                 .collect()
                         },
@@ -1109,7 +1109,7 @@ impl NodeBuilder {
             } else {
                 type_parameter_nodes = self
                     .type_parameters_to_type_parameter_declarations(symbol, context)?
-                    .map(|node_array| node_array.to_vec());
+                    .map(|node_array| node_array.ref_(self).to_vec());
             }
         }
         Ok(type_parameter_nodes)

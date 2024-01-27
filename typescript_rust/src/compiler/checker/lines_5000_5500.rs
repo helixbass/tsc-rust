@@ -912,7 +912,6 @@ impl NodeBuilder {
                 }
             }
             let type_arguments = ref_.ref_(self).as_type_reference_node().maybe_type_arguments();
-            let type_arguments = type_arguments.as_deref();
             let ids = self.get_access_stack(ref_);
             for id in ids {
                 qualifier = Some(if let Some(qualifier) = qualifier {
@@ -926,7 +925,7 @@ impl NodeBuilder {
                     root,
                     root_as_import_type_node.argument.clone(),
                     qualifier,
-                    type_arguments.map(NodeArray::rc_wrapper),
+                    type_arguments,
                     Some(root_as_import_type_node.is_type_of()),
                 )
                 .into()

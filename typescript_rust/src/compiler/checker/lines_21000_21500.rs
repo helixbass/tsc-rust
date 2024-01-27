@@ -451,7 +451,7 @@ impl TypeChecker {
                         .ref_(self).parent()
                         .ref_(self).as_signature_declaration()
                         .parameters()
-                        .into_iter()
+                        .ref_(self).into_iter()
                         .position(|&parameter: &Id<Node>| param == parameter)
                         .is_some()
                     && (self
@@ -484,7 +484,7 @@ impl TypeChecker {
                             .ref_(self).parent()
                             .ref_(self).as_signature_declaration()
                             .parameters()
-                            .into_iter()
+                            .ref_(self).into_iter()
                             .position(|&parameter: &Id<Node>| param == parameter)
                             .unwrap()
                             .to_string()

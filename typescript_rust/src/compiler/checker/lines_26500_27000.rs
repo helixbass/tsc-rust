@@ -110,7 +110,7 @@ impl TypeChecker {
                         .ref_(self).as_jsx_opening_like_element()
                         .attributes()
                         .ref_(self).as_jsx_attributes()
-                        .properties,
+                        .properties.ref_(self),
                 )) > 0
                 {
                     self.error(
@@ -435,8 +435,8 @@ impl TypeChecker {
         let mut target_parameter_count = 0;
         let target_ref = target.ref_(self);
         let target_as_signature_declaration = target_ref.as_signature_declaration();
-        while target_parameter_count < target_as_signature_declaration.parameters().len() {
-            let param = target_as_signature_declaration.parameters()[target_parameter_count];
+        while target_parameter_count < target_as_signature_declaration.parameters().ref_(self).len() {
+            let param = target_as_signature_declaration.parameters().ref_(self)[target_parameter_count];
             let param_ref = param.ref_(self);
             let param_as_parameter_declaration = param_ref.as_parameter_declaration();
             if param_as_parameter_declaration.maybe_initializer().is_some()
@@ -448,8 +448,8 @@ impl TypeChecker {
             }
             target_parameter_count += 1;
         }
-        if !target_as_signature_declaration.parameters().is_empty()
-            && parameter_is_this_keyword(target_as_signature_declaration.parameters()[0], self)
+        if !target_as_signature_declaration.parameters().ref_(self).is_empty()
+            && parameter_is_this_keyword(target_as_signature_declaration.parameters().ref_(self)[0], self)
         {
             target_parameter_count -= 1;
         }
@@ -593,7 +593,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
         let elements = &node_ref.as_array_literal_expression().elements;
-        let element_count = elements.len();
+        let element_count = elements.ref_(self).len();
         let mut element_types: Vec<Id<Type>> = vec![];
         let mut element_flags: Vec<ElementFlags> = vec![];
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
@@ -601,7 +601,7 @@ impl TypeChecker {
         let in_const_context = self.is_const_context(node);
         let mut has_omitted_expression = false;
         for i in 0..element_count {
-            let e = elements[i];
+            let e = elements.ref_(self)[i];
             if e.ref_(self).kind() == SyntaxKind::SpreadElement {
                 if self.language_version < ScriptTarget::ES2015 {
                     self.check_external_emit_helpers(
@@ -996,7 +996,7 @@ impl TypeChecker {
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
-        for elem in &node_as_object_literal_expression.properties {
+        for elem in &*node_as_object_literal_expression.properties.ref_(self) {
             if let Some(elem_name) = elem
                 .ref_(self).as_named_declaration()
                 .maybe_name()
@@ -1007,7 +1007,7 @@ impl TypeChecker {
         }
 
         let mut offset = 0;
-        for &member_decl in &node_as_object_literal_expression.properties {
+        for &member_decl in &*node_as_object_literal_expression.properties.ref_(self) {
             let mut member = self.get_symbol_of_node(member_decl)?;
             let computed_name_type = member_decl
                 .ref_(self).as_named_declaration()

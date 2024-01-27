@@ -40,7 +40,7 @@ pub fn create_diagnostic_for_node(
 
 pub fn create_diagnostic_for_node_array(
     source_file: &Node, /*SourceFile*/
-    nodes: Id<NodeArray>,
+    nodes: &NodeArray,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
