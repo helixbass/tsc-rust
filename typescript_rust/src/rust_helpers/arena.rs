@@ -12,7 +12,7 @@ use crate::{
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
-    WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider,
+    WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
 };
 
 #[derive(Default)]
@@ -59,6 +59,7 @@ pub struct AllArenas {
     pub module_resolution_host_overriders: RefCell<Arena<Box<dyn ModuleResolutionHostOverrider>>>,
     pub wrap_custom_transformer_factory_handle_defaults: RefCell<Arena<Box<dyn WrapCustomTransformerFactoryHandleDefault>>>,
     pub transformation_context_on_emit_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
+    pub source_map_generators: RefCell<Arena<Box<dyn SourceMapGenerator>>>,
 }
 
 pub trait HasArena {
@@ -374,6 +375,14 @@ pub trait HasArena {
 
     fn alloc_transformation_context_on_emit_node_overrider(&self, transformation_context_on_emit_node_overrider: Box<dyn TransformationContextOnEmitNodeOverrider>) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
         self.arena().alloc_transformation_context_on_emit_node_overrider(transformation_context_on_emit_node_overrider)
+    }
+
+    fn source_map_generator(&self, source_map_generator: Id<Box<dyn SourceMapGenerator>>) -> Ref<Box<dyn SourceMapGenerator>> {
+        self.arena().source_map_generator(source_map_generator)
+    }
+
+    fn alloc_source_map_generator(&self, source_map_generator: Box<dyn SourceMapGenerator>) -> Id<Box<dyn SourceMapGenerator>> {
+        self.arena().alloc_source_map_generator(source_map_generator)
     }
 }
 
@@ -780,6 +789,16 @@ impl HasArena for AllArenas {
         let id = self.transformation_context_on_emit_node_overriders.borrow_mut().alloc(transformation_context_on_emit_node_overrider);
         id
     }
+
+    #[track_caller]
+    fn source_map_generator(&self, source_map_generator: Id<Box<dyn SourceMapGenerator>>) -> Ref<Box<dyn SourceMapGenerator>> {
+        Ref::map(self.source_map_generators.borrow(), |source_map_generators| &source_map_generators[source_map_generator])
+    }
+
+    fn alloc_source_map_generator(&self, source_map_generator: Box<dyn SourceMapGenerator>) -> Id<Box<dyn SourceMapGenerator>> {
+        let id = self.source_map_generators.borrow_mut().alloc(source_map_generator);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1098,6 +1117,14 @@ impl InArena for Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformationContextOnEmitNodeOverrider>> {
         has_arena.transformation_context_on_emit_node_overrider(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn SourceMapGenerator>> {
+    type Item = Box<dyn SourceMapGenerator>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn SourceMapGenerator>> {
+        has_arena.source_map_generator(*self)
     }
 }
 

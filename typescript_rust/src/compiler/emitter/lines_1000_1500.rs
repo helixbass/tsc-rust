@@ -76,7 +76,7 @@ impl Printer {
         &self,
         bundle: Id<Node>, /*Bundle*/
         output: Id<Box<dyn EmitTextWriter>>,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
         self.set_is_own_file_emit(false);
         let previous_writer = self.maybe_writer();
@@ -180,7 +180,7 @@ impl Printer {
         &self,
         source_file: Id<Node>, /*SourceFile*/
         output: Id<Box<dyn EmitTextWriter>>,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
         self.set_is_own_file_emit(true);
         let previous_writer = self.maybe_writer();
@@ -235,7 +235,7 @@ impl Printer {
     pub(super) fn set_writer(
         &self,
         mut writer: Option<Id<Box<dyn EmitTextWriter>>>,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) {
         if let Some(writer_present) = writer.as_ref() {
             if self.printer_options.omit_trailing_semicolon == Some(true) {

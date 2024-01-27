@@ -71,7 +71,7 @@ pub struct Printer {
 
     #[unsafe_ignore_trace]
     pub source_maps_disabled: Cell<bool>,
-    pub source_map_generator: GcCell<Option<Gc<Box<dyn SourceMapGenerator>>>>,
+    pub source_map_generator: GcCell<Option<Id<Box<dyn SourceMapGenerator>>>>,
     pub source_map_source: GcCell<Option<Gc<SourceMapSource>>>,
     #[unsafe_ignore_trace]
     pub source_map_source_index: Cell<isize>,

@@ -1285,7 +1285,7 @@ fn print_source_file_or_bundle(
         vec![source_file.clone().unwrap()]
     };
 
-    let mut source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>> = None;
+    let mut source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>> = None;
     if should_emit_source_maps(map_options, &source_file_or_bundle.ref_(arena)) {
         source_map_generator = Some(create_source_map_generator(
             host.clone(),
@@ -1438,7 +1438,7 @@ fn get_source_map_directory(
 fn get_source_mapping_url(
     host: &dyn EmitHost,
     map_options: &SourceMapOptions,
-    source_map_generator: &dyn SourceMapGenerator,
+    source_map_generator: Id<Box<dyn SourceMapGenerator>>,
     file_path: &str,
     source_map_file_path: Option<&str>,
     source_file: Option<&Node /*SourceFile*/>,
@@ -2163,7 +2163,7 @@ impl Printer {
 
     pub(super) fn set_source_map_generator(
         &self,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) {
         *self.source_map_generator.borrow_mut() = source_map_generator;
     }
@@ -2176,11 +2176,11 @@ impl Printer {
         self.source_maps_disabled.set(source_maps_disabled);
     }
 
-    pub(super) fn source_map_generator(&self) -> Gc<Box<dyn SourceMapGenerator>> {
+    pub(super) fn source_map_generator(&self) -> Id<Box<dyn SourceMapGenerator>> {
         self.source_map_generator.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_source_map_generator(&self) -> Option<Gc<Box<dyn SourceMapGenerator>>> {
+    pub(super) fn maybe_source_map_generator(&self) -> Option<Id<Box<dyn SourceMapGenerator>>> {
         self.source_map_generator.borrow().clone()
     }
 
