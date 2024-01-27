@@ -79,8 +79,8 @@ impl TransformEcmascriptModule {
         ret
     }
 
-    fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.ref_(self).get_emit_helper_factory()
+    pub(super) fn emit_helpers(&self) -> debug_cell::Ref<'_, EmitHelperFactory> {
+        self.context.ref_(self).get_emit_helper_factory().ref_(self)
     }
 
     fn maybe_helper_name_substitutions(

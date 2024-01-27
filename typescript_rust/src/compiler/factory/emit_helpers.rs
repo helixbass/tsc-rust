@@ -576,13 +576,13 @@ impl HasArena for EmitHelperFactory {
 pub fn create_emit_helper_factory(
     context: Id<TransformNodesTransformationResult>,
     arena: &impl HasArena,
-) -> EmitHelperFactory {
-    EmitHelperFactory {
+) -> Id<EmitHelperFactory> {
+    arena.alloc_emit_helper_factory(EmitHelperFactory {
         factory: context.ref_(arena).factory(),
         context,
         immutable_true: _d(),
         immutable_false: _d(),
-    }
+    })
 }
 
 pub(crate) fn compare_emit_helpers(x: Id<EmitHelper>, y: Id<EmitHelper>, arena: &impl HasArena) -> Comparison {

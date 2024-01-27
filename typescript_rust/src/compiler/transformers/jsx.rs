@@ -98,8 +98,8 @@ impl TransformJsx {
         *self.current_file_state.borrow_mut() = current_file_state;
     }
 
-    fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.ref_(self).get_emit_helper_factory()
+    pub(super) fn emit_helpers(&self) -> debug_cell::Ref<'_, EmitHelperFactory> {
+        self.context.ref_(self).get_emit_helper_factory().ref_(self)
     }
 
     fn get_current_file_name_expression(&self) -> Id<Node /*Identifier*/> {

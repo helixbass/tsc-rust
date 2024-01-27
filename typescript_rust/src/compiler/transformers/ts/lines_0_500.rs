@@ -259,8 +259,8 @@ impl TransformTypeScript {
         self.applicable_substitutions.set(applicable_substitutions);
     }
 
-    pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.ref_(self).get_emit_helper_factory()
+    pub(super) fn emit_helpers(&self) -> debug_cell::Ref<'_, EmitHelperFactory> {
+        self.context.ref_(self).get_emit_helper_factory().ref_(self)
     }
 
     pub(super) fn transform_source_file_or_bundle(

@@ -413,7 +413,7 @@ pub struct TransformNodesTransformationResult {
     options: Id<CompilerOptions>,
     resolver: Option<Id<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
-    created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
+    created_emit_helper_factory: GcCell<Option<Id<EmitHelperFactory>>>,
     factory: Id<NodeFactory>,
 }
 
@@ -679,7 +679,7 @@ impl TransformNodesTransformationResult {
         self.block_scope_stack_offset.set(block_scope_stack_offset)
     }
 
-    fn created_emit_helper_factory(&self) -> GcCellRefMut<Option<Gc<EmitHelperFactory>>> {
+    fn created_emit_helper_factory(&self) -> GcCellRefMut<Option<Id<EmitHelperFactory>>> {
         self.created_emit_helper_factory.borrow_mut()
     }
 
@@ -1068,14 +1068,14 @@ impl TransformationContext for TransformNodesTransformationResult {
         self.host.clone().unwrap()
     }
 
-    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory> {
+    fn get_emit_helper_factory(&self) -> Id<EmitHelperFactory> {
         /*memoize(*/
         let mut created_emit_helper_factory = self.created_emit_helper_factory();
         if created_emit_helper_factory.is_none() {
-            *created_emit_helper_factory = Some(Gc::new(create_emit_helper_factory(
+            *created_emit_helper_factory = Some(create_emit_helper_factory(
                 self.arena_id(),
                 self,
-            )));
+            ));
         }
         created_emit_helper_factory.clone().unwrap()
     }
@@ -1409,7 +1409,7 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory> {
+    fn get_emit_helper_factory(&self) -> Id<EmitHelperFactory> {
         not_implemented()
     }
 
