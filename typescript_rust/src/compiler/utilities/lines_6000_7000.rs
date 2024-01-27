@@ -915,7 +915,7 @@ impl SymlinkCache {
 
     pub fn set_symlinked_directory(&self, symlink: &str, real: Option<SymlinkedDirectory>) {
         let mut symlink_path = to_path(symlink, Some(&self.cwd), |file_name| {
-            self.get_canonical_file_name.call(file_name)
+            self.get_canonical_file_name.ref_(self).call(file_name)
         });
         if !contains_ignored_path(&symlink_path) {
             symlink_path = ensure_trailing_directory_separator(&symlink_path).into();
@@ -945,12 +945,12 @@ impl SymlinkCache {
     pub fn set_symlinked_directory_from_symlinked_file(&self, symlink: &str, real: &str) {
         self.set_symlinked_file(
             &to_path(symlink, Some(&self.cwd), |file_name| {
-                self.get_canonical_file_name.call(file_name)
+                self.get_canonical_file_name.ref_(self).call(file_name)
             }),
             real,
         );
         let guessed = guess_directory_symlink(real, symlink, &self.cwd, |file_name| {
-            self.get_canonical_file_name.call(file_name)
+            self.get_canonical_file_name.ref_(self).call(file_name)
         });
         if let Some((common_resolved, common_original)) = guessed {
             if !common_resolved.is_empty() && !common_original.is_empty() {
@@ -959,7 +959,7 @@ impl SymlinkCache {
                     Some(SymlinkedDirectory {
                         real: common_resolved.clone(),
                         real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
-                            self.get_canonical_file_name.call(file_name)
+                            self.get_canonical_file_name.ref_(self).call(file_name)
                         }),
                     }),
                 );
@@ -1013,13 +1013,13 @@ impl SymlinkCache {
         let ref original_path = resolution.maybe_original_path(self).unwrap();
         self.set_symlinked_file(
             &to_path(original_path, Some(&self.cwd), |file_name| {
-                self.get_canonical_file_name.call(file_name)
+                self.get_canonical_file_name.ref_(self).call(file_name)
             }),
             resolved_file_name,
         );
         let guessed =
             guess_directory_symlink(resolved_file_name, original_path, &self.cwd, |file_name| {
-                self.get_canonical_file_name.call(file_name)
+                self.get_canonical_file_name.ref_(self).call(file_name)
             });
         if let Some((common_resolved, common_original)) = guessed {
             if !common_resolved.is_empty() && !common_original.is_empty() {
@@ -1028,7 +1028,7 @@ impl SymlinkCache {
                     Some(SymlinkedDirectory {
                         real: common_resolved.clone(),
                         real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
-                            self.get_canonical_file_name.call(file_name)
+                            self.get_canonical_file_name.ref_(self).call(file_name)
                         }),
                     }),
                 );

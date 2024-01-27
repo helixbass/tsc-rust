@@ -130,7 +130,7 @@ impl Program {
 
     pub fn get_canonical_file_name_rc(&self) -> Id<Box<dyn GetCanonicalFileName>> {
         let host = self.host();
-        Gc::new(Box::new(CompilerHostGetCanonicalFileName::new(host)))
+        self.alloc_get_canonical_file_name(Box::new(CompilerHostGetCanonicalFileName::new(host)))
     }
 
     pub fn process_imported_modules(&self, file: Id<Node> /*SourceFile*/) -> io::Result<()> {
@@ -1995,7 +1995,7 @@ impl Program {
         if self.symlinks().is_none() {
             *self.symlinks() = Some(Gc::new(create_symlink_cache(
                 &self.current_directory(),
-                Gc::new(Box::new(HostGetCanonicalFileName::new(self.host()))),
+                self.alloc_get_canonical_file_name(Box::new(HostGetCanonicalFileName::new(self.host()))),
             )));
         }
         let symlinks = self.symlinks().clone().unwrap();

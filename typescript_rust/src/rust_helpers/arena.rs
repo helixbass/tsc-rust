@@ -13,6 +13,7 @@ use crate::{
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
+    GetCanonicalFileName,
 };
 
 #[derive(Default)]
@@ -60,6 +61,7 @@ pub struct AllArenas {
     pub wrap_custom_transformer_factory_handle_defaults: RefCell<Arena<Box<dyn WrapCustomTransformerFactoryHandleDefault>>>,
     pub transformation_context_on_emit_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     pub source_map_generators: RefCell<Arena<Box<dyn SourceMapGenerator>>>,
+    pub get_canonical_file_names: RefCell<Arena<Box<dyn GetCanonicalFileName>>>,
 }
 
 pub trait HasArena {
@@ -383,6 +385,14 @@ pub trait HasArena {
 
     fn alloc_source_map_generator(&self, source_map_generator: Box<dyn SourceMapGenerator>) -> Id<Box<dyn SourceMapGenerator>> {
         self.arena().alloc_source_map_generator(source_map_generator)
+    }
+
+    fn get_canonical_file_name(&self, get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>) -> Ref<Box<dyn GetCanonicalFileName>> {
+        self.arena().get_canonical_file_name(get_canonical_file_name)
+    }
+
+    fn alloc_get_canonical_file_name(&self, get_canonical_file_name: Box<dyn GetCanonicalFileName>) -> Id<Box<dyn GetCanonicalFileName>> {
+        self.arena().alloc_get_canonical_file_name(get_canonical_file_name)
     }
 }
 
@@ -799,6 +809,16 @@ impl HasArena for AllArenas {
         let id = self.source_map_generators.borrow_mut().alloc(source_map_generator);
         id
     }
+
+    #[track_caller]
+    fn get_canonical_file_name(&self, get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>) -> Ref<Box<dyn GetCanonicalFileName>> {
+        Ref::map(self.get_canonical_file_names.borrow(), |get_canonical_file_names| &get_canonical_file_names[get_canonical_file_name])
+    }
+
+    fn alloc_get_canonical_file_name(&self, get_canonical_file_name: Box<dyn GetCanonicalFileName>) -> Id<Box<dyn GetCanonicalFileName>> {
+        let id = self.get_canonical_file_names.borrow_mut().alloc(get_canonical_file_name);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1125,6 +1145,14 @@ impl InArena for Id<Box<dyn SourceMapGenerator>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn SourceMapGenerator>> {
         has_arena.source_map_generator(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn GetCanonicalFileName>> {
+    type Item = Box<dyn GetCanonicalFileName>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetCanonicalFileName>> {
+        has_arena.get_canonical_file_name(*self)
     }
 }
 

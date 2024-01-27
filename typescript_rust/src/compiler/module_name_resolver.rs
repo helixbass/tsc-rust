@@ -1123,7 +1123,7 @@ impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
                 .get(&to_path(
                     package_json_path,
                     Some(&self.current_directory),
-                    |path| self.get_canonical_file_name.call(path),
+                    |path| self.get_canonical_file_name.ref_(self).call(path),
                 ))
                 .cloned()
         })
@@ -1132,7 +1132,7 @@ impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
         self.cache.borrow_mut().get_or_insert_default_().insert(
             to_path(package_json_path, Some(&self.current_directory), |path| {
-                self.get_canonical_file_name.call(path)
+                self.get_canonical_file_name.ref_(self).call(path)
             }),
             info,
         );
@@ -1152,6 +1152,12 @@ impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
                     .collect()
             },
         )
+    }
+}
+
+impl HasArena for PackageJsonInfoCacheConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1204,7 +1210,7 @@ impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
         redirected_reference: Option<Gc<ResolvedProjectReference>>,
     ) -> Gc<ModeAwareCache<TValue>> {
         let path = to_path(directory_name, Some(&self.current_directory), |path| {
-            self.get_canonical_file_name.call(path)
+            self.get_canonical_file_name.ref_(self).call(path)
         });
         get_or_create_cache(
             &self.directory_to_module_name_map,
@@ -1219,6 +1225,12 @@ impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
     }
 
     fn update(&self, _options: &CompilerOptions) {
+        unimplemented!()
+    }
+}
+
+impl<TValue: Clone + Trace + Finalize> HasArena for PerDirectoryResolutionCacheConcrete<TValue> {
+    fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
@@ -1374,14 +1386,14 @@ impl PerModuleNameCache {
             .get(&*to_path(
                 directory,
                 Some(&self.current_directory),
-                |path| self.get_canonical_file_name.call(path),
+                |path| self.get_canonical_file_name.ref_(self).call(path),
             ))
             .cloned()
     }
 
     pub fn set(&self, directory: &str, result: Gc<ResolvedModuleWithFailedLookupLocations>) {
         let path = to_path(directory, Some(&self.current_directory), |path| {
-            self.get_canonical_file_name.call(path)
+            self.get_canonical_file_name.ref_(self).call(path)
         });
         if self.directory_path_map.borrow().contains_key(&*path) {
             return;
@@ -1422,7 +1434,7 @@ impl PerModuleNameCache {
         let resolution_directory = to_path(
             &get_directory_path(resolution),
             Some(&self.current_directory),
-            |file_name: &str| self.get_canonical_file_name.call(file_name),
+            |file_name: &str| self.get_canonical_file_name.ref_(self).call(file_name),
         );
 
         let mut i = 0;
@@ -1452,6 +1464,12 @@ impl PerModuleNameCache {
             Some(i - 1),
         )?;
         Some(directory[0..cmp::max(sep, root_length)].to_owned())
+    }
+}
+
+impl HasArena for PerModuleNameCache {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
