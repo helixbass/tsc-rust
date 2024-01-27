@@ -1071,7 +1071,7 @@ impl Program {
             local_override_module_result.resolved_module.as_ref()
         {
             return Ok(local_override_module_result_resolved_module
-                .resolved_file_name
+                .ref_(self).resolved_file_name
                 .clone());
         }
         Ok(combine_paths(

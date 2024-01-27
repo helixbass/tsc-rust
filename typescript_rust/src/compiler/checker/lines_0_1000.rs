@@ -1566,10 +1566,10 @@ impl TypeChecker {
 
                 sf_resolved_modules.as_ref().unwrap().for_each(|r, _, _| {
                     if let Some(r) = r.as_ref() {
-                        if let Some(r_package_id) = r.package_id.as_ref() {
+                        if let Some(r_package_id) = r.ref_(self).package_id.as_ref() {
                             map.insert(
                                 r_package_id.name.clone(),
-                                matches!(r.extension, Some(Extension::Dts))
+                                matches!(r.ref_(self).extension, Some(Extension::Dts))
                                     || matches!(map.get(&r_package_id.name), Some(true)),
                             );
                         }

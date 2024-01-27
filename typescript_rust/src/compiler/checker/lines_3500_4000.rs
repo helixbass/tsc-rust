@@ -27,11 +27,12 @@ impl TypeChecker {
         &self,
         is_error: bool,
         error_node: Id<Node>,
-        resolved_module: &ResolvedModuleFull,
+        resolved_module: Id<ResolvedModuleFull>,
         module_reference: &str,
     ) {
-        let package_id = &resolved_module.package_id;
-        let resolved_file_name = &resolved_module.resolved_file_name;
+        let resolved_module_ref = resolved_module.ref_(self);
+        let package_id = &resolved_module_ref.package_id;
+        let resolved_file_name = &resolved_module_ref.resolved_file_name;
         let error_info = if !is_external_module_name_relative(module_reference)
             && package_id.is_some()
         {

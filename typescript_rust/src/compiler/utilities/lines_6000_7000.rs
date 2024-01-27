@@ -1044,28 +1044,28 @@ impl HasArena for SymlinkCache {
 }
 
 enum ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    ResolvedModuleFull(Gc<ResolvedModuleFull>),
+    ResolvedModuleFull(Id<ResolvedModuleFull>),
     ResolvedTypeReferenceDirective(Id<ResolvedTypeReferenceDirective>),
 }
 
 impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
     pub fn maybe_original_path(&self, arena: &impl HasArena) -> Option<String> {
         match self {
-            Self::ResolvedModuleFull(value) => value.original_path.clone(),
+            Self::ResolvedModuleFull(value) => value.ref_(arena).original_path.clone(),
             Self::ResolvedTypeReferenceDirective(value) => value.ref_(arena).original_path.clone(),
         }
     }
 
     pub fn maybe_resolved_file_name(&self, arena: &impl HasArena) -> Option<String> {
         match self {
-            Self::ResolvedModuleFull(value) => Some(value.resolved_file_name.clone()),
+            Self::ResolvedModuleFull(value) => Some(value.ref_(arena).resolved_file_name.clone()),
             Self::ResolvedTypeReferenceDirective(value) => value.ref_(arena).resolved_file_name.clone(),
         }
     }
 }
 
-impl From<Gc<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    fn from(value: Gc<ResolvedModuleFull>) -> Self {
+impl From<Id<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceDirective {
+    fn from(value: Id<ResolvedModuleFull>) -> Self {
         Self::ResolvedModuleFull(value)
     }
 }

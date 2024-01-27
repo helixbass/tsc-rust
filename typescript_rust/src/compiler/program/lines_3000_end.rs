@@ -159,7 +159,7 @@ impl Program {
             }
             .unwrap_or_else(|| self.options.clone());
             for index in 0..module_names.len() {
-                let resolution = resolutions[index].as_ref();
+                let resolution = resolutions[index];
                 set_resolved_module(
                     &file.ref_(self),
                     &module_names[index],
@@ -172,11 +172,12 @@ impl Program {
                 }
                 let resolution = resolution.unwrap();
 
-                let is_from_node_modules_search = resolution.is_external_library_import;
-                let is_js_file = !resolution_extension_is_ts_or_json(resolution.extension());
+                let is_from_node_modules_search = resolution.ref_(self).is_external_library_import;
+                let is_js_file = !resolution_extension_is_ts_or_json(resolution.ref_(self).extension());
                 let is_js_file_from_node_modules =
                     is_from_node_modules_search == Some(true) && is_js_file;
-                let resolved_file_name = &resolution.resolved_file_name;
+                let resolution_ref = resolution.ref_(self);
+                let resolved_file_name = &resolution_ref.resolved_file_name;
 
                 if is_from_node_modules_search == Some(true) {
                     self.set_current_node_modules_depth(self.current_node_modules_depth() + 1);
@@ -209,7 +210,7 @@ impl Program {
                             file: file_as_source_file.path().clone(),
                             index,
                         })),
-                        resolution.package_id.as_ref(),
+                        resolution.ref_(self).package_id.as_ref(),
                     )?;
                 }
 

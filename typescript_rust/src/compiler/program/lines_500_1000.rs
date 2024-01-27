@@ -235,7 +235,7 @@ impl LoadWithModeAwareCacheLoaderResolveModuleName {
     }
 }
 
-impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
+impl LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>
     for LoadWithModeAwareCacheLoaderResolveModuleName
 {
     fn call(
@@ -244,7 +244,7 @@ impl LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>
         resolver_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         containing_file_name: &str,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> io::Result<Option<Gc<ResolvedModuleFull>>> {
+    ) -> io::Result<Option<Id<ResolvedModuleFull>>> {
         Ok(resolve_module_name(
             module_name,
             containing_file_name,
@@ -687,7 +687,7 @@ pub(crate) fn get_referenced_file_location(
                         )
                         .flatten()
                 })
-                .and_then(|resolved_module| resolved_module.package_id.clone());
+                .and_then(|resolved_module| resolved_module.ref_(arena).package_id.clone());
             if import_literal.ref_(arena).pos() == -1 {
                 return SyntheticReferenceFileLocation {
                     file,
@@ -1873,7 +1873,7 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>>;
+    ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>>;
 }
 
 #[derive(Trace, Finalize)]
@@ -1896,7 +1896,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
         containing_file_name: &str,
         reused_names: Option<&[String]>,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
         Ok(self
             .host
             .ref_(self).resolve_module_names(
@@ -1912,14 +1912,14 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
             .map(|resolved| {
                 if match resolved.as_ref() {
                     None => true,
-                    Some(resolved) => resolved.extension.is_some(),
+                    Some(resolved) => resolved.ref_(self).extension.is_some(),
                 } {
-                    return resolved.map(Gc::new);
+                    return resolved;
                 }
                 let resolved = resolved.unwrap();
-                let mut with_extension = clone(&resolved);
-                with_extension.extension = Some(extension_from_path(&resolved.resolved_file_name));
-                Some(Gc::new(with_extension))
+                let mut with_extension = clone(&*resolved.ref_(self));
+                with_extension.extension = Some(extension_from_path(&resolved.ref_(self).resolved_file_name));
+                Some(self.alloc_resolved_module_full(with_extension))
             })
             .collect())
     }
@@ -1933,12 +1933,12 @@ impl HasArena for ActualResolveModuleNamesWorkerHost {
 
 #[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
-    loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>>>,
+    loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
 }
 
 impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     pub fn new(
-        loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Gc<ResolvedModuleFull>>>>>,
+        loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -1952,7 +1952,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
         containing_file_name: &str,
         _reused_names: Option<&[String]>,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
         load_with_mode_aware_cache(
             /*Debug.checkEachDefined(*/ module_names, /*)*/
             containing_file,

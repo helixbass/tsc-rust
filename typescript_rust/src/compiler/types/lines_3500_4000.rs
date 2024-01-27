@@ -217,7 +217,7 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     comment_directives: RefCell<Option<Vec<Rc<CommentDirective>>>>,
     resolved_modules:
-        GcCell<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull /*| undefined*/>>>>>,
+        GcCell<Option<ModeAwareCache<Option<Id<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
         GcCell<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>>,
     imports: GcCell<Option<Vec<Id<Node /*StringLiteralLike*/>>>>,
@@ -644,7 +644,7 @@ impl SourceFile {
 
     pub fn maybe_resolved_modules(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull>>>>> {
+    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Id<ResolvedModuleFull>>>>> {
         self.contents.resolved_modules.borrow_mut()
     }
 

@@ -282,14 +282,14 @@ impl AsRef<str> for Extension {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct ResolvedModuleWithFailedLookupLocations {
-    pub resolved_module: Option<Gc<ResolvedModuleFull>>,
+    pub resolved_module: Option<Id<ResolvedModuleFull>>,
     #[unsafe_ignore_trace]
     failed_lookup_locations: RefCell<Vec<String>>,
 }
 
 impl ResolvedModuleWithFailedLookupLocations {
     pub fn new(
-        resolved_module: Option<Gc<ResolvedModuleFull>>,
+        resolved_module: Option<Id<ResolvedModuleFull>>,
         failed_lookup_locations: Vec<String>,
     ) -> Self {
         Self {
@@ -395,7 +395,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         _redirected_reference: Option<Id<ResolvedProjectReference>>,
         _options: &CompilerOptions,
         _containing_source_file: Option<Id<Node> /*SourceFile*/>,
-    ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+    ) -> Option<Vec<Option<Id<ResolvedModuleFull>>>> {
         None
     }
     fn is_resolve_module_names_supported(&self) -> bool;

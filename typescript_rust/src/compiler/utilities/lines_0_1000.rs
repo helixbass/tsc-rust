@@ -610,7 +610,7 @@ pub fn get_resolved_module(
     source_file: Option<&Node>, /*SourceFile*/
     module_name_text: &str,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Option<Gc<ResolvedModuleFull>> {
+) -> Option<Id<ResolvedModuleFull>> {
     if let Some(source_file) = source_file {
         if let Some(source_file_resolved_modules) = source_file
             .as_source_file()
@@ -628,7 +628,7 @@ pub fn get_resolved_module(
 pub fn set_resolved_module(
     source_file: &Node, /*SourceFile*/
     module_name_text: &str,
-    resolved_module: Option<Gc<ResolvedModuleFull>>,
+    resolved_module: Option<Id<ResolvedModuleFull>>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) {
     let mut source_file_resolved_modules = source_file.as_source_file().maybe_resolved_modules();

@@ -15,7 +15,7 @@ use crate::{
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
-    SymlinkCache, WriteFileCallback,
+    SymlinkCache, WriteFileCallback, ResolvedModuleFull,
 };
 
 #[derive(Default)]
@@ -72,6 +72,7 @@ pub struct AllArenas {
     pub transformer_factory_or_custom_transformer_factories: RefCell<Arena<TransformerFactoryOrCustomTransformerFactory>>,
     pub symlink_caches: RefCell<Arena<SymlinkCache>>,
     pub write_file_callbacks: RefCell<Arena<Box<dyn WriteFileCallback>>>,
+    pub resolved_module_fulls: RefCell<Arena<ResolvedModuleFull>>,
 }
 
 pub trait HasArena {
@@ -467,6 +468,14 @@ pub trait HasArena {
 
     fn alloc_write_file_callback(&self, write_file_callback: Box<dyn WriteFileCallback>) -> Id<Box<dyn WriteFileCallback>> {
         self.arena().alloc_write_file_callback(write_file_callback)
+    }
+
+    fn resolved_module_full(&self, resolved_module_full: Id<ResolvedModuleFull>) -> Ref<ResolvedModuleFull> {
+        self.arena().resolved_module_full(resolved_module_full)
+    }
+
+    fn alloc_resolved_module_full(&self, resolved_module_full: ResolvedModuleFull) -> Id<ResolvedModuleFull> {
+        self.arena().alloc_resolved_module_full(resolved_module_full)
     }
 }
 
@@ -973,6 +982,16 @@ impl HasArena for AllArenas {
         let id = self.write_file_callbacks.borrow_mut().alloc(write_file_callback);
         id
     }
+
+    #[track_caller]
+    fn resolved_module_full(&self, resolved_module_full: Id<ResolvedModuleFull>) -> Ref<ResolvedModuleFull> {
+        Ref::map(self.resolved_module_fulls.borrow(), |resolved_module_fulls| &resolved_module_fulls[resolved_module_full])
+    }
+
+    fn alloc_resolved_module_full(&self, resolved_module_full: ResolvedModuleFull) -> Id<ResolvedModuleFull> {
+        let id = self.resolved_module_fulls.borrow_mut().alloc(resolved_module_full);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1371,6 +1390,14 @@ impl InArena for Id<Box<dyn WriteFileCallback>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn WriteFileCallback>> {
         has_arena.write_file_callback(*self)
+    }
+}
+
+impl InArena for Id<ResolvedModuleFull> {
+    type Item = ResolvedModuleFull;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedModuleFull> {
+        has_arena.resolved_module_full(*self)
     }
 }
 

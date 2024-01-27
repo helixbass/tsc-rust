@@ -130,6 +130,7 @@ fn create_resolved_module_with_failed_lookup_locations(
     is_external_library_import: Option<bool>,
     mut failed_lookup_locations: Vec<String>,
     result_from_cache: Option<Gc<ResolvedModuleWithFailedLookupLocations>>,
+    arena: &impl HasArena,
 ) -> Gc<ResolvedModuleWithFailedLookupLocations> {
     if let Some(result_from_cache) = result_from_cache {
         result_from_cache
@@ -145,7 +146,7 @@ fn create_resolved_module_with_failed_lookup_locations(
                 package_id: resolved_package_id,
                 original_path: resolved_original_path,
             } = resolved;
-            Gc::new(ResolvedModuleFull {
+            arena.alloc_resolved_module_full(ResolvedModuleFull {
                 resolved_file_name: resolved_path,
                 original_path: resolved_original_path.and_then(|resolved_original_path| {
                     match resolved_original_path {
@@ -1407,9 +1408,9 @@ impl PerModuleNameCache {
             .as_ref()
             .map(|result_resolved_module| {
                 result_resolved_module
-                    .original_path
+                    .ref_(self).original_path
                     .clone()
-                    .unwrap_or_else(|| result_resolved_module.resolved_file_name.clone())
+                    .unwrap_or_else(|| result_resolved_module.ref_(self).resolved_file_name.clone())
             });
         let common_prefix = resolved_file_name
             .as_ref()
@@ -1785,14 +1786,14 @@ pub fn resolve_module_name(
     if trace_enabled {
         if let Some(result_resolved_module) = result.resolved_module.as_ref() {
             if let Some(result_resolved_module_package_id) =
-                result_resolved_module.package_id.as_ref()
+                result_resolved_module.ref_(arena).package_id.as_ref()
             {
                 trace(
                     host,
                     &Diagnostics::Module_name_0_was_successfully_resolved_to_1_with_Package_ID_2,
                     Some(vec![
                         module_name.to_owned(),
-                        result_resolved_module.resolved_file_name.clone(),
+                        result_resolved_module.ref_(arena).resolved_file_name.clone(),
                         package_id_to_string(result_resolved_module_package_id),
                     ]),
                 );
@@ -1802,7 +1803,7 @@ pub fn resolve_module_name(
                     &Diagnostics::Module_name_0_was_successfully_resolved_to_1,
                     Some(vec![
                         module_name.to_owned(),
-                        result_resolved_module.resolved_file_name.clone(),
+                        result_resolved_module.ref_(arena).resolved_file_name.clone(),
                     ]),
                 );
             }
@@ -2299,6 +2300,7 @@ fn node_module_name_resolver_worker(
             let result_from_cache = state.result_from_cache.borrow().clone();
             result_from_cache
         },
+        arena,
     ))
 }
 
@@ -3566,11 +3568,11 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                     )?;
                     return Ok(to_search_result(result.resolved_module.as_ref().map(
                         |result_resolved_module| Resolved {
-                            path: result_resolved_module.resolved_file_name.clone(),
-                            extension: result_resolved_module.extension.unwrap(),
-                            package_id: result_resolved_module.package_id.clone(),
+                            path: result_resolved_module.ref_(self).resolved_file_name.clone(),
+                            extension: result_resolved_module.ref_(self).extension.unwrap(),
+                            package_id: result_resolved_module.ref_(self).package_id.clone(),
                             original_path:
-                                result_resolved_module.original_path.clone().map(Into::into),
+                                result_resolved_module.ref_(self).original_path.clone().map(Into::into),
                         },
                     )));
                 }
@@ -3794,6 +3796,7 @@ fn load_module_from_nearest_node_modules_directory_worker(
                 module_name,
                 ancestor_directory,
                 state,
+                arena,
             );
             if resolution_from_cache.is_some() {
                 return Ok(resolution_from_cache);
@@ -4200,6 +4203,7 @@ fn try_find_non_relative_module_name_in_cache(
     module_name: &str,
     containing_directory: &str,
     state: &ModuleResolutionState,
+    arena: &impl HasArena,
 ) -> SearchResult<Resolved> {
     let result = cache.and_then(|cache| cache.get(containing_directory))?;
     if state.trace_enabled {
@@ -4218,15 +4222,15 @@ fn try_find_non_relative_module_name_in_cache(
             .resolved_module
             .clone()
             .map(|result_resolved_module| Resolved {
-                path: result_resolved_module.resolved_file_name.clone(),
-                original_path: Some(result_resolved_module.original_path.clone().map_or_else(
+                path: result_resolved_module.ref_(arena).resolved_file_name.clone(),
+                original_path: Some(result_resolved_module.ref_(arena).original_path.clone().map_or_else(
                     || true.into(),
                     |result_resolved_module_original_path| {
                         result_resolved_module_original_path.into()
                     },
                 )),
-                extension: result_resolved_module.extension(),
-                package_id: result_resolved_module.package_id.clone(),
+                extension: result_resolved_module.ref_(arena).extension(),
+                package_id: result_resolved_module.ref_(arena).package_id.clone(),
             }),
     })
 }
@@ -4284,6 +4288,7 @@ pub fn classic_name_resolver(
         Some(false),
         state_failed_lookup_locations.into_inner(),
         state_result_from_cache.into_inner(),
+        arena,
     ))
 }
 
@@ -4341,6 +4346,7 @@ fn classic_name_resolver_try_resolve(
                     module_name,
                     directory,
                     state,
+                    arena,
                 );
                 if resolution_from_cache.is_some() {
                     return resolution_from_cache;

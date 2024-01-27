@@ -666,7 +666,7 @@ pub(super) fn get_extends_config_path(
         arena,
     )?;
     if let Some(resolved_resolved_module) = resolved.resolved_module.as_ref() {
-        return Ok(Some(resolved_resolved_module.resolved_file_name.clone()));
+        return Ok(Some(resolved_resolved_module.ref_(arena).resolved_file_name.clone()));
     }
     errors.push(create_diagnostic(
         &Diagnostics::File_0_not_found,

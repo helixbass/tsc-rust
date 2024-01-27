@@ -943,21 +943,21 @@ impl TypeChecker {
         let resolved_module =
             get_resolved_module(Some(&current_source_file.ref_(self)), module_reference, mode);
         let resolution_diagnostic = resolved_module.as_ref().and_then(|resolved_module| {
-            get_resolution_diagnostic(&self.compiler_options.ref_(self), resolved_module)
+            get_resolution_diagnostic(&self.compiler_options.ref_(self), &resolved_module.ref_(self))
         });
         let source_file = resolved_module.as_ref().and_then(|resolved_module| {
             if resolution_diagnostic.is_none() {
                 self.host
-                    .ref_(self).get_source_file(&resolved_module.resolved_file_name)
+                    .ref_(self).get_source_file(&resolved_module.ref_(self).resolved_file_name)
             } else {
                 None
             }
         });
         if let Some(source_file) = source_file {
             if let Some(source_file_symbol) = source_file.ref_(self).maybe_symbol() {
-                let resolved_module = resolved_module.as_ref().unwrap();
-                if resolved_module.is_external_library_import == Some(true)
-                    && !resolution_extension_is_ts_or_json(resolved_module.extension())
+                let resolved_module = resolved_module.unwrap();
+                if resolved_module.ref_(self).is_external_library_import == Some(true)
+                    && !resolution_extension_is_ts_or_json(resolved_module.ref_(self).extension())
                 {
                     self.error_on_implicit_any_module(
                         false,
@@ -989,7 +989,7 @@ impl TypeChecker {
                     }
                     if mode == Some(ModuleKind::ESNext)
                         && matches!(self.compiler_options.ref_(self).resolve_json_module, Some(true))
-                        && resolved_module.extension() == Extension::Json
+                        && resolved_module.ref_(self).extension() == Extension::Json
                     {
                         self.error(
                             Some(error_node),
@@ -1032,7 +1032,7 @@ impl TypeChecker {
             }
         }
 
-        if matches!(resolved_module.as_ref(), Some(resolved_module) if !resolution_extension_is_ts_or_json(resolved_module.extension()))
+        if matches!(resolved_module.as_ref(), Some(resolved_module) if !resolution_extension_is_ts_or_json(resolved_module.ref_(self).extension()))
             && resolution_diagnostic.is_none()
             || matches!(resolution_diagnostic, Some(resolution_diagnostic) if ptr::eq(resolution_diagnostic, &*Diagnostics::Could_not_find_a_declaration_file_for_module_0_1_implicitly_has_an_any_type))
         {
@@ -1043,14 +1043,14 @@ impl TypeChecker {
                     diag,
                     Some(vec![
                         module_reference.to_owned(),
-                        resolved_module.as_ref().unwrap().resolved_file_name.clone(),
+                        resolved_module.unwrap().ref_(self).resolved_file_name.clone(),
                     ]),
                 );
             } else {
                 self.error_on_implicit_any_module(
                     self.no_implicit_any && module_not_found_error.is_some(),
                     error_node,
-                    resolved_module.as_ref().unwrap(),
+                    resolved_module.unwrap(),
                     module_reference,
                 );
             }
@@ -1061,13 +1061,13 @@ impl TypeChecker {
             if let Some(resolved_module) = resolved_module.as_ref() {
                 let redirect = TypeCheckerHost::get_project_reference_redirect(
                     &*self.host.ref_(self),
-                    &resolved_module.resolved_file_name,
+                    &resolved_module.ref_(self).resolved_file_name,
                 );
                 if let Some(redirect) = redirect {
                     self.error(
                         Some(error_node),
                         &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
-                        Some(vec![redirect, resolved_module.resolved_file_name.clone()]),
+                        Some(vec![redirect, resolved_module.ref_(self).resolved_file_name.clone()]),
                     );
                     return Ok(None);
                 }
@@ -1079,7 +1079,7 @@ impl TypeChecker {
                     resolution_diagnostic,
                     Some(vec![
                         module_reference.to_owned(),
-                        resolved_module.as_ref().unwrap().resolved_file_name.clone(),
+                        resolved_module.as_ref().unwrap().ref_(self).resolved_file_name.clone(),
                     ]),
                 );
             } else {

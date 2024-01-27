@@ -43,7 +43,7 @@ impl Program {
         module_names: &[String],
         containing_file: Id<Node>, /*SourceFile*/
         reused_names: Option<&[String]>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
         if module_names.is_empty() {
             return Ok(vec![]);
         }
@@ -419,7 +419,7 @@ impl Program {
         &self,
         module_names: &[String],
         file: Id<Node>, /*SourceFile*/
-    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
         let file_ref = file.ref_(self);
         let file_as_source_file = file_ref.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
@@ -440,7 +440,7 @@ impl Program {
             if let Some(file_resolved_modules) =
                 file_as_source_file.maybe_resolved_modules().as_ref()
             {
-                let mut result: Vec<Option<Gc<ResolvedModuleFull>>> = vec![];
+                let mut result: Vec<Option<Id<ResolvedModuleFull>>> = vec![];
                 let mut i = 0;
                 for module_name in module_names {
                     let resolved_module = file_resolved_modules
@@ -479,13 +479,13 @@ impl Program {
                         ) {
                             trace(
                                 self.host().ref_(self).as_dyn_module_resolution_host(),
-                                if old_resolved_module.package_id.is_some() {
+                                if old_resolved_module.ref_(self).package_id.is_some() {
                                     &*Diagnostics::Reusing_resolution_of_module_0_from_1_of_old_program_it_was_successfully_resolved_to_2_with_Package_ID_3
                                 } else {
                                     &*Diagnostics::Reusing_resolution_of_module_0_from_1_of_old_program_it_was_successfully_resolved_to_2
                                 },
                                 if let Some(old_resolved_module_package_id) =
-                                    old_resolved_module.package_id.as_ref()
+                                    old_resolved_module.ref_(self).package_id.as_ref()
                                 {
                                     Some(vec![
                                         module_name.clone(),
@@ -493,7 +493,7 @@ impl Program {
                                             &file_as_source_file.original_file_name(),
                                             Some(&self.current_directory()),
                                         ),
-                                        old_resolved_module.resolved_file_name.clone(),
+                                        old_resolved_module.ref_(self).resolved_file_name.clone(),
                                         package_id_to_string(old_resolved_module_package_id),
                                     ])
                                 } else {
@@ -503,7 +503,7 @@ impl Program {
                                             &file_as_source_file.original_file_name(),
                                             Some(&self.current_directory()),
                                         ),
-                                        old_resolved_module.resolved_file_name.clone(),
+                                        old_resolved_module.ref_(self).resolved_file_name.clone(),
                                     ])
                                 },
                             );
@@ -629,7 +629,7 @@ impl Program {
         let resolved_file = resolution_to_file.as_ref().and_then(|resolution_to_file| {
             self.maybe_old_program()
                 .unwrap()
-                .ref_(self).get_source_file_(&resolution_to_file.resolved_file_name)
+                .ref_(self).get_source_file_(&resolution_to_file.ref_(self).resolved_file_name)
         });
         if resolution_to_file.is_some() && resolved_file.is_some() {
             return false;
@@ -1032,8 +1032,8 @@ impl Program {
                     .maybe_resolved_modules()
                     .as_ref(),
                 Some(old_source_file),
-                |a: &Option<Gc<ResolvedModuleFull>>, b: &Option<Gc<ResolvedModuleFull>>| {
-                    module_resolution_is_equal_to(a.as_ref().unwrap(), b.as_ref().unwrap())
+                |a: &Option<Id<ResolvedModuleFull>>, b: &Option<Id<ResolvedModuleFull>>| {
+                    module_resolution_is_equal_to(&a.unwrap().ref_(self), &b.unwrap().ref_(self))
                 },
                 self,
             );
@@ -1696,7 +1696,7 @@ impl HasArena for EmitHostWriteFileCallback {
 
 #[derive(Clone)]
 pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
-    ResolvedModuleFull(Gc<ResolvedModuleFull>),
+    ResolvedModuleFull(Id<ResolvedModuleFull>),
     PredictedToResolveToAmbientModuleMarker,
 }
 
