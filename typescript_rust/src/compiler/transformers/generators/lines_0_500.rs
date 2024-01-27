@@ -1200,10 +1200,16 @@ impl TransformGeneratorsFactory {
 
 impl TransformerFactoryInterface for TransformGeneratorsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context.clone(),
             TransformGenerators::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformGeneratorsFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

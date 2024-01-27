@@ -217,7 +217,7 @@ impl TransformES2021Factory {
 
 impl TransformerFactoryInterface for TransformES2021Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context,
             self.alloc_transformer(Box::new(TransformES2021::new(context, &*static_arena()))),
         )

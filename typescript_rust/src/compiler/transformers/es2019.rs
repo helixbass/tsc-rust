@@ -116,10 +116,16 @@ impl TransformES2019Factory {
 
 impl TransformerFactoryInterface for TransformES2019Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context.clone(),
             TransformES2019::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformES2019Factory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

@@ -25,7 +25,7 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, per_arena,
     BaseNodeFactory, get_factory_id,
 };
 
@@ -265,7 +265,7 @@ impl TransformerFactoryInterface for WrapCustomTransformerFactory {
         match &*self.transformer {
             TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
                 let custom_transformer = transformer.ref_(self).call(context.clone());
-                self.handle_default.call(context, custom_transformer)
+                self.handle_default.ref_(self).call(context, custom_transformer)
             }
             TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
                 let custom_transformer = transformer.call(context);
@@ -285,14 +285,14 @@ fn wrap_script_transformer_factory(
     transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, chain_bundle(), arena)
+    wrap_custom_transformer_factory(transformer, chain_bundle(arena), arena)
 }
 
 fn wrap_declaration_transformer_factory(
     transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, passthrough_transformer(), arena)
+    wrap_custom_transformer_factory(transformer, passthrough_transformer(arena), arena)
 }
 
 #[derive(Trace, Finalize)]
@@ -308,11 +308,12 @@ impl WrapCustomTransformerFactoryHandleDefault for PassthroughTransformer {
     }
 }
 
-fn passthrough_transformer() -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
-    thread_local! {
-        static PASSTHROUGH_TRANSFORMER: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(PassthroughTransformer));
-    }
-    PASSTHROUGH_TRANSFORMER.with(|passthrough_transformer| passthrough_transformer.clone())
+fn passthrough_transformer(arena: &impl HasArena) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+    per_arena!(
+        Box<dyn WrapCustomTransformerFactoryHandleDefault>,
+        arena,
+        arena.alloc_wrap_custom_transformer_factory_handle_default(Box::new(PassthroughTransformer))
+    )
 }
 
 pub fn no_emit_substitution(_hint: EmitHint, node: Id<Node>) -> Id<Node> {

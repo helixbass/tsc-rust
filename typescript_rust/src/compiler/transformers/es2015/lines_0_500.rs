@@ -859,10 +859,16 @@ impl TransformES2015Factory {
 
 impl TransformerFactoryInterface for TransformES2015Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context,
             TransformES2015::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformES2015Factory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

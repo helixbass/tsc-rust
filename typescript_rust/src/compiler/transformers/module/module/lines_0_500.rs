@@ -1264,10 +1264,16 @@ impl TransformModuleFactory {
 
 impl TransformerFactoryInterface for TransformModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context.clone(),
             TransformModule::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformModuleFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

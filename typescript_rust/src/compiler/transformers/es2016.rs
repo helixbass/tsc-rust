@@ -239,7 +239,7 @@ impl TransformES2016Factory {
 
 impl TransformerFactoryInterface for TransformES2016Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context,
             self.alloc_transformer(Box::new(TransformES2016::new(context, &*static_arena()))),
         )

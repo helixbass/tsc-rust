@@ -1511,10 +1511,16 @@ impl TransformClassFieldsFactory {
 
 impl TransformerFactoryInterface for TransformClassFieldsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context.clone(),
             TransformClassFields::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformClassFieldsFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

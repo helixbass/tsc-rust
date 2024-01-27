@@ -16,8 +16,8 @@ use crate::{
     is_private_identifier, is_property_declaration, is_statement, is_static,
     is_string_literal_like, is_super_call, return_default_if_none, try_visit_node,
     FunctionLikeDeclarationInterface, HasInitializerInterface, InternalSymbolName, Matches,
-    ModifierFlags, MultiMap, HasArena,
-    InArena,
+    ModifierFlags, MultiMap,
+    HasArena, InArena, per_arena,
     TransformNodesTransformationResult,
 };
 
@@ -90,11 +90,12 @@ fn is_named_default_reference(e: Id<Node> /*ImportSpecifier*/, arena: &impl HasA
         })
 }
 
-pub fn chain_bundle() -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
-    thread_local! {
-        static CHAIN_BUNDLE: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(ChainBundle));
-    }
-    CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
+pub fn chain_bundle(arena: &impl HasArena) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+    per_arena!(
+        Box<dyn WrapCustomTransformerFactoryHandleDefault>,
+        arena,
+        arena.alloc_wrap_custom_transformer_factory_handle_default(Box::new(ChainBundle))
+    )
 }
 
 pub fn get_export_needs_import_star_helper(node: Id<Node> /*ExportDeclaration*/, arena: &impl HasArena) -> bool {

@@ -270,7 +270,13 @@ impl TransformES5Factory {
 
 impl TransformerFactoryInterface for TransformES5Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(context.clone(), TransformES5::new(context, &*static_arena()))
+        chain_bundle(self).ref_(self).call(context.clone(), TransformES5::new(context, &*static_arena()))
+    }
+}
+
+impl HasArena for TransformES5Factory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

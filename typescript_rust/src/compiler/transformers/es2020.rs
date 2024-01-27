@@ -567,7 +567,7 @@ impl TransformES2020Factory {
 
 impl TransformerFactoryInterface for TransformES2020Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context,
             TransformES2020::new(context, &*static_arena()),
         )

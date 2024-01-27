@@ -1099,7 +1099,7 @@ impl TransformJsxFactory {
 
 impl TransformerFactoryInterface for TransformJsxFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context,
             self.alloc_transformer(Box::new(TransformJsx::new(context, &*static_arena()))),
         )
