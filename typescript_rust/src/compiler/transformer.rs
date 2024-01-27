@@ -233,7 +233,7 @@ pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
 
 fn wrap_custom_transformer_factory(
     transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
-    handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+    handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<SourceFile | Bundle>*/ {
     arena.alloc_transformer_factory(Box::new(WrapCustomTransformerFactory::new(
@@ -245,13 +245,13 @@ fn wrap_custom_transformer_factory(
 #[derive(Trace, Finalize)]
 pub struct WrapCustomTransformerFactory {
     transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
-    handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+    handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
 }
 
 impl WrapCustomTransformerFactory {
     pub fn new(
         transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
-        handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+        handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
     ) -> Self {
         Self {
             transformer,
@@ -308,9 +308,9 @@ impl WrapCustomTransformerFactoryHandleDefault for PassthroughTransformer {
     }
 }
 
-fn passthrough_transformer() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+fn passthrough_transformer() -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
     thread_local! {
-        static PASSTHROUGH_TRANSFORMER: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(PassthroughTransformer));
+        static PASSTHROUGH_TRANSFORMER: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(PassthroughTransformer));
     }
     PASSTHROUGH_TRANSFORMER.with(|passthrough_transformer| passthrough_transformer.clone())
 }

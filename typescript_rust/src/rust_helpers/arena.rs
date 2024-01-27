@@ -12,6 +12,7 @@ use crate::{
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
+    WrapCustomTransformerFactoryHandleDefault,
 };
 
 #[derive(Default)]
@@ -56,6 +57,7 @@ pub struct AllArenas {
     pub active_labels: RefCell<Arena<ActiveLabel>>,
     pub to_paths: RefCell<Arena<Box<dyn ToPath>>>,
     pub module_resolution_host_overriders: RefCell<Arena<Box<dyn ModuleResolutionHostOverrider>>>,
+    pub wrap_custom_transformer_factory_handle_defaults: RefCell<Arena<Box<dyn WrapCustomTransformerFactoryHandleDefault>>>,
 }
 
 pub trait HasArena {
@@ -355,6 +357,14 @@ pub trait HasArena {
 
     fn alloc_module_resolution_host_overrider(&self, module_resolution_host_overrider: Box<dyn ModuleResolutionHostOverrider>) -> Id<Box<dyn ModuleResolutionHostOverrider>> {
         self.arena().alloc_module_resolution_host_overrider(module_resolution_host_overrider)
+    }
+
+    fn wrap_custom_transformer_factory_handle_default(&self, wrap_custom_transformer_factory_handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>) -> Ref<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+        self.arena().wrap_custom_transformer_factory_handle_default(wrap_custom_transformer_factory_handle_default)
+    }
+
+    fn alloc_wrap_custom_transformer_factory_handle_default(&self, wrap_custom_transformer_factory_handle_default: Box<dyn WrapCustomTransformerFactoryHandleDefault>) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+        self.arena().alloc_wrap_custom_transformer_factory_handle_default(wrap_custom_transformer_factory_handle_default)
     }
 }
 
@@ -741,6 +751,16 @@ impl HasArena for AllArenas {
         let id = self.module_resolution_host_overriders.borrow_mut().alloc(module_resolution_host_overrider);
         id
     }
+
+    #[track_caller]
+    fn wrap_custom_transformer_factory_handle_default(&self, wrap_custom_transformer_factory_handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>) -> Ref<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+        Ref::map(self.wrap_custom_transformer_factory_handle_defaults.borrow(), |wrap_custom_transformer_factory_handle_defaults| &wrap_custom_transformer_factory_handle_defaults[wrap_custom_transformer_factory_handle_default])
+    }
+
+    fn alloc_wrap_custom_transformer_factory_handle_default(&self, wrap_custom_transformer_factory_handle_default: Box<dyn WrapCustomTransformerFactoryHandleDefault>) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+        let id = self.wrap_custom_transformer_factory_handle_defaults.borrow_mut().alloc(wrap_custom_transformer_factory_handle_default);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1043,6 +1063,14 @@ impl InArena for Id<Box<dyn ModuleResolutionHostOverrider>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ModuleResolutionHostOverrider>> {
         has_arena.module_resolution_host_overrider(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+    type Item = Box<dyn WrapCustomTransformerFactoryHandleDefault>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+        has_arena.wrap_custom_transformer_factory_handle_default(*self)
     }
 }
 

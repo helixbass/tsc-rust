@@ -90,9 +90,9 @@ fn is_named_default_reference(e: Id<Node> /*ImportSpecifier*/, arena: &impl HasA
         })
 }
 
-pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+pub fn chain_bundle() -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
     thread_local! {
-        static CHAIN_BUNDLE: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(ChainBundle));
+        static CHAIN_BUNDLE: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(ChainBundle));
     }
     CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
 }
