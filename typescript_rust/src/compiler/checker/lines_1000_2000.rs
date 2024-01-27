@@ -29,7 +29,7 @@ use crate::{
     is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
     node_is_synthesized, null_transformation_context, out_file, push_if_unique_gc,
     return_ok_default_if_none, set_text_range_pos_end, set_value_declaration, some, try_cast,
-    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
+    CancellationToken, Comparison, DiagnosticCategory, DiagnosticInterface,
     DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolver,
     FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
@@ -216,7 +216,7 @@ impl TypeChecker {
     pub fn get_emit_resolver(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Id<Box<dyn EmitResolver>>> {
         self.get_diagnostics(source_file, cancellation_token)?;
         Ok(self.emit_resolver())

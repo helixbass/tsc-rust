@@ -343,7 +343,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         None
     }
     fn is_get_source_file_by_path_supported(&self) -> bool;
-    fn get_cancellation_token(&self) -> Option<Gc<Box<dyn CancellationToken>>> {
+    fn get_cancellation_token(&self) -> Option<Id<Box<dyn CancellationToken>>> {
         None
     }
     fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String>;

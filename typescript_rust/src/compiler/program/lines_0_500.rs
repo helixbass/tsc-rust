@@ -16,7 +16,7 @@ use crate::{
     get_position_of_line_and_character, get_sys, is_build_info_file, is_rooted_disk_path,
     is_watch_set, missing_file_modified_time, normalize_path, pad_left,
     sort_and_deduplicate_diagnostics, trim_string_end, write_file_ensuring_directories,
-    CancellationTokenDebuggable, CompilerHost, CompilerOptions, Debug_, Diagnostic,
+    CancellationToken, CompilerHost, CompilerOptions, Debug_, Diagnostic,
     DiagnosticCategory, DiagnosticInterface, DiagnosticMessageText,
     DiagnosticRelatedInformationInterface, Extension, LineAndCharacter, ModuleResolutionHost,
     ModuleResolutionHostOverrider, Node, NodeInterface, OptionTry, Path, ProgramOrBuilderProgram,
@@ -891,7 +891,7 @@ pub trait GetSourceFile: Trace + Finalize {
 pub fn get_pre_emit_diagnostics(
     program: &ProgramOrBuilderProgram,
     source_file: Option<Id<Node>>,
-    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     arena: &impl HasArena,
 ) -> io::Result<Vec<Id<Diagnostic>>> {
     let program = match program {

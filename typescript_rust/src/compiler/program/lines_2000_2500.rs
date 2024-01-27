@@ -16,7 +16,7 @@ use crate::{
     is_external_module_name_relative, is_import_call, is_literal_import_type_node,
     is_module_declaration, is_require_call, is_source_file_js, is_string_literal,
     is_string_literal_like, normalize_path, set_parent, set_parent_recursive, skip_type_checking,
-    sort_and_deduplicate_diagnostics, starts_with, token_to_string, CancellationTokenDebuggable,
+    sort_and_deduplicate_diagnostics, starts_with, token_to_string, CancellationToken,
     CommentDirective, CommentDirectivesMap, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithLocation, Diagnostics, EmitFlags,
     FileIncludeReason, FileReference, ForEachChildRecursivelyCallbackReturn, GetOrInsertDefault,
@@ -30,7 +30,7 @@ impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         self.try_get_and_cache_diagnostics(
             Some(source_file),
@@ -48,7 +48,7 @@ impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file_no_cache(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         // self.run_with_cancellation_token(|| {
         if skip_type_checking(&source_file.ref_(self), &self.options.ref_(self), |file_name: &str| {
@@ -702,7 +702,7 @@ impl Program {
     pub(super) fn get_declaration_diagnostics_worker(
         &self,
         source_file: Option<Id<Node>>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         self.try_get_and_cache_diagnostics(
             source_file,
@@ -717,7 +717,7 @@ impl Program {
     pub(super) fn get_declaration_diagnostics_for_file_no_cache(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         self.run_with_cancellation_token(|| -> io::Result<_> {
             let resolver = self
@@ -738,11 +738,11 @@ impl Program {
     pub(super) fn get_and_cache_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         cache: &mut DiagnosticCache,
         mut get_diagnostics: impl FnMut(
             Option<Id<Node>>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> Vec<Id<Diagnostic>>,
     ) -> Vec<Id<Diagnostic>> {
         self.try_get_and_cache_diagnostics(source_file, cancellation_token, cache, |a, b| {
@@ -754,11 +754,11 @@ impl Program {
     pub(super) fn try_get_and_cache_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         cache: &mut DiagnosticCache,
         mut get_diagnostics: impl FnMut(
             Option<Id<Node>>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> io::Result<Vec<Id<Diagnostic>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         let cached_result = if let Some(source_file) = source_file {
@@ -789,7 +789,7 @@ impl Program {
     pub fn get_declaration_diagnostics_for_file(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         Ok(if source_file.ref_(self).as_source_file().is_declaration_file() {
             vec![]
@@ -800,7 +800,7 @@ impl Program {
 
     pub fn get_options_diagnostics(
         &self,
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> SortedArray<Id<Diagnostic>> {
         sort_and_deduplicate_diagnostics(&concatenate(
             self.program_diagnostics().get_global_diagnostics(),
@@ -829,7 +829,7 @@ impl Program {
 
     pub fn get_global_diagnostics(
         &self,
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<SortedArray<Id<Diagnostic>>> {
         Ok(if !self.root_names().is_empty() {
             sort_and_deduplicate_diagnostics(

@@ -25,7 +25,7 @@ use crate::{
     sort_and_deduplicate_diagnostics, source_file_may_be_emitted, static_arena, string_contains,
     to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
     type_directive_is_equal_to, zip_to_mode_aware_cache, AllArenas, AsDoubleDeref,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
+    CancellationToken, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
     Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
     FileReference, FilesByNameValue, GetOrInsertDefault, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeFlags,
@@ -260,7 +260,7 @@ impl Program {
     pub fn get_syntactic_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> Vec<Id<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
             source_file,
@@ -274,7 +274,7 @@ impl Program {
     pub fn get_semantic_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         self.try_get_diagnostics_helper(
             source_file,
@@ -289,7 +289,7 @@ impl Program {
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         emit_only_dts_files: Option<bool>,
         transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
@@ -319,7 +319,7 @@ impl Program {
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
@@ -1168,7 +1168,7 @@ impl Program {
     pub(super) fn emit_build_info(
         &self,
         write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<EmitResult> {
         Debug_.assert(out_file(&self.options.ref_(self)).non_empty().is_none(), None);
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
@@ -1259,9 +1259,9 @@ impl Program {
         source_file: Option<Id<Node> /*SourceFile*/>,
         mut get_diagnostics: impl FnMut(
             Id<Node>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> Vec<Id<Diagnostic>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> Vec<Id<Diagnostic>> {
         self.try_get_diagnostics_helper(
             source_file,
@@ -1276,9 +1276,9 @@ impl Program {
         source_file: Option<Id<Node> /*SourceFile*/>,
         mut get_diagnostics: impl FnMut(
             Id<Node>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> io::Result<Vec<Id<Diagnostic>>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         if let Some(source_file) = source_file {
             return get_diagnostics(source_file, cancellation_token);
@@ -1332,7 +1332,7 @@ impl Program {
     pub fn get_declaration_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         let options = self.get_compiler_options();
         Ok(
@@ -1362,7 +1362,7 @@ impl Program {
         source_file: Id<Node>, /*SourceFile*/
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> Vec<Id<Diagnostic>> {
         let source_file_ref = source_file.ref_(self);
         let source_file_as_source_file = source_file_ref.as_source_file();
@@ -1387,7 +1387,7 @@ impl Program {
     pub(super) fn get_semantic_diagnostics_for_file(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         Ok(concatenate(
             filter_semantic_diagnostics(

@@ -64,7 +64,7 @@ impl<TBuilderProgram: BuilderProgram> SolutionBuilder<TBuilderProgram> {
     pub fn build<TGetCustomTransformers: FnMut(&str) -> CustomTransformers>(
         &self,
         _project: Option<&str>,
-        _cancellation_token: Option<Gc<Box<dyn CancellationToken>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         _write_file: Option<&dyn WriteFileCallback>,
         _get_custom_transformers: Option<TGetCustomTransformers>,
     ) -> ExitStatus {

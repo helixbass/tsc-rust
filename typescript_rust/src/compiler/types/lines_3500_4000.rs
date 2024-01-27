@@ -1446,8 +1446,6 @@ pub trait CancellationToken: Trace + Finalize {
     fn throw_if_cancellation_requested(&self);
 }
 
-pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FileIncludeKind {
     RootFile,

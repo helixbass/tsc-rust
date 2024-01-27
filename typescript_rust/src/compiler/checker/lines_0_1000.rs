@@ -25,7 +25,7 @@ use crate::{
     is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
     object_allocator, parse_pseudo_big_int, return_ok_default_if_none, return_ok_none_if_none,
     skip_type_checking, sum, unescape_leading_underscores, AllArenas, BaseInterfaceType,
-    CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
+    CancellationToken, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
     Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
     ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface,
@@ -1584,13 +1584,13 @@ impl TypeChecker {
 
     pub(super) fn maybe_cancellation_token(
         &self,
-    ) -> Option<Gc<Box<dyn CancellationTokenDebuggable>>> {
+    ) -> Option<Id<Box<dyn CancellationToken>>> {
         self.cancellation_token.borrow().clone()
     }
 
     pub(super) fn set_cancellation_token(
         &self,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) {
         *self.cancellation_token.borrow_mut() = cancellation_token;
     }
@@ -2680,7 +2680,7 @@ impl TypeChecker {
     pub fn get_suggestion_diagnostics(
         &self,
         file_in: Id<Node>, /*SourceFile*/
-        ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ct: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))), self)
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
@@ -2733,10 +2733,10 @@ impl TypeChecker {
         Ok(diagnostics.unwrap_or_else(|| vec![]))
     }
 
-    pub fn run_with_cancellation_token<TReturn, TCallback: FnMut(&TypeChecker) -> TReturn>(
+    pub fn run_with_cancellation_token<TReturn>(
         &self,
-        token: Gc<Box<dyn CancellationTokenDebuggable>>,
-        mut callback: TCallback,
+        token: Id<Box<dyn CancellationToken>>,
+        mut callback: impl FnMut(&TypeChecker) -> TReturn,
     ) -> TReturn {
         self.set_cancellation_token(Some(token));
         let ret = callback(self);

@@ -12,7 +12,7 @@ use id_arena::Id;
 use local_macros::{enum_unwrapped, symbol_type};
 
 use super::{
-    BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
+    BaseType, CancellationToken, CompilerOptions, DiagnosticCollection,
     ExportedModulesFromDeclarationEmit, ExternalEmitHelpers, ModuleKind,
     ModuleSpecifierResolutionHost, Node, NodeCheckFlags, NodeId, NodeLinks, ObjectFlags,
     ParsedCommandLine, Path, RawSourceMap, RelationComparisonResult, ScriptTarget, Signature,
@@ -174,7 +174,7 @@ pub struct TypeChecker {
     pub(crate) _rc_wrapper: GcCell<Option<Gc<TypeChecker>>>,
     #[unsafe_ignore_trace]
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
-    pub(crate) cancellation_token: GcCell<Option<Gc<Box<dyn CancellationTokenDebuggable>>>>,
+    pub(crate) cancellation_token: GcCell<Option<Id<Box<dyn CancellationToken>>>>,
     #[unsafe_ignore_trace]
     pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
     pub(crate) external_helpers_module: GcCell<Option<Id<Symbol>>>,

@@ -434,7 +434,7 @@ pub use compiler::{
         BigIntLiteralType, BinaryExpression, BindingElement, BindingLikeDeclarationInterface,
         Block, BoolOrRcNode, BreakStatement, BuildInfo, Bundle, BundleFileInfo, BundleFileSection,
         BundleFileSectionInterface, BundleFileSectionKind, CallBinding, CallExpression,
-        CallSignatureDeclaration, CancellationToken, CancellationTokenDebuggable, CaseBlock,
+        CallSignatureDeclaration, CancellationToken, CaseBlock,
         CaseClause, CaseOrDefaultClauseInterface, CatchClause, CharacterCodes, CheckFlags,
         CheckJsDirective, ClassDeclaration, ClassExpression, ClassLikeDeclarationBase,
         ClassLikeDeclarationInterface, ClassStaticBlockDeclaration, CommaListExpression,

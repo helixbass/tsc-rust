@@ -14,7 +14,7 @@ use crate::{
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
-    ParsedCommandLine,
+    ParsedCommandLine, CancellationToken,
 };
 
 #[derive(Default)]
@@ -66,6 +66,7 @@ pub struct AllArenas {
     pub emit_helper_factories: RefCell<Arena<EmitHelperFactory>>,
     pub transformation_context_on_substitute_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
     pub parsed_command_lines: RefCell<Arena<ParsedCommandLine>>,
+    pub cancellation_tokens: RefCell<Arena<Box<dyn CancellationToken>>>,
 }
 
 pub trait HasArena {
@@ -421,6 +422,14 @@ pub trait HasArena {
 
     fn alloc_parsed_command_line(&self, parsed_command_line: ParsedCommandLine) -> Id<ParsedCommandLine> {
         self.arena().alloc_parsed_command_line(parsed_command_line)
+    }
+
+    fn cancellation_token(&self, cancellation_token: Id<Box<dyn CancellationToken>>) -> Ref<Box<dyn CancellationToken>> {
+        self.arena().cancellation_token(cancellation_token)
+    }
+
+    fn alloc_cancellation_token(&self, cancellation_token: Box<dyn CancellationToken>) -> Id<Box<dyn CancellationToken>> {
+        self.arena().alloc_cancellation_token(cancellation_token)
     }
 }
 
@@ -877,6 +886,16 @@ impl HasArena for AllArenas {
         let id = self.parsed_command_lines.borrow_mut().alloc(parsed_command_line);
         id
     }
+
+    #[track_caller]
+    fn cancellation_token(&self, cancellation_token: Id<Box<dyn CancellationToken>>) -> Ref<Box<dyn CancellationToken>> {
+        Ref::map(self.cancellation_tokens.borrow(), |cancellation_tokens| &cancellation_tokens[cancellation_token])
+    }
+
+    fn alloc_cancellation_token(&self, cancellation_token: Box<dyn CancellationToken>) -> Id<Box<dyn CancellationToken>> {
+        let id = self.cancellation_tokens.borrow_mut().alloc(cancellation_token);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1235,6 +1254,14 @@ impl InArena for Id<ParsedCommandLine> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ParsedCommandLine> {
         has_arena.parsed_command_line(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn CancellationToken>> {
+    type Item = Box<dyn CancellationToken>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CancellationToken>> {
+        has_arena.cancellation_token(*self)
     }
 }
 

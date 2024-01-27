@@ -13,7 +13,7 @@ use crate::{
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_logging,
     is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined,
     relative_complement, skip_type_checking, try_for_each, try_for_each_child, try_maybe_for_each,
-    CancellationTokenDebuggable, Diagnostic, Diagnostics, HasStatementsInterface,
+    CancellationToken, Diagnostic, Diagnostics, HasStatementsInterface,
     ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
     InArena,
@@ -725,7 +725,7 @@ impl TypeChecker {
     pub fn get_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ct: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         // try {
         self.set_cancellation_token(ct);

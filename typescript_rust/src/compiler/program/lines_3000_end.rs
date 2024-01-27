@@ -38,7 +38,7 @@ use crate::{
     resolution_extension_is_ts_or_json, resolve_config_file_project_name, set_resolved_module,
     source_file_may_be_emitted, string_contains, supported_js_extensions_flat,
     target_option_declaration, to_file_name_lower_case, try_maybe_for_each, version,
-    CancellationTokenDebuggable, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CancellationToken, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     Comparison, CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation,
     Diagnostics, DirectoryStructureHost, EmitFileNames, EmitResult, Extension, FileIncludeKind,
@@ -2310,7 +2310,7 @@ pub(crate) fn handle_no_emit_options(
     program: Id<Program>,
     source_file: Option<Id<Node> /*SourceFile*/>,
     write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
-    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<EmitResult>> {
     let options = program.ref_(arena).get_compiler_options();
