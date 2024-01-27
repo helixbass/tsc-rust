@@ -40,7 +40,7 @@ pub fn create_diagnostic_for_node(
 
 pub fn create_diagnostic_for_node_array(
     source_file: &Node, /*SourceFile*/
-    nodes: &NodeArray,
+    nodes: Id<NodeArray>,
     message: &DiagnosticMessage,
     args: Option<Vec<String>>,
 ) -> DiagnosticWithLocation {
@@ -735,7 +735,7 @@ fn try_for_each_return_statement_traverse<TError>(
             try_for_each_child(
                 node,
                 |node| try_for_each_return_statement_traverse(node, visitor, arena),
-                Option::<fn(&NodeArray) -> Result<(), TError>>::None,
+                Option::<fn(Id<NodeArray>) -> Result<(), TError>>::None,
                 arena,
             )?;
         }
@@ -777,7 +777,7 @@ fn for_each_return_statement_bool_traverse(
         | SyntaxKind::CatchClause => for_each_child_bool(
             node,
             |node| for_each_return_statement_bool_traverse(node, visitor, arena),
-            Option::<fn(&NodeArray) -> bool>::None,
+            Option::<fn(Id<NodeArray>) -> bool>::None,
             arena,
         ),
         _ => false,
@@ -835,7 +835,7 @@ fn try_for_each_yield_expression_traverse<TError>(
                 try_for_each_child(
                     node,
                     |node| try_for_each_yield_expression_traverse(node, visitor, arena),
-                    Option::<fn(&NodeArray) -> Result<(), TError>>::None,
+                    Option::<fn(Id<NodeArray>) -> Result<(), TError>>::None,
                     arena,
                 )?;
             }
@@ -865,7 +865,7 @@ pub fn get_rest_parameter_element_type(
 
 pub fn get_members_of_declaration(
     node: &Node, /*Declaration*/
-) -> Option<Gc<NodeArray> /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
+) -> Option<Id<NodeArray> /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
     match node.kind() {
         SyntaxKind::InterfaceDeclaration => Some(node.as_interface_declaration().members.clone()),
         SyntaxKind::ClassDeclaration => Some(node.as_class_declaration().members().clone()),

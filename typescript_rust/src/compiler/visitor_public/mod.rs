@@ -88,24 +88,24 @@ pub fn try_maybe_visit_node(
 
 #[inline(always)]
 pub fn visit_nodes(
-    nodes: &NodeArray,
+    nodes: Id<NodeArray>,
     visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
     arena: &impl HasArena,
-) -> Gc<NodeArray> {
+) -> Id<NodeArray> {
     maybe_visit_nodes(Some(nodes), visitor, test, start, count, arena).unwrap()
 }
 
 pub fn maybe_visit_nodes(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
     arena: &impl HasArena,
-) -> Option<Gc<NodeArray>> {
+) -> Option<Id<NodeArray>> {
     let nodes = nodes?;
     if visitor.is_none() {
         return Some(nodes.rc_wrapper());
@@ -187,24 +187,24 @@ pub fn maybe_visit_nodes(
 
 #[inline(always)]
 pub fn try_visit_nodes(
-    nodes: &NodeArray,
+    nodes: Id<NodeArray>,
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
     arena: &impl HasArena,
-) -> io::Result<Gc<NodeArray>> {
+) -> io::Result<Id<NodeArray>> {
     Ok(try_maybe_visit_nodes(Some(nodes), visitor, test, start, count, arena)?.unwrap())
 }
 
 pub fn try_maybe_visit_nodes(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
     arena: &impl HasArena,
-) -> io::Result<Option<Gc<NodeArray>>> {
+) -> io::Result<Option<Id<NodeArray>>> {
     if nodes.is_none() {
         return Ok(None);
     }
@@ -288,22 +288,22 @@ pub fn try_maybe_visit_nodes(
 }
 
 pub fn visit_lexical_environment(
-    statements: &NodeArray, /*<Statement>*/
+    statements: Id<NodeArray>, /*<Statement>*/
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     start: Option<usize>,
     ensure_use_strict: Option<bool>,
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> Option<Gc<NodeArray>>,
+        ) -> Option<Id<NodeArray>>,
     >,
     arena: &impl HasArena,
-) -> Gc<NodeArray> {
+) -> Id<NodeArray> {
     // try_visit_lexical_environment_full(
     //     statements,
     //     |node: Id<Node>| Ok(visitor(node)),
@@ -331,12 +331,12 @@ pub fn visit_lexical_environment(
     // .unwrap()
     context.start_lexical_environment();
     let mut nodes_visitor_or_default =
-        |nodes: Option<&NodeArray>,
+        |nodes: Option<Id<NodeArray>>,
          visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
          test: Option<&dyn Fn(Id<Node>) -> bool>,
          start: Option<usize>,
          count: Option<usize>|
-         -> Option<Gc<NodeArray>> {
+         -> Option<Id<NodeArray>> {
             if let Some(nodes_visitor) = nodes_visitor.as_mut() {
                 nodes_visitor(nodes, visitor, test, start, count)
             } else {
@@ -367,11 +367,11 @@ pub fn visit_lexical_environment(
 }
 
 pub fn try_visit_lexical_environment(
-    statements: &NodeArray, /*<Statement>*/
+    statements: Id<NodeArray>, /*<Statement>*/
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> io::Result<Gc<NodeArray>> {
+) -> io::Result<Id<NodeArray>> {
     try_visit_lexical_environment_full(
         statements,
         visitor,
@@ -380,42 +380,42 @@ pub fn try_visit_lexical_environment(
         None,
         Option::<
             fn(
-                Option<&NodeArray>,
+                Option<Id<NodeArray>>,
                 Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
                 Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> io::Result<Option<Gc<NodeArray>>>,
+            ) -> io::Result<Option<Id<NodeArray>>>,
         >::None,
         arena,
     )
 }
 
 pub fn try_visit_lexical_environment_full(
-    statements: &NodeArray, /*<Statement>*/
+    statements: Id<NodeArray>, /*<Statement>*/
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     start: Option<usize>,
     ensure_use_strict: Option<bool>,
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> io::Result<Option<Gc<NodeArray>>>,
+        ) -> io::Result<Option<Id<NodeArray>>>,
     >,
     arena: &impl HasArena,
-) -> io::Result<Gc<NodeArray>> {
+) -> io::Result<Id<NodeArray>> {
     context.start_lexical_environment();
     let mut nodes_visitor_or_default =
-        |nodes: Option<&NodeArray>,
+        |nodes: Option<Id<NodeArray>>,
          visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
          test: Option<&dyn Fn(Id<Node>) -> bool>,
          start: Option<usize>,
          count: Option<usize>|
-         -> io::Result<Option<Gc<NodeArray>>> {
+         -> io::Result<Option<Id<NodeArray>>> {
             if let Some(nodes_visitor) = nodes_visitor.as_mut() {
                 nodes_visitor(nodes, visitor, test, start, count)
             } else {
@@ -446,49 +446,49 @@ pub fn try_visit_lexical_environment_full(
 }
 
 pub fn visit_parameter_list(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> Option<Gc<NodeArray>> {
+) -> Option<Id<NodeArray>> {
     visit_parameter_list_full(
         nodes,
         visitor,
         context,
         Option::<
             fn(
-                Option<&NodeArray>,
+                Option<Id<NodeArray>>,
                 Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                 Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> Option<Gc<NodeArray>>,
+            ) -> Option<Id<NodeArray>>,
         >::None,
         arena,
     )
 }
 
 pub fn visit_parameter_list_full(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> Option<Gc<NodeArray>>,
+        ) -> Option<Id<NodeArray>>,
     >,
     arena: &impl HasArena,
-) -> Option<Gc<NodeArray>> {
-    let mut nodes_visitor = |nodes: Option<&NodeArray>,
+) -> Option<Id<NodeArray>> {
+    let mut nodes_visitor = |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
                              count: Option<usize>|
-     -> Option<Gc<NodeArray>> {
+     -> Option<Id<NodeArray>> {
         if let Some(nodes_visitor) = nodes_visitor.as_mut() {
             nodes_visitor(nodes, visitor, test, start, count)
         } else {
@@ -502,7 +502,7 @@ pub fn visit_parameter_list_full(
             )
         }
     };
-    let mut updated: Option<Gc<NodeArray /*<ParameterDeclaration>*/>> = _d();
+    let mut updated: Option<Id<NodeArray /*<ParameterDeclaration>*/>> = _d();
     context.start_lexical_environment();
     if let Some(nodes) = nodes {
         context.set_lexical_environment_flags(LexicalEnvironmentFlags::InParameters, true);
@@ -532,50 +532,50 @@ pub fn visit_parameter_list_full(
 }
 
 pub fn try_visit_parameter_list(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> io::Result<Option<Gc<NodeArray>>> {
+) -> io::Result<Option<Id<NodeArray>>> {
     try_visit_parameter_list_full(
         nodes,
         visitor,
         context,
         Option::<
             fn(
-                Option<&NodeArray>,
+                Option<Id<NodeArray>>,
                 Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
                 Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> io::Result<Option<Gc<NodeArray>>>,
+            ) -> io::Result<Option<Id<NodeArray>>>,
         >::None,
         arena,
     )
 }
 
 pub fn try_visit_parameter_list_full(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> io::Result<Option<Gc<NodeArray>>>,
+        ) -> io::Result<Option<Id<NodeArray>>>,
     >,
     arena: &impl HasArena,
-) -> io::Result<Option<Gc<NodeArray>>> {
+) -> io::Result<Option<Id<NodeArray>>> {
     let mut nodes_visitor =
-        |nodes: Option<&NodeArray>,
+        |nodes: Option<Id<NodeArray>>,
          visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
          test: Option<&dyn Fn(Id<Node>) -> bool>,
          start: Option<usize>,
          count: Option<usize>|
-         -> io::Result<Option<Gc<NodeArray>>> {
+         -> io::Result<Option<Id<NodeArray>>> {
             if let Some(nodes_visitor) = nodes_visitor.as_mut() {
                 nodes_visitor(nodes, visitor, test, start, count)
             } else {
@@ -589,7 +589,7 @@ pub fn try_visit_parameter_list_full(
                 )
             }
         };
-    let mut updated: Option<Gc<NodeArray /*<ParameterDeclaration>*/>> = _d();
+    let mut updated: Option<Id<NodeArray /*<ParameterDeclaration>*/>> = _d();
     context.start_lexical_environment();
     if let Some(nodes) = nodes {
         context.set_lexical_environment_flags(LexicalEnvironmentFlags::InParameters, true);
@@ -619,10 +619,10 @@ pub fn try_visit_parameter_list_full(
 }
 
 fn add_default_value_assignments_if_needed(
-    parameters: &NodeArray, /*<ParameterDeclaration>*/
+    parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> Gc<NodeArray /*<ParameterDeclaration>*/> {
+) -> Id<NodeArray /*<ParameterDeclaration>*/> {
     let mut result: Option<Vec<Id<Node /*ParameterDeclaration*/>>> = _d();
     for (i, parameter) in parameters.iter().enumerate() {
         let parameter = *parameter;
@@ -682,7 +682,7 @@ fn add_default_value_assignment_for_binding_pattern(
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(factory.ref_(arena).create_variable_statement(
-        Option::<Gc<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
         factory.ref_(arena).create_variable_declaration_list(
             vec![
                     factory.ref_(arena).create_variable_declaration(

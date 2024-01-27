@@ -187,10 +187,10 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn transform_flags(&self) -> TransformFlags;
     fn set_transform_flags(&self, flags: TransformFlags);
     fn add_transform_flags(&self, flags: TransformFlags);
-    fn maybe_decorators(&self) -> Option<Gc<NodeArray>>;
-    fn set_decorators(&self, decorators: Option<Gc<NodeArray>>);
-    fn maybe_modifiers(&self) -> Option<Gc<NodeArray>>;
-    fn set_modifiers(&self, modifiers: Option<Gc<NodeArray>>);
+    fn maybe_decorators(&self) -> Option<Id<NodeArray>>;
+    fn set_decorators(&self, decorators: Option<Id<NodeArray>>);
+    fn maybe_modifiers(&self) -> Option<Id<NodeArray>>;
+    fn set_modifiers(&self, modifiers: Option<Id<NodeArray>>);
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -1720,7 +1720,7 @@ pub struct BaseNode {
     modifier_flags_cache: Cell<ModifierFlags>,
     #[unsafe_ignore_trace]
     transform_flags: Cell<TransformFlags>,
-    pub decorators: GcCell<Option<Gc<NodeArray> /*<Decorator>*/>>,
+    pub decorators: GcCell<Option<Id<NodeArray> /*<Decorator>*/>>,
     pub modifiers: GcCell<Option<ModifiersArray>>,
     #[unsafe_ignore_trace]
     pub id: Cell<Option<NodeId>>,
@@ -1865,19 +1865,19 @@ impl NodeInterface for BaseNode {
         self.transform_flags.set(self.transform_flags.get() | flags);
     }
 
-    fn maybe_decorators(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_decorators(&self) -> Option<Id<NodeArray>> {
         self.decorators.borrow().clone()
     }
 
-    fn set_decorators(&self, decorators: Option<Gc<NodeArray>>) {
+    fn set_decorators(&self, decorators: Option<Id<NodeArray>>) {
         *self.decorators.borrow_mut() = decorators;
     }
 
-    fn maybe_modifiers(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_modifiers(&self) -> Option<Id<NodeArray>> {
         self.modifiers.borrow().clone()
     }
 
-    fn set_modifiers(&self, modifiers: Option<Gc<NodeArray>>) {
+    fn set_modifiers(&self, modifiers: Option<Id<NodeArray>>) {
         *self.modifiers.borrow_mut() = modifiers;
     }
 

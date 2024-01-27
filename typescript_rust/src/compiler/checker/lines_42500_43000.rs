@@ -113,7 +113,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_disallowed_trailing_comma(
         &self,
-        list: Option<&NodeArray>,
+        list: Option<Id<NodeArray>>,
         diag: Option<&'static DiagnosticMessage>,
     ) -> bool {
         let diag = diag.unwrap_or(&Diagnostics::Trailing_comma_not_allowed);
@@ -131,7 +131,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_type_parameter_list(
         &self,
-        type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>,
         file: Id<Node>, /*SourceFile*/
     ) -> bool {
         if let Some(type_parameters) =
@@ -158,7 +158,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_parameter_list(
         &self,
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<bool> {
         let mut seen_optional_parameter = false;
         let parameter_count = parameters.len();
@@ -522,7 +522,7 @@ impl TypeChecker {
     pub(super) fn check_grammar_for_at_least_one_type_argument(
         &self,
         node: Id<Node>,
-        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+        type_arguments: Option<Id<NodeArray> /*<TypeNode>*/>,
     ) -> bool {
         if let Some(type_arguments) =
             type_arguments.filter(|type_arguments| type_arguments.is_empty())
@@ -550,7 +550,7 @@ impl TypeChecker {
     pub(super) fn check_grammar_type_arguments(
         &self,
         node: Id<Node>,
-        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+        type_arguments: Option<Id<NodeArray> /*<TypeNode>*/>,
     ) -> bool {
         self.check_grammar_for_disallowed_trailing_comma(type_arguments, None)
             || self.check_grammar_for_at_least_one_type_argument(node, type_arguments)
@@ -578,7 +578,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_for_omitted_argument(
         &self,
-        args: Option<&NodeArray /*<Expression>*/>,
+        args: Option<Id<NodeArray> /*<Expression>*/>,
     ) -> bool {
         if let Some(args) = args {
             for &arg in args {
@@ -598,7 +598,7 @@ impl TypeChecker {
 
     pub(super) fn check_grammar_arguments(
         &self,
-        args: Option<&NodeArray /*<Expression>*/>,
+        args: Option<Id<NodeArray> /*<Expression>*/>,
     ) -> bool {
         self.check_grammar_for_omitted_argument(args)
     }

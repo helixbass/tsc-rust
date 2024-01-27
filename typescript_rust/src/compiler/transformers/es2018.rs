@@ -757,7 +757,7 @@ impl TransformES2018 {
                 objects.insert(
                     0,
                     self.factory
-                        .ref_(self).create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
+                        .ref_(self).create_object_literal_expression(Option::<Id<NodeArray>>::None, None),
                 );
             }
             let mut expression = objects.get(0).cloned();
@@ -830,7 +830,7 @@ impl TransformES2018 {
                         statements
                             .to_vec()
                             .and_push(self.factory.ref_(self).create_variable_statement(
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 self.factory.ref_(self).create_variable_declaration_list(
                                     tagged_template_string_declarations.clone(),
                                     None,
@@ -1021,7 +1021,7 @@ impl TransformES2018 {
                 block = self.factory.ref_(self).update_block(
                     block,
                     vec![self.factory.ref_(self).create_variable_statement(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         visited_bindings,
                     )]
                     .and_extend(block.ref_(self).as_block().statements.iter().cloned()),
@@ -1292,7 +1292,7 @@ impl TransformES2018 {
         );
 
         let mut body_location: Option<Id<Node /*TextRange*/>> = Default::default();
-        let mut statements_location: Option<Gc<NodeArray /*TextRange*/>> = Default::default();
+        let mut statements_location: Option<Id<NodeArray /*TextRange*/>> = Default::default();
         let mut statements: Vec<Id<Node /*Statement*/>> = vec![visit_node(
             binding,
             Some(|node: Id<Node>| self.visitor(node)),
@@ -1393,7 +1393,7 @@ impl TransformES2018 {
         let call_next = self.factory.ref_(self).create_call_expression(
             self.factory
                 .ref_(self).create_property_access_expression(iterator.clone(), "next"),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![]),
         );
         let get_done = self
@@ -1569,8 +1569,8 @@ impl TransformES2018 {
         {
             return self.factory.ref_(self).update_parameter_declaration(
                 node,
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 node_as_parameter_declaration.dot_dot_dot_token.clone(),
                 Some(self.factory.ref_(self).get_generated_name_for_node(Some(node), None)),
                 None,
@@ -1594,7 +1594,7 @@ impl TransformES2018 {
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_constructor_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             node.ref_(self).maybe_modifiers(),
             visit_parameter_list(
                 Some(&node.ref_(self).as_constructor_declaration().parameters()),
@@ -1619,7 +1619,7 @@ impl TransformES2018 {
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_get_accessor_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             node.ref_(self).maybe_modifiers(),
             visit_node(
                 node_as_get_accessor_declaration.name(),
@@ -1651,7 +1651,7 @@ impl TransformES2018 {
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_set_accessor_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             node.ref_(self).maybe_modifiers(),
             visit_node(
                 node_as_set_accessor_declaration.name(),
@@ -1679,7 +1679,7 @@ impl TransformES2018 {
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_method_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             if self
                 .maybe_enclosing_function_flags()
                 .matches(|enclosing_function_flags| {
@@ -1719,7 +1719,7 @@ impl TransformES2018 {
                 Some(|node: Id<Node>| is_token(&node.ref_(self))),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
@@ -1760,7 +1760,7 @@ impl TransformES2018 {
         self.set_enclosing_function_flags(Some(FunctionFlags::Normal));
         let updated = self.factory.ref_(self).update_function_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             if self
                 .maybe_enclosing_function_flags()
                 .matches(|enclosing_function_flags| {
@@ -1789,7 +1789,7 @@ impl TransformES2018 {
                 node_as_function_declaration.maybe_asterisk_token()
             },
             node_as_function_declaration.maybe_name(),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             visit_parameter_list(
                 Some(&node_as_function_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
@@ -1828,7 +1828,7 @@ impl TransformES2018 {
         let updated = self.factory.ref_(self).update_arrow_function(
             node,
             node.ref_(self).maybe_modifiers(),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
@@ -1879,7 +1879,7 @@ impl TransformES2018 {
                 node_as_function_expression.maybe_asterisk_token()
             },
             node_as_function_expression.maybe_name(),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
@@ -1938,7 +1938,7 @@ impl TransformES2018 {
         let return_statement = self.factory.ref_(self).create_return_statement(Some(
             self.emit_helpers().create_async_generator_helper(
                 self.factory.ref_(self).create_function_expression(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(self.factory.ref_(self).create_token(SyntaxKind::AsteriskToken)),
                     node_as_function_like_declaration
                         .maybe_name()
@@ -1946,7 +1946,7 @@ impl TransformES2018 {
                             self.factory
                                 .ref_(self).get_generated_name_for_node(Some(node_name), None)
                         }),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![]),
                     None,
                     self.factory.ref_(self).update_block(
@@ -1963,12 +1963,12 @@ impl TransformES2018 {
                             None,
                             Option::<
                                 fn(
-                                    Option<&NodeArray>,
+                                    Option<Id<NodeArray>>,
                                     Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                                     Option<&dyn Fn(Id<Node>) -> bool>,
                                     Option<usize>,
                                     Option<usize>,
-                                ) -> Option<Gc<NodeArray>>,
+                                ) -> Option<Id<NodeArray>>,
                             >::None,
                             self,
                         ),
@@ -2120,7 +2120,7 @@ impl TransformES2018 {
                 );
                 if !declarations.is_empty() {
                     let statement = self.factory.ref_(self).create_variable_statement(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         self.factory
                             .ref_(self).create_variable_declaration_list(declarations, None),
                     );
@@ -2363,7 +2363,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                 self.transform_es2018()
                     .factory
                     .ref_(self).create_property_access_expression(argument_expression, "call"),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(
                     vec![self.transform_es2018().factory.ref_(self).create_this()]
                         .and_extend(node_as_call_expression.arguments.iter().cloned()),
@@ -2390,7 +2390,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                         self.transform_es2018()
                             .factory
                             .ref_(self).create_identifier("_superIndex"),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(vec![argument_expression]),
                     ),
                     "value",
@@ -2403,7 +2403,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                     self.transform_es2018()
                         .factory
                         .ref_(self).create_identifier("_superIndex"),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![argument_expression]),
                 )
                 .set_text_range(Some(location), self)

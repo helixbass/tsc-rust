@@ -352,7 +352,7 @@ impl TransformTypeScript {
                 Some(|node| is_left_hand_side_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             )?,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
         ))
     }
 
@@ -374,7 +374,7 @@ impl TransformTypeScript {
         }
         let updated = self.factory.ref_(self).update_property_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node.ref_(self).maybe_modifiers().as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -418,8 +418,8 @@ impl TransformTypeScript {
             self.factory
                 .ref_(self).update_constructor_declaration(
                     node,
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     try_visit_parameter_list(
                         Some(&node_as_constructor_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),

@@ -51,7 +51,7 @@ impl TransformES2015 {
         let capture_this_statement = self
             .factory
             .ref_(self).create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.factory.ref_(self).create_variable_declaration_list(
                     vec![self.factory.ref_(self).create_variable_declaration(
                         Some(self.factory.ref_(self).create_unique_name(
@@ -133,7 +133,7 @@ impl TransformES2015 {
             let capture_new_target_statement = self
                 .factory
                 .ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
                             Some(self.factory.ref_(self).create_unique_name(
@@ -418,7 +418,7 @@ impl TransformES2015 {
                 self.factory.ref_(self).create_identifier("Object"),
                 "defineProperty",
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![
                 target,
                 property_name,
@@ -462,10 +462,10 @@ impl TransformES2015 {
         let func = self
             .factory
             .ref_(self).create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Option::<Id<Node>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 try_visit_parameter_list(
                     Some(&node_as_arrow_function.parameters()),
                     |node: Id<Node>| self.visitor(node),
@@ -535,10 +535,10 @@ impl TransformES2015 {
         self.set_converted_loop_state(saved_converted_loop_state);
         Ok(self.factory.ref_(self).update_function_expression(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             node_as_function_expression.maybe_asterisk_token(),
             name,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             parameters,
             None,
             body,
@@ -583,7 +583,7 @@ impl TransformES2015 {
         self.set_converted_loop_state(saved_converted_loop_state);
         Ok(self.factory.ref_(self).update_function_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node.ref_(self).maybe_modifiers().as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -594,7 +594,7 @@ impl TransformES2015 {
             )?,
             node_as_function_declaration.maybe_asterisk_token(),
             name,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             parameters,
             None,
             Some(body),
@@ -654,10 +654,10 @@ impl TransformES2015 {
         Ok(self
             .factory
             .ref_(self).create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 node_as_function_like_declaration.maybe_asterisk_token(),
                 name,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(parameters),
                 None,
                 body,

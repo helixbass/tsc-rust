@@ -29,7 +29,7 @@ impl TransformGenerators {
             self.emit_assignment(
                 keys_array.clone(),
                 self.factory
-                    .ref_(self).create_array_literal_expression(Option::<Gc<NodeArray>>::None, None),
+                    .ref_(self).create_array_literal_expression(Option::<Id<NodeArray>>::None, None),
                 Option::<&Node>::None,
             );
 
@@ -46,7 +46,7 @@ impl TransformGenerators {
                         self.factory.ref_(self).create_call_expression(
                             self.factory
                                 .ref_(self).create_property_access_expression(keys_array.clone(), "push"),
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(vec![key]),
                         ),
                     ),
@@ -541,7 +541,7 @@ impl TransformGenerators {
 
     pub(super) fn count_initial_nodes_without_yield(
         &self,
-        nodes: &NodeArray, /*<Node>*/
+        nodes: Id<NodeArray>, /*<Node>*/
     ) -> Option<usize> {
         nodes
             .iter()

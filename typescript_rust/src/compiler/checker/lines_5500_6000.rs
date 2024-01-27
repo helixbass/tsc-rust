@@ -97,7 +97,7 @@ impl NodeBuilder {
                     if is_bare_list != Some(true) {
                         return Ok(Some(vec![get_factory(self).create_type_reference_node(
                             "...",
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                         )]));
                     } else if types.len() > 2 {
                         return Ok(Some(vec![
@@ -105,7 +105,7 @@ impl NodeBuilder {
                                 .unwrap(),
                             get_factory(self).create_type_reference_node(
                                 &*format!("... {} more ...", types.len() - 2),
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                             ),
                             self.type_to_type_node_helper(Some(types[types.len() - 1]), context)?
                                 .unwrap(),
@@ -128,7 +128,7 @@ impl NodeBuilder {
                     if self.check_truncation_length(context) && i + 2 < types.len() - 1 {
                         result.push(get_factory(self).create_type_reference_node(
                             &*format!("... {} more ...", types.len() - i),
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                         ));
                         let type_node =
                             self.type_to_type_node_helper(Some(types[types.len() - 1]), context)?;
@@ -201,8 +201,8 @@ impl NodeBuilder {
             self.type_to_type_node_helper(Some(index_info.ref_(self).key_type), context)?;
 
         let indexing_parameter = get_factory(self).create_parameter_declaration(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             None,
             Some(&*name),
             None,
@@ -218,7 +218,7 @@ impl NodeBuilder {
         // }
         context.increment_approximate_length_by(name.len() + 4);
         Ok(get_factory(self).create_index_signature(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             if index_info.ref_(self).is_readonly {
                 Some(vec![get_factory(self).create_token(SyntaxKind::ReadonlyKeyword)])
             } else {
@@ -420,7 +420,7 @@ impl NodeBuilder {
                 return_type_node,
             ),
             SyntaxKind::MethodDeclaration => get_factory(self).create_method_declaration(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 modifiers,
                 None,
                 options
@@ -434,13 +434,13 @@ impl NodeBuilder {
                 None,
             ),
             SyntaxKind::Constructor => get_factory(self).create_constructor_declaration(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 modifiers,
                 Some(parameters),
                 None,
             ),
             SyntaxKind::GetAccessor => get_factory(self).create_get_accessor_declaration(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 modifiers,
                 options
                     .as_ref()
@@ -451,7 +451,7 @@ impl NodeBuilder {
                 None,
             ),
             SyntaxKind::SetAccessor => get_factory(self).create_set_accessor_declaration(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 modifiers,
                 options
                     .as_ref()
@@ -461,7 +461,7 @@ impl NodeBuilder {
                 None,
             ),
             SyntaxKind::IndexSignature => get_factory(self).create_index_signature(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 modifiers,
                 parameters,
                 return_type_node,
@@ -475,7 +475,7 @@ impl NodeBuilder {
                 Some(return_type_node.unwrap_or_else(|| {
                     get_factory(self).create_type_reference_node(
                         get_factory(self).create_identifier(""),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                     )
                 })),
             ),
@@ -486,12 +486,12 @@ impl NodeBuilder {
                 Some(return_type_node.unwrap_or_else(|| {
                     get_factory(self).create_type_reference_node(
                         get_factory(self).create_identifier(""),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                     )
                 })),
             ),
             SyntaxKind::FunctionDeclaration => get_factory(self).create_function_declaration(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 modifiers,
                 None,
                 Some(
@@ -695,7 +695,7 @@ impl NodeBuilder {
             None
         };
         let parameter_node = get_factory(self).create_parameter_declaration(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             dot_dot_dot_token,
             Some(name),
@@ -1021,8 +1021,8 @@ impl NodeBuilder {
         &self,
         symbol: Id<Symbol>,
         context: &NodeBuilderContext,
-    ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
-        let mut type_parameter_nodes: Option<Gc<NodeArray> /*TypeParameterDeclaration*/> = None;
+    ) -> io::Result<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>> {
+        let mut type_parameter_nodes: Option<Id<NodeArray> /*TypeParameterDeclaration*/> = None;
         let target_symbol = self.type_checker.get_target_symbol(symbol);
         if target_symbol
             .ref_(self)

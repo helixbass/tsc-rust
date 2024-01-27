@@ -113,7 +113,7 @@ impl ParserType {
                                 self.finish_node(
                                     self.factory().ref_(self).create_identifier_raw(
                                         "",
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         None,
                                     ),
                                     end,
@@ -308,7 +308,7 @@ impl ParserType {
     pub(super) fn parse_jsx_children(
         &self,
         opening_tag: &Node, /*JsxOpeningElement | JsxOpeningFragment*/
-    ) -> Gc<NodeArray> /*<JsxChild>*/ {
+    ) -> Id<NodeArray> /*<JsxChild>*/ {
         let mut list: Vec<Id<Node>> = vec![];
         let list_pos = self.get_node_pos();
         let save_parsing_context = self.parsing_context();
@@ -776,7 +776,7 @@ impl ParserType {
         pos: isize,
         tag: Id<Node /*LeftHandSideExpression*/>,
         question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
-        type_arguments: Option<Gc<NodeArray> /*TypeNode*/>,
+        type_arguments: Option<Id<NodeArray> /*TypeNode*/>,
     ) -> Id<Node> {
         let mut tag_expression = self.factory().ref_(self).create_tagged_template_expression_raw(
             tag.clone(),
@@ -849,13 +849,13 @@ impl ParserType {
                     self.factory().ref_(self).create_call_chain_raw(
                         expression,
                         question_dot_token.map(|question_dot_token| question_dot_token.alloc(self.arena())),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(argument_list),
                     )
                 } else {
                     self.factory().ref_(self).create_call_expression_raw(
                         expression,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(argument_list),
                     )
                 };

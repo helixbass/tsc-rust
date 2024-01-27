@@ -17,7 +17,7 @@ use crate::{
 pub fn for_each_child_returns<TReturn>(
     node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> Option<TReturn>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray) -> Option<TReturn>>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>) -> Option<TReturn>>,
     arena: &impl HasArena,
 ) -> Option<TReturn> {
     if
@@ -1459,7 +1459,7 @@ pub fn for_each_child_returns<TReturn>(
 pub fn try_for_each_child_returns<TReturn, TError>(
     node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<Option<TReturn>, TError>>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>) -> Result<Option<TReturn>, TError>>,
     arena: &impl HasArena,
 ) -> Result<Option<TReturn>, TError> {
     if
@@ -2901,7 +2901,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
 pub fn for_each_child_bool(
     node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> bool,
-    cb_nodes: Option<impl FnMut(&NodeArray) -> bool>,
+    cb_nodes: Option<impl FnMut(Id<NodeArray>) -> bool>,
     arena: &impl HasArena,
 ) -> bool {
     // match for_each_child_returns(
@@ -2918,7 +2918,7 @@ pub fn for_each_child_bool(
         match for_each_child_returns(
             node,
             |node: Id<Node>| if cb_node(node) { Some(()) } else { None },
-            Some(|node_array: &NodeArray| if cb_nodes(node_array) { Some(()) } else { None }),
+            Some(|node_array: Id<NodeArray>| if cb_nodes(node_array) { Some(()) } else { None }),
             arena,
         ) {
             Some(_) => true,
@@ -2928,7 +2928,7 @@ pub fn for_each_child_bool(
         match for_each_child_returns(
             node,
             |node: Id<Node>| if cb_node(node) { Some(()) } else { None },
-            Option::<fn(&NodeArray) -> Option<()>>::None,
+            Option::<fn(Id<NodeArray>) -> Option<()>>::None,
             arena,
         ) {
             Some(_) => true,
@@ -2940,7 +2940,7 @@ pub fn for_each_child_bool(
 pub fn try_for_each_child_bool<TError>(
     node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> Result<bool, TError>,
-    cb_nodes: Option<impl FnMut(&NodeArray) -> Result<bool, TError>>,
+    cb_nodes: Option<impl FnMut(Id<NodeArray>) -> Result<bool, TError>>,
     arena: &impl HasArena,
 ) -> Result<bool, TError> {
     Ok(if let Some(mut cb_nodes) = cb_nodes {
@@ -2949,7 +2949,7 @@ pub fn try_for_each_child_bool<TError>(
             |node: Id<Node>| -> Result<_, TError> {
                 Ok(if cb_node(node)? { Some(()) } else { None })
             },
-            Some(|node_array: &NodeArray| -> Result<_, TError> {
+            Some(|node_array: Id<NodeArray>| -> Result<_, TError> {
                 Ok(if cb_nodes(node_array)? {
                     Some(())
                 } else {
@@ -2967,7 +2967,7 @@ pub fn try_for_each_child_bool<TError>(
             |node: Id<Node>| -> Result<_, TError> {
                 Ok(if cb_node(node)? { Some(()) } else { None })
             },
-            Option::<fn(&NodeArray) -> Result<Option<()>, TError>>::None,
+            Option::<fn(Id<NodeArray>) -> Result<Option<()>, TError>>::None,
             arena,
         )? {
             Some(_) => true,

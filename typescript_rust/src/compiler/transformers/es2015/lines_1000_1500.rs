@@ -89,8 +89,8 @@ impl TransformES2015 {
             Some(
                 self.factory
                     .ref_(self).create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         Some(self.factory.ref_(self).get_generated_name_for_node(Some(node), None)),
                         None,
@@ -104,8 +104,8 @@ impl TransformES2015 {
             Some(
                 self.factory
                     .ref_(self).create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         node_as_parameter_declaration.maybe_name(),
                         None,
@@ -193,7 +193,7 @@ impl TransformES2015 {
                 Some(
                     self.factory
                         .ref_(self).create_variable_statement(
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 try_flatten_destructuring_binding(
                                     parameter,
@@ -358,7 +358,7 @@ impl TransformES2015 {
         prologue_statements.push(
             self.factory
                 .ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
                             Some(declaration_name),
@@ -448,7 +448,7 @@ impl TransformES2015 {
             prologue_statements.push(
                 self.factory
                     .ref_(self).create_variable_statement(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         self.factory.ref_(self).create_variable_declaration_list(
                             try_flatten_destructuring_binding(
                                 parameter,

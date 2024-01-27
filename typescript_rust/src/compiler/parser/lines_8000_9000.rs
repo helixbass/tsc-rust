@@ -835,8 +835,8 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         if self.parser.parse_optional(SyntaxKind::DotToken) {
             let body = self.parse_jsdoc_type_name_with_namespace(Some(true));
             let js_doc_namespace_node = self.parser.factory().ref_(self).create_module_declaration_raw(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 type_name_or_namespace_name.alloc(self.arena()),
                 body.map(|node| node.alloc(self.arena())),
                 if nested {
@@ -860,7 +860,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         Some(type_name_or_namespace_name)
     }
 
-    pub(super) fn parse_callback_tag_parameters(&self, indent: usize) -> Gc<NodeArray> /*<JSDocParameterTag>*/
+    pub(super) fn parse_callback_tag_parameters(&self, indent: usize) -> Id<NodeArray> /*<JSDocParameterTag>*/
     {
         let pos = self.parser.get_node_pos();
         let mut parameters: Option<Vec<Id<Node>>> = None;
@@ -907,7 +907,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         });
         let type_expression = self.parser.finish_node(
             self.parser.factory().ref_(self).create_jsdoc_signature_raw(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 parameters,
                 return_tag,
             ),
@@ -1092,7 +1092,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
         )
     }
 
-    pub(super) fn parse_template_tag_type_parameters(&self) -> Gc<NodeArray> /*<TypeParameterDeclaration>*/
+    pub(super) fn parse_template_tag_type_parameters(&self) -> Id<NodeArray> /*<TypeParameterDeclaration>*/
     {
         let pos = self.parser.get_node_pos();
         let mut type_parameters: Vec<Id<Node>> = vec![];
@@ -1191,7 +1191,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
             .finish_node(
                 self.parser.factory().ref_(self).create_identifier_raw(
                     &text,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(original_keyword_kind),
                 ),
                 pos.try_into().unwrap(),

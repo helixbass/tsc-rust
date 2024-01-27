@@ -173,7 +173,7 @@ impl NodeBuilder {
             name_type_node,
             question_token,
             template_type_node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
         );
         context.increment_approximate_length_by(10);
         Ok(set_emit_flags(mapped_type_node, EmitFlags::SingleLine, self))
@@ -503,7 +503,7 @@ impl NodeBuilder {
             {
                 context.increment_approximate_length_by(2);
                 return Ok(set_emit_flags(
-                    get_factory(self).create_type_literal_node(Option::<Gc<NodeArray>>::None),
+                    get_factory(self).create_type_literal_node(Option::<Id<NodeArray>>::None),
                     EmitFlags::SingleLine,
                     self,
                 ));
@@ -981,7 +981,7 @@ impl NodeBuilder {
     ) -> io::Result<Option<Vec<Id<Node /*TypeElement*/>>>> {
         if self.check_truncation_length(context) {
             return Ok(Some(vec![
-                get_factory(self).create_property_signature(Option::<Gc<NodeArray>>::None, "...", None, None)
+                get_factory(self).create_property_signature(Option::<Id<NodeArray>>::None, "...", None, None)
             ]));
         }
         let mut type_elements: Vec<Id<Node>> = vec![];
@@ -1068,7 +1068,7 @@ impl NodeBuilder {
             if self.check_truncation_length(context) && i + 2 < properties.len() - 1 {
                 type_elements.push(
                     get_factory(self).create_property_signature(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         &*format!("... {} more ...", properties.len() - 1),
                         None,
                         None,
@@ -1098,7 +1098,7 @@ impl NodeBuilder {
         if !context.flags().intersects(NodeBuilderFlags::NoTruncation) {
             return get_factory(self).create_type_reference_node(
                 get_factory(self).create_identifier("..."),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
             );
         }
         self.alloc_node(KeywordTypeNode::from(

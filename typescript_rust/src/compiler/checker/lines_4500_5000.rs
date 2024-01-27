@@ -658,7 +658,7 @@ impl NodeBuilder {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
-    ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
+    ) -> io::Result<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>> {
         self.try_with_context(enclosing_declaration, flags, tracker, |context| {
             self.type_parameters_to_type_parameter_declarations(symbol, context)
         })
@@ -958,7 +958,7 @@ impl NodeBuilder {
                         self.alloc_node(get_factory(self)
                             .create_type_reference_node_raw(
                                 &*member_name,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                             )
                             .into(),
                         ),
@@ -1264,7 +1264,7 @@ impl NodeBuilder {
                 context.increment_approximate_length_by(id_text(&name.ref_(self)).len());
                 return Ok(Some(get_factory(self).create_type_reference_node(
                     get_factory(self).create_identifier(&id_text(&name.ref_(self))),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                 )));
             }
             return Ok(Some(
@@ -1273,7 +1273,7 @@ impl NodeBuilder {
                 } else {
                     get_factory(self).create_type_reference_node(
                         get_factory(self).create_identifier("?"),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                     )
                 },
             ));

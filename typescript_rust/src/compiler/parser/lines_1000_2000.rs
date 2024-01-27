@@ -1084,7 +1084,7 @@ impl ParserType {
         pos: isize,
         end: Option<isize>,
         has_trailing_comma: Option<bool>,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let array = self
             .factory()
             .ref_(self).create_node_array(Some(elements), has_trailing_comma);
@@ -1149,7 +1149,7 @@ impl ParserType {
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
             self.factory()
-                .ref_(self).create_identifier_raw("", Option::<Gc<NodeArray>>::None, None)
+                .ref_(self).create_identifier_raw("", Option::<Id<NodeArray>>::None, None)
                 .into()
         } else if is_template_literal_kind(kind) {
             self.factory()
@@ -1205,7 +1205,7 @@ impl ParserType {
                 self.factory()
                     .ref_(self).create_identifier_raw(
                         &text,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(original_keyword_kind),
                     )
                     .into(),

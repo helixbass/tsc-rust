@@ -43,7 +43,7 @@ impl TypeChecker {
                     None
                 }
             },
-            Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+            Option::<fn(Id<NodeArray>) -> Option<Id<Node>>>::None,
             self,
         );
         if let Some(subsequent_node) = subsequent_node

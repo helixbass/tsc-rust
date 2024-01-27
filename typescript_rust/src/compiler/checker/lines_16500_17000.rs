@@ -70,7 +70,7 @@ impl TypeChecker {
                                         && try_for_each_child_bool(
                                             n.ref_(self).as_conditional_type_node().extends_type,
                                             |child| self.contains_reference(tp, child),
-                                            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                                            Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                                             self,
                                         )?
                             }
@@ -130,7 +130,7 @@ impl TypeChecker {
             _ => try_for_each_child_bool(
                 node,
                 |child| self.contains_reference(tp, child),
-                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                 self,
             )?,
         })

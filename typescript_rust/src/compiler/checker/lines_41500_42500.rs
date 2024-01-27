@@ -87,7 +87,7 @@ impl TypeChecker {
             return try_for_each_child_bool(
                 node,
                 |node| self.is_referenced_alias_declaration(node, check_children),
-                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                 self,
             );
         }

@@ -215,7 +215,7 @@ pub fn get_all_super_type_nodes(node: Id<Node>, arena: &impl HasArena) -> Vec<Id
 pub fn get_interface_base_type_nodes(
     node: Id<Node>, /*InterfaceDeclaration*/
     arena: &impl HasArena,
-) -> Option<Gc<NodeArray>> {
+) -> Option<Id<NodeArray>> {
     let heritage_clause = get_heritage_clause(
         node.ref_(arena).as_interface_declaration()
             .maybe_heritage_clauses()
@@ -226,7 +226,7 @@ pub fn get_interface_base_type_nodes(
     Some(heritage_clause.ref_(arena).as_heritage_clause().types.clone())
 }
 
-pub fn get_heritage_clause(clauses: Option<&NodeArray>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
+pub fn get_heritage_clause(clauses: Option<Id<NodeArray>>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
     let clauses = clauses?;
     for &clause in clauses {
         if clause.ref_(arena).as_heritage_clause().token == kind {

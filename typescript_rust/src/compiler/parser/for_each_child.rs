@@ -15,7 +15,7 @@ use crate::{
 pub fn for_each_child(
     node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>),
-    mut cb_nodes: Option<impl FnMut(&NodeArray)>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>)>,
     arena: &impl HasArena,
 ) {
     if
@@ -1174,7 +1174,7 @@ pub fn for_each_child(
 pub fn try_for_each_child<TError>(
     node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>) -> Result<(), TError>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray) -> Result<(), TError>>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>) -> Result<(), TError>>,
     arena: &impl HasArena,
 ) -> Result<(), TError> {
     if

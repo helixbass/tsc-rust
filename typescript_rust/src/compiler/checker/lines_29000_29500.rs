@@ -173,7 +173,7 @@ impl TypeChecker {
     pub(super) fn has_correct_type_argument_arity(
         &self,
         signature: Id<Signature>,
-        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+        type_arguments: Option<Id<NodeArray> /*<TypeNode>*/>,
     ) -> bool {
         let num_type_parameters = length(signature.ref_(self).maybe_type_parameters().as_deref());
         let min_type_argument_count =

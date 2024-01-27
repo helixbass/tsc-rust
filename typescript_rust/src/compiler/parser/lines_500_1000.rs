@@ -34,7 +34,7 @@ impl<TValue> From<TValue> for ForEachChildRecursivelyCallbackReturn<TValue> {
 pub fn for_each_child_recursively<TValue>(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>>,
     arena: &impl HasArena,
 ) -> Option<TValue> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node, arena);
@@ -92,14 +92,14 @@ pub fn for_each_child_recursively<TValue>(
 pub fn for_each_child_recursively_bool(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> bool,
-    cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> bool>,
+    cb_nodes: Option<impl FnMut(Id<NodeArray>, Id<Node>) -> bool>,
     arena: &impl HasArena,
 ) -> bool {
     try_for_each_child_recursively_bool(
         root_node,
         |a: Id<Node>, b: Id<Node>| -> Result<_, ()> { Ok(cb_node(a, b)) },
         cb_nodes.map(|mut cb_nodes| {
-            move |a: &NodeArray, b: Id<Node>| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
+            move |a: Id<NodeArray>, b: Id<Node>| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
         }),
         arena,
     )
@@ -109,7 +109,7 @@ pub fn for_each_child_recursively_bool(
 pub fn try_for_each_child_recursively_bool<TError>(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Result<bool, TError>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Result<bool, TError>>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>, Id<Node>) -> Result<bool, TError>>,
     arena: &impl HasArena,
 ) -> Result<bool, TError> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node, arena);
@@ -152,7 +152,7 @@ pub fn try_for_each_child_recursively_bool<TError>(
 
 enum RcNodeOrNodeArray {
     RcNode(Id<Node>),
-    NodeArray(Gc<NodeArray>),
+    NodeArray(Id<NodeArray>),
 }
 
 impl From<Id<Node>> for RcNodeOrNodeArray {
@@ -161,8 +161,8 @@ impl From<Id<Node>> for RcNodeOrNodeArray {
     }
 }
 
-impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
-    fn from(value: Gc<NodeArray>) -> Self {
+impl From<Id<NodeArray>> for RcNodeOrNodeArray {
+    fn from(value: Id<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
@@ -174,7 +174,7 @@ fn gather_possible_children(node: Id<Node>, arena: &impl HasArena) -> Vec<RcNode
         |child| {
             children.borrow_mut().insert(0, child.into());
         },
-        Some(|node_array: &NodeArray| {
+        Some(|node_array: Id<NodeArray>| {
             children
                 .borrow_mut()
                 .insert(0, node_array.rc_wrapper().into());
@@ -795,7 +795,7 @@ impl ParserType {
 
         self.next_token();
         let pos = self.get_node_pos();
-        let statements: Gc<NodeArray>;
+        let statements: Id<NodeArray>;
         let end_of_file_token: Id<Node>;
         if self.token() == SyntaxKind::EndOfFileToken {
             statements = self.create_node_array(vec![], pos, Some(pos), None);

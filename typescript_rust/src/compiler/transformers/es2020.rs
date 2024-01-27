@@ -260,7 +260,7 @@ impl TransformES2020 {
             return self.factory.ref_(self).update_call_expression(
                 node,
                 expression,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 args,
             );
         }
@@ -387,7 +387,7 @@ impl TransformES2020 {
                     } else {
                         right_expression = self.factory.ref_(self).create_call_expression(
                             right_expression,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(visit_nodes(
                                 &segment.ref_(self).as_call_expression().arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),

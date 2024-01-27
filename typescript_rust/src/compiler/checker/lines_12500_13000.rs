@@ -388,7 +388,7 @@ impl TypeChecker {
                     && try_for_each_child_bool(
                         node,
                         |child| self.contains_arguments_reference_traverse(Some(child)),
-                        Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                        Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                         self,
                     )?
             }

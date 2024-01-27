@@ -333,8 +333,8 @@ impl SymbolTableToDeclarationStatements {
                                             let mut arg =
                                                 ns_body.ref_(self).as_module_block().statements.to_vec();
                                             arg.push(get_factory(self).create_export_declaration(
-                                                Option::<Gc<NodeArray>>::None,
-                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
                                                 false,
                                                 Some(get_factory(self).create_named_exports(map(
                                                     flat_map(
@@ -432,8 +432,8 @@ impl SymbolTableToDeclarationStatements {
             statements = {
                 let mut statements = non_exports;
                 statements.push(get_factory(self).create_export_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     false,
                     Some(get_factory(self).create_named_exports(flat_map(
                         Some(&exports),
@@ -501,8 +501,8 @@ impl SymbolTableToDeclarationStatements {
                                     .is_none()
                             });
                             statements.push(get_factory(self).create_export_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 false,
                                 Some(get_factory(self).create_named_exports(flat_map(
                                     Some(&group),
@@ -914,8 +914,8 @@ impl SymbolTableToDeclarationStatements {
                         };
                         self.add_result(
                             get_factory(self).create_export_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 false,
                                 Some(get_factory(self).create_named_exports(
                                     vec![
@@ -938,7 +938,7 @@ impl SymbolTableToDeclarationStatements {
                     } else {
                         let statement = set_text_range_id_node(
                             get_factory(self).create_variable_statement(
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                     get_factory(self).create_variable_declaration_list(
                                         vec![
                                             get_factory(self).create_variable_declaration(
@@ -972,8 +972,8 @@ impl SymbolTableToDeclarationStatements {
                         if name != local_name && !is_private {
                             self.add_result(
                                 get_factory(self).create_export_declaration(
-                                        Option::<Gc<NodeArray>>::None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         false,
                                         Some(get_factory(self).create_named_exports(
                                             vec![
@@ -1062,8 +1062,8 @@ impl SymbolTableToDeclarationStatements {
                         )?);
                     self.add_result(
                         get_factory(self).create_export_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             false,
                             None,
                             Some(get_factory(self).create_string_literal(
@@ -1084,8 +1084,8 @@ impl SymbolTableToDeclarationStatements {
         if needs_post_export_default {
             self.add_result(
                 get_factory(self).create_export_assignment(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(false),
                     get_factory(self)
                         .create_identifier(&self.get_internal_symbol_name(symbol, symbol_name)),
@@ -1095,8 +1095,8 @@ impl SymbolTableToDeclarationStatements {
         } else if needs_export_declaration {
             self.add_result(
                 get_factory(self).create_export_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     false,
                     Some(get_factory(self).create_named_exports(vec![
                         get_factory(self).create_export_specifier(

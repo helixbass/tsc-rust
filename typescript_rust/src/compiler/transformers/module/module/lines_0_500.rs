@@ -339,7 +339,7 @@ impl TransformModule {
                         Some(vec![self.factory.ref_(self).create_expression_statement(
                             self.factory.ref_(self).create_call_expression(
                                 define,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 Some(
                                     if let Some(module_name) = module_name {
                                         vec![module_name]
@@ -377,7 +377,7 @@ impl TransformModule {
                                                     || {
                                                         self.factory
                                                             .ref_(self).create_object_literal_expression(
-                                                                Option::<Gc<NodeArray>>::None,
+                                                                Option::<Id<NodeArray>>::None,
                                                                 None,
                                                             )
                                                     },
@@ -389,15 +389,15 @@ impl TransformModule {
                                                 )
                                         } else {
                                             self.factory.ref_(self).create_function_expression(
-                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
                                                 None,
                                                 Option::<Id<Node>>::None,
-                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
                                                 Some(
                                                     vec![
                                                         self.factory.ref_(self).create_parameter_declaration(
-                                                            Option::<Gc<NodeArray>>::None,
-                                                            Option::<Gc<NodeArray>>::None,
+                                                            Option::<Id<NodeArray>>::None,
+                                                            Option::<Id<NodeArray>>::None,
                                                             None,
                                                             Some("require"),
                                                             None,
@@ -405,8 +405,8 @@ impl TransformModule {
                                                             None,
                                                         ),
                                                         self.factory.ref_(self).create_parameter_declaration(
-                                                            Option::<Gc<NodeArray>>::None,
-                                                            Option::<Gc<NodeArray>>::None,
+                                                            Option::<Id<NodeArray>>::None,
+                                                            Option::<Id<NodeArray>>::None,
                                                             None,
                                                             Some("exports"),
                                                             None,
@@ -454,13 +454,13 @@ impl TransformModule {
             &self.compiler_options.ref_(self),
         );
         let umd_header = self.factory.ref_(self).create_function_expression(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             None,
             Option::<Id<Node>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![self.factory.ref_(self).create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some("factory"),
                 None,
@@ -487,14 +487,14 @@ impl TransformModule {
                         self.factory.ref_(self).create_block(
                             vec![
                                 self.factory.ref_(self).create_variable_statement(
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     vec![self.factory.ref_(self).create_variable_declaration(
                                         Some("v"),
                                         None,
                                         None,
                                         Some(self.factory.ref_(self).create_call_expression(
                                             self.factory.ref_(self).create_identifier("factory"),
-                                            Option::<Gc<NodeArray>>::None,
+                                            Option::<Id<NodeArray>>::None,
                                             Some(vec![
                                                 self.factory.ref_(self).create_identifier("require"),
                                                 self.factory.ref_(self).create_identifier("exports"),
@@ -539,7 +539,7 @@ impl TransformModule {
                                     self.factory.ref_(self).create_expression_statement(
                                         self.factory.ref_(self).create_call_expression(
                                             self.factory.ref_(self).create_identifier("define"),
-                                            Option::<Gc<NodeArray>>::None,
+                                            Option::<Id<NodeArray>>::None,
                                             Some(if let Some(module_name) = module_name {
                                                 vec![
                                                     module_name
@@ -594,17 +594,17 @@ impl TransformModule {
                         Some(vec![self.factory.ref_(self).create_expression_statement(
                             self.factory.ref_(self).create_call_expression(
                                 umd_header,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 Some(vec![self.factory.ref_(self).create_function_expression(
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     None,
                                     Option::<Id<Node>>::None,
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     Some(
                                         vec![
                                             self.factory.ref_(self).create_parameter_declaration(
-                                                Option::<Gc<NodeArray>>::None,
-                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
                                                 None,
                                                 Some("require"),
                                                 None,
@@ -612,8 +612,8 @@ impl TransformModule {
                                                 None,
                                             ),
                                             self.factory.ref_(self).create_parameter_declaration(
-                                                Option::<Gc<NodeArray>>::None,
-                                                Option::<Gc<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
+                                                Option::<Id<NodeArray>>::None,
                                                 None,
                                                 Some("exports"),
                                                 None,
@@ -661,8 +661,8 @@ impl TransformModule {
                     None,
                 ));
                 import_alias_names.push(self.factory.ref_(self).create_parameter_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     None,
                     Some(&**amd_dependency_name),
                     None,
@@ -700,8 +700,8 @@ impl TransformModule {
                     set_emit_flags(import_alias_name, EmitFlags::NoSubstitution, self);
                     aliased_module_names.push(external_module_name);
                     import_alias_names.push(self.factory.ref_(self).create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         Some(import_alias_name),
                         None,
@@ -1053,7 +1053,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                     .ref_(self).update_call_expression(
                         node,
                         expression,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         node_as_call_expression.arguments.clone(),
                     )
                     .add_emit_flags(EmitFlags::IndirectCall, self));
@@ -1081,7 +1081,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
                     .ref_(self).update_tagged_template_expression(
                         node,
                         tag,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         node_as_tagged_template_expression.template.clone(),
                     )
                     .add_emit_flags(EmitFlags::IndirectCall, self));

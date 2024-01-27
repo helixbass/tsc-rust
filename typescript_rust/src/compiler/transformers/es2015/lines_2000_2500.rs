@@ -804,13 +804,13 @@ impl TransformES2015 {
 
                 statements.push(
                     self.factory
-                        .ref_(self).create_variable_statement(Option::<Gc<NodeArray>>::None, declaration_list),
+                        .ref_(self).create_variable_statement(Option::<Id<NodeArray>>::None, declaration_list),
                 );
             } else {
                 statements.push(
                     self.factory
                         .ref_(self).create_variable_statement(
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.factory
                                 .ref_(self).create_variable_declaration_list(
                                     vec![self.factory.ref_(self).create_variable_declaration(

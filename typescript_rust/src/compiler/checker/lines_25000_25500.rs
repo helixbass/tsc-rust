@@ -254,7 +254,7 @@ impl TypeChecker {
             for_each_child_returns(
                 node,
                 |node: Id<Node>| self.find_first_super_call(node),
-                Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+                Option::<fn(Id<NodeArray>) -> Option<Id<Node>>>::None,
                 self,
             )
         }

@@ -1242,7 +1242,7 @@ fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>, arena: &i
     try_for_each_child(
         node,
         |node: Id<Node>| collect_linked_aliases(resolver, node, arena),
-        Option::<fn(&NodeArray) -> io::Result<()>>::None,
+        Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
         arena,
     )?;
 
@@ -2106,11 +2106,11 @@ impl Printer {
         self.handlers.on_after_emit_node(node)
     }
 
-    pub(super) fn on_before_emit_node_array(&self, nodes: Option<&NodeArray>) {
+    pub(super) fn on_before_emit_node_array(&self, nodes: Option<Id<NodeArray>>) {
         self.handlers.on_before_emit_node_array(nodes)
     }
 
-    pub(super) fn on_after_emit_node_array(&self, nodes: Option<&NodeArray>) {
+    pub(super) fn on_after_emit_node_array(&self, nodes: Option<Id<NodeArray>>) {
         self.handlers.on_after_emit_node_array(nodes)
     }
 
@@ -2399,7 +2399,7 @@ impl Printer {
     pub fn print_list(
         &self,
         format: ListFormat,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         source_file: Id<Node>, /*SourceFile*/
     ) -> io::Result<String> {
         self.write_list(format, nodes, Some(source_file), self.begin_print())?;
@@ -2443,7 +2443,7 @@ impl Printer {
     pub fn write_list(
         &self,
         format: ListFormat,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         source_file: Option<Id<Node> /*SourceFile*/>,
         output: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {

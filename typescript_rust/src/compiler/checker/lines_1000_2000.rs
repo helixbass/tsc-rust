@@ -1501,7 +1501,7 @@ impl TypeChecker {
                 for_each_child_bool(
                     node,
                     |child| self.requires_scope_change_worker(target, child),
-                    Option::<fn(&NodeArray) -> bool>::None,
+                    Option::<fn(Id<NodeArray>) -> bool>::None,
                     self,
                 ) || false
             }

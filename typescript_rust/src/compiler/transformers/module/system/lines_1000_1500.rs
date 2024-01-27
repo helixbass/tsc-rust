@@ -170,7 +170,7 @@ impl TransformSystemModule {
         self.factory
             .ref_(self).create_call_expression(
                 self.export_function(),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![export_name, value]),
             )
             .set_comment_range(&*value.ref_(self), self)

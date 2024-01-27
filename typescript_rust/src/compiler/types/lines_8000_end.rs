@@ -684,8 +684,8 @@ pub trait PrintHandlers: Trace + Finalize {
     fn on_set_source_file(&self, _node: Id<Node> /*SourceFile*/) {}
     fn on_before_emit_node(&self, _node: Option<Id<Node>>) {}
     fn on_after_emit_node(&self, _node: Option<Id<Node>>) {}
-    fn on_before_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
-    fn on_after_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
+    fn on_before_emit_node_array(&self, _nodes: Option<Id<NodeArray>>) {}
+    fn on_after_emit_node_array(&self, _nodes: Option<Id<NodeArray>>) {}
     fn on_before_emit_token(&self, _node: Option<Id<Node>>) {}
     fn on_after_emit_token(&self, _node: Option<Id<Node>>) {}
 }

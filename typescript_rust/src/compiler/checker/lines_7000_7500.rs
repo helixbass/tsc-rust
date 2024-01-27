@@ -209,8 +209,8 @@ impl SymbolTableToDeclarationStatements {
         self.add_result(
             set_synthetic_leading_comments(
                 get_factory(self).create_type_alias_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     &*self.get_internal_symbol_name(symbol, symbol_name),
                     type_param_decls,
                     type_node,
@@ -297,8 +297,8 @@ impl SymbolTableToDeclarationStatements {
         };
         self.add_result(
             get_factory(self).create_interface_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 &*self.get_internal_symbol_name(symbol, symbol_name),
                 type_param_decls,
                 heritage_clauses,
@@ -392,8 +392,8 @@ impl SymbolTableToDeclarationStatements {
             let ns_body =
                 get_factory(self).create_module_block(Some(vec![get_factory(self)
                     .create_export_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         false,
                         Some(get_factory(self).create_named_exports(try_map_defined(
                             Some(&filter(&merged_members, |&n: &Id<Symbol>| {
@@ -460,8 +460,8 @@ impl SymbolTableToDeclarationStatements {
                     )]));
             self.add_result(
                 get_factory(self).create_module_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     get_factory(self).create_identifier(&local_name),
                     Some(ns_body),
                     Some(NodeFlags::Namespace),
@@ -481,7 +481,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<()> {
         self.add_result(
             get_factory(self).create_enum_declaration(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(get_factory(self).create_modifiers_from_modifier_flags(
                     if self.type_checker.is_const_enum_symbol(symbol) {
                         ModifierFlags::Const
@@ -644,8 +644,8 @@ impl SymbolTableToDeclarationStatements {
                 .cloned()
                 .unwrap_or_default();
             let mut fakespace = get_parse_node_factory(self).create_module_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 get_factory(self).create_identifier(local_name),
                 Some(get_factory(self).create_module_block(Some(vec![]))),
                 Some(NodeFlags::Namespace),
@@ -688,8 +688,8 @@ impl SymbolTableToDeclarationStatements {
                         && is_identifier(&d_as_export_assignment.expression.ref_(self))
                 } {
                     get_factory(self).create_export_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         false,
                         Some(get_factory(self).create_named_exports(vec![
                             get_factory(self).create_export_specifier(
@@ -923,8 +923,8 @@ impl SymbolTableToDeclarationStatements {
         });
         let private_properties: Vec<Id<Node>> = if has_private_identifier {
             vec![get_factory(self).create_property_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 get_factory(self).create_private_identifier("#private"),
                 None,
                 None,
@@ -975,7 +975,7 @@ impl SymbolTableToDeclarationStatements {
             );
         let constructors = if is_non_constructable_class_like_in_js_file {
             vec![get_factory(self).create_constructor_declaration(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(get_factory(self).create_modifiers_from_modifier_flags(ModifierFlags::Private)),
                 Some(vec![]),
                 None,
@@ -994,8 +994,8 @@ impl SymbolTableToDeclarationStatements {
         self.add_result(
             set_text_range_id_node(
                 get_factory(self).create_class_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(local_name),
                     type_param_decls,
                     Some(heritage_clauses),
@@ -1114,8 +1114,8 @@ impl SymbolTableToDeclarationStatements {
                     let property_name = node.ref_(self).as_binding_element().property_name;
                     self.add_result(
                         get_factory(self).create_import_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(get_factory(self).create_import_clause(
                                 false,
                                 None,
@@ -1179,8 +1179,8 @@ impl SymbolTableToDeclarationStatements {
                     )?;
                     self.add_result(
                         get_factory(self).create_import_equals_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             false,
                             unique_name.clone(),
                             get_factory(self).create_external_module_reference(
@@ -1191,8 +1191,8 @@ impl SymbolTableToDeclarationStatements {
                     );
                     self.add_result(
                         get_factory(self).create_import_equals_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             false,
                             get_factory(self).create_identifier(local_name),
                             get_factory(self).create_qualified_name(
@@ -1220,8 +1220,8 @@ impl SymbolTableToDeclarationStatements {
                     && !is_variable_declaration(&node.ref_(self));
                 self.add_result(
                     get_factory(self).create_import_equals_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         false,
                         get_factory(self).create_identifier(local_name),
                         if is_local_import {
@@ -1266,8 +1266,8 @@ impl SymbolTableToDeclarationStatements {
                     && !is_variable_declaration(&node.ref_(self));
                 self.add_result(
                     get_factory(self).create_import_equals_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         false,
                         get_factory(self).create_identifier(local_name),
                         if is_local_import {
@@ -1306,8 +1306,8 @@ impl SymbolTableToDeclarationStatements {
             SyntaxKind::ImportClause => {
                 self.add_result(
                     get_factory(self).create_import_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(get_factory(self).create_import_clause(
                             false,
                             Some(get_factory(self).create_identifier(local_name)),
@@ -1329,8 +1329,8 @@ impl SymbolTableToDeclarationStatements {
             SyntaxKind::NamespaceImport => {
                 self.add_result(
                     get_factory(self).create_import_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(get_factory(self).create_import_clause(
                             false,
                             None,
@@ -1352,8 +1352,8 @@ impl SymbolTableToDeclarationStatements {
             SyntaxKind::NamespaceExport => {
                 self.add_result(
                     get_factory(self).create_export_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         false,
                         Some(
                             get_factory(self).create_namespace_export(
@@ -1376,8 +1376,8 @@ impl SymbolTableToDeclarationStatements {
             SyntaxKind::ImportSpecifier => {
                 self.add_result(
                     get_factory(self).create_import_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(get_factory(self).create_import_clause(
                             false,
                             None,

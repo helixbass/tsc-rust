@@ -105,7 +105,7 @@ impl TransformES2015 {
                 .set_text_range(Some(&*node_variable_declaration.ref_(self)), self);
             let destructure = self
                 .factory
-                .ref_(self).create_variable_statement(Option::<Gc<NodeArray>>::None, list);
+                .ref_(self).create_variable_statement(Option::<Id<NodeArray>>::None, list);
             updated = self.factory.ref_(self).update_catch_clause(
                 node,
                 Some(new_variable_declaration),
@@ -305,7 +305,7 @@ impl TransformES2015 {
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
                         &node_as_call_expression.arguments,
                         Some(|node: Id<Node>| self.visitor(node)),
@@ -485,10 +485,10 @@ impl TransformES2015 {
                                     Some(call_as_call_expression.expression),
                                     self.factory.ref_(self).update_function_expression(
                                         func,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         None,
                                         None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         func_as_function_expression.parameters(),
                                         None,
                                         self.factory.ref_(self).update_block(
@@ -498,7 +498,7 @@ impl TransformES2015 {
                                     ),
                                     None,
                                 ),
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 call_as_call_expression.arguments.clone(),
                             ),
                             None,
@@ -698,7 +698,7 @@ impl TransformES2015 {
                         false,
                     )?,
                 ),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             ));
         }
@@ -707,7 +707,7 @@ impl TransformES2015 {
 
     pub(super) fn transform_and_spread_elements(
         &self,
-        elements: &NodeArray, /*<Expression>*/
+        elements: Id<NodeArray>, /*<Expression>*/
         is_argument_list: bool,
         multi_line: bool,
         has_trailing_comma: bool,
@@ -745,7 +745,7 @@ impl TransformES2015 {
         let starts_with_spread = segments[0].kind != SpreadSegmentKind::None;
         let mut expression: Id<Node /*Expression*/> = if starts_with_spread {
             self.factory
-                .ref_(self).create_array_literal_expression(Option::<Gc<NodeArray>>::None, None)
+                .ref_(self).create_array_literal_expression(Option::<Id<NodeArray>>::None, None)
         } else {
             segments[0].expression.clone()
         };

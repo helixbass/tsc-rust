@@ -486,7 +486,7 @@ impl TypeChecker {
                     });
                     children_prop_symbol.ref_(self).set_value_declaration(
                         get_factory(self).create_property_signature(
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             unescape_leading_underscores(jsx_children_property_name),
                             None,
                             None,

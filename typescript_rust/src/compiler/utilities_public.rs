@@ -1186,7 +1186,7 @@ pub fn get_all_jsdoc_tags_of_kind(
 #[derive(Clone, Debug)]
 pub enum StrOrNodeArray<'a> {
     Str(&'a str),
-    NodeArray(Gc<NodeArray>),
+    NodeArray(Id<NodeArray>),
 }
 
 impl<'a> From<&'a str> for StrOrNodeArray<'a> {
@@ -1195,8 +1195,8 @@ impl<'a> From<&'a str> for StrOrNodeArray<'a> {
     }
 }
 
-impl<'a> From<Gc<NodeArray>> for StrOrNodeArray<'a> {
-    fn from(value: Gc<NodeArray>) -> Self {
+impl<'a> From<Id<NodeArray>> for StrOrNodeArray<'a> {
+    fn from(value: Id<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }

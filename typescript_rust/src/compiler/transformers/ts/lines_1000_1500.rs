@@ -372,8 +372,8 @@ impl TransformTypeScript {
                     self.factory.ref_(self).create_property_assignment(
                         "type",
                         self.factory.ref_(self).create_arrow_function(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             vec![],
                             None,
                             Some(
@@ -390,8 +390,8 @@ impl TransformTypeScript {
                     self.factory.ref_(self).create_property_assignment(
                         "paramTypes",
                         self.factory.ref_(self).create_arrow_function(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             vec![],
                             None,
                             Some(
@@ -408,8 +408,8 @@ impl TransformTypeScript {
                     self.factory.ref_(self).create_property_assignment(
                         "returnType",
                         self.factory.ref_(self).create_arrow_function(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             vec![],
                             None,
                             Some(
@@ -560,7 +560,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>,      /*SignatureDeclaration*/
         container: Id<Node>, /*ClassLikeDeclaration*/
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         if
         /*container &&*/
         node.ref_(self).kind() == SyntaxKind::GetAccessor {

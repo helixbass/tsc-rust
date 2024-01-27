@@ -163,7 +163,7 @@ impl TransformSystemModule {
                             self.factory
                                 .ref_(self).get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         try_visit_nodes(
                             &node_as_function_declaration.parameters(),
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -234,9 +234,9 @@ impl TransformSystemModule {
                                     None,
                                     self,
                                 )?,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 node_as_class_declaration.maybe_name(),
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 try_maybe_visit_nodes(
                                     node_as_class_declaration
                                         .maybe_heritage_clauses()

@@ -294,7 +294,7 @@ impl ParserType {
         &self,
         pos: isize,
         identifier: Id<Node /*Identifier*/>,
-        async_modifier: Option<Gc<NodeArray> /*<Modifier>*/>,
+        async_modifier: Option<Id<NodeArray> /*<Modifier>*/>,
     ) -> Id<Node> {
         Debug_.assert(
             self.token() == SyntaxKind::EqualsGreaterThanToken,
@@ -302,8 +302,8 @@ impl ParserType {
         );
         let identifier_pos = identifier.ref_(self).pos();
         let parameter = self.factory().ref_(self).create_parameter_declaration_raw(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             None,
             Some(identifier),
             None,
@@ -325,7 +325,7 @@ impl ParserType {
         let body = self.parse_arrow_function_expression_body(async_modifier.is_some());
         let node = self.factory().ref_(self).create_arrow_function_raw(
             async_modifier,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             parameters,
             None,
             Some(equals_greater_than_token.alloc(self.arena())),
@@ -560,7 +560,7 @@ impl ParserType {
         };
         let type_parameters = self.parse_type_parameters();
 
-        let parameters: Gc<NodeArray>;
+        let parameters: Id<NodeArray>;
         if !self.parse_expected(SyntaxKind::OpenParenToken, None, None) {
             if !allow_ambiguity {
                 return None;

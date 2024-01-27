@@ -317,10 +317,10 @@ impl TypeChecker {
             )
         })?;
         let declaration = get_factory(self).create_function_type_node(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             vec![get_factory(self).create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some("props"),
                 None,
@@ -329,7 +329,7 @@ impl TypeChecker {
                 None,
             )],
             Some(if let Some(return_node) = return_node {
-                get_factory(self).create_type_reference_node(return_node, Option::<Gc<NodeArray>>::None)
+                get_factory(self).create_type_reference_node(return_node, Option::<Id<NodeArray>>::None)
             } else {
                 get_factory(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
             }),

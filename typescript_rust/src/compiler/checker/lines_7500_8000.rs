@@ -35,8 +35,8 @@ impl SymbolTableToDeclarationStatements {
     ) {
         self.add_result(
             get_factory(self).create_export_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 false,
                 Some(get_factory(self).create_named_exports(vec![
                     get_factory(self).create_export_specifier(
@@ -110,8 +110,8 @@ impl SymbolTableToDeclarationStatements {
                 if is_export_assignment_compatible_symbol_name {
                     self.results_mut()
                         .push(get_factory(self).create_export_assignment(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(is_export_equals),
                             self.node_builder.symbol_to_expression_(
                                 target,
@@ -139,8 +139,8 @@ impl SymbolTableToDeclarationStatements {
                         let var_name = self.get_unused_name(name, Some(symbol));
                         self.add_result(
                             get_factory(self).create_import_equals_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 false,
                                 get_factory(self).create_identifier(&var_name),
                                 self.node_builder.symbol_to_name(
@@ -179,7 +179,7 @@ impl SymbolTableToDeclarationStatements {
                     )?;
                 } else {
                     let statement = get_factory(self).create_variable_statement(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         get_factory(self).create_variable_declaration_list(
                             vec![get_factory(self).create_variable_declaration(
                                 Some(&*var_name),
@@ -217,8 +217,8 @@ impl SymbolTableToDeclarationStatements {
                 if is_export_assignment_compatible_symbol_name {
                     self.results_mut()
                         .push(get_factory(self).create_export_assignment(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(is_export_equals),
                             get_factory(self).create_identifier(&var_name),
                         ));
@@ -390,7 +390,7 @@ impl SymbolTableToDeclarationStatements {
             if private_protected != ModifierFlags::None {
                 return Ok(vec![set_text_range_id_node(
                     get_factory(self).create_constructor_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(get_factory(self).create_modifiers_from_modifier_flags(private_protected)),
                         Some(vec![]),
                         None,
@@ -461,7 +461,7 @@ impl SymbolTableToDeclarationStatements {
         let temp_name =
             self.get_unused_name(&format!("{root_name}_base"), Option::<Id<Symbol>>::None);
         let statement = get_factory(self).create_variable_statement(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             get_factory(self).create_variable_declaration_list(
                 vec![get_factory(self).create_variable_declaration(
                     Some(&*temp_name),
@@ -476,7 +476,7 @@ impl SymbolTableToDeclarationStatements {
         self.add_result(statement, ModifierFlags::None);
         Ok(get_factory(self).create_expression_with_type_arguments(
             get_factory(self).create_identifier(&temp_name),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
         ))
     }
 
@@ -549,7 +549,7 @@ impl SymbolTableToDeclarationStatements {
                         &self.context(),
                         Some(SymbolFlags::Type),
                     )?,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                 ))
             })
     }
@@ -773,12 +773,12 @@ impl MakeSerializePropertySymbol {
             if p.ref_(self).flags().intersects(SymbolFlags::SetAccessor) {
                 result.push(set_text_range_id_node(
                     get_factory(self).create_set_accessor_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(get_factory(self).create_modifiers_from_modifier_flags(flag)),
                         name.clone(),
                         vec![get_factory(self).create_parameter_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             None,
                             Some("arg"),
                             None,
@@ -825,7 +825,7 @@ impl MakeSerializePropertySymbol {
                 let is_private = modifier_flags.intersects(ModifierFlags::Private);
                 result.push(set_text_range_id_node(
                     get_factory(self).create_get_accessor_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(get_factory(self).create_modifiers_from_modifier_flags(flag)),
                         name.clone(),
                         vec![],

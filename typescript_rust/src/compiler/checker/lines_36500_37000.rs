@@ -917,7 +917,7 @@ impl TypeChecker {
                     child_node,
                 )
             },
-            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
             self,
         )
     }
@@ -1006,7 +1006,7 @@ impl TypeChecker {
                     child_node,
                 )
             },
-            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
             self,
         )
     }

@@ -468,8 +468,8 @@ impl TransformModule {
         let reject = self.factory.ref_(self).create_unique_name("reject", None);
         let parameters = vec![
             self.factory.ref_(self).create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some(resolve.clone()),
                 None,
@@ -477,8 +477,8 @@ impl TransformModule {
                 None,
             ),
             self.factory.ref_(self).create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some(reject.clone()),
                 None,
@@ -491,7 +491,7 @@ impl TransformModule {
                 .factory
                 .ref_(self).create_expression_statement(self.factory.ref_(self).create_call_expression(
                     self.factory.ref_(self).create_identifier("require"),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![
                         self.factory.ref_(self).create_array_literal_expression(
                             Some(vec![
@@ -509,8 +509,8 @@ impl TransformModule {
         let func: Id<Node /*FunctionExpression | ArrowFunction*/>;
         if self.language_version >= ScriptTarget::ES2015 {
             func = self.factory.ref_(self).create_arrow_function(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 parameters,
                 None,
                 None,
@@ -518,10 +518,10 @@ impl TransformModule {
             )
         } else {
             func = self.factory.ref_(self).create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Option::<Id<Node>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(parameters),
                 None,
                 body,
@@ -534,7 +534,7 @@ impl TransformModule {
 
         let promise = self.factory.ref_(self).create_new_expression(
             self.factory.ref_(self).create_identifier("Promise"),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![func]),
         );
         if get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true) {
@@ -543,7 +543,7 @@ impl TransformModule {
                     promise,
                     self.factory.ref_(self).create_identifier("then"),
                 ),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![self
                     .emit_helpers()
                     .create_import_star_callback_helper()]),
@@ -562,12 +562,12 @@ impl TransformModule {
                 self.factory.ref_(self).create_identifier("Promise"),
                 "resolve",
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![]),
         );
         let mut require_call/*: Expression*/ = self.factory.ref_(self).create_call_expression(
             self.factory.ref_(self).create_identifier("require"),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(arg.map_or_default(|arg| vec![arg]))
         );
         if get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true) {
@@ -577,8 +577,8 @@ impl TransformModule {
         let func: Id<Node /*FunctionExpression | ArrowFunction*/>;
         if self.language_version >= ScriptTarget::ES2015 {
             func = self.factory.ref_(self).create_arrow_function(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 vec![],
                 None,
                 None,
@@ -586,10 +586,10 @@ impl TransformModule {
             );
         } else {
             func = self.factory.ref_(self).create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Option::<Id<Node>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![]),
                 None,
                 self.factory.ref_(self).create_block(
@@ -606,7 +606,7 @@ impl TransformModule {
         self.factory.ref_(self).create_call_expression(
             self.factory
                 .ref_(self).create_property_access_expression(promise_resolve_call, "then"),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![func]),
         )
     }
@@ -713,7 +713,7 @@ impl TransformModule {
                 statements.get_or_insert_default_().push(
                     self.factory
                         .ref_(self).create_variable_statement(
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 variables,
                                 Some(
@@ -732,7 +732,7 @@ impl TransformModule {
         {
             statements.get_or_insert_default_().push(
                 self.factory.ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
                             Some(
@@ -787,7 +787,7 @@ impl TransformModule {
 
         Ok(self.factory.ref_(self).create_call_expression(
             self.factory.ref_(self).create_identifier("require"),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(args),
         ))
     }

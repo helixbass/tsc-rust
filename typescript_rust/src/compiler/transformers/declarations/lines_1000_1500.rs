@@ -96,7 +96,7 @@ impl TransformDeclarations {
                     self.factory
                         .ref_(self).update_export_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             input.ref_(self).maybe_modifiers(),
                             input_as_export_declaration.is_type_only,
                             input_as_export_declaration.export_clause.clone(),
@@ -247,7 +247,7 @@ impl TransformDeclarations {
                     Some(
                         self.factory.ref_(self).update_type_alias_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_type_alias_declaration.name(),
                             try_maybe_visit_nodes(
@@ -284,7 +284,7 @@ impl TransformDeclarations {
                     Some(
                         self.factory.ref_(self).update_interface_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_interface_declaration.name(),
                             self.ensure_type_params(
@@ -324,7 +324,7 @@ impl TransformDeclarations {
                     Some(
                         self.factory.ref_(self).update_function_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             None,
                             input_as_function_declaration.maybe_name(),
@@ -358,8 +358,8 @@ impl TransformDeclarations {
                     let clean_as_function_declaration = clean_ref.as_function_declaration();
                     let props = self.resolver.ref_(self).get_properties_of_container_function(input)?;
                     let fakespace = get_parse_node_factory(self).create_module_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         clean_as_function_declaration
                             .maybe_name()
                             .unwrap_or_else(|| self.factory.ref_(self).create_identifier("_default")),
@@ -441,8 +441,8 @@ impl TransformDeclarations {
                             });
                     } else {
                         declarations.push(self.factory.ref_(self).create_export_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             false,
                             Some(self.factory.ref_(self).create_named_exports(map(
                                 export_mappings,
@@ -456,7 +456,7 @@ impl TransformDeclarations {
                         ));
                     }
                     let namespace_decl = self.factory.ref_(self).create_module_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         input_as_function_declaration.name(),
                         Some(self.factory.ref_(self).create_module_block(Some(declarations))),
@@ -472,7 +472,7 @@ impl TransformDeclarations {
                     );
                     let clean_declaration = self.factory.ref_(self).update_function_declaration(
                         clean,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(modifiers.clone()),
                         None,
                         clean_as_function_declaration.maybe_name(),
@@ -486,15 +486,15 @@ impl TransformDeclarations {
                     let namespace_decl_as_module_declaration = namespace_decl_ref.as_module_declaration();
                     let namespace_declaration = self.factory.ref_(self).update_module_declaration(
                         namespace_decl,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(modifiers),
                         namespace_decl_as_module_declaration.name(),
                         namespace_decl_as_module_declaration.body.clone(),
                     );
 
                     let export_default_declaration = self.factory.ref_(self).create_export_assignment(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(false),
                         namespace_decl_as_module_declaration.name(),
                     );
@@ -578,7 +578,7 @@ impl TransformDeclarations {
                         previous_needs_declare,
                         Some(self.factory.ref_(self).update_module_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             mods,
                             if is_external_module_augmentation(input, self) {
                                 self.rewrite_module_specifier(
@@ -615,7 +615,7 @@ impl TransformDeclarations {
                         previous_needs_declare,
                         Some(self.factory.ref_(self).update_module_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             mods,
                             input_as_module_declaration.name(),
                             body.as_ref().map(SingleNodeOrVecNode::as_single_node),
@@ -666,7 +666,7 @@ impl TransformDeclarations {
                                 {
                                     vec![self.preserve_js_doc(
                                         self.factory.ref_(self).create_property_declaration(
-                                            Option::<Gc<NodeArray>>::None,
+                                            Option::<Id<NodeArray>>::None,
                                             self.ensure_modifiers(param),
                                             param_as_parameter_declaration.name(),
                                             param_as_parameter_declaration.maybe_question_token(),
@@ -704,8 +704,8 @@ impl TransformDeclarations {
                 );
                 let private_identifier = if has_private_identifier {
                     Some(vec![self.factory.ref_(self).create_property_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         self.factory.ref_(self).create_private_identifier("#private"),
                         None,
                         None,
@@ -875,7 +875,7 @@ impl TransformDeclarations {
                                 previous_needs_declare,
                                 Some(self.factory.ref_(self).update_class_declaration(
                                     input,
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     Some(modifiers),
                                     input_as_class_declaration.maybe_name(),
                                     type_parameters,
@@ -901,7 +901,7 @@ impl TransformDeclarations {
                         previous_needs_declare,
                         Some(self.factory.ref_(self).update_class_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(modifiers),
                             input_as_class_declaration.maybe_name(),
                             type_parameters,
@@ -931,7 +931,7 @@ impl TransformDeclarations {
                     Some(
                         self.factory.ref_(self).update_enum_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(
                                 self.factory
                                     .ref_(self).create_node_array(self.ensure_modifiers(input), None),
@@ -1006,7 +1006,7 @@ impl TransformDeclarations {
             elems
                 .get_or_insert_default_()
                 .push(self.factory.ref_(self).create_property_declaration(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.ensure_modifiers(param),
                     elem_as_binding_element.name(),
                     None,

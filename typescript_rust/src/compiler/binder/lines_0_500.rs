@@ -197,7 +197,7 @@ pub(super) fn get_module_instance_state_worker(
                         } // _ => Debug_.assert_never(child_state)
                     }
                 },
-                Option::<fn(&NodeArray) -> Option<()>>::None,
+                Option::<fn(Id<NodeArray>) -> Option<()>>::None,
                 arena,
             );
             return state;

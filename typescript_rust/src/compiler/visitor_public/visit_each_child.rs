@@ -57,12 +57,12 @@ pub fn maybe_visit_each_child(
         context,
         Option::<
             fn(
-                Option<&NodeArray>,
+                Option<Id<NodeArray>>,
                 Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                 Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> Option<Gc<NodeArray>>,
+            ) -> Option<Id<NodeArray>>,
         >::None,
         Option::<fn(Id<Node>) -> VisitResult>::None,
         Option::<
@@ -83,12 +83,12 @@ pub fn maybe_visit_each_child_full(
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> Option<Gc<NodeArray>>,
+        ) -> Option<Id<NodeArray>>,
     >,
     token_visitor: Option<impl Fn(Id<Node>) -> VisitResult>,
     mut node_visitor: Option<
@@ -101,12 +101,12 @@ pub fn maybe_visit_each_child_full(
     >,
     arena: &impl HasArena,
 ) -> Option<Id<Node>> {
-    let mut nodes_visitor = move |nodes: Option<&NodeArray>,
+    let mut nodes_visitor = move |nodes: Option<Id<NodeArray>>,
                                   visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                                   test: Option<&dyn Fn(Id<Node>) -> bool>,
                                   start: Option<usize>,
                                   count: Option<usize>|
-          -> Option<Gc<NodeArray>> {
+          -> Option<Id<NodeArray>> {
         if let Some(nodes_visitor) = nodes_visitor.as_mut() {
             nodes_visitor(nodes, visitor, test, start, count)
         } else {
@@ -520,12 +520,12 @@ pub fn maybe_visit_each_child_full(
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
-                            |nodes: Option<&NodeArray>,
+                            |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
                              count: Option<usize>|
-                             -> Option<Gc<NodeArray>> {
+                             -> Option<Id<NodeArray>> {
                                 nodes_visitor(nodes, visitor, test, start, count)
                             },
                         ),
@@ -581,7 +581,7 @@ pub fn maybe_visit_each_child_full(
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
-                            |nodes: Option<&NodeArray>,
+                            |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
@@ -641,7 +641,7 @@ pub fn maybe_visit_each_child_full(
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
-                            |nodes: Option<&NodeArray>,
+                            |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
@@ -707,7 +707,7 @@ pub fn maybe_visit_each_child_full(
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
-                            |nodes: Option<&NodeArray>,
+                            |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
@@ -1860,7 +1860,7 @@ pub fn maybe_visit_each_child_full(
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
-                            |nodes: Option<&NodeArray>,
+                            |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
@@ -1919,7 +1919,7 @@ pub fn maybe_visit_each_child_full(
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
-                            |nodes: Option<&NodeArray>,
+                            |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
@@ -2873,7 +2873,7 @@ pub fn maybe_visit_each_child_full(
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(
-                            |nodes: Option<&NodeArray>,
+                            |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
@@ -3911,12 +3911,12 @@ pub fn maybe_visit_each_child_full(
                     None,
                     Option::<
                         fn(
-                            Option<&NodeArray>,
+                            Option<Id<NodeArray>>,
                             Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                             Option<&dyn Fn(Id<Node>) -> bool>,
                             Option<usize>,
                             Option<usize>,
-                        ) -> Option<Gc<NodeArray>>,
+                        ) -> Option<Id<NodeArray>>,
                     >::None,
                     arena,
                 ),

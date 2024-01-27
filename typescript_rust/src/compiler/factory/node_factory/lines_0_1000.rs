@@ -587,7 +587,7 @@ impl NodeFactory {
         &self,
         elements: Option<impl Into<NodeArrayOrVec>>,
         has_trailing_comma: Option<bool>,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let elements = match elements {
             None => NodeArrayOrVec::Vec(vec![]),
             Some(elements) => elements.into(),
@@ -1092,7 +1092,7 @@ impl NodeFactory {
     }
 
     pub fn create_identifier(&self, text: &str) -> Id<Node> {
-        self.create_identifier_full(text, Option::<Gc<NodeArray>>::None, None)
+        self.create_identifier_full(text, Option::<Id<NodeArray>>::None, None)
     }
 
     pub fn update_identifier(
@@ -1274,7 +1274,7 @@ impl HasArena for NodeFactory {
 }
 
 pub fn has_option_node_array_changed(
-    existing: Option<&NodeArray>,
+    existing: Option<Id<NodeArray>>,
     maybe_changed: Option<&NodeArrayOrVec>,
 ) -> bool {
     match (existing, maybe_changed) {
@@ -1286,13 +1286,10 @@ pub fn has_option_node_array_changed(
     }
 }
 
-pub fn has_node_array_changed(existing: &Gc<NodeArray>, maybe_changed: &NodeArrayOrVec) -> bool {
+pub fn has_node_array_changed(existing: Id<NodeArray>, maybe_changed: &NodeArrayOrVec) -> bool {
     !matches!(
         maybe_changed,
-        NodeArrayOrVec::NodeArray(maybe_changed) if Gc::ptr_eq(
-            existing,
-            maybe_changed
-        )
+        NodeArrayOrVec::NodeArray(maybe_changed) if existing == *maybe_changed
     )
 }
 

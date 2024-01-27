@@ -247,9 +247,9 @@ impl TransformDeclarations {
     pub(super) fn update_params_list(
         &self,
         node: Id<Node>,
-        params: Option<&NodeArray /*<ParameterDeclaration>*/>,
+        params: Option<Id<NodeArray> /*<ParameterDeclaration>*/>,
         modifier_mask: Option<ModifierFlags>,
-    ) -> io::Result<Option<Gc<NodeArray> /*<ParameterDeclaration>*/>> {
+    ) -> io::Result<Option<Id<NodeArray> /*<ParameterDeclaration>*/>> {
         if has_effective_modifier(node, ModifierFlags::Private, self) {
             return Ok(None);
         }
@@ -267,7 +267,7 @@ impl TransformDeclarations {
         &self,
         input: Id<Node>, /*AccessorDeclaration*/
         is_private: bool,
-    ) -> io::Result<Gc<NodeArray>> {
+    ) -> io::Result<Id<NodeArray>> {
         let mut new_params: Vec<Id<Node /*ParameterDeclaration*/>> = Default::default();
         if !is_private {
             let this_parameter = get_this_parameter(input, self);
@@ -293,8 +293,8 @@ impl TransformDeclarations {
             }
             if new_value_parameter.is_none() {
                 new_value_parameter = Some(self.factory.ref_(self).create_parameter_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     None,
                     Some("value"),
                     None,
@@ -311,8 +311,8 @@ impl TransformDeclarations {
     pub(super) fn ensure_type_params(
         &self,
         node: Id<Node>,
-        params: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
-    ) -> io::Result<Option<Gc<NodeArray>>> {
+        params: Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>,
+    ) -> io::Result<Option<Id<NodeArray>>> {
         Ok(if has_effective_modifier(node, ModifierFlags::Private, self) {
             None
         } else {
@@ -426,7 +426,7 @@ impl TransformDeclarations {
                 Some(
                     self.factory.ref_(self).update_import_equals_declaration(
                         decl,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         decl.ref_(self).maybe_modifiers().clone(),
                         decl_as_import_equals_declaration.is_type_only,
                         decl_as_import_equals_declaration.name(),
@@ -462,7 +462,7 @@ impl TransformDeclarations {
             return Ok(Some(
                 self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
                     decl_as_import_declaration.import_clause,
                     self.rewrite_module_specifier(
@@ -485,7 +485,7 @@ impl TransformDeclarations {
             return visible_default_binding.try_map(|visible_default_binding| -> io::Result<_> {
                 Ok(self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
                     Some(self.factory.ref_(self).update_import_clause(
                         decl_import_clause,
@@ -519,7 +519,7 @@ impl TransformDeclarations {
                     Some(
                         self.factory.ref_(self).update_import_declaration(
                             decl,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             decl.ref_(self).maybe_modifiers().clone(),
                             Some(self.factory.ref_(self).update_import_clause(
                                 decl_import_clause,
@@ -560,7 +560,7 @@ impl TransformDeclarations {
             return Ok(Some(
                 self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
                     Some(self.factory.ref_(self).update_import_clause(
                         decl_import_clause,
@@ -590,7 +590,7 @@ impl TransformDeclarations {
             return Ok(Some(
                 self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
                     None,
                     self.rewrite_module_specifier(
@@ -607,8 +607,8 @@ impl TransformDeclarations {
 
     pub(super) fn transform_and_replace_late_painted_statements(
         &self,
-        statements: &NodeArray, /*<Statement>*/
-    ) -> io::Result<Gc<NodeArray>> /*<Statement>*/ {
+        statements: Id<NodeArray>, /*<Statement>*/
+    ) -> io::Result<Id<NodeArray>> /*<Statement>*/ {
         while length(self.maybe_late_marked_statements().as_deref()) > 0 {
             let i = self.late_marked_statements_mut().remove(0);
             if !is_late_visibility_painted_statement(&i.ref_(self)) {
@@ -744,7 +744,7 @@ impl TransformDeclarations {
                     should_enter_suppress_new_diagnostics_context_context,
                     old_within_object_literal_type,
                     Some(self.factory.ref_(self).create_property_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         input.ref_(self).as_named_declaration().name(),
                         None,
@@ -880,7 +880,7 @@ impl TransformDeclarations {
                     let input_ref = input.ref_(self);
                     let input_as_constructor_declaration = input_ref.as_constructor_declaration();
                     let ctor = self.factory.ref_(self).create_constructor_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         self.update_params_list(
                             input,
@@ -914,7 +914,7 @@ impl TransformDeclarations {
                         );
                     }
                     let sig = self.factory.ref_(self).create_method_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         None,
                         input_as_method_declaration.name(),
@@ -975,7 +975,7 @@ impl TransformDeclarations {
                         old_within_object_literal_type,
                         Some(self.factory.ref_(self).update_get_accessor_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_get_accessor_declaration.name(),
                             self.update_accessor_params_list(
@@ -1010,7 +1010,7 @@ impl TransformDeclarations {
                         old_within_object_literal_type,
                         Some(self.factory.ref_(self).update_set_accessor_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_set_accessor_declaration.name(),
                             self.update_accessor_params_list(
@@ -1044,7 +1044,7 @@ impl TransformDeclarations {
                         old_within_object_literal_type,
                         Some(self.factory.ref_(self).update_property_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_property_declaration.name(),
                             input_as_property_declaration.maybe_question_token(),
@@ -1184,7 +1184,7 @@ impl TransformDeclarations {
                         Some(
                             self.factory.ref_(self).update_index_signature(
                                 input,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 self.ensure_modifiers(input),
                                 self.update_params_list(
                                     input,

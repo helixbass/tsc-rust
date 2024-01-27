@@ -312,7 +312,7 @@ impl NodeFactory {
     pub(super) fn as_node_array(
         &self,
         array: Option<impl Into<NodeArrayOrVec>>,
-    ) -> Option<Gc<NodeArray>> {
+    ) -> Option<Id<NodeArray>> {
         array.map(|array| self.create_node_array(Some(array), None))
     }
 
@@ -546,13 +546,13 @@ pub(super) fn propagate_child_flags(child: Option<Id<Node>>, arena: &impl HasAre
     }
 }
 
-pub(super) fn propagate_children_flags(children: Option<&NodeArray>) -> TransformFlags {
+pub(super) fn propagate_children_flags(children: Option<Id<NodeArray>>) -> TransformFlags {
     children.map_or(TransformFlags::None, |children| {
         children.maybe_transform_flags().unwrap()
     })
 }
 
-pub(super) fn aggregate_children_flags(children: &NodeArray, arena: &impl HasArena) {
+pub(super) fn aggregate_children_flags(children: Id<NodeArray>, arena: &impl HasArena) {
     let mut subtree_flags = TransformFlags::None;
     for &child in children.iter() {
         subtree_flags |= propagate_child_flags(Some(child), arena);

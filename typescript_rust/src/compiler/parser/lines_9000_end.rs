@@ -61,7 +61,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
 #[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
     source_file: Id<Node /*SourceFile*/>,
-    current_array: GcCell<Option<Gc<NodeArray>>>,
+    current_array: GcCell<Option<Id<NodeArray>>>,
     #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
     current: GcCell<Option<Id<Node>>>,
@@ -85,11 +85,11 @@ impl IncrementalParserSyntaxCursorCreated {
         }
     }
 
-    fn current_array(&self) -> Gc<NodeArray> {
+    fn current_array(&self) -> Id<NodeArray> {
         self.current_array.borrow().clone().unwrap()
     }
 
-    fn set_current_array(&self, current_array: Option<Gc<NodeArray>>) {
+    fn set_current_array(&self, current_array: Option<Id<NodeArray>>) {
         *self.current_array.borrow_mut() = current_array;
     }
 
@@ -127,7 +127,7 @@ impl IncrementalParserSyntaxCursorCreated {
         for_each_child_bool(
             self.source_file,
             |node: Id<Node>| self.visit_node(position_as_isize, node),
-            Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+            Some(|array: Id<NodeArray>| self.visit_array(position_as_isize, array)),
             self,
         );
     }
@@ -137,7 +137,7 @@ impl IncrementalParserSyntaxCursorCreated {
             for_each_child_bool(
                 node,
                 |node: Id<Node>| self.visit_node(position_as_isize, node),
-                Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+                Some(|array: Id<NodeArray>| self.visit_array(position_as_isize, array)),
                 self,
             );
         }
@@ -145,7 +145,7 @@ impl IncrementalParserSyntaxCursorCreated {
         true
     }
 
-    fn visit_array(&self, position_as_isize: isize, array: &NodeArray) -> bool {
+    fn visit_array(&self, position_as_isize: isize, array: Id<NodeArray>) -> bool {
         if position_as_isize >= array.pos() && position_as_isize < array.end() {
             for (i, child) in array.iter().enumerate() {
                 let child = *child;
@@ -160,7 +160,7 @@ impl IncrementalParserSyntaxCursorCreated {
                         for_each_child_bool(
                             child,
                             |node: Id<Node>| self.visit_node(position_as_isize, node),
-                            Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+                            Some(|array: Id<NodeArray>| self.visit_array(position_as_isize, array)),
                             self,
                         );
                         return true;

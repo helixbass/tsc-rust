@@ -24,8 +24,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*ExportAssignment*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);
@@ -98,7 +98,7 @@ impl ParserType {
             for_each_child_returns(
                 node,
                 |child| self.walk_tree_for_external_module_indicators(child),
-                Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+                Option::<fn(Id<NodeArray>) -> Option<Id<Node>>>::None,
                 self,
             )
         }

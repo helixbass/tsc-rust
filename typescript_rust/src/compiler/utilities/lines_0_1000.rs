@@ -770,7 +770,7 @@ fn aggregate_child_data(node: Id<Node>, arena: &impl HasArena) {
                 || for_each_child_bool(
                     node,
                     |child| contains_parse_error(child, arena),
-                    Option::<fn(&NodeArray) -> bool>::None,
+                    Option::<fn(Id<NodeArray>) -> bool>::None,
                     arena,
                 );
 

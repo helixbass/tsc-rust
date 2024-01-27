@@ -139,13 +139,13 @@ impl TransformGenerators {
         self.emit_helpers().create_generator_helper(
             self.factory
                 .ref_(self).create_function_expression(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     None,
                     Option::<Id<Node>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![self.factory.ref_(self).create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         self.maybe_state(),
                         None,
@@ -266,7 +266,7 @@ impl TransformGenerators {
                                     .ref_(self).create_property_access_expression(self.state(), "trys"),
                                 "push",
                             ),
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(vec![self.factory.ref_(self).create_array_literal_expression(
                                 Some(vec![
                                     self.create_label(Some(start_label)),

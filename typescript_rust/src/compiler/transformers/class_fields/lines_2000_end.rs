@@ -78,7 +78,7 @@ pub(super) fn create_private_instance_field_initializer(
 ) -> Id<Node> {
     get_factory(arena).create_call_expression(
         get_factory(arena).create_property_access_expression(weak_map_name, "set"),
-        Option::<Gc<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
         Some(vec![
             receiver,
             initializer.unwrap_or_else(|| get_factory(arena).create_void_zero()),
@@ -93,7 +93,7 @@ pub(super) fn create_private_instance_method_initializer(
 ) -> Id<Node> {
     get_factory(arena).create_call_expression(
         get_factory(arena).create_property_access_expression(weak_set_name, "add"),
-        Option::<Gc<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
         Some(vec![receiver]),
     )
 }

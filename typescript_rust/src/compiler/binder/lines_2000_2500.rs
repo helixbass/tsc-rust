@@ -889,7 +889,7 @@ impl BinderType {
 
     pub(super) fn update_strict_mode_statement_list(
         &self,
-        statements: &NodeArray, /*<Statement>*/
+        statements: Id<NodeArray>, /*<Statement>*/
     ) {
         if self.maybe_in_strict_mode() != Some(true) {
             for &statement in statements {

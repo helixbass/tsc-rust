@@ -654,7 +654,7 @@ impl TypeChecker {
         try_for_each_child(
             node,
             |child| self.check_type_parameters_not_referenced_visit(index, type_parameters, child),
-            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
             self,
         )?;
 

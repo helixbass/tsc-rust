@@ -536,7 +536,7 @@ impl TransformGenerators {
 
     pub(super) fn visit_elements(
         &self,
-        elements: &NodeArray, /*<Expression>*/
+        elements: Id<NodeArray>, /*<Expression>*/
         mut leading_element: Option<Id<Node /*Expression*/>>,
         location: Option<&impl ReadonlyTextRange>,
         multi_line: Option<bool>,

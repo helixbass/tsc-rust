@@ -402,7 +402,7 @@ impl TransformClassFields {
                                 "call",
                             ),
                             None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             vec![visit_node(
                                 this_arg,
                                 Some(|node: Id<Node>| self.visitor(node)),
@@ -437,7 +437,7 @@ impl TransformClassFields {
                             ),
                             "call",
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         vec![visit_node(
                             this_arg,
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -538,7 +538,7 @@ impl TransformClassFields {
                                 ),
                                 "bind",
                             ),
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(vec![visit_node(
                                 this_arg,
                                 Some(|node: Id<Node>| self.visitor(node)),
@@ -546,7 +546,7 @@ impl TransformClassFields {
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             )]),
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         visit_node(
                             node_as_tagged_template_expression.template,
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -591,7 +591,7 @@ impl TransformClassFields {
                         .ref_(self).update_tagged_template_expression(
                             node,
                             invocation,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             visit_node(
                                 node_as_tagged_template_expression.template,
                                 Some(|node: Id<Node>| self.visitor(node)),
@@ -1121,7 +1121,7 @@ impl TransformClassFields {
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ),
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                     )
                     .into(),
             );

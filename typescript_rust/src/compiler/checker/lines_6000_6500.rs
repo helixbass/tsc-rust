@@ -1072,7 +1072,7 @@ impl NodeBuilder {
                             })?;
 
                             Ok(get_factory(self).create_property_signature(
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 name,
                                 if t_as_jsdoc_property_like_tag.is_bracketed ||
                                     matches!(
@@ -1130,11 +1130,11 @@ impl NodeBuilder {
             return Ok(Some(
                 get_factory(self)
                     .create_type_literal_node(Some(vec![get_factory(self).create_index_signature(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         vec![get_factory(self).create_parameter_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             None,
                             Some("x"),
                             None,
@@ -1211,8 +1211,8 @@ impl NodeBuilder {
                                 } else {
                                     Some(
                                         get_factory(self).create_parameter_declaration(
-                                            Option::<Gc<NodeArray>>::None,
-                                            Option::<Gc<NodeArray>>::None,
+                                            Option::<Id<NodeArray>>::None,
+                                            Option::<Id<NodeArray>>::None,
                                             self.get_effective_dot_dot_dot_for_parameter(p),
                                             self.get_name_for_jsdoc_function_parameter(p, i),
                                             p_as_parameter_declaration.question_token.clone(),
@@ -1270,8 +1270,8 @@ impl NodeBuilder {
                                     let p_ref = p.ref_(self);
                                     let p_as_parameter_declaration = p_ref.as_parameter_declaration();
                                     Ok(get_factory(self).create_parameter_declaration(
-                                        Option::<Gc<NodeArray>>::None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         self.get_effective_dot_dot_dot_for_parameter(p),
                                         self.get_name_for_jsdoc_function_parameter(p, i),
                                         p_as_parameter_declaration.question_token,

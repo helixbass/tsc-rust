@@ -18,8 +18,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
         kind: SyntaxKind, /*ClassLikeDeclaration["kind"]*/
     ) -> Id<Node /*ClassLikeDeclaration*/> {
         let saved_await_context = self.in_await_context();
@@ -40,7 +40,7 @@ impl ParserType {
         }
         let heritage_clauses = self.parse_heritage_clauses();
 
-        let members: Gc<NodeArray>;
+        let members: Id<NodeArray>;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             members = self.parse_class_members();
             self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
@@ -89,7 +89,7 @@ impl ParserType {
             && self.look_ahead_bool(|| self.next_token_is_identifier_or_keyword())
     }
 
-    pub(super) fn parse_heritage_clauses(&self) -> Option<Gc<NodeArray> /*<HeritageClause>*/> {
+    pub(super) fn parse_heritage_clauses(&self) -> Option<Id<NodeArray> /*<HeritageClause>*/> {
         if self.is_heritage_clause() {
             return Some(self.parse_list(ParsingContext::HeritageClauses, &mut || {
                 self.parse_heritage_clause().alloc(self.arena())
@@ -134,7 +134,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn try_parse_type_arguments(&self) -> Option<Gc<NodeArray> /*<TypeNode>*/> {
+    pub(super) fn try_parse_type_arguments(&self) -> Option<Id<NodeArray> /*<TypeNode>*/> {
         if self.token() == SyntaxKind::LessThanToken {
             Some(self.parse_bracketed_list(
                 ParsingContext::TypeArguments,
@@ -154,7 +154,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_class_members(&self) -> Gc<NodeArray> /*<ClassElement>*/ {
+    pub(super) fn parse_class_members(&self) -> Id<NodeArray> /*<ClassElement>*/ {
         self.parse_list(ParsingContext::ClassMembers, &mut || {
             self.parse_class_element()
         })
@@ -164,8 +164,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*InterfaceDeclaration*/> {
         self.parse_expected(SyntaxKind::InterfaceKeyword, None, None);
         let name = self.parse_identifier(None, None);
@@ -187,8 +187,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*TypeAliasDeclaration*/> {
         self.parse_expected(SyntaxKind::TypeKeyword, None, None);
         let name = self.parse_identifier(None, None);
@@ -231,12 +231,12 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*EnumDeclaration*/> {
         self.parse_expected(SyntaxKind::EnumKeyword, None, None);
         let name: Id<Node> = self.parse_identifier(None, None).alloc(self.arena());
-        let members: Gc<NodeArray>;
+        let members: Id<NodeArray>;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             members = self.do_outside_of_yield_and_await_context(|| {
                 self.parse_delimited_list(
@@ -257,7 +257,7 @@ impl ParserType {
 
     pub(super) fn parse_module_block(&self) -> ModuleBlock {
         let pos = self.get_node_pos();
-        let statements: Gc<NodeArray>;
+        let statements: Id<NodeArray>;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             statements = self.parse_list(ParsingContext::BlockStatements, &mut || {
                 self.parse_statement()
@@ -277,8 +277,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
         flags: NodeFlags,
     ) -> Id<Node /*ModuleDeclaration*/> {
         let namespace_flag = flags & NodeFlags::Namespace;
@@ -308,8 +308,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
         let name: Id<Node>;
@@ -343,8 +343,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*ModuleDeclaration*/> {
         let mut flags = NodeFlags::None;
         if self.token() == SyntaxKind::GlobalKeyword {
@@ -384,8 +384,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*NamespaceExportDeclaration*/> {
         self.parse_expected(SyntaxKind::AsKeyword, None, None);
         self.parse_expected(SyntaxKind::NamespaceKeyword, None, None);
@@ -401,8 +401,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*ImportEqualsDeclaration | ImportDeclaration*/> {
         self.parse_expected(SyntaxKind::ImportKeyword, None, None);
 
@@ -562,8 +562,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
         identifier: Id<Node /*Identifier*/>,
         is_type_only: bool,
     ) -> Id<Node /*ImportEqualsDeclaration*/> {
@@ -769,8 +769,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*ExportDeclaration*/> {
         let saved_await_context = self.in_await_context();
         self.set_await_context(true);

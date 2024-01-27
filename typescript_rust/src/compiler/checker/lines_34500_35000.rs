@@ -33,7 +33,7 @@ impl TypeChecker {
         try_for_each_child(
             node,
             |child: Id<Node>| self.check_source_element(Some(child)),
-            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
             self,
         )?;
 
@@ -805,7 +805,7 @@ impl TypeChecker {
         try_for_each_child(
             node,
             |child: Id<Node>| self.check_source_element(Some(child)),
-            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
             self,
         )?;
 

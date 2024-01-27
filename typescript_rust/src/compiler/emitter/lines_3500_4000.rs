@@ -346,7 +346,7 @@ impl Printer {
     pub(super) fn emit_case_or_default_clause_rest(
         &self,
         parent_node: Id<Node>,
-        statements: &NodeArray, /*<Statement>*/
+        statements: Id<NodeArray>, /*<Statement>*/
         colon_pos: isize,
     ) -> io::Result<()> {
         let emit_as_single_statement = statements.len() == 1

@@ -252,7 +252,7 @@ impl Program {
                 },
                 {
                     let diagnostics = diagnostics.clone();
-                    Some(move |nodes: &NodeArray, parent: Id<Node>| {
+                    Some(move |nodes: Id<NodeArray>, parent: Id<Node>| {
                         self.get_js_syntactic_diagnostics_for_file_walk_array(
                             diagnostics.clone(),
                             source_file,
@@ -495,7 +495,7 @@ impl Program {
         &self,
         diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
         source_file: Id<Node>,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         parent: Id<Node>,
     ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
         if matches!(
@@ -633,7 +633,7 @@ impl Program {
         &self,
         diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
         source_file: Id<Node>,
-        modifiers: &NodeArray, /*<Modifier>*/
+        modifiers: Id<NodeArray>, /*<Modifier>*/
         is_const_valid: bool,
     ) {
         for &modifier in modifiers {
@@ -681,7 +681,7 @@ impl Program {
     pub(super) fn get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
         &self,
         source_file: Id<Node>,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> DiagnosticWithLocation {
@@ -893,8 +893,8 @@ impl Program {
         let external_helpers_module_reference =
             get_factory(self).create_string_literal(text.to_owned(), None, None);
         let import_decl = get_factory(self).create_import_declaration(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             None,
             external_helpers_module_reference.clone(),
             None,

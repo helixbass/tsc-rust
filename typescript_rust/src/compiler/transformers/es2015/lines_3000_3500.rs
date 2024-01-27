@@ -60,7 +60,7 @@ impl TransformES2015 {
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         statements.push(
             self.factory
-                .ref_(self).create_variable_statement(Option::<Gc<NodeArray>>::None, node_initializer.clone()),
+                .ref_(self).create_variable_statement(Option::<Id<NodeArray>>::None, node_initializer.clone()),
         );
         self.copy_out_parameters(
             &current_state.loop_out_parameters,
@@ -70,7 +70,7 @@ impl TransformES2015 {
         );
 
         let function_declaration = self.factory.ref_(self).create_variable_statement(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             self.factory
                 .ref_(self).create_variable_declaration_list(
                     vec![self.factory.ref_(self).create_variable_declaration(
@@ -80,13 +80,13 @@ impl TransformES2015 {
                         Some(
                             self.factory
                                 .ref_(self).create_function_expression(
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     contains_yield.then(|| {
                                         self.factory.ref_(self).create_token(SyntaxKind::AsteriskToken)
                                     }),
                                     Option::<Id<Node>>::None,
-                                    Option::<Gc<NodeArray>>::None,
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     None,
                                     try_visit_node(
                                         self.factory.ref_(self).create_block(statements, Some(true)),
@@ -268,7 +268,7 @@ impl TransformES2015 {
         }
 
         let function_declaration = self.factory.ref_(self).create_variable_statement(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             self.factory
                 .ref_(self).create_variable_declaration_list(
                     vec![self.factory.ref_(self).create_variable_declaration(
@@ -278,12 +278,12 @@ impl TransformES2015 {
                         Some(
                             self.factory
                                 .ref_(self).create_function_expression(
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     contains_yield.then(|| {
                                         self.factory.ref_(self).create_token(SyntaxKind::AsteriskToken)
                                     }),
                                     Option::<Id<Node>>::None,
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     Some((*current_state).borrow().loop_parameters.clone()),
                                     None,
                                     loop_body,
@@ -353,7 +353,7 @@ impl TransformES2015 {
     ) -> Id<Node /*Statement*/> {
         let call = self.factory.ref_(self).create_call_expression(
             init_function_expression_name,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![]),
         );
         let call_result = if contains_yield {
@@ -385,7 +385,7 @@ impl TransformES2015 {
 
         let call = self.factory.ref_(self).create_call_expression(
             loop_function_expression_name,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(map(&state.loop_parameters, |p: &Id<Node>, _| {
                 p.ref_(self).as_parameter_declaration().name()
             })),
@@ -409,7 +409,7 @@ impl TransformES2015 {
         } else {
             let loop_result_name = self.factory.ref_(self).create_unique_name("state", None);
             let state_variable = self.factory.ref_(self).create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.factory.ref_(self).create_variable_declaration_list(
                     vec![self.factory.ref_(self).create_variable_declaration(
                         Some(loop_result_name.clone()),
@@ -598,8 +598,8 @@ impl TransformES2015 {
             }
         } else {
             loop_parameters.push(self.factory.ref_(self).create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some(name.clone()),
                 None,

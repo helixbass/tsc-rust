@@ -25,7 +25,7 @@ impl NodeFactory {
     #[generate_node_factory_method_wrapper]
     pub fn create_assert_clause_raw(
         &self,
-        elements: Gc<NodeArray>, /*<AssertEntry>*/
+        elements: Id<NodeArray>, /*<AssertEntry>*/
         multi_line: Option<bool>,
     ) -> AssertClause {
         let node = self.create_base_node(SyntaxKind::AssertClause);
@@ -37,7 +37,7 @@ impl NodeFactory {
     pub fn update_assert_clause(
         &self,
         node: Id<Node>,          /*AssertClause*/
-        elements: Gc<NodeArray>, /*<AssertEntry>*/
+        elements: Id<NodeArray>, /*<AssertEntry>*/
         multi_line: Option<bool>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
@@ -403,8 +403,8 @@ impl NodeFactory {
     pub fn create_missing_declaration_raw(&self) -> MissingDeclaration {
         let node = self.create_base_declaration(
             SyntaxKind::MissingDeclaration,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
         );
         MissingDeclaration::new(node)
     }
@@ -459,10 +459,10 @@ impl NodeFactory {
     ) -> JSDocFunctionType {
         let node = self.create_base_signature_declaration(
             SyntaxKind::JSDocFunctionType,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Option::<Id<Node>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(parameters),
             type_,
         );

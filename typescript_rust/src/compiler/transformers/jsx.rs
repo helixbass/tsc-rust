@@ -232,7 +232,7 @@ impl TransformJsx {
             insert_statement_after_custom_prologue(
                 &mut statements_as_vec,
                 Some(self.factory.ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![current_file_state_filename_declaration],
                         Some(NodeFlags::Const),
@@ -254,8 +254,8 @@ impl TransformJsx {
                     let import_statement = self
                         .factory
                         .ref_(self).create_import_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(self.factory.ref_(self).create_import_clause(
                                 false,
                                 None,
@@ -279,7 +279,7 @@ impl TransformJsx {
                     let require_statement = self
                         .factory
                         .ref_(self).create_variable_statement(
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 vec![self.factory.ref_(self).create_variable_declaration(
                                     Some(
@@ -303,7 +303,7 @@ impl TransformJsx {
                                     None,
                                     Some(self.factory.ref_(self).create_call_expression(
                                         self.factory.ref_(self).create_identifier("require"),
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         Some(vec![self.factory.ref_(self).create_string_literal(
                                             import_source.clone(),
                                             None,
@@ -639,7 +639,7 @@ impl TransformJsx {
             .factory
             .ref_(self).create_call_expression(
                 self.get_jsx_factory_callee(is_static_children),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(args),
             )
             .set_text_range(Some(location), self);
@@ -846,7 +846,7 @@ impl TransformJsx {
             expressions.insert(
                 0,
                 self.factory
-                    .ref_(self).create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
+                    .ref_(self).create_object_literal_expression(Option::<Id<NodeArray>>::None, None),
             );
         }
 

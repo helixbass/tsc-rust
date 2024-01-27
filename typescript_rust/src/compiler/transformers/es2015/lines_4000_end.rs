@@ -212,7 +212,7 @@ impl TransformES2015 {
             expression = self.factory.ref_(self).create_call_expression(
                 self.factory
                     .ref_(self).create_property_access_expression(expression, "concat"),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(args),
             );
         }

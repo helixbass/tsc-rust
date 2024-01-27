@@ -312,8 +312,8 @@ impl TransformEcmascriptModule {
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             );
             let import_statement = self.factory.ref_(self).create_import_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(self.factory.ref_(self).create_import_clause(
                     false,
                     None,
@@ -334,7 +334,7 @@ impl TransformEcmascriptModule {
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             );
             let require_statement = self.factory.ref_(self).create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.factory.ref_(self).create_variable_declaration_list(
                     vec![self.factory.ref_(self).create_variable_declaration(
                         Some(require_helper_name),
@@ -342,7 +342,7 @@ impl TransformEcmascriptModule {
                         None,
                         Some(self.factory.ref_(self).create_call_expression(
                             self.factory.ref_(self).clone_node(create_require_name),
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             Some(vec![self.factory.ref_(self).create_property_access_expression(
                                 self.factory.ref_(self).create_meta_property(
                                     SyntaxKind::ImportKeyword,
@@ -374,7 +374,7 @@ impl TransformEcmascriptModule {
         Debug_.assert_node(Some(name), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), None);
         Ok(self.factory.ref_(self).create_call_expression(
             self.factory.ref_(self).clone_node(name),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(args),
         ))
     }
@@ -394,7 +394,7 @@ impl TransformEcmascriptModule {
         statements.get_or_insert_default_().push(
             self.factory
                 .ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
                             Some(
@@ -432,8 +432,8 @@ impl TransformEcmascriptModule {
             statements
                 .get_or_insert_default_()
                 .push(self.factory.ref_(self).create_export_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     node_as_import_equals_declaration.is_type_only,
                     Some(self.factory.ref_(self).create_named_exports(vec![
                         self.factory.ref_(self).create_export_specifier(
@@ -487,8 +487,8 @@ impl TransformEcmascriptModule {
         let import_decl = self
             .factory
             .ref_(self).create_import_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(self.factory.ref_(self).create_import_clause(
                     false,
                     None,
@@ -503,8 +503,8 @@ impl TransformEcmascriptModule {
             self.factory.ref_(self).create_export_default(synth_name)
         } else {
             self.factory.ref_(self).create_export_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 false,
                 Some(self.factory.ref_(self).create_named_exports(vec![
                     self.factory.ref_(self).create_export_specifier(

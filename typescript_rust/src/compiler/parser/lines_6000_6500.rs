@@ -77,7 +77,7 @@ impl ParserType {
             expression = Some(
                 self.finish_node(
                     self.factory()
-                        .ref_(self).create_identifier_raw("", Option::<Gc<NodeArray>>::None, None),
+                        .ref_(self).create_identifier_raw("", Option::<Id<NodeArray>>::None, None),
                     self.get_node_pos(),
                     None,
                 )
@@ -497,8 +497,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node> /*Statement*/ {
         match self.token() {
             SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword => {

@@ -126,7 +126,7 @@ impl ParserType {
 
         self.next_token();
 
-        let declarations: Gc<NodeArray>;
+        let declarations: Id<NodeArray>;
         if self.token() == SyntaxKind::OfKeyword
             && self.look_ahead_bool(|| self.can_follow_contextual_of_keyword())
         {
@@ -166,8 +166,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*VariableStatement*/> {
         let declaration_list = self.parse_variable_declaration_list(false);
         self.parse_semicolon();
@@ -182,8 +182,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*FunctionDeclaration*/> {
         let saved_await_context = self.in_await_context();
 
@@ -249,8 +249,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Option<Id<Node /*ConstructorDeclaration*/>> {
         self.try_parse(|| {
             if self.parse_constructor_name() {
@@ -279,8 +279,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
         asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
         name: Id<Node /*PropertyName*/>,
         question_token: Option<Id<Node /*QuestionToken*/>>,
@@ -324,8 +324,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
         name: Id<Node /*PropertyName*/>,
         question_token: Option<Id<Node /*QuestionToken*/>>,
     ) -> Id<Node /*PropertyDeclaration*/> {
@@ -358,8 +358,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*PropertyDeclaration | MethodDeclaration*/> {
         let asterisk_token: Option<Id<Node>> = self
             .parse_optional_token(SyntaxKind::AsteriskToken)
@@ -393,8 +393,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
         kind: SyntaxKind, /*AccessorDeclaration["kind"]*/
     ) -> Id<Node /*AccessorDeclaration*/> {
         let name = self.parse_property_name().alloc(self.arena());
@@ -480,8 +480,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*ClassStaticBlockDeclaration*/> {
         self.parse_expected_token(SyntaxKind::StaticKeyword, None, None);
         let body: Id<Node> = self.parse_class_static_block_body();
@@ -534,7 +534,7 @@ impl ParserType {
         Some(self.finish_node(self.factory().ref_(self).create_decorator_raw(expression), pos, None))
     }
 
-    pub(super) fn parse_decorators(&self) -> Option<Gc<NodeArray> /*<Decorator>*/> {
+    pub(super) fn parse_decorators(&self) -> Option<Id<NodeArray> /*<Decorator>*/> {
         let pos = self.get_node_pos();
         let mut list: Option<Vec<Id<Node>>> = None;
         loop {
@@ -592,7 +592,7 @@ impl ParserType {
         &self,
         permit_invalid_const_as_modifier: Option<bool>,
         stop_on_start_of_class_static_block: Option<bool>,
-    ) -> Option<Gc<NodeArray> /*<Modifier>*/> {
+    ) -> Option<Id<NodeArray> /*<Modifier>*/> {
         let pos = self.get_node_pos();
         let mut list: Option<Vec<Id<Node>>> = None;
         let mut has_seen_static = false;
@@ -620,8 +620,8 @@ impl ParserType {
 
     pub(super) fn parse_modifiers_for_arrow_function(
         &self,
-    ) -> Option<Gc<NodeArray> /*<Modifier>*/> {
-        let mut modifiers: Option<Gc<NodeArray>> = None;
+    ) -> Option<Id<NodeArray> /*<Modifier>*/> {
+        let mut modifiers: Option<Id<NodeArray>> = None;
         if self.token() == SyntaxKind::AsyncKeyword {
             let pos = self.get_node_pos();
             self.next_token();
@@ -760,8 +760,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*ClassDeclaration*/> {
         self.parse_class_declaration_or_expression(
             pos,

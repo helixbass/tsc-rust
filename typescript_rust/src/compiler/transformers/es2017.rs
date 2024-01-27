@@ -653,7 +653,7 @@ impl TransformES2017 {
         let node_as_method_declaration = node_ref.as_method_declaration();
         Ok(self.factory.ref_(self).update_method_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node.ref_(self).maybe_modifiers().as_deref(),
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -665,7 +665,7 @@ impl TransformES2017 {
             node_as_method_declaration.maybe_asterisk_token(),
             node_as_method_declaration.name(),
             None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
                 Some(&node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
@@ -697,7 +697,7 @@ impl TransformES2017 {
             self.factory
                 .ref_(self).update_function_declaration(
                     node,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     try_maybe_visit_nodes(
                         node.ref_(self).maybe_modifiers().as_deref(),
                         Some(|node: Id<Node>| self.visitor(node)),
@@ -708,7 +708,7 @@ impl TransformES2017 {
                     )?,
                     node_as_function_declaration.maybe_asterisk_token(),
                     node_as_function_declaration.maybe_name(),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     try_visit_parameter_list(
                         Some(&node_as_function_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
@@ -750,7 +750,7 @@ impl TransformES2017 {
             )?,
             node_as_function_expression.maybe_asterisk_token(),
             node_as_function_expression.maybe_name(),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
                 Some(&node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
@@ -786,7 +786,7 @@ impl TransformES2017 {
                 None,
                 self,
             )?,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
                 Some(&node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
@@ -1265,7 +1265,7 @@ impl TransformES2017 {
             return self.factory.ref_(self).create_call_expression(
                 self.factory
                     .ref_(self).create_property_access_expression(argument_expression, "call"),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(
                     [
                         vec![self.factory.ref_(self).create_this()],
@@ -1309,7 +1309,7 @@ impl TransformES2017 {
                                     | GeneratedIdentifierFlags::FileLevel,
                             ),
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(vec![argument_expression]),
                     ),
                     "value",
@@ -1327,7 +1327,7 @@ impl TransformES2017 {
                                 | GeneratedIdentifierFlags::FileLevel,
                         ),
                     ),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![argument_expression]),
                 ),
                 Some(location),
@@ -1521,8 +1521,8 @@ pub fn create_super_access_variable_statement(
         getter_and_setter.push(factory.create_property_assignment(
             "get",
             factory.create_arrow_function(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 vec![],
                 None,
                 None,
@@ -1540,11 +1540,11 @@ pub fn create_super_access_variable_statement(
             getter_and_setter.push(factory.create_property_assignment(
                 "set",
                 factory.create_arrow_function(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     vec![factory.create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         Some("v"),
                         None,
@@ -1573,7 +1573,7 @@ pub fn create_super_access_variable_statement(
         ));
     });
     factory.create_variable_statement(
-        Option::<Gc<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
         factory.create_variable_declaration_list(
             vec![factory.create_variable_declaration(
                 Some(factory.create_unique_name(
@@ -1589,7 +1589,7 @@ pub fn create_super_access_variable_statement(
                         factory.create_identifier("Object"),
                         "create",
                     ),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![
                         factory.create_null(),
                         factory.create_object_literal_expression(Some(accessors), Some(true)),

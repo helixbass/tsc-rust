@@ -9,17 +9,17 @@ pub fn rewrite_ref_type_to_id_type_rule() -> Arc<dyn Rule> {
         listeners => [
             r#"
               (reference_type
-                 type: (type_identifier) @type (#eq? @type "Signature")
+                 type: (type_identifier) @type (#eq? @type "NodeArray")
               ) @ref
             "# => {
                 capture_name => "ref",
                 callback => |node, context| {
                     context.report(
                         violation! {
-                            message => "&Signature -> Id<Signature>",
+                            message => "&NodeArray -> Id<NodeArray>",
                             node => node,
                             fix => |fixer| {
-                                fixer.replace_text(node, "Id<Signature>");
+                                fixer.replace_text(node, "Id<NodeArray>");
                             }
                         }
                     );

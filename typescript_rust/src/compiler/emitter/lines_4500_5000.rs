@@ -811,7 +811,7 @@ impl Printer {
 
 #[derive(Clone)]
 pub enum NodeArrayOrSlice<'a> {
-    NodeArray(Gc<NodeArray>),
+    NodeArray(Id<NodeArray>),
     Slice(&'a [Id<Node>]),
 }
 
@@ -824,8 +824,8 @@ impl<'a> NodeArrayOrSlice<'a> {
     }
 }
 
-impl<'a> From<Gc<NodeArray>> for NodeArrayOrSlice<'a> {
-    fn from(value: Gc<NodeArray>) -> Self {
+impl<'a> From<Id<NodeArray>> for NodeArrayOrSlice<'a> {
+    fn from(value: Id<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }

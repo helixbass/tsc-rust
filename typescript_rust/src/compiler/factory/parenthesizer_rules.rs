@@ -335,7 +335,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         elements: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let result = same_map(&elements, |&element, _| {
             self.parenthesize_expression_for_disallowed_comma(element)
         });
@@ -469,7 +469,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         members: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let members = match members {
             NodeArrayOrVec::NodeArray(members) => members.to_vec(),
             NodeArrayOrVec::Vec(members) => members,
@@ -485,7 +485,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
     fn parenthesize_type_arguments(
         &self,
         type_arguments: Option<NodeArrayOrVec>,
-    ) -> Option<Gc<NodeArray>> {
+    ) -> Option<Id<NodeArray>> {
         if some(
             type_arguments.as_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
@@ -571,7 +571,7 @@ impl ParenthesizerRules for NullParenthesizerRules
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         elements: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         match elements {
             NodeArrayOrVec::NodeArray(elements) => elements,
             NodeArrayOrVec::Vec(_) => {
@@ -607,7 +607,7 @@ impl ParenthesizerRules for NullParenthesizerRules
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         members: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         match members {
             NodeArrayOrVec::NodeArray(members) => members,
             NodeArrayOrVec::Vec(_) => {
@@ -619,7 +619,7 @@ impl ParenthesizerRules for NullParenthesizerRules
     fn parenthesize_type_arguments(
         &self,
         type_parameters: Option<NodeArrayOrVec>,
-    ) -> Option<Gc<NodeArray>> {
+    ) -> Option<Id<NodeArray>> {
         type_parameters.map(|type_parameters| match type_parameters {
             NodeArrayOrVec::NodeArray(type_parameters) => type_parameters,
             NodeArrayOrVec::Vec(_) => {

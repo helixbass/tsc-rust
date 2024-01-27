@@ -814,7 +814,7 @@ impl TransformDeclarations {
         ));
         let mut reference_visitor =
             self.map_references_into_array(node, &mut references, &output_file_path);
-        let mut combined_statements: Gc<NodeArray>/*<Statement>*/;
+        let mut combined_statements: Id<NodeArray>/*<Statement>*/;
         if is_source_file_js(&self.current_source_file().ref_(self)) {
             combined_statements = self
                 .factory
@@ -1177,7 +1177,7 @@ impl TransformDeclarations {
         }
         let new_param = self.factory.ref_(self).update_parameter_declaration(
             p,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(mask_modifiers(p, modifier_mask, None, self)),
             p_as_parameter_declaration.dot_dot_dot_token,
             Some(self.filter_binding_pattern_initializers(p_as_parameter_declaration.name())?),

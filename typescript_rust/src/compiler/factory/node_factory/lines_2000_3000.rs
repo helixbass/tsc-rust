@@ -287,7 +287,7 @@ impl NodeFactory {
         name_type: Option<Id<Node /*TypeNode*/>>,
         question_token: Option<Id<Node /*QuestionToken | PlusToken | MinusToken*/>>,
         type_: Option<Id<Node /*TypeNode*/>>,
-        members: Option<Gc<NodeArray /*<TypeElement>*/>>,
+        members: Option<Id<NodeArray /*<TypeElement>*/>>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_mapped_type_node = node_ref.as_mapped_type_node();
@@ -416,8 +416,8 @@ impl NodeFactory {
     ) -> BindingElement {
         let node = self.create_base_binding_like_declaration(
             SyntaxKind::BindingElement,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
@@ -1151,7 +1151,7 @@ impl NodeFactory {
     ) -> FunctionExpression {
         let mut node = self.create_base_function_like_declaration(
             SyntaxKind::FunctionExpression,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             name,
             type_parameters,
@@ -1237,7 +1237,7 @@ impl NodeFactory {
     ) -> ArrowFunction {
         let node = self.create_base_function_like_declaration(
             SyntaxKind::ArrowFunction,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             Option::<Id<Node>>::None,
             type_parameters,

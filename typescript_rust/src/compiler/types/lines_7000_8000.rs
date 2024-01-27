@@ -114,7 +114,7 @@ pub trait ParenthesizerRules: Trace + Finalize {
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         elements: NodeArrayOrVec, /*<Expression>*/
-    ) -> Gc<NodeArray> /*<Expression>*/;
+    ) -> Id<NodeArray> /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
         expression: Id<Node>, /*Expression*/
@@ -142,11 +142,11 @@ pub trait ParenthesizerRules: Trace + Finalize {
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         members: NodeArrayOrVec, /*<TypeNode>*/
-    ) -> Gc<NodeArray> /*<TypeNode>*/;
+    ) -> Id<NodeArray> /*<TypeNode>*/;
     fn parenthesize_type_arguments(
         &self,
         type_parameters: Option<NodeArrayOrVec /*<TypeNode>*/>,
-    ) -> Option<Gc<NodeArray> /*<TypeNode>*/>;
+    ) -> Option<Id<NodeArray> /*<TypeNode>*/>;
 }
 
 pub trait NodeConverters: Trace + Finalize {

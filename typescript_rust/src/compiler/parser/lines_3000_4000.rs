@@ -33,7 +33,7 @@ impl ParserType {
         self.finish_node(
             self.factory().ref_(self).create_type_reference_node_raw(
                 self.parse_identifier_name(None).alloc(self.arena()),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
             ),
             pos,
             None,
@@ -53,8 +53,8 @@ impl ParserType {
         }
         self.finish_node(
             self.factory().ref_(self).create_parameter_declaration_raw(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 name.map(|name| name.alloc(self.arena())),
                 None,
@@ -154,7 +154,7 @@ impl ParserType {
 
     pub(super) fn parse_type_parameters(
         &self,
-    ) -> Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/> {
+    ) -> Option<Id<NodeArray> /*<TypeParameterDeclaration>*/> {
         if self.token() == SyntaxKind::LessThanToken {
             return Some(self.parse_bracketed_list(
                 ParsingContext::TypeParameters,
@@ -174,7 +174,7 @@ impl ParserType {
             || self.is_start_of_type(Some(!is_jsdoc_parameter))
     }
 
-    pub(super) fn parse_name_of_parameter(&self, modifiers: Option<&NodeArray>) -> Id<Node> {
+    pub(super) fn parse_name_of_parameter(&self, modifiers: Option<Id<NodeArray>>) -> Id<Node> {
         let name = self.parse_identifier_or_pattern(Some(
             &Diagnostics::Private_identifiers_cannot_be_used_as_parameters,
         ));
@@ -219,7 +219,7 @@ impl ParserType {
         if self.token() == SyntaxKind::ThisKeyword {
             let node = self.factory().ref_(self).create_parameter_declaration_raw(
                 decorators.clone(),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some(self.create_identifier(true, None, None).alloc(self.arena())),
                 None,
@@ -301,7 +301,7 @@ impl ParserType {
         false
     }
 
-    pub(super) fn parse_parameters_worker(&self, flags: SignatureFlags) -> Gc<NodeArray> /*<ParameterDeclaration>*/
+    pub(super) fn parse_parameters_worker(&self, flags: SignatureFlags) -> Id<NodeArray> /*<ParameterDeclaration>*/
     {
         let saved_yield_context = self.in_yield_context();
         let saved_await_context = self.in_await_context();
@@ -335,7 +335,7 @@ impl ParserType {
         parameters
     }
 
-    pub(super) fn parse_parameters(&self, flags: SignatureFlags) -> Gc<NodeArray> /*<ParameterDeclaration>*/
+    pub(super) fn parse_parameters(&self, flags: SignatureFlags) -> Id<NodeArray> /*<ParameterDeclaration>*/
     {
         if !self.parse_expected(SyntaxKind::OpenParenToken, None, None) {
             return self.create_missing_list();
@@ -427,8 +427,8 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        decorators: Option<Gc<NodeArray>>,
-        modifiers: Option<Gc<NodeArray>>,
+        decorators: Option<Id<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*IndexSignatureDeclaration*/> {
         let parameters = self.parse_bracketed_list(
             ParsingContext::Parameters,
@@ -448,7 +448,7 @@ impl ParserType {
         &self,
         pos: isize,
         has_jsdoc: bool,
-        modifiers: Option<Gc<NodeArray>>,
+        modifiers: Option<Id<NodeArray>>,
     ) -> Id<Node /*PropertySignature | MethodSignature*/> {
         let name = self.parse_property_name();
         let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
@@ -593,8 +593,8 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_object_type_members(&self) -> Gc<NodeArray> /*<TypeElement>*/ {
-        let members: Gc<NodeArray>;
+    pub(super) fn parse_object_type_members(&self) -> Id<NodeArray> /*<TypeElement>*/ {
+        let members: Id<NodeArray>;
         if self.parse_expected(SyntaxKind::OpenBraceToken, None, None) {
             members = self.parse_list(ParsingContext::TypeMembers, &mut || {
                 self.parse_type_member()
@@ -774,7 +774,7 @@ impl ParserType {
 
     pub(super) fn parse_modifiers_for_constructor_type(
         &self,
-    ) -> Option<Gc<NodeArray> /*<Modifier>*/> {
+    ) -> Option<Id<NodeArray> /*<Modifier>*/> {
         let mut modifiers = None;
         if self.token() == SyntaxKind::AbstractKeyword {
             let pos = self.get_node_pos();
@@ -1171,7 +1171,7 @@ impl ParserType {
         &self,
         operator: SyntaxKind, /*SyntaxKind.BarToken | SyntaxKind.AmpersandToken*/
         mut parse_constituent_type: impl FnMut() -> Id<Node>,
-        mut create_type_node: impl FnMut(Gc<NodeArray>) -> Node,
+        mut create_type_node: impl FnMut(Id<NodeArray>) -> Node,
     ) -> Id<Node> {
         let pos = self.get_node_pos();
         let is_union_type = operator == SyntaxKind::BarToken;

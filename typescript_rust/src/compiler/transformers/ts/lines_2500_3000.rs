@@ -201,7 +201,7 @@ impl TransformTypeScript {
             self.factory.ref_(self).create_assignment(
                 export_name,
                 self.factory
-                    .ref_(self).create_object_literal_expression(Option::<Gc<NodeArray>>::None, None),
+                    .ref_(self).create_object_literal_expression(Option::<Id<NodeArray>>::None, None),
             ),
         );
 
@@ -215,13 +215,13 @@ impl TransformTypeScript {
             .factory
             .ref_(self).create_expression_statement(self.factory.ref_(self).create_call_expression(
                 self.factory.ref_(self).create_function_expression(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     None,
                     Option::<Id<Node>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![self.factory.ref_(self).create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         Some(parameter_name),
                         None,
@@ -231,7 +231,7 @@ impl TransformTypeScript {
                     None,
                     self.transform_module_body(node, container_name)?,
                 ),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![module_arg]),
             ))
             .set_original_node(Some(node), self);
@@ -399,8 +399,8 @@ impl TransformTypeScript {
                     self.factory
                         .ref_(self).update_import_declaration(
                             node,
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             import_clause,
                             node_as_import_declaration.module_specifier.clone(),
                             node_as_import_declaration.assert_clause.clone(),
@@ -534,8 +534,8 @@ impl TransformTypeScript {
             self.factory
                 .ref_(self).update_export_declaration(
                     node,
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     node_as_export_declaration.is_type_only,
                     Some(export_clause),
                     node_as_export_declaration.module_specifier.clone(),
@@ -636,8 +636,8 @@ impl TransformTypeScript {
                 return Ok(Some(
                     self.factory
                         .ref_(self).create_import_declaration(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             None,
                             node_as_import_equals_declaration
                                 .module_reference

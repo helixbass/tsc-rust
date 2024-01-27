@@ -268,7 +268,7 @@ impl TransformGenerators {
                                 None,
                             ),
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(vec![]),
                     )
                     .set_text_range(Some(&*node.ref_(self)), self)

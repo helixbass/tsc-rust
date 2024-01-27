@@ -931,7 +931,7 @@ impl TransformClassFields {
                         }),
                         node_as_function_like_declaration.maybe_asterisk_token(),
                         Some(function_name),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         visit_parameter_list(
                             Some(&node_as_function_like_declaration.parameters()),
                             |node: Id<Node>| self.class_element_visitor(node),
@@ -1008,7 +1008,7 @@ impl TransformClassFields {
                     self.factory
                         .ref_(self).update_property_declaration(
                             node,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             maybe_visit_nodes(
                                 node.ref_(self).maybe_modifiers().as_deref(),
                                 Some(|node: Id<Node>| self.visitor(node)),

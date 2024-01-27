@@ -13,7 +13,7 @@ use crate::{
 };
 
 impl ParserType {
-    pub(super) fn parse_argument_list(&self) -> Gc<NodeArray> /*<Expression>*/ {
+    pub(super) fn parse_argument_list(&self) -> Id<NodeArray> /*<Expression>*/ {
         self.parse_expected(SyntaxKind::OpenParenToken, None, None);
         let result = self.parse_delimited_list(
             ParsingContext::ArgumentExpressions,
@@ -26,7 +26,7 @@ impl ParserType {
 
     pub(super) fn parse_type_arguments_in_expression(
         &self,
-    ) -> Option<Gc<NodeArray> /*<TypeNode>*/> {
+    ) -> Option<Id<NodeArray> /*<TypeNode>*/> {
         if self.context_flags().intersects(NodeFlags::JavaScriptFile) {
             return None;
         }
@@ -419,7 +419,7 @@ impl ParserType {
 
         let expression_pos = self.get_node_pos();
         let mut expression: Id<Node /*MemberExpression*/> = self.parse_primary_expression();
-        let mut type_arguments: Option<Gc<NodeArray>>;
+        let mut type_arguments: Option<Id<NodeArray>>;
         loop {
             expression = self.parse_member_expression_rest(expression_pos, expression, false);
             type_arguments = self.try_parse(|| self.parse_type_arguments_in_expression());
@@ -436,7 +436,7 @@ impl ParserType {
             break;
         }
 
-        let mut arguments_array: Option<Gc<NodeArray>> = None;
+        let mut arguments_array: Option<Id<NodeArray>> = None;
         if self.token() == SyntaxKind::OpenParenToken {
             arguments_array = Some(self.parse_argument_list());
         } else if type_arguments.is_some() {

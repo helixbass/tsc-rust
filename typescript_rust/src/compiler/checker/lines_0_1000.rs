@@ -1986,7 +1986,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
+    ) -> io::Result<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>> {
         self.node_builder().symbol_to_type_parameter_declarations(
             symbol,
             enclosing_declaration,

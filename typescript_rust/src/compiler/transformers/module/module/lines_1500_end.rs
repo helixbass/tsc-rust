@@ -177,7 +177,7 @@ impl TransformModule {
                         self.factory.ref_(self).create_identifier("Object"),
                         "defineProperty",
                     ),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![
                                 self.factory.ref_(self).create_identifier("exports"),
                                 self.factory
@@ -239,7 +239,7 @@ impl TransformModule {
                     self.factory.ref_(self).create_identifier("Object"),
                     "defineProperty",
                 ),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![
                     self.factory.ref_(self).create_identifier("exports"),
                     self.factory.ref_(self).create_string_literal_from_node(name),
@@ -252,10 +252,10 @@ impl TransformModule {
                             self.factory.ref_(self).create_property_assignment(
                                 "get",
                                 self.factory.ref_(self).create_function_expression(
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     None,
                                     Option::<Id<Node>>::None,
-                                    Option::<Gc<NodeArray>>::None,
+                                    Option::<Id<NodeArray>>::None,
                                     Some(vec![]),
                                     None,
                                     self.factory.ref_(self).create_block(

@@ -352,7 +352,7 @@ impl BinderType {
         for_each_child(
             node,
             |node| self.bind(Some(node)),
-            Some(|nodes: &NodeArray| self.bind_each(Some(nodes))),
+            Some(|nodes: Id<NodeArray>| self.bind_each(Some(nodes))),
             self,
         );
     }

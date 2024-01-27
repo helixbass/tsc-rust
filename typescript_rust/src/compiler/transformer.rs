@@ -861,7 +861,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
                 lexical_environment_variable_declarations.as_ref()
             {
                 let statement = self.factory.ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         lexical_environment_variable_declarations.clone(),
                         None,
@@ -996,7 +996,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
             Some(vec![self.factory().ref_(self).create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.factory().ref_(self).create_variable_declaration_list(
                     self.block_scoped_variable_declarations()
                         .iter()

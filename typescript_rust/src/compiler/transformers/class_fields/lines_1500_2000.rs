@@ -251,7 +251,7 @@ impl TransformClassFields {
                 weak_map_name,
                 self.factory.ref_(self).create_new_expression(
                     self.factory.ref_(self).create_identifier("WeakMap"),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![]),
                 ),
             ));

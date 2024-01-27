@@ -999,11 +999,11 @@ impl TransformGenerators {
             node = self
                 .factory
                 .ref_(self).create_function_declaration(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     node.ref_(self).maybe_modifiers(),
                     None,
                     node.ref_(self).as_function_declaration().maybe_name(),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
                         Some(&node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
@@ -1048,10 +1048,10 @@ impl TransformGenerators {
             node = self
                 .factory
                 .ref_(self).create_function_expression(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     None,
                     node.ref_(self).as_function_expression().maybe_name(),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
                         Some(&node.ref_(self).as_function_expression().parameters()),
                         |node: Id<Node>| self.visitor(node),

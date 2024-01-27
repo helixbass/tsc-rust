@@ -43,7 +43,7 @@ impl Program {
                 for_each_child_returns(
                     current,
                     |child: Id<Node>| self.get_containing_child(position, child),
-                    Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+                    Option::<fn(Id<NodeArray>) -> Option<Id<Node>>>::None,
                     self,
                 )
             });

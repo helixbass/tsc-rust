@@ -607,7 +607,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
         signatures: &[Id<Signature>],
-        type_arguments: &NodeArray, /*<TypeNode>*/
+        type_arguments: Id<NodeArray>, /*<TypeNode>*/
     ) -> Id<Diagnostic> {
         let arg_count = type_arguments.len();
         if signatures.len() == 1 {
@@ -695,7 +695,7 @@ impl TypeChecker {
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(&node.ref_(self));
         let report_errors = candidates_out_array.is_none() && self.produce_diagnostics;
 
-        let mut type_arguments: Option<Gc<NodeArray> /*<TypeNode>*/> = None;
+        let mut type_arguments: Option<Id<NodeArray> /*<TypeNode>*/> = None;
 
         if !is_decorator {
             type_arguments = node.ref_(self).as_has_type_arguments().maybe_type_arguments().clone();
@@ -1028,7 +1028,7 @@ impl TypeChecker {
         candidates_for_argument_error: &mut Option<Vec<Id<Signature>>>,
         candidate_for_argument_arity_error: &mut Option<Id<Signature>>,
         candidate_for_type_argument_error: &mut Option<Id<Signature>>,
-        type_arguments: Option<&NodeArray>,
+        type_arguments: Option<Id<NodeArray>>,
         node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
@@ -1106,7 +1106,7 @@ impl TypeChecker {
         candidates_for_argument_error: &mut Option<Vec<Id<Signature>>>,
         candidate_for_argument_arity_error: &mut Option<Id<Signature>>,
         candidate_for_type_argument_error: &mut Option<Id<Signature>>,
-        type_arguments: Option<&NodeArray>,
+        type_arguments: Option<Id<NodeArray>>,
         node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,

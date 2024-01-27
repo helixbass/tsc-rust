@@ -214,7 +214,7 @@ pub(super) fn convert_array_literal_expression_to_json(
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
-    elements: &NodeArray, /*<Expression>*/
+    elements: Id<NodeArray>, /*<Expression>*/
     element_option: Option<&CommandLineOption>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {

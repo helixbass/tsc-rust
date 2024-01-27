@@ -265,7 +265,7 @@ pub fn set_parent_recursive(root_node: Option<Id<Node>>, incremental: bool, aren
                 bind_parent_to_child(incremental, child, parent, arena)
             }
         },
-        Option::<fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
+        Option::<fn(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
         arena,
     );
 }
@@ -301,7 +301,7 @@ fn bind_jsdoc(
                     bind_parent_to_child_ignoring_jsdoc(incremental, &child.ref_(arena), parent)
                 },
                 Option::<
-                    fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
+                    fn(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
                 >::None,
                 arena,
             );
@@ -375,7 +375,7 @@ pub fn contains_ignored_path(path: &str) -> bool {
     )
 }
 
-pub fn get_containing_node_array(_node: Id<Node>) -> Option<Gc<NodeArray>> {
+pub fn get_containing_node_array(_node: Id<Node>) -> Option<Id<NodeArray>> {
     unimplemented!()
 }
 

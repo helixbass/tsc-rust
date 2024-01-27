@@ -2090,7 +2090,7 @@ pub fn range_of_node(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
 
 pub fn range_of_type_parameters(
     source_file: &Node,       /*SourceFile*/
-    type_parameters: &NodeArray, /*<TypeParameterDeclaration>*/
+    type_parameters: Id<NodeArray>, /*<TypeParameterDeclaration>*/
 ) -> BaseTextRange {
     let pos = type_parameters.pos() - 1;
     let end = skip_trivia(

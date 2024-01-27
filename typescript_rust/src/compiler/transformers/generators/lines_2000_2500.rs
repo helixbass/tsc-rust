@@ -167,7 +167,7 @@ impl TransformGenerators {
             self.factory.ref_(self).create_call_expression(
                 self.factory
                     .ref_(self).create_property_access_expression(self.state(), "sent"),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             ),
             Option::<&Node>::None,
@@ -465,7 +465,7 @@ impl TransformGenerators {
             .ref_(self).create_call_expression(
                 self.factory
                     .ref_(self).create_property_access_expression(self.state(), "sent"),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             )
             .set_text_range(location, self)

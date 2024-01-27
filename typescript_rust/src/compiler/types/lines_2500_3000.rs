@@ -34,7 +34,7 @@ impl MetaProperty {
 }
 
 pub trait HasChildrenInterface {
-    fn children(&self) -> Gc<NodeArray>;
+    fn children(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -42,7 +42,7 @@ pub trait HasChildrenInterface {
 pub struct JsxElement {
     _node: BaseNode,
     pub opening_element: Id<Node /*JsxOpeningElement*/>,
-    pub children: Gc<NodeArray>, /*<JsxChild>*/
+    pub children: Id<NodeArray>, /*<JsxChild>*/
     pub closing_element: Id<Node /*JsxClosingElement*/>,
 }
 
@@ -50,7 +50,7 @@ impl JsxElement {
     pub fn new(
         base_node: BaseNode,
         opening_element: Id<Node>,
-        children: Gc<NodeArray>,
+        children: Id<NodeArray>,
         closing_element: Id<Node>,
     ) -> Self {
         Self {
@@ -63,7 +63,7 @@ impl JsxElement {
 }
 
 impl HasChildrenInterface for JsxElement {
-    fn children(&self) -> Gc<NodeArray> {
+    fn children(&self) -> Id<NodeArray> {
         self.children.clone()
     }
 }
@@ -72,11 +72,11 @@ impl HasChildrenInterface for JsxElement {
 #[ast_type]
 pub struct JsxAttributes {
     _node: BaseNode,
-    pub properties: Gc<NodeArray>, /*<JsxAttributeLike>*/
+    pub properties: Id<NodeArray>, /*<JsxAttributeLike>*/
 }
 
 impl JsxAttributes {
-    pub fn new(base_node: BaseNode, properties: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, properties: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             properties,
@@ -85,7 +85,7 @@ impl JsxAttributes {
 }
 
 impl HasPropertiesInterface for JsxAttributes {
-    fn properties(&self) -> Gc<NodeArray> {
+    fn properties(&self) -> Id<NodeArray> {
         self.properties.clone()
     }
 }
@@ -95,7 +95,7 @@ impl HasPropertiesInterface for JsxAttributes {
 pub struct JsxOpeningElement {
     _node: BaseNode,
     pub tag_name: Id<Node /*JsxTagNameExpression*/>,
-    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub attributes: Id<Node /*JsxAttributes*/>,
 }
 
@@ -103,7 +103,7 @@ impl JsxOpeningElement {
     pub fn new(
         base_node: BaseNode,
         tag_name: Id<Node>,
-        type_arguments: Option<Gc<NodeArray>>,
+        type_arguments: Option<Id<NodeArray>>,
         attributes: Id<Node>,
     ) -> Self {
         Self {
@@ -136,7 +136,7 @@ impl JsxOpeningLikeElementInterface for JsxOpeningElement {
 }
 
 impl HasTypeArgumentsInterface for JsxOpeningElement {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
@@ -146,7 +146,7 @@ impl HasTypeArgumentsInterface for JsxOpeningElement {
 pub struct JsxSelfClosingElement {
     _node: BaseNode,
     pub tag_name: Id<Node /*JsxTagNameExpression*/>,
-    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub attributes: Id<Node /*JsxAttributes*/>,
 }
 
@@ -154,7 +154,7 @@ impl JsxSelfClosingElement {
     pub fn new(
         base_node: BaseNode,
         tag_name: Id<Node>,
-        type_arguments: Option<Gc<NodeArray>>,
+        type_arguments: Option<Id<NodeArray>>,
         attributes: Id<Node>,
     ) -> Self {
         Self {
@@ -179,7 +179,7 @@ impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
 }
 
 impl HasTypeArgumentsInterface for JsxSelfClosingElement {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
@@ -189,7 +189,7 @@ impl HasTypeArgumentsInterface for JsxSelfClosingElement {
 pub struct JsxFragment {
     _node: BaseNode,
     pub opening_fragment: Id<Node /*JsxOpeningFragment*/>,
-    pub children: Gc<NodeArray>, /*<JsxChild>*/
+    pub children: Id<NodeArray>, /*<JsxChild>*/
     pub closing_fragment: Id<Node /*JsxClosingFragment*/>,
 }
 
@@ -197,7 +197,7 @@ impl JsxFragment {
     pub fn new(
         base_node: BaseNode,
         opening_fragment: Id<Node>,
-        children: Gc<NodeArray>,
+        children: Id<NodeArray>,
         closing_fragment: Id<Node>,
     ) -> Self {
         Self {
@@ -210,7 +210,7 @@ impl JsxFragment {
 }
 
 impl HasChildrenInterface for JsxFragment {
-    fn children(&self) -> Gc<NodeArray> {
+    fn children(&self) -> Id<NodeArray> {
         self.children.clone()
     }
 }
@@ -413,11 +413,11 @@ impl LiteralLikeNodeInterface for JsxText {
 #[ast_type]
 pub struct CommaListExpression {
     _node: BaseNode,
-    pub elements: Gc<NodeArray>, /*<Expression>*/
+    pub elements: Id<NodeArray>, /*<Expression>*/
 }
 
 impl CommaListExpression {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -426,7 +426,7 @@ impl CommaListExpression {
 }
 
 impl HasElementsInterface for CommaListExpression {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
@@ -499,12 +499,12 @@ impl MissingDeclaration {
 #[ast_type]
 pub struct Block {
     _node: BaseNode,
-    pub statements: Gc<NodeArray>, /*<Statement>*/
+    pub statements: Id<NodeArray>, /*<Statement>*/
     pub(crate) multi_line: Option<bool>,
 }
 
 impl Block {
-    pub fn new(base_node: BaseNode, statements: Gc<NodeArray>, multi_line: Option<bool>) -> Self {
+    pub fn new(base_node: BaseNode, statements: Id<NodeArray>, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             statements,
@@ -514,7 +514,7 @@ impl Block {
 }
 
 impl HasStatementsInterface for Block {
-    fn statements(&self) -> Gc<NodeArray> {
+    fn statements(&self) -> Id<NodeArray> {
         self.statements.clone()
     }
 }
@@ -942,11 +942,11 @@ impl HasExpressionInterface for SwitchStatement {
 #[ast_type]
 pub struct CaseBlock {
     _node: BaseNode,
-    pub clauses: Gc<NodeArray>, /*<CaseOrDefaultClause>*/
+    pub clauses: Id<NodeArray>, /*<CaseOrDefaultClause>*/
 }
 
 impl CaseBlock {
-    pub fn new(base_node: BaseNode, clauses: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, clauses: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             clauses,
@@ -959,12 +959,12 @@ impl CaseBlock {
 pub struct CaseClause {
     _node: BaseNode,
     pub expression: Id<Node /*Expression*/>,
-    pub statements: Gc<NodeArray>, /*<Statement>*/
+    pub statements: Id<NodeArray>, /*<Statement>*/
     fallthrough_flow_node: GcCell<Option<Id<FlowNode>>>,
 }
 
 impl CaseClause {
-    pub fn new(base_node: BaseNode, expression: Id<Node>, statements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, expression: Id<Node>, statements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             expression,
@@ -975,7 +975,7 @@ impl CaseClause {
 }
 
 impl HasStatementsInterface for CaseClause {
-    fn statements(&self) -> Gc<NodeArray> {
+    fn statements(&self) -> Id<NodeArray> {
         self.statements.clone()
     }
 }
@@ -1005,12 +1005,12 @@ impl HasExpressionInterface for CaseClause {
 #[ast_type]
 pub struct DefaultClause {
     _node: BaseNode,
-    pub statements: Gc<NodeArray>, /*<Statement>*/
+    pub statements: Id<NodeArray>, /*<Statement>*/
     fallthrough_flow_node: GcCell<Option<Id<FlowNode>>>,
 }
 
 impl DefaultClause {
-    pub fn new(base_node: BaseNode, statements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, statements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             statements,
@@ -1020,7 +1020,7 @@ impl DefaultClause {
 }
 
 impl HasStatementsInterface for DefaultClause {
-    fn statements(&self) -> Gc<NodeArray> {
+    fn statements(&self) -> Id<NodeArray> {
         self.statements.clone()
     }
 }
@@ -1356,18 +1356,18 @@ impl NamedDeclarationInterface for SpreadAssignment {
 }
 
 pub trait HasElementsInterface: NodeInterface {
-    fn elements(&self) -> Gc<NodeArray>;
+    fn elements(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct ObjectBindingPattern {
     _node: BaseNode,
-    pub elements: Gc<NodeArray>, /*<BindingElement>*/
+    pub elements: Id<NodeArray>, /*<BindingElement>*/
 }
 
 impl ObjectBindingPattern {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -1376,7 +1376,7 @@ impl ObjectBindingPattern {
 }
 
 impl HasElementsInterface for ObjectBindingPattern {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
@@ -1385,11 +1385,11 @@ impl HasElementsInterface for ObjectBindingPattern {
 #[ast_type]
 pub struct ArrayBindingPattern {
     _node: BaseNode,
-    pub elements: Gc<NodeArray>, /*<ArrayBindingElement>*/
+    pub elements: Id<NodeArray>, /*<ArrayBindingElement>*/
 }
 
 impl ArrayBindingPattern {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -1398,14 +1398,14 @@ impl ArrayBindingPattern {
 }
 
 impl HasElementsInterface for ArrayBindingPattern {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
 
 pub trait HasTypeParametersInterface {
-    fn maybe_type_parameters(&self) -> Option<Gc<NodeArray>>;
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Gc<NodeArray>>>;
+    fn maybe_type_parameters(&self) -> Option<Id<NodeArray>>;
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>>;
 }
 
 pub trait GenericNamedDeclarationInterface:
@@ -1417,13 +1417,13 @@ pub trait GenericNamedDeclarationInterface:
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
     _named_declaration: BaseNamedDeclaration,
-    type_parameters: GcCell<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>>,
+    type_parameters: GcCell<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>>,
 }
 
 impl BaseGenericNamedDeclaration {
     pub fn new(
         base_named_declaration: BaseNamedDeclaration,
-        type_parameters: Option<Gc<NodeArray>>,
+        type_parameters: Option<Id<NodeArray>>,
     ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
@@ -1433,11 +1433,11 @@ impl BaseGenericNamedDeclaration {
 }
 
 impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
-    fn maybe_type_parameters(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_parameters(&self) -> Option<Id<NodeArray>> {
         self.type_parameters.borrow().clone()
     }
 
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Gc<NodeArray>>> {
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
         self.type_parameters.borrow_mut()
     }
 }
@@ -1445,7 +1445,7 @@ impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
 impl GenericNamedDeclarationInterface for BaseGenericNamedDeclaration {}
 
 pub trait InterfaceOrClassLikeDeclarationInterface {
-    fn maybe_heritage_clauses(&self) -> Option<Gc<NodeArray>>;
+    fn maybe_heritage_clauses(&self) -> Option<Id<NodeArray>>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -1455,13 +1455,13 @@ pub trait InterfaceOrClassLikeDeclarationInterface {
 )]
 pub struct BaseInterfaceOrClassLikeDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
-    heritage_clauses: Option<Gc<NodeArray> /*<HeritageClause>*/>,
+    heritage_clauses: Option<Id<NodeArray> /*<HeritageClause>*/>,
 }
 
 impl BaseInterfaceOrClassLikeDeclaration {
     pub fn new(
         base_generic_named_declaration: BaseGenericNamedDeclaration,
-        heritage_clauses: Option<Gc<NodeArray>>,
+        heritage_clauses: Option<Id<NodeArray>>,
     ) -> Self {
         Self {
             _generic_named_declaration: base_generic_named_declaration,
@@ -1471,7 +1471,7 @@ impl BaseInterfaceOrClassLikeDeclaration {
 }
 
 impl InterfaceOrClassLikeDeclarationInterface for BaseInterfaceOrClassLikeDeclaration {
-    fn maybe_heritage_clauses(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_heritage_clauses(&self) -> Option<Id<NodeArray>> {
         self.heritage_clauses.clone()
     }
 }
@@ -1482,7 +1482,7 @@ pub trait ClassLikeDeclarationInterface:
     + GenericNamedDeclarationInterface
     + InterfaceOrClassLikeDeclarationInterface
 {
-    fn members(&self) -> Gc<NodeArray>;
+    fn members(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -1492,13 +1492,13 @@ pub trait ClassLikeDeclarationInterface:
 )]
 pub struct ClassLikeDeclarationBase {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
-    members: Gc<NodeArray>, /*<ClassElement>*/
+    members: Id<NodeArray>, /*<ClassElement>*/
 }
 
 impl ClassLikeDeclarationBase {
     pub fn new(
         base_interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
-        members: Gc<NodeArray>,
+        members: Id<NodeArray>,
     ) -> Self {
         Self {
             _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
@@ -1508,7 +1508,7 @@ impl ClassLikeDeclarationBase {
 }
 
 impl ClassLikeDeclarationInterface for ClassLikeDeclarationBase {
-    fn members(&self) -> Gc<NodeArray> {
+    fn members(&self) -> Id<NodeArray> {
         self.members.clone()
     }
 }
@@ -1551,13 +1551,13 @@ impl ClassExpression {
 )]
 pub struct InterfaceDeclaration {
     _interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration, /*name: Identifier*/
-    pub members: Gc<NodeArray>,                                                /*<TypeElement>*/
+    pub members: Id<NodeArray>,                                                /*<TypeElement>*/
 }
 
 impl InterfaceDeclaration {
     pub fn new(
         base_interface_or_class_like_declaration: BaseInterfaceOrClassLikeDeclaration,
-        members: Gc<NodeArray>,
+        members: Id<NodeArray>,
     ) -> Self {
         Self {
             _interface_or_class_like_declaration: base_interface_or_class_like_declaration,
@@ -1567,7 +1567,7 @@ impl InterfaceDeclaration {
 }
 
 impl HasMembersInterface for InterfaceDeclaration {
-    fn members(&self) -> Gc<NodeArray> {
+    fn members(&self) -> Id<NodeArray> {
         self.members.clone()
     }
 }
@@ -1578,11 +1578,11 @@ pub struct HeritageClause {
     _node: BaseNode,
     #[unsafe_ignore_trace]
     pub token: SyntaxKind, /*SyntaxKind.ExtendsKeyword | SyntaxKind.ImplementsKeyword*/
-    pub types: Gc<NodeArray>, /*<ExpressionWithTypeArguments>*/
+    pub types: Id<NodeArray>, /*<ExpressionWithTypeArguments>*/
 }
 
 impl HeritageClause {
-    pub fn new(base_node: BaseNode, token: SyntaxKind, types: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, token: SyntaxKind, types: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             token,
@@ -1668,11 +1668,11 @@ impl HasInitializerInterface for EnumMember {
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct EnumDeclaration {
     _named_declaration: BaseNamedDeclaration, /*name: PropertyName*/
-    pub members: Gc<NodeArray>,               /*<EnumMember>*/
+    pub members: Id<NodeArray>,               /*<EnumMember>*/
 }
 
 impl EnumDeclaration {
-    pub fn new(base_named_declaration: BaseNamedDeclaration, members: Gc<NodeArray>) -> Self {
+    pub fn new(base_named_declaration: BaseNamedDeclaration, members: Id<NodeArray>) -> Self {
         Self {
             _named_declaration: base_named_declaration,
             members,
@@ -1716,11 +1716,11 @@ impl NamedDeclarationInterface for ModuleDeclaration {
 #[ast_type]
 pub struct ModuleBlock {
     _node: BaseNode,
-    pub statements: Gc<NodeArray>, /*<Statement>*/
+    pub statements: Id<NodeArray>, /*<Statement>*/
 }
 
 impl ModuleBlock {
-    pub fn new(base_node: BaseNode, statements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, statements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             statements,
@@ -1729,7 +1729,7 @@ impl ModuleBlock {
 }
 
 impl HasStatementsInterface for ModuleBlock {
-    fn statements(&self) -> Gc<NodeArray> {
+    fn statements(&self) -> Id<NodeArray> {
         self.statements.clone()
     }
 }

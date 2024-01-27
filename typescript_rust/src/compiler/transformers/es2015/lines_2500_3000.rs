@@ -62,7 +62,7 @@ impl TransformES2015 {
         let next = self.factory.ref_(self).create_call_expression(
             self.factory
                 .ref_(self).create_property_access_expression(iterator.clone(), "next"),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![]),
         );
 
@@ -920,7 +920,7 @@ impl TransformES2015 {
         if let Some(extra_variable_declarations) = extra_variable_declarations {
             statements.push(
                 self.factory.ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory
                         .ref_(self).create_variable_declaration_list(extra_variable_declarations, None),
                 ),

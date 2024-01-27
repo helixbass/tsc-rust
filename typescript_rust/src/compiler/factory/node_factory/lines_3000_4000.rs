@@ -305,7 +305,7 @@ impl NodeFactory {
     ) -> VariableStatement {
         let node = self.create_base_declaration(
             SyntaxKind::VariableStatement,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
         );
         let node = VariableStatement::new(
@@ -923,8 +923,8 @@ impl NodeFactory {
     ) -> VariableDeclaration {
         let node = self.create_base_variable_like_declaration(
             SyntaxKind::VariableDeclaration,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             name,
             type_,
             initializer.map(|initializer| {
@@ -1532,8 +1532,8 @@ impl NodeFactory {
     ) -> NamespaceExportDeclaration {
         let node = self.create_base_named_declaration(
             SyntaxKind::NamespaceExportDeclaration,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
         );
         let node = NamespaceExportDeclaration::new(node);

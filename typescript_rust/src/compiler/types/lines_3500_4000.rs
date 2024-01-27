@@ -128,7 +128,7 @@ pub struct RedirectInfo {
 }
 
 pub trait HasStatementsInterface {
-    fn statements(&self) -> Gc<NodeArray>;
+    fn statements(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -140,7 +140,7 @@ pub struct SourceFile {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct SourceFileContents {
-    statements: Gc<NodeArray>,
+    statements: Id<NodeArray>,
     end_of_file_token: Id<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     #[unsafe_ignore_trace]
@@ -249,7 +249,7 @@ pub struct SourceFileContents {
 impl SourceFile {
     pub fn new(
         base_node: BaseNode,
-        statements: Gc<NodeArray>,
+        statements: Id<NodeArray>,
         end_of_file_token: Id<Node>,
         file_name: String,
         text: String,
@@ -319,7 +319,7 @@ impl SourceFile {
         }
     }
 
-    pub fn set_statements(&mut self, statements: Gc<NodeArray>) {
+    pub fn set_statements(&mut self, statements: Id<NodeArray>) {
         self.contents.statements = statements;
     }
 
@@ -834,7 +834,7 @@ impl PragmaContext for SourceFile {
 }
 
 impl HasStatementsInterface for SourceFile {
-    fn statements(&self) -> Gc<NodeArray> {
+    fn statements(&self) -> Id<NodeArray> {
         self.contents.statements.clone()
     }
 }

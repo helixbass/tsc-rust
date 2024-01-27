@@ -41,12 +41,12 @@ impl TransformTypeScript {
                 Some(always_strict),
                 Option::<
                     fn(
-                        Option<&NodeArray>,
+                        Option<Id<NodeArray>>,
                         Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
                         Option<&dyn Fn(Id<Node>) -> bool>,
                         Option<usize>,
                         Option<usize>,
-                    ) -> io::Result<Option<Gc<NodeArray>>>,
+                    ) -> io::Result<Option<Id<NodeArray>>>,
                 >::None,
                 self,
             )?,
@@ -218,7 +218,7 @@ impl TransformTypeScript {
             let var_statement = self
                 .factory
                 .ref_(self).create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
                             Some(self.factory.ref_(self).get_local_name(node, Some(false), Some(false))),
@@ -297,10 +297,10 @@ impl TransformTypeScript {
             });
 
         let class_declaration = self.factory.ref_(self).create_class_declaration(
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             name,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node_as_class_declaration
                     .maybe_heritage_clauses()
@@ -356,10 +356,10 @@ impl TransformTypeScript {
         let class_expression = self
             .factory
             .ref_(self).create_class_expression(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 name,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 heritage_clauses,
                 members,
             )
@@ -369,7 +369,7 @@ impl TransformTypeScript {
         Ok(self
             .factory
             .ref_(self).create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.factory.ref_(self).create_variable_declaration_list(
                     vec![self.factory.ref_(self).create_variable_declaration(
                         Some(decl_name),
@@ -408,10 +408,10 @@ impl TransformTypeScript {
         Ok(self
             .factory
             .ref_(self).create_class_expression(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 node_as_class_expression.maybe_name(),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 try_maybe_visit_nodes(
                     node_as_class_expression.maybe_heritage_clauses().as_deref(),
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -429,7 +429,7 @@ impl TransformTypeScript {
     pub(super) fn transform_class_members(
         &self,
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
-    ) -> io::Result<Gc<NodeArray>> {
+    ) -> io::Result<Id<NodeArray>> {
         let mut members: Vec<Id<Node /*ClassElement*/>> = Default::default();
         let constructor = get_first_constructor_with_body(node, self);
         let parameters_with_property_assignments = constructor.map(|constructor| {
@@ -447,8 +447,8 @@ impl TransformTypeScript {
                     members.push(
                         self.factory
                             .ref_(self).create_property_declaration(
-                                Option::<Gc<NodeArray>>::None,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 parameter_as_parameter_declaration.name(),
                                 None,
                                 None,

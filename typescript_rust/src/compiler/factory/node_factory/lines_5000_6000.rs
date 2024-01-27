@@ -39,8 +39,8 @@ impl NodeFactory {
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
             SyntaxKind::PropertyAssignment,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
         );
         let node = PropertyAssignment::new(
@@ -109,8 +109,8 @@ impl NodeFactory {
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             SyntaxKind::ShorthandPropertyAssignment,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
         );
         let node = ShorthandPropertyAssignment::new(
@@ -648,14 +648,14 @@ impl NodeFactory {
     ) -> Id<Node> {
         self.create_call_expression(
             self.create_arrow_function(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 param.map_or_default(|param| vec![param]),
                 None,
                 None,
                 self.create_block(statements, Some(true)),
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(param_value.map_or_default(|param_value| vec![param_value])),
         )
     }
@@ -666,8 +666,8 @@ impl NodeFactory {
 
     pub fn create_export_default(&self, expression: Id<Node /*Expression*/>) -> Id<Node> {
         self.create_export_assignment(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(false),
             expression,
         )
@@ -675,8 +675,8 @@ impl NodeFactory {
 
     pub fn create_external_module_export(&self, export_name: Id<Node /*Identifier*/>) -> Id<Node> {
         self.create_export_declaration(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             false,
             Some(self.create_named_exports(vec![self.create_export_specifier(
                 false,
@@ -713,13 +713,13 @@ impl NodeFactory {
             return self.create_call_chain(
                 self.create_property_access_chain(object, None, method_name),
                 None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(arguments_list),
             );
         }
         self.create_call_expression(
             self.create_property_access_expression(object, method_name),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(arguments_list),
         )
     }
@@ -1115,12 +1115,12 @@ impl NodeFactory {
         self.create_property_access_expression(
             self.create_parenthesized_expression(self.create_object_literal_expression(
                 Some(vec![self.create_set_accessor_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     "value",
                     vec![self.create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         Some(param_name),
                         None,
@@ -1425,8 +1425,8 @@ impl NodeFactory {
 
     pub fn ensure_use_strict(
         &self,
-        statements: &NodeArray, /*<Statement>*/
-    ) -> Gc<NodeArray /*<Statement>*/> {
+        statements: Id<NodeArray>, /*<Statement>*/
+    ) -> Id<NodeArray /*<Statement>*/> {
         let found_use_strict = find_use_strict_prologue(statements, self);
 
         if found_use_strict.is_none() {

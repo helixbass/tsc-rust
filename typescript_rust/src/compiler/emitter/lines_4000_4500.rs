@@ -218,7 +218,7 @@ impl Printer {
     pub(super) fn emit_modifiers(
         &self,
         node: Id<Node>,
-        modifiers: Option<&NodeArray /*<Modifier>*/>,
+        modifiers: Option<Id<NodeArray> /*<Modifier>*/>,
     ) -> io::Result<()> {
         Ok(
             if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.is_empty()) {
@@ -344,7 +344,7 @@ impl Printer {
     pub(super) fn emit_decorators(
         &self,
         parent_node: Id<Node>,
-        decorators: Option<&NodeArray /*<Decorator>*/>,
+        decorators: Option<Id<NodeArray> /*<Decorator>*/>,
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
@@ -361,7 +361,7 @@ impl Printer {
     pub(super) fn emit_type_arguments(
         &self,
         parent_node: Id<Node>,
-        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+        type_arguments: Option<Id<NodeArray> /*<TypeNode>*/>,
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
@@ -380,7 +380,7 @@ impl Printer {
     pub(super) fn emit_type_parameters(
         &self,
         parent_node: Id<Node>, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
-        type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>,
     ) -> io::Result<()> {
         if is_function_like(Some(&parent_node.ref_(self))) {
             // TODO
@@ -403,7 +403,7 @@ impl Printer {
     pub(super) fn emit_parameters(
         &self,
         parent_node: Id<Node>,
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
@@ -420,7 +420,7 @@ impl Printer {
     pub(super) fn can_emit_simple_arrow_head(
         &self,
         parent_node: Id<Node>,  /*FunctionTypeNode | ArrowFunction*/
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> bool {
         let parameter = single_or_undefined(Some(parameters));
         matches!(
@@ -464,7 +464,7 @@ impl Printer {
     pub(super) fn emit_parameters_for_arrow(
         &self,
         parent_node: Id<Node>,     /*FunctionTypeNode | ArrowFunction*/
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         Ok(
             if self.can_emit_simple_arrow_head(parent_node, parameters) {
@@ -485,7 +485,7 @@ impl Printer {
     pub(super) fn emit_parameters_for_index_signature(
         &self,
         parent_node: Id<Node>,
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
@@ -525,7 +525,7 @@ impl Printer {
     pub(super) fn emit_list(
         &self,
         parent_node: Option<Id<Node>>,
-        children: Option<&NodeArray>,
+        children: Option<Id<NodeArray>>,
         format: ListFormat,
         parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
@@ -547,7 +547,7 @@ impl Printer {
     pub(super) fn emit_expression_list(
         &self,
         parent_node: Option<Id<Node>>,
-        children: Option<&NodeArray>,
+        children: Option<Id<NodeArray>>,
         format: ListFormat,
         parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
@@ -574,7 +574,7 @@ impl Printer {
             Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         ) -> io::Result<()>,
         parent_node: Option<Id<Node>>,
-        children: Option<&NodeArray>,
+        children: Option<Id<NodeArray>>,
         format: ListFormat,
         parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,

@@ -47,7 +47,7 @@ impl TypeChecker {
         node: Id<Node>, /*ObjectLiteralExpression*/
         object_literal_type: Id<Type>,
         property_index: usize,
-        all_properties: Option<&NodeArray /*<ObjectLiteralElementLike>*/>,
+        all_properties: Option<Id<NodeArray> /*<ObjectLiteralElementLike>*/>,
         right_is_this: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let right_is_this = right_is_this.unwrap_or(false);

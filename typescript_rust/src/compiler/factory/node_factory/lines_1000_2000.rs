@@ -170,8 +170,8 @@ impl NodeFactory {
     ) -> TypeParameterDeclaration {
         let node = self.create_base_named_declaration(
             SyntaxKind::TypeParameter,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
         );
         let node = TypeParameterDeclaration::new(node, constraint, default_type);
@@ -332,7 +332,7 @@ impl NodeFactory {
     ) -> PropertySignature {
         let node = self.create_base_named_declaration(
             SyntaxKind::PropertySignature,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             Some(name),
         );
@@ -479,7 +479,7 @@ impl NodeFactory {
     ) -> MethodSignature {
         let node = self.create_base_signature_declaration(
             SyntaxKind::MethodSignature,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             name,
             type_parameters,
@@ -497,8 +497,8 @@ impl NodeFactory {
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         name: Id<Node /*PropertyName*/>,
         question_token: Option<Id<Node /*QuestionToken*/>>,
-        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
-        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node>>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
@@ -645,7 +645,7 @@ impl NodeFactory {
             decorators,
             modifiers,
             Option::<Id<Node>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
         );
         let node = ClassStaticBlockDeclaration::new(node, body.clone());
         node.add_transform_flags(
@@ -691,7 +691,7 @@ impl NodeFactory {
             decorators,
             modifiers,
             Option::<Id<Node>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             parameters,
             None,
             body,
@@ -743,7 +743,7 @@ impl NodeFactory {
             decorators,
             modifiers,
             Some(name),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(parameters),
             type_,
             body,
@@ -798,7 +798,7 @@ impl NodeFactory {
             decorators,
             modifiers,
             Some(name),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(parameters),
             None,
             body,
@@ -844,8 +844,8 @@ impl NodeFactory {
     ) -> CallSignatureDeclaration {
         let node = self.create_base_signature_declaration(
             SyntaxKind::CallSignature,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Option::<Id<Node>>::None,
             type_parameters,
             Some(parameters),
@@ -859,8 +859,8 @@ impl NodeFactory {
     pub fn update_call_signature(
         &self,
         node: Id<Node>, /*CallSignatureDeclaration*/
-        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
-        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
@@ -893,8 +893,8 @@ impl NodeFactory {
     ) -> ConstructSignatureDeclaration {
         let node = self.create_base_signature_declaration(
             SyntaxKind::ConstructSignature,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Option::<Id<Node>>::None,
             type_parameters,
             Some(parameters),
@@ -908,8 +908,8 @@ impl NodeFactory {
     pub fn update_construct_signature(
         &self,
         node: Id<Node>, /*ConstructSignatureDeclaration*/
-        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
-        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
@@ -946,7 +946,7 @@ impl NodeFactory {
             decorators,
             modifiers,
             Option::<Id<Node>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(parameters),
             type_,
         );
@@ -1117,8 +1117,8 @@ impl NodeFactory {
     ) -> FunctionTypeNode {
         let node = self.create_base_signature_declaration(
             SyntaxKind::FunctionType,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Option::<Id<Node>>::None,
             type_parameters,
             Some(parameters),
@@ -1132,8 +1132,8 @@ impl NodeFactory {
     pub fn update_function_type_node(
         &self,
         node: Id<Node>, /*FunctionTypeNode*/
-        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
-        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
@@ -1163,7 +1163,7 @@ impl NodeFactory {
     ) -> ConstructorTypeNode {
         let node = self.create_base_signature_declaration(
             SyntaxKind::ConstructorType,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             Option::<Id<Node>>::None,
             type_parameters,
@@ -1179,8 +1179,8 @@ impl NodeFactory {
         &self,
         node: Id<Node>, /*ConstructorTypeNode*/
         modifiers: Option<impl Into<NodeArrayOrVec>>,
-        type_parameters: Option<Gc<NodeArray /*<TypeParameterDeclaration>*/>>,
-        parameters: Gc<NodeArray /*<ParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray /*<TypeParameterDeclaration>*/>>,
+        parameters: Id<NodeArray /*<ParameterDeclaration>*/>,
         type_: Option<Id<Node /*TypeNode*/>>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
@@ -1241,7 +1241,7 @@ impl NodeFactory {
     pub fn update_type_literal_node(
         &self,
         node: Id<Node>, /*TypeLiteralNode*/
-        members: Gc<NodeArray>,
+        members: Id<NodeArray>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_type_literal_node = node_ref.as_type_literal_node();
@@ -1412,7 +1412,7 @@ impl NodeFactory {
     pub fn update_union_or_intersection_type_node(
         &self,
         node: Id<Node>, /*UnionOrIntersectionTypeNode*/
-        types: Gc<NodeArray /*<TypeNode>*/>,
+        types: Id<NodeArray /*<TypeNode>*/>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_union_or_intersection_type = node_ref.as_union_or_intersection_type_node();
@@ -1437,7 +1437,7 @@ impl NodeFactory {
     pub fn update_union_type_node(
         &self,
         node: Id<Node>, /*UnionTypeNode*/
-        types: Gc<NodeArray /*<TypeNode>*/>,
+        types: Id<NodeArray /*<TypeNode>*/>,
     ) -> Id<Node> {
         self.update_union_or_intersection_type_node(node, types)
     }
@@ -1453,7 +1453,7 @@ impl NodeFactory {
     pub fn update_intersection_type_node(
         &self,
         node: Id<Node>, /*IntersectionTypeNode*/
-        types: Gc<NodeArray /*<TypeNode>*/>,
+        types: Id<NodeArray /*<TypeNode>*/>,
     ) -> Id<Node> {
         self.update_union_or_intersection_type_node(node, types)
     }

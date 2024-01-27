@@ -292,7 +292,7 @@ impl ParserType {
         &self,
         kind: ParsingContext,
         parse_element: &mut impl FnMut() -> Id<Node>,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
         let mut list = vec![];
@@ -678,7 +678,7 @@ impl ParserType {
         kind: ParsingContext,
         mut parse_element: TParseElement,
         consider_semicolon_as_delimiter: Option<bool>,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let consider_semicolon_as_delimiter = consider_semicolon_as_delimiter.unwrap_or(false);
         let save_parsing_context = self.parsing_context();
         self.set_parsing_context(self.parsing_context() | kind);
@@ -743,13 +743,13 @@ impl ParserType {
         }
     }
 
-    pub(super) fn create_missing_list(&self) -> Gc<NodeArray> {
+    pub(super) fn create_missing_list(&self) -> Id<NodeArray> {
         let list = self.create_node_array(vec![], self.get_node_pos(), None, None);
         list.set_is_missing_list(true);
         list
     }
 
-    pub(super) fn is_missing_list(&self, arr: &NodeArray) -> bool {
+    pub(super) fn is_missing_list(&self, arr: Id<NodeArray>) -> bool {
         arr.is_missing_list()
     }
 
@@ -759,7 +759,7 @@ impl ParserType {
         parse_element: TParseElement,
         open: SyntaxKind,
         close: SyntaxKind,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         if self.parse_expected(open, None, None) {
             let result = self.parse_delimited_list(kind, parse_element, None);
             self.parse_expected(close, None, None);
@@ -858,7 +858,7 @@ impl ParserType {
         }
     }
 
-    pub(super) fn parse_template_spans(&self, is_tagged_template: bool) -> Gc<NodeArray> /*<TemplateSpan>*/
+    pub(super) fn parse_template_spans(&self, is_tagged_template: bool) -> Id<NodeArray> /*<TemplateSpan>*/
     {
         let pos = self.get_node_pos();
         let mut list = vec![];
@@ -896,7 +896,7 @@ impl ParserType {
         )
     }
 
-    pub(super) fn parse_template_type_spans(&self) -> Gc<NodeArray> /*<TemplateLiteralTypeSpan>*/ {
+    pub(super) fn parse_template_type_spans(&self) -> Id<NodeArray> /*<TemplateLiteralTypeSpan>*/ {
         let pos = self.get_node_pos();
         let mut list = vec![];
         let mut node: TemplateLiteralTypeSpan;
@@ -1058,7 +1058,7 @@ impl ParserType {
 
     pub(super) fn parse_type_arguments_of_type_reference(
         &self,
-    ) -> Option<Gc<NodeArray> /*<TypeNode>*/> {
+    ) -> Option<Id<NodeArray> /*<TypeNode>*/> {
         if !self.scanner().has_preceding_line_break()
             && self.re_scan_less_than_token() == SyntaxKind::LessThanToken
         {

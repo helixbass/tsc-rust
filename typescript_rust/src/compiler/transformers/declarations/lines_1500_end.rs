@@ -138,7 +138,7 @@ impl TransformDeclarations {
         is_export_assignment(&node.ref_(self)) || is_export_declaration(&node.ref_(self))
     }
 
-    pub(super) fn has_scope_marker(&self, statements: &NodeArray) -> bool {
+    pub(super) fn has_scope_marker(&self, statements: Id<NodeArray>) -> bool {
         some(
             Some(statements),
             Some(|&statement: &Id<Node>| self.is_scope_marker(statement)),
@@ -204,8 +204,8 @@ impl TransformDeclarations {
 
     pub(super) fn transform_heritage_clauses(
         &self,
-        nodes: Option<&NodeArray /*<HeritageClause>*/>,
-    ) -> io::Result<Gc<NodeArray>> {
+        nodes: Option<Id<NodeArray> /*<HeritageClause>*/>,
+    ) -> io::Result<Id<NodeArray>> {
         Ok(self.factory.ref_(self).create_node_array(
             nodes.try_map(|nodes| -> io::Result<_> {
                 let mut ret = vec![];

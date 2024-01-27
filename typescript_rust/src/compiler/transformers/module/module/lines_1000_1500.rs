@@ -51,7 +51,7 @@ impl TransformModule {
                 statements.get_or_insert_default_().push(
                     self.factory
                         .ref_(self).create_variable_statement(
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 vec![self.factory.ref_(self).create_variable_declaration(
                                     Some(
@@ -124,7 +124,7 @@ impl TransformModule {
                     statements.push(
                         self.factory
                             .ref_(self).create_variable_statement(
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 self.factory.ref_(self).create_variable_declaration_list(
                                     vec![self.factory.ref_(self).create_variable_declaration(
                                         Some(generated_name.clone()),
@@ -314,7 +314,7 @@ impl TransformModule {
             statements.get_or_insert_default_().push(
                 self.factory
                     .ref_(self).create_function_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         maybe_visit_nodes(
                             node.ref_(self).maybe_modifiers().as_deref(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
@@ -328,7 +328,7 @@ impl TransformModule {
                             self.factory
                                 .ref_(self).get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         try_visit_nodes(
                             &node_as_function_declaration.parameters(),
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -383,7 +383,7 @@ impl TransformModule {
             statements.get_or_insert_default_().push(
                 self.factory
                     .ref_(self).create_class_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         maybe_visit_nodes(
                             node.ref_(self).maybe_modifiers().as_deref(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
@@ -396,7 +396,7 @@ impl TransformModule {
                             self.factory
                                 .ref_(self).get_declaration_name(Some(node), Some(true), Some(true)),
                         ),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         try_maybe_visit_nodes(
                             node_as_class_declaration
                                 .maybe_heritage_clauses()
@@ -454,7 +454,7 @@ impl TransformModule {
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
 
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
-            let mut modifiers: Option<Gc<NodeArray /*Modifier*/>> = _d();
+            let mut modifiers: Option<Id<NodeArray /*Modifier*/>> = _d();
             let mut remove_comments_on_expressions = false;
 
             for &variable in &node_as_variable_statement

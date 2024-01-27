@@ -33,8 +33,8 @@ pub fn create_empty_exports(
     factory: &NodeFactory,
 ) -> Id<Node> {
     factory.create_export_declaration(
-        Option::<Gc<NodeArray>>::None,
-        Option::<Gc<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
         false,
         Some(factory.create_named_exports(vec![])),
         None,
@@ -181,7 +181,7 @@ pub fn create_expression_for_jsx_element(
     factory
         .create_call_expression(
             callee,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(arguments_list),
         )
         .set_text_range(Some(location), factory)
@@ -225,7 +225,7 @@ pub fn create_expression_for_jsx_fragment(
                 Some(react_namespace),
                 parent_element,
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(arguments_list),
         )
         .set_text_range(Some(location), factory)
@@ -247,7 +247,7 @@ pub fn create_for_of_binding_statement(
         );
         factory
             .create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 factory.update_variable_declaration_list(node, vec![updated_declaration]),
             )
             .set_text_range(Some(&*node.ref_(factory)), factory)
@@ -312,7 +312,7 @@ pub fn create_expression_for_property_name(
 
 fn create_expression_for_accessor_declaration(
     factory: &NodeFactory,
-    properties: &NodeArray, /*<Declaration>*/
+    properties: Id<NodeArray>, /*<Declaration>*/
     property: Id<Node>, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
     receiver: Id<Node>, /*Expression*/
     multi_line: bool,
@@ -345,7 +345,7 @@ fn create_expression_for_accessor_declaration(
                                         get_accessor_ref.maybe_modifiers(),
                                         None,
                                         Option::<Id<Node>>::None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         Some(get_accessor_as_get_accessor_declaration.parameters()),
                                         None,
                                         get_accessor_as_get_accessor_declaration
@@ -364,7 +364,7 @@ fn create_expression_for_accessor_declaration(
                                         set_accessor_ref.maybe_modifiers(),
                                         None,
                                         Option::<Id<Node>>::None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         Some(set_accessor_as_set_accessor_declaration.parameters()),
                                         None,
                                         set_accessor_as_set_accessor_declaration
@@ -448,7 +448,7 @@ fn create_expression_for_method_declaration(
                     method.ref_(factory).maybe_modifiers(),
                     method_as_method_declaration.maybe_asterisk_token(),
                     Option::<Id<Node>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(method_as_method_declaration.parameters()),
                     None,
                     method_as_method_declaration.maybe_body().unwrap(),
@@ -758,8 +758,8 @@ pub fn create_external_helpers_import_declaration_if_needed(
             return Some(
                 node_factory
                     .create_import_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(node_factory.create_import_clause(false, None, Some(named_bindings))),
                         node_factory.create_string_literal(
                             external_helpers_module_name_text.to_owned(),

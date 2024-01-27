@@ -139,7 +139,7 @@ impl TransformSystemModule {
                 self.context_object(),
                 self.factory.ref_(self).create_identifier("import"),
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(argument.map_or_default(|argument| vec![argument])),
         ))
     }

@@ -42,7 +42,7 @@ impl TypeChecker {
             && try_for_each_child_recursively_bool(
                 expression,
                 |n, _| self.is_matching_reference(this_property, n),
-                Option::<fn(&NodeArray, Id<Node>) -> io::Result<bool>>::None,
+                Option::<fn(Id<NodeArray>, Id<Node>) -> io::Result<bool>>::None,
                 self,
             )?)
     }

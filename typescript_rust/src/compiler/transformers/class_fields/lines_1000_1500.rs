@@ -80,10 +80,10 @@ impl TransformClassFields {
         let mut statements: Vec<Id<Node /*Statement*/>> =
             vec![self.factory.ref_(self).update_class_declaration(
                 node,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 node.ref_(self).maybe_modifiers(),
                 node_as_class_declaration.maybe_name(),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 maybe_visit_nodes(
                     node_as_class_declaration
                         .maybe_heritage_clauses()
@@ -179,7 +179,7 @@ impl TransformClassFields {
             ),
             node.ref_(self).maybe_modifiers(),
             node_as_class_expression.maybe_name(),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
                 node_as_class_expression.maybe_heritage_clauses().as_deref(),
                 Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
@@ -333,7 +333,7 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ClassDeclaration | ClassExpression*/
         is_derived_class: bool,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         if self.should_transform_private_elements_or_class_static_blocks {
@@ -389,7 +389,7 @@ impl TransformClassFields {
                 weak_set_name.clone(),
                 self.factory.ref_(self).create_new_expression(
                     self.factory.ref_(self).create_identifier("WeakSet"),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![]),
                 ),
             ));
@@ -446,8 +446,8 @@ impl TransformClassFields {
         Some(
             self.factory
                 .ref_(self).create_constructor_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(parameters.map_or_else(|| vec![].into(), NodeArrayOrVec::from)),
                     Some(body),
                 )
@@ -494,7 +494,7 @@ impl TransformClassFields {
             statements.push(self.factory.ref_(self).create_expression_statement(
                 self.factory.ref_(self).create_call_expression(
                     self.factory.ref_(self).create_super(),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![self.factory.ref_(self).create_spread_element(
                         self.factory.ref_(self).create_identifier("arguments"),
                     )]),

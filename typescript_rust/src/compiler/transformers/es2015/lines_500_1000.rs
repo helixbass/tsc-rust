@@ -57,7 +57,7 @@ impl TransformES2015 {
             self.maybe_tagged_template_string_declarations().as_ref()
         {
             statements.push(self.factory.ref_(self).create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.factory.ref_(self).create_variable_declaration_list(
                     tagged_template_string_declarations.clone(),
                     None,
@@ -361,7 +361,7 @@ impl TransformES2015 {
         let statement = self
             .factory
             .ref_(self).create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.factory
                     .ref_(self).create_variable_declaration_list(vec![variable], None),
             )
@@ -419,14 +419,14 @@ impl TransformES2015 {
         let class_function = self
             .factory
             .ref_(self).create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Option::<Id<Node>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(extends_clause_element.as_ref().map_or_default(|_| {
                     vec![self.factory.ref_(self).create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         Some(self.factory.ref_(self).create_unique_name(
                             "_super",
@@ -470,7 +470,7 @@ impl TransformES2015 {
             .factory
             .ref_(self).create_parenthesized_expression(self.factory.ref_(self).create_call_expression(
                 outer,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(extends_clause_element.as_ref().try_map_or_default(
                     |extends_clause_element| -> io::Result<_> {
                         Ok(vec![try_visit_node(
@@ -592,11 +592,11 @@ impl TransformES2015 {
         let constructor_function = self
             .factory
             .ref_(self).create_function_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some(name),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.transform_constructor_parameters(
                     constructor,
                     has_synthesized_super,
