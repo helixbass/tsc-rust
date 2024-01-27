@@ -126,32 +126,32 @@ mod _NodeArrayDeriveTraceScope {
     //     }
     // }
 
-    impl From<Id<NodeArray>> for Vec<Id<Node>> {
-        fn from(node_array: Id<NodeArray>) -> Self {
+    impl From<&NodeArray> for Vec<Id<Node>> {
+        fn from(node_array: &NodeArray) -> Self {
             node_array._nodes.clone()
         }
     }
 
-    impl<'node_array> From<Id<NodeArray>> for &'node_array [Id<Node>] {
-        fn from(node_array: Id<NodeArray>) -> Self {
+    impl<'a> From<&'a NodeArray> for &'a [Id<Node>] {
+        fn from(node_array: &'a NodeArray) -> Self {
             &node_array._nodes
         }
     }
 
     #[derive(Clone)]
-    pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Id<Node>>);
+    pub struct NodeArrayIter<'a>(slice::Iter<'a, Id<Node>>);
 
-    impl<'node_array> Iterator for NodeArrayIter<'node_array> {
-        type Item = &'node_array Id<Node>;
+    impl<'a> Iterator for NodeArrayIter<'a> {
+        type Item = &'a Id<Node>;
 
         fn next(&mut self) -> Option<Self::Item> {
             self.0.next()
         }
     }
 
-    impl<'node_array> IntoIterator for Id<NodeArray> {
-        type Item = &'node_array Id<Node>;
-        type IntoIter = NodeArrayIter<'node_array>;
+    impl<'a> IntoIterator for &'a NodeArray {
+        type Item = &'a Id<Node>;
+        type IntoIter = NodeArrayIter<'a>;
 
         fn into_iter(self) -> Self::IntoIter {
             self.iter()
