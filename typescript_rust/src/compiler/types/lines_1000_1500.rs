@@ -10,7 +10,7 @@ use super::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
-use crate::set_text_range_node_array;
+use crate::{set_text_range_node_array, HasArena};
 
 mod _NodeArrayDeriveTraceScope {
     use std::slice;

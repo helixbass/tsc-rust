@@ -237,7 +237,7 @@ pub fn create_for_of_binding_statement(
     bound_value: Id<Node>, /*Expression*/
 ) -> Id<Node /*Statement*/> {
     if is_variable_declaration_list(&node.ref_(factory)) {
-        let first_declaration = *first(&node.ref_(factory).as_variable_declaration_list().declarations.ref_(self));
+        let first_declaration = *first(&node.ref_(factory).as_variable_declaration_list().declarations.ref_(factory));
         let updated_declaration = factory.update_variable_declaration(
             first_declaration,
             first_declaration.ref_(factory).as_variable_declaration().maybe_name(),
