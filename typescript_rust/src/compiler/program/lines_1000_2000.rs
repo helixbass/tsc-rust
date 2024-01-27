@@ -379,7 +379,7 @@ impl Program {
         })
     }
 
-    pub fn to_path_rc(&self) -> Gc<Box<dyn ToPath>> {
+    pub fn to_path_rc(&self) -> Id<Box<dyn ToPath>> {
         Gc::new(Box::new(ProgramToPath::new(self.arena_id())))
     }
 

@@ -2065,7 +2065,7 @@ pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
     pub compiler_host: Id<Box<dyn CompilerHost>>,
     pub get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
     pub use_source_of_project_reference_redirect: bool,
-    pub to_path: Gc<Box<dyn ToPath>>,
+    pub to_path: Id<Box<dyn ToPath>>,
     pub get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
     pub for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
 }
@@ -2132,7 +2132,7 @@ pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Id<Box<dyn CompilerHost>>,
     pub host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
-    pub host_to_path: Gc<Box<dyn ToPath>>,
+    pub host_to_path: Id<Box<dyn ToPath>>,
     pub host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
     pub host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
     #[unsafe_ignore_trace]
@@ -2143,7 +2143,7 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
         host_compiler_host: Id<Box<dyn CompilerHost>>,
         host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
-        host_to_path: Gc<Box<dyn ToPath>>,
+        host_to_path: Id<Box<dyn ToPath>>,
         host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
         host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
     ) -> Self {
