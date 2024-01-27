@@ -996,14 +996,14 @@ pub(super) fn execute_command_line_worker(
             .unwrap(),
         );
         if matches!(command_line.options.ref_(arena).show_config, Some(true)) {
-            if !(*config_parse_result.errors).borrow().is_empty() {
+            if !(*config_parse_result.ref_(arena).errors).borrow().is_empty() {
                 report_diagnostic = update_report_diagnostic(
                     sys.clone(),
                     report_diagnostic,
-                    config_parse_result.options.clone().into(),
+                    config_parse_result.ref_(arena).options.clone().into(),
                     arena,
                 );
-                for error in (*config_parse_result.errors).borrow().iter() {
+                for error in (*config_parse_result.ref_(arena).errors).borrow().iter() {
                     report_diagnostic.ref_(arena).call(error.clone())?;
                 }
                 sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
@@ -1011,7 +1011,7 @@ pub(super) fn execute_command_line_worker(
             sys.ref_(arena).write(&format!(
                 "{}{}",
                 serde_json::to_string_pretty(&convert_to_tsconfig(
-                    &config_parse_result,
+                    &config_parse_result.ref_(arena),
                     &config_file_name,
                     sys.ref_(arena).as_convert_to_tsconfig_host(),
                     arena,
@@ -1024,10 +1024,10 @@ pub(super) fn execute_command_line_worker(
         report_diagnostic = update_report_diagnostic(
             sys.clone(),
             report_diagnostic,
-            config_parse_result.options.clone().into(),
+            config_parse_result.ref_(arena).options.clone().into(),
             arena,
         );
-        if is_watch_set(&config_parse_result.options.ref_(arena)) {
+        if is_watch_set(&config_parse_result.ref_(arena).options.ref_(arena)) {
             if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic.ref_(arena), arena)? {
                 return Ok(());
             }
@@ -1041,16 +1041,16 @@ pub(super) fn execute_command_line_worker(
                 extended_config_cache,
                 arena,
             );
-        } else if is_incremental_compilation(&config_parse_result.options.ref_(arena)) {
+        } else if is_incremental_compilation(&config_parse_result.ref_(arena).options.ref_(arena)) {
             perform_incremental_compilation(
                 sys.clone(),
                 cb,
                 report_diagnostic,
-                &config_parse_result,
+                &config_parse_result.ref_(arena),
                 arena,
             );
         } else {
-            perform_compilation(sys, cb, report_diagnostic, &config_parse_result, arena)?;
+            perform_compilation(sys, cb, report_diagnostic, &config_parse_result.ref_(arena), arena)?;
         }
     } else {
         if matches!(command_line.options.ref_(arena).show_config, Some(true)) {
