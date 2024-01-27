@@ -111,7 +111,7 @@ impl TransformTypeScript {
             applicable_substitutions: Default::default(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformTypeScriptOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformTypeScriptOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -715,7 +715,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeO
         }
 
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback)?;
+            .ref_(self).on_emit_node(hint, node, emit_callback)?;
 
         self.transform_type_script()
             .set_applicable_substitutions(saved_applicable_substitutions);

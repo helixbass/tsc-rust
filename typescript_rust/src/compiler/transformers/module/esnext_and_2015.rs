@@ -61,7 +61,7 @@ impl TransformEcmascriptModule {
             import_require_statements: _d(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformEcmascriptModuleOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformEcmascriptModuleOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -585,12 +585,12 @@ impl TransformationContextOnEmitNodeOverrider for TransformEcmascriptModuleOnEmi
                     .set_helper_name_substitutions(Some(_d()));
             }
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
             self.transform_ecmascript_module()
                 .set_helper_name_substitutions(None);
         } else {
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
         }
 
         Ok(())

@@ -12,7 +12,7 @@ use crate::{
     Program, Signature, DiagnosticReporter, NodeFactory, BaseNodeFactory, EmitResolver, ResolvedTypeReferenceDirective,
     CompilerHost, SymbolLinks, Printer, DiagnosticRelatedInformation, IndexInfo, CurrentParenthesizerRule,
     ParenthesizerRules, IterationTypes, TypePredicate, ActiveLabel, ToPath, ModuleResolutionHostOverrider,
-    WrapCustomTransformerFactoryHandleDefault,
+    WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider,
 };
 
 #[derive(Default)]
@@ -58,6 +58,7 @@ pub struct AllArenas {
     pub to_paths: RefCell<Arena<Box<dyn ToPath>>>,
     pub module_resolution_host_overriders: RefCell<Arena<Box<dyn ModuleResolutionHostOverrider>>>,
     pub wrap_custom_transformer_factory_handle_defaults: RefCell<Arena<Box<dyn WrapCustomTransformerFactoryHandleDefault>>>,
+    pub transformation_context_on_emit_node_overriders: RefCell<Arena<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
 }
 
 pub trait HasArena {
@@ -365,6 +366,14 @@ pub trait HasArena {
 
     fn alloc_wrap_custom_transformer_factory_handle_default(&self, wrap_custom_transformer_factory_handle_default: Box<dyn WrapCustomTransformerFactoryHandleDefault>) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
         self.arena().alloc_wrap_custom_transformer_factory_handle_default(wrap_custom_transformer_factory_handle_default)
+    }
+
+    fn transformation_context_on_emit_node_overrider(&self, transformation_context_on_emit_node_overrider: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>) -> Ref<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+        self.arena().transformation_context_on_emit_node_overrider(transformation_context_on_emit_node_overrider)
+    }
+
+    fn alloc_transformation_context_on_emit_node_overrider(&self, transformation_context_on_emit_node_overrider: Box<dyn TransformationContextOnEmitNodeOverrider>) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+        self.arena().alloc_transformation_context_on_emit_node_overrider(transformation_context_on_emit_node_overrider)
     }
 }
 
@@ -761,6 +770,16 @@ impl HasArena for AllArenas {
         let id = self.wrap_custom_transformer_factory_handle_defaults.borrow_mut().alloc(wrap_custom_transformer_factory_handle_default);
         id
     }
+
+    #[track_caller]
+    fn transformation_context_on_emit_node_overrider(&self, transformation_context_on_emit_node_overrider: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>) -> Ref<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+        Ref::map(self.transformation_context_on_emit_node_overriders.borrow(), |transformation_context_on_emit_node_overriders| &transformation_context_on_emit_node_overriders[transformation_context_on_emit_node_overrider])
+    }
+
+    fn alloc_transformation_context_on_emit_node_overrider(&self, transformation_context_on_emit_node_overrider: Box<dyn TransformationContextOnEmitNodeOverrider>) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+        let id = self.transformation_context_on_emit_node_overriders.borrow_mut().alloc(transformation_context_on_emit_node_overrider);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1071,6 +1090,14 @@ impl InArena for Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
         has_arena.wrap_custom_transformer_factory_handle_default(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+    type Item = Box<dyn TransformationContextOnEmitNodeOverrider>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TransformationContextOnEmitNodeOverrider>> {
+        has_arena.transformation_context_on_emit_node_overrider(*self)
     }
 }
 

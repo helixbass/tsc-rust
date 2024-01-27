@@ -459,7 +459,7 @@ impl TransformClassFields {
             current_static_property_declaration_or_static_block: Default::default(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -1246,7 +1246,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                         class_lexical_environment.clone(),
                     ));
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1279,7 +1279,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1307,7 +1307,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1331,7 +1331,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1343,7 +1343,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             _ => (),
         }
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback)?;
+            .ref_(self).on_emit_node(hint, node, emit_callback)?;
 
         Ok(())
     }

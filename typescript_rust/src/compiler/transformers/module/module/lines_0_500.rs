@@ -76,7 +76,7 @@ impl TransformModule {
             need_umd_dynamic_import_helper: _d(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformModuleOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformModuleOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -950,13 +950,13 @@ impl TransformationContextOnEmitNodeOverrider for TransformModuleOnEmitNodeOverr
             );
 
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
 
             self.transform_module().set_current_source_file(None);
             self.transform_module().set_current_module_info(None);
         } else {
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
         }
 
         Ok(())

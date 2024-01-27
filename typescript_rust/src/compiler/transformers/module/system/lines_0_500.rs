@@ -76,7 +76,7 @@ impl TransformSystemModule {
             no_substitution: _d(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformSystemModuleOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformSystemModuleOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -936,7 +936,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformSystemModuleOnEmitNod
             }
 
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
 
             self.transform_system_module().set_current_source_file(None);
             self.transform_system_module().set_module_info(None);
@@ -945,7 +945,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformSystemModuleOnEmitNod
             self.transform_system_module().set_no_substitution(None);
         } else {
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
         }
 
         Ok(())

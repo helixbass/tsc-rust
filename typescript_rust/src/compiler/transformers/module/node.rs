@@ -53,7 +53,7 @@ impl TransformNodeModule {
         }));
 
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformNodeModuleOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformNodeModuleOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -178,14 +178,14 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
         let Some(current_source_file) = self.transform_node_module().maybe_current_source_file() else {
             return self
                 .previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback);
+                .ref_(self).on_emit_node(hint, node, emit_callback);
         };
         if current_source_file
             .ref_(self).as_source_file()
             .maybe_implied_node_format()
             == Some(ModuleKind::ESNext)
         {
-            return self.transform_node_module().esm_on_emit_node.on_emit_node(
+            return self.transform_node_module().esm_on_emit_node.ref_(self).on_emit_node(
                 hint,
                 node,
                 emit_callback,
@@ -193,7 +193,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
         }
         self.transform_node_module()
             .cjs_on_emit_node
-            .on_emit_node(hint, node, emit_callback)
+            .ref_(self).on_emit_node(hint, node, emit_callback)
     }
 }
 

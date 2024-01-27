@@ -222,7 +222,7 @@ impl TransformES2015 {
         }));
         downcast_transformer_ref::<Self>(ret, arena_ref).set_arena_id(ret);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformES2015OnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformES2015OnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -631,7 +631,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
                 },
             );
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
             self.transform_es2015().exit_subtree(
                 ancestor_facts,
                 HierarchyFacts::None,
@@ -640,7 +640,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
             return Ok(());
         }
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback)?;
+            .ref_(self).on_emit_node(hint, node, emit_callback)?;
         return Ok(());
     }
 }

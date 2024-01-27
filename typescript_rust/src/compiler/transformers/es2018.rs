@@ -122,7 +122,7 @@ impl TransformES2018 {
             substituted_super_accessors: Default::default(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformES2018OnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformES2018OnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
@@ -2235,7 +2235,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
                 self.transform_es2018()
                     .set_enclosing_super_container_flags(super_container_flags);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_es2018()
                     .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
                 return Ok(());
@@ -2253,14 +2253,14 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
             self.transform_es2018()
                 .set_enclosing_super_container_flags(NodeCheckFlags::None);
             self.previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback)?;
+                .ref_(self).on_emit_node(hint, node, emit_callback)?;
             self.transform_es2018()
                 .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
             return Ok(());
         }
 
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback)?;
+            .ref_(self).on_emit_node(hint, node, emit_callback)?;
 
         Ok(())
     }

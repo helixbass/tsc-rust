@@ -440,7 +440,7 @@ impl TransformNodesTransformationResult {
         let ret = arena_ref.alloc_transform_nodes_transformation_result(Self {
             _arena: arena,
             _arena_id: _d(),
-            on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
+            on_emit_node_outermost_override_or_original_method: GcCell::new(arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
                 NoEmitNotificationTransformationContextOnEmitNodeOverrider,
             ))),
             on_emit_node_previous_override_or_original_method: _d(),
@@ -1204,7 +1204,7 @@ impl TransformationContext for TransformNodesTransformationResult {
     ) -> io::Result<()> {
         self.on_emit_node_outermost_override_or_original_method
             .borrow()
-            .on_emit_node(hint, node, emit_callback)
+            .ref_(self).on_emit_node(hint, node, emit_callback)
     }
 
     fn override_on_emit_node(

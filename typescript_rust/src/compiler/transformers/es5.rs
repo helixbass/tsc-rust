@@ -42,7 +42,7 @@ impl TransformES5 {
             Some(JsxEmit::Preserve) | Some(JsxEmit::ReactNative)
         ) {
             context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-                Gc::new(Box::new(TransformES5OnEmitNodeOverrider::new(
+                arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformES5OnEmitNodeOverrider::new(
                     ret,
                     previous_on_emit_node,
                 )))
@@ -137,7 +137,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES5OnEmitNodeOverride
         }
 
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback)
+            .ref_(self).on_emit_node(hint, node, emit_callback)
     }
 }
 
