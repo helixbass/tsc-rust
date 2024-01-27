@@ -863,8 +863,8 @@ impl NodeFactory {
         let node_as_call_signature_declaration = node_ref.as_call_signature_declaration();
         if node_as_call_signature_declaration
                 .maybe_type_parameters() != type_parameters
-        ) || node_as_call_signature_declaration.parameters() != parameters
-        ) || node_as_call_signature_declaration.maybe_type() != type_
+            || node_as_call_signature_declaration.parameters() != parameters
+            || node_as_call_signature_declaration.maybe_type() != type_
         {
             self.update_base_signature_declaration(
                 self.create_call_signature(type_parameters, parameters, type_),
