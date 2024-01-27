@@ -850,7 +850,7 @@ pub struct SymlinkedDirectory {
 #[derive(Trace, Finalize)]
 pub struct SymlinkCache {
     cwd: String,
-    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     #[unsafe_ignore_trace]
     symlinked_files: RefCell<Option<HashMap<Path, String>>>,
     #[unsafe_ignore_trace]
@@ -868,7 +868,7 @@ impl fmt::Debug for SymlinkCache {
 }
 
 impl SymlinkCache {
-    pub fn new(cwd: &str, get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>) -> Self {
+    pub fn new(cwd: &str, get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>) -> Self {
         Self {
             cwd: cwd.to_owned(),
             get_canonical_file_name,
@@ -1080,7 +1080,7 @@ impl From<Id<ResolvedTypeReferenceDirective>>
 
 pub fn create_symlink_cache(
     cwd: &str,
-    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
 ) -> SymlinkCache {
     SymlinkCache::new(cwd, get_canonical_file_name)
 }

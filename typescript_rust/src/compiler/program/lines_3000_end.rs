@@ -128,7 +128,7 @@ impl Program {
         self.host().ref_(self).get_canonical_file_name(file_name)
     }
 
-    pub fn get_canonical_file_name_rc(&self) -> Gc<Box<dyn GetCanonicalFileName>> {
+    pub fn get_canonical_file_name_rc(&self) -> Id<Box<dyn GetCanonicalFileName>> {
         let host = self.host();
         Gc::new(Box::new(CompilerHostGetCanonicalFileName::new(host)))
     }
