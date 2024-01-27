@@ -1293,6 +1293,7 @@ fn print_source_file_or_bundle(
             get_source_root(map_options),
             get_source_map_directory(&**host.ref_(arena), map_options, js_file_path, source_file.refed(arena).as_deref()),
             &map_options.into(),
+            arena,
         ));
     }
 
@@ -1309,15 +1310,15 @@ fn print_source_file_or_bundle(
     if let Some(source_map_generator) = source_map_generator {
         if let Some(source_map_data_list) = source_map_data_list.as_mut() {
             source_map_data_list.push(SourceMapEmitResult {
-                input_source_file_names: source_map_generator.get_sources(),
-                source_map: source_map_generator.to_json(),
+                input_source_file_names: source_map_generator.ref_(arena).get_sources(),
+                source_map: source_map_generator.ref_(arena).to_json(),
             });
         }
 
         let source_mapping_url = get_source_mapping_url(
             &**host.ref_(arena),
             map_options,
-            &**source_map_generator,
+            source_map_generator,
             js_file_path,
             source_map_file_path,
             source_file.refed(arena).as_deref(),
@@ -1332,7 +1333,7 @@ fn print_source_file_or_bundle(
         }
 
         if let Some(source_map_file_path) = source_map_file_path.non_empty() {
-            let source_map = source_map_generator.to_string();
+            let source_map = source_map_generator.ref_(arena).to_string();
             write_file(
                 &EmitHostWriteFileCallback::new(host.clone()),
                 emitter_diagnostics,
@@ -1445,7 +1446,7 @@ fn get_source_mapping_url(
     arena: &impl HasArena,
 ) -> String {
     if map_options.inline_source_map == Some(true) {
-        let source_map_text = source_map_generator.to_string();
+        let source_map_text = source_map_generator.ref_(arena).to_string();
         let base_64_source_map_text = base64_encode(
             Some(|str_: &str| get_sys(arena).ref_(arena).base64_encode(str_)),
             &source_map_text,

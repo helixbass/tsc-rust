@@ -32,8 +32,9 @@ pub fn create_source_map_generator(
     source_root: String,
     sources_directory_path: String,
     _generator_options: &SourceMapGeneratorOptions,
+    arena: &impl HasArena,
 ) -> Id<Box<dyn SourceMapGenerator>> {
-    SourceMapGeneratorConcrete::new(sources_directory_path, file, source_root, host)
+    SourceMapGeneratorConcrete::new(sources_directory_path, file, source_root, host, arena)
 }
 
 #[derive(Trace, Finalize)]
@@ -98,11 +99,12 @@ impl SourceMapGeneratorConcrete {
         file: String,
         source_root: String,
         host: Id<Box<dyn EmitHost>>,
+        arena: &impl HasArena,
     ) -> Id<Box<dyn SourceMapGenerator>> {
         // const { enter, exit } = generatorOptions.extendedDiagnostics
         //     ? performance.createTimer("Source Map", "beforeSourcemap", "afterSourcemap")
         //     : performance.nullTimer;
-        Gc::new(Box::new(Self {
+        arena.alloc_source_map_generator(Box::new(Self {
             sources_directory_path,
             file,
             source_root,

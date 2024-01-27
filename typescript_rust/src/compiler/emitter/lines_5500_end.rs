@@ -360,7 +360,7 @@ impl Printer {
             {
                 let node_parent_ref = node_parent.ref_(self);
                 let node_parent_as_unparsed_source = node_parent_ref.as_unparsed_source();
-                source_map_generator.append_source_map(
+                source_map_generator.ref_(self).append_source_map(
                     self.writer().get_line(),
                     self.writer().get_column(),
                     &parsed,
@@ -504,7 +504,7 @@ impl Printer {
             line: source_line,
             character: source_character,
         } = get_line_and_character_of_position(&self.source_map_source().ref_(self), pos.try_into().unwrap());
-        self.source_map_generator().add_mapping(
+        self.source_map_generator().ref_(self).add_mapping(
             self.writer().get_line(),
             self.writer().get_column(),
             self.source_map_source_index().try_into().unwrap(),
@@ -559,12 +559,12 @@ impl Printer {
 
         self.set_source_map_source_index(
             self.source_map_generator()
-                .add_source(&source.ref_(self).file_name())
+                .ref_(self).add_source(&source.ref_(self).file_name())
                 .try_into()
                 .unwrap(),
         );
         if self.printer_options.inline_sources == Some(true) {
-            self.source_map_generator().set_source_content(
+            self.source_map_generator().ref_(self).set_source_content(
                 // TODO: should this just be a usize?
                 self.source_map_source_index().try_into().unwrap(),
                 Some(source.ref_(self).text().clone()),
