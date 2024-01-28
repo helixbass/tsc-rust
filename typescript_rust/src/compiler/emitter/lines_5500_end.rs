@@ -426,11 +426,12 @@ impl Printer {
 
     pub(super) fn skip_source_trivia(&self, source: Id<SourceMapSource>, pos: isize) -> isize {
         let source = source.ref_(self);
-        if let Some(source_skip_trivia) = source.ref_(self).skip_trivia() {
+        let ret = if let Some(source_skip_trivia) = source.ref_(self).skip_trivia() {
             source_skip_trivia.call(pos)
         } else {
             skip_trivia(&source.ref_(self).text_as_chars(), pos, None, None, None)
-        }
+        };
+        ret
     }
 
     pub(super) fn emit_token_with_source_map<TWriter: FnMut(&str)>(
