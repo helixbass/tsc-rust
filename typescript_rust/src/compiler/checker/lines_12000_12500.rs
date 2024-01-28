@@ -600,8 +600,8 @@ impl TypeChecker {
         let type_ = self.get_reduced_apparent_type(type_)?;
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let symbol = (*resolved.ref_(self).as_resolved_type().members())
-                .borrow()
+            let symbol = resolved.ref_(self).as_resolved_type().members()
+                .ref_(self)
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {

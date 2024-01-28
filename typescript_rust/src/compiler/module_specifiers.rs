@@ -1089,8 +1089,8 @@ fn try_get_module_name_from_ambient_module(
                 .maybe_exports()
                 .as_ref()
                 .and_then(|top_namespace_parent_parent_symbol_exports| {
-                    (**top_namespace_parent_parent_symbol_exports)
-                        .borrow()
+                    top_namespace_parent_parent_symbol_exports
+                        .ref_(self)
                         .get("export=")
                         .cloned()
                 })

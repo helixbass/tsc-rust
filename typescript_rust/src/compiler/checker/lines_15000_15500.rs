@@ -606,7 +606,7 @@ impl TypeChecker {
                                 .maybe_exports()
                                 .clone()
                                 .unwrap();
-                            let global_this_symbol_exports = (*global_this_symbol_exports).borrow();
+                            let global_this_symbol_exports = global_this_symbol_exports.ref_(self);
                             if global_this_symbol_exports.contains_key(&**prop_name)
                                 && global_this_symbol_exports
                                     .get(&**prop_name)

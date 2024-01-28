@@ -45,7 +45,7 @@ impl TypeChecker {
                 let symbol = resolved.ref_(self).maybe_symbol();
                 symbol
             },
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             {
                 let call_signatures = resolved
                     .ref_(self)
@@ -215,7 +215,7 @@ impl TypeChecker {
                 let symbol = type_.ref_(self).maybe_symbol();
                 symbol
             },
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             try_map(
@@ -1019,7 +1019,7 @@ impl TypeChecker {
         };
         self.create_anonymous_type(
             Option::<Id<Symbol>>::None,
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             index_infos,

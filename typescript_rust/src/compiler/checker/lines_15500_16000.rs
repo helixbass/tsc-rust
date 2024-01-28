@@ -572,7 +572,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Id<Type /*TypeParameter*/>>>> {
         let mut result: Option<Vec<Id<Type>>> = None;
         if let Some(node_locals) = node.ref_(self).maybe_locals().clone() {
-            (*node_locals).borrow().values().try_for_each(
+            node_locals.ref_(self).values().try_for_each(
                 |&symbol: &Id<Symbol>| -> io::Result<_> {
                     if symbol
                         .ref_(self)
@@ -781,7 +781,7 @@ impl TypeChecker {
                         )?
                     } else {
                         self.get_symbol(
-                            &(*self.get_exports_of_symbol(merged_resolved_symbol)?).borrow(),
+                            &self.get_exports_of_symbol(merged_resolved_symbol)?.ref_(self),
                             &current.ref_(self).as_identifier().escaped_text,
                             meaning,
                         )?
@@ -875,8 +875,8 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         if (*links).borrow().resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            if (*self.get_members_of_symbol(node.ref_(self).symbol())?)
-                .borrow()
+            if self.get_members_of_symbol(node.ref_(self).symbol())?
+                .ref_(self)
                 .is_empty()
                 && alias_symbol.is_none()
             {
@@ -1046,7 +1046,7 @@ impl TypeChecker {
         }
         let spread = self.create_anonymous_type(
             type_.ref_(self).maybe_symbol(),
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             self.get_index_infos_of_type(type_)?,
@@ -1260,7 +1260,7 @@ impl TypeChecker {
 
         let spread = self.create_anonymous_type(
             symbol,
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             same_map(&index_infos, |&info: &Id<IndexInfo>, _| {

@@ -722,8 +722,8 @@ impl TypeChecker {
                 .as_resolved_type()
                 .construct_signatures()
                 .is_empty()
-            || (*resolved.ref_(self).as_resolved_type().members())
-                .borrow()
+            || resolved.ref_(self).as_resolved_type().members()
+                .ref_(self)
                 .contains_key("bind")
                 && self.is_type_subtype_of(type_, self.global_function_type())?;
         Ok(ret)

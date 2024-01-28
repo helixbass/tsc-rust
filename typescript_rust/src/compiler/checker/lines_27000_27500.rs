@@ -58,7 +58,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             node.ref_(self).maybe_symbol(),
-            Gc::new(GcCell::new(properties_table.clone())),
+            self.alloc_symbol_table(properties_table.clone()),
             vec![],
             vec![],
             index_infos,
@@ -261,10 +261,10 @@ impl TypeChecker {
         } else {
             None
         };
-        let attributes_table = Gc::new(GcCell::new(create_symbol_table(
+        let attributes_table = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        )));
+        ));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
         let mut type_to_intersect: Option<Id<Type>> = None;
@@ -515,7 +515,7 @@ impl TypeChecker {
                         spread,
                         self.create_anonymous_type(
                             attributes.ref_(self).maybe_symbol(),
-                            Gc::new(GcCell::new(child_prop_map)),
+                            self.alloc_symbol_table(child_prop_map),
                             vec![],
                             vec![],
                             vec![],
@@ -651,8 +651,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let namespace = self.get_jsx_namespace_at(location)?;
         let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
-        let type_symbol = exports.as_ref().try_and_then(|exports| {
-            self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type)
+        let type_symbol = exports.try_and_then(|exports| {
+            self.get_symbol(&exports.ref_(self), name, SymbolFlags::Type)
         })?;
         Ok(if let Some(type_symbol) = type_symbol {
             self.get_declared_type_of_symbol(type_symbol)?
@@ -824,11 +824,11 @@ impl TypeChecker {
             if let Some(resolved_namespace) = resolved_namespace {
                 let candidate = self.resolve_symbol(
                     self.get_symbol(
-                        &(*self.get_exports_of_symbol(
+                        &self.get_exports_of_symbol(
                             self.resolve_symbol(Some(resolved_namespace), None)?
                                 .unwrap(),
-                        )?)
-                        .borrow(),
+                        )?
+                        .ref_(self),
                         &JsxNames::JSX,
                         SymbolFlags::Namespace,
                     )?,

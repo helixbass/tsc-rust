@@ -53,9 +53,9 @@ impl Printer {
         let mut node = Some(container);
         while maybe_is_node_descendant_of(node, Some(container), self) {
             let node_present = node.as_ref().unwrap();
-            if let Some(node_locals) = node_present.ref_(self).maybe_locals().as_ref() {
-                let local = (**node_locals)
-                    .borrow()
+            if let Some(node_locals) = node_present.ref_(self).maybe_locals() {
+                let local = node_locals
+                    .ref_(self)
                     .get(&*escape_leading_underscores(name))
                     .cloned();
                 if matches!(

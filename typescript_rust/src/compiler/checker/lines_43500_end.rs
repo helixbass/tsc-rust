@@ -646,7 +646,7 @@ impl TypeChecker {
             let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
             *ambient_modules_cache = Some(vec![]);
             let ambient_modules_cache = ambient_modules_cache.as_mut().unwrap();
-            for (sym, global) in &*(*self.globals).borrow() {
+            for (sym, global) in &*self.globals.ref_(self) {
                 if ambient_module_symbol_regex.is_match(&**sym) {
                     ambient_modules_cache.push(global.clone());
                 }
@@ -1587,7 +1587,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             return Ok(false);
         }
         let exports = self.type_checker.get_exports_of_module_(file_symbol)?;
-        for &s in (*exports).borrow().values() {
+        for &s in exports.ref_(self).values() {
             if s.ref_(self).maybe_merge_id().is_some() {
                 let merged = self.type_checker.get_merged_symbol(Some(s)).unwrap();
                 if let Some(merged_declarations) = merged.ref_(self).maybe_declarations().as_ref() {

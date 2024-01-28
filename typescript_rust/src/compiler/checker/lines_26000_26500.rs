@@ -607,8 +607,8 @@ impl TypeChecker {
                                     matches!(
                                         node.ref_(self).maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.ref_(self).maybe_members().clone(),
-                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.ref_(self).escaped_name())
+                                            node_symbol.ref_(self).maybe_members(),
+                                            Some(node_symbol_members) if !node_symbol_members.ref_(self).contains_key(s.ref_(self).escaped_name())
                                         )
                                     ) &&
                                     self.is_discriminant_property(
@@ -691,8 +691,8 @@ impl TypeChecker {
                                     matches!(
                                         node.ref_(self).maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.ref_(self).maybe_members().clone(),
-                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.ref_(self).escaped_name())
+                                            node_symbol.ref_(self).maybe_members(),
+                                            Some(node_symbol_members) if !node_symbol_members.ref_(self).contains_key(s.ref_(self).escaped_name())
                                         )
                                     ) &&
                                     self.is_discriminant_property(

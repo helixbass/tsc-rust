@@ -626,7 +626,7 @@ impl TypeChecker {
                 Vec<Id<Node /*VariableDeclaration*/>>,
             ),
         > = HashMap::new();
-        for &local in (*node_with_locals.ref_(self).locals()).borrow().values() {
+        for &local in node_with_locals.ref_(self).locals().ref_(self).values() {
             if if local
                 .ref_(self)
                 .flags()

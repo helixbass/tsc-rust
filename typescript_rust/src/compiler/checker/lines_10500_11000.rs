@@ -273,8 +273,7 @@ impl TypeChecker {
 
             let mut late_symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             let early_symbols_ref = early_symbols
-                .as_ref()
-                .map(|early_symbols| (**early_symbols).borrow());
+                .map(|early_symbols| early_symbols.ref_(self));
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for &decl in symbol_declarations {
                     let members = get_members_of_declaration(&decl.ref_(self));
@@ -328,7 +327,7 @@ impl TypeChecker {
                     Some(
                         self.combine_symbol_tables(
                             early_symbols.clone(),
-                            Some(Gc::new(GcCell::new(late_symbols))),
+                            Some(self.alloc_symbol_table(late_symbols)),
                         )?
                         .unwrap_or_else(|| self.empty_symbols()),
                     ),
@@ -517,14 +516,14 @@ impl TypeChecker {
             members = if let Some(source_symbol) = source.ref_(self).maybe_symbol() {
                 self.get_members_of_symbol(source_symbol)?
             } else {
-                Gc::new(GcCell::new(create_symbol_table(
+                self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     source
                         .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
-                )))
+                ))
             };
             call_signatures = source
                 .ref_(self)
@@ -544,7 +543,7 @@ impl TypeChecker {
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments.clone())));
-            members = Gc::new(GcCell::new(
+            members = self.alloc_symbol_table(
                 self.create_instantiated_symbol_table(
                     source
                         .ref_(self)
@@ -555,7 +554,7 @@ impl TypeChecker {
                     mapper.clone().unwrap(),
                     type_parameters_len_is_1,
                 )?,
-            ));
+            );
             call_signatures = self.instantiate_signatures(
                 &*source
                     .ref_(self)
@@ -580,16 +579,18 @@ impl TypeChecker {
         }
         let base_types = self.get_base_types(source)?;
         if !base_types.is_empty() {
-            if matches!(source.ref_(self).maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(symbol)?))
-            {
-                members = Gc::new(GcCell::new(create_symbol_table(
+            if matches!(
+                source.ref_(self).maybe_symbol(),
+                Some(symbol) if members == self.get_members_of_symbol(symbol)?
+            ) {
+                members = self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     source
                         .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
-                )));
+                ));
             }
             self.set_structured_type_members(
                 type_.ref_(self).as_object_type(),
@@ -610,7 +611,7 @@ impl TypeChecker {
                     base_type.clone()
                 };
                 let properties = self.get_properties_of_type(instantiated_base_type)?;
-                self.add_inherited_members(&mut members.borrow_mut(), properties);
+                self.add_inherited_members(&mut members.ref_mut(self), properties);
                 call_signatures = concatenate(
                     call_signatures,
                     self.get_signatures_of_type(instantiated_base_type, SignatureKind::Call)?,

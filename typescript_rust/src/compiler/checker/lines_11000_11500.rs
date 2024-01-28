@@ -526,7 +526,7 @@ impl TypeChecker {
             )?;
             self.set_structured_type_members(
                 type_.ref_(self).as_object_type(),
-                Gc::new(GcCell::new(members)),
+                self.alloc_symbol_table(members),
                 call_signatures,
                 construct_signatures,
                 index_infos,
@@ -545,10 +545,10 @@ impl TypeChecker {
             )?;
             let members = self.get_members_of_symbol(symbol)?;
             let call_signatures = self.get_signatures_of_symbol(
-                (*members).borrow().get(InternalSymbolName::Call).cloned(),
+                members.ref_(self).get(InternalSymbolName::Call).cloned(),
             )?;
             let construct_signatures = self.get_signatures_of_symbol(
-                (*members).borrow().get(InternalSymbolName::New).cloned(),
+                members.ref_(self).get(InternalSymbolName::New).cloned(),
             )?;
             let index_infos = self.get_index_infos_of_symbol(symbol)?;
             self.set_structured_type_members(
@@ -565,12 +565,12 @@ impl TypeChecker {
                 members = self.get_exports_of_symbol(symbol)?;
                 if symbol == self.global_this_symbol() {
                     let mut vars_only = SymbolTable::new();
-                    for (_, &p) in &*(*members).borrow() {
+                    for (_, &p) in &*members.ref_(self) {
                         if !p.ref_(self).flags().intersects(SymbolFlags::BlockScoped) {
                             vars_only.insert(p.ref_(self).escaped_name().to_owned(), p.clone());
                         }
                     }
-                    members = Gc::new(GcCell::new(vars_only));
+                    members = self.alloc_symbol_table(vars_only);
                 }
             }
             let mut base_constructor_index_info: Option<Id<IndexInfo>> = None;
@@ -587,13 +587,13 @@ impl TypeChecker {
                 if base_constructor_type.ref_(self).flags().intersects(
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
                 ) {
-                    let members_new = Gc::new(GcCell::new(create_symbol_table(
+                    let members_new = self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
-                        Some(&*self.get_named_or_index_signature_members(&*(*members).borrow())?),
+                        Some(&*self.get_named_or_index_signature_members(&*members.ref_(self))?),
                     )));
                     members = members_new;
                     self.add_inherited_members(
-                        &mut members.borrow_mut(),
+                        &mut members.ref_mut(self),
                         self.get_properties_of_type(base_constructor_type)?,
                     );
                 } else if base_constructor_type == self.any_type() {
@@ -606,7 +606,7 @@ impl TypeChecker {
                 }
             }
 
-            let index_symbol = self.get_index_symbol_from_symbol_table(&(*members).borrow());
+            let index_symbol = self.get_index_symbol_from_symbol_table(&members.ref_(self));
             if let Some(index_symbol) = index_symbol {
                 index_infos = self.get_index_infos_of_index_symbol(index_symbol)?;
             } else {
@@ -662,8 +662,8 @@ impl TypeChecker {
                 let mut construct_signatures = if let Some(symbol_members) = symbol_members.as_ref()
                 {
                     self.get_signatures_of_symbol(
-                        (**symbol_members)
-                            .borrow()
+                        symbol_members
+                            .ref_(self)
                             .get(InternalSymbolName::Constructor)
                             .cloned(),
                     )?
@@ -847,7 +847,7 @@ impl TypeChecker {
         }
         self.set_structured_type_members(
             type_.ref_(self).as_reverse_mapped_type(),
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             index_infos,
@@ -1043,7 +1043,7 @@ impl TypeChecker {
         }
         self.set_structured_type_members(
             type_.ref_(self).as_mapped_type(),
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             index_infos,

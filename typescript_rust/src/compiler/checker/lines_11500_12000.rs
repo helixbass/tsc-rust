@@ -324,8 +324,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let symbol = (*resolved.ref_(self).as_resolved_type().members())
-                .borrow()
+            let symbol = resolved.ref_(self).as_resolved_type().members()
+                .ref_(self)
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
@@ -417,12 +417,12 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StructuredType)
         {
-            for (escaped_name, &symbol) in &*(*self
+            for (escaped_name, &symbol) in &*self
                 .resolve_structured_type_members(type_)?
                 .ref_(self)
                 .as_resolved_type()
-                .members())
-            .borrow()
+                .members()
+                .ref_(self)
             {
                 if self.is_named_member(symbol, escaped_name)? {
                     action(symbol, escaped_name);

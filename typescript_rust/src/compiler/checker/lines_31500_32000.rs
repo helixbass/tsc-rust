@@ -312,10 +312,10 @@ impl TypeChecker {
             .ref_(self).borrow_mut()
             .type_ = Some(target_type);
 
-        let members = Gc::new(GcCell::new(create_symbol_table(
+        let members = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Some(&[target_property_symbol]),
-        )));
+        ));
         *symbol.ref_(self).maybe_members_mut() = Some(members.clone());
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }

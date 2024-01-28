@@ -363,10 +363,10 @@ impl TransformDeclarations {
                         Some(NodeFlags::Namespace),
                     );
                     set_parent(&fakespace.ref_(self), self.maybe_enclosing_declaration());
-                    fakespace.ref_(self).set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
+                    fakespace.ref_(self).set_locals(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Some(&props),
-                    )))));
+                    ))));
                     fakespace.ref_(self).set_symbol(props[0].ref_(self).maybe_parent().unwrap());
                     let mut export_mappings: Vec<(Id<Node /*Identifier*/>, String)> =
                         Default::default();

@@ -192,7 +192,7 @@ impl TypeChecker {
                     Some(init) if is_object_literal_expression(&init.ref_(self))
                 ) && matches!(
                     symbol.and_then(|symbol| symbol.ref_(self).maybe_exports().clone()),
-                    Some(symbol_exports) if !(*symbol_exports).borrow().is_empty()
+                    Some(symbol_exports) if !symbol_exports.ref_(self).is_empty()
                 )
             }
             _ => false,

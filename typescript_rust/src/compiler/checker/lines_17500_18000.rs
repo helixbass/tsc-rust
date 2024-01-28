@@ -195,7 +195,7 @@ impl TypeChecker {
                     || matches!(
                         type_.ref_(self).maybe_symbol(),
                         Some(type_symbol) if type_symbol.ref_(self).flags().intersects(SymbolFlags::TypeLiteral)
-                            && (*self.get_members_of_symbol(type_symbol)?).borrow().len() == 0
+                            && self.get_members_of_symbol(type_symbol)?.ref_(self).len() == 0
                     )),
         )
     }

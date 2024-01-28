@@ -943,7 +943,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_exported_members(&self, module_symbol: Id<Symbol>) -> bool {
-        for_each_entry_bool(&*(*module_symbol.ref_(self).exports()).borrow(), |_, id| {
+        for_each_entry_bool(&*module_symbol.ref_(self).exports().ref_(self), |_, id| {
             id != "export="
         })
     }
@@ -955,8 +955,8 @@ impl TypeChecker {
         let module_symbol = self.get_symbol_of_node(node)?.unwrap();
         let links = self.get_symbol_links(module_symbol);
         if (*links.ref_(self)).borrow().exports_checked != Some(true) {
-            let export_equals_symbol = (*module_symbol.ref_(self).exports())
-                .borrow()
+            let export_equals_symbol = module_symbol.ref_(self).exports()
+                .ref_(self)
                 .get("export=")
                 .cloned();
             if let Some(export_equals_symbol) = export_equals_symbol {
@@ -978,7 +978,7 @@ impl TypeChecker {
             }
             let exports = self.get_exports_of_module_(module_symbol)?;
             // if (exports) {
-            let exports = (*exports).borrow();
+            let exports = exports.ref_(self);
             for (id, &symbol) in &*exports {
                 let symbol_ref = symbol.ref_(self);
                 let declarations = symbol_ref.maybe_declarations();

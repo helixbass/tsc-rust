@@ -440,14 +440,14 @@ impl TypeChecker {
             }
             SyntaxKind::Identifier => {
                 node_is_missing(Some(&expr.ref_(self)))
-                    || (*self
+                    || self
                         .get_symbol_of_node(member.ref_(self).parent())?
                         .unwrap()
                         .ref_(self)
-                        .exports())
-                    .borrow()
-                    .get(&expr.ref_(self).as_identifier().escaped_text)
-                    .is_some()
+                        .exports()
+                        .ref_(self)
+                        .get(&expr.ref_(self).as_identifier().escaped_text)
+                        .is_some()
             }
             SyntaxKind::BinaryExpression => self.is_string_concat_expression(expr),
             _ => false,
@@ -797,7 +797,7 @@ impl TypeChecker {
         {
             let symbol = type_.ref_(self).symbol();
             let members = self.get_members_of_symbol(symbol)?;
-            let members = (*members).borrow();
+            let members = members.ref_(self);
             type_
                 .ref_(self)
                 .as_interface_type()

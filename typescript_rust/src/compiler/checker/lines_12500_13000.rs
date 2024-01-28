@@ -998,8 +998,7 @@ impl TypeChecker {
         symbol
             .ref_(self)
             .maybe_members()
-            .clone()
-            .and_then(|members| self.get_index_symbol_from_symbol_table(&(*members).borrow()))
+            .and_then(|members| self.get_index_symbol_from_symbol_table(&members.ref_(self)))
     }
 
     pub(super) fn get_index_symbol_from_symbol_table(

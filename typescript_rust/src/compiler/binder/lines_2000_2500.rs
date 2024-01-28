@@ -71,14 +71,14 @@ impl BinderType {
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let type_literal_symbol_ref = type_literal_symbol.ref_(self);
         let mut type_literal_symbol_members = type_literal_symbol_ref.maybe_members_mut();
-        *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
+        *type_literal_symbol_members = Some(self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        ))));
+        )));
         type_literal_symbol_members
             .as_ref()
             .unwrap()
-            .borrow_mut()
+            .ref_mut(self)
             .insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
     }
 
@@ -198,14 +198,14 @@ impl BinderType {
                         let mut block_scope_container_locals =
                             block_scope_container_ref.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
-                            *block_scope_container_locals = Some(Gc::new(GcCell::new(
+                            *block_scope_container_locals = Some(self.alloc_symbol_table(
                                 create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                            )));
+                            ));
                             self.add_to_container_chain(block_scope_container);
                         }
                     }
                     self.declare_symbol(
-                        &mut *block_scope_container.ref_(self).locals().borrow_mut(),
+                        &mut *block_scope_container.ref_(self).locals().ref_mut(self),
                         None,
                         node,
                         symbol_flags,
@@ -220,14 +220,14 @@ impl BinderType {
                     let block_scope_container_ref = block_scope_container.ref_(self);
                     let mut block_scope_container_locals = block_scope_container_ref.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
-                        *block_scope_container_locals = Some(Gc::new(GcCell::new(
+                        *block_scope_container_locals = Some(self.alloc_symbol_table(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                        )));
+                        ));
                         self.add_to_container_chain(block_scope_container);
                     }
                 }
                 self.declare_symbol(
-                    &mut block_scope_container.ref_(self).locals().borrow_mut(),
+                    &mut block_scope_container.ref_(self).locals().ref_mut(self),
                     None,
                     node,
                     symbol_flags,

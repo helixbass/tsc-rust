@@ -527,7 +527,7 @@ impl TypeChecker {
                     .intersects(SymbolFlags::Value)
             } else {
                 try_for_each_entry_bool(
-                    &*(*self.get_exports_of_module_(module_symbol)?).borrow(),
+                    &*self.get_exports_of_module_(module_symbol)?.ref_(self),
                     |&s: &Id<Symbol>, _| self.is_value(s),
                 )?
             });

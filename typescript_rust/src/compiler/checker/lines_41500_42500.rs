@@ -168,7 +168,7 @@ impl TypeChecker {
             return Ok(false);
         }
         Ok(for_each_entry_bool(
-            &*(*self.get_exports_of_symbol(symbol)?).borrow(),
+            &*self.get_exports_of_symbol(symbol)?.ref(self),
             |&p: &Id<Symbol>, _| {
                 p.ref_(self).flags().intersects(SymbolFlags::Value)
                     && matches!(
@@ -721,7 +721,7 @@ impl TypeChecker {
                 continue;
             }
             if !is_external_or_common_js_module(&file.ref_(self)) {
-                let file_global_this_symbol = (*file.ref_(self).locals()).borrow().get("globalThis").cloned();
+                let file_global_this_symbol = file.ref_(self).locals().ref_(self).get("globalThis").cloned();
                 if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
                     .and_then(|file_global_this_symbol| {
                         file_global_this_symbol
@@ -745,14 +745,14 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_id(), &(*file.ref_(self).locals()).borrow(), None)?;
+                self.merge_symbol_table(self.globals_id(), &file.ref_(self).locals().ref_(self), None)?;
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
             {
                 self.merge_symbol_table(
                     self.globals_id(),
-                    &(*file_js_global_augmentations).borrow(),
+                    &file_js_global_augmentations.ref_(self),
                     None,
                 )?;
             }
@@ -788,7 +788,7 @@ impl TypeChecker {
             {
                 let source = file_symbol_global_exports;
                 let mut globals = self.globals_mut();
-                for (id, source_symbol) in &*(*source).borrow() {
+                for (id, source_symbol) in &*source.ref_(self) {
                     if !globals.contains_key(id) {
                         globals.insert(id.clone(), source_symbol.clone());
                     }
@@ -1019,8 +1019,8 @@ impl TypeChecker {
                         if unchecked_helpers.intersects(helper) {
                             let name = self.get_helper_name(helper);
                             let symbol = self.get_symbol(
-                                &(*helpers_module.ref_(self).maybe_exports().clone().unwrap())
-                                    .borrow(),
+                                &helpers_module.ref_(self).maybe_exports().clone().unwrap()
+                                    .ref_(self),
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,
                             )?;

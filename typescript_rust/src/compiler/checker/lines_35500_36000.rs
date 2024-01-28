@@ -133,7 +133,7 @@ impl TypeChecker {
 
             let root_name = /*promiseConstructorName &&*/ get_first_identifier(promise_constructor_name, self);
             let colliding_symbol = self.get_symbol(
-                &(*node.ref_(self).locals()).borrow(),
+                &node.ref_(self).locals().ref_(self),
                 &root_name.ref_(self).as_identifier().escaped_text,
                 SymbolFlags::Value,
             )?;

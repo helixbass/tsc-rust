@@ -460,7 +460,7 @@ impl BinderType {
             }
 
             SyntaxKind::EnumDeclaration => Some(self.declare_symbol(
-                &mut *self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                &mut *self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -474,7 +474,7 @@ impl BinderType {
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::JsxAttributes => Some(self.declare_symbol(
-                &mut *self.container().ref_(self).symbol().ref_(self).members().borrow_mut(),
+                &mut *self.container().ref_(self).symbol().ref_(self).members().ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -503,7 +503,7 @@ impl BinderType {
             | SyntaxKind::ClassStaticBlockDeclaration
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::MappedType => Some(self.declare_symbol(
-                &mut self.container().ref_(self).locals().borrow_mut(),
+                &mut self.container().ref_(self).locals().ref_mut(self),
                 Option::<Id<Symbol>>::None,
                 node,
                 symbol_flags,
@@ -523,7 +523,7 @@ impl BinderType {
     ) -> Id<Symbol> {
         if is_static(node, self) {
             self.declare_symbol(
-                &mut *self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                &mut *self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -533,7 +533,7 @@ impl BinderType {
             )
         } else {
             self.declare_symbol(
-                &mut *self.container().ref_(self).symbol().ref_(self).members().borrow_mut(),
+                &mut *self.container().ref_(self).symbol().ref_(self).members().ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -554,7 +554,7 @@ impl BinderType {
             self.declare_module_member(node, symbol_flags, symbol_excludes)
         } else {
             self.declare_symbol(
-                &mut *self.file().ref_(self).locals().borrow_mut(),
+                &mut *self.file().ref_(self).locals().ref_mut(self),
                 None,
                 node,
                 symbol_flags,

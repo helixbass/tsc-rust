@@ -600,8 +600,8 @@ impl TypeChecker {
         enum_symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<StringOrNumber>> {
-        let member_symbol = (*enum_symbol.ref_(self).maybe_exports().clone().unwrap())
-            .borrow()
+        let member_symbol = enum_symbol.ref_(self).maybe_exports().clone().unwrap()
+            .ref_(self)
             .get(name)
             .cloned();
         if let Some(member_symbol) = member_symbol {

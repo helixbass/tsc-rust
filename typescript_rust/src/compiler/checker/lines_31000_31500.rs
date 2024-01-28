@@ -175,7 +175,7 @@ impl TypeChecker {
         member_table.insert(InternalSymbolName::Default.to_owned(), new_symbol);
         self.create_anonymous_type(
             anonymous_symbol,
-            Gc::new(GcCell::new(member_table)),
+            self.alloc_symbol_table(member_table),
             vec![],
             vec![],
             vec![],

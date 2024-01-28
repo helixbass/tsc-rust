@@ -252,14 +252,12 @@ impl TypeChecker {
             let prop = symbol
                 .ref_(self)
                 .maybe_members()
-                .as_ref()
-                .and_then(|symbol_members| (**symbol_members).borrow().get(&name).cloned())
+                .and_then(|symbol_members| symbol_members.ref_(self).get(&name).cloned())
                 .or_else(|| {
                     symbol
                         .ref_(self)
                         .maybe_exports()
-                        .as_ref()
-                        .and_then(|symbol_exports| (**symbol_exports).borrow().get(&name).cloned())
+                        .and_then(|symbol_exports| symbol_exports.ref_(self).get(&name).cloned())
                 });
             if prop.is_some() {
                 return prop;
@@ -630,11 +628,11 @@ impl TypeChecker {
                             .maybe_exports()
                             .clone()
                             .unwrap();
-                        if (*global_this_symbol_exports)
-                            .borrow()
+                        if global_this_symbol_exports
+                            .ref_(self)
                             .contains_key(right.ref_(self).as_member_name().escaped_text())
-                            && (*global_this_symbol_exports)
-                                .borrow()
+                            && global_this_symbol_exports
+                                .ref_(self)
                                 .get(right.ref_(self).as_member_name().escaped_text())
                                 .copied()
                                 .unwrap()

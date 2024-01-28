@@ -365,10 +365,10 @@ impl TypeChecker {
                 .ref_(self).borrow_mut()
                 .type_ = Some(import_meta_type);
 
-            let members = Gc::new(GcCell::new(create_symbol_table(
+            let members = self.alloc_symbol_table(create_symbol_table(
                 self.arena(),
                 Some(&vec![meta_property_symbol]),
-            )));
+            ));
             *symbol.ref_(self).maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =

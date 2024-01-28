@@ -122,8 +122,8 @@ impl TypeChecker {
                 }
                 let export_equals = self
                     .get_merged_symbol(
-                        (*symbol.ref_(self).exports())
-                            .borrow()
+                        symbol.ref_(self).exports()
+                            .ref_(self)
                             .get(InternalSymbolName::ExportEquals)
                             .cloned(),
                     )

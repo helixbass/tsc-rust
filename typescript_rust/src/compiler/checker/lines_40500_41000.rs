@@ -71,7 +71,7 @@ impl TypeChecker {
         while let Some(location_present) = *location {
             if let Some(location_locals) = location_present.ref_(self).maybe_locals().clone() {
                 if !self.is_global_source_file(location_present) {
-                    self.copy_symbols(symbols, &(*location_locals).borrow(), meaning);
+                    self.copy_symbols(symbols, &location_locals.ref_(self), meaning);
                 }
             }
 
@@ -80,12 +80,12 @@ impl TypeChecker {
                     if is_external_module(&location_present.ref_(self)) {
                         self.copy_locally_visible_export_symbols(
                             symbols,
-                            &(*self
+                            &self
                                 .get_symbol_of_node(location_present)?
                                 .unwrap()
                                 .ref_(self)
-                                .exports())
-                            .borrow(),
+                                .exports()
+                                .ref_(self),
                             meaning & SymbolFlags::ModuleMember,
                         );
                     }
@@ -93,24 +93,24 @@ impl TypeChecker {
                 SyntaxKind::ModuleDeclaration => {
                     self.copy_locally_visible_export_symbols(
                         symbols,
-                        &(*self
+                        &self
                             .get_symbol_of_node(location_present)?
                             .unwrap()
                             .ref_(self)
-                            .exports())
-                        .borrow(),
+                            .exports()
+                            .ref_(self),
                         meaning & SymbolFlags::ModuleMember,
                     );
                 }
                 SyntaxKind::EnumDeclaration => {
                     self.copy_symbols(
                         symbols,
-                        &(*self
+                        &self
                             .get_symbol_of_node(location_present)?
                             .unwrap()
                             .ref_(self)
-                            .exports())
-                        .borrow(),
+                            .exports()
+                            .ref_(self),
                         meaning & SymbolFlags::EnumMember,
                     );
                 }
@@ -123,10 +123,9 @@ impl TypeChecker {
                     if !*is_static_symbol {
                         self.copy_symbols(
                             symbols,
-                            &(*self.get_members_of_symbol(
+                            &self.get_members_of_symbol(
                                 self.get_symbol_of_node(location_present)?.unwrap(),
-                            )?)
-                            .borrow(),
+                            )?.ref_(self),
                             meaning & SymbolFlags::Type,
                         );
                     }
@@ -135,10 +134,9 @@ impl TypeChecker {
                     if !*is_static_symbol {
                         self.copy_symbols(
                             symbols,
-                            &(*self.get_members_of_symbol(
+                            &self.get_members_of_symbol(
                                 self.get_symbol_of_node(location_present)?.unwrap(),
-                            )?)
-                            .borrow(),
+                            )?.ref_(self),
                             meaning & SymbolFlags::Type,
                         );
                     }
@@ -634,7 +632,7 @@ impl TypeChecker {
             if symbol.is_none() && is_identifier(&name.ref_(self)) {
                 if let Some(container) = container {
                     symbol = self.get_merged_symbol(self.get_symbol(
-                        &(*self.get_exports_of_symbol(container)?).borrow(),
+                        &self.get_exports_of_symbol(container)?.ref_(self),
                         &name.ref_(self).as_identifier().escaped_text,
                         meaning,
                     )?);

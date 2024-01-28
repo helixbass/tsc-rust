@@ -579,7 +579,7 @@ impl TypeChecker {
                     global_generator_type.ref_(self).maybe_symbol().and_then(|global_generator_type_symbol| {
                         global_generator_type_symbol.ref_(self).maybe_members().clone()
                     }).and_then(|global_generator_type_symbol_members| {
-                        (*global_generator_type_symbol_members).borrow().get(method_name).cloned()
+                        global_generator_type_symbol_members.ref_(self).get(method_name).cloned()
                     }),
                     Some(global_generator_type_symbol_member) if global_generator_type_symbol_member == method_type_symbol
                 );
@@ -588,7 +588,7 @@ impl TypeChecker {
                         global_iterator_type.ref_(self).maybe_symbol().and_then(|global_iterator_type_symbol| {
                             global_iterator_type_symbol.ref_(self).maybe_members().clone()
                         }).and_then(|global_iterator_type_symbol_members| {
-                            (*global_iterator_type_symbol_members).borrow().get(method_name).cloned()
+                            global_iterator_type_symbol_members.ref_(self).get(method_name).cloned()
                         }),
                         Some(global_iterator_type_symbol_member) if global_iterator_type_symbol_member == method_type_symbol
                     );

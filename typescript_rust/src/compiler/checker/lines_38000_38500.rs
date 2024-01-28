@@ -260,9 +260,9 @@ impl TypeChecker {
                 } else {
                     let block_locals = catch_clause_as_catch_clause.block.ref_(self).maybe_locals().clone();
                     if let Some(block_locals) = block_locals {
-                        let block_locals = (*block_locals).borrow();
+                        let block_locals = block_locals.ref_(self);
                         for_each_key(
-                            &*(*catch_clause.ref_(self).maybe_locals().clone().unwrap()).borrow(),
+                            &*catch_clause.ref_(self).maybe_locals().clone().unwrap().ref_(self),
                             |caught_name: &__String| -> Option<()> {
                                 let block_local = block_locals.get(caught_name);
                                 if let Some(&block_local) = block_local {

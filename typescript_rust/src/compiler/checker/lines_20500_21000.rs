@@ -344,8 +344,8 @@ impl TypeChecker {
         if bases.len() != 1 {
             return Ok(None);
         }
-        if !(*self.get_members_of_symbol(type_.ref_(self).symbol())?)
-            .borrow()
+        if !self.get_members_of_symbol(type_.ref_(self).symbol())?
+            .ref_(self)
             .is_empty()
         {
             return Ok(None);
