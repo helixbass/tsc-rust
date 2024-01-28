@@ -643,7 +643,7 @@ fn emit_source_file_or_bundle(
                 build_info_path,
                 Some(&ScriptReferenceHost::get_current_directory(&**host.ref_(arena))),
             )));
-            *bundle_build_info = Some(self.alloc_bundle_build_info(BundleBuildInfo {
+            *bundle_build_info = Some(arena.alloc_bundle_build_info(BundleBuildInfo {
                 common_source_directory: relative_to_build_info(
                     build_info_directory.as_ref().unwrap(),
                     &**host.ref_(arena),
