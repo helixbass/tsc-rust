@@ -2185,15 +2185,15 @@ impl Printer {
         self.source_map_generator.borrow().clone()
     }
 
-    pub(super) fn maybe_source_map_source(&self) -> Option<Gc<SourceMapSource>> {
+    pub(super) fn maybe_source_map_source(&self) -> Option<Id<SourceMapSource>> {
         self.source_map_source.borrow().clone()
     }
 
-    pub(super) fn source_map_source(&self) -> Gc<SourceMapSource> {
+    pub(super) fn source_map_source(&self) -> Id<SourceMapSource> {
         self.source_map_source.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_source_map_source_(&self, source_map_source: Option<Gc<SourceMapSource>>) {
+    pub(super) fn set_source_map_source_(&self, source_map_source: Option<Id<SourceMapSource>>) {
         *self.source_map_source.borrow_mut() = source_map_source;
     }
 
@@ -2207,13 +2207,13 @@ impl Printer {
 
     pub(super) fn maybe_most_recently_added_source_map_source(
         &self,
-    ) -> Option<Gc<SourceMapSource>> {
+    ) -> Option<Id<SourceMapSource>> {
         self.most_recently_added_source_map_source.borrow().clone()
     }
 
     pub(super) fn set_most_recently_added_source_map_source(
         &self,
-        most_recently_added_source_map_source: Option<Gc<SourceMapSource>>,
+        most_recently_added_source_map_source: Option<Id<SourceMapSource>>,
     ) {
         *self.most_recently_added_source_map_source.borrow_mut() =
             most_recently_added_source_map_source;

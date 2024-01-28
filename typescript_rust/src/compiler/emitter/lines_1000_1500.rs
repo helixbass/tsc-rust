@@ -227,7 +227,7 @@ impl Printer {
         self.set_current_line_map(None);
         self.set_detached_comments_info(None);
         if let Some(source_file) = source_file {
-            self.set_source_map_source(Gc::new(source_file.into()));
+            self.set_source_map_source(self.alloc_source_map_source(source_file.into()));
         }
     }
 

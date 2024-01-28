@@ -18,7 +18,7 @@ use crate::{
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
-    ConditionalRoot, EmitNode, CheckBinaryExpression,
+    ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource,
 };
 
 #[derive(Default)]
@@ -88,6 +88,7 @@ pub struct AllArenas {
     pub conditional_roots: RefCell<Arena<ConditionalRoot>>,
     pub emit_nodes: RefCell<Arena<EmitNode>>,
     pub check_binary_expressions: RefCell<Arena<CheckBinaryExpression>>,
+    pub source_map_sources: RefCell<Arena<SourceMapSource>>,
 }
 
 pub trait HasArena {
@@ -639,6 +640,14 @@ pub trait HasArena {
 
     fn alloc_check_binary_expression(&self, check_binary_expression: CheckBinaryExpression) -> Id<CheckBinaryExpression> {
         self.arena().alloc_check_binary_expression(check_binary_expression)
+    }
+
+    fn source_map_source(&self, source_map_source: Id<SourceMapSource>) -> Ref<SourceMapSource> {
+        self.arena().source_map_source(source_map_source)
+    }
+
+    fn alloc_source_map_source(&self, source_map_source: SourceMapSource) -> Id<SourceMapSource> {
+        self.arena().alloc_source_map_source(source_map_source)
     }
 }
 
@@ -1333,6 +1342,16 @@ impl HasArena for AllArenas {
         let id = self.check_binary_expressions.borrow_mut().alloc(check_binary_expression);
         id
     }
+
+    #[track_caller]
+    fn source_map_source(&self, source_map_source: Id<SourceMapSource>) -> Ref<SourceMapSource> {
+        Ref::map(self.source_map_sources.borrow(), |source_map_sources| &source_map_sources[source_map_source])
+    }
+
+    fn alloc_source_map_source(&self, source_map_source: SourceMapSource) -> Id<SourceMapSource> {
+        let id = self.source_map_sources.borrow_mut().alloc(source_map_source);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1885,11 +1904,11 @@ impl InArena for Id<EmitNode> {
     }
 }
 
-impl InArena for Id<CheckBinaryExpression> {
-    type Item = CheckBinaryExpression;
+impl InArena for Id<SourceMapSource> {
+    type Item = SourceMapSource;
 
-    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CheckBinaryExpression> {
-        has_arena.check_binary_expression(*self)
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SourceMapSource> {
+        has_arena.source_map_source(*self)
     }
 }
 

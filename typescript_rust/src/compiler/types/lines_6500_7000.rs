@@ -557,11 +557,11 @@ pub struct SourceMapRange {
     pos: Cell<isize>,
     #[unsafe_ignore_trace]
     end: Cell<isize>,
-    pub source: Option<Gc<SourceMapSource>>,
+    pub source: Option<Id<SourceMapSource>>,
 }
 
 impl SourceMapRange {
-    pub fn new(pos: isize, end: isize, source: Option<Gc<SourceMapSource>>) -> Self {
+    pub fn new(pos: isize, end: isize, source: Option<Id<SourceMapSource>>) -> Self {
         Self {
             pos: Cell::new(pos),
             end: Cell::new(end),

@@ -424,7 +424,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn skip_source_trivia(&self, source: &SourceMapSource, pos: isize) -> isize {
+    pub(super) fn skip_source_trivia(&self, source: Id<SourceMapSource>, pos: isize) -> isize {
         let source = source.ref_(self);
         if let Some(source_skip_trivia) = source.skip_trivia() {
             source_skip_trivia.call(pos)
@@ -472,7 +472,7 @@ impl Printer {
             .unwrap_or_else(|| self.source_map_source());
 
         token_pos = self.skip_source_trivia(
-            &source,
+            source,
             range.as_ref().map_or(token_pos, |range| range.ref_(self).pos()),
         );
         if !emit_flags.intersects(EmitFlags::NoTokenLeadingSourceMaps) && token_pos >= 0 {
@@ -494,7 +494,7 @@ impl Printer {
     pub(super) fn emit_pos(&self, pos: isize) {
         if self.source_maps_disabled()
             || position_is_synthesized(pos)
-            || self.is_json_source_map_source(&self.source_map_source())
+            || self.is_json_source_map_source(self.source_map_source())
         {
             return;
         }
@@ -513,7 +513,7 @@ impl Printer {
         );
     }
 
-    pub(super) fn emit_source_pos(&self, source: Gc<SourceMapSource>, pos: isize) {
+    pub(super) fn emit_source_pos(&self, source: Id<SourceMapSource>, pos: isize) {
         if !matches!(
             self.maybe_source_map_source(),
             Some(source_map_source) if Gc::ptr_eq(
@@ -534,7 +534,7 @@ impl Printer {
         }
     }
 
-    pub(super) fn set_source_map_source(&self, source: Gc<SourceMapSource>) {
+    pub(super) fn set_source_map_source(&self, source: Id<SourceMapSource>) {
         if self.source_maps_disabled() {
             return;
         }
@@ -574,12 +574,12 @@ impl Printer {
         self.set_most_recently_added_source_map_source_index(self.source_map_source_index());
     }
 
-    pub(super) fn reset_source_map_source(&self, source: Gc<SourceMapSource>, source_index: isize) {
+    pub(super) fn reset_source_map_source(&self, source: Id<SourceMapSource>, source_index: isize) {
         self.set_source_map_source_(Some(source));
         self.set_source_map_source_index(source_index);
     }
 
-    pub(super) fn is_json_source_map_source(&self, source_file: &SourceMapSource) -> bool {
+    pub(super) fn is_json_source_map_source(&self, source_file: Id<SourceMapSource>) -> bool {
         file_extension_is(&source_file.ref_(self).file_name(), Extension::Json.to_str())
     }
 }
