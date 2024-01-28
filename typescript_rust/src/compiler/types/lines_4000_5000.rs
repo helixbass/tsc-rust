@@ -171,7 +171,7 @@ pub struct TypeChecker {
     pub(crate) arena: *const AllArenas,
     pub(crate) host: Id<Program /*TypeCheckerHostDebuggable*/>,
     pub(crate) produce_diagnostics: bool,
-    pub(crate) _rc_wrapper: GcCell<Option<Gc<TypeChecker>>>,
+    pub(crate) _arena_id: GcCell<Option<Id<Self>>>,
     #[unsafe_ignore_trace]
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
     pub(crate) cancellation_token: GcCell<Option<Id<Box<dyn CancellationToken>>>>,

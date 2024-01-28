@@ -282,7 +282,7 @@ impl TypeChecker {
                         None,
                         Some(Gc::new(Box::new(
                             IssueMemberSpecificErrorContainingMessageChain::new(
-                                self.rc_wrapper(),
+                                self.arena_id(),
                                 declared_prop.clone(),
                                 type_with_this,
                                 base_with_this,
@@ -859,7 +859,7 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 struct IssueMemberSpecificErrorContainingMessageChain {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
     declared_prop: Id<Symbol>,
     type_with_this: Id<Type>,
     base_with_this: Id<Type>,
@@ -867,7 +867,7 @@ struct IssueMemberSpecificErrorContainingMessageChain {
 
 impl IssueMemberSpecificErrorContainingMessageChain {
     pub fn new(
-        type_checker: Gc<TypeChecker>,
+        type_checker: Id<TypeChecker>,
         declared_prop: Id<Symbol>,
         type_with_this: Id<Type>,
         base_with_this: Id<Type>,

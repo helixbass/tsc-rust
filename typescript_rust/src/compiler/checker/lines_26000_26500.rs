@@ -589,7 +589,7 @@ impl TypeChecker {
                     |prop, _| {
                         (
                             Box::new({
-                                let type_checker = self.rc_wrapper();
+                                let type_checker = self.arena_id();
                                 let prop_clone = prop.clone();
                                 move || {
                                     type_checker.get_context_free_type_of_expression(prop_clone.ref_(&*type_checker).as_has_initializer().maybe_initializer().unwrap())
@@ -620,7 +620,7 @@ impl TypeChecker {
                         |&s: &Id<Symbol>, _| {
                             (
                                 Box::new({
-                                    let type_checker = self.rc_wrapper();
+                                    let type_checker = self.arena_id();
                                     move || {
                                         Ok(type_checker.undefined_type())
                                     }
@@ -660,7 +660,7 @@ impl TypeChecker {
                 |prop: &Id<Node>, _| {
                     (
                         Box::new({
-                            let type_checker = self.rc_wrapper();
+                            let type_checker = self.arena_id();
                             let prop_clone = prop.clone();
                             let arena_raw: *const AllArenas = self.arena();
                             let arena = unsafe { &*arena_raw };
@@ -704,7 +704,7 @@ impl TypeChecker {
                         |&s: &Id<Symbol>, _| {
                             (
                                 Box::new({
-                                    let type_checker = self.rc_wrapper();
+                                    let type_checker = self.arena_id();
                                     move || {
                                         Ok(type_checker.undefined_type())
                                     }

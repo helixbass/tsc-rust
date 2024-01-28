@@ -122,7 +122,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let initial_type = initial_type.unwrap_or(declared_type);
         GetFlowTypeOfReference::new(
-            self.rc_wrapper(),
+            self.arena_id(),
             reference,
             declared_type,
             initial_type,
@@ -133,7 +133,7 @@ impl TypeChecker {
 }
 
 pub(super) struct GetFlowTypeOfReference {
-    pub type_checker: Gc<TypeChecker>,
+    pub type_checker: Id<TypeChecker>,
     pub reference: Id<Node>,
     pub declared_type: Id<Type>,
     pub initial_type: Id<Type>,
@@ -152,7 +152,7 @@ impl HasArena for GetFlowTypeOfReference {
 
 impl GetFlowTypeOfReference {
     pub(super) fn new(
-        type_checker: Gc<TypeChecker>,
+        type_checker: Id<TypeChecker>,
         reference: Id<Node>,
         declared_type: Id<Type>,
         initial_type: Id<Type>,

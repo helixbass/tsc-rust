@@ -144,8 +144,8 @@ impl SymbolTableToDeclarationStatements {
         symbol_name: &str,
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
-        let alias_type = self.type_checker.get_declared_type_of_type_alias(symbol)?;
-        let type_params = (*self.type_checker.get_symbol_links(symbol).ref_(self))
+        let alias_type = self.type_checker.ref_(self).get_declared_type_of_type_alias(symbol)?;
+        let type_params = (*self.type_checker.ref_(self).get_symbol_links(symbol).ref_(self))
             .borrow()
             .type_parameters
             .clone();
@@ -243,18 +243,18 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<()> {
         let interface_type = self
             .type_checker
-            .get_declared_type_of_class_or_interface(symbol)?;
+            .ref_(self).get_declared_type_of_class_or_interface(symbol)?;
         let local_params = self
             .type_checker
-            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
+            .ref_(self).get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         let type_param_decls = try_maybe_map(local_params.as_deref(), |&p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
         })
         .transpose()?;
-        let base_types = self.type_checker.get_base_types(interface_type)?;
+        let base_types = self.type_checker.ref_(self).get_base_types(interface_type)?;
         let base_type = if !base_types.is_empty() {
-            Some(self.type_checker.get_intersection_type(
+            Some(self.type_checker.ref_(self).get_intersection_type(
                 &base_types,
                 Option::<Id<Symbol>>::None,
                 None,
@@ -266,7 +266,7 @@ impl SymbolTableToDeclarationStatements {
             Some(
                 &self
                     .type_checker
-                    .get_properties_of_type(interface_type)?
+                    .ref_(self).get_properties_of_type(interface_type)?
                     .collect_vec(),
             ),
             |&p: &Id<Symbol>, _| self.serialize_property_symbol_for_interface(p, base_type),
@@ -341,7 +341,7 @@ impl SymbolTableToDeclarationStatements {
             .try_all(|&m| {
                 Ok(!self
                     .type_checker
-                    .resolve_symbol(Some(m), None)?
+                    .ref_(self).resolve_symbol(Some(m), None)?
                     .unwrap()
                     .ref_(self)
                     .flags()
@@ -404,7 +404,7 @@ impl SymbolTableToDeclarationStatements {
                                 let local_name = self.get_internal_symbol_name(s, name);
                                 let alias_decl =
                                     s.ref_(self).maybe_declarations().is_some().try_then_and(
-                                        || self.type_checker.get_declaration_of_alias_symbol(s),
+                                        || self.type_checker.ref_(self).get_declaration_of_alias_symbol(s),
                                     )?;
                                 if let Some(containing_file) =
                                     containing_file.filter(|&containing_file| {
@@ -429,7 +429,7 @@ impl SymbolTableToDeclarationStatements {
                                 }
                                 let target = alias_decl.try_and_then(|alias_decl| {
                                     self.type_checker
-                                        .get_target_of_alias_declaration(alias_decl, Some(true))
+                                        .ref_(self).get_target_of_alias_declaration(alias_decl, Some(true))
                                 })?;
                                 self.include_private_symbol(target.unwrap_or(s));
                                 let target_name = target.map_or_else(
@@ -482,7 +482,7 @@ impl SymbolTableToDeclarationStatements {
             get_factory(self).create_enum_declaration(
                 Option::<Id<NodeArray>>::None,
                 Some(get_factory(self).create_modifiers_from_modifier_flags(
-                    if self.type_checker.is_const_enum_symbol(symbol) {
+                    if self.type_checker.ref_(self).is_const_enum_symbol(symbol) {
                         ModifierFlags::Const
                     } else {
                         ModifierFlags::None
@@ -491,7 +491,7 @@ impl SymbolTableToDeclarationStatements {
                 &*self.get_internal_symbol_name(symbol, symbol_name),
                 Some(
                     self.type_checker
-                        .get_properties_of_type(self.type_checker.get_type_of_symbol(symbol)?)?
+                        .ref_(self).get_properties_of_type(self.type_checker.ref_(self).get_type_of_symbol(symbol)?)?
                         .filter(|&p| p.ref_(self).flags().intersects(SymbolFlags::EnumMember))
                         .map(|p| -> io::Result<Id<Node>> {
                             let initialized_value = p
@@ -501,7 +501,7 @@ impl SymbolTableToDeclarationStatements {
                                 .and_then(|p_declarations| p_declarations.get(0).copied())
                                 .filter(|p_declarations_0| is_enum_member(&p_declarations_0.ref_(self)))
                                 .try_and_then(|p_declarations_0| {
-                                    self.type_checker.get_constant_value_(p_declarations_0)
+                                    self.type_checker.ref_(self).get_constant_value_(p_declarations_0)
                                 })?;
                             Ok(get_factory(self).create_enum_member(
                                 unescape_leading_underscores(p.ref_(self).escaped_name()),
@@ -533,7 +533,7 @@ impl SymbolTableToDeclarationStatements {
     ) -> io::Result<()> {
         let signatures = self
             .type_checker
-            .get_signatures_of_type(type_, SignatureKind::Call)?;
+            .ref_(self).get_signatures_of_type(type_, SignatureKind::Call)?;
         for &sig in &signatures {
             let decl = self
                 .node_builder
@@ -571,7 +571,7 @@ impl SymbolTableToDeclarationStatements {
         {
             let props = self
                 .type_checker
-                .get_properties_of_type(type_)?
+                .ref_(self).get_properties_of_type(type_)?
                 .filter(|&property| self.is_namespace_member(property));
             self.serialize_as_namespace_declaration(
                 &props.collect_vec(),
@@ -651,7 +651,7 @@ impl SymbolTableToDeclarationStatements {
             );
             set_parent(&fakespace.ref_(self), Some(self.enclosing_declaration));
             fakespace.ref_(self).set_locals(Some(self.alloc_symbol_table(create_symbol_table(
-                self.type_checker.arena(),
+                self.type_checker.ref_(self).arena(),
                 Some(props),
             ))));
             if let Some(props_0_parent) = props[0].ref_(self).maybe_parent() {
@@ -669,7 +669,7 @@ impl SymbolTableToDeclarationStatements {
             self.set_context(subcontext);
             self.visit_symbol_table(
                 self.alloc_symbol_table(create_symbol_table(
-                    self.type_checker.arena(),
+                    self.type_checker.ref_(self).arena(),
                     Some(&local_props),
                 )),
                 Some(suppress_new_private_context),
@@ -794,7 +794,7 @@ impl SymbolTableToDeclarationStatements {
                                             .type_to_type_node_helper(
                                                 Some(
                                                     self.type_checker
-                                                        .get_type_from_type_node_(a)?,
+                                                        .ref_(self).get_type_from_type_node_(a)?,
                                                 ),
                                                 &self.context(),
                                             )?
@@ -844,7 +844,7 @@ impl SymbolTableToDeclarationStatements {
             .set_enclosing_declaration(original_decl.clone().or_else(|| old_enclosing.clone()));
         let local_params = self
             .type_checker
-            .get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
+            .ref_(self).get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         let type_param_decls = try_maybe_map(local_params.as_ref(), |&p: &Id<Type>, _| {
             self.node_builder
                 .type_parameter_to_declaration_(p, &self.context(), None)
@@ -852,8 +852,8 @@ impl SymbolTableToDeclarationStatements {
         .transpose()?;
         let class_type = self
             .type_checker
-            .get_declared_type_of_class_or_interface(symbol)?;
-        let base_types = self.type_checker.get_base_types(class_type)?;
+            .ref_(self).get_declared_type_of_class_or_interface(symbol)?;
+        let base_types = self.type_checker.ref_(self).get_base_types(class_type)?;
         let original_implements = original_decl
             .and_then(|original_decl| get_effective_implements_type_nodes(original_decl, self));
         let implements_expressions = original_implements
@@ -863,20 +863,20 @@ impl SymbolTableToDeclarationStatements {
             })?
             .try_unwrap_or_else(|| {
                 try_map_defined(
-                    Some(&self.type_checker.get_implements_types(class_type)?),
+                    Some(&self.type_checker.ref_(self).get_implements_types(class_type)?),
                     |&type_: &Id<Type>, _| self.serialize_implemented_type(type_),
                 )
             })?;
-        let static_type = self.type_checker.get_type_of_symbol(symbol)?;
+        let static_type = self.type_checker.ref_(self).get_type_of_symbol(symbol)?;
         let is_class = matches!(
             static_type.ref_(self).maybe_symbol().and_then(|static_type_symbol| static_type_symbol.ref_(self).maybe_value_declaration()).as_ref(),
             Some(static_type_symbol_value_declaration) if is_class_like(&static_type_symbol_value_declaration.ref_(self))
         );
         let static_base_type = if is_class {
             self.type_checker
-                .get_base_constructor_type_of_class(static_type)?
+                .ref_(self).get_base_constructor_type_of_class(static_type)?
         } else {
-            self.type_checker.any_type()
+            self.type_checker.ref_(self).any_type()
         };
         let heritage_clauses: Vec<Id<Node>> =
             {
@@ -897,10 +897,10 @@ impl SymbolTableToDeclarationStatements {
                 }
                 heritage_clauses
             };
-        let mut symbol_props = self.type_checker.get_non_interhited_properties(
+        let mut symbol_props = self.type_checker.ref_(self).get_non_interhited_properties(
             class_type,
             &base_types,
-            self.type_checker.get_properties_of_type(class_type)?,
+            self.type_checker.ref_(self).get_properties_of_type(class_type)?,
         )?;
         let public_symbol_props = symbol_props.clone().filter(|&s| {
             let value_decl = s.ref_(self).maybe_value_declaration();
@@ -946,7 +946,7 @@ impl SymbolTableToDeclarationStatements {
             Some(&filter(
                 &self
                     .type_checker
-                    .get_properties_of_type(static_type)?
+                    .ref_(self).get_properties_of_type(static_type)?
                     .collect_vec(),
                 |&p: &Id<Symbol>| {
                     !p.ref_(self).flags().intersects(SymbolFlags::Prototype)
@@ -968,7 +968,7 @@ impl SymbolTableToDeclarationStatements {
                 Some(
                     &self
                         .type_checker
-                        .get_signatures_of_type(static_type, SignatureKind::Construct)?,
+                        .ref_(self).get_signatures_of_type(static_type, SignatureKind::Construct)?,
                 ),
                 Option::<fn(&Id<Signature>) -> bool>::None,
             );
@@ -1057,7 +1057,7 @@ impl SymbolTableToDeclarationStatements {
                     ));
                 }
             }
-            if self.type_checker.is_alias_symbol_declaration(d)? {
+            if self.type_checker.ref_(self).is_alias_symbol_declaration(d)? {
                 let name = get_name_of_declaration(Some(d), self);
                 if let Some(name) = name.as_ref().filter(|name| is_identifier(&name.ref_(self))) {
                     return Ok(Some(id_text(&name.ref_(self)).to_owned()));
@@ -1074,10 +1074,10 @@ impl SymbolTableToDeclarationStatements {
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
         let node =
-            debug_fail_if_none!(self.type_checker.get_declaration_of_alias_symbol(symbol)?);
-        let target = return_ok_default_if_none!(self.type_checker.get_merged_symbol(
+            debug_fail_if_none!(self.type_checker.ref_(self).get_declaration_of_alias_symbol(symbol)?);
+        let target = return_ok_default_if_none!(self.type_checker.ref_(self).get_merged_symbol(
             self.type_checker
-                .get_target_of_alias_declaration(node, Some(true))?,
+                .ref_(self).get_target_of_alias_declaration(node, Some(true))?,
         ));
         let mut verbatim_target_name = is_shorthand_ambient_module_symbol(target, self)
             .try_then_and(|| {
@@ -1089,10 +1089,10 @@ impl SymbolTableToDeclarationStatements {
                 unescape_leading_underscores(target.ref_(self).escaped_name()).to_owned()
             });
         if verbatim_target_name == InternalSymbolName::ExportEquals
-            && (get_es_module_interop(&self.type_checker.compiler_options.ref_(self)) == Some(true)
+            && (get_es_module_interop(&self.type_checker.ref_(self).compiler_options.ref_(self)) == Some(true)
                 || self
                     .type_checker
-                    .compiler_options
+                    .ref_(self).compiler_options
                     .ref_(self).allow_synthetic_default_imports
                     == Some(true))
         {

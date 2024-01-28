@@ -547,24 +547,24 @@ impl TypeChecker {
     }
 
     pub(super) fn create_node_builder(&self) -> Gc<NodeBuilder> {
-        NodeBuilder::new(self.rc_wrapper())
+        NodeBuilder::new(self.arena_id())
     }
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeBuilder {
     pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilder>>>,
-    pub type_checker: Gc<TypeChecker>,
+    pub type_checker: Id<TypeChecker>,
 }
 
 impl HasArena for NodeBuilder {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.arena()
+        unimplemented!()
     }
 }
 
 impl NodeBuilder {
-    pub fn new(type_checker: Gc<TypeChecker>) -> Gc<Self> {
+    pub fn new(type_checker: Id<TypeChecker>) -> Gc<Self> {
         let ret = Gc::new(Self {
             type_checker,
             _rc_wrapper: Default::default(),
@@ -733,7 +733,7 @@ impl NodeBuilder {
         let tracker = tracker
             .filter(|tracker| tracker.ref_(self).is_track_symbol_supported())
             .unwrap_or_else(|| {
-                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags, self)
+                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.ref_(self).host.clone(), flags, self)
             });
         let context = NodeBuilderContext::new(
             enclosing_declaration,
@@ -778,7 +778,7 @@ impl NodeBuilder {
         let tracker = tracker
             .filter(|tracker| tracker.ref_(self).is_track_symbol_supported())
             .unwrap_or_else(|| {
-                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.host.clone(), flags, self)
+                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.ref_(self).host.clone(), flags, self)
             });
         let context = NodeBuilderContext::new(
             enclosing_declaration,
@@ -824,7 +824,7 @@ impl NodeBuilder {
         type_: Option<Id<Type>>,
         context: &NodeBuilderContext,
     ) -> io::Result<Option<Id<Node>>> {
-        if let Some(_cancellation_token) = self.type_checker.maybe_cancellation_token()
+        if let Some(_cancellation_token) = self.type_checker.ref_(self).maybe_cancellation_token()
         /*&& cancellationToken.throwIfCancellationRequested*/
         {
             // cancellationToken.throwIfCancellationRequested();
@@ -853,7 +853,7 @@ impl NodeBuilder {
             .flags()
             .intersects(NodeBuilderFlags::NoTypeReduction)
         {
-            type_ = self.type_checker.get_reduced_type(type_)?;
+            type_ = self.type_checker.ref_(self).get_reduced_type(type_)?;
         }
 
         if type_.ref_(self).flags().intersects(TypeFlags::Any) {
@@ -867,7 +867,7 @@ impl NodeBuilder {
                     )?,
                 )));
             }
-            if type_ == self.type_checker.unresolved_type() {
+            if type_ == self.type_checker.ref_(self).unresolved_type() {
                 let ret = self.alloc_node(KeywordTypeNode::from(
                     get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
                 )
@@ -884,7 +884,7 @@ impl NodeBuilder {
             context.increment_approximate_length_by(3);
             return Ok(Some(
                 self.alloc_node(KeywordTypeNode::from(get_factory(self).create_keyword_type_node_raw(
-                    if type_ == self.type_checker.intrinsic_marker_type() {
+                    if type_ == self.type_checker.ref_(self).intrinsic_marker_type() {
                         SyntaxKind::IntrinsicKeyword
                     } else {
                         SyntaxKind::AnyKeyword
@@ -938,13 +938,13 @@ impl NodeBuilder {
         {
             let parent_symbol = self
                 .type_checker
-                .get_parent_of_symbol(type_.ref_(self).symbol())?
+                .ref_(self).get_parent_of_symbol(type_.ref_(self).symbol())?
                 .unwrap();
             let parent_name =
                 self.symbol_to_type_node(parent_symbol, context, SymbolFlags::Type, None)?;
             if self
                 .type_checker
-                .get_declared_type_of_symbol(parent_symbol)?
+                .ref_(self).get_declared_type_of_symbol(parent_symbol)?
                 == type_
             {
                 return Ok(Some(parent_name));
@@ -1080,7 +1080,7 @@ impl NodeBuilder {
                 .flags()
                 .intersects(NodeBuilderFlags::AllowUniqueESSymbolType)
             {
-                if self.type_checker.is_value_symbol_accessible(
+                if self.type_checker.ref_(self).is_value_symbol_accessible(
                     type_.ref_(self).symbol(),
                     context.maybe_enclosing_declaration(),
                 )? {
@@ -1152,7 +1152,7 @@ impl NodeBuilder {
                 ).into()),
             ));
         }
-        if self.type_checker.is_this_type_parameter(type_) {
+        if self.type_checker.ref_(self).is_this_type_parameter(type_) {
             if context
                 .flags()
                 .intersects(NodeBuilderFlags::InObjectTypeLiteral)
@@ -1177,7 +1177,7 @@ impl NodeBuilder {
                 if context
                     .flags()
                     .intersects(NodeBuilderFlags::UseAliasDefinedOutsideCurrentScope)
-                    || self.type_checker.is_type_symbol_accessible(
+                    || self.type_checker.ref_(self).is_type_symbol_accessible(
                         type_alias_symbol,
                         context.maybe_enclosing_declaration(),
                     )?
@@ -1189,7 +1189,7 @@ impl NodeBuilder {
                     )?;
                     if self
                         .type_checker
-                        .is_reserved_member_name(type_alias_symbol.ref_(self).escaped_name())
+                        .ref_(self).is_reserved_member_name(type_alias_symbol.ref_(self).escaped_name())
                         && !type_alias_symbol
                             .ref_(self)
                             .flags()
@@ -1255,7 +1255,7 @@ impl NodeBuilder {
                     .ref_(self)
                     .flags()
                     .intersects(TypeFlags::TypeParameter)
-                && !self.type_checker.is_type_symbol_accessible(
+                && !self.type_checker.ref_(self).is_type_symbol_accessible(
                     type_.ref_(self).symbol(),
                     context.maybe_enclosing_declaration(),
                 )?
@@ -1292,7 +1292,7 @@ impl NodeBuilder {
                 let type_ref = type_.ref_(self);
                 let types = type_ref.as_union_or_intersection_type_interface().types();
                 if type_.ref_(self).flags().intersects(TypeFlags::Union) {
-                    self.type_checker.format_union_types(types)?
+                    self.type_checker.ref_(self).format_union_types(types)?
                 } else {
                     types.to_vec()
                 }

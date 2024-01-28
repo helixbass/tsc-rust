@@ -1616,8 +1616,8 @@ pub struct Program {
     pub(crate) symlinks: GcCell<Option<Id<SymlinkCache>>>,
     #[unsafe_ignore_trace]
     pub(crate) common_source_directory: RefCell<Option<String>>,
-    pub(crate) diagnostics_producing_type_checker: GcCell<Option<Gc<TypeChecker>>>,
-    pub(crate) no_diagnostics_type_checker: GcCell<Option<Gc<TypeChecker>>>,
+    pub(crate) diagnostics_producing_type_checker: GcCell<Option<Id<TypeChecker>>>,
+    pub(crate) no_diagnostics_type_checker: GcCell<Option<Id<TypeChecker>>>,
     #[allow(dead_code)]
     #[unsafe_ignore_trace]
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,

@@ -19,7 +19,7 @@ use crate::{
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
-    BindBinaryExpressionFlow,
+    BindBinaryExpressionFlow, TypeChecker,
 };
 
 #[derive(Default)]
@@ -92,6 +92,7 @@ pub struct AllArenas {
     pub source_map_sources: RefCell<Arena<SourceMapSource>>,
     pub outofband_variance_marker_handlers: RefCell<Arena<Box<dyn OutofbandVarianceMarkerHandler>>>,
     pub bind_binary_expression_flows: RefCell<Arena<BindBinaryExpressionFlow>>,
+    pub type_checkers: RefCell<Arena<TypeChecker>>,
 }
 
 pub trait HasArena {
@@ -667,6 +668,14 @@ pub trait HasArena {
 
     fn alloc_bind_binary_expression_flow(&self, bind_binary_expression_flow: BindBinaryExpressionFlow) -> Id<BindBinaryExpressionFlow> {
         self.arena().alloc_bind_binary_expression_flow(bind_binary_expression_flow)
+    }
+
+    fn type_checker(&self, type_checker: Id<TypeChecker>) -> Ref<TypeChecker> {
+        self.arena().type_checker(type_checker)
+    }
+
+    fn alloc_type_checker(&self, type_checker: TypeChecker) -> Id<TypeChecker> {
+        self.arena().alloc_type_checker(type_checker)
     }
 }
 
@@ -1391,6 +1400,16 @@ impl HasArena for AllArenas {
         let id = self.bind_binary_expression_flows.borrow_mut().alloc(bind_binary_expression_flow);
         id
     }
+
+    #[track_caller]
+    fn type_checker(&self, type_checker: Id<TypeChecker>) -> Ref<TypeChecker> {
+        Ref::map(self.type_checkers.borrow(), |type_checkers| &type_checkers[type_checker])
+    }
+
+    fn alloc_type_checker(&self, type_checker: TypeChecker) -> Id<TypeChecker> {
+        let id = self.type_checkers.borrow_mut().alloc(type_checker);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1972,6 +1991,14 @@ impl InArena for Id<BindBinaryExpressionFlow> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, BindBinaryExpressionFlow> {
         has_arena.bind_binary_expression_flow(*self)
+    }
+}
+
+impl InArena for Id<TypeChecker> {
+    type Item = TypeChecker;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TypeChecker> {
+        has_arena.type_checker(*self)
     }
 }
 

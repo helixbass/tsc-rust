@@ -526,14 +526,14 @@ pub fn create_type_checker(
     arena: *const AllArenas,
     host: Id<Program /*TypeCheckerHostDebuggable*/>,
     produce_diagnostics: bool,
-) -> io::Result<Gc<TypeChecker>> {
+) -> io::Result<Id<TypeChecker>> {
     let arena_ref = unsafe { &*arena };
     let compiler_options = host.ref_(arena_ref).get_compiler_options();
     let mut type_checker = TypeChecker {
         arena,
         host,
         produce_diagnostics,
-        _rc_wrapper: Default::default(),
+        _arena_id: Default::default(),
         _packages_map: Default::default(),
         cancellation_token: Default::default(),
         requested_external_emit_helpers: Cell::new(ExternalEmitHelpers::None),
@@ -1458,18 +1458,18 @@ pub fn create_type_checker(
     );
     *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
 
-    let rc_wrapped = Gc::new(type_checker);
-    rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
+    let ret = arena_ref.alloc_type_checker(type_checker);
+    ret.ref_(arena_ref).set_arena_id(ret.clone());
 
-    *rc_wrapped.node_builder.borrow_mut() = Some(rc_wrapped.create_node_builder());
+    *ret.ref_(arena_ref).node_builder.borrow_mut() = Some(ret.ref_(arena_ref).create_node_builder());
 
-    rc_wrapped.initialize_type_checker()?;
+    ret.ref_(arena_ref).initialize_type_checker()?;
 
-    *rc_wrapped.check_binary_expression.borrow_mut() =
-        Some(rc_wrapped.alloc_check_binary_expression(rc_wrapped.create_check_binary_expression()));
-    *rc_wrapped.emit_resolver.borrow_mut() = Some(rc_wrapped.create_resolver());
+    *ret.ref_(arena_ref).check_binary_expression.borrow_mut() =
+        Some(ret.ref_(arena_ref).alloc_check_binary_expression(ret.ref_(arena_ref).create_check_binary_expression()));
+    *ret.ref_(arena_ref).emit_resolver.borrow_mut() = Some(ret.ref_(arena_ref).create_resolver());
 
-    Ok(rc_wrapped)
+    Ok(ret)
 }
 
 #[derive(Default, Trace, Finalize)]
@@ -1541,12 +1541,12 @@ pub(crate) struct DuplicateInfoForFiles {
 }
 
 impl TypeChecker {
-    pub fn rc_wrapper(&self) -> Gc<TypeChecker> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
-    fn set_rc_wrapper(&self, wrapper: Gc<TypeChecker>) {
-        *self._rc_wrapper.borrow_mut() = Some(wrapper);
+    fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     pub(super) fn get_packages_map(&self) -> Ref<HashMap<String, bool>> {

@@ -721,7 +721,7 @@ impl TypeChecker {
             flags,
             compare_types.unwrap_or_else(|| {
                 Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
-                    self.rc_wrapper(),
+                    self.arena_id(),
                 )))
             }),
         )
@@ -1220,11 +1220,11 @@ impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback 
 
 #[derive(Trace, Finalize)]
 pub(super) struct TypeComparerCompareTypesAssignable {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
 }
 
 impl TypeComparerCompareTypesAssignable {
-    pub fn new(type_checker: Gc<TypeChecker>) -> Self {
+    pub fn new(type_checker: Id<TypeChecker>) -> Self {
         Self { type_checker }
     }
 }

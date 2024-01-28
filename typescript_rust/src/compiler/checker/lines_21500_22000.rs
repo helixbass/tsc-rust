@@ -553,7 +553,7 @@ impl TypeChecker {
         let priority = priority.unwrap_or(InferencePriority::None);
         let contravariant = contravariant.unwrap_or(false);
         InferTypes::new(
-            self.rc_wrapper(),
+            self.arena_id(),
             inferences.to_owned(),
             original_target,
             priority,
@@ -567,7 +567,7 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 pub(super) struct InferTypes {
-    pub type_checker: Gc<TypeChecker>,
+    pub type_checker: Id<TypeChecker>,
     pub inferences: Vec<Id<InferenceInfo>>,
     pub original_target: Id<Type>,
     #[unsafe_ignore_trace]
@@ -597,7 +597,7 @@ impl HasArena for InferTypes {
 
 impl InferTypes {
     pub(super) fn new(
-        type_checker: Gc<TypeChecker>,
+        type_checker: Id<TypeChecker>,
         inferences: Vec<Id<InferenceInfo>>,
         original_target: Id<Type>,
         priority: InferencePriority,

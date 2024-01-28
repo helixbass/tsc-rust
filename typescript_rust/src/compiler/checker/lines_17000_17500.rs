@@ -1207,7 +1207,7 @@ impl TypeChecker {
             &mut None,
             Option::<&fn(Id<Type>, Id<Type>) -> io::Result<()>>::None,
             Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
-                self.rc_wrapper(),
+                self.arena_id(),
             ))),
             None,
         )? != Ternary::False)

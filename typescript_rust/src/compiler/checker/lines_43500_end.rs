@@ -940,7 +940,7 @@ impl TypeChecker {
                     target,
                     source_properties_filtered.into_iter().map(|&p| {
                         let p_clone = p.clone();
-                        let type_checker = self.rc_wrapper();
+                        let type_checker = self.arena_id();
                         (
                             Box::new(move || type_checker.get_type_of_symbol(p_clone))
                                 as Box<dyn Fn() -> io::Result<Id<Type>>>,
@@ -962,7 +962,7 @@ impl TypeChecker {
 
 #[derive(Debug, Trace, Finalize)]
 pub(super) struct EmitResolverCreateResolver {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
     file_to_directive: Option<HashMap<String, String>>,
 }
 
@@ -973,7 +973,7 @@ impl HasArena for EmitResolverCreateResolver {
 }
 
 impl EmitResolverCreateResolver {
-    pub(super) fn new(type_checker: Gc<TypeChecker>, arena: &impl HasArena) -> Self {
+    pub(super) fn new(type_checker: Id<TypeChecker>, arena: &impl HasArena) -> Self {
         let resolved_type_reference_directives =
             type_checker.host.ref_(arena).get_resolved_type_reference_directives();
         let mut ret = Self {

@@ -449,7 +449,7 @@ impl TypeChecker {
 
     pub(super) fn create_check_binary_expression(&self) -> CheckBinaryExpression {
         let trampoline = create_binary_expression_trampoline(
-            CheckBinaryExpressionStateMachine::new(self.rc_wrapper()),
+            CheckBinaryExpressionStateMachine::new(self.arena_id()),
         );
         CheckBinaryExpression::new(trampoline)
     }
@@ -997,11 +997,11 @@ pub struct WorkArea {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct CheckBinaryExpressionStateMachine {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
 }
 
 impl CheckBinaryExpressionStateMachine {
-    pub fn new(type_checker: Gc<TypeChecker>) -> Self {
+    pub fn new(type_checker: Id<TypeChecker>) -> Self {
         Self { type_checker }
     }
 

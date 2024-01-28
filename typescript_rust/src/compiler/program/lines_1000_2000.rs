@@ -1232,7 +1232,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub(super) fn get_diagnostics_producing_type_checker(&self) -> io::Result<Gc<TypeChecker>> {
+    pub(super) fn get_diagnostics_producing_type_checker(&self) -> io::Result<Id<TypeChecker>> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 

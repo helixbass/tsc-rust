@@ -865,7 +865,7 @@ impl TypeChecker {
                     let i: Rc<Cell<usize>> = Rc::new(Cell::new(0));
                     for c in &candidates_for_argument_error_present {
                         let chain = ResolveCallOverloadContainingMessageChain::new(
-                            self.rc_wrapper(),
+                            self.arena_id(),
                             i.clone(),
                             candidates.len(),
                             c.clone(),
@@ -1340,7 +1340,7 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
 
 #[derive(Trace, Finalize)]
 struct ResolveCallOverloadContainingMessageChain {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
     #[unsafe_ignore_trace]
     i: Rc<Cell<usize>>,
     candidates_len: usize,
@@ -1349,7 +1349,7 @@ struct ResolveCallOverloadContainingMessageChain {
 
 impl ResolveCallOverloadContainingMessageChain {
     pub fn new(
-        type_checker: Gc<TypeChecker>,
+        type_checker: Id<TypeChecker>,
         i: Rc<Cell<usize>>,
         candidates_len: usize,
         c: Id<Signature>,
