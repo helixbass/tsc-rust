@@ -590,7 +590,7 @@ impl TypeChecker {
                     let members_new = self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Some(&*self.get_named_or_index_signature_members(&*members.ref_(self))?),
-                    )));
+                    ));
                     members = members_new;
                     self.add_inherited_members(
                         &mut members.ref_mut(self),
