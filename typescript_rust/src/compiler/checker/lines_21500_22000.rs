@@ -544,7 +544,7 @@ impl TypeChecker {
 
     pub(super) fn infer_types(
         &self,
-        inferences: &[Gc<InferenceInfo>],
+        inferences: &[Id<InferenceInfo>],
         original_source: Id<Type>,
         original_target: Id<Type>,
         priority: Option<InferencePriority>,
@@ -568,7 +568,7 @@ impl TypeChecker {
 #[derive(Trace, Finalize)]
 pub(super) struct InferTypes {
     pub type_checker: Gc<TypeChecker>,
-    pub inferences: Vec<Gc<InferenceInfo>>,
+    pub inferences: Vec<Id<InferenceInfo>>,
     pub original_target: Id<Type>,
     #[unsafe_ignore_trace]
     priority: Cell<InferencePriority>,
@@ -598,7 +598,7 @@ impl HasArena for InferTypes {
 impl InferTypes {
     pub(super) fn new(
         type_checker: Gc<TypeChecker>,
-        inferences: Vec<Gc<InferenceInfo>>,
+        inferences: Vec<Id<InferenceInfo>>,
         original_target: Id<Type>,
         priority: InferencePriority,
         contravariant: bool,

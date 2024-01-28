@@ -16,7 +16,7 @@ use crate::{
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
-    BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable,
+    BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
 };
 
 #[derive(Default)]
@@ -81,6 +81,7 @@ pub struct AllArenas {
     pub bundle_build_infos: RefCell<Arena<BundleBuildInfo>>,
     pub bundle_file_infos: RefCell<Arena<BundleFileInfo>>,
     pub symbol_tables: RefCell<Arena<SymbolTable>>,
+    pub inference_infos: RefCell<Arena<InferenceInfo>>,
 }
 
 pub trait HasArena {
@@ -552,6 +553,14 @@ pub trait HasArena {
 
     fn alloc_symbol_table(&self, symbol_table: SymbolTable) -> Id<SymbolTable> {
         self.arena().alloc_symbol_table(symbol_table)
+    }
+
+    fn inference_info(&self, inference_info: Id<InferenceInfo>) -> Ref<InferenceInfo> {
+        self.arena().inference_info(inference_info)
+    }
+
+    fn alloc_inference_info(&self, inference_info: InferenceInfo) -> Id<InferenceInfo> {
+        self.arena().alloc_inference_info(inference_info)
     }
 }
 
@@ -1150,6 +1159,16 @@ impl HasArena for AllArenas {
         let id = self.symbol_tables.borrow_mut().alloc(symbol_table);
         id
     }
+
+    #[track_caller]
+    fn inference_info(&self, inference_info: Id<InferenceInfo>) -> Ref<InferenceInfo> {
+        Ref::map(self.inference_infos.borrow(), |inference_infos| &inference_infos[inference_info])
+    }
+
+    fn alloc_inference_info(&self, inference_info: InferenceInfo) -> Id<InferenceInfo> {
+        let id = self.inference_infos.borrow_mut().alloc(inference_info);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1627,6 +1646,14 @@ impl InArena for Id<SymbolTable> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, SymbolTable> {
         has_arena.symbol_table_mut(*self)
+    }
+}
+
+impl InArena for Id<InferenceInfo> {
+    type Item = InferenceInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, InferenceInfo> {
+        has_arena.inference_info(*self)
     }
 }
 

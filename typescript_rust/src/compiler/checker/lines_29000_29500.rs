@@ -454,7 +454,7 @@ impl TypeChecker {
                 context.set_return_mapper(
                     if some(
                         Some(&**return_context.inferences()),
-                        Some(|inference: &Gc<InferenceInfo>| {
+                        Some(|inference: &Id<InferenceInfo>| {
                             self.has_inference_candidates(inference)
                         }),
                     ) {
@@ -481,7 +481,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
         }) {
-            let info = find(&context.inferences(), |info: &Gc<InferenceInfo>, _| {
+            let info = find(&context.inferences(), |info: &Id<InferenceInfo>, _| {
                 info.type_parameter == rest_type
             })
             .cloned();

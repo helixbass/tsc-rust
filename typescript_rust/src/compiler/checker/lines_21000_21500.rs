@@ -737,7 +737,7 @@ impl TypeChecker {
             self.create_inference_context_worker(
                 map(
                     &*context.inferences(),
-                    |inference: &Gc<InferenceInfo>, _| {
+                    |inference: &Id<InferenceInfo>, _| {
                         Gc::new(self.clone_inference_info(inference))
                     },
                 ),
@@ -750,7 +750,7 @@ impl TypeChecker {
 
     pub(super) fn create_inference_context_worker(
         &self,
-        inferences: Vec<Gc<InferenceInfo>>,
+        inferences: Vec<Id<InferenceInfo>>,
         signature: Option<Id<Signature>>,
         flags: InferenceFlags,
         compare_types: Gc<Box<dyn TypeComparer>>,
@@ -794,7 +794,7 @@ impl TypeChecker {
         Ok(t)
     }
 
-    pub(super) fn clear_cached_inferences(&self, inferences: &[Gc<InferenceInfo>]) {
+    pub(super) fn clear_cached_inferences(&self, inferences: &[Id<InferenceInfo>]) {
         for inference in inferences {
             if !inference.is_fixed() {
                 *inference.maybe_inferred_type_mut() = None;
@@ -826,12 +826,12 @@ impl TypeChecker {
         &self,
         context: &InferenceContext,
     ) -> Option<Gc<InferenceContext>> {
-        let inferences = filter(&context.inferences(), |inference: &Gc<InferenceInfo>| {
+        let inferences = filter(&context.inferences(), |inference: &Id<InferenceInfo>| {
             self.has_inference_candidates(inference)
         });
         if !inferences.is_empty() {
             Some(self.create_inference_context_worker(
-                map(&inferences, |inference: &Gc<InferenceInfo>, _| {
+                map(&inferences, |inference: &Id<InferenceInfo>, _| {
                     Gc::new(self.clone_inference_info(inference))
                 }),
                 context.signature.clone(),

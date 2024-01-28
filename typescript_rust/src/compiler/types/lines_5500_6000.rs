@@ -1008,7 +1008,7 @@ pub trait TypeComparer: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub struct InferenceContext {
-    inferences: GcCell<Vec<Gc<InferenceInfo>>>,
+    inferences: GcCell<Vec<Id<InferenceInfo>>>,
     pub signature: Option<Id<Signature>>,
     #[unsafe_ignore_trace]
     flags: Cell<InferenceFlags>,
@@ -1021,7 +1021,7 @@ pub struct InferenceContext {
 
 impl InferenceContext {
     pub fn new(
-        inferences: Vec<Gc<InferenceInfo>>,
+        inferences: Vec<Id<InferenceInfo>>,
         signature: Option<Id<Signature>>,
         flags: InferenceFlags,
         compare_types: Gc<Box<dyn TypeComparer>>,
@@ -1042,11 +1042,11 @@ impl InferenceContext {
         }
     }
 
-    pub fn inferences(&self) -> GcCellRef<Vec<Gc<InferenceInfo>>> {
+    pub fn inferences(&self) -> GcCellRef<Vec<Id<InferenceInfo>>> {
         self.inferences.borrow()
     }
 
-    pub fn inferences_mut(&self) -> GcCellRefMut<Vec<Gc<InferenceInfo>>> {
+    pub fn inferences_mut(&self) -> GcCellRefMut<Vec<Id<InferenceInfo>>> {
         self.inferences.borrow_mut()
     }
 

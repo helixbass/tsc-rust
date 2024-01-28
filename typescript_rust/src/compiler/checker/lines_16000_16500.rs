@@ -1313,7 +1313,7 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 struct BackreferenceMapperCallback {
-    context_inferences: Vec<Gc<InferenceInfo>>,
+    context_inferences: Vec<Id<InferenceInfo>>,
     index: usize,
 }
 
@@ -1330,7 +1330,7 @@ impl TypeMapperCallback for BackreferenceMapperCallback {
     fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if matches!(
-                find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| info.type_parameter == t, None),
+                find_index(&self.context_inferences, |info: &Id<InferenceInfo>, _| info.type_parameter == t, None),
                 Some(found_index) if found_index >= self.index
             ) {
                 checker.unknown_type()
