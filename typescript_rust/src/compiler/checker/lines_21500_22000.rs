@@ -42,7 +42,7 @@ impl TypeChecker {
             None,
         )?;
         Ok(self
-            .get_type_from_inference(&inference)?
+            .get_type_from_inference(&inference.ref_(self))?
             .unwrap_or_else(|| self.unknown_type()))
     }
 
