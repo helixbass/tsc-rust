@@ -1466,7 +1466,7 @@ pub fn create_type_checker(
     rc_wrapped.initialize_type_checker()?;
 
     *rc_wrapped.check_binary_expression.borrow_mut() =
-        Some(Gc::new(rc_wrapped.create_check_binary_expression()));
+        Some(rc_wrapped.alloc_check_binary_expression(rc_wrapped.create_check_binary_expression()));
     *rc_wrapped.emit_resolver.borrow_mut() = Some(rc_wrapped.create_resolver());
 
     Ok(rc_wrapped)
@@ -1688,7 +1688,7 @@ impl TypeChecker {
         self.emit_resolver.borrow().clone().unwrap()
     }
 
-    pub(super) fn check_binary_expression(&self) -> Gc<CheckBinaryExpression> {
+    pub(super) fn check_binary_expression(&self) -> Id<CheckBinaryExpression> {
         self.check_binary_expression.borrow().clone().unwrap()
     }
 

@@ -18,7 +18,7 @@ use crate::{
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
-    ConditionalRoot, EmitNode,
+    ConditionalRoot, EmitNode, CheckBinaryExpression,
 };
 
 #[derive(Default)]
@@ -87,6 +87,7 @@ pub struct AllArenas {
     pub emit_helper_text_callbacks: RefCell<Arena<Box<dyn EmitHelperTextCallback>>>,
     pub conditional_roots: RefCell<Arena<ConditionalRoot>>,
     pub emit_nodes: RefCell<Arena<EmitNode>>,
+    pub check_binary_expressions: RefCell<Arena<CheckBinaryExpression>>,
 }
 
 pub trait HasArena {
@@ -630,6 +631,14 @@ pub trait HasArena {
 
     fn alloc_emit_node(&self, emit_node: EmitNode) -> Id<EmitNode> {
         self.arena().alloc_emit_node(emit_node)
+    }
+
+    fn check_binary_expression(&self, check_binary_expression: Id<CheckBinaryExpression>) -> Ref<CheckBinaryExpression> {
+        self.arena().check_binary_expression(check_binary_expression)
+    }
+
+    fn alloc_check_binary_expression(&self, check_binary_expression: CheckBinaryExpression) -> Id<CheckBinaryExpression> {
+        self.arena().alloc_check_binary_expression(check_binary_expression)
     }
 }
 
@@ -1314,6 +1323,16 @@ impl HasArena for AllArenas {
         let id = self.emit_nodes.borrow_mut().alloc(emit_node);
         id
     }
+
+    #[track_caller]
+    fn check_binary_expression(&self, check_binary_expression: Id<CheckBinaryExpression>) -> Ref<CheckBinaryExpression> {
+        Ref::map(self.check_binary_expressions.borrow(), |check_binary_expressions| &check_binary_expressions[check_binary_expression])
+    }
+
+    fn alloc_check_binary_expression(&self, check_binary_expression: CheckBinaryExpression) -> Id<CheckBinaryExpression> {
+        let id = self.check_binary_expressions.borrow_mut().alloc(check_binary_expression);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1863,6 +1882,14 @@ impl InArena for Id<EmitNode> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, EmitNode> {
         has_arena.emit_node_mut(*self)
+    }
+}
+
+impl InArena for Id<CheckBinaryExpression> {
+    type Item = CheckBinaryExpression;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CheckBinaryExpression> {
+        has_arena.check_binary_expression(*self)
     }
 }
 

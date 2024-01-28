@@ -334,7 +334,7 @@ impl TypeChecker {
         if target.ref_(self).kind() == SyntaxKind::BinaryExpression
             && target.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::EqualsToken
         {
-            self.check_binary_expression().call(target, check_mode)?;
+            self.check_binary_expression().ref_(self).call(target, check_mode)?;
             target = target.ref_(self).as_binary_expression().left;
         }
         if target.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
