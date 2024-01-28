@@ -149,17 +149,17 @@ pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
             && node.ref_(arena).parent().ref_(arena).as_jsdoc_member_name().right == node
 }
 
-pub fn is_empty_object_literal(expression: &Node) -> bool {
-    expression.kind() == SyntaxKind::ObjectLiteralExpression
+pub fn is_empty_object_literal(expression: Id<Node>, arena: &impl HasArena) -> bool {
+    expression.ref_(arena).kind() == SyntaxKind::ObjectLiteralExpression
         && expression
-            .as_object_literal_expression()
+            .ref_(arena).as_object_literal_expression()
             .properties
-            .is_empty()
+            .ref_(arena).is_empty()
 }
 
-pub fn is_empty_array_literal(expression: &Node) -> bool {
-    expression.kind() == SyntaxKind::ArrayLiteralExpression
-        && expression.as_array_literal_expression().elements.is_empty()
+pub fn is_empty_array_literal(expression: Id<Node>, arena: &impl HasArena) -> bool {
+    expression.ref_(arena).kind() == SyntaxKind::ArrayLiteralExpression
+        && expression.ref_(arena).as_array_literal_expression().elements.ref_(arena).is_empty()
 }
 
 pub fn get_local_symbol_for_export_default(
@@ -283,25 +283,25 @@ pub fn move_range_pos(range: &impl ReadonlyTextRange, pos: isize) -> BaseTextRan
     create_range(pos, Some(range.end()))
 }
 
-pub fn move_range_past_decorators(node: &Node) -> BaseTextRange {
+pub fn move_range_past_decorators(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
     if let Some(node_decorators) = node
-        .maybe_decorators()
-        .filter(|node_decorators| !node_decorators.is_empty())
+        .ref_(arena).maybe_decorators()
+        .filter(|node_decorators| !node_decorators.ref_(arena).is_empty())
     {
-        move_range_pos(node, node_decorators.end())
+        move_range_pos(node, node_decorators.ref_(arena).end())
     } else {
-        node.into()
+        (&*node.ref_(arena)).into()
     }
 }
 
-pub fn move_range_past_modifiers(node: &Node) -> BaseTextRange {
+pub fn move_range_past_modifiers(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
     if let Some(node_modifiers) = node
-        .maybe_modifiers()
-        .filter(|node_modifiers| !node_modifiers.is_empty())
+        .ref_(arena).maybe_modifiers()
+        .filter(|node_modifiers| !node_modifiers.ref_(arena).is_empty())
     {
-        move_range_pos(node, node_modifiers.end())
+        move_range_pos(node, node_modifiers.ref_(arena).end())
     } else {
-        move_range_past_decorators(node)
+        move_range_past_decorators(node, arena)
     }
 }
 
@@ -431,7 +431,7 @@ pub fn is_declaration_name_of_enum_or_namespace(node: Id<Node> /*Identifier*/, a
 
 pub fn get_initialized_variables(node: Id<Node> /*VariableDeclarationList*/, arena: &impl HasArena) -> Vec<Id<Node>> {
     filter(
-        &node.ref_(arena).as_variable_declaration_list().declarations,
+        &node.ref_(arena).as_variable_declaration_list().declarations.ref_(arena),
         |declaration: &Id<Node>| is_initialized_variable(&declaration.ref_(arena)),
     )
 }

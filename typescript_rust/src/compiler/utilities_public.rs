@@ -242,7 +242,7 @@ pub fn is_parameter_property_declaration(node: Id<Node>, parent: Id<Node>, arena
 
 pub fn is_empty_binding_pattern(node: Id<Node> /*BindingName*/, arena: &impl HasArena) -> bool {
     if is_binding_pattern(Some(&node.ref_(arena))) {
-        return every(&node.ref_(arena).as_has_elements().elements(), |&element, _| {
+        return every(&node.ref_(arena).as_has_elements().elements().ref_(arena), |&element, _| {
             is_empty_binding_element(element, arena)
         });
     }
@@ -588,13 +588,13 @@ fn name_for_nameless_jsdoc_typedef(
                 .declaration_list
                 .ref_(arena).as_variable_declaration_list()
                 .declarations
-                .is_empty()
+                .ref_(arena).is_empty()
             {
                 return get_declaration_identifier(
                     host_node
                         .declaration_list
                         .ref_(arena).as_variable_declaration_list()
-                        .declarations[0],
+                        .declarations.ref_(arena)[0],
                     arena,
                 );
             }
@@ -654,11 +654,11 @@ pub(crate) fn node_has_name(statement: Id<Node>, name: Id<Node> /*Identifier*/, 
     if is_variable_statement(&statement.ref_(arena))
         && some(
             Some(
-                &statement
+                &*statement
                     .ref_(arena).as_variable_statement()
                     .declaration_list
                     .ref_(arena).as_variable_declaration_list()
-                    .declarations,
+                    .declarations.ref_(arena),
             ),
             Some(|&d: &Id<Node>| node_has_name(d, name, arena)),
         )
@@ -712,7 +712,7 @@ pub(crate) fn get_non_assigned_name_of_declaration(
                 AssignmentDeclarationKind::ObjectDefinePropertyValue
                 | AssignmentDeclarationKind::ObjectDefinePropertyExports
                 | AssignmentDeclarationKind::ObjectDefinePrototypeProperty => {
-                    return Some(expr.ref_(arena).as_call_expression().arguments[1]);
+                    return Some(expr.ref_(arena).as_call_expression().arguments.ref_(arena)[1]);
                 }
                 _ => {
                     return None;
@@ -837,7 +837,7 @@ fn get_jsdoc_parameter_tags_worker<'a>(
             .ref_(arena)
             .as_signature_declaration()
             .parameters()
-            .iter()
+            .ref_(arena).iter()
             .position(|&parameter| parameter == param);
         Debug_.assert(
             i.is_some(),
@@ -889,7 +889,7 @@ fn get_jsdoc_type_parameter_tags_worker<'a>(
         }
         let tag_ref = tag.ref_(arena);
         let tag_as_jsdoc_template_tag = tag_ref.as_jsdoc_template_tag();
-        tag_as_jsdoc_template_tag.type_parameters.iter().any(|tp| {
+        tag_as_jsdoc_template_tag.type_parameters.ref_(arena).iter().any(|tp| {
             tp.ref_(arena)
                 .as_type_parameter_declaration()
                 .name()
@@ -1095,7 +1095,7 @@ pub fn get_jsdoc_return_type(
         let type_tag_type_expression = type_tag.ref_(arena).as_jsdoc_type_like_tag().type_expression();
         let type_ = type_tag_type_expression.ref_(arena).as_jsdoc_type_expression().type_;
         if is_type_literal_node(&type_.ref_(arena)) {
-            let sig = find(&type_.ref_(arena).as_type_literal_node().members, |node, _| {
+            let sig = find(&type_.ref_(arena).as_type_literal_node().members.ref_(arena), |node, _| {
                 is_call_signature_declaration(&node.ref_(arena))
             }).copied();
             return sig.and_then(|sig| sig.ref_(arena).as_signature_declaration().maybe_type());
@@ -1123,8 +1123,7 @@ fn get_jsdoc_tags_worker(
                     j.ref_(arena)
                         .as_jsdoc()
                         .tags
-                        .as_ref()
-                        .map_or(vec![], |tags| tags.iter().map(Clone::clone).collect())
+                        .map_or(vec![], |tags| tags.ref_(arena).iter().map(Clone::clone).collect())
                 } else {
                     vec![j]
                 }
@@ -1219,7 +1218,7 @@ pub fn get_text_of_jsdoc_comment<'a>(
             StrOrNodeArray::Str(comment) => Some(comment.into()),
             StrOrNodeArray::NodeArray(comment) => Some(
                 comment
-                    .iter()
+                    .ref_(arena).iter()
                     .map(|c| {
                         if c.ref_(arena).kind() == SyntaxKind::JSDocText {
                             c.ref_(arena).as_jsdoc_text().text.clone()
@@ -1255,7 +1254,7 @@ pub fn get_effective_type_parameter_declarations(
     }
     if is_jsdoc_type_alias(&node.ref_(arena)) {
         Debug_.assert(node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::JSDocComment, None);
-        return flat_map(node.ref_(arena).parent().ref_(arena).as_jsdoc().tags.as_deref(), |tag, _| {
+        return flat_map(node.ref_(arena).parent().ref_(arena).as_jsdoc().tags.refed(arena).as_deref(), |tag, _| {
             if is_jsdoc_template_tag(&tag.ref_(arena)) {
                 tag.ref_(arena).as_jsdoc_template_tag().type_parameters.to_vec()
             } else {
@@ -1265,7 +1264,7 @@ pub fn get_effective_type_parameter_declarations(
         });
     }
     if let Some(type_parameters) = node.ref_(arena).as_has_type_parameters().maybe_type_parameters() {
-        return type_parameters.to_vec();
+        return type_parameters.ref_(arena).to_vec();
     }
     if is_in_js_file(Some(&node.ref_(arena))) {
         let decls = get_jsdoc_type_parameter_declarations(node, arena);
@@ -1281,7 +1280,7 @@ pub fn get_effective_type_parameter_declarations(
                     .maybe_type_parameters()
                     .as_ref()
                 {
-                    return type_tag_type_parameters.to_vec();
+                    return type_tag_type_parameters.ref_(arena).to_vec();
                 }
             }
         }
@@ -1300,8 +1299,8 @@ pub fn get_effective_constraint_of_type_parameter(
         let node_parent = node.ref_(arena).parent();
         let node_parent_ref = node_parent.ref_(arena);
         let node_parent_as_jsdoc_template_tag = node_parent_ref.as_jsdoc_template_tag();
-        if !node_parent_as_jsdoc_template_tag.type_parameters.is_empty()
-            && node == node_parent_as_jsdoc_template_tag.type_parameters[0]
+        if !node_parent_as_jsdoc_template_tag.type_parameters.ref_(arena).is_empty()
+            && node == node_parent_as_jsdoc_template_tag.type_parameters.ref_(arena)[0]
         {
             return node_parent_as_jsdoc_template_tag.constraint;
         }

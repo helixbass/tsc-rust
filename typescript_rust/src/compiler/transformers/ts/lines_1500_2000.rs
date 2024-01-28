@@ -398,7 +398,7 @@ impl TransformTypeScript {
             set_comment_range(updated, &*node.ref_(self), self);
             set_source_map_range(
                 updated,
-                Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())),
+                Some(self.alloc_source_map_range((&move_range_past_decorators(node, self)).into())),
                 self,
             );
         }
@@ -449,14 +449,13 @@ impl TransformTypeScript {
             constructor
                 .ref_(self).as_constructor_declaration()
                 .parameters()
-                .owned_iter()
+                .ref_(self).iter()
+                .copied()
                 .filter(|&p| {
                     is_parameter_property_declaration(p, constructor, self)
-                });
-        if parameters_with_property_assignments
-            .clone()
-            .peekable()
-            .is_empty_()
+                })
+                .collect::<Vec<_>>();
+        if parameters_with_property_assignments.is_empty()
         {
             return Ok(try_visit_function_body(
                 Some(body),
@@ -485,7 +484,7 @@ impl TransformTypeScript {
             &mut statements,
             Some(
                 &parameters_with_property_assignments
-                    .map(|parameter| {
+                    .into_iter().map(|parameter| {
                         self.transform_parameter_with_property_assignment(parameter)
                             .unwrap()
                     })
@@ -498,13 +497,13 @@ impl TransformTypeScript {
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
-                &body_as_block.statements,
+                body_as_block.statements,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Some(index_of_first_statement),
                 None,
                 self,
-            )?),
+            )?.ref_(self)),
             None,
             None,
         );
@@ -521,7 +520,7 @@ impl TransformTypeScript {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*body_as_block.statements), self),
+                    .set_text_range(Some(&*body_as_block.statements.ref_(self)), self),
                 Some(true),
             )
             .set_text_range(Some(&*body.ref_(self)), self)

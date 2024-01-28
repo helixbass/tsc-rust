@@ -1108,7 +1108,7 @@ pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<I
             .unwrap_or_else(|| get_source_file_of_node(node, arena))
             .ref_(arena).as_source_file()
             .text_as_chars(),
-        node.ref_(arena).maybe_decorators().as_ref().unwrap().end(),
+        node.ref_(arena).maybe_decorators().as_ref().unwrap().ref_(arena).end(),
         None,
         None,
         None,
@@ -1677,7 +1677,7 @@ pub fn is_effective_strict_mode_source_file(
     if get_strict_option_value(compiler_options, "alwaysStrict") {
         return true;
     }
-    if starts_with_use_strict(&node_as_source_file.statements(), arena) {
+    if starts_with_use_strict(&node_as_source_file.statements().ref_(arena), arena) {
         return true;
     }
     if is_external_module(&node.ref_(arena)) || compiler_options.isolated_modules.unwrap_or(false) {
@@ -1821,7 +1821,7 @@ pub fn get_name_from_index_info(info: Id<IndexInfo>, arena: &impl HasArena) -> O
         declaration_name_to_string(
             info_declaration
                 .ref_(arena).as_index_signature_declaration()
-                .parameters()[0]
+                .parameters().ref_(arena)[0]
                 .ref_(arena).as_parameter_declaration()
                 .maybe_name(),
             arena,

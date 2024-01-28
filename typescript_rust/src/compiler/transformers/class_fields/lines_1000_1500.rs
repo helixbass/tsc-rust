@@ -620,7 +620,7 @@ impl TransformClassFields {
             let statement = self
                 .factory
                 .ref_(self).create_expression_statement(expression)
-                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_modifiers(&property.ref_(self))).into())), self)
+                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_modifiers(property, self)).into())), self)
                 .set_comment_range(&*property.ref_(self), self)
                 .set_original_node(Some(property), self);
             statements.push(statement);
@@ -642,7 +642,7 @@ impl TransformClassFields {
                 self.transform_property(property, receiver)
             })
             .start_on_new_line(self)
-            .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_modifiers(&property.ref_(self))).into())), self)
+            .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_modifiers(property, self)).into())), self)
             .set_comment_range(&*property.ref_(self), self)
             .set_original_node(Some(property), self);
             expressions.push(expression);

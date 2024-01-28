@@ -214,7 +214,7 @@ impl TransformTypeScript {
                     descriptor,
                 )
                 .set_text_range(Some(
-                    &move_range_past_decorators(&member.ref_(self)).into_readonly_text_range(),
+                    &move_range_past_decorators(member, self).into_readonly_text_range(),
                 ), self)
                 .set_emit_flags(EmitFlags::NoComments, self),
         ))
@@ -276,7 +276,7 @@ impl TransformTypeScript {
                     ),
                 )
                 .set_emit_flags(EmitFlags::NoComments, self)
-                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())), self),
+                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(node, self)).into())), self),
         ))
     }
 
@@ -543,7 +543,8 @@ impl TransformTypeScript {
                     .is_some()
                 {
                     expressions.push(self.serialize_type_node(get_rest_parameter_element_type(
-                        parameter_as_parameter_declaration.maybe_type().refed(self).as_deref(),
+                        parameter_as_parameter_declaration.maybe_type(),
+                        self,
                     ))?);
                 } else {
                     expressions.push(self.serialize_type_of_node(parameter)?);

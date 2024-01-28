@@ -22,6 +22,7 @@ use crate::{
     EmitTextWriter, HasArena, InArena, ModifierFlags, ModifiersArray, Node, NodeFlags,
     NodeInterface, ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
     get_factory,
+    OptionInArena,
 };
 
 pub fn get_effective_type_annotation_node(
@@ -71,11 +72,12 @@ pub fn get_effective_return_type_node(
 }
 
 pub fn get_jsdoc_type_parameter_declarations(
-    node: Id<Node> /*DeclarationWithTypeParameters*/, arena: &impl HasArena,
+    node: Id<Node> /*DeclarationWithTypeParameters*/,
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
     flat_map(Some(get_jsdoc_tags(node, arena)), |tag, _| {
         if is_non_type_alias_template(tag, arena) {
-            tag.ref_(arena).as_jsdoc_template_tag().type_parameters.to_vec()
+            tag.ref_(arena).as_jsdoc_template_tag().type_parameters.ref_(arena).to_vec()
         } else {
             vec![]
         }
@@ -85,8 +87,8 @@ pub fn get_jsdoc_type_parameter_declarations(
 pub fn is_non_type_alias_template(tag: Id<Node> /*JSDocTag*/, arena: &impl HasArena) -> bool {
     is_jsdoc_template_tag(&tag.ref_(arena))
         && !(tag.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::JSDocComment
-            && tag.ref_(arena).parent().ref_(arena).as_jsdoc().tags.as_ref().map_or(false, |tags| {
-                tags.iter().any(|tag| is_jsdoc_type_alias(&tag.ref_(arena)))
+            && tag.ref_(arena).parent().ref_(arena).as_jsdoc().tags.map_or(false, |tags| {
+                tags.ref_(arena).iter().any(|tag| is_jsdoc_type_alias(&tag.ref_(arena)))
             }))
 }
 
@@ -530,7 +532,7 @@ pub fn get_effective_modifier_flags_no_cache(
 }
 
 fn get_syntactic_modifier_flags_no_cache(node: Id<Node>, arena: &impl HasArena) -> ModifierFlags {
-    let mut flags = modifiers_to_flags(node.ref_(arena).maybe_modifiers().as_double_deref(), arena);
+    let mut flags = modifiers_to_flags(node.ref_(arena).maybe_modifiers().refed(arena).as_double_deref(), arena);
     if node.ref_(arena).flags().intersects(NodeFlags::NestedNamespace)
         || node.ref_(arena).kind() == SyntaxKind::Identifier
             && matches!(

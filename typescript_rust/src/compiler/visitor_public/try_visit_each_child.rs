@@ -146,7 +146,7 @@ pub fn try_maybe_visit_each_child_full(
             Some(factory.ref_(arena).update_identifier(
                 node,
                 nodes_visitor(
-                    node_as_identifier.maybe_type_arguments().as_deref(),
+                    node_as_identifier.maybe_type_arguments(),
                     Some(&mut |node: Id<Node>| visitor(node)),
                     Some(&|node: Id<Node>| is_type_node_or_type_parameter_declaration(&node.ref_(arena))),
                     None,
@@ -228,14 +228,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_parameter_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -310,7 +310,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_property_signature(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -351,14 +351,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_property_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -401,7 +401,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_method_signature(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -427,14 +427,14 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_method_signature.maybe_type_parameters().as_deref(),
+                        node_as_method_signature.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_method_signature.parameters()),
+                        Some(node_as_method_signature.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
@@ -457,14 +457,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_method_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -503,15 +503,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_method_declaration
-                            .maybe_type_parameters()
-                            .as_deref(),
+                            .maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
-                        Some(&node_as_method_declaration.parameters()),
+                        Some(node_as_method_declaration.parameters()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(|
@@ -556,21 +555,21 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_constructor_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
-                        Some(&node_as_constructor_declaration.parameters()),
+                        Some(node_as_constructor_declaration.parameters()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(|
@@ -609,14 +608,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_get_accessor_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -630,7 +629,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     try_visit_parameter_list_full(
-                        Some(&node_as_get_accessor_declaration.parameters()),
+                        Some(node_as_get_accessor_declaration.parameters()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(|
@@ -675,14 +674,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_set_accessor_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -696,7 +695,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     try_visit_parameter_list_full(
-                        Some(&node_as_set_accessor_declaration.parameters()),
+                        Some(node_as_set_accessor_declaration.parameters()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(|
@@ -737,14 +736,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_class_static_block_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -775,15 +774,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node_as_call_signature_declaration
-                            .maybe_type_parameters()
-                            .as_deref(),
+                            .maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_call_signature_declaration.parameters()),
+                        Some(node_as_call_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
@@ -807,15 +805,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node_as_construct_signature_declaration
-                            .maybe_type_parameters()
-                            .as_deref(),
+                            .maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_construct_signature_declaration.parameters()),
+                        Some(node_as_construct_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
@@ -839,21 +836,21 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_index_signature(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_index_signature_declaration.parameters()),
+                        Some(node_as_index_signature_declaration.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
@@ -913,8 +910,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_type_reference_node
-                            .maybe_type_arguments()
-                            .as_deref(),
+                            .maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -931,15 +927,14 @@ pub fn try_maybe_visit_each_child_full(
                     node,
                     nodes_visitor(
                         node_as_function_type_node
-                            .maybe_type_parameters()
-                            .as_deref(),
+                            .maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_function_type_node.parameters()),
+                        Some(node_as_function_type_node.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
@@ -962,7 +957,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_constructor_type_node(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -970,15 +965,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_constructor_type_node
-                            .maybe_type_parameters()
-                            .as_deref(),
+                            .maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_constructor_type_node.parameters()),
+                        Some(node_as_constructor_type_node.parameters()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_parameter_declaration(node, arena)),
                         None,
@@ -1017,7 +1011,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_type_literal_node(
                     node,
                     nodes_visitor(
-                        Some(&node_as_type_literal_node.members),
+                        Some(node_as_type_literal_node.members),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_element(&node.ref_(arena))),
                         None,
@@ -1050,7 +1044,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_tuple_type_node(
                     node,
                     nodes_visitor(
-                        Some(&node_as_tuple_type_node.elements),
+                        Some(node_as_tuple_type_node.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -1099,7 +1093,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_union_type_node(
                     node,
                     nodes_visitor(
-                        Some(&node_as_union_type_node.types),
+                        Some(node_as_union_type_node.types),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -1116,7 +1110,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_intersection_type_node(
                     node,
                     nodes_visitor(
-                        Some(&node_as_intersection_type_node.types),
+                        Some(node_as_intersection_type_node.types),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -1199,7 +1193,7 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_import_type_node.maybe_type_arguments().as_deref(),
+                        node_as_import_type_node.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -1343,7 +1337,7 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_mapped_type_node.members.as_deref(),
+                        node_as_mapped_type_node.members,
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_element(&node.ref_(arena))),
                         None,
@@ -1382,7 +1376,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        Some(&node_as_template_literal_type_node.template_spans),
+                        Some(node_as_template_literal_type_node.template_spans),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_template_literal_type_span(&node.ref_(arena))),
                         None,
@@ -1422,7 +1416,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_object_binding_pattern(
                     node,
                     nodes_visitor(
-                        Some(&node_as_object_binding_pattern.elements),
+                        Some(node_as_object_binding_pattern.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_binding_element(&node.ref_(arena))),
                         None,
@@ -1439,7 +1433,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_array_binding_pattern(
                     node,
                     nodes_visitor(
-                        Some(&node_as_array_binding_pattern.elements),
+                        Some(node_as_array_binding_pattern.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_array_binding_element(&node.ref_(arena))),
                         None,
@@ -1496,7 +1490,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_array_literal_expression(
                     node,
                     nodes_visitor(
-                        Some(&node_as_array_literal_expression.elements),
+                        Some(node_as_array_literal_expression.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
@@ -1513,7 +1507,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_object_literal_expression(
                     node,
                     nodes_visitor(
-                        Some(&node_as_object_literal_expression.properties),
+                        Some(node_as_object_literal_expression.properties),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_object_literal_element_like(&node.ref_(arena))),
                         None,
@@ -1664,14 +1658,14 @@ pub fn try_maybe_visit_each_child_full(
                             None,
                         )?,
                         nodes_visitor(
-                            node_as_call_expression.maybe_type_arguments().as_deref(),
+                            node_as_call_expression.maybe_type_arguments(),
                             Some(&mut |node: Id<Node>| visitor(node)),
                             Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                             None,
                             None,
                         )?,
                         nodes_visitor(
-                            Some(&node_as_call_expression.arguments),
+                            Some(node_as_call_expression.arguments),
                             Some(&mut |node: Id<Node>| visitor(node)),
                             Some(&|node: Id<Node>| is_expression(node, arena)),
                             None,
@@ -1692,14 +1686,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_call_expression.maybe_type_arguments().as_deref(),
+                        node_as_call_expression.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_call_expression.arguments),
+                        Some(node_as_call_expression.arguments),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
@@ -1723,14 +1717,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_new_expression.maybe_type_arguments().as_deref(),
+                        node_as_new_expression.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_new_expression.arguments.as_deref(),
+                        node_as_new_expression.arguments,
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,
@@ -1754,8 +1748,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_tagged_template_expression
-                            .maybe_type_arguments()
-                            .as_deref(),
+                            .maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -1817,7 +1810,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_function_expression(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -1842,14 +1835,14 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_function_expression.maybe_type_parameters().as_deref(),
+                        node_as_function_expression.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
-                        Some(&node_as_function_expression.parameters()),
+                        Some(node_as_function_expression.parameters()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(|
@@ -1894,21 +1887,21 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_arrow_function(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_arrow_function.maybe_type_parameters().as_deref(),
+                        node_as_arrow_function.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
-                        Some(&node_as_arrow_function.parameters()),
+                        Some(node_as_arrow_function.parameters()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(|
@@ -2161,7 +2154,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        Some(&node_as_template_expression.template_spans),
+                        Some(node_as_template_expression.template_spans),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_template_span(&node.ref_(arena))),
                         None,
@@ -2219,14 +2212,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_class_expression(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -2239,21 +2232,21 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_class_expression.maybe_type_parameters().as_deref(),
+                        node_as_class_expression.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_class_expression.maybe_heritage_clauses().as_deref(),
+                        node_as_class_expression.maybe_heritage_clauses(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_class_expression.members()),
+                        Some(node_as_class_expression.members()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_class_element(&node.ref_(arena))),
                         None,
@@ -2278,8 +2271,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_expression_with_type_arguments
-                            .maybe_type_arguments()
-                            .as_deref(),
+                            .maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -2387,7 +2379,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_block(
                     node,
                     nodes_visitor(
-                        Some(&node_as_block.statements),
+                        Some(node_as_block.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
@@ -2404,7 +2396,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_variable_statement(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -2806,7 +2798,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_variable_declaration_list(
                     node,
                     nodes_visitor(
-                        Some(&node_as_variable_declaration_list.declarations),
+                        Some(node_as_variable_declaration_list.declarations),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_variable_declaration(&node.ref_(arena))),
                         None,
@@ -2823,14 +2815,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_function_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -2855,14 +2847,14 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_function_declaration.maybe_type_parameters().as_deref(),
+                        node_as_function_declaration.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     try_visit_parameter_list_full(
-                        Some(&node_as_function_declaration.parameters()),
+                        Some(node_as_function_declaration.parameters()),
                         |node: Id<Node>| visitor(node),
                         context,
                         Some(|
@@ -2907,14 +2899,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_class_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -2927,7 +2919,7 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_class_declaration.maybe_type_parameters().as_deref(),
+                        node_as_class_declaration.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -2935,15 +2927,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_class_declaration
-                            .maybe_heritage_clauses()
-                            .as_deref(),
+                            .maybe_heritage_clauses(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_class_declaration.members()),
+                        Some(node_as_class_declaration.members()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_class_element(&node.ref_(arena))),
                         None,
@@ -2960,14 +2951,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_interface_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -2982,8 +2973,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_interface_declaration
-                            .maybe_type_parameters()
-                            .as_deref(),
+                            .maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -2991,15 +2981,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?,
                     nodes_visitor(
                         node_as_interface_declaration
-                            .maybe_heritage_clauses()
-                            .as_deref(),
+                            .maybe_heritage_clauses(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        Some(&node_as_interface_declaration.members()),
+                        Some(node_as_interface_declaration.members()),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_element(&node.ref_(arena))),
                         None,
@@ -3016,14 +3005,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_type_alias_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -3038,8 +3027,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_type_alias_declaration
-                            .maybe_type_parameters()
-                            .as_deref(),
+                            .maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -3062,14 +3050,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_enum_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -3083,7 +3071,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        Some(&node_as_enum_declaration.members),
+                        Some(node_as_enum_declaration.members),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_enum_member(&node.ref_(arena))),
                         None,
@@ -3099,14 +3087,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_module_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -3135,7 +3123,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_module_block(
                     node,
                     nodes_visitor(
-                        Some(&node_as_module_block.statements),
+                        Some(node_as_module_block.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
@@ -3152,7 +3140,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_case_block(
                     node,
                     nodes_visitor(
-                        Some(&node_as_case_block.clauses),
+                        Some(node_as_case_block.clauses),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_case_or_default_clause(&node.ref_(arena))),
                         None,
@@ -3185,14 +3173,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_import_equals_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -3223,14 +3211,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_import_declaration(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -3265,7 +3253,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_assert_clause(
                     node,
                     nodes_visitor(
-                        Some(&node_as_assert_clause.elements),
+                        Some(node_as_assert_clause.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_assert_entry(&node.ref_(arena))),
                         None,
@@ -3358,7 +3346,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_named_imports(
                     node,
                     nodes_visitor(
-                        Some(&node_as_named_imports.elements),
+                        Some(node_as_named_imports.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_import_specifier(&node.ref_(arena))),
                         None,
@@ -3398,14 +3386,14 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_export_assignment(
                     node,
                     nodes_visitor(
-                        node.ref_(arena).maybe_decorators().as_deref(),
+                        node.ref_(arena).maybe_decorators(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node.ref_(arena).maybe_modifiers().as_deref(),
+                        node.ref_(arena).maybe_modifiers(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                         None,
@@ -3427,14 +3415,14 @@ pub fn try_maybe_visit_each_child_full(
             Some(factory.ref_(arena).update_export_declaration(
                 node,
                 nodes_visitor(
-                    node.ref_(arena).maybe_decorators().as_deref(),
+                    node.ref_(arena).maybe_decorators(),
                     Some(&mut |node: Id<Node>| visitor(node)),
                     Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
                     None,
                     None,
                 )?,
                 nodes_visitor(
-                    node.ref_(arena).maybe_modifiers().as_deref(),
+                    node.ref_(arena).maybe_modifiers(),
                     Some(&mut |node: Id<Node>| visitor(node)),
                     Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
                     None,
@@ -3468,7 +3456,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_named_exports(
                     node,
                     nodes_visitor(
-                        Some(&node_as_named_exports.elements),
+                        Some(node_as_named_exports.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_export_specifier(&node.ref_(arena))),
                         None,
@@ -3531,7 +3519,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        Some(&node_as_jsx_element.children),
+                        Some(node_as_jsx_element.children),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_jsx_child(&node.ref_(arena))),
                         None,
@@ -3563,8 +3551,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_jsx_self_closing_element
-                            .maybe_type_arguments()
-                            .as_deref(),
+                            .maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -3595,8 +3582,7 @@ pub fn try_maybe_visit_each_child_full(
                     .unwrap(),
                     nodes_visitor(
                         node_as_jsx_opening_element
-                            .maybe_type_arguments()
-                            .as_deref(),
+                            .maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -3642,7 +3628,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        Some(&node_as_jsx_fragment.children),
+                        Some(node_as_jsx_fragment.children),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_jsx_child(&node.ref_(arena))),
                         None,
@@ -3688,7 +3674,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_jsx_attributes(
                     node,
                     nodes_visitor(
-                        Some(&node_as_jsx_attributes.properties),
+                        Some(node_as_jsx_attributes.properties),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_jsx_attribute_like(&node.ref_(arena))),
                         None,
@@ -3741,7 +3727,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        Some(&node_as_case_clause.statements),
+                        Some(node_as_case_clause.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
@@ -3758,7 +3744,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_default_clause(
                     node,
                     nodes_visitor(
-                        Some(&node_as_default_clause.statements),
+                        Some(node_as_default_clause.statements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_statement(node, arena)),
                         None,
@@ -3775,7 +3761,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_heritage_clause(
                     node,
                     nodes_visitor(
-                        Some(&node_as_heritage_clause.types),
+                        Some(node_as_heritage_clause.types),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_expression_with_type_arguments(&node.ref_(arena))),
                         None,
@@ -3897,7 +3883,7 @@ pub fn try_maybe_visit_each_child_full(
             Some(factory.ref_(arena).update_source_file(
                 node,
                 try_visit_lexical_environment(
-                    &node_as_source_file.statements(),
+                    node_as_source_file.statements(),
                     |node: Id<Node>| visitor(node),
                     context,
                     arena,
@@ -3932,7 +3918,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_comma_list_expression(
                     node,
                     nodes_visitor(
-                        Some(&node_as_comma_list_expression.elements),
+                        Some(node_as_comma_list_expression.elements),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,

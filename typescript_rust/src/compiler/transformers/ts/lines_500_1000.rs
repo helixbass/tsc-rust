@@ -231,7 +231,7 @@ impl TransformTypeScript {
                 )
                 .set_original_node(Some(node), self)
                 .set_comment_range(&*node.ref_(self), self)
-                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())), self)
+                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(node, self)).into())), self)
                 .start_on_new_line(self);
             statements = vec![var_statement];
         }
@@ -331,7 +331,7 @@ impl TransformTypeScript {
     ) -> io::Result<Id<Node>> {
         let node_ref = node.ref_(self);
         let node_as_class_declaration = node_ref.as_class_declaration();
-        let location = move_range_past_decorators(&node.ref_(self));
+        let location = move_range_past_decorators(node, self);
         let class_alias = self.get_class_alias_if_needed(node);
 
         let decl_name = if self.language_version <= ScriptTarget::ES2015 {

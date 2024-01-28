@@ -92,7 +92,7 @@ impl TransformTypeScript {
             .factory
             .ref_(self).create_variable_statement(
                 maybe_visit_nodes(
-                    node.ref_(self).maybe_modifiers().as_deref(),
+                    node.ref_(self).maybe_modifiers(),
                     Some(|node: Id<Node>| self.modifier_visitor(node)),
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
@@ -278,20 +278,20 @@ impl TransformTypeScript {
                     add_range(
                         &mut statements,
                         Some(&try_visit_nodes(
-                            &body.ref_(self).as_module_block().statements,
+                            body.ref_(self).as_module_block().statements,
                             Some(|node: Id<Node>| self.namespace_element_visitor(node)),
                             Some(|node| is_statement(node, self)),
                             None,
                             None,
                             self,
-                        )?),
+                        )?.ref_(self)),
                         None,
                         None,
                     );
 
                     Ok(())
                 })?;
-                statements_location = Some((&*node_body.ref_(self).as_module_block().statements).into());
+                statements_location = Some((&*node_body.ref_(self).as_module_block().statements.ref_(self)).into());
                 block_location = Some(node_body.clone());
             } else {
                 let result = self.visit_module_declaration(node_body)?;
@@ -313,7 +313,7 @@ impl TransformTypeScript {
                     .body
                     .unwrap();
                 statements_location =
-                    Some(move_range_pos(&*module_block.ref_(self).as_module_block().statements, -1).into());
+                    Some(move_range_pos(&*module_block.ref_(self).as_module_block().statements.ref_(self), -1).into());
             }
         }
 
@@ -460,14 +460,14 @@ impl TransformTypeScript {
                     Some(ImportsNotUsedAsValues::Preserve) | Some(ImportsNotUsedAsValues::Error)
                 );
             let elements = try_visit_nodes(
-                &node.ref_(self).as_named_imports().elements,
+                node.ref_(self).as_named_imports().elements,
                 Some(|node: Id<Node>| self.visit_import_specifier(node)),
                 Some(|node: Id<Node>| is_import_specifier(&node.ref_(self))),
                 None,
                 None,
                 self,
             )?;
-            (allow_empty || !elements.is_empty())
+            (allow_empty || !elements.ref_(self).is_empty())
                 .then(|| self.factory.ref_(self).update_named_imports(node, elements).into())
         })
     }
@@ -554,14 +554,14 @@ impl TransformTypeScript {
         let node_ref = node.ref_(self);
         let node_as_named_exports = node_ref.as_named_exports();
         let elements = try_visit_nodes(
-            &node_as_named_exports.elements,
+            node_as_named_exports.elements,
             Some(|node: Id<Node>| self.visit_export_specifier(node)),
             Some(|node: Id<Node>| is_export_specifier(&node.ref_(self))),
             None,
             None,
             self,
         )?;
-        Ok((allow_empty || !elements.is_empty())
+        Ok((allow_empty || !elements.ref_(self).is_empty())
             .then(|| self.factory.ref_(self).update_named_exports(node, elements).into()))
     }
 
@@ -678,7 +678,7 @@ impl TransformTypeScript {
                 self.factory
                     .ref_(self).create_variable_statement(
                         maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers().as_deref(),
+                            node.ref_(self).maybe_modifiers(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,

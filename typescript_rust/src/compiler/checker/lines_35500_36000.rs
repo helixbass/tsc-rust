@@ -374,7 +374,7 @@ impl TypeChecker {
     ) -> Option<Id<Node /*TypeNode*/>> {
         let type_node = get_effective_type_annotation_node(node, self);
         if is_rest_parameter(node, self) {
-            get_rest_parameter_element_type(type_node.refed(self).as_deref())
+            get_rest_parameter_element_type(type_node, self)
         } else {
             type_node
         }

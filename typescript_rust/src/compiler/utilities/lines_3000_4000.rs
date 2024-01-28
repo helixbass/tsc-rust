@@ -162,15 +162,14 @@ pub fn get_class_extends_heritage_element(
 ) -> Option<Id<Node>> {
     let heritage_clause = get_heritage_clause(
         node.ref_(arena).maybe_as_interface_or_class_like_declaration()
-            .and_then(|node| node.maybe_heritage_clauses())
-            .as_deref(),
+            .and_then(|node| node.maybe_heritage_clauses()),
         SyntaxKind::ExtendsKeyword,
         arena,
     )?;
     let heritage_clause_ref = heritage_clause.ref_(arena);
     let heritage_clause_as_heritage_clause = heritage_clause_ref.as_heritage_clause();
-    if !heritage_clause_as_heritage_clause.types.is_empty() {
-        Some(heritage_clause_as_heritage_clause.types[0])
+    if !heritage_clause_as_heritage_clause.types.ref_(arena).is_empty() {
+        Some(heritage_clause_as_heritage_clause.types.ref_(arena)[0])
     } else {
         None
     }
@@ -190,18 +189,17 @@ pub fn get_effective_implements_type_nodes(
     } else {
         let heritage_clause = get_heritage_clause(
             node.ref_(arena).as_interface_or_class_like_declaration()
-                .maybe_heritage_clauses()
-                .as_deref(),
+                .maybe_heritage_clauses(),
             SyntaxKind::ImplementsKeyword,
             arena,
         )?;
-        Some(heritage_clause.ref_(arena).as_heritage_clause().types.to_vec())
+        Some(heritage_clause.ref_(arena).as_heritage_clause().types.ref_(arena).to_vec())
     }
 }
 
 pub fn get_all_super_type_nodes(node: Id<Node>, arena: &impl HasArena) -> Vec<Id<Node>> {
     if is_interface_declaration(&node.ref_(arena)) {
-        get_interface_base_type_nodes(node, arena).map_or_else(|| vec![], |node_array| node_array.to_vec())
+        get_interface_base_type_nodes(node, arena).map_or_else(|| vec![], |node_array| node_array.ref_(arena).to_vec())
     } else if is_class_like(&node.ref_(arena)) {
         concatenate(
             single_element_array(get_effective_base_type_node(node, arena)).unwrap_or_else(|| vec![]),
@@ -218,8 +216,7 @@ pub fn get_interface_base_type_nodes(
 ) -> Option<Id<NodeArray>> {
     let heritage_clause = get_heritage_clause(
         node.ref_(arena).as_interface_declaration()
-            .maybe_heritage_clauses()
-            .as_deref(),
+            .maybe_heritage_clauses(),
         SyntaxKind::ExtendsKeyword,
         arena,
     )?;
@@ -228,7 +225,7 @@ pub fn get_interface_base_type_nodes(
 
 pub fn get_heritage_clause(clauses: Option<Id<NodeArray>>, kind: SyntaxKind, arena: &impl HasArena) -> Option<Id<Node>> {
     let clauses = clauses?;
-    for &clause in clauses {
+    for &clause in &*clauses.ref_(arena) {
         if clause.ref_(arena).as_heritage_clause().token == kind {
             return Some(clause);
         }
@@ -961,7 +958,7 @@ pub(crate) fn has_invalid_escape(template: Id<Node> /*TemplateLiteral*/, arena: 
             template_as_template_expression.head.ref_(arena).as_template_literal_like_node().maybe_template_flags(),
             Some(template_flags) if template_flags != TokenFlags::None
         ) || some(
-            Some(&template_as_template_expression.template_spans),
+            Some(&*template_as_template_expression.template_spans.ref_(arena)),
             Some(
                 |span: &Id<Node>| matches!(
                     span.ref_(arena).as_template_span().literal.ref_(arena).as_template_literal_like_node().maybe_template_flags(),

@@ -331,8 +331,8 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     });
     if is_destructuring_assignment(node, arena) {
         value = Some(node.ref_(arena).as_binary_expression().right);
-        while is_empty_array_literal(&node.ref_(arena).as_binary_expression().left.ref_(arena))
-            || is_empty_object_literal(&node.ref_(arena).as_binary_expression().left.ref_(arena))
+        while is_empty_array_literal(node.ref_(arena).as_binary_expression().left, arena)
+            || is_empty_object_literal(node.ref_(arena).as_binary_expression().left, arena)
         {
             if is_destructuring_assignment(value.unwrap(), arena) {
                 node = value.unwrap();

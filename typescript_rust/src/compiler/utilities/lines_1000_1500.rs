@@ -26,8 +26,8 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
     TextSpan, contains,
+    InArena, OptionInArena,
 };
-use crate::InArena;
 
 pub fn create_diagnostic_for_node(
     node: Id<Node>,
@@ -292,8 +292,8 @@ pub fn get_error_span_for_node(
                 None,
                 None,
             );
-            let end = if !node_as_case_clause.statements.is_empty() {
-                node_as_case_clause.statements[0].ref_(arena).pos()
+            let end = if !node_as_case_clause.statements.ref_(arena).is_empty() {
+                node_as_case_clause.statements.ref_(arena)[0].ref_(arena).pos()
             } else {
                 node_ref.end()
             };
@@ -309,8 +309,8 @@ pub fn get_error_span_for_node(
                 None,
                 None,
             );
-            let end = if !node_as_default_clause.statements.is_empty() {
-                node_as_default_clause.statements[0].ref_(arena).pos()
+            let end = if !node_as_default_clause.statements.ref_(arena).is_empty() {
+                node_as_default_clause.statements.ref_(arena)[0].ref_(arena).pos()
             } else {
                 node_ref.end()
             };
@@ -465,7 +465,7 @@ pub fn is_hoisted_variable_statement(node: Id<Node> /*Statement*/, arena: &impl 
                 .ref_(arena).as_variable_statement()
                 .declaration_list
                 .ref_(arena).as_variable_declaration_list()
-                .declarations,
+                .declarations.ref_(arena),
             |&declaration, _| is_hoisted_variable(declaration, arena),
         )
 }
@@ -653,7 +653,7 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
                         parent
                             .ref_(arena).as_call_expression()
                             .maybe_type_arguments()
-                            .as_double_deref(),
+                            .refed(arena).as_double_deref(),
                         &node,
                     );
                 }
@@ -662,7 +662,7 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
                         parent
                             .ref_(arena).as_new_expression()
                             .maybe_type_arguments()
-                            .as_double_deref(),
+                            .refed(arena).as_double_deref(),
                         &node,
                     );
                 }
@@ -846,17 +846,18 @@ fn try_for_each_yield_expression_traverse<TError>(
 }
 
 pub fn get_rest_parameter_element_type(
-    node: Option<&Node /*TypeNode*/>,
+    node: Option<Id<Node /*TypeNode*/>>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
     let Some(node) = node else {
         return None;
     };
-    match node.kind() {
-        SyntaxKind::ArrayType => Some(node.as_array_type_node().element_type),
+    match node.ref_(arena).kind() {
+        SyntaxKind::ArrayType => Some(node.ref_(arena).as_array_type_node().element_type),
         SyntaxKind::TypeReference => single_or_undefined(
-            node.as_type_reference_node()
+            node.ref_(arena).as_type_reference_node()
                 .maybe_type_arguments()
-                .as_double_deref(),
+                .refed(arena).as_double_deref(),
         )
         .cloned(),
         _ => None,

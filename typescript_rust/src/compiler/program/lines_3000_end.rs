@@ -1719,10 +1719,10 @@ impl Program {
         }
     }
 
-    pub fn get_options_syntax_by_name<'a>(
-        &'a self,
-        name: &'a str,
-    ) -> Option<impl Iterator<Item = Id<Node>> + 'a> {
+    pub fn get_options_syntax_by_name(
+        &self,
+        name: &str,
+    ) -> Option<Vec<Id<Node>>> {
         let compiler_options_object_literal_syntax =
             self.get_compiler_options_object_literal_syntax();
         compiler_options_object_literal_syntax.map(
@@ -1732,7 +1732,7 @@ impl Program {
         )
     }
 
-    pub fn get_options_paths_syntax<'a>(&'a self) -> impl Iterator<Item = Id<Node>> + 'a {
+    pub fn get_options_paths_syntax(&self) -> Vec<Id<Node>> {
         self.get_options_syntax_by_name("paths").unwrap_or_empty()
     }
 
@@ -1885,7 +1885,7 @@ impl Program {
         args: Option<Vec<String>>,
     ) -> bool {
         let props = get_property_assignment(object_literal, key1, key2, self);
-        for prop in props.clone() {
+        for &prop in &props {
             self.program_diagnostics_mut().add(self.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     self.options.ref_(self).config_file.unwrap(),
@@ -1901,7 +1901,7 @@ impl Program {
                 .into(),
             ));
         }
-        !props.peekable().is_empty_()
+        !props.is_empty()
     }
 
     pub fn block_emitting_of_file(&self, emit_file_name: &str, diag: Id<Diagnostic>) {

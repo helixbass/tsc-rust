@@ -108,13 +108,13 @@ pub fn maybe_visit_nodes(
 ) -> Option<Id<NodeArray>> {
     let nodes = nodes?;
     if visitor.is_none() {
-        return Some(nodes.rc_wrapper());
+        return Some(nodes);
     }
     let mut visitor = visitor.unwrap();
 
     let mut updated: Option<Vec<Id<Node>>> = Default::default();
 
-    let length = nodes.len();
+    let length = nodes.ref_(arena).len();
     let start = start.unwrap_or(0); /*start < 0*/
 
     let count = if count.is_none() || count.unwrap() > length - start {
@@ -128,11 +128,11 @@ pub fn maybe_visit_nodes(
     let mut end: isize = -1;
     if start > 0 || count < length {
         updated = Some(vec![]);
-        has_trailing_comma = Some(nodes.has_trailing_comma && start + count == length);
+        has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma && start + count == length);
     }
 
     for i in 0..count {
-        let node = nodes.get(i + start).copied();
+        let node = nodes.ref_(arena).get(i + start).copied();
         let visited = node.and_then(|node| visitor(node));
         if updated.is_some()
             || match visited.as_ref() {
@@ -144,10 +144,10 @@ pub fn maybe_visit_nodes(
             }
         {
             if updated.is_none() {
-                updated = Some(nodes[0..i].to_owned());
-                has_trailing_comma = Some(nodes.has_trailing_comma);
-                pos = nodes.pos();
-                end = nodes.end();
+                updated = Some(nodes.ref_(arena)[0..i].to_owned());
+                has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma);
+                pos = nodes.ref_(arena).pos();
+                end = nodes.ref_(arena).end();
             }
             if let Some(visited) = visited {
                 match &visited {
@@ -178,11 +178,11 @@ pub fn maybe_visit_nodes(
     if let Some(updated) = updated {
         let updated_array =
             get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
-        set_text_range_pos_end(&*updated_array, pos, end);
+        set_text_range_pos_end(&*updated_array.ref_(arena), pos, end);
         return Some(updated_array);
     }
 
-    Some(nodes.rc_wrapper())
+    Some(nodes)
 }
 
 #[inline(always)]
@@ -278,7 +278,7 @@ pub fn try_maybe_visit_nodes(
     if let Some(updated) = updated {
         let updated_array =
             get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
-        set_text_range_pos_end(&*updated_array, pos, end);
+        set_text_range_pos_end(&*updated_array.ref_(arena), pos, end);
         return Ok(Some(updated_array));
     }
 
@@ -357,7 +357,7 @@ pub fn visit_lexical_environment(
     )
     .unwrap();
     if ensure_use_strict == Some(true) {
-        statements = context.factory().ref_(arena).ensure_use_strict(&statements);
+        statements = context.factory().ref_(arena).ensure_use_strict(statements);
     }
     get_factory(arena)
         .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
@@ -436,7 +436,7 @@ pub fn try_visit_lexical_environment_full(
     )?
     .unwrap();
     if ensure_use_strict == Some(true) {
-        statements = context.factory().ref_(arena).ensure_use_strict(&statements);
+        statements = context.factory().ref_(arena).ensure_use_strict(statements);
     }
     Ok(get_factory(arena)
         .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
@@ -518,7 +518,7 @@ pub fn visit_parameter_list_full(
             && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
-                updated.as_ref().unwrap(),
+                updated.unwrap(),
                 context,
                 arena,
             ));
@@ -605,7 +605,7 @@ pub fn try_visit_parameter_list_full(
             && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
-                updated.as_ref().unwrap(),
+                updated.unwrap(),
                 context,
                 arena,
             ));
@@ -622,22 +622,22 @@ fn add_default_value_assignments_if_needed(
     arena: &impl HasArena,
 ) -> Id<NodeArray /*<ParameterDeclaration>*/> {
     let mut result: Option<Vec<Id<Node /*ParameterDeclaration*/>>> = _d();
-    for (i, parameter) in parameters.iter().enumerate() {
+    for (i, parameter) in parameters.ref_(arena).iter().enumerate() {
         let parameter = *parameter;
         let updated = add_default_value_assignment_if_needed(parameter, context, arena);
         if result.is_some() || updated != parameter {
             result
-                .get_or_insert_with(|| parameters[..i].to_owned())
+                .get_or_insert_with(|| parameters.ref_(arena)[..i].to_owned())
                 .push(updated);
         }
     }
-    result.map_or_else(
-        || parameters.rc_wrapper(),
+    result.map_or(
+        parameters,
         |result| {
             context
                 .factory()
-                .ref_(arena).create_node_array(Some(result), Some(parameters.has_trailing_comma))
-                .set_text_range(Some(parameters), arena)
+                .ref_(arena).create_node_array(Some(result), Some(parameters.ref_(arena).has_trailing_comma))
+                .set_text_range(Some(&*parameters.ref_(arena)), arena)
         },
     )
 }
@@ -956,7 +956,7 @@ pub fn try_visit_iteration_body(
     /*some(declarations)*/
     {
         if is_block(&updated.ref_(arena)) {
-            declarations.extend(updated.ref_(arena).as_block().statements.iter().cloned());
+            declarations.extend(updated.ref_(arena).as_block().statements.ref_(arena).iter().cloned());
             return Ok(context.factory().ref_(arena).update_block(updated, declarations));
         }
         declarations.push(updated);
