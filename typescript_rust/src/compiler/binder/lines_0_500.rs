@@ -355,7 +355,7 @@ pub struct BinderType {
 
     pub(super) unreachable_flow: GcCell<Id<FlowNode>>,
     pub(super) reported_unreachable_flow: GcCell<Id<FlowNode>>,
-    pub(super) bind_binary_expression_flow: GcCell<Option<Gc<BindBinaryExpressionFlow>>>,
+    pub(super) bind_binary_expression_flow: GcCell<Option<Id<BindBinaryExpressionFlow>>>,
 }
 
 pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
@@ -398,7 +398,7 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
     });
     *wrapped._rc_wrapper.borrow_mut() = Some(wrapped.clone());
     *wrapped.bind_binary_expression_flow.borrow_mut() =
-        Some(Gc::new(wrapped.create_bind_binary_expression_flow()));
+        Some(arena_ref.alloc_bind_binary_expression_flow(wrapped.create_bind_binary_expression_flow()));
     wrapped
 }
 
@@ -692,7 +692,7 @@ impl BinderType {
         self.reported_unreachable_flow.borrow().clone()
     }
 
-    pub(super) fn bind_binary_expression_flow(&self) -> Gc<BindBinaryExpressionFlow> {
+    pub(super) fn bind_binary_expression_flow(&self) -> Id<BindBinaryExpressionFlow> {
         self.bind_binary_expression_flow.borrow().clone().unwrap()
     }
 

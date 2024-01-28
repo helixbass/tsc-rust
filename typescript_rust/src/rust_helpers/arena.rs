@@ -19,6 +19,7 @@ use crate::{
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
+    BindBinaryExpressionFlow,
 };
 
 #[derive(Default)]
@@ -90,6 +91,7 @@ pub struct AllArenas {
     pub check_binary_expressions: RefCell<Arena<CheckBinaryExpression>>,
     pub source_map_sources: RefCell<Arena<SourceMapSource>>,
     pub outofband_variance_marker_handlers: RefCell<Arena<Box<dyn OutofbandVarianceMarkerHandler>>>,
+    pub bind_binary_expression_flows: RefCell<Arena<BindBinaryExpressionFlow>>,
 }
 
 pub trait HasArena {
@@ -657,6 +659,14 @@ pub trait HasArena {
 
     fn alloc_outofband_variance_marker_handler(&self, outofband_variance_marker_handler: Box<dyn OutofbandVarianceMarkerHandler>) -> Id<Box<dyn OutofbandVarianceMarkerHandler>> {
         self.arena().alloc_outofband_variance_marker_handler(outofband_variance_marker_handler)
+    }
+
+    fn bind_binary_expression_flow(&self, bind_binary_expression_flow: Id<BindBinaryExpressionFlow>) -> Ref<BindBinaryExpressionFlow> {
+        self.arena().bind_binary_expression_flow(bind_binary_expression_flow)
+    }
+
+    fn alloc_bind_binary_expression_flow(&self, bind_binary_expression_flow: BindBinaryExpressionFlow) -> Id<BindBinaryExpressionFlow> {
+        self.arena().alloc_bind_binary_expression_flow(bind_binary_expression_flow)
     }
 }
 
@@ -1371,6 +1381,16 @@ impl HasArena for AllArenas {
         let id = self.outofband_variance_marker_handlers.borrow_mut().alloc(outofband_variance_marker_handler);
         id
     }
+
+    #[track_caller]
+    fn bind_binary_expression_flow(&self, bind_binary_expression_flow: Id<BindBinaryExpressionFlow>) -> Ref<BindBinaryExpressionFlow> {
+        Ref::map(self.bind_binary_expression_flows.borrow(), |bind_binary_expression_flows| &bind_binary_expression_flows[bind_binary_expression_flow])
+    }
+
+    fn alloc_bind_binary_expression_flow(&self, bind_binary_expression_flow: BindBinaryExpressionFlow) -> Id<BindBinaryExpressionFlow> {
+        let id = self.bind_binary_expression_flows.borrow_mut().alloc(bind_binary_expression_flow);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1944,6 +1964,14 @@ impl InArena for Id<Box<dyn OutofbandVarianceMarkerHandler>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn OutofbandVarianceMarkerHandler>> {
         has_arena.outofband_variance_marker_handler(*self)
+    }
+}
+
+impl InArena for Id<BindBinaryExpressionFlow> {
+    type Item = BindBinaryExpressionFlow;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, BindBinaryExpressionFlow> {
+        has_arena.bind_binary_expression_flow(*self)
     }
 }
 
