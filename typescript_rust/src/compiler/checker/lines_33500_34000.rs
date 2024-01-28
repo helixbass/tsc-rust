@@ -865,7 +865,7 @@ impl TypeChecker {
             SyntaxKind::PrefixUnaryExpression => self.check_prefix_unary_expression(node)?,
             SyntaxKind::PostfixUnaryExpression => self.check_postfix_unary_expression(node)?,
             SyntaxKind::BinaryExpression => {
-                self.check_binary_expression().call(node, check_mode)?
+                self.check_binary_expression().ref_(self).call(node, check_mode)?
             }
             SyntaxKind::ConditionalExpression => {
                 self.check_conditional_expression(node, check_mode)?
