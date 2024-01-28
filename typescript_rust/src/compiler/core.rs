@@ -17,6 +17,7 @@ use regex::{Captures, Regex};
 use crate::{
     __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec, OptionTry,
     PeekableExt, SortedArray, SourceTextAsChars,
+    HasArena,
 };
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
