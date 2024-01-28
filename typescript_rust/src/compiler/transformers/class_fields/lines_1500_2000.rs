@@ -21,7 +21,7 @@ use crate::{
     is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node, Debug_,
     GeneratedIdentifierFlags, GetOrInsertDefault, NodeArray, NodeCheckFlags, PrivateIdentifierKind,
     SyntaxKind, VisitResult,
-    InArena,
+    HasArena, InArena,
     CoreTransformationContext,
 };
 
@@ -100,7 +100,7 @@ impl TransformClassFields {
         if let Some(current_class_lexical_environment) = self.maybe_current_class_lexical_environment() {
             return current_class_lexical_environment;
         }
-        self.set_current_class_lexical_environment(Some(Default::default()));
+        self.set_current_class_lexical_environment(Some(self.alloc_class_lexical_environment(Default::default())));
         self.maybe_current_class_lexical_environment().unwrap()
     }
 
