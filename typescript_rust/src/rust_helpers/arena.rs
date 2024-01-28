@@ -1904,6 +1904,14 @@ impl InArena for Id<EmitNode> {
     }
 }
 
+impl InArena for Id<CheckBinaryExpression> {
+    type Item = CheckBinaryExpression;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CheckBinaryExpression> {
+        has_arena.check_binary_expression(*self)
+    }
+}
+
 impl InArena for Id<SourceMapSource> {
     type Item = SourceMapSource;
 
