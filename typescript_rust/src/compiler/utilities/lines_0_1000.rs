@@ -930,7 +930,7 @@ fn insert_statement_after_prologue(
 }
 
 fn is_any_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_prologue_directive(node, arena) || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::CustomPrologue)
+    is_prologue_directive(node, arena) || get_emit_flags(node, self).intersects(EmitFlags::CustomPrologue)
 }
 
 pub fn insert_statements_after_standard_prologue(
@@ -1224,9 +1224,9 @@ pub fn index_of_node(node_array: &[Id<Node>], node: Id<Node>, arena: &impl HasAr
     )
 }
 
-pub fn get_emit_flags(node: &Node) -> EmitFlags {
-    node.maybe_emit_node()
-        .and_then(|emit_node| (*emit_node).borrow().flags)
+pub fn get_emit_flags(node: Id<Node>, arena: &impl HasArena) -> EmitFlags {
+    node.ref_(arena).maybe_emit_node()
+        .and_then(|emit_node| emit_node.ref_(arena).flags)
         .unwrap_or(EmitFlags::None)
 }
 
@@ -1440,7 +1440,7 @@ pub fn get_literal_text(
             let escape_text = if flags.intersects(GetLiteralTextFlags::JsxAttributeEscape) {
                 escape_jsx_attribute_string
             } else if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
-                || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::NoAsciiEscaping)
+                || get_emit_flags(node, arena).intersects(EmitFlags::NoAsciiEscaping)
             {
                 escape_string
             } else {
@@ -1468,7 +1468,7 @@ pub fn get_literal_text(
         }
         Node::TemplateLiteralLikeNode(node_as_template_literal_like_node) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
-                || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::NoAsciiEscaping)
+                || get_emit_flags(node, arena).intersects(EmitFlags::NoAsciiEscaping)
             {
                 escape_string
             } else {

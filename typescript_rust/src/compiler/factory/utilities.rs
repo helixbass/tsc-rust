@@ -67,7 +67,7 @@ pub fn create_member_access_for_property_name(
         }
         .set_text_range(Some(&*member_name.ref_(factory)), factory);
         let emit_node = get_or_create_emit_node(expression, factory);
-        let mut emit_node = emit_node.borrow_mut();
+        let mut emit_node = emit_node.ref_mut(factory);
         emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoNestedSourceMaps);
         expression
     }
@@ -547,16 +547,16 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression(
     expression
 }
 
-pub fn is_internal_name(node: &Node /*Identifier*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::InternalName)
+pub fn is_internal_name(node: Id<Node /*Identifier*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::InternalName)
 }
 
-pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::LocalName)
+pub fn is_local_name(node: Id<Node /*Identifier*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::LocalName)
 }
 
-pub fn is_export_name(node: &Node /*Identifier*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::ExportName)
+pub fn is_export_name(node: Id<Node /*Identifier*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::ExportName)
 }
 
 fn is_use_strict_prologue(node: Id<Node> /*ExpressionStatement*/, arena: &impl HasArena) -> bool {
@@ -653,7 +653,7 @@ pub fn get_external_helpers_module_name(node: Id<Node> /*SourceFile*/, arena: &i
         arena,
     )?;
     let emit_node = parse_node.ref_(arena).maybe_emit_node()?;
-    let ret = (*emit_node).borrow().external_helpers_module_name.clone();
+    let ret = emit_node.ref_(arena).external_helpers_module_name.clone();
     ret
 }
 
@@ -667,7 +667,7 @@ pub fn has_recorded_external_helpers(source_file: Id<Node> /*SourceFile*/, arena
     matches!(
         emit_node,
         Some(emit_node) if {
-            let emit_node = (*emit_node).borrow();
+            let emit_node = emit_node.ref_(arena);
             emit_node.external_helpers_module_name.is_some() ||
                 emit_node.external_helpers == Some(true)
         }
@@ -693,7 +693,7 @@ pub fn create_external_helpers_import_declaration_if_needed(
         if module_kind >= ModuleKind::ES2015 && module_kind <= ModuleKind::ESNext
             || source_file_as_source_file.maybe_implied_node_format() == Some(ModuleKind::ESNext)
         {
-            let helpers = get_emit_helpers(&source_file.ref_(node_factory));
+            let helpers = get_emit_helpers(source_file, node_factory);
             if let Some(helpers) = helpers {
                 let mut helper_names: Vec<String> = _d();
                 for helper in helpers {
@@ -738,7 +738,7 @@ pub fn create_external_helpers_import_declaration_if_needed(
                     )
                     .unwrap();
                     let emit_node = get_or_create_emit_node(parse_node, node_factory);
-                    emit_node.borrow_mut().external_helpers = Some(true);
+                    emit_node.ref_mut(node_factory).external_helpers = Some(true);
                 }
             }
         } else {
@@ -800,7 +800,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed(
             && (module_kind < ModuleKind::ES2015
                 || node_as_source_file.maybe_implied_node_format() == Some(ModuleKind::CommonJS));
         if !create {
-            let helpers = get_emit_helpers(&node.ref_(factory));
+            let helpers = get_emit_helpers(node, factory);
             if let Some(helpers) = helpers {
                 for helper in helpers {
                     if !helper.ref_(factory).scoped() {
@@ -821,7 +821,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed(
             let emit_node = get_or_create_emit_node(parse_node, factory);
             return Some(
                 emit_node
-                    .borrow_mut()
+                    .ref_mut(factory)
                     .external_helpers_module_name
                     .get_or_insert_with(|| {
                         factory.create_unique_name(external_helpers_module_name_text, None)

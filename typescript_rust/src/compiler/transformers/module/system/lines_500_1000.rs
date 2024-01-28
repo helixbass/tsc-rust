@@ -365,7 +365,7 @@ impl TransformSystemModule {
         &self,
         node: Id<Node>, /*VariableDeclarationList*/
     ) -> bool {
-        !get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NoHoisting)
+        !get_emit_flags(node, self).intersects(EmitFlags::NoHoisting)
             && (self.enclosing_block_scoped_container().ref_(self).kind() == SyntaxKind::SourceFile
                 || !get_original_node(node, self)
                     .ref_(self).flags()
@@ -482,7 +482,7 @@ impl TransformSystemModule {
     }
 
     pub(super) fn has_associated_end_of_declaration_marker(&self, node: Id<Node>) -> bool {
-        get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HasEndOfDeclarationMarker)
+        get_emit_flags(node, self).intersects(EmitFlags::HasEndOfDeclarationMarker)
     }
 
     pub(super) fn visit_end_of_declaration_marker(

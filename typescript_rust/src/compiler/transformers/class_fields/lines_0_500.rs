@@ -1263,7 +1263,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             | SyntaxKind::Constructor => 'arm: {
                 if node.ref_(self).kind() == SyntaxKind::FunctionExpression
                     && (is_arrow_function(&original.ref_(self))
-                        || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::AsyncFunctionBody))
+                        || get_emit_flags(node, self).intersects(EmitFlags::AsyncFunctionBody))
                 {
                     break 'arm;
                 }

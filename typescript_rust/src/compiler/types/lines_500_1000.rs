@@ -216,9 +216,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_flow_node(&self) -> GcCellRef<Option<Id<FlowNode>>>;
     fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Id<FlowNode>>>;
     fn set_flow_node(&self, emit_node: Option<Id<FlowNode>>);
-    fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>>;
-    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>>;
-    fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>);
+    fn maybe_emit_node(&self) -> Option<Id<EmitNode>>;
+    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Id<EmitNode>>>;
+    fn set_emit_node(&self, emit_node: Option<Id<EmitNode>>);
     fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
     fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Id<Node /*JSDoc*/>>>;
@@ -1734,7 +1734,7 @@ pub struct BaseNode {
     pub locals: Gc<GcCell<Option<Id<SymbolTable>>>>,
     next_container: GcCell<Option<Id<Node>>>,
     local_symbol: GcCell<Option<Id<Symbol>>>,
-    emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
+    emit_node: GcCell<Option<Id<EmitNode>>>,
     contextual_type: GcCell<Option<Id<Type>>>,
     inference_context: GcCell<Option<Gc<InferenceContext>>>,
     flow_node: GcCell<Option<Id<FlowNode>>>,
@@ -1989,15 +1989,15 @@ impl NodeInterface for BaseNode {
         *self.local_symbol.borrow_mut() = local_symbol;
     }
 
-    fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>> {
+    fn maybe_emit_node(&self) -> Option<Id<EmitNode>> {
         self.emit_node.borrow().clone()
     }
 
-    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>> {
+    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Id<EmitNode>>> {
         self.emit_node.borrow_mut()
     }
 
-    fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>) {
+    fn set_emit_node(&self, emit_node: Option<Id<EmitNode>>) {
         *self.emit_node.borrow_mut() = emit_node;
     }
 
@@ -2155,7 +2155,7 @@ impl NodeExt for Id<Node> {
     }
 
     fn set_additional_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self {
-        let existing_emit_flags = get_emit_flags(&self.ref_(arena));
+        let existing_emit_flags = get_emit_flags(self, self);
         set_emit_flags(self, emit_flags | existing_emit_flags, arena)
     }
 

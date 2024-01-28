@@ -424,7 +424,7 @@ impl TransformES2015 {
                 .intersects(HierarchyFacts::ConstructorWithCapturedSuper)
                 && self.is_or_may_contain_return_completion(node)
             || is_iteration_statement(node, false, self) && self.should_convert_iteration_statement(node)
-            || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::TypeScriptClassWrapper)
+            || get_emit_flags(node, self).intersects(EmitFlags::TypeScriptClassWrapper)
     }
 
     pub(super) fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
@@ -624,7 +624,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
         {
             let ancestor_facts = self.transform_es2015().enter_subtree(
                 HierarchyFacts::FunctionExcludes,
-                if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::CapturesThis) {
+                if get_emit_flags(node, self).intersects(EmitFlags::CapturesThis) {
                     HierarchyFacts::FunctionIncludes | HierarchyFacts::CapturesThis
                 } else {
                     HierarchyFacts::FunctionIncludes
@@ -681,7 +681,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
-            && !is_internal_name(&node.ref_(self))
+            && !is_internal_name(node, self)
         {
             let original = get_parse_tree_node(Some(node), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), self);
             if let Some(original) = original
@@ -743,7 +743,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
             .maybe_enabled_substitutions()
             .unwrap_or_default()
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
-            && !is_internal_name(&node.ref_(self))
+            && !is_internal_name(node, self)
         {
             let declaration = self
                 .transform_es2015()

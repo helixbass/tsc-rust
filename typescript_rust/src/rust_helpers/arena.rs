@@ -18,16 +18,13 @@ use crate::{
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
-    ConditionalRoot,
+    ConditionalRoot, EmitNode,
 };
 
 #[derive(Default)]
 pub struct AllArenas {
     pub nodes: RefCell<Arena<Node>>,
-    // pub node_arrays: RefCell<Arena<NodeArray>>,
-    // pub emit_nodes: RefCell<Arena<EmitNode>>,
     pub symbols: RefCell<Arena<Symbol>>,
-    // pub symbol_tables: RefCell<Arena<SymbolTable>>,
     pub types: RefCell<Arena<Type>>,
     pub type_mappers: RefCell<Arena<TypeMapper>>,
     pub transform_nodes_transformation_results: RefCell<Arena<TransformNodesTransformationResult>>,
@@ -89,6 +86,7 @@ pub struct AllArenas {
     pub converted_loop_states: RefCell<Arena<ConvertedLoopState>>,
     pub emit_helper_text_callbacks: RefCell<Arena<Box<dyn EmitHelperTextCallback>>>,
     pub conditional_roots: RefCell<Arena<ConditionalRoot>>,
+    pub emit_nodes: RefCell<Arena<EmitNode>>,
 }
 
 pub trait HasArena {
@@ -620,6 +618,18 @@ pub trait HasArena {
 
     fn alloc_conditional_root(&self, conditional_root: ConditionalRoot) -> Id<ConditionalRoot> {
         self.arena().alloc_conditional_root(conditional_root)
+    }
+
+    fn emit_node(&self, emit_node: Id<EmitNode>) -> Ref<EmitNode> {
+        self.arena().emit_node(emit_node)
+    }
+
+    fn emit_node_mut(&self, emit_node: Id<EmitNode>) -> RefMut<EmitNode> {
+        self.arena().emit_node_mut(emit_node)
+    }
+
+    fn alloc_emit_node(&self, emit_node: EmitNode) -> Id<EmitNode> {
+        self.arena().alloc_emit_node(emit_node)
     }
 }
 
@@ -1290,6 +1300,20 @@ impl HasArena for AllArenas {
         let id = self.conditional_roots.borrow_mut().alloc(conditional_root);
         id
     }
+
+    #[track_caller]
+    fn emit_node(&self, emit_node: Id<EmitNode>) -> Ref<EmitNode> {
+        Ref::map(self.emit_nodes.borrow(), |emit_nodes| &emit_nodes[emit_node])
+    }
+
+    fn emit_node_mut(&self, emit_node: Id<EmitNode>) -> RefMut<EmitNode> {
+        RefMut::map(self.emit_nodes.borrow_mut(), |emit_nodes| &mut emit_nodes[emit_node])
+    }
+
+    fn alloc_emit_node(&self, emit_node: EmitNode) -> Id<EmitNode> {
+        let id = self.emit_nodes.borrow_mut().alloc(emit_node);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1827,6 +1851,18 @@ impl InArena for Id<ConditionalRoot> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, ConditionalRoot> {
         has_arena.conditional_root_mut(*self)
+    }
+}
+
+impl InArena for Id<EmitNode> {
+    type Item = EmitNode;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, EmitNode> {
+        has_arena.emit_node(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, EmitNode> {
+        has_arena.emit_node_mut(*self)
     }
 }
 

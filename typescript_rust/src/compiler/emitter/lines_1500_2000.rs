@@ -181,7 +181,7 @@ impl Printer {
         &self,
         node: Id<Node>,
     ) -> Option<SortedArray<Id<EmitHelper>>> {
-        let helpers = get_emit_helpers(&node.ref_(self));
+        let helpers = get_emit_helpers(node, self);
         helpers.map(|helpers| {
             stable_sort(&helpers, |&a: &Id<EmitHelper>, &b: &Id<EmitHelper>| {
                 compare_emit_helpers(a, b, self)

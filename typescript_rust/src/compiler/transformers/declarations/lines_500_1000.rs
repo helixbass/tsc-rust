@@ -364,7 +364,7 @@ impl TransformDeclarations {
         }
         set_comment_range(
             updated,
-            &get_comment_range(&original.ref_(self)).into_readonly_text_range(),
+            &get_comment_range(original, self).into_readonly_text_range(),
             self,
         )
     }

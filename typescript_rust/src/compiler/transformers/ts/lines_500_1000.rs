@@ -264,7 +264,7 @@ impl TransformTypeScript {
             );
             set_emit_flags(
                 class_statement,
-                get_emit_flags(&class_statement.ref_(self)) | EmitFlags::HasEndOfDeclarationMarker,
+                get_emit_flags(class_statement, self) | EmitFlags::HasEndOfDeclarationMarker,
                 self,
             );
         }
@@ -313,7 +313,7 @@ impl TransformTypeScript {
             self.transform_class_members(node)?,
         );
 
-        let mut emit_flags = get_emit_flags(&node.ref_(self));
+        let mut emit_flags = get_emit_flags(node, self);
         if facts.intersects(ClassFacts::HasStaticInitializedProperties) {
             emit_flags |= EmitFlags::NoTrailingSourceMap;
         }

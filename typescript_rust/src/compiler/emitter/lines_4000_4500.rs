@@ -325,7 +325,7 @@ impl Printer {
         node: Id<Node>, /*Statement*/
     ) -> io::Result<()> {
         Ok(
-            if is_block(&node.ref_(self)) || get_emit_flags(&parent.ref_(self)).intersects(EmitFlags::SingleLine) {
+            if is_block(&node.ref_(self)) || get_emit_flags(parent, self).intersects(EmitFlags::SingleLine) {
                 self.write_space();
                 self.emit(Some(node), None)?;
             } else {
@@ -696,7 +696,7 @@ impl Printer {
                     self.record_bundle_file_internal_section_start(child);
                 if should_emit_intervening_comments {
                     // if (emitTrailingCommentsOfPosition) {
-                    let comment_range = get_comment_range(&child.ref_(self));
+                    let comment_range = get_comment_range(child, self);
                     self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
                     // }
                 } else {
@@ -716,7 +716,7 @@ impl Printer {
 
             let emit_flags = previous_sibling
                 .map_or(EmitFlags::None, |previous_sibling| {
-                    get_emit_flags(&previous_sibling.ref_(self))
+                    get_emit_flags(previous_sibling, self)
                 });
             let skip_trailing_comments =
                 self.comments_disabled() || emit_flags.intersects(EmitFlags::NoTrailingComments);

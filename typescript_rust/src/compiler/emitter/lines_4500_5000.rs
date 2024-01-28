@@ -87,7 +87,7 @@ impl Printer {
         prev_child_node: Id<Node>,
         next_child_node: Id<Node>,
     ) {
-        if get_emit_flags(&parent_node.ref_(self)).intersects(EmitFlags::SingleLine) {
+        if get_emit_flags(parent_node, self).intersects(EmitFlags::SingleLine) {
             self.write_space();
         } else if self.maybe_preserve_source_newlines() == Some(true) {
             let lines = self.get_lines_between_nodes(parent_node, prev_child_node, next_child_node);
@@ -269,7 +269,7 @@ impl Printer {
             {
                 return 1;
             }
-        } else if get_starts_on_new_line(&next_node.ref_(self)) == Some(true) {
+        } else if get_starts_on_new_line(next_node, self) == Some(true) {
             return 1;
         }
         if format.intersects(ListFormat::MultiLine) {
@@ -409,7 +409,7 @@ impl Printer {
         format: ListFormat,
     ) -> bool {
         if node_is_synthesized(&*node.ref_(self)) {
-            let Some(starts_on_new_line) = get_starts_on_new_line(&node.ref_(self)) else {
+            let Some(starts_on_new_line) = get_starts_on_new_line(node, self) else {
                 return format.intersects(ListFormat::PreferNewLine);
             };
 
@@ -425,15 +425,15 @@ impl Printer {
         node1: Id<Node>,
         node2: Id<Node>,
     ) -> usize {
-        if get_emit_flags(&parent.ref_(self)).intersects(EmitFlags::NoIndentation) {
+        if get_emit_flags(parent, self).intersects(EmitFlags::NoIndentation) {
             return 0;
         }
 
         let ref parent = self.skip_synthesized_parentheses(parent);
-        let ref node1 = self.skip_synthesized_parentheses(node1);
-        let ref node2 = self.skip_synthesized_parentheses(node2);
+        let node1 = self.skip_synthesized_parentheses(node1);
+        let node2 = self.skip_synthesized_parentheses(node2);
 
-        if get_starts_on_new_line(&node2.ref_(self)) == Some(true) {
+        if get_starts_on_new_line(node2, self) == Some(true) {
             return 1;
         }
 
@@ -533,7 +533,7 @@ impl Printer {
                     return if jsx_attribute_escape {
                         escape_jsx_attribute_string(&text, None).into_owned().into()
                     } else if never_ascii_escape == Some(true)
-                        || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NoAsciiEscaping)
+                        || get_emit_flags(node, self).intersects(EmitFlags::NoAsciiEscaping)
                     {
                         format!("\"{}\"", escape_string(&text, None,)).into()
                     } else {
@@ -576,7 +576,7 @@ impl Printer {
     pub(super) fn push_name_generation_scope(&self, node: Option<Id<Node>>) {
         if matches!(
             node,
-            Some(node) if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::ReuseTempVariableScope)
+            Some(node) if get_emit_flags(node, self).intersects(EmitFlags::ReuseTempVariableScope)
         ) {
             return;
         }
@@ -589,7 +589,7 @@ impl Printer {
     pub(super) fn pop_name_generation_scope(&self, node: Option<Id<Node>>) {
         if matches!(
             node,
-            Some(node) if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::ReuseTempVariableScope)
+            Some(node) if get_emit_flags(node, self).intersects(EmitFlags::ReuseTempVariableScope)
         ) {
             return;
         }
@@ -702,7 +702,7 @@ impl Printer {
                 let node_ref = node.ref_(self);
                 let node_as_function_declaration = node_ref.as_function_declaration();
                 self.generate_name_if_needed(node_as_function_declaration.maybe_name());
-                if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::ReuseTempVariableScope) {
+                if get_emit_flags(node, self).intersects(EmitFlags::ReuseTempVariableScope) {
                     for_each(
                         &*node_as_function_declaration.parameters().ref_(self),
                         |&parameter: &Id<Node>, _| -> Option<()> {

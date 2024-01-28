@@ -344,7 +344,7 @@ impl TransformTypeScript {
             None => true,
             Some(node_body) => node_body.ref_(self).kind() != SyntaxKind::ModuleBlock,
         } {
-            set_emit_flags(block, get_emit_flags(&block.ref_(self)) | EmitFlags::NoComments, self);
+            set_emit_flags(block, get_emit_flags(block, self) | EmitFlags::NoComments, self);
         }
 
         Ok(block)

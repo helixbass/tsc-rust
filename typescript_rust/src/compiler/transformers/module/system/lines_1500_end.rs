@@ -231,7 +231,7 @@ impl TransformSystemModule {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) && is_identifier(&node_operand.ref_(self))
             && !is_generated_identifier(&node_operand.ref_(self))
-            && !is_local_name(&node_operand.ref_(self))
+            && !is_local_name(node_operand, self)
             && !is_declaration_name_of_enum_or_namespace(node_operand, self)
         {
             let exported_names = self.get_exports(node_operand)?;

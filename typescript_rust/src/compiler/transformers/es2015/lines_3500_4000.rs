@@ -277,7 +277,7 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
-        if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::TypeScriptClassWrapper) {
+        if get_emit_flags(node, self).intersects(EmitFlags::TypeScriptClassWrapper) {
             return self.visit_type_script_class_wrapper(node);
         }
 

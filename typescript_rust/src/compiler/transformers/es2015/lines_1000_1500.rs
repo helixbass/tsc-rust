@@ -272,7 +272,7 @@ impl TransformES2015 {
                                         .set_emit_flags(EmitFlags::NoSourceMap, self),
                                     initializer.set_emit_flags(
                                         EmitFlags::NoSourceMap
-                                            | get_emit_flags(&initializer.ref_(self))
+                                            | get_emit_flags(initializer, self)
                                             | EmitFlags::NoComments,
                                         self,
                                     ),

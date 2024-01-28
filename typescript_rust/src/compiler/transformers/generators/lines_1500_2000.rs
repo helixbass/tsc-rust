@@ -552,7 +552,7 @@ impl TransformGenerators {
         &self,
         node: Id<Node>, /*Expression*/
     ) -> Id<Node /*Identifier*/> {
-        if is_generated_identifier(&node.ref_(self)) || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HelperName) {
+        if is_generated_identifier(&node.ref_(self)) || get_emit_flags(node, self).intersects(EmitFlags::HelperName) {
             return node;
         }
 

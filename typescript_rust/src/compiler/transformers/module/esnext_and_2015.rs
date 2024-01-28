@@ -660,7 +660,7 @@ impl TransformationContextOnSubstituteNodeOverrider
             .maybe_helper_name_substitutions()
             .is_some()
             && is_identifier(&node.ref_(self))
-            && get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HelperName)
+            && get_emit_flags(node, self).intersects(EmitFlags::HelperName)
         {
             return Ok(self.substitute_helper_name(node));
         }

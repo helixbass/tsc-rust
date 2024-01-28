@@ -241,7 +241,7 @@ impl Printer {
         let body = node_as_function_like_declaration.maybe_body();
         Ok(if let Some(body) = body {
             if is_block(&body.ref_(self)) {
-                let indented_flag = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::Indented);
+                let indented_flag = get_emit_flags(node, self).intersects(EmitFlags::Indented);
                 if indented_flag {
                     self.increase_indent();
                 }
@@ -302,7 +302,7 @@ impl Printer {
         &self,
         body: Id<Node>, /*Block*/
     ) -> bool {
-        if get_emit_flags(&body.ref_(self)).intersects(EmitFlags::SingleLine) {
+        if get_emit_flags(body, self).intersects(EmitFlags::SingleLine) {
             return true;
         }
 
@@ -466,7 +466,7 @@ impl Printer {
             self.emit_identifier_name(Some(node_name))?;
         }
 
-        let indented_flag = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::Indented);
+        let indented_flag = get_emit_flags(node, self).intersects(EmitFlags::Indented);
         if indented_flag {
             self.increase_indent();
         }
@@ -990,8 +990,8 @@ impl Printer {
         self.write_space();
 
         let value = node_as_assert_entry.value;
-        if !get_emit_flags(&value.ref_(self)).intersects(EmitFlags::NoLeadingComments) {
-            let comment_range = get_comment_range(&value.ref_(self));
+        if !get_emit_flags(value, self).intersects(EmitFlags::NoLeadingComments) {
+            let comment_range = get_comment_range(value, self);
             self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
         }
         self.emit(Some(value), None)?;

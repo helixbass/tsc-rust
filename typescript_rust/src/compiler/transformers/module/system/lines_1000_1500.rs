@@ -166,7 +166,7 @@ impl TransformSystemModule {
         } else {
             name
         };
-        set_emit_flags(value, get_emit_flags(&value.ref_(self)) | EmitFlags::NoComments, self);
+        set_emit_flags(value, get_emit_flags(value, self) | EmitFlags::NoComments, self);
         self.factory
             .ref_(self).create_call_expression(
                 self.export_function(),

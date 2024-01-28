@@ -751,7 +751,7 @@ fn add_default_value_assignment_for_initializer(
                                     .set_emit_flags(EmitFlags::NoSourceMap, arena),
                                 initializer.set_emit_flags(
                                     EmitFlags::NoSourceMap
-                                        | get_emit_flags(&initializer.ref_(arena))
+                                        | get_emit_flags(initializer, arena)
                                         | EmitFlags::NoComments,
                                     arena,
                                 ),

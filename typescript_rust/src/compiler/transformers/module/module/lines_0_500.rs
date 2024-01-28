@@ -1097,7 +1097,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
         let node_ref = node.ref_(self);
         let node_as_identifier = node_ref.as_identifier();
         #[allow(clippy::nonminimal_bool)]
-        if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HelperName) {
+        if get_emit_flags(node, self).intersects(EmitFlags::HelperName) {
             let external_helpers_module_name =
                 get_external_helpers_module_name(self.transform_module().current_source_file(), self);
             if let Some(external_helpers_module_name) = external_helpers_module_name {
@@ -1117,12 +1117,12 @@ impl TransformModuleOnSubstituteNodeOverrider {
                         .intersects(GeneratedIdentifierFlags::AllowNameSubstitution)
                 },
             ))
-            && !is_local_name(&node.ref_(self))
+            && !is_local_name(node, self)
         {
             let export_container = self
                 .transform_module()
                 .resolver
-                .ref_(self).get_referenced_export_container(node, Some(is_export_name(&node.ref_(self))))?;
+                .ref_(self).get_referenced_export_container(node, Some(is_export_name(node, self)))?;
             if export_container
                 .matches(|export_container| export_container.ref_(self).kind() == SyntaxKind::SourceFile)
             {
@@ -1194,7 +1194,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
         if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind())
             && is_identifier(&node_as_binary_expression.left.ref_(self))
             && !is_generated_identifier(&node_as_binary_expression.left.ref_(self))
-            && !is_local_name(&node_as_binary_expression.left.ref_(self))
+            && !is_local_name(node_as_binary_expression, self)
             && !is_declaration_name_of_enum_or_namespace(node_as_binary_expression.left, self)
         {
             let exported_names = self

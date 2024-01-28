@@ -1135,7 +1135,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         matches!(
             self.enabled_syntax_kind_features().get(&node.ref_(self).kind()),
             Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::Substitution)
-        ) && !get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NoSubstitution)
+        ) && !get_emit_flags(node, self).intersects(EmitFlags::NoSubstitution)
     }
 
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
@@ -1193,7 +1193,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         matches!(
             self.enabled_syntax_kind_features().get(&node.ref_(self).kind()),
             Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::EmitNotifications)
-        ) || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::AdviseOnEmitNode)
+        ) || get_emit_flags(node, self).intersects(EmitFlags::AdviseOnEmitNode)
     }
 
     fn on_emit_node(

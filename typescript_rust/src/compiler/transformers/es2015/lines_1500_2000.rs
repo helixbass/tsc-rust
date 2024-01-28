@@ -231,7 +231,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node>> {
         let member_ref = member.ref_(self);
         let member_as_method_declaration = member_ref.as_method_declaration();
-        let comment_range: ReadonlyTextRangeConcrete = get_comment_range(&member.ref_(self)).into();
+        let comment_range: ReadonlyTextRangeConcrete = get_comment_range(member, self).into();
         let source_map_range = get_source_map_range(&member.ref_(self), self);
         let member_function = self.transform_function_like_to_expression(
             member,
@@ -376,7 +376,7 @@ impl TransformES2015 {
                 .factory
                 .ref_(self).create_property_assignment("get", getter_function)
                 .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
-                    &get_accessor.ref_(self),
+                    get_accessor, self
                 )), self);
             properties.push(getter);
         }
@@ -395,7 +395,7 @@ impl TransformES2015 {
                 .factory
                 .ref_(self).create_property_assignment("set", setter_function)
                 .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
-                    &set_accessor.ref_(self),
+                    set_accessor, self
                 )), self);
             properties.push(setter);
         }
@@ -495,7 +495,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_ref = node.ref_(self);
         let node_as_function_expression = node_ref.as_function_expression();
-        let ancestor_facts = if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::AsyncFunctionBody) {
+        let ancestor_facts = if get_emit_flags(node, self).intersects(EmitFlags::AsyncFunctionBody) {
             self.enter_subtree(
                 HierarchyFacts::AsyncFunctionBodyExcludes,
                 HierarchyFacts::AsyncFunctionBodyIncludes,
@@ -696,7 +696,7 @@ impl TransformES2015 {
                 &mut prologue,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(|node: Id<Node>| is_hoisted_function(&node.ref_(self))),
+                Some(|node: Id<Node>| is_hoisted_function(node, self)),
             )?;
             statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
                 &body_as_block.statements.ref_(self),

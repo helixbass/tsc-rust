@@ -866,7 +866,7 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             & self.transform_type_script().applicable_substitutions()
             != TypeScriptSubstitutionFlags::None
             && !is_generated_identifier(&node.ref_(self))
-            && !is_local_name(&node.ref_(self))
+            && !is_local_name(node, self)
         {
             let container = self
                 .transform_type_script()

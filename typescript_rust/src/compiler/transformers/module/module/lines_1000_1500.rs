@@ -168,7 +168,7 @@ impl TransformModule {
                     } else {
                         let export_needs_import_default =
                             get_es_module_interop(&self.compiler_options.ref_(self)) == Some(true)
-                                && !get_emit_flags(&node.ref_(self))
+                                && !get_emit_flags(node, self)
                                     .intersects(EmitFlags::NeverApplyImportHelper)
                                 && id_text(
                                     &specifier_as_export_specifier
@@ -464,7 +464,7 @@ impl TransformModule {
                 let variable_ref = variable.ref_(self);
                 let variable_as_variable_declaration = variable_ref.as_variable_declaration();
                 if is_identifier(&variable_as_variable_declaration.name().ref_(self))
-                    && is_local_name(&variable_as_variable_declaration.name().ref_(self))
+                    && is_local_name(variable_as_variable_declaration.name(), self)
                 {
                     if modifiers.is_none() {
                         modifiers = maybe_visit_nodes(
@@ -575,7 +575,7 @@ impl TransformModule {
     ) -> io::Result<Id<Node>> {
         let exported_names = self.get_exports(name)?;
         if let Some(exported_names) = exported_names {
-            let mut expression/*: Expression*/ = if is_export_name(&name.ref_(self)) {
+            let mut expression/*: Expression*/ = if is_export_name(name, self) {
                 value
             } else {
                 self.factory.ref_(self).create_assignment(
@@ -666,7 +666,7 @@ impl TransformModule {
     }
 
     pub(super) fn has_associated_end_of_declaration_marker(&self, node: Id<Node>) -> bool {
-        get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HasEndOfDeclarationMarker)
+        get_emit_flags(node, self).intersects(EmitFlags::HasEndOfDeclarationMarker)
     }
 
     pub(super) fn visit_end_of_declaration_marker(

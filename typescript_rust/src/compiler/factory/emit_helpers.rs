@@ -165,7 +165,7 @@ impl EmitHelperFactory {
 
         let generator_func_emit_node = generator_func
             .ref_(self).maybe_emit_node_mut()
-            .get_or_insert_default_()
+            .get_or_insert_with(|| self.alloc_emit_node(Default::default()))
             .clone();
         let mut generator_func_emit_node = generator_func_emit_node.borrow_mut();
         generator_func_emit_node.flags = Some(
@@ -287,7 +287,7 @@ impl EmitHelperFactory {
 
         let generator_func_emit_node = generator_func
             .ref_(self).maybe_emit_node_mut()
-            .get_or_insert_default_()
+            .get_or_insert_with(|| self.alloc_emit_node(Default::default()))
             .clone();
         let mut generator_func_emit_node = generator_func_emit_node.borrow_mut();
         generator_func_emit_node.flags = Some(
@@ -1106,7 +1106,7 @@ pub fn is_call_to_helper(
         let first_segment_ref = first_segment.ref_(arena);
         let first_segment_as_call_expression = first_segment_ref.as_call_expression();
         is_identifier(&first_segment_as_call_expression.expression.ref_(arena))
-            && get_emit_flags(&first_segment_as_call_expression.expression.ref_(arena))
+            && get_emit_flags(first_segment_as_call_expression, self)
                 .intersects(EmitFlags::HelperName)
             && first_segment_as_call_expression
                 .expression

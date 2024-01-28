@@ -122,7 +122,7 @@ impl TransformGenerators {
             );
             None
         } else {
-            if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::CustomPrologue) {
+            if get_emit_flags(node, self).intersects(EmitFlags::CustomPrologue) {
                 return Some(node);
             }
 
@@ -497,7 +497,7 @@ impl TransformGenerators {
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         if node_as_yield_expression.asterisk_token.is_some() {
-            let iterator = if !get_emit_flags(&node_as_yield_expression.expression.unwrap().ref_(self))
+            let iterator = if !get_emit_flags(node_as_yield_expression.expression.unwrap(), self)
                 .intersects(EmitFlags::Iterator)
             {
                 Some(

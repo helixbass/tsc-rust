@@ -995,7 +995,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         let node_ref = node.ref_(self);
         let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         let name = node_as_shorthand_property_assignment.name();
-        if !is_generated_identifier(&*name.ref_(self)) && !is_local_name(&*name.ref_(self)) {
+        if !is_generated_identifier(&*name.ref_(self)) && !is_local_name(name, self) {
             let import_declaration = self
                 .transform_system_module()
                 .resolver
@@ -1079,7 +1079,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::HelperName) {
+        if get_emit_flags(node, self).intersects(EmitFlags::HelperName) {
             let external_helpers_module_name = get_external_helpers_module_name(
                 self.transform_system_module().current_source_file(),
                 self,
@@ -1097,7 +1097,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
             return Ok(node);
         }
 
-        if !is_generated_identifier(&node.ref_(self)) && !is_local_name(&node.ref_(self)) {
+        if !is_generated_identifier(&node.ref_(self)) && !is_local_name(node, self) {
             let import_declaration = self
                 .transform_system_module()
                 .resolver
@@ -1166,7 +1166,7 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
         if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind())
             && is_identifier(&node_left.ref_(self))
             && !is_generated_identifier(&node_left.ref_(self))
-            && !is_local_name(&node_left.ref_(self))
+            && !is_local_name(node_left, self)
             && !is_declaration_name_of_enum_or_namespace(node_left, self)
         {
             let exported_names = self.transform_system_module().get_exports(node_left)?;

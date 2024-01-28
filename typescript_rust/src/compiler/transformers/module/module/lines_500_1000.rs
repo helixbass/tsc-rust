@@ -146,7 +146,7 @@ impl TransformModule {
             }
         } else if is_identifier(&node.ref_(self)) {
             return Ok(length(self.get_exports(node)?.as_deref())
-                > if is_export_name(&node.ref_(self)) { 1 } else { 0 });
+                > if is_export_name(node, self) { 1 } else { 0 });
         }
         Ok(false)
     }
@@ -302,7 +302,7 @@ impl TransformModule {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) && is_identifier(&node_as_unary_expression.operand().ref_(self))
             && !is_generated_identifier(&node_as_unary_expression.operand().ref_(self))
-            && !is_local_name(&node_as_unary_expression.operand().ref_(self))
+            && !is_local_name(node_as_unary_expression.operand(), self)
             && !is_declaration_name_of_enum_or_namespace(node_as_unary_expression.operand(), self)
         {
             let exported_names = self.get_exports(node_as_unary_expression.operand())?;
@@ -617,7 +617,7 @@ impl TransformModule {
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options.ref_(self)) != Some(true)
-            || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NeverApplyImportHelper)
+            || get_emit_flags(node, self).intersects(EmitFlags::NeverApplyImportHelper)
         {
             return inner_expr;
         }
@@ -633,7 +633,7 @@ impl TransformModule {
         inner_expr: Id<Node /*Expression*/>,
     ) -> Id<Node> {
         if get_es_module_interop(&self.compiler_options.ref_(self)) != Some(true)
-            || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NeverApplyImportHelper)
+            || get_emit_flags(node, self).intersects(EmitFlags::NeverApplyImportHelper)
         {
             return inner_expr;
         }

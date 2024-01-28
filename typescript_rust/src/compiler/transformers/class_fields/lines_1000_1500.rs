@@ -252,7 +252,7 @@ impl TransformClassFields {
 
                 set_emit_flags(
                     class_expression,
-                    EmitFlags::Indented | get_emit_flags(&class_expression.ref_(self)),
+                    EmitFlags::Indented | get_emit_flags(class_expression, self),
                     self,
                 );
                 expressions.push(

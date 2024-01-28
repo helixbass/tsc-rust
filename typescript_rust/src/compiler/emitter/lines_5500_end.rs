@@ -345,7 +345,7 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_before_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
         let source_map_range = get_source_map_range(&node.ref_(self), self);
 
         if is_unparsed_source(&node.ref_(self)) {
@@ -402,7 +402,7 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_after_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
         let source_map_range = get_source_map_range(&node.ref_(self), self);
 
         if !is_unparsed_source(&node.ref_(self)) {
@@ -452,12 +452,11 @@ impl Printer {
 
         let emit_node = node.and_then(|node| node.ref_(self).maybe_emit_node());
         let emit_flags = emit_node
-            .as_ref()
-            .and_then(|emit_node| (**emit_node).borrow().flags)
+            .and_then(|emit_node| emit_node.ref_(self).flags)
             .unwrap_or(EmitFlags::None);
-        let range = emit_node.as_ref().and_then(|emit_node| {
-            (**emit_node)
-                .borrow()
+        let range = emit_node.and_then(|emit_node| {
+            emit_node
+                .ref_(self)
                 .token_source_map_ranges
                 .as_ref()
                 .and_then(|emit_node_token_source_map_ranges| {

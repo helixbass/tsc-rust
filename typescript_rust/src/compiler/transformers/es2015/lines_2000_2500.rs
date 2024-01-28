@@ -191,7 +191,7 @@ impl TransformES2015 {
                 .ref_(self).as_variable_declaration()
                 .maybe_initializer()
                 .matches(|node_declaration_list_declarations_0_initializer| {
-                    get_emit_flags(&node_declaration_list_declarations_0_initializer.ref_(self))
+                    get_emit_flags(node_declaration_list_declarations_0_initializer, self)
                         .intersects(EmitFlags::TypeScriptClassWrapper)
                 })
     }
@@ -950,7 +950,7 @@ impl TransformES2015 {
 
         set_emit_flags(
             expression,
-            EmitFlags::NoSourceMap | get_emit_flags(&expression.ref_(self)),
+            EmitFlags::NoSourceMap | get_emit_flags(expression, self),
             self,
         );
 

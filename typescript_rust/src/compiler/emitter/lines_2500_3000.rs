@@ -20,7 +20,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<()> {
-        let indirect_call = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IndirectCall);
+        let indirect_call = get_emit_flags(node, self).intersects(EmitFlags::IndirectCall);
         if indirect_call {
             self.write_punctuation("(");
             self.write_literal("0");
@@ -103,7 +103,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<()> {
-        let indirect_call = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IndirectCall);
+        let indirect_call = get_emit_flags(node, self).intersects(EmitFlags::IndirectCall);
         if indirect_call {
             self.write_punctuation("(");
             self.write_literal("0");
@@ -637,7 +637,7 @@ impl Printer {
             node,
             None,
         );
-        let format = if force_single_line || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::SingleLine)
+        let format = if force_single_line || get_emit_flags(node, self).intersects(EmitFlags::SingleLine)
         {
             ListFormat::SingleLineBlockStatements
         } else {

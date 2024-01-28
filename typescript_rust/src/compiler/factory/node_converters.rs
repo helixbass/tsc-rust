@@ -79,7 +79,7 @@ impl NodeConverters for NodeConvertersConcrete
         );
         set_original_node(updated, Some(node), self);
         let updated = updated.set_text_range(Some(&*node.ref_(self)), self);
-        if get_starts_on_new_line(&node.ref_(self)) == Some(true) {
+        if get_starts_on_new_line(node, self) == Some(true) {
             set_starts_on_new_line(updated, true, self);
         }
         updated

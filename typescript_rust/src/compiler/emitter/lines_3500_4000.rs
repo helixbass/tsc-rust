@@ -457,8 +457,8 @@ impl Printer {
         self.write_punctuation(":");
         self.write_space();
         let initializer = node_as_property_assignment.maybe_initializer().unwrap();
-        if !get_emit_flags(&initializer.ref_(self)).intersects(EmitFlags::NoLeadingComments) {
-            let comment_range = get_comment_range(&initializer.ref_(self));
+        if !get_emit_flags(initializer, self).intersects(EmitFlags::NoLeadingComments) {
+            let comment_range = get_comment_range(initializer, self);
             self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
         }
         self.emit_expression(

@@ -591,7 +591,7 @@ impl NodeFactory {
         let node = self
             .create_base_node(SyntaxKind::EndOfDeclarationMarker)
             .alloc(self.arena());
-        node.ref_(self).set_emit_node(Some(_d()));
+        node.ref_(self).set_emit_node(Some(self.alloc_emit_node(_d())));
         node.ref_(self).set_original(Some(original));
         node
     }
@@ -600,7 +600,7 @@ impl NodeFactory {
         let node = self
             .create_base_node(SyntaxKind::MergeDeclarationMarker)
             .alloc(self.arena());
-        node.ref_(self).set_emit_node(Some(_d()));
+        node.ref_(self).set_emit_node(Some(self.alloc_emit_node(_d())));
         node.ref_(self).set_original(Some(original));
         node
     }
@@ -924,9 +924,9 @@ impl NodeFactory {
             && node_is_synthesized(&ReadonlyTextRangeConcrete::from_text_range(
                 &*get_source_map_range(&node.ref_(self), self).ref_(self),
             ))
-            && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(&node.ref_(self))))
-            && !get_synthetic_leading_comments(&node.ref_(self)).is_non_empty()
-            && !get_synthetic_trailing_comments(&node.ref_(self)).is_non_empty()
+            && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(node, self)))
+            && !get_synthetic_leading_comments(node, self).is_non_empty()
+            && !get_synthetic_trailing_comments(node, self).is_non_empty()
     }
 
     pub fn restore_outer_expressions(
@@ -1036,7 +1036,7 @@ impl NodeFactory {
             } else {
                 callee.clone()
             };
-        } else if get_emit_flags(&callee.ref_(self)).intersects(EmitFlags::HelperName) {
+        } else if get_emit_flags(callee, self).intersects(EmitFlags::HelperName) {
             this_arg = self.create_void_zero();
             target = self
                 .parenthesizer_rules()
@@ -1168,7 +1168,7 @@ impl NodeFactory {
                 .clone_node(node_name)
                 .set_text_range(Some(&*node_name.ref_(self)), self)
                 .and_set_parent(node_name.ref_(self).maybe_parent(), self);
-            emit_flags |= get_emit_flags(&node_name.ref_(self));
+            emit_flags |= get_emit_flags(node_name, self);
             if allow_source_maps != Some(true) {
                 emit_flags |= EmitFlags::NoSourceMap;
             }
@@ -1402,7 +1402,7 @@ impl NodeFactory {
         for (index, statement) in source.iter().enumerate().skip(statement_offset) {
             let statement = *statement;
             statement_offset = index;
-            if get_emit_flags(&statement.ref_(self)).intersects(EmitFlags::CustomPrologue)
+            if get_emit_flags(statement, self).intersects(EmitFlags::CustomPrologue)
                 && filter_or_default(statement)
             {
                 target.push(visitor.as_mut().try_map_or_else(
@@ -1485,7 +1485,7 @@ impl NodeFactory {
         );
         let left_hoisted_functions_end = self.find_span_end(
             &*statements.ref_(self),
-            |node: &Id<Node>| is_hoisted_function(&node.ref_(self)),
+            |node: &Id<Node>| is_hoisted_function(node, self),
             left_standard_prologue_end,
         );
         let left_hoisted_variables_end = self.find_span_end(
@@ -1501,7 +1501,7 @@ impl NodeFactory {
         );
         let right_hoisted_functions_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_hoisted_function(&node.ref_(self)),
+            |node: &Id<Node>| is_hoisted_function(node, self),
             right_standard_prologue_end,
         );
         let right_hoisted_variables_end = self.find_span_end(
@@ -1511,7 +1511,7 @@ impl NodeFactory {
         );
         let right_custom_prologue_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_custom_prologue(&node.ref_(self)),
+            |node: &Id<Node>| is_custom_prologue(node, self),
             right_hoisted_variables_end,
         );
         Debug_.assert(

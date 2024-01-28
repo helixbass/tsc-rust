@@ -382,7 +382,7 @@ impl TransformES2015 {
             statements.push(export_statement);
         }
 
-        let emit_flags = get_emit_flags(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
         if !emit_flags.intersects(EmitFlags::HasEndOfDeclarationMarker) {
             statements.push(
                 self.factory
@@ -444,7 +444,7 @@ impl TransformES2015 {
                 self.transform_class_body(node, extends_clause_element)?,
             )
             .set_emit_flags(
-                (get_emit_flags(&node.ref_(self)) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
+                (get_emit_flags(node, self) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
                 self,
             );
 
@@ -793,7 +793,7 @@ impl TransformES2015 {
                     .factory
                     .ref_(self).create_return_statement(Some(super_call_expression.clone()))
                     .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
-                        &super_call.ref_(self),
+                        super_call, self
                     )), self);
                 set_emit_flags(super_call, EmitFlags::NoComments, self);
                 statements.push(return_statement);

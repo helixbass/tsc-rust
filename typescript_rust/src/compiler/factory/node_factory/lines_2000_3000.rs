@@ -1446,7 +1446,7 @@ impl NodeFactory {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) && is_identifier(&node.operand.ref_(self))
             && !is_generated_identifier(&node.operand.ref_(self))
-            && !is_local_name(&node.operand.ref_(self))
+            && !is_local_name(node, self)
         {
             node.add_transform_flags(TransformFlags::ContainsUpdateExpressionForIdentifier);
         }
@@ -1489,7 +1489,7 @@ impl NodeFactory {
         node.add_transform_flags(propagate_child_flags(Some(node.operand), self));
         if is_identifier(&node.operand.ref_(self))
             && !is_generated_identifier(&node.operand.ref_(self))
-            && !is_local_name(&node.operand.ref_(self))
+            && !is_local_name(node, self)
         {
             node.add_transform_flags(TransformFlags::ContainsUpdateExpressionForIdentifier);
         }

@@ -793,18 +793,18 @@ pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>, arena: &imp
     node.ref_(arena).set_original(original);
     if let Some(original) = original {
         let emit_node = original.ref_(arena).maybe_emit_node();
-        if let Some(emit_node) = emit_node.as_ref() {
+        if let Some(emit_node) = emit_node {
             let node_emit_node = node
                 .ref_(arena).maybe_emit_node_mut()
-                .get_or_insert_default_()
+                .get_or_insert_with(|| arena.alloc_emit_node(Default::default()))
                 .clone();
             // looks like node and original can share the same Gc<GcCell<EmitNode>> (eg from
             // clone_node(), which I believe is correctly mimicking the Typescript version in
             // cloning that field by reference) so we'd have a GcCell borrow error if we try
             // and immutably + mutably borrow them "separately". So assume that we can skip
             // merge_emit_node() if they're the same already?
-            if !Gc::ptr_eq(&node_emit_node, emit_node) {
-                merge_emit_node(&(**emit_node).borrow(), &mut node_emit_node.borrow_mut());
+            if node_emit_node != emit_node {
+                merge_emit_node(&emit_node.ref_(arena), &mut node_emit_node.ref_mut(arena));
             }
             // node.set_emit_node(node_emit_node);
         }

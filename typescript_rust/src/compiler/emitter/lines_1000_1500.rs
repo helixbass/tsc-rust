@@ -333,7 +333,7 @@ impl Printer {
 
     pub(super) fn before_emit_node(&self, node: Id<Node>) {
         if self.maybe_preserve_source_newlines() == Some(true)
-            && get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IgnoreSourceNewlines)
+            && get_emit_flags(node, self).intersects(EmitFlags::IgnoreSourceNewlines)
         {
             self.set_preserve_source_newlines(Some(false));
         }
@@ -486,7 +486,7 @@ impl Printer {
     ) -> io::Result<()> {
         let allow_snippets = allow_snippets.unwrap_or(true);
         if allow_snippets {
-            let snippet = get_snippet_element(&node.ref_(self));
+            let snippet = get_snippet_element(node, self);
             if let Some(snippet) = snippet {
                 return self.emit_snippet_node(hint, node, snippet);
             }

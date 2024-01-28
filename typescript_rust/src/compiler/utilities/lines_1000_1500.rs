@@ -442,12 +442,12 @@ pub fn is_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
         && node.ref_(arena).as_expression_statement().expression.ref_(arena).kind() == SyntaxKind::StringLiteral
 }
 
-pub fn is_custom_prologue(node: &Node /*Statement*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
+pub fn is_custom_prologue(node: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::CustomPrologue)
 }
 
-pub fn is_hoisted_function(node: &Node /*Statement*/) -> bool {
-    is_custom_prologue(node) && is_function_declaration(node)
+pub fn is_hoisted_function(node: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
+    is_custom_prologue(node, arena) && is_function_declaration(node)
 }
 
 fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/, arena: &impl HasArena) -> bool {
@@ -458,7 +458,7 @@ fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/, arena: &impl HasA
 }
 
 pub fn is_hoisted_variable_statement(node: Id<Node> /*Statement*/, arena: &impl HasArena) -> bool {
-    is_custom_prologue(&node.ref_(arena))
+    is_custom_prologue(node, arena)
         && is_variable_statement(&node.ref_(arena))
         && every(
             &node
