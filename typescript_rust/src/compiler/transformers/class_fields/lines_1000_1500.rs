@@ -428,6 +428,7 @@ impl TransformClassFields {
             .members()
             .ref_(self).iter()
             .filter(|&&member| self.is_class_element_that_requires_constructor_statement(member))
+            .copied()
             .collect_vec();
         if elements.is_empty() {
             return constructor;

@@ -422,7 +422,7 @@ impl Printer {
         parent_node: Id<Node>,  /*FunctionTypeNode | ArrowFunction*/
         parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> bool {
-        let parameter = single_or_undefined(Some(&parameters.ref_(self)));
+        let parameter = single_or_undefined(Some(&parameters.ref_(self))).copied();
         matches!(
             parameter,
             Some(parameter) if parameter.ref_(self).pos() == parent_node.ref_(self).pos() &&

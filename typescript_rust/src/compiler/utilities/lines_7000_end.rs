@@ -394,10 +394,10 @@ pub fn has_context_sensitive_parameters(node: Id<Node> /*FunctionLikeDeclaration
         }
         if node_ref.kind() != SyntaxKind::ArrowFunction {
             let node_parameters = node_as_function_like_declaration.parameters();
-            let parameter = first_or_undefined(&node_parameters.ref_(arena));
+            let parameter = first_or_undefined(&node_parameters.ref_(arena)).copied();
             if !matches!(
                 parameter,
-                Some(&parameter) if parameter_is_this_keyword(parameter, arena)
+                Some(parameter) if parameter_is_this_keyword(parameter, arena)
             ) {
                 return true;
             }

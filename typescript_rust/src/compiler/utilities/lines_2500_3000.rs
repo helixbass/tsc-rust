@@ -549,9 +549,9 @@ pub fn get_effective_container_for_jsdoc_template_tag(
     let node_parent = node.ref_(arena).parent();
     if is_jsdoc(&node_parent.ref_(arena)) {
         if let Some(node_parent_tags) = node_parent.ref_(arena).as_jsdoc().tags {
-            let type_alias = find(&node_parent_tags.ref_(arena), |tag, _| is_jsdoc_type_alias(&tag.ref_(arena)));
+            let type_alias = find(&node_parent_tags.ref_(arena), |tag, _| is_jsdoc_type_alias(&tag.ref_(arena))).copied();
             if type_alias.is_some() {
-                return type_alias.copied();
+                return type_alias;
             }
         }
     }
@@ -611,9 +611,8 @@ pub fn get_type_parameter_from_js_doc(
                     .ref_(arena).as_identifier()
                     .escaped_text
                     == name
-            })
+            }).copied()
         })
-        .copied()
 }
 
 pub fn has_rest_parameter(node: Id<Node> /*SignatureDeclaration | JSDocSignature*/, arena: &impl HasArena) -> bool {

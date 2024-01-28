@@ -958,7 +958,8 @@ fn each_unreachable_range(node: Id<Node>, mut cb: impl FnMut(Id<Node>, Id<Node>)
         let node_parent = node.ref_(arena).parent();
         let node_parent_ref = node_parent.ref_(arena);
         let statements = &node_parent_ref.as_block().statements;
-        let slice = slice_after_eq(&statements.ref_(arena), &node);
+        let statements_ref = statements.ref_(arena);
+        let slice = slice_after_eq(&statements_ref, &node);
         get_ranges_where(
             slice,
             |&node| is_executable_statement(node, arena),
