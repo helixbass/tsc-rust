@@ -246,14 +246,14 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Id<SymbolTable>> {
         let links = self.get_symbol_links(symbol);
         if self
             .get_symbol_links_members_or_exports_resolution_field_value(links, resolution_kind)
             .is_none()
         {
             let is_static = resolution_kind == MembersOrExportsResolutionKind::resolved_exports;
-            let early_symbols: Option<Gc<GcCell<SymbolTable>>> = if !is_static {
+            let early_symbols: Option<Id<SymbolTable>> = if !is_static {
                 symbol.ref_(self).maybe_members().clone()
             } else if symbol.ref_(self).flags().intersects(SymbolFlags::Module) {
                 Some(self.get_exports_of_module_worker(symbol)?)
@@ -344,7 +344,7 @@ impl TypeChecker {
         &self,
         symbol_links: Id<GcCell<SymbolLinks>>,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> Option<Gc<GcCell<SymbolTable>>> {
+    ) -> Option<Id<SymbolTable>> {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
                 (*symbol_links.ref_(self)).borrow().resolved_exports.clone()
@@ -359,7 +359,7 @@ impl TypeChecker {
         &self,
         symbol_links: Id<GcCell<SymbolLinks>>,
         resolution_kind: MembersOrExportsResolutionKind,
-        value: Option<Gc<GcCell<SymbolTable>>>,
+        value: Option<Id<SymbolTable>>,
     ) {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
@@ -374,7 +374,7 @@ impl TypeChecker {
     pub(super) fn get_members_of_symbol(
         &self,
         symbol: Id<Symbol>,
-    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Id<SymbolTable>> {
         Ok(
             if symbol
                 .ref_(self)
@@ -509,7 +509,7 @@ impl TypeChecker {
         type_arguments: Vec<Id<Type>>,
     ) -> io::Result<()> {
         let mut mapper: Option<Id<TypeMapper>> = None;
-        let mut members: Gc<GcCell<SymbolTable>>;
+        let mut members: Id<SymbolTable>;
         let mut call_signatures: Vec<Id<Signature>>;
         let mut construct_signatures: Vec<Id<Signature>>;
         let mut index_infos: Vec<Id<IndexInfo>>;

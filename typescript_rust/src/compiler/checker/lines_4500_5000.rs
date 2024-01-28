@@ -698,7 +698,7 @@ impl NodeBuilder {
 
     pub fn symbol_table_to_declaration_statements(
         &self,
-        symbol_table: Gc<GcCell<SymbolTable>>,
+        symbol_table: Id<SymbolTable>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,

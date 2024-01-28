@@ -248,7 +248,7 @@ impl TypeChecker {
     pub(super) fn set_structured_type_members(
         &self,
         type_: &(impl ResolvableTypeInterface + ResolvedTypeInterface),
-        members: Gc<GcCell<SymbolTable>>,
+        members: Id<SymbolTable>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
         index_infos: Vec<Id<IndexInfo>>,
@@ -275,7 +275,7 @@ impl TypeChecker {
     pub(super) fn create_anonymous_type_returning_base_object_type(
         &self,
         symbol: Option<Id<Symbol>>,
-        members: Gc<GcCell<SymbolTable>>,
+        members: Id<SymbolTable>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
         index_infos: Vec<Id<IndexInfo>>,
@@ -294,7 +294,7 @@ impl TypeChecker {
     pub(super) fn create_anonymous_type(
         &self,
         symbol: Option<Id<Symbol>>,
-        members: Gc<GcCell<SymbolTable>>,
+        members: Id<SymbolTable>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
         index_infos: Vec<Id<IndexInfo>>,
@@ -366,7 +366,7 @@ impl TypeChecker {
         &self,
         enclosing_declaration: Option<Id<Node>>,
         mut callback: impl FnMut(
-            Gc<GcCell<SymbolTable>>,
+            Id<SymbolTable>,
             Option<bool>,
             Option<bool>,
             Option<Id<Node>>,
@@ -374,7 +374,7 @@ impl TypeChecker {
     ) -> Option<TReturn> {
         self.try_for_each_symbol_table_in_scope(
             enclosing_declaration,
-            |a: Gc<GcCell<SymbolTable>>, b: Option<bool>, c: Option<bool>, d: Option<Id<Node>>| {
+            |a: Id<SymbolTable>, b: Option<bool>, c: Option<bool>, d: Option<Id<Node>>| {
                 Ok(callback(a, b, c, d))
             },
         )
@@ -385,7 +385,7 @@ impl TypeChecker {
         &self,
         enclosing_declaration: Option<Id<Node>>,
         mut callback: impl FnMut(
-            Gc<GcCell<SymbolTable>>,
+            Id<SymbolTable>,
             Option<bool>,
             Option<bool>,
             Option<Id<Node>>,
@@ -473,7 +473,7 @@ impl TypeChecker {
             location = location_unwrapped.ref_(self).maybe_parent();
         }
 
-        callback(self.globals_rc(), None, Some(true), None)
+        callback(self.globals_id(), None, Some(true), None)
     }
 
     pub(super) fn get_qualified_left_meaning(&self, right_meaning: SymbolFlags) -> SymbolFlags {
@@ -491,7 +491,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: Option<
-            &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
+            &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
         >,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
@@ -561,13 +561,13 @@ impl TypeChecker {
 
     pub(super) fn get_accessible_symbol_chain_from_symbol_table(
         &self,
-        visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
+        visited_symbol_tables: Gc<GcCell<Vec<Id<SymbolTable>>>>,
         meaning: SymbolFlags,
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
-        symbols: Gc<GcCell<SymbolTable>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
+        symbols: Id<SymbolTable>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
@@ -594,7 +594,7 @@ impl TypeChecker {
         &self,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
         symbol_from_symbol_table: Id<Symbol>,
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
@@ -618,7 +618,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
         symbol_from_symbol_table: Option<Id<Symbol>>,
         resolved_alias_symbol: Option<Id<Symbol>>,
         ignore_qualification: Option<bool>,
@@ -658,9 +658,9 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
-        visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
-        symbols: Gc<GcCell<SymbolTable>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
+        visited_symbol_tables: Gc<GcCell<Vec<Id<SymbolTable>>>>,
+        symbols: Id<SymbolTable>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
@@ -768,7 +768,7 @@ impl TypeChecker {
         )?;
 
         result.try_or_else(|| {
-            Ok(if Gc::ptr_eq(&symbols, &self.globals_rc()) {
+            Ok(if Gc::ptr_eq(&symbols, &self.globals_id()) {
                 self.get_candidate_list_for_symbol(
                     symbol,
                     meaning,
@@ -792,8 +792,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>>,
-        visited_symbol_tables: Gc<GcCell<Vec<Gc<GcCell<SymbolTable>>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
+        visited_symbol_tables: Gc<GcCell<Vec<Id<SymbolTable>>>>,
         symbol_from_symbol_table: Id<Symbol>,
         resolved_import_symbol: Id<Symbol>,
         ignore_qualification: Option<bool>,

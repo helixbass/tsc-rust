@@ -168,7 +168,7 @@ impl ReverseMappedType {
 pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
-    fn members(&self) -> Gc<GcCell<SymbolTable>>;
+    fn members(&self) -> Id<SymbolTable>;
     fn properties(&self) -> GcVec<Id<Symbol>>;
     fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Id<Symbol>>>, GcVec<Id<Symbol>>>;
     fn set_properties(&self, properties: GcVec<Id<Symbol>>);

@@ -52,7 +52,7 @@ impl NodeBuilder {
 
     pub(super) fn symbol_table_to_declaration_statements_(
         &self,
-        symbol_table: Gc<GcCell<SymbolTable>>,
+        symbol_table: Id<SymbolTable>,
         context: &NodeBuilderContext,
         bundled: Option<bool>,
     ) -> io::Result<Vec<Id<Node /*Statement*/>>> {
@@ -83,7 +83,7 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
     pub(super) deferred_privates_stack: GcCell<Vec<HashMap<SymbolId, Id<Symbol>>>>,
     pub(super) oldcontext: Gc<NodeBuilderContext>,
-    pub(super) symbol_table: GcCell<Gc<GcCell<SymbolTable>>>,
+    pub(super) symbol_table: GcCell<Id<SymbolTable>>,
     #[unsafe_ignore_trace]
     pub(super) adding_declare: Cell<bool>,
 }
@@ -99,7 +99,7 @@ impl SymbolTableToDeclarationStatements {
         context: &NodeBuilderContext,
         type_checker: Gc<TypeChecker>,
         node_builder: &NodeBuilder,
-        symbol_table: Gc<GcCell<SymbolTable>>,
+        symbol_table: Id<SymbolTable>,
         bundled: Option<bool>,
         arena: &impl HasArena,
     ) -> Gc<Self> {
@@ -206,11 +206,11 @@ impl SymbolTableToDeclarationStatements {
         self.deferred_privates_stack.borrow_mut()
     }
 
-    pub fn symbol_table(&self) -> Gc<GcCell<SymbolTable>> {
+    pub fn symbol_table(&self) -> Id<SymbolTable> {
         self.symbol_table.borrow().clone()
     }
 
-    pub fn set_symbol_table(&self, symbol_table: Gc<GcCell<SymbolTable>>) {
+    pub fn set_symbol_table(&self, symbol_table: Id<SymbolTable>) {
         *self.symbol_table.borrow_mut() = symbol_table;
     }
 
@@ -665,7 +665,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn visit_symbol_table(
         &self,
-        symbol_table: Gc<GcCell<SymbolTable>>,
+        symbol_table: Id<SymbolTable>,
         suppress_new_private_context: Option<bool>,
         property_as_alias: Option<bool>,
     ) -> io::Result<()> {

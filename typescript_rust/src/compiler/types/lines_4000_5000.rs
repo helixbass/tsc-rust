@@ -196,7 +196,7 @@ pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) inline_level: Cell<usize>,
     pub(crate) current_node: GcCell<Option<Id<Node>>>,
-    pub(crate) empty_symbols: Gc<GcCell<SymbolTable>>,
+    pub(crate) empty_symbols: Id<SymbolTable>,
     pub(crate) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(crate) language_version: ScriptTarget,
@@ -218,7 +218,7 @@ pub struct TypeChecker {
     pub(crate) check_binary_expression: GcCell<Option<Gc<CheckBinaryExpression>>>,
     pub(crate) emit_resolver: GcCell<Option<Id<Box<dyn EmitResolver>>>>,
     pub(crate) node_builder: GcCell<Option<Gc<NodeBuilder>>>,
-    pub(crate) globals: Gc<GcCell<SymbolTable>>,
+    pub(crate) globals: Id<SymbolTable>,
     pub(crate) undefined_symbol: Option<Id<Symbol>>,
     pub(crate) global_this_symbol: Option<Id<Symbol>>,
     pub(crate) arguments_symbol: Option<Id<Symbol>>,
@@ -954,13 +954,13 @@ pub trait SymbolInterface {
     fn set_declarations(&self, declarations: Vec<Id<Node>>);
     fn maybe_value_declaration(&self) -> Option<Id<Node>>;
     fn set_value_declaration(&self, node: Id<Node>);
-    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
-    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
-    fn members(&self) -> Gc<GcCell<SymbolTable>>;
-    fn maybe_exports(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
-    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
-    fn exports(&self) -> Gc<GcCell<SymbolTable>>;
-    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
+    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>>;
+    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn members(&self) -> Id<SymbolTable>;
+    fn maybe_exports(&self) -> GcCellRef<Option<Id<SymbolTable>>>;
+    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn exports(&self) -> Id<SymbolTable>;
+    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
@@ -1019,9 +1019,9 @@ pub struct BaseSymbol {
     escaped_name: __String,
     declarations: GcCell<Option<Vec<Id<Node /*Declaration*/>>>>,
     value_declaration: GcCell<Option<Id<Node>>>,
-    members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
-    exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
-    global_exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    members: GcCell<Option<Id<SymbolTable>>>,
+    exports: GcCell<Option<Id<SymbolTable>>>,
+    global_exports: GcCell<Option<Id<SymbolTable>>>,
     #[unsafe_ignore_trace]
     id: Cell<Option<SymbolId>>,
     #[unsafe_ignore_trace]
@@ -1095,31 +1095,31 @@ impl SymbolInterface for BaseSymbol {
         *self.value_declaration.borrow_mut() = Some(node);
     }
 
-    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
         self.members.borrow()
     }
 
-    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.members.borrow_mut()
     }
 
-    fn members(&self) -> Gc<GcCell<SymbolTable>> {
+    fn members(&self) -> Id<SymbolTable> {
         self.members.borrow().as_ref().unwrap().clone()
     }
 
-    fn maybe_exports(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_exports(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
         self.exports.borrow()
     }
 
-    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.exports.borrow_mut()
     }
 
-    fn exports(&self) -> Gc<GcCell<SymbolTable>> {
+    fn exports(&self) -> Id<SymbolTable> {
         self.exports.borrow().as_ref().unwrap().clone()
     }
 
-    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.global_exports.borrow_mut()
     }
 
@@ -1224,8 +1224,8 @@ pub struct SymbolLinks {
     pub right_spread: Option<Id<Symbol>>,
     pub synthetic_origin: Option<Id<Symbol>>,
     pub is_discriminant_property: Option<bool>,
-    pub resolved_exports: Option<Gc<GcCell<SymbolTable>>>,
-    pub resolved_members: Option<Gc<GcCell<SymbolTable>>>,
+    pub resolved_exports: Option<Id<SymbolTable>>,
+    pub resolved_members: Option<Id<SymbolTable>>,
     pub exports_checked: Option<bool>,
     pub type_parameters_checked: Option<bool>,
     pub is_declaration_with_colliding_name: Option<bool>,

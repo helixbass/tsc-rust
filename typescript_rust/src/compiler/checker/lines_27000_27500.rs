@@ -557,7 +557,7 @@ impl TypeChecker {
         &self,
         object_flags: &mut ObjectFlags,
         attributes: Id<Node>,
-        attributes_table: Gc<GcCell<SymbolTable>>,
+        attributes_table: Id<SymbolTable>,
     ) -> io::Result<Id<Type>> {
         *object_flags |= self.fresh_object_literal_flag;
         let result = self.create_anonymous_type(

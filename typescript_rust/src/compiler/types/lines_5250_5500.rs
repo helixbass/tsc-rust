@@ -400,8 +400,8 @@ pub trait ObjectFlagsTypeInterface {
 }
 
 pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
-    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
-    fn set_members(&self, members: Option<Gc<GcCell<SymbolTable>>>);
+    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>>;
+    fn set_members(&self, members: Option<Id<SymbolTable>>);
     fn maybe_properties(&self) -> Option<GcVec<Id<Symbol>>>;
     fn maybe_call_signatures(&self) -> GcCellRef<Option<Vec<Id<Signature>>>>;
     // fn maybe_properties(&self) -> Option<&[Id<Symbol>]>;
@@ -431,7 +431,7 @@ pub struct BaseObjectType {
     _type: BaseType,
     #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
-    members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    members: GcCell<Option<Id<SymbolTable>>>,
     properties: GcCell<Option<GcVec<Id<Symbol>>>>,
     call_signatures: GcCell<Option<Vec<Id<Signature>>>>,
     construct_signatures: GcCell<Option<Vec<Id<Signature>>>>,
@@ -509,11 +509,11 @@ impl ObjectFlagsTypeInterface for BaseObjectType {
 }
 
 impl ObjectTypeInterface for BaseObjectType {
-    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
         self.members.borrow()
     }
 
-    fn set_members(&self, members: Option<Gc<GcCell<SymbolTable>>>) {
+    fn set_members(&self, members: Option<Id<SymbolTable>>) {
         *self.members.borrow_mut() = members;
     }
 
@@ -541,7 +541,7 @@ impl ObjectTypeInterface for BaseObjectType {
 pub trait ResolvableTypeInterface {
     fn resolve(
         &self,
-        members: Gc<GcCell<SymbolTable>>,
+        members: Id<SymbolTable>,
         properties: GcVec<Id<Symbol>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
@@ -553,7 +553,7 @@ pub trait ResolvableTypeInterface {
 impl ResolvableTypeInterface for BaseObjectType {
     fn resolve(
         &self,
-        members: Gc<GcCell<SymbolTable>>,
+        members: Id<SymbolTable>,
         properties: GcVec<Id<Symbol>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
@@ -572,7 +572,7 @@ impl ResolvableTypeInterface for BaseObjectType {
 }
 
 impl ResolvedTypeInterface for BaseObjectType {
-    fn members(&self) -> Gc<GcCell<SymbolTable>> {
+    fn members(&self) -> Id<SymbolTable> {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
@@ -674,7 +674,7 @@ impl NotActuallyInterfaceType<'_> {
         }
     }
 
-    pub fn set_members(&self, members: Option<Gc<GcCell<SymbolTable>>>) {
+    pub fn set_members(&self, members: Option<Id<SymbolTable>>) {
         match self {
             Self::InterfaceType(value) => value.set_members(members),
             Self::BaseObjectType(value) => value.set_members(members),
@@ -1142,7 +1142,7 @@ pub struct BaseUnionOrIntersectionType {
     property_cache_without_object_function_property_augment: GcCell<Option<SymbolTable>>,
     resolved_properties: GcCell<Option<GcVec<Id<Symbol>>>>,
     // ResolvedType Fields
-    members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    members: GcCell<Option<Id<SymbolTable>>>,
     properties: GcCell<Option<GcVec<Id<Symbol>>>>,
     call_signatures: GcCell<Option<Vec<Id<Signature>>>>,
     construct_signatures: GcCell<Option<Vec<Id<Signature>>>>,
@@ -1205,7 +1205,7 @@ impl ObjectFlagsTypeInterface for BaseUnionOrIntersectionType {
 impl ResolvableTypeInterface for BaseUnionOrIntersectionType {
     fn resolve(
         &self,
-        members: Gc<GcCell<SymbolTable>>,
+        members: Id<SymbolTable>,
         properties: GcVec<Id<Symbol>>,
         call_signatures: Vec<Id<Signature>>,
         construct_signatures: Vec<Id<Signature>>,
@@ -1224,7 +1224,7 @@ impl ResolvableTypeInterface for BaseUnionOrIntersectionType {
 }
 
 impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
-    fn members(&self) -> Gc<GcCell<SymbolTable>> {
+    fn members(&self) -> Id<SymbolTable> {
         self.members.borrow_mut().as_ref().unwrap().clone()
     }
 
@@ -1283,11 +1283,11 @@ impl FreshObjectLiteralTypeInterface for BaseUnionOrIntersectionType {
 }
 
 impl ObjectTypeInterface for BaseUnionOrIntersectionType {
-    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
         self.members.borrow()
     }
 
-    fn set_members(&self, members: Option<Gc<GcCell<SymbolTable>>>) {
+    fn set_members(&self, members: Option<Id<SymbolTable>>) {
         *self.members.borrow_mut() = members;
     }
 

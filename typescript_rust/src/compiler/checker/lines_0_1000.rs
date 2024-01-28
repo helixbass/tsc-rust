@@ -868,7 +868,7 @@ pub fn create_type_checker(
     {
         let global_this_symbol_ref = type_checker.symbol(global_this_symbol);
         let mut global_this_symbol_exports = global_this_symbol_ref.maybe_exports_mut();
-        *global_this_symbol_exports = Some(type_checker.globals_rc());
+        *global_this_symbol_exports = Some(type_checker.globals_id());
     }
     type_checker
         .symbol(global_this_symbol)
@@ -1676,7 +1676,7 @@ impl TypeChecker {
         *self.current_node.borrow_mut() = current_node;
     }
 
-    pub(super) fn empty_symbols(&self) -> Gc<GcCell<SymbolTable>> {
+    pub(super) fn empty_symbols(&self) -> Id<SymbolTable> {
         self.empty_symbols.clone()
     }
 
@@ -1696,16 +1696,16 @@ impl TypeChecker {
         self.node_builder.borrow().clone().unwrap()
     }
 
-    pub(super) fn globals(&self) -> GcCellRef<SymbolTable> {
-        (*self.globals).borrow()
+    pub(super) fn globals(&self) -> debug_cell::Ref<SymbolTable> {
+        self.globals.ref_(self)
     }
 
-    pub(super) fn globals_mut(&self) -> GcCellRefMut<SymbolTable> {
-        self.globals.borrow_mut()
+    pub(super) fn globals_mut(&self) -> debug_cell::RefMut<SymbolTable> {
+        self.globals.ref_mut(self)
     }
 
-    pub(super) fn globals_rc(&self) -> Gc<GcCell<SymbolTable>> {
-        self.globals.clone()
+    pub(super) fn globals_id(&self) -> Id<SymbolTable> {
+        self.globals
     }
 
     pub(super) fn undefined_symbol(&self) -> Id<Symbol> {

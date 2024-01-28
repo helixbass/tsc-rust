@@ -745,13 +745,13 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_rc(), &(*file.ref_(self).locals()).borrow(), None)?;
+                self.merge_symbol_table(self.globals_id(), &(*file.ref_(self).locals()).borrow(), None)?;
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
             {
                 self.merge_symbol_table(
-                    self.globals_rc(),
+                    self.globals_id(),
                     &(*file_js_global_augmentations).borrow(),
                     None,
                 )?;

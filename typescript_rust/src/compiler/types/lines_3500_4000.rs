@@ -189,7 +189,7 @@ pub struct SourceFileContents {
 
     external_module_indicator: GcCell<Option<Id<Node>>>,
     common_js_module_indicator: GcCell<Option<Id<Node>>>,
-    js_global_augmentations: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    js_global_augmentations: GcCell<Option<Id<SymbolTable>>>,
 
     #[unsafe_ignore_trace]
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
@@ -529,7 +529,7 @@ impl SourceFile {
 
     pub(crate) fn maybe_js_global_augmentations(
         &self,
-    ) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    ) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.contents.js_global_augmentations.borrow_mut()
     }
 

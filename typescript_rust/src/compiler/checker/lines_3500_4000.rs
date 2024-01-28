@@ -463,7 +463,7 @@ impl TypeChecker {
     pub(super) fn get_exports_of_symbol(
         &self,
         symbol: Id<Symbol>,
-    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Id<SymbolTable>> {
         Ok(
             if symbol
                 .ref_(self)
@@ -489,7 +489,7 @@ impl TypeChecker {
     pub(super) fn get_exports_of_module_(
         &self,
         module_symbol: Id<Symbol>,
-    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Id<SymbolTable>> {
         let links = self.get_symbol_links(module_symbol);
         let resolved_exports = (*links.ref_(self)).borrow().resolved_exports.clone();
         resolved_exports.try_unwrap_or_else(|| {
@@ -502,15 +502,13 @@ impl TypeChecker {
     pub(super) fn extend_export_symbols(
         &self,
         target: &mut SymbolTable,
-        source: Option<impl Borrow<SymbolTable>>,
+        source: Option<&SymbolTable>,
         mut lookup_table: Option<&mut ExportCollisionTrackerTable>,
         export_node: Option<Id<Node>>,
     ) -> io::Result<()> {
-        if source.is_none() {
+        let Some(source) = source else {
             return Ok(());
-        }
-        let source = source.unwrap();
-        let source: &SymbolTable = source.borrow();
+        };
         for (id, &source_symbol) in source {
             if id == InternalSymbolName::Default {
                 continue;
@@ -568,7 +566,7 @@ impl TypeChecker {
     pub(super) fn get_exports_of_module_worker(
         &self,
         module_symbol: Id<Symbol>,
-    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Id<SymbolTable>> {
         let mut visited_symbols: Vec<Id<Symbol>> = vec![];
 
         let module_symbol = self.resolve_external_module_symbol(Some(module_symbol), None)?;

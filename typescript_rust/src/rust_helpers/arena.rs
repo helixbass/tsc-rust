@@ -16,7 +16,7 @@ use crate::{
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
-    BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo,
+    BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable,
 };
 
 #[derive(Default)]
@@ -80,6 +80,7 @@ pub struct AllArenas {
     pub program_build_infos: RefCell<Arena<ProgramBuildInfo>>,
     pub bundle_build_infos: RefCell<Arena<BundleBuildInfo>>,
     pub bundle_file_infos: RefCell<Arena<BundleFileInfo>>,
+    pub symbol_tables: RefCell<Arena<SymbolTable>>,
 }
 
 pub trait HasArena {
@@ -539,6 +540,18 @@ pub trait HasArena {
 
     fn alloc_bundle_file_info(&self, bundle_file_info: BundleFileInfo) -> Id<BundleFileInfo> {
         self.arena().alloc_bundle_file_info(bundle_file_info)
+    }
+
+    fn symbol_table(&self, symbol_table: Id<SymbolTable>) -> Ref<SymbolTable> {
+        self.arena().symbol_table(symbol_table)
+    }
+
+    fn symbol_table_mut(&self, symbol_table: Id<SymbolTable>) -> RefMut<SymbolTable> {
+        self.arena().symbol_table_mut(symbol_table)
+    }
+
+    fn alloc_symbol_table(&self, symbol_table: SymbolTable) -> Id<SymbolTable> {
+        self.arena().alloc_symbol_table(symbol_table)
     }
 }
 
@@ -1123,6 +1136,20 @@ impl HasArena for AllArenas {
         let id = self.bundle_file_infos.borrow_mut().alloc(bundle_file_info);
         id
     }
+
+    #[track_caller]
+    fn symbol_table(&self, symbol_table: Id<SymbolTable>) -> Ref<SymbolTable> {
+        Ref::map(self.symbol_tables.borrow(), |symbol_tables| &symbol_tables[symbol_table])
+    }
+
+    fn symbol_table_mut(&self, symbol_table: Id<SymbolTable>) -> RefMut<SymbolTable> {
+        RefMut::map(self.symbol_tables.borrow_mut(), |symbol_tables| &mut symbol_tables[symbol_table])
+    }
+
+    fn alloc_symbol_table(&self, symbol_table: SymbolTable) -> Id<SymbolTable> {
+        let id = self.symbol_tables.borrow_mut().alloc(symbol_table);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1588,6 +1615,18 @@ impl InArena for Id<BundleFileInfo> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, BundleFileInfo> {
         has_arena.bundle_file_info_mut(*self)
+    }
+}
+
+impl InArena for Id<SymbolTable> {
+    type Item = SymbolTable;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymbolTable> {
+        has_arena.symbol_table(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, SymbolTable> {
+        has_arena.symbol_table_mut(*self)
     }
 }
 

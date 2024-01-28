@@ -849,9 +849,9 @@ impl TypeChecker {
 
     pub(super) fn combine_symbol_tables(
         &self,
-        first: Option<Gc<GcCell<SymbolTable>>>,
-        second: Option<Gc<GcCell<SymbolTable>>>,
-    ) -> io::Result<Option<Gc<GcCell<SymbolTable>>>> {
+        first: Option<Id<SymbolTable>>,
+        second: Option<Id<SymbolTable>>,
+    ) -> io::Result<Option<Id<SymbolTable>>> {
         if first.is_none() {
             return Ok(second);
         }
@@ -877,7 +877,7 @@ impl TypeChecker {
 
     pub(super) fn merge_symbol_table(
         &self,
-        target: Gc<GcCell<SymbolTable>>,
+        target: Id<SymbolTable>,
         source: &SymbolTable,
         unidirectional: Option<bool>,
     ) -> io::Result<()> {
@@ -919,7 +919,7 @@ impl TypeChecker {
 
         if is_global_scope_augmentation(&module_augmentation.ref_(self)) {
             self.merge_symbol_table(
-                self.globals_rc(),
+                self.globals_id(),
                 &mut module_augmentation
                     .ref_(self).symbol()
                     .ref_(self)
@@ -1660,7 +1660,7 @@ impl TypeChecker {
                         if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile {
                             is_in_external_module = true;
                         }
-                        let module_exports: Gc<GcCell<SymbolTable>> = self
+                        let module_exports: Id<SymbolTable> = self
                             .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());

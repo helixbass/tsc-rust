@@ -204,11 +204,11 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn symbol(&self) -> Id<Symbol>;
     fn set_symbol(&self, symbol: Id<Symbol>);
     fn set_symbol_override(&self, symbol_override: Gc<Box<dyn NodeSymbolOverride>>);
-    fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>>;
-    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
-    fn locals(&self) -> Gc<GcCell<SymbolTable>>;
-    fn locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>, Gc<GcCell<SymbolTable>>>;
-    fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>);
+    fn maybe_locals(&self) -> Option<Id<SymbolTable>>;
+    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn locals(&self) -> Id<SymbolTable>;
+    fn locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>, Id<SymbolTable>>;
+    fn set_locals(&self, locals: Option<Id<SymbolTable>>);
     fn maybe_next_container(&self) -> Option<Id<Node>>;
     fn set_next_container(&self, next_container: Option<Id<Node>>);
     fn maybe_local_symbol(&self) -> Option<Id<Symbol>>;
@@ -1731,7 +1731,7 @@ pub struct BaseNode {
     #[unsafe_ignore_trace]
     pub end: Cell<isize>,
     pub symbol: GcCell<Option<Id<Symbol>>>,
-    pub locals: Gc<GcCell<Option<Gc<GcCell<SymbolTable>>>>>,
+    pub locals: Gc<GcCell<Option<Id<SymbolTable>>>>,
     next_container: GcCell<Option<Id<Node>>>,
     local_symbol: GcCell<Option<Id<Symbol>>>,
     emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
@@ -1953,23 +1953,23 @@ impl NodeInterface for BaseNode {
         *self._symbol_override.borrow_mut() = Some(symbol_override);
     }
 
-    fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>> {
+    fn maybe_locals(&self) -> Option<Id<SymbolTable>> {
         (*self.locals).borrow().clone()
     }
 
-    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.locals.borrow_mut()
     }
 
-    fn locals(&self) -> Gc<GcCell<SymbolTable>> {
+    fn locals(&self) -> Id<SymbolTable> {
         (*self.locals).borrow().clone().unwrap()
     }
 
-    fn locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>, Gc<GcCell<SymbolTable>>> {
+    fn locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>, Id<SymbolTable>> {
         GcCellRefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
-    fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>) {
+    fn set_locals(&self, locals: Option<Id<SymbolTable>>) {
         *self.locals.borrow_mut() = locals;
     }
 
