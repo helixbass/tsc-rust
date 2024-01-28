@@ -127,7 +127,7 @@ impl TypeChecker {
 
     pub(super) fn is_typical_nondistributive_conditional(
         &self,
-        root: Gc<GcCell<ConditionalRoot>>,
+        root: Id<ConditionalRoot>,
     ) -> bool {
         !(*root).borrow().is_distributive
             && self.is_singleton_tuple_type(
@@ -158,7 +158,7 @@ impl TypeChecker {
 
     pub(super) fn unwrap_nondistributive_conditional_tuple(
         &self,
-        root: Gc<GcCell<ConditionalRoot>>,
+        root: Id<ConditionalRoot>,
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
         Ok(
@@ -172,7 +172,7 @@ impl TypeChecker {
 
     pub(super) fn get_conditional_type(
         &self,
-        root: Gc<GcCell<ConditionalRoot>>,
+        root: Id<ConditionalRoot>,
         mut mapper: Option<Id<TypeMapper>>,
         mut alias_symbol: Option<Id<Symbol>>,
         mut alias_type_arguments: Option<&[Id<Type>]>,
@@ -377,7 +377,7 @@ impl TypeChecker {
 
     pub(super) fn can_tail_recurse(
         &self,
-        root: &mut Gc<GcCell<ConditionalRoot>>,
+        root: &mut Id<ConditionalRoot>,
         mapper: &mut Option<Id<TypeMapper>>,
         alias_symbol: &mut Option<Id<Symbol>>,
         alias_type_arguments: &mut Option<&[Id<Type>]>,
@@ -627,7 +627,7 @@ impl TypeChecker {
                 })
                 .transpose()?
             };
-            let root = Gc::new(GcCell::new(ConditionalRoot::new(
+            let root = self.alloc_conditional_root(ConditionalRoot::new(
                 node,
                 check_type.clone(),
                 self.get_type_from_type_node_(node_as_conditional_type_node.extends_type)?,
@@ -642,7 +642,7 @@ impl TypeChecker {
                 outer_type_parameters.clone(),
                 alias_symbol,
                 alias_type_arguments,
-            )));
+            ));
             let resolved_type =
                 self.get_conditional_type(root.clone(), None, Option::<Id<Symbol>>::None, None)?;
             links.borrow_mut().resolved_type = Some(resolved_type.clone());

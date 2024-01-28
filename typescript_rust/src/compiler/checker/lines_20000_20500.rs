@@ -1122,7 +1122,7 @@ pub(super) enum RecursionIdentity {
     Node(Id<Node>),
     Symbol(Id<Symbol>),
     Type(Id<Type>),
-    ConditionalRoot(Gc<GcCell<ConditionalRoot>>),
+    ConditionalRoot(Id<ConditionalRoot>),
     None,
 }
 
@@ -1159,8 +1159,8 @@ impl From<Id<Type>> for RecursionIdentity {
     }
 }
 
-impl From<Gc<GcCell<ConditionalRoot>>> for RecursionIdentity {
-    fn from(value: Gc<GcCell<ConditionalRoot>>) -> Self {
+impl From<Id<ConditionalRoot>> for RecursionIdentity {
+    fn from(value: Id<ConditionalRoot>) -> Self {
         Self::ConditionalRoot(value)
     }
 }

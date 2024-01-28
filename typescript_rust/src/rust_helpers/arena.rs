@@ -18,6 +18,7 @@ use crate::{
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
+    ConditionalRoot,
 };
 
 #[derive(Default)]
@@ -87,6 +88,7 @@ pub struct AllArenas {
     pub class_lexical_environments: RefCell<Arena<ClassLexicalEnvironment>>,
     pub converted_loop_states: RefCell<Arena<ConvertedLoopState>>,
     pub emit_helper_text_callbacks: RefCell<Arena<Box<dyn EmitHelperTextCallback>>>,
+    pub conditional_roots: RefCell<Arena<ConditionalRoot>>,
 }
 
 pub trait HasArena {
@@ -606,6 +608,18 @@ pub trait HasArena {
 
     fn alloc_emit_helper_text_callback(&self, emit_helper_text_callback: Box<dyn EmitHelperTextCallback>) -> Id<Box<dyn EmitHelperTextCallback>> {
         self.arena().alloc_emit_helper_text_callback(emit_helper_text_callback)
+    }
+
+    fn conditional_root(&self, conditional_root: Id<ConditionalRoot>) -> Ref<ConditionalRoot> {
+        self.arena().conditional_root(conditional_root)
+    }
+
+    fn conditional_root_mut(&self, conditional_root: Id<ConditionalRoot>) -> RefMut<ConditionalRoot> {
+        self.arena().conditional_root_mut(conditional_root)
+    }
+
+    fn alloc_conditional_root(&self, conditional_root: ConditionalRoot) -> Id<ConditionalRoot> {
+        self.arena().alloc_conditional_root(conditional_root)
     }
 }
 
@@ -1262,6 +1276,20 @@ impl HasArena for AllArenas {
         let id = self.emit_helper_text_callbacks.borrow_mut().alloc(emit_helper_text_callback);
         id
     }
+
+    #[track_caller]
+    fn conditional_root(&self, conditional_root: Id<ConditionalRoot>) -> Ref<ConditionalRoot> {
+        Ref::map(self.conditional_roots.borrow(), |conditional_roots| &conditional_roots[conditional_root])
+    }
+
+    fn conditional_root_mut(&self, conditional_root: Id<ConditionalRoot>) -> RefMut<ConditionalRoot> {
+        RefMut::map(self.conditional_roots.borrow_mut(), |conditional_roots| &mut conditional_roots[conditional_root])
+    }
+
+    fn alloc_conditional_root(&self, conditional_root: ConditionalRoot) -> Id<ConditionalRoot> {
+        let id = self.conditional_roots.borrow_mut().alloc(conditional_root);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1787,6 +1815,18 @@ impl InArena for Id<Box<dyn EmitHelperTextCallback>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn EmitHelperTextCallback>> {
         has_arena.emit_helper_text_callback(*self)
+    }
+}
+
+impl InArena for Id<ConditionalRoot> {
+    type Item = ConditionalRoot;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ConditionalRoot> {
+        has_arena.conditional_root(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, ConditionalRoot> {
+        has_arena.conditional_root_mut(*self)
     }
 }
 
