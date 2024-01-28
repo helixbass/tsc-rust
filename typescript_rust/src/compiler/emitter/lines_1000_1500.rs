@@ -111,11 +111,11 @@ impl Printer {
                     bundle_file_info.sections.append(&mut new_sections);
                 } else {
                     for section in &new_sections {
-                        Debug_.assert(is_bundle_file_text_like(section), None);
+                        Debug_.assert(is_bundle_file_text_like(&section.ref_(self)), None);
                     }
                     bundle_file_info
                         .sections
-                        .push(Gc::new(BundleFileSection::new_prepend(
+                        .push(self.alloc_bundle_file_section(BundleFileSection::new_prepend(
                             self.relative_to_build_info(&prepend.ref_(self).as_unparsed_source().file_name),
                             new_sections,
                             pos.try_into().unwrap(),

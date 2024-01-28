@@ -161,7 +161,7 @@ impl Printer {
                         }
                     }
                     if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                        bundle_file_info.borrow_mut().sections.push(Gc::new(
+                        bundle_file_info.borrow_mut().sections.push(self.alloc_bundle_file_section(
                             BundleFileSection::new_emit_helpers(
                                 helper.ref_(self).name().to_owned(),
                                 pos.try_into().unwrap(),
@@ -261,13 +261,13 @@ impl Printer {
         let pos = self.get_text_pos_with_write_line();
         self.write_unparsed_node(unparsed);
         if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-            let section = (*unparsed.ref_(self).as_unparsed_synthetic_reference().section).clone();
+            let section = (*unparsed.ref_(self).as_unparsed_synthetic_reference().section.ref_(self)).clone();
             section.set_pos(pos.try_into().unwrap());
             section.set_end(self.writer().get_text_pos().try_into().unwrap());
             bundle_file_info
                 .borrow_mut()
                 .sections
-                .push(Gc::new(section));
+                .push(self.alloc_bundle_file_section(section));
         }
     }
 

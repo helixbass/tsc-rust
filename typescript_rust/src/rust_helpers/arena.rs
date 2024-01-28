@@ -15,7 +15,7 @@ use crate::{
     WrapCustomTransformerFactoryHandleDefault, TransformationContextOnEmitNodeOverrider, SourceMapGenerator,
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
-    SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray,
+    SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
 };
 
 #[derive(Default)]
@@ -74,6 +74,7 @@ pub struct AllArenas {
     pub write_file_callbacks: RefCell<Arena<Box<dyn WriteFileCallback>>>,
     pub resolved_module_fulls: RefCell<Arena<ResolvedModuleFull>>,
     pub node_arrays: RefCell<Arena<NodeArray>>,
+    pub bundle_file_sections: RefCell<Arena<BundleFileSection>>,
 }
 
 pub trait HasArena {
@@ -485,6 +486,14 @@ pub trait HasArena {
 
     fn alloc_node_array(&self, node_array: NodeArray) -> Id<NodeArray> {
         self.arena().alloc_node_array(node_array)
+    }
+
+    fn bundle_file_section(&self, bundle_file_section: Id<BundleFileSection>) -> Ref<BundleFileSection> {
+        self.arena().bundle_file_section(bundle_file_section)
+    }
+
+    fn alloc_bundle_file_section(&self, bundle_file_section: BundleFileSection) -> Id<BundleFileSection> {
+        self.arena().alloc_bundle_file_section(bundle_file_section)
     }
 }
 
@@ -1011,6 +1020,16 @@ impl HasArena for AllArenas {
         let id = self.node_arrays.borrow_mut().alloc(node_array);
         id
     }
+
+    #[track_caller]
+    fn bundle_file_section(&self, bundle_file_section: Id<BundleFileSection>) -> Ref<BundleFileSection> {
+        Ref::map(self.bundle_file_sections.borrow(), |bundle_file_sections| &bundle_file_sections[bundle_file_section])
+    }
+
+    fn alloc_bundle_file_section(&self, bundle_file_section: BundleFileSection) -> Id<BundleFileSection> {
+        let id = self.bundle_file_sections.borrow_mut().alloc(bundle_file_section);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1425,6 +1444,14 @@ impl InArena for Id<NodeArray> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeArray> {
         has_arena.node_array(*self)
+    }
+}
+
+impl InArena for Id<BundleFileSection> {
+    type Item = BundleFileSection;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, BundleFileSection> {
+        has_arena.bundle_file_section(*self)
     }
 }
 

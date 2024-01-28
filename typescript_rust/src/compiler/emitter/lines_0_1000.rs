@@ -2481,12 +2481,12 @@ impl Printer {
         let bundle_file_info = self.bundle_file_info();
         let mut bundle_file_info = bundle_file_info.borrow_mut();
         let last = last_or_undefined(&bundle_file_info.sections);
-        if let Some(last) = last.filter(|last| last.kind() == kind) {
-            last.set_end(end);
+        if let Some(last) = last.filter(|last| last.ref_(self).kind() == kind) {
+            last.ref_(self).set_end(end);
         } else {
             bundle_file_info
                 .sections
-                .push(Gc::new(BundleFileSection::new_text_like(
+                .push(self.alloc_bundle_file_section(BundleFileSection::new_text_like(
                     kind, None, pos, end,
                 )));
         }

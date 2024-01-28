@@ -355,11 +355,11 @@ impl BundleFileSectionInterface for BundleFileReference {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, /*Serialize,*/ Trace, Finalize)]
 pub struct BundleFilePrepend {
     #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
-    pub texts: Vec<Gc<BundleFileSection /*BundleFileTextLike*/>>,
+    pub texts: Vec<Id<BundleFileSection /*BundleFileTextLike*/>>,
 }
 
 impl BundleFilePrepend {
@@ -488,7 +488,7 @@ impl BundleFileSection {
 
     pub fn new_prepend(
         data: String,
-        texts: Vec<Gc<BundleFileSection>>,
+        texts: Vec<Id<BundleFileSection>>,
         pos: isize,
         end: isize,
     ) -> Self {
@@ -612,9 +612,9 @@ pub struct SourceFileInfo {
     pub prologues: Option<Vec<SourceFilePrologueInfo>>,
 }
 
-#[derive(Serialize, Trace, Finalize)]
+#[derive(/*Serialize,*/ Trace, Finalize)]
 pub struct BundleFileInfo {
-    pub sections: Vec<Gc<BundleFileSection>>,
+    pub sections: Vec<Id<BundleFileSection>>,
     pub sources: Option<SourceFileInfo>,
 }
 
