@@ -13,7 +13,7 @@ use crate::{
     NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
     RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
     TypeComparer, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
-    UnionOrIntersectionTypeInterface, VarianceFlags,
+    UnionOrIntersectionTypeInterface, VarianceFlags, AllArenas,
 };
 
 impl CheckTypeRelatedTo {
@@ -508,7 +508,7 @@ impl CheckTypeRelatedTo {
                 self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Target);
             }
         }
-        let mut original_handler: Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>> = None;
+        let mut original_handler: Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>> = None;
         let propagating_variance_flags: Rc<Cell<RelationComparisonResult>> =
             Rc::new(Cell::new(RelationComparisonResult::None));
         if let Some(outofband_variance_marker_handler) =
@@ -516,7 +516,7 @@ impl CheckTypeRelatedTo {
         {
             original_handler = Some(outofband_variance_marker_handler);
             self.type_checker
-                .set_outofband_variance_marker_handler(Some(Gc::new(Box::new(
+                .set_outofband_variance_marker_handler(Some(self.alloc_outofband_variance_marker_handler(Box::new(
                     RecursiveTypeRelatedToOutofbandVarianceMarkerHandler::new(
                         propagating_variance_flags.clone(),
                         original_handler.clone().unwrap(),
@@ -1930,7 +1930,7 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
                 || p == checker.marker_sub_type()
                 || p == checker.marker_other_type()
             {
-                outofband_variance_marker_handler.call(false);
+                outofband_variance_marker_handler.ref_(checker).call(false);
             }
         }
         Ok(p)
@@ -1952,7 +1952,7 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
                 || p == checker.marker_sub_type()
                 || p == checker.marker_other_type()
             {
-                outofband_variance_marker_handler.call(true);
+                outofband_variance_marker_handler.ref_(checker).call(true);
             }
         }
         Ok(p)
@@ -1986,13 +1986,13 @@ impl TypeComparer for TypeComparerIsRelatedToWorker {
 struct RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
     #[unsafe_ignore_trace]
     propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
-    original_handler: Gc<Box<dyn OutofbandVarianceMarkerHandler>>,
+    original_handler: Id<Box<dyn OutofbandVarianceMarkerHandler>>,
 }
 
 impl RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
     pub fn new(
         propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
-        original_handler: Gc<Box<dyn OutofbandVarianceMarkerHandler>>,
+        original_handler: Id<Box<dyn OutofbandVarianceMarkerHandler>>,
     ) -> Self {
         Self {
             propagating_variance_flags,
@@ -2011,6 +2011,12 @@ impl OutofbandVarianceMarkerHandler for RecursiveTypeRelatedToOutofbandVarianceM
                     RelationComparisonResult::ReportsUnmeasurable
                 },
         );
-        self.original_handler.call(only_unreliable);
+        self.original_handler.ref_(self).call(only_unreliable);
+    }
+}
+
+impl HasArena for RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

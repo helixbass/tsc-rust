@@ -18,7 +18,7 @@ use crate::{
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
-    ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource,
+    ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
 };
 
 #[derive(Default)]
@@ -89,6 +89,7 @@ pub struct AllArenas {
     pub emit_nodes: RefCell<Arena<EmitNode>>,
     pub check_binary_expressions: RefCell<Arena<CheckBinaryExpression>>,
     pub source_map_sources: RefCell<Arena<SourceMapSource>>,
+    pub outofband_variance_marker_handlers: RefCell<Arena<Box<dyn OutofbandVarianceMarkerHandler>>>,
 }
 
 pub trait HasArena {
@@ -648,6 +649,14 @@ pub trait HasArena {
 
     fn alloc_source_map_source(&self, source_map_source: SourceMapSource) -> Id<SourceMapSource> {
         self.arena().alloc_source_map_source(source_map_source)
+    }
+
+    fn outofband_variance_marker_handler(&self, outofband_variance_marker_handler: Id<Box<dyn OutofbandVarianceMarkerHandler>>) -> Ref<Box<dyn OutofbandVarianceMarkerHandler>> {
+        self.arena().outofband_variance_marker_handler(outofband_variance_marker_handler)
+    }
+
+    fn alloc_outofband_variance_marker_handler(&self, outofband_variance_marker_handler: Box<dyn OutofbandVarianceMarkerHandler>) -> Id<Box<dyn OutofbandVarianceMarkerHandler>> {
+        self.arena().alloc_outofband_variance_marker_handler(outofband_variance_marker_handler)
     }
 }
 
@@ -1352,6 +1361,16 @@ impl HasArena for AllArenas {
         let id = self.source_map_sources.borrow_mut().alloc(source_map_source);
         id
     }
+
+    #[track_caller]
+    fn outofband_variance_marker_handler(&self, outofband_variance_marker_handler: Id<Box<dyn OutofbandVarianceMarkerHandler>>) -> Ref<Box<dyn OutofbandVarianceMarkerHandler>> {
+        Ref::map(self.outofband_variance_marker_handlers.borrow(), |outofband_variance_marker_handlers| &outofband_variance_marker_handlers[outofband_variance_marker_handler])
+    }
+
+    fn alloc_outofband_variance_marker_handler(&self, outofband_variance_marker_handler: Box<dyn OutofbandVarianceMarkerHandler>) -> Id<Box<dyn OutofbandVarianceMarkerHandler>> {
+        let id = self.outofband_variance_marker_handlers.borrow_mut().alloc(outofband_variance_marker_handler);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1917,6 +1936,14 @@ impl InArena for Id<SourceMapSource> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SourceMapSource> {
         has_arena.source_map_source(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn OutofbandVarianceMarkerHandler>> {
+    type Item = Box<dyn OutofbandVarianceMarkerHandler>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn OutofbandVarianceMarkerHandler>> {
+        has_arena.outofband_variance_marker_handler(*self)
     }
 }
 

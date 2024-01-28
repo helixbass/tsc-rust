@@ -582,7 +582,7 @@ impl TypeChecker {
                 let unmeasurable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let unreliable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let old_handler = self.maybe_outofband_variance_marker_handler();
-                self.set_outofband_variance_marker_handler(Some(Gc::new(Box::new(
+                self.set_outofband_variance_marker_handler(Some(self.alloc_outofband_variance_marker_handler(Box::new(
                     GetVariancesWorkerOutofbandVarianceMarkerHandler::new(
                         unmeasurable.clone(),
                         unreliable.clone(),

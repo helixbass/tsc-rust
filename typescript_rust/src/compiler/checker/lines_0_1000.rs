@@ -3522,13 +3522,13 @@ impl TypeChecker {
 
     pub(super) fn maybe_outofband_variance_marker_handler(
         &self,
-    ) -> Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>> {
+    ) -> Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>> {
         self.outofband_variance_marker_handler.borrow().clone()
     }
 
     pub(super) fn set_outofband_variance_marker_handler(
         &self,
-        outofband_variance_marker_handler: Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>>,
+        outofband_variance_marker_handler: Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>,
     ) {
         *self.outofband_variance_marker_handler.borrow_mut() = outofband_variance_marker_handler;
     }

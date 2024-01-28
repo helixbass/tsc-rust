@@ -442,7 +442,7 @@ pub struct TypeChecker {
     pub(crate) _jsx_namespace: GcCell<Option<__String>>,
     pub(crate) _jsx_factory_entity: GcCell<Option<Id<Node /*EntityName*/>>>,
     pub(crate) outofband_variance_marker_handler:
-        GcCell<Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>>>,
+        GcCell<Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
