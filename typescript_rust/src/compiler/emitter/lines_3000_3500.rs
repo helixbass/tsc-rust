@@ -319,12 +319,12 @@ impl Printer {
 
         if self.get_leading_line_terminator_count(
             Some(body),
-            body_as_block.statements,
+            &body_as_block.statements.ref_(self),
             ListFormat::PreserveLines,
         ) > 0
             || self.get_closing_line_terminator_count(
                 Some(body),
-                body_as_block.statements.clone().into(),
+                (&*body_as_block.statements.ref_(self)).into(),
                 ListFormat::PreserveLines,
             ) > 0
         {

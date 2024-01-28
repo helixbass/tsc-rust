@@ -617,7 +617,7 @@ impl TypeChecker {
             return self.alloc_diagnostic(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(node, self).ref_(self),
-                    type_arguments,
+                    &type_arguments.ref_(self),
                     &Diagnostics::Expected_0_type_arguments_but_got_1,
                     Some(vec![
                         if min < max {
@@ -652,7 +652,7 @@ impl TypeChecker {
                 return self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
-                        type_arguments,
+                        &type_arguments.ref_(self),
                         &Diagnostics::No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments,
                         Some(vec![
                             arg_count.to_string(),
@@ -666,7 +666,7 @@ impl TypeChecker {
         self.alloc_diagnostic(
             create_diagnostic_for_node_array(
                 &get_source_file_of_node(node, self).ref_(self),
-                type_arguments,
+                &type_arguments.ref_(self),
                 &Diagnostics::Expected_0_type_arguments_but_got_1,
                 Some(vec![
                     match below_arg_count {
@@ -996,7 +996,7 @@ impl TypeChecker {
                     self.diagnostics().add(self.get_type_argument_arity_error(
                         node,
                         signatures,
-                        type_arguments,
+                        type_arguments.unwrap(),
                     ));
                 } else if !is_decorator {
                     self.diagnostics().add(self.get_argument_arity_error(

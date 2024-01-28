@@ -316,8 +316,8 @@ impl Printer {
             }) {
                 if self.maybe_preserve_source_newlines() == Some(true) {
                     let end = if let NodeArrayOrSlice::NodeArray(children) = &children {
-                        if !position_is_synthesized(children.ref_(self).end()) {
-                            children.ref_(self).end()
+                        if !position_is_synthesized(children.end()) {
+                            children.end()
                         } else {
                             last_child.ref_(self).end()
                         }

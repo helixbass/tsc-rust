@@ -557,7 +557,7 @@ impl BinderType {
             while clauses[i]
                 .ref_(self).as_case_or_default_clause()
                 .statements()
-                .is_empty()
+                .ref_(self).is_empty()
                 && i + 1 < clauses.len()
             {
                 self.bind(Some(clauses[i]));

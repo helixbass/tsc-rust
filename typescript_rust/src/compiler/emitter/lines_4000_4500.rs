@@ -445,11 +445,11 @@ impl Printer {
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.ref_(self).maybe_decorators().as_double_deref(),
+                            parameter.ref_(self).maybe_decorators().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.ref_(self).maybe_modifiers().as_double_deref(),
+                            parameter.ref_(self).maybe_modifiers().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
@@ -770,7 +770,7 @@ impl Printer {
 
             let closing_line_terminator_count = self.get_closing_line_terminator_count(
                 parent_node,
-                children.into(),
+                (&*children.ref_(self)).into(),
                 format,
             );
             if closing_line_terminator_count != 0 {

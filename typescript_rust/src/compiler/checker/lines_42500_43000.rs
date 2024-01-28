@@ -636,8 +636,7 @@ impl TypeChecker {
         self.check_grammar_type_arguments(
             node,
             node.ref_(self).as_expression_with_type_arguments()
-                .maybe_type_arguments()
-                .refed(self).as_deref(),
+                .maybe_type_arguments(),
         )
     }
 
@@ -672,9 +671,9 @@ impl TypeChecker {
                             );
                         }
 
-                        if heritage_clause_as_heritage_clause.types.len() > 1 {
+                        if heritage_clause_as_heritage_clause.types.ref_(self).len() > 1 {
                             return self.grammar_error_on_first_token(
-                                heritage_clause_as_heritage_clause.types[1],
+                                heritage_clause_as_heritage_clause.types.ref_(self)[1],
                                 &Diagnostics::Classes_can_only_extend_a_single_class,
                                 None,
                             );
@@ -880,8 +879,8 @@ impl TypeChecker {
                 );
             }
 
-            if let Some(prop_modifiers) = prop.ref_(self).maybe_modifiers().as_ref() {
-                for &mod_ in prop_modifiers {
+            if let Some(prop_modifiers) = prop.ref_(self).maybe_modifiers() {
+                for &mod_ in &*prop_modifiers.ref_(self){
                     if mod_.ref_(self).kind() != SyntaxKind::AsyncKeyword
                         || prop.ref_(self).kind() != SyntaxKind::MethodDeclaration
                     {

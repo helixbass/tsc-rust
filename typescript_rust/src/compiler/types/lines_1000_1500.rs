@@ -157,7 +157,7 @@ mod _NodeArrayDeriveTraceScope {
 pub use _NodeArrayDeriveTraceScope::NodeArray;
 
 pub trait NodeArrayExt {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>, arena: &impl HasArena) -> Self;
 }
 
 impl NodeArrayExt for Id<NodeArray> {

@@ -844,7 +844,7 @@ impl TypeChecker {
                     self.may_resolve_type_alias(node.ref_(self).as_array_type_node().element_type)?
                 } else if node.ref_(self).kind() == SyntaxKind::TupleType {
                     try_some(
-                        Some(&*node.ref_(self).as_tuple_type_node().elements).ref_(self),
+                        Some(&*node.ref_(self).as_tuple_type_node().elements.ref_(self)),
                         Some(|&element: &Id<Node>| self.may_resolve_type_alias(element)),
                     )?
                 } else {

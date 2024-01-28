@@ -493,7 +493,7 @@ impl TypeChecker {
         let mut private_identifiers: HashMap<__String, DeclarationMeaning> = HashMap::new();
         for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             if member.ref_(self).kind() == SyntaxKind::Constructor {
-                for &param in &member.ref_(self).as_constructor_declaration().parameters() {
+                for &param in &*member.ref_(self).as_constructor_declaration().parameters().ref_(self) {
                     if is_parameter_property_declaration(param, member, self)
                         && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref())
                     {

@@ -2509,7 +2509,7 @@ pub fn try_for_each_child<TError>(
         }
         Node::JSDocTypeLiteral(node) => {
             try_maybe_for_each(
-                node.js_doc_property_tags,
+                node.js_doc_property_tags.refed(arena).as_deref(),
                 |&node: &Id<Node>, _| -> Result<_, TError> {
                     cb_node(node)?;
                     Ok(Option::<()>::None)

@@ -1040,7 +1040,7 @@ pub fn get_elements_of_binding_or_assignment_pattern(
     name: Id<Node /*BindingOrAssignmentPattern*/>,
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*BindingOrAssignmentElement*/>> {
-    match name.kind() {
+    match name.ref_(arena).kind() {
         SyntaxKind::ObjectBindingPattern
         | SyntaxKind::ArrayBindingPattern
         | SyntaxKind::ArrayLiteralExpression => name.ref_(arena).as_has_elements().elements().ref_(arena).to_vec(),

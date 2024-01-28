@@ -378,7 +378,7 @@ impl TypeChecker {
                     }
                 }
                 SyntaxKind::Constructor => {
-                    for &parameter in &member.ref_(self).as_constructor_declaration().parameters() {
+                    for &parameter in &*member.ref_(self).as_constructor_declaration().parameters().ref_(self) {
                         if match parameter.ref_(self).symbol().ref_(self).maybe_is_referenced() {
                             None => true,
                             Some(parameter_symbol_is_referenced) => {
@@ -495,7 +495,7 @@ impl TypeChecker {
                         .maybe_type_parameters()
                         .as_ref()
                         .unwrap()
-                        .len()
+                        .ref_(self).len()
                         == 1;
                     let message = if only {
                         &*Diagnostics::_0_is_declared_but_its_value_is_never_read

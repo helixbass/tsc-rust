@@ -808,7 +808,7 @@ impl TypeChecker {
             node.ref_(self).maybe_decorators().refed(self).as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) && some(
-            Some(&node_as_class_declaration.members().ref_(self)),
+            Some(&*node_as_class_declaration.members().ref_(self)),
             Some(|&p: &Id<Node>| {
                 has_static_modifier(p, self) && is_private_identifier_class_element_declaration(p, self)
             }),
