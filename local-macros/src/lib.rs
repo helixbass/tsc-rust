@@ -204,23 +204,23 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_symbol_override(symbol_override)
                     }
 
-                    fn maybe_locals(&self) -> ::std::option::Option<::id_arena::id<crate::SymbolTable>> {
+                    fn maybe_locals(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         self.#first_field_name.maybe_locals()
                     }
 
-                    fn maybe_locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_locals_mut()
                     }
 
-                    fn locals(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn locals(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         self.#first_field_name.locals()
                     }
 
-                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>, ::id_arena::id<crate::SymbolTable>> {
+                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>, ::id_arena::Id<crate::SymbolTable>> {
                         self.#first_field_name.locals_mut()
                     }
 
-                    fn set_locals(&self, locals: ::std::option::Option<::id_arena::id<crate::SymbolTable>>) {
+                    fn set_locals(&self, locals: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
                         self.#first_field_name.set_locals(locals)
                     }
 
@@ -723,31 +723,31 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_locals(&self) -> ::std::option::Option<::id_arena::id<crate::SymbolTable>> {
+                    fn maybe_locals(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_locals()),*
                         }
                     }
 
-                    fn maybe_locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_locals_mut()),*
                         }
                     }
 
-                    fn locals(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn locals(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.locals()),*
                         }
                     }
 
-                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>, ::id_arena::id<crate::SymbolTable>> {
+                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>, ::id_arena::Id<crate::SymbolTable>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.locals_mut()),*
                         }
                     }
 
-                    fn set_locals(&self, locals: ::std::option::Option<::id_arena::id<crate::SymbolTable>>) {
+                    fn set_locals(&self, locals: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_locals(locals)),*
                         }
@@ -1507,11 +1507,11 @@ fn get_type_struct_interface_impl(
         "ObjectTypeInterface" => {
             quote! {
                 impl crate::ObjectTypeInterface for #type_type_name {
-                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_members()
                     }
 
-                    fn set_members(&self, members: ::std::option::Option<::id_arena::id<crate::SymbolTable>>) {
+                    fn set_members(&self, members: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
                         self.#first_field_name.set_members(members)
                     }
 
@@ -1540,7 +1540,7 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::id_arena::id<crate::SymbolTable>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::id_arena::Id<crate::SymbolTable>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
@@ -1553,7 +1553,7 @@ fn get_type_struct_interface_impl(
         "ResolvedTypeInterface" => {
             quote! {
                 impl crate::ResolvedTypeInterface for #type_type_name {
-                    fn members(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn members(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         self.#first_field_name.members()
                     }
 
@@ -2087,13 +2087,13 @@ fn get_type_enum_interface_impl(
         "ObjectTypeInterface" => {
             quote! {
                 impl crate::ObjectTypeInterface for #type_type_name {
-                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_members()),*
                         }
                     }
 
-                    fn set_members(&self, members: ::std::option::Option<::id_arena::id<crate::SymbolTable>>) {
+                    fn set_members(&self, members: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_members(members)),*
                         }
@@ -2134,7 +2134,7 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::id_arena::id<crate::SymbolTable>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::id_arena::Id<crate::SymbolTable>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
@@ -2151,7 +2151,7 @@ fn get_type_enum_interface_impl(
         "ResolvedTypeInterface" => {
             quote! {
                 impl crate::ResolvedTypeInterface for #type_type_name {
-                    fn members(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn members(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.members()),*
                         }
@@ -2672,31 +2672,31 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_value_declaration(node)
                     }
 
-                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_members()
                     }
 
-                    fn maybe_members_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_members_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_members_mut()
                     }
 
-                    fn members(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn members(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         self.#first_field_name.members()
                     }
 
-                    fn maybe_exports(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_exports(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_exports()
                     }
 
-                    fn maybe_exports_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_exports_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_exports_mut()
                     }
 
-                    fn exports(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn exports(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         self.#first_field_name.exports()
                     }
 
-                    fn maybe_global_exports(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_global_exports(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_global_exports()
                     }
 
@@ -2852,43 +2852,43 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_members()),*
                         }
                     }
 
-                    fn maybe_members_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_members_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_members_mut()),*
                         }
                     }
 
-                    fn members(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn members(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.members()),*
                         }
                     }
 
-                    fn maybe_exports(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_exports(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_exports()),*
                         }
                     }
 
-                    fn maybe_exports_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_exports_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_exports_mut()),*
                         }
                     }
 
-                    fn exports(&self) -> ::id_arena::id<crate::SymbolTable> {
+                    fn exports(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.exports()),*
                         }
                     }
 
-                    fn maybe_global_exports(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::id<crate::SymbolTable>>> {
+                    fn maybe_global_exports(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_global_exports()),*
                         }
