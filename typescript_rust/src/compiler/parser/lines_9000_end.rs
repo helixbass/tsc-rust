@@ -23,9 +23,10 @@ use crate::{
 impl IncrementalParserType {
     pub fn create_syntax_cursor(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
+        arena: &impl HasArena,
     ) -> IncrementalParserSyntaxCursor {
-        IncrementalParserSyntaxCursor::create(source_file)
+        IncrementalParserSyntaxCursor::create(source_file, arena)
     }
 }
 
@@ -40,8 +41,8 @@ pub enum IncrementalParserSyntaxCursor {
 }
 
 impl IncrementalParserSyntaxCursor {
-    pub fn create(source_file: &Node) -> Self {
-        Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file))
+    pub fn create(source_file: Id<Node>, arena: &impl HasArena) -> Self {
+        Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file, arena))
     }
 }
 
@@ -70,17 +71,18 @@ pub struct IncrementalParserSyntaxCursorCreated {
 }
 
 impl IncrementalParserSyntaxCursorCreated {
-    pub fn new(source_file: &Node) -> Self {
-        let source_file_as_source_file = source_file.as_source_file();
+    pub fn new(source_file: Id<Node>, arena: &impl HasArena) -> Self {
+        let source_file_ref = source_file.ref_(arena);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
 
-        Debug_.assert(current_array_index < current_array.ref_(self).len(), None);
+        Debug_.assert(current_array_index < current_array.ref_(arena).len(), None);
         Self {
-            source_file: source_file.arena_id(),
+            source_file,
             current_array: GcCell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
-            current: GcCell::new(Some(current_array.ref_(self)[current_array_index].clone())),
+            current: GcCell::new(Some(current_array.ref_(arena)[current_array_index].clone())),
             last_queried_position: Default::default(), /*InvalidPosition::Value*/
         }
     }

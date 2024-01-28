@@ -564,6 +564,7 @@ impl NodeFactory {
                     self.flatten_comma_elements(element)
                 })),
                 None,
+                self,
             ),
         );
         node.set_transform_flags(
@@ -731,7 +732,7 @@ impl NodeFactory {
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Id<Node> {
         let arguments_list = arguments_list.into();
-        self.create_method_call(target, "bind", vec![this_arg].and_extend(arguments_list))
+        self.create_method_call(target, "bind", vec![this_arg].and_extend(arguments_list.ref_(self)))
     }
 
     pub fn create_function_call_call(
@@ -741,7 +742,7 @@ impl NodeFactory {
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Id<Node> {
         let arguments_list = arguments_list.into();
-        self.create_method_call(target, "call", vec![this_arg].and_extend(arguments_list))
+        self.create_method_call(target, "call", vec![this_arg].and_extend(arguments_list.ref_(self)))
     }
 
     pub fn create_function_apply_call(
@@ -1479,17 +1480,17 @@ impl NodeFactory {
         let declarations = declarations.unwrap();
 
         let left_standard_prologue_end = self.find_span_end(
-            &*statements,
+            &*statements.ref_(self),
             |&node: &Id<Node>| is_prologue_directive(node, self),
             0,
         );
         let left_hoisted_functions_end = self.find_span_end(
-            &*statements,
+            &*statements.ref_(self),
             |node: &Id<Node>| is_hoisted_function(&node.ref_(self)),
             left_standard_prologue_end,
         );
         let left_hoisted_variables_end = self.find_span_end(
-            &*statements,
+            &*statements.ref_(self),
             |&node: &Id<Node>| is_hoisted_variable_statement(node, self),
             left_hoisted_functions_end,
         );
@@ -1519,7 +1520,7 @@ impl NodeFactory {
             Some("Expected declarations to be a valid standard or custom prologues"),
         );
 
-        let mut left = (*statements).to_owned();
+        let mut left = (*statements.ref_(self)).to_owned();
 
         if right_custom_prologue_end > right_hoisted_variables_end {
             left.splice(
@@ -1558,7 +1559,7 @@ impl NodeFactory {
                 );
             } else {
                 let mut left_prologues: HashMap<String, bool> = _d();
-                for left_prologue in statements.iter().take(left_standard_prologue_end) {
+                for left_prologue in statements.ref_(self).iter().take(left_standard_prologue_end) {
                     left_prologues.insert(
                         left_prologue
                             .ref_(self).as_expression_statement()

@@ -1064,7 +1064,7 @@ pub(super) fn convert_config_file_to_object(
     let source_file_as_source_file = source_file_ref.as_source_file();
     let root_expression = source_file_as_source_file
         .statements()
-        .get(0)
+        .ref_(arena).get(0)
         .map(|statement| statement.ref_(arena).as_expression_statement().expression);
     let known_root_options: Option<Gc<CommandLineOption>> = if report_options_errors {
         Some(get_tsconfig_root_options_map())
@@ -1094,7 +1094,7 @@ pub(super) fn convert_config_file_to_object(
         ));
         if is_array_literal_expression(&root_expression.ref_(arena)) {
             let first_object = find(
-                &root_expression.ref_(arena).as_array_literal_expression().elements,
+                &root_expression.ref_(arena).as_array_literal_expression().elements.ref_(arena),
                 |element, _| is_object_literal_expression(&element.ref_(arena)),
             ).copied();
             if let Some(first_object) = first_object {
@@ -1132,7 +1132,7 @@ pub fn convert_to_object(
         source_file
             .ref_(arena).as_source_file()
             .statements()
-            .get(0)
+            .ref_(arena).get(0)
             .map(|statement| statement.ref_(arena).as_expression_statement().expression),
         errors,
         true,

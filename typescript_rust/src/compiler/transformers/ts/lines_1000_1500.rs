@@ -116,7 +116,7 @@ impl TransformTypeScript {
         add_range(
             &mut decorator_expressions,
             try_maybe_map(
-                all_decorators.decorators.as_deref(),
+                all_decorators.decorators.as_ref().map(NodeArrayOrVec::ref_).as_deref(),
                 |&decorator: &Id<Node>, _| self.transform_decorator(decorator),
             )
             .transpose()?
@@ -134,7 +134,7 @@ impl TransformTypeScript {
                         Some(all_decorators_parameters),
                         |parameter: &Option<NodeArrayOrVec>, index| -> io::Result<_> {
                             Ok(self
-                                .transform_decorators_of_parameter(parameter.as_deref(), index)?
+                                .transform_decorators_of_parameter(parameter.as_ref().map(NodeArrayOrVec::ref_).as_deref(), index)?
                                 .unwrap_or_default())
                         },
                     )

@@ -227,7 +227,7 @@ impl TransformES2015 {
         if is_block(&statement.ref_(self)) {
             add_range(
                 &mut statements,
-                Some(&statement.ref_(self).as_block().statements),
+                Some(&statement.ref_(self).as_block().statements.ref_(self)),
                 None,
                 None,
             );
@@ -585,7 +585,7 @@ impl TransformES2015 {
     ) -> io::Result<()> {
         let name = decl.ref_(self).as_named_declaration().name();
         if is_binding_pattern(Some(&*name.ref_(self))) {
-            for &element in &name.ref_(self).as_has_elements().elements() {
+            for &element in &*name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.process_loop_variable_declaration(
                         container,
@@ -649,11 +649,11 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         let properties = &node_as_object_literal_expression.properties;
-        for &property in properties.iter().skip(start) {
+        for &property in properties.ref_(self).iter().skip(start) {
             match property.ref_(self).kind() {
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                     let accessors = get_all_accessor_declarations(
-                        &node_as_object_literal_expression.properties,
+                        &node_as_object_literal_expression.properties.ref_(self),
                         property,
                         self,
                     );

@@ -48,7 +48,7 @@ pub fn for_each_child_recursively<TValue>(
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, parent);
+                    let res = cb_nodes(current, parent);
                     if let Some(res) = res {
                         match res {
                             ForEachChildRecursivelyCallbackReturn::Skip => {
@@ -60,7 +60,7 @@ pub fn for_each_child_recursively<TValue>(
                         }
                     }
                 }
-                for &current_child in current.to_vec().iter().rev() {
+                for &current_child in current.ref_(arena).to_vec().iter().rev() {
                     queue.push(current_child.into());
                     parents.push(parent);
                 }
@@ -123,12 +123,12 @@ pub fn try_for_each_child_recursively_bool<TError>(
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, parent)?;
+                    let res = cb_nodes(current, parent)?;
                     if res {
                         return Ok(true);
                     }
                 }
-                for &current_child in current.to_vec().iter().rev() {
+                for &current_child in current.ref_(arena).to_vec().iter().rev() {
                     queue.push(current_child.into());
                     parents.push(parent);
                 }
@@ -177,7 +177,7 @@ fn gather_possible_children(node: Id<Node>, arena: &impl HasArena) -> Vec<RcNode
         Some(|node_array: Id<NodeArray>| {
             children
                 .borrow_mut()
-                .insert(0, node_array.rc_wrapper().into());
+                .insert(0, node_array.into());
         }),
         arena,
     );
@@ -724,7 +724,7 @@ impl ParserType {
                 result,
                 result_as_source_file
                     .statements()
-                    .get(0)
+                    .ref_(self).get(0)
                     .map(|statement| statement.ref_(self).as_expression_statement().expression),
                 result_as_source_file.parse_diagnostics(),
                 false,

@@ -498,10 +498,8 @@ impl Program {
         nodes: Id<NodeArray>,
         parent: Id<Node>,
     ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
-        if matches!(
-            parent.ref_(self).maybe_decorators().as_deref(),
-            Some(parent_decorators) if ptr::eq(parent_decorators, nodes)
-        ) && self.options.ref_(self).experimental_decorators != Some(true)
+        if parent.ref_(self).maybe_decorators() == Some(nodes)
+            && self.options.ref_(self).experimental_decorators != Some(true)
         {
             diagnostics.borrow_mut().push(
                 self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
@@ -523,10 +521,7 @@ impl Program {
             | SyntaxKind::FunctionExpression
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::ArrowFunction => {
-                if matches!(
-                    parent.ref_(self).as_has_type_parameters().maybe_type_parameters().as_deref(),
-                    Some(parent_type_parameters) if ptr::eq(nodes, parent_type_parameters)
-                ) {
+                if parent.ref_(self).as_has_type_parameters().maybe_type_parameters() == Some(nodes) {
                     diagnostics.borrow_mut().push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
@@ -540,8 +535,7 @@ impl Program {
 
                 if let Some(parent_modifiers) = parent
                     .ref_(self).maybe_modifiers()
-                    .as_deref()
-                    .filter(|parent_modifiers| ptr::eq(nodes, *parent_modifiers))
+                    .filter(|&parent_modifiers| nodes == parent_modifiers)
                 {
                     self.get_js_syntactic_diagnostics_for_file_check_modifiers(
                         diagnostics.clone(),
@@ -555,8 +549,7 @@ impl Program {
             SyntaxKind::VariableStatement => {
                 if let Some(parent_modifiers) = parent
                     .ref_(self).maybe_modifiers()
-                    .as_deref()
-                    .filter(|parent_modifiers| ptr::eq(nodes, *parent_modifiers))
+                    .filter(|&parent_modifiers| nodes == parent_modifiers)
                 {
                     self.get_js_syntactic_diagnostics_for_file_check_modifiers(
                         diagnostics.clone(),
@@ -568,11 +561,8 @@ impl Program {
                 }
             }
             SyntaxKind::PropertyDeclaration => {
-                if matches!(
-                    parent.ref_(self).maybe_modifiers().as_deref(),
-                    Some(parent_modifiers) if ptr::eq(nodes, parent_modifiers)
-                ) {
-                    for &modifier in nodes {
+                if parent.ref_(self).maybe_modifiers() == Some(nodes) {
+                    for &modifier in &*nodes.ref_(self) {
                         if modifier.ref_(self).kind() != SyntaxKind::StaticKeyword {
                             diagnostics.borrow_mut().push(
                                 self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
@@ -588,10 +578,7 @@ impl Program {
                 }
             }
             SyntaxKind::Parameter => {
-                if matches!(
-                    parent.ref_(self).maybe_modifiers().as_deref(),
-                    Some(parent_modifiers) if ptr::eq(nodes, parent_modifiers)
-                ) {
+                if parent.ref_(self).maybe_modifiers() == Some(nodes) {
                     diagnostics.borrow_mut().push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
@@ -609,10 +596,7 @@ impl Program {
             | SyntaxKind::JsxSelfClosingElement
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::TaggedTemplateExpression => {
-                if matches!(
-                    parent.ref_(self).as_has_type_arguments().maybe_type_arguments().as_deref(),
-                    Some(parent_type_arguments) if ptr::eq(nodes, parent_type_arguments)
-                ) {
+                if parent.ref_(self).as_has_type_arguments().maybe_type_arguments() == Some(nodes) {
                     diagnostics.borrow_mut().push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
@@ -636,7 +620,7 @@ impl Program {
         modifiers: Id<NodeArray>, /*<Modifier>*/
         is_const_valid: bool,
     ) {
-        for &modifier in modifiers {
+        for &modifier in &*modifiers.ref_(self) {
             match modifier.ref_(self).kind() {
                 SyntaxKind::ConstKeyword => {
                     if is_const_valid {
@@ -685,8 +669,8 @@ impl Program {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> DiagnosticWithLocation {
-        let start = nodes.pos();
-        create_file_diagnostic(source_file, start, nodes.end() - start, message, args)
+        let start = nodes.ref_(self).pos();
+        create_file_diagnostic(source_file, start, nodes.ref_(self).end() - start, message, args)
     }
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
@@ -946,7 +930,7 @@ impl Program {
             }
         }
 
-        for &node in &file_as_source_file.statements() {
+        for &node in &*file_as_source_file.statements().ref_(self) {
             self.collect_module_references(
                 &mut imports,
                 file,
@@ -1032,7 +1016,7 @@ impl Program {
                     }
                     let body = node.ref_(self).as_module_declaration().body;
                     if let Some(body) = body {
-                        for &statement in &body.ref_(self).as_module_block().statements {
+                        for &statement in &*body.ref_(self).as_module_block().statements.ref_(self) {
                             self.collect_module_references(
                                 imports,
                                 file,
@@ -1067,17 +1051,17 @@ impl Program {
             );
             if is_java_script_file && is_require_call(node, true, self) {
                 set_parent_recursive(Some(node), false, self);
-                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.get(0).cloned()
+                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.ref_(self).get(0).cloned()
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
             } else if is_import_call(node, self) && {
                 let node_ref = node.ref_(self);
                 let node_arguments = &node_ref.as_call_expression().arguments;
-                node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0].ref_(self))
+                node_arguments.ref_(self).len() >= 1 && is_string_literal_like(&node_arguments.ref_(self)[0].ref_(self))
             } {
                 set_parent_recursive(Some(node), false, self);
-                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.get(0).cloned()
+                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.ref_(self).get(0).cloned()
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }

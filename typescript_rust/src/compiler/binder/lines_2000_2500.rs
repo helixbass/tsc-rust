@@ -91,7 +91,7 @@ impl BinderType {
 
             let node_ref = node.ref_(self);
             let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-            for prop in &*node_as_object_literal_expression.properties {
+            for prop in &*node_as_object_literal_expression.properties.ref_(self) {
                 if prop.ref_(self).kind() == SyntaxKind::SpreadAssignment
                     || prop.ref_(self).as_named_declaration().name().ref_(self).kind() != SyntaxKind::Identifier
                 {
@@ -892,7 +892,7 @@ impl BinderType {
         statements: Id<NodeArray>, /*<Statement>*/
     ) {
         if self.maybe_in_strict_mode() != Some(true) {
-            for &statement in statements {
+            for &statement in &*statements.ref_(self) {
                 if !is_prologue_directive(statement, self) {
                     return;
                 }

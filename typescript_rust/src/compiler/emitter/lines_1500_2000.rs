@@ -314,7 +314,7 @@ impl Printer {
         }
         self.emit_list(
             Some(node),
-            node.ref_(self).as_identifier().maybe_type_arguments().as_deref(),
+            node.ref_(self).as_identifier().maybe_type_arguments(),
             ListFormat::TypeParameters,
             None,
             None,

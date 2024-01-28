@@ -408,7 +408,7 @@ impl TransformGenerators {
                 self.transform_and_emit_statements(
                     &case_block_as_case_block.clauses.ref_(self)[i]
                         .ref_(self).as_has_statements()
-                        .statements(),
+                        .statements().ref_(self),
                     None,
                 );
             }

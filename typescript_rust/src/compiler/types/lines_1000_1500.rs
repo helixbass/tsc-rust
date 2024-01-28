@@ -170,6 +170,7 @@ mod _NodeArrayOrVecDeriveTraceScope {
     use local_macros::Trace;
 
     use super::*;
+    use crate::InArena;
 
     #[derive(Clone, Debug, Trace, Finalize)]
     pub enum NodeArrayOrVec {
@@ -242,8 +243,8 @@ impl Deref for NodeArrayOrVecRef<'_> {
 impl From<&NodeArrayOrVecRef<'_>> for Vec<Id<Node>> {
     fn from(value: &NodeArrayOrVecRef) -> Vec<Id<Node>> {
         match value {
-            NodeArrayOrVec::NodeArray(value) => value.to_vec(),
-            NodeArrayOrVec::Vec(value) => value.clone(),
+            NodeArrayOrVecRef::NodeArray(value) => value.to_vec(),
+            NodeArrayOrVecRef::Vec(value) => value.clone(),
         }
     }
 }
@@ -255,7 +256,7 @@ impl IntoIterator for NodeArrayOrVecRef<'_> {
     fn into_iter(self) -> Self::IntoIter {
         match self {
             Self::NodeArray(value) => value.to_vec().into_iter(),
-            Self::Vec(value) => value.into_iter(),
+            Self::Vec(value) => value.clone().into_iter(),
         }
     }
 }

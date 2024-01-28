@@ -512,10 +512,11 @@ pub fn flat_map_to_mutable<
 pub fn same_flat_map_id_node(
     array: NodeArrayOrVec,
     mut mapfn: impl FnMut(Id<Node>, usize) -> SingleOrVec<Id<Node>>,
+    arena: &impl HasArena,
 ) -> NodeArrayOrVec {
     let mut result: Option<Vec<Id<Node>>> = Default::default();
     // if (array) {
-    for (i, item) in array.iter().enumerate() {
+    for (i, item) in array.ref_(arena).iter().enumerate() {
         let item = *item;
         let mapped = mapfn(item, i);
         if result.is_some()
@@ -524,7 +525,7 @@ pub fn same_flat_map_id_node(
                 SingleOrVec::Vec(_) => true,
             }
         {
-            let result = result.get_or_insert_with(|| array[..i].to_owned());
+            let result = result.get_or_insert_with(|| array.ref_(arena)[..i].to_owned());
             match mapped {
                 SingleOrVec::Vec(mapped) => {
                     add_range(result, Some(&mapped), None, None);

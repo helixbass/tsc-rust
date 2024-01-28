@@ -247,11 +247,11 @@ pub fn collect_external_module_info(
             }
             SyntaxKind::VariableStatement => {
                 if has_syntactic_modifier(node, ModifierFlags::Export, arena) {
-                    for &decl in &node
+                    for &decl in &*node
                         .ref_(arena).as_variable_statement()
                         .declaration_list
                         .ref_(arena).as_variable_declaration_list()
-                        .declarations
+                        .declarations.ref_(arena)
                     {
                         collect_exported_variable_info(
                             decl,

@@ -380,7 +380,7 @@ impl TransformES2015 {
         }
 
         let call_argument =
-            single_or_undefined(Some(&statement_expression_as_call_expression.arguments)).cloned();
+            single_or_undefined(Some(&statement_expression_as_call_expression.arguments.ref_(self))).cloned();
         if call_argument.is_none_or_matches(|call_argument| {
             !node_is_synthesized(&*call_argument.ref_(self))
                 || call_argument.ref_(self).kind() != SyntaxKind::SpreadElement

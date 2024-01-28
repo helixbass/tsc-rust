@@ -1256,7 +1256,7 @@ pub fn get_effective_type_parameter_declarations(
         Debug_.assert(node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::JSDocComment, None);
         return flat_map(node.ref_(arena).parent().ref_(arena).as_jsdoc().tags.refed(arena).as_deref(), |tag, _| {
             if is_jsdoc_template_tag(&tag.ref_(arena)) {
-                tag.ref_(arena).as_jsdoc_template_tag().type_parameters.to_vec()
+                tag.ref_(arena).as_jsdoc_template_tag().type_parameters.ref_(arena).to_vec()
             } else {
                 /*None*/
                 vec![]

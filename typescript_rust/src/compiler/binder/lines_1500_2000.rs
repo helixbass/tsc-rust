@@ -74,7 +74,7 @@ impl BinderType {
             None
         };
         if is_binding_pattern(name.refed(self).as_deref()) {
-            for &child in &name.unwrap().ref_(self).as_has_elements().elements() {
+            for &child in &*name.unwrap().ref_(self).as_has_elements().elements().ref_(self) {
                 self.bind_initialized_variable_flow(child);
             }
         } else {
@@ -102,8 +102,8 @@ impl BinderType {
         let node_ref = node.ref_(self);
         let node_as_binding_element = node_ref.as_binding_element();
         if is_binding_pattern(node_as_binding_element.maybe_name().refed(self).as_deref()) {
-            self.bind_each(node_as_binding_element.maybe_decorators().as_double_deref());
-            self.bind_each(node_as_binding_element.maybe_modifiers().as_double_deref());
+            self.bind_each(node_as_binding_element.maybe_decorators().refed(self).as_double_deref());
+            self.bind_each(node_as_binding_element.maybe_modifiers().refed(self).as_double_deref());
             self.bind(node_as_binding_element.dot_dot_dot_token);
             self.bind(node_as_binding_element.property_name);
             self.bind(node_as_binding_element.maybe_initializer());
@@ -129,7 +129,7 @@ impl BinderType {
         }
         if let Some(StringOrNodeArray::NodeArray(node_comment)) = node_as_jsdoc_tag.maybe_comment()
         {
-            self.bind_each(Some(node_comment));
+            self.bind_each(Some(&node_comment.ref_(self)));
         }
     }
 
@@ -200,9 +200,9 @@ impl BinderType {
                 self.bind_each(
                     node_as_call_expression
                         .maybe_type_arguments()
-                        .as_double_deref(),
+                        .refed(self).as_double_deref(),
                 );
-                self.bind_each(Some(&node_as_call_expression.arguments));
+                self.bind_each(Some(&node_as_call_expression.arguments.ref_(self)));
             }
             _ => (),
         }
@@ -312,9 +312,9 @@ impl BinderType {
                 self.bind_each(
                     node_as_call_expression
                         .maybe_type_arguments()
-                        .as_double_deref(),
+                        .refed(self).as_double_deref(),
                 );
-                self.bind_each(Some(&*node_as_call_expression.arguments));
+                self.bind_each(Some(&*node_as_call_expression.arguments.ref_(self)));
                 self.bind(Some(node_as_call_expression.expression));
             } else {
                 self.bind_each_child(node);
@@ -581,7 +581,7 @@ impl BinderType {
             Some(body) => body
                 .ref_(self).as_has_statements()
                 .statements()
-                .iter()
+                .ref_(self).iter()
                 .any(|s| is_export_declaration(&s.ref_(self)) || is_export_assignment(&s.ref_(self))),
         }
     }

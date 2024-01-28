@@ -288,7 +288,7 @@ pub fn move_range_past_decorators(node: Id<Node>, arena: &impl HasArena) -> Base
         .ref_(arena).maybe_decorators()
         .filter(|node_decorators| !node_decorators.ref_(arena).is_empty())
     {
-        move_range_pos(node, node_decorators.ref_(arena).end())
+        move_range_pos(&*node.ref_(arena), node_decorators.ref_(arena).end())
     } else {
         (&*node.ref_(arena)).into()
     }
@@ -299,7 +299,7 @@ pub fn move_range_past_modifiers(node: Id<Node>, arena: &impl HasArena) -> BaseT
         .ref_(arena).maybe_modifiers()
         .filter(|node_modifiers| !node_modifiers.ref_(arena).is_empty())
     {
-        move_range_pos(node, node_modifiers.ref_(arena).end())
+        move_range_pos(&*node.ref_(arena), node_modifiers.ref_(arena).end())
     } else {
         move_range_past_decorators(node, arena)
     }

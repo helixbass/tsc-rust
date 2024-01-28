@@ -234,11 +234,11 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        let properties = &node_as_object_literal_expression.properties;
+        let properties = node_as_object_literal_expression.properties;
 
         let mut num_initial_properties: Option<usize> = _d();
         let mut has_computed = false;
-        for (i, property) in properties.iter().enumerate() {
+        for (i, property) in properties.ref_(self).iter().enumerate() {
             if property
                 .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsYield)
@@ -410,7 +410,7 @@ impl TransformES2015 {
                 .unwrap()
                 .push(node);
         } else {
-            for element in &node.ref_(self).as_has_elements().elements() {
+            for element in &*node.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.hoist_variable_declaration_declared_in_converted_loop_visit(
                         state,
@@ -803,7 +803,7 @@ impl TransformES2015 {
         }) {
             let has_captured_bindings_in_for_initializer =
                 self.should_convert_initializer_of_for_statement(node);
-            for &decl in &loop_initializer.ref_(self).as_variable_declaration_list().declarations {
+            for &decl in &*loop_initializer.ref_(self).as_variable_declaration_list().declarations.ref_(self) {
                 self.process_loop_variable_declaration(
                     node,
                     decl,

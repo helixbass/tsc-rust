@@ -219,7 +219,7 @@ impl TransformDeclarations {
                                 Some(
                                     clause_as_heritage_clause
                                         .types
-                                        .iter()
+                                        .ref_(self).iter()
                                         .filter(|t| {
                                             let t_ref = t.ref_(self);
                                             let t_as_expression_with_type_arguments = t_ref.as_expression_with_type_arguments();

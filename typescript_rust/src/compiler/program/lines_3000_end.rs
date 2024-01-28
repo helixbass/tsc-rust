@@ -1458,14 +1458,14 @@ impl Program {
                         references_syntax
                             .ref_(self).as_array_literal_expression()
                             .elements
-                            .len()
+                            .ref_(self).len()
                             > index
                     })
                     .map(|references_syntax| {
                         self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node_in_source_file(
                                 source_file,
-                                references_syntax.ref_(self).as_array_literal_expression().elements[index],
+                                references_syntax.ref_(self).as_array_literal_expression().elements.ref_(self)[index],
                                 if reason.kind() == FileIncludeKind::OutputFromProjectReference {
                                     &*Diagnostics::File_is_output_from_referenced_project_specified_here
                                 } else {
@@ -1665,11 +1665,11 @@ impl Program {
                     if is_array_literal_expression(&initializer.ref_(self)) {
                         let initializer_ref = initializer.ref_(self);
                         let initializer_as_array_literal_expression = initializer_ref.as_array_literal_expression();
-                        if initializer_as_array_literal_expression.elements.len() > value_index {
+                        if initializer_as_array_literal_expression.elements.ref_(self).len() > value_index {
                             self.program_diagnostics_mut().add(self.alloc_diagnostic(
                                 create_diagnostic_for_node_in_source_file(
                                     self.options.ref_(self).config_file.unwrap(),
-                                    initializer_as_array_literal_expression.elements[value_index],
+                                    initializer_as_array_literal_expression.elements.ref_(self)[value_index],
                                     message,
                                     args.clone(),
                                     self,
@@ -1733,7 +1733,7 @@ impl Program {
     }
 
     pub fn get_options_paths_syntax(&self) -> Vec<Id<Node>> {
-        self.get_options_syntax_by_name("paths").unwrap_or_empty()
+        self.get_options_syntax_by_name("paths").unwrap_or_default()
     }
 
     pub fn get_options_syntax_by_value(&self, _name: &str, _value: &str) -> Option<Id<Node>> {
@@ -1800,7 +1800,7 @@ impl Program {
             references_syntax
                 .ref_(self).as_array_literal_expression()
                 .elements
-                .len()
+                .ref_(self).len()
                 > index
         }) {
             self.program_diagnostics_mut().add(
@@ -1808,7 +1808,7 @@ impl Program {
                     source_file
                         .or(self.options.ref_(self).config_file)
                         .unwrap(),
-                    references_syntax.ref_(self).as_array_literal_expression().elements[index],
+                    references_syntax.ref_(self).as_array_literal_expression().elements.ref_(self)[index],
                     message,
                     args,
                     self,

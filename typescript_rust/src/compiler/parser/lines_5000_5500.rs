@@ -72,7 +72,7 @@ impl ParserType {
             let last_child = if children.ref_(self).is_empty() {
                 None
             } else {
-                Some(children[children.ref_(self).len() - 1].clone())
+                Some(children.ref_(self)[children.ref_(self).len() - 1].clone())
             };
             if let Some(last_child) = last_child.filter(|last_child| {
                 if last_child.ref_(self).kind() != SyntaxKind::JsxElement {

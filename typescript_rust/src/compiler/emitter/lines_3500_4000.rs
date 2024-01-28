@@ -27,7 +27,7 @@ impl Printer {
         self.emit(Some(node_as_jsx_element.opening_element), None)?;
         self.emit_list(
             Some(node),
-            Some(&node_as_jsx_element.children),
+            Some(node_as_jsx_element.children),
             ListFormat::JsxElementOrFragmentChildren,
             None,
             None,
@@ -49,8 +49,7 @@ impl Printer {
         self.emit_type_arguments(
             node,
             node_as_jsx_self_closing_element
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         )?;
         self.write_space();
         self.emit(Some(node_as_jsx_self_closing_element.attributes), None)?;
@@ -65,7 +64,7 @@ impl Printer {
         self.emit(Some(node_as_jsx_fragment.opening_fragment), None)?;
         self.emit_list(
             Some(node),
-            Some(&node_as_jsx_fragment.children),
+            Some(node_as_jsx_fragment.children),
             ListFormat::JsxElementOrFragmentChildren,
             None,
             None,
@@ -93,8 +92,7 @@ impl Printer {
             self.emit_type_arguments(
                 node,
                 node_as_jsx_opening_element
-                    .maybe_type_arguments()
-                    .as_deref(),
+                    .maybe_type_arguments(),
             )?;
             if
             /*node.attributes.properties &&*/
@@ -102,7 +100,7 @@ impl Printer {
                 .attributes
                 .ref_(self).as_jsx_attributes()
                 .properties
-                .is_empty()
+                .ref_(self).is_empty()
             {
                 self.write_space();
             }
@@ -139,7 +137,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_list(
             Some(node),
-            Some(&node.ref_(self).as_jsx_attributes().properties),
+            Some(node.ref_(self).as_jsx_attributes().properties),
             ListFormat::JsxElementAttributes,
             None,
             None,
@@ -320,7 +318,7 @@ impl Printer {
 
         self.emit_case_or_default_clause_rest(
             node,
-            &node_as_case_clause.statements,
+            node_as_case_clause.statements,
             node_as_case_clause.expression.ref_(self).end(),
         )?;
 
@@ -338,7 +336,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_case_or_default_clause_rest(node, &node.ref_(self).as_default_clause().statements, pos)?;
+        self.emit_case_or_default_clause_rest(node, node.ref_(self).as_default_clause().statements, pos)?;
 
         Ok(())
     }
@@ -349,12 +347,12 @@ impl Printer {
         statements: Id<NodeArray>, /*<Statement>*/
         colon_pos: isize,
     ) -> io::Result<()> {
-        let emit_as_single_statement = statements.len() == 1
+        let emit_as_single_statement = statements.ref_(self).len() == 1
             && (node_is_synthesized(&*parent_node.ref_(self))
-                || node_is_synthesized(&*statements[0].ref_(self))
+                || node_is_synthesized(&*statements.ref_(self)[0].ref_(self))
                 || range_start_positions_are_on_same_line(
                     &*parent_node.ref_(self),
-                    &*statements[0].ref_(self),
+                    &*statements.ref_(self)[0].ref_(self),
                     &self.current_source_file().ref_(self),
                 ));
 
@@ -404,7 +402,7 @@ impl Printer {
         self.write_space();
         self.emit_list(
             Some(node),
-            Some(&node_as_heritage_clause.types),
+            Some(node_as_heritage_clause.types),
             ListFormat::HeritageClauseTypes,
             None,
             None,
@@ -570,13 +568,13 @@ impl Printer {
                 }
             }
         }
-        if let Some(node_tags) = node_as_jsdoc.tags.as_ref() {
-            if node_tags.len() == 1
-                && node_tags[0].ref_(self).kind() == SyntaxKind::JSDocTypeTag
+        if let Some(node_tags) = node_as_jsdoc.tags {
+            if node_tags.ref_(self).len() == 1
+                && node_tags.ref_(self)[0].ref_(self).kind() == SyntaxKind::JSDocTypeTag
                 && node_as_jsdoc.comment.is_none()
             {
                 self.write_space();
-                self.emit(Some(node_tags[0]), None)?;
+                self.emit(Some(node_tags.ref_(self)[0]), None)?;
             } else {
                 self.emit_list(
                     Some(node),
@@ -663,7 +661,7 @@ impl Printer {
         self.write_space();
         self.emit_list(
             Some(tag),
-            Some(&tag_as_jsdoc_template_tag.type_parameters),
+            Some(tag_as_jsdoc_template_tag.type_parameters),
             ListFormat::CommaListElements,
             None,
             None,
@@ -744,7 +742,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_list(
             Some(lit),
-            Some(&get_factory(self).create_node_array(
+            Some(get_factory(self).create_node_array(
                 lit.ref_(self).as_jsdoc_type_literal().js_doc_property_tags.clone(),
                 None,
             )),
@@ -766,7 +764,7 @@ impl Printer {
         if let Some(sig_type_parameters) = sig_as_jsdoc_signature.maybe_type_parameters().as_ref() {
             self.emit_list(
                 Some(sig),
-                Some(&get_factory(self).create_node_array(Some(sig_type_parameters.clone()), None)),
+                Some(get_factory(self).create_node_array(Some(sig_type_parameters.clone()), None)),
                 ListFormat::JSDocComment,
                 None,
                 None,
@@ -776,7 +774,7 @@ impl Printer {
         // if (sig.parameters) {
         self.emit_list(
             Some(sig),
-            Some(&get_factory(self).create_node_array(Some(sig_as_jsdoc_signature.parameters.clone()), None)),
+            Some(get_factory(self).create_node_array(Some(sig_as_jsdoc_signature.parameters.clone()), None)),
             ListFormat::JSDocComment,
             None,
             None,
@@ -858,11 +856,11 @@ impl Printer {
         self.write_line(None);
         let statements = node.ref_(self).as_source_file().statements();
         // if (emitBodyWithDetachedComments) {
-        let should_emit_detached_comment = statements.is_empty()
-            || !is_prologue_directive(statements[0], self)
-            || node_is_synthesized(&*statements[0].ref_(self));
+        let should_emit_detached_comment = statements.ref_(self).is_empty()
+            || !is_prologue_directive(statements.ref_(self)[0], self)
+            || node_is_synthesized(&*statements.ref_(self)[0].ref_(self));
         if should_emit_detached_comment {
-            self.try_emit_body_with_detached_comments(node, &*statements, |node: Id<Node>| {
+            self.try_emit_body_with_detached_comments(node, &*statements.ref_(self), |node: Id<Node>| {
                 self.emit_source_file_worker(node)
             })?;
             return Ok(());
@@ -1050,23 +1048,23 @@ impl Printer {
     ) -> io::Result<()> {
         let statements = node.ref_(self).as_source_file().statements();
         self.push_name_generation_scope(Some(node));
-        for_each(&statements, |&statement: &Id<Node>, _| -> Option<()> {
+        for_each(&*statements.ref_(self), |&statement: &Id<Node>, _| -> Option<()> {
             self.generate_names(Some(statement));
             None
         });
         self.emit_helpers(node);
         let index = find_index(
-            &statements,
+            &statements.ref_(self),
             |&statement: &Id<Node>, _| !is_prologue_directive(statement, self),
             None,
         );
         self.emit_triple_slash_directives_if_needed(node);
         self.emit_list(
             Some(node),
-            Some(&statements),
+            Some(statements),
             ListFormat::MultiLine,
             None,
-            Some(index.unwrap_or_else(|| statements.len())),
+            Some(index.unwrap_or_else(|| statements.ref_(self).len())),
             None,
         )?;
         self.pop_name_generation_scope(Some(node));
@@ -1092,7 +1090,7 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_expression_list(
             Some(node),
-            Some(&node.ref_(self).as_comma_list_expression().elements),
+            Some(node.ref_(self).as_comma_list_expression().elements),
             ListFormat::CommaListElements,
             None,
             None,

@@ -59,7 +59,7 @@ pub(super) fn convert_object_literal_expression_to_json(
     } else {
         None
     };
-    for &element in &node.ref_(arena).as_object_literal_expression().properties {
+    for &element in &*node.ref_(arena).as_object_literal_expression().properties.ref_(arena) {
         if element.ref_(arena).kind() != SyntaxKind::PropertyAssignment {
             errors.borrow_mut().push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
@@ -219,7 +219,7 @@ pub(super) fn convert_array_literal_expression_to_json(
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     if !return_value {
-        elements.iter().try_for_each(|&element| -> io::Result<_> {
+        elements.ref_(arena).iter().try_for_each(|&element| -> io::Result<_> {
             convert_property_value_to_json(
                 errors.clone(),
                 source_file,
@@ -238,7 +238,7 @@ pub(super) fn convert_array_literal_expression_to_json(
 
     Ok(Some(serde_json::Value::Array({
         let mut results: Vec<serde_json::Value> = Default::default();
-        for &element in elements {
+        for &element in &*elements.ref_(arena) {
             if let Some(result) = convert_property_value_to_json(
                 errors.clone(),
                 source_file,
@@ -568,7 +568,7 @@ pub(super) fn convert_property_value_to_json(
                     json_conversion_notifier,
                     return_value,
                     known_root_options,
-                    &value_expression.ref_(arena).as_array_literal_expression().elements,
+                    value_expression.ref_(arena).as_array_literal_expression().elements,
                     option.and_then(|option| match option {
                         CommandLineOption::CommandLineOptionOfListType(option) => {
                             Some(&*option.element)

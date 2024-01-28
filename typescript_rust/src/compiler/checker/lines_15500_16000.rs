@@ -150,9 +150,9 @@ impl TypeChecker {
         is_tuple_type_node(&node.ref_(self)) && {
             let node_ref = node.ref_(self);
             let node_as_tuple_type_node = node_ref.as_tuple_type_node();
-            length(Some(&*node_as_tuple_type_node.elements)) == 1
-                && !is_optional_type_node(&node_as_tuple_type_node.elements[0].ref_(self))
-                && !is_rest_type_node(&node_as_tuple_type_node.elements[0].ref_(self))
+            length(Some(&*node_as_tuple_type_node.elements.ref_(self))) == 1
+                && !is_optional_type_node(&node_as_tuple_type_node.elements.ref_(self)[0].ref_(self))
+                && !is_rest_type_node(&node_as_tuple_type_node.elements.ref_(self)[0].ref_(self))
         }
     }
 

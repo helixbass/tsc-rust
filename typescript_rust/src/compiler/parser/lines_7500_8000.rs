@@ -16,7 +16,7 @@ use crate::{
     last_index_of_returns_isize, set_parent, some, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
     HasStatementsInterface, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
     ScriptKind, ScriptTarget, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
-    HasArena, InArena, AllArenas,
+    HasArena, InArena, AllArenas, OptionInArena,
 };
 
 impl ParserType {
@@ -51,7 +51,7 @@ impl ParserType {
         let source_file_ref = source_file.ref_(self);
         let source_file_as_source_file = source_file_ref.as_source_file();
         source_file_as_source_file.set_external_module_indicator(
-            for_each(&source_file_as_source_file.statements(), |&statement, _| {
+            for_each(&*source_file_as_source_file.statements().ref_(self), |&statement, _| {
                 self.is_an_external_module_indicator_node(statement)
             })
             .or_else(|| self.get_import_meta_if_necessary(source_file)),
@@ -105,12 +105,10 @@ impl ParserType {
     }
 
     pub(super) fn has_modifier_of_kind(&self, node: Id<Node>, kind: SyntaxKind) -> bool {
-        let modifiers = node.ref_(self).maybe_modifiers();
-        let modifiers: Option<&[Id<Node>]> = modifiers.as_ref().map(|node_array| {
-            let slice_ref: &[Id<Node>] = node_array;
-            slice_ref
-        });
-        some(modifiers, Some(|m: &Id<Node>| m.ref_(self).kind() == kind))
+        some(
+            node.ref_(self).maybe_modifiers().refed(self).as_deref(),
+            Some(|m: &Id<Node>| m.ref_(self).kind() == kind),
+        )
     }
 
     pub(super) fn is_import_meta(&self, node: Id<Node>) -> bool {

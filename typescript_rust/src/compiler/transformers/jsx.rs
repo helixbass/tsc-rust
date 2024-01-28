@@ -228,7 +228,7 @@ impl TransformJsx {
         if let Some(current_file_state_filename_declaration) =
             self.current_file_state().filename_declaration
         {
-            let mut statements_as_vec: Vec<Id<Node>> = (&statements).into();
+            let mut statements_as_vec: Vec<Id<Node>> = (&statements.ref_(self)).into();
             insert_statement_after_custom_prologue(
                 &mut statements_as_vec,
                 Some(self.factory.ref_(self).create_variable_statement(
@@ -268,7 +268,7 @@ impl TransformJsx {
                             None,
                         )
                         .set_parent_recursive(false, self);
-                    let mut statements_as_vec: Vec<Id<Node>> = (&statements).into();
+                    let mut statements_as_vec: Vec<Id<Node>> = (&statements.ref_(self)).into();
                     insert_statement_after_custom_prologue(
                         &mut statements_as_vec,
                         Some(import_statement),
@@ -315,7 +315,7 @@ impl TransformJsx {
                             ),
                         )
                         .set_parent_recursive(false, self);
-                    let mut statements_as_vec: Vec<Id<Node>> = (&statements).into();
+                    let mut statements_as_vec: Vec<Id<Node>> = (&statements.ref_(self)).into();
                     insert_statement_after_custom_prologue(
                         &mut statements_as_vec,
                         Some(require_statement),
@@ -545,8 +545,8 @@ impl TransformJsx {
                 .into()
             },
         );
-        let object_properties = if !attrs.is_empty() {
-            self.transform_jsx_attributes_to_object_props(&attrs, children_prop)
+        let object_properties = if !attrs.ref_(self).is_empty() {
+            self.transform_jsx_attributes_to_object_props(&attrs.ref_(self), children_prop)
         } else {
             self.factory.ref_(self).create_object_literal_expression(
                 Some(children_prop.map_or_default(|children_prop| vec![children_prop])),
