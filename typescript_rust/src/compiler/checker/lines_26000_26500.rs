@@ -795,7 +795,7 @@ impl TypeChecker {
                     some(
                         Some(&**inference_context.inferences()),
                         Some(|inference: &Id<InferenceInfo>| {
-                            self.has_inference_candidates(inference)
+                            self.has_inference_candidates(&inference.ref_(self))
                         }),
                     )
                 })

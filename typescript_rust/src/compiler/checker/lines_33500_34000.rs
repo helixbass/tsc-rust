@@ -344,7 +344,7 @@ impl TypeChecker {
                                 && !every(
                                     &context.inferences(),
                                     |inference: &Id<InferenceInfo>, _| {
-                                        self.has_inference_candidates(inference)
+                                        self.has_inference_candidates(&inference.ref_(self))
                                     },
                                 )
                         }) {
@@ -359,7 +359,7 @@ impl TypeChecker {
                                 )?;
                             let inferences =
                                 map(&*context.inferences(), |info: &Id<InferenceInfo>, _| {
-                                    Gc::new(self.create_inference_info(info.type_parameter))
+                                    self.alloc_inference_info(self.create_inference_info(info.ref_(self).type_parameter))
                                 });
                             self.apply_to_parameter_types(
                                 instantiated_signature,
@@ -377,7 +377,7 @@ impl TypeChecker {
                             if some(
                                 Some(&inferences),
                                 Some(|inference: &Id<InferenceInfo>| {
-                                    self.has_inference_candidates(inference)
+                                    self.has_inference_candidates(&inference.ref_(self))
                                 }),
                             ) {
                                 self.apply_to_return_types(
@@ -444,7 +444,7 @@ impl TypeChecker {
         b: &[Id<InferenceInfo>],
     ) -> bool {
         for i in 0..a.len() {
-            if self.has_inference_candidates(&a[i]) && self.has_inference_candidates(&b[i]) {
+            if self.has_inference_candidates(&a[i].ref_(self)) && self.has_inference_candidates(&b[i].ref_(self)) {
                 return true;
             }
         }
@@ -457,8 +457,8 @@ impl TypeChecker {
         source: &[Id<InferenceInfo>],
     ) {
         for i in 0..target.len() {
-            if !self.has_inference_candidates(&target[i])
-                && self.has_inference_candidates(&source[i])
+            if !self.has_inference_candidates(&target[i].ref_(self))
+                && self.has_inference_candidates(&source[i].ref_(self))
             {
                 target[i] = source[i].clone();
             }

@@ -455,7 +455,7 @@ impl TypeChecker {
                     if some(
                         Some(&**return_context.inferences()),
                         Some(|inference: &Id<InferenceInfo>| {
-                            self.has_inference_candidates(inference)
+                            self.has_inference_candidates(&inference.ref_(self))
                         }),
                     ) {
                         self.get_mapper_from_context(
@@ -482,11 +482,11 @@ impl TypeChecker {
                 .intersects(TypeFlags::TypeParameter)
         }) {
             let info = find(&context.inferences(), |info: &Id<InferenceInfo>, _| {
-                info.type_parameter == rest_type
+                info.ref_(self).type_parameter == rest_type
             })
             .cloned();
             if let Some(info) = info.as_ref() {
-                info.set_implied_arity(
+                info.ref_(self).set_implied_arity(
                     if find_index(
                         args,
                         |&arg: &Id<Node>, _| self.is_spread_argument(Some(arg)),

@@ -33,7 +33,7 @@ impl TypeChecker {
             None,
         )?;
         let template_type = self.get_template_type_from_mapped_type(target)?;
-        let inference = Gc::new(self.create_inference_info(type_parameter));
+        let inference = self.alloc_inference_info(self.create_inference_info(type_parameter));
         self.infer_types(
             &vec![inference.clone()],
             source_type,
@@ -872,41 +872,41 @@ impl InferTypes {
                 return Ok(());
             }
             let inference = self.get_inference_info_for_type(target);
-            if let Some(inference) = inference.as_ref() {
-                if !inference.is_fixed() {
-                    if match inference.maybe_priority() {
+            if let Some(inference) = inference {
+                if !inference.ref_(self).is_fixed() {
+                    if match inference.ref_(self).maybe_priority() {
                         None => true,
                         Some(inference_priority) => self.priority() < inference_priority,
                     } {
-                        *inference.maybe_candidates_mut() = None;
-                        *inference.maybe_contra_candidates_mut() = None;
-                        inference.set_top_level(true);
-                        inference.set_priority(Some(self.priority()));
+                        *inference.ref_(self).maybe_candidates_mut() = None;
+                        *inference.ref_(self).maybe_contra_candidates_mut() = None;
+                        inference.ref_(self).set_top_level(true);
+                        inference.ref_(self).set_priority(Some(self.priority()));
                     }
-                    if Some(self.priority()) == inference.maybe_priority() {
+                    if Some(self.priority()) == inference.ref_(self).maybe_priority() {
                         let candidate = self
                             .maybe_propagation_type()
                             .clone()
                             .unwrap_or_else(|| source.clone());
                         if self.contravariant() && !self.bivariant() {
-                            if !contains(inference.maybe_contra_candidates().as_deref(), &candidate)
+                            if !contains(inference.ref_(self).maybe_contra_candidates().as_deref(), &candidate)
                             {
-                                if inference.maybe_contra_candidates().is_none() {
-                                    *inference.maybe_contra_candidates_mut() = Some(vec![]);
+                                if inference.ref_(self).maybe_contra_candidates().is_none() {
+                                    *inference.ref_(self).maybe_contra_candidates_mut() = Some(vec![]);
                                 }
                                 inference
-                                    .maybe_contra_candidates_mut()
+                                    .ref_(self).maybe_contra_candidates_mut()
                                     .as_mut()
                                     .unwrap()
                                     .push(candidate);
                                 self.type_checker.clear_cached_inferences(&self.inferences);
                             }
-                        } else if !contains(inference.maybe_candidates().as_deref(), &candidate) {
-                            if inference.maybe_candidates().is_none() {
-                                *inference.maybe_candidates_mut() = Some(vec![]);
+                        } else if !contains(inference.ref_(self).maybe_candidates().as_deref(), &candidate) {
+                            if inference.ref_(self).maybe_candidates().is_none() {
+                                *inference.ref_(self).maybe_candidates_mut() = Some(vec![]);
                             }
                             inference
-                                .maybe_candidates_mut()
+                                .ref_(self).maybe_candidates_mut()
                                 .as_mut()
                                 .unwrap()
                                 .push(candidate);
@@ -918,12 +918,12 @@ impl InferTypes {
                             .ref_(self)
                             .flags()
                             .intersects(TypeFlags::TypeParameter)
-                        && inference.top_level()
+                        && inference.ref_(self).top_level()
                         && !self
                             .type_checker
                             .is_type_parameter_at_top_level(self.original_target, target)?
                     {
-                        inference.set_top_level(false);
+                        inference.ref_(self).set_top_level(false);
                         self.type_checker.clear_cached_inferences(&self.inferences);
                     }
                 }

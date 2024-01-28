@@ -18,7 +18,7 @@ impl InferTypes {
     pub(super) fn get_inference_info_for_type(&self, type_: Id<Type>) -> Option<Id<InferenceInfo>> {
         if type_.ref_(self).flags().intersects(TypeFlags::TypeVariable) {
             for inference in &self.inferences {
-                if type_ == inference.type_parameter {
+                if type_ == inference.ref_(self).type_parameter {
                     return Some(inference.clone());
                 }
             }
@@ -187,7 +187,7 @@ impl InferTypes {
             let inference =
                 self.get_inference_info_for_type(constraint_type.ref_(self).as_index_type().type_);
             if let Some(inference) = inference.as_ref().filter(|inference| {
-                !inference.is_fixed() && !self.type_checker.is_from_inference_blocked_source(source)
+                !inference.ref_(self).is_fixed() && !self.type_checker.is_from_inference_blocked_source(source)
             }) {
                 let inferred_type = self.type_checker.infer_type_for_homomorphic_mapped_type(
                     source,
@@ -197,7 +197,7 @@ impl InferTypes {
                 if let Some(inferred_type) = inferred_type {
                     self.infer_with_priority(
                         inferred_type,
-                        inference.type_parameter,
+                        inference.ref_(self).type_parameter,
                         if get_object_flags(&source.ref_(self))
                             .intersects(ObjectFlags::NonInferrableType)
                         {
@@ -499,7 +499,7 @@ impl InferTypes {
                                 self.get_inference_info_for_type(element_types[start_length]);
                             if let Some(target_info) = target_info
                                 .as_ref()
-                                .filter(|target_info| target_info.maybe_implied_arity().is_some())
+                                .filter(|target_info| target_info.ref_(self).maybe_implied_arity().is_some())
                             {
                                 self.infer_from_types(
                                     self.type_checker.slice_tuple_type(
@@ -507,7 +507,7 @@ impl InferTypes {
                                         start_length,
                                         Some(
                                             end_length + source_arity
-                                                - target_info.maybe_implied_arity().unwrap(),
+                                                - target_info.ref_(self).maybe_implied_arity().unwrap(),
                                         ),
                                     )?,
                                     element_types[start_length],
@@ -515,7 +515,7 @@ impl InferTypes {
                                 self.infer_from_types(
                                     self.type_checker.slice_tuple_type(
                                         source,
-                                        start_length + target_info.maybe_implied_arity().unwrap(),
+                                        start_length + target_info.ref_(self).maybe_implied_arity().unwrap(),
                                         Some(end_length),
                                     )?,
                                     element_types[start_length + 1],
@@ -926,17 +926,17 @@ impl TypeChecker {
         index: usize,
     ) -> io::Result<Id<Type>> {
         let inference = context.inferences()[index].clone();
-        if inference.maybe_inferred_type().is_none() {
+        if inference.ref_(self).maybe_inferred_type().is_none() {
             let mut inferred_type: Option<Id<Type>> = None;
             let signature = context.signature.as_ref();
             if let Some(signature) = signature {
-                let inferred_covariant_type = if inference.maybe_candidates().is_some() {
-                    Some(self.get_covariant_inference(&inference, signature.clone())?)
+                let inferred_covariant_type = if inference.ref_(self).maybe_candidates().is_some() {
+                    Some(self.get_covariant_inference(&inference.ref_(self), signature.clone())?)
                 } else {
                     None
                 };
                 if let Some(inference_contra_candidates) =
-                    inference.maybe_contra_candidates().as_ref()
+                    inference.ref_(self).maybe_contra_candidates().as_ref()
                 {
                     inferred_type = Some(
                         if let Some(inferred_covariant_type) = inferred_covariant_type.try_filter(
@@ -955,7 +955,7 @@ impl TypeChecker {
                         )? {
                             inferred_covariant_type.clone()
                         } else {
-                            self.get_contravariant_inference(&inference)?
+                            self.get_contravariant_inference(&inference.ref_(self))?
                         },
                     );
                 } else if let Some(inferred_covariant_type) = inferred_covariant_type.as_ref() {
@@ -964,7 +964,7 @@ impl TypeChecker {
                     inferred_type = Some(self.silent_never_type());
                 } else {
                     let default_type =
-                        self.get_default_from_type_parameter_(inference.type_parameter)?;
+                        self.get_default_from_type_parameter_(inference.ref_(self).type_parameter)?;
                     if let Some(default_type) = default_type {
                         inferred_type = Some(self.instantiate_type(
                             default_type,
@@ -976,17 +976,17 @@ impl TypeChecker {
                     }
                 }
             } else {
-                inferred_type = self.get_type_from_inference(&inference)?;
+                inferred_type = self.get_type_from_inference(&inference.ref_(self))?;
             }
 
-            *inference.maybe_inferred_type_mut() =
+            *inference.ref_(self).maybe_inferred_type_mut() =
                 Some(inferred_type.clone().unwrap_or_else(|| {
                     self.get_default_type_argument_type(
                         context.flags().intersects(InferenceFlags::AnyDefault),
                     )
                 }));
 
-            let constraint = self.get_constraint_of_type_parameter(inference.type_parameter)?;
+            let constraint = self.get_constraint_of_type_parameter(inference.ref_(self).type_parameter)?;
             if let Some(constraint) = constraint {
                 let instantiated_constraint =
                     self.instantiate_type(constraint, Some(context.non_fixing_mapper()))?;
@@ -1008,12 +1008,12 @@ impl TypeChecker {
                     {
                         inferred_type = Some(instantiated_constraint.clone());
                     }
-                    *inference.maybe_inferred_type_mut() = Some(instantiated_constraint);
+                    *inference.ref_(self).maybe_inferred_type_mut() = Some(instantiated_constraint);
                 }
             }
         }
 
-        let ret = inference.maybe_inferred_type().unwrap();
+        let ret = inference.ref_(self).maybe_inferred_type().unwrap();
         Ok(ret)
     }
 

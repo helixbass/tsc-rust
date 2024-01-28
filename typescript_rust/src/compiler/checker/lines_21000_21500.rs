@@ -714,7 +714,7 @@ impl TypeChecker {
             type_parameters
                 .into_iter()
                 .map(|&type_parameter: &Id<Type>| {
-                    Gc::new(self.create_inference_info(type_parameter))
+                    self.alloc_inference_info(self.create_inference_info(type_parameter))
                 })
                 .collect(),
             signature,
@@ -738,7 +738,7 @@ impl TypeChecker {
                 map(
                     &*context.inferences(),
                     |inference: &Id<InferenceInfo>, _| {
-                        Gc::new(self.clone_inference_info(inference))
+                        self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
                     },
                 ),
                 context.signature.clone(),
@@ -783,10 +783,10 @@ impl TypeChecker {
         let inferences = context.inferences();
         let inferences = &*inferences;
         for (i, inference) in inferences.into_iter().enumerate() {
-            if t == inference.type_parameter {
-                if fix && !inference.is_fixed() {
+            if t == inference.ref_(self).type_parameter {
+                if fix && !inference.ref_(self).is_fixed() {
                     self.clear_cached_inferences(inferences);
-                    inference.set_is_fixed(true);
+                    inference.ref_(self).set_is_fixed(true);
                 }
                 return self.get_inferred_type(context, i);
             }
@@ -796,8 +796,8 @@ impl TypeChecker {
 
     pub(super) fn clear_cached_inferences(&self, inferences: &[Id<InferenceInfo>]) {
         for inference in inferences {
-            if !inference.is_fixed() {
-                *inference.maybe_inferred_type_mut() = None;
+            if !inference.ref_(self).is_fixed() {
+                *inference.ref_(self).maybe_inferred_type_mut() = None;
             }
         }
     }
@@ -827,12 +827,12 @@ impl TypeChecker {
         context: &InferenceContext,
     ) -> Option<Gc<InferenceContext>> {
         let inferences = filter(&context.inferences(), |inference: &Id<InferenceInfo>| {
-            self.has_inference_candidates(inference)
+            self.has_inference_candidates(&inference.ref_(self))
         });
         if !inferences.is_empty() {
             Some(self.create_inference_context_worker(
                 map(&inferences, |inference: &Id<InferenceInfo>, _| {
-                    Gc::new(self.clone_inference_info(inference))
+                    self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
                 }),
                 context.signature.clone(),
                 context.flags(),
