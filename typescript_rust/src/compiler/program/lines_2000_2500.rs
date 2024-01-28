@@ -84,7 +84,7 @@ impl Program {
             vec![]
         };
         let check_diagnostics = if include_bind_and_check_diagnostics {
-            type_checker.get_diagnostics(Some(source_file), cancellation_token)?
+            type_checker.ref_(self).get_diagnostics(Some(source_file), cancellation_token)?
         } else {
             vec![]
         };
@@ -706,7 +706,7 @@ impl Program {
         self.run_with_cancellation_token(|| -> io::Result<_> {
             let resolver = self
                 .get_diagnostics_producing_type_checker()?
-                .get_emit_resolver(source_file, cancellation_token)?;
+                .ref_(self).get_emit_resolver(source_file, cancellation_token)?;
             Ok(get_declaration_diagnostics(
                 // TODO: should this be eg Some(NoOpWriteFileCallback::new()) instead?
                 self.get_emit_host(None),
@@ -819,7 +819,7 @@ impl Program {
             sort_and_deduplicate_diagnostics(
                 &self
                     .get_diagnostics_producing_type_checker()?
-                    .get_global_diagnostics(),
+                    .ref_(self).get_global_diagnostics(),
                 self,
             )
         } else {

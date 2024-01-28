@@ -1580,7 +1580,7 @@ impl CheckTypeRelatedTo {
                                     Cow::Borrowed(&Diagnostics::Property_0_does_not_exist_on_type_1_Did_you_mean_2),
                                     Some(vec![
                                         prop_name,
-                                        self.type_checker.type_to_string_(
+                                        self.type_checker.ref_(self).type_to_string_(
                                             error_target,
                                             Option::<Id<Node>>::None,
                                             None, None,
@@ -1595,7 +1595,7 @@ impl CheckTypeRelatedTo {
                                     ),
                                     Some(vec![
                                         prop_name,
-                                        self.type_checker.type_to_string_(
+                                        self.type_checker.ref_(self).type_to_string_(
                                             error_target,
                                             Option::<Id<Node>>::None,
                                             None,
@@ -1634,7 +1634,7 @@ impl CheckTypeRelatedTo {
 
                                 let name = prop_declaration.ref_(self).as_named_declaration().name();
                                 if is_identifier(&name.ref_(self)) {
-                                    suggestion = self.type_checker.get_suggestion_for_nonexistent_property(
+                                    suggestion = self.type_checker.ref_(self).get_suggestion_for_nonexistent_property(
                                         name,
                                         error_target
                                     )?;
@@ -1644,12 +1644,12 @@ impl CheckTypeRelatedTo {
                                 self.report_error(
                                     Cow::Borrowed(&Diagnostics::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2),
                                     Some(vec![
-                                        self.type_checker.symbol_to_string_(
+                                        self.type_checker.ref_(self).symbol_to_string_(
                                             prop,
                                             Option::<Id<Node>>::None,
                                             None, None, None,
                                         )?,
-                                        self.type_checker.type_to_string_(
+                                        self.type_checker.ref_(self).type_to_string_(
                                             error_target,
                                             Option::<Id<Node>>::None,
                                             None, None,
@@ -1662,8 +1662,8 @@ impl CheckTypeRelatedTo {
                                     Cow::Borrowed(&Diagnostics::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1),
                                     Some(
                                         vec![
-                                            self.type_checker.symbol_to_string_(prop, Option::<Id<Node>>::None, None, None, None)?,
-                                            self.type_checker.type_to_string_(error_target, Option::<Id<Node>>::None, None, None)?
+                                            self.type_checker.ref_(self).symbol_to_string_(prop, Option::<Id<Node>>::None, None, None, None)?,
+                                            self.type_checker.ref_(self).type_to_string_(error_target, Option::<Id<Node>>::None, None, None)?
                                         ]
                                     )
                                 )?;
@@ -1675,7 +1675,7 @@ impl CheckTypeRelatedTo {
                 if matches!(
                     check_types.as_ref(),
                     Some(check_types) if self.is_related_to(
-                        self.type_checker.get_type_of_symbol(prop)?,
+                        self.type_checker.ref_(self).get_type_of_symbol(prop)?,
                         self.get_type_of_property_in_types(check_types, prop.ref_(self).escaped_name())?,
                         Some(RecursionFlags::Both),
                         Some(report_errors),
@@ -1685,7 +1685,7 @@ impl CheckTypeRelatedTo {
                     if report_errors {
                         self.report_incompatible_error(
                             &Diagnostics::Types_of_property_0_are_incompatible,
-                            Some(vec![self.type_checker.symbol_to_string_(
+                            Some(vec![self.type_checker.ref_(self).symbol_to_string_(
                                 prop,
                                 Option::<Id<Node>>::None,
                                 None,

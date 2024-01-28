@@ -339,7 +339,7 @@ impl Program {
 
         let emit_resolver = self
             .get_diagnostics_producing_type_checker()?
-            .get_emit_resolver(
+            .ref_(self).get_emit_resolver(
                 if matches!(
                     out_file(&self.options.ref_(self)),
                     Some(out_file) if !out_file.is_empty()

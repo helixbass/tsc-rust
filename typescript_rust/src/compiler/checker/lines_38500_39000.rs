@@ -888,17 +888,17 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                 None,
                 &Diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
                 Some(vec![
-                    self.type_checker.symbol_to_string_(
+                    self.type_checker.ref_(self).symbol_to_string_(
                         self.declared_prop,
                         Option::<Id<Node>>::None,
                         None, None, None,
                     )?,
-                    self.type_checker.type_to_string_(
+                    self.type_checker.ref_(self).type_to_string_(
                         self.type_with_this,
                         Option::<Id<Node>>::None,
                         None, None,
                     )?,
-                    self.type_checker.type_to_string_(
+                    self.type_checker.ref_(self).type_to_string_(
                         self.base_with_this,
                         Option::<Id<Node>>::None,
                         None, None,

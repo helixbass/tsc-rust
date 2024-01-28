@@ -1015,7 +1015,7 @@ impl CheckBinaryExpressionStateMachine {
         }
         let type_ = self
             .type_checker
-            .check_expression(node, (*state).borrow().check_mode, None)?;
+            .ref_(self).check_expression(node, (*state).borrow().check_mode, None)?;
         self.set_last_result(&mut state.borrow_mut(), Some(type_));
         Ok(None)
     }
@@ -1090,7 +1090,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 state.skip = true;
                 self.set_last_result(
                     &mut state,
-                    Some(self.type_checker.check_expression(
+                    Some(self.type_checker.ref_(self).check_expression(
                         node_as_binary_expression.right,
                         check_mode,
                         None,
@@ -1101,7 +1101,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         }
 
         self.type_checker
-            .check_grammar_nullish_coalesce_with_logical_expression(node);
+            .ref_(self).check_grammar_nullish_coalesce_with_logical_expression(node);
 
         let operator = node_as_binary_expression.operator_token.ref_(self).kind();
         if operator == SyntaxKind::EqualsToken
@@ -1115,9 +1115,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 state.skip = true;
                 self.set_last_result(
                     &mut state,
-                    Some(self.type_checker.check_destructuring_assignment(
+                    Some(self.type_checker.ref_(self).check_destructuring_assignment(
                         node_as_binary_expression.left,
-                        self.type_checker.check_expression(
+                        self.type_checker.ref_(self).check_expression(
                             node_as_binary_expression.right,
                             check_mode,
                             None,
@@ -1169,7 +1169,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 if operator == SyntaxKind::AmpersandAmpersandToken {
                     let parent = walk_up_parenthesized_expressions(node.ref_(self).parent(), self).unwrap();
                     self.type_checker
-                        .check_testing_known_truthy_callable_or_awaitable_type(
+                        .ref_(self).check_testing_known_truthy_callable_or_awaitable_type(
                             node_as_binary_expression.left,
                             left_type,
                             if is_if_statement(&parent.ref_(self)) {
@@ -1180,7 +1180,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         )?;
                 }
                 self.type_checker
-                    .check_truthiness_of_type(left_type, node_as_binary_expression.left);
+                    .ref_(self).check_truthiness_of_type(left_type, node_as_binary_expression.left);
             }
         }
 
@@ -1218,7 +1218,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
             let node_ref = node.ref_(self);
             let node_as_binary_expression = node_ref.as_binary_expression();
-            result = Some(self.type_checker.check_binary_like_expression_worker(
+            result = Some(self.type_checker.ref_(self).check_binary_like_expression_worker(
                 node_as_binary_expression.left,
                 node_as_binary_expression.operator_token,
                 node_as_binary_expression.right,
@@ -1267,6 +1267,6 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
 impl HasArena for CheckBinaryExpressionStateMachine {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.arena()
+        unimplemented!()
     }
 }

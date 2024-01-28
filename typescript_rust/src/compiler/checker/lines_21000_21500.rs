@@ -1231,6 +1231,6 @@ impl TypeComparerCompareTypesAssignable {
 
 impl TypeComparer for TypeComparerCompareTypesAssignable {
     fn call(&self, s: Id<Type>, t: Id<Type>, _report_errors: Option<bool>) -> io::Result<Ternary> {
-        self.type_checker.compare_types_assignable(s, t)
+        self.type_checker.ref_(self).compare_types_assignable(s, t)
     }
 }

@@ -65,12 +65,12 @@ impl CheckTypeRelatedTo {
             .types()
             .to_owned();
         if target.ref_(self).flags().intersects(TypeFlags::Union) {
-            if self.type_checker.contains_type(target_types, source) {
+            if self.type_checker.ref_(self).contains_type(target_types, source) {
                 return Ok(Ternary::True);
             }
             let match_ = self
                 .type_checker
-                .get_matching_union_constituent_for_type(target, source)?;
+                .ref_(self).get_matching_union_constituent_for_type(target, source)?;
             if let Some(match_) = match_ {
                 let related = self.is_related_to(
                     source,
@@ -99,7 +99,7 @@ impl CheckTypeRelatedTo {
             }
         }
         if report_errors {
-            let best_matching_type = self.type_checker.get_best_matching_type(
+            let best_matching_type = self.type_checker.ref_(self).get_best_matching_type(
                 source,
                 target,
                 Some(|source: Id<Type>, target: Id<Type>| {
@@ -158,7 +158,7 @@ impl CheckTypeRelatedTo {
         let source_ref = source.ref_(self);
         let source_types = source_ref.as_union_or_intersection_type_interface().types();
         if source.ref_(self).flags().intersects(TypeFlags::Union)
-            && self.type_checker.contains_type(source_types, target)
+            && self.type_checker.ref_(self).contains_type(source_types, target)
         {
             return Ok(Ternary::True);
         }
@@ -203,7 +203,7 @@ impl CheckTypeRelatedTo {
         {
             return self
                 .type_checker
-                .extract_types_of_kind(target, !TypeFlags::Undefined);
+                .ref_(self).extract_types_of_kind(target, !TypeFlags::Undefined);
         }
         target
     }
@@ -280,7 +280,7 @@ impl CheckTypeRelatedTo {
         let targets = targets.unwrap_or_else(|| vec![]);
         let variances = variances.unwrap_or_else(|| vec![]);
         if sources.len() != targets.len()
-            && Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
+            && Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation)
         {
             return Ok(Ternary::False);
         }
@@ -302,7 +302,7 @@ impl CheckTypeRelatedTo {
                 let t = targets[i];
                 let mut related: Ternary/* = Ternary::True*/;
                 if variance_flags.intersects(VarianceFlags::Unmeasurable) {
-                    related = if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+                    related = if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation) {
                         self.is_related_to(
                             s,
                             t,
@@ -312,7 +312,7 @@ impl CheckTypeRelatedTo {
                             None,
                         )?
                     } else {
-                        self.type_checker.compare_types_identical(s, t)?
+                        self.type_checker.ref_(self).compare_types_identical(s, t)?
                     };
                 } else if variance == VarianceFlags::Covariant {
                     related = self.is_related_to(
@@ -391,7 +391,7 @@ impl CheckTypeRelatedTo {
         if self.overflow() {
             return Ok(Ternary::False);
         }
-        let id = self.type_checker.get_relation_key(
+        let id = self.type_checker.ref_(self).get_relation_key(
             source,
             target,
             intersection_state
@@ -411,25 +411,25 @@ impl CheckTypeRelatedTo {
             } else {
                 if self
                     .type_checker
-                    .maybe_outofband_variance_marker_handler()
+                    .ref_(self).maybe_outofband_variance_marker_handler()
                     .is_some()
                 {
                     let saved = *entry & RelationComparisonResult::ReportsMask;
                     if saved.intersects(RelationComparisonResult::ReportsUnmeasurable) {
-                        self.type_checker.instantiate_type(
+                        self.type_checker.ref_(self).instantiate_type(
                             source,
                             Some(
                                 self.type_checker
-                                    .make_function_type_mapper(ReportUnmeasurableMarkers),
+                                    .ref_(self).make_function_type_mapper(ReportUnmeasurableMarkers),
                             ),
                         )?;
                     }
                     if saved.intersects(RelationComparisonResult::ReportsUnreliable) {
-                        self.type_checker.instantiate_type(
+                        self.type_checker.ref_(self).instantiate_type(
                             source,
                             Some(
                                 self.type_checker
-                                    .make_function_type_mapper(ReportUnreliableMarkers),
+                                    .ref_(self).make_function_type_mapper(ReportUnreliableMarkers),
                             ),
                         )?;
                     }
@@ -484,7 +484,7 @@ impl CheckTypeRelatedTo {
             self.maybe_source_stack().as_mut().unwrap().push(source);
             self.set_source_depth(self.source_depth() + 1);
             if !self.expanding_flags().intersects(ExpandingFlags::Source)
-                && self.type_checker.is_deeply_nested_type(
+                && self.type_checker.ref_(self).is_deeply_nested_type(
                     source,
                     self.maybe_source_stack().as_deref().unwrap(),
                     self.source_depth(),
@@ -498,7 +498,7 @@ impl CheckTypeRelatedTo {
             self.maybe_target_stack().as_mut().unwrap().push(target);
             self.set_target_depth(self.target_depth() + 1);
             if !self.expanding_flags().intersects(ExpandingFlags::Target)
-                && self.type_checker.is_deeply_nested_type(
+                && self.type_checker.ref_(self).is_deeply_nested_type(
                     target,
                     self.maybe_target_stack().as_deref().unwrap(),
                     self.target_depth(),
@@ -512,11 +512,11 @@ impl CheckTypeRelatedTo {
         let propagating_variance_flags: Rc<Cell<RelationComparisonResult>> =
             Rc::new(Cell::new(RelationComparisonResult::None));
         if let Some(outofband_variance_marker_handler) =
-            self.type_checker.maybe_outofband_variance_marker_handler()
+            self.type_checker.ref_(self).maybe_outofband_variance_marker_handler()
         {
             original_handler = Some(outofband_variance_marker_handler);
             self.type_checker
-                .set_outofband_variance_marker_handler(Some(self.alloc_outofband_variance_marker_handler(Box::new(
+                .ref_(self).set_outofband_variance_marker_handler(Some(self.alloc_outofband_variance_marker_handler(Box::new(
                     RecursiveTypeRelatedToOutofbandVarianceMarkerHandler::new(
                         propagating_variance_flags.clone(),
                         original_handler.clone().unwrap(),
@@ -542,11 +542,11 @@ impl CheckTypeRelatedTo {
         };
         if self
             .type_checker
-            .maybe_outofband_variance_marker_handler()
+            .ref_(self).maybe_outofband_variance_marker_handler()
             .is_some()
         {
             self.type_checker
-                .set_outofband_variance_marker_handler(original_handler);
+                .ref_(self).set_outofband_variance_marker_handler(original_handler);
         }
         if recursion_flags.intersects(RecursionFlags::Source) {
             self.set_source_depth(self.source_depth() - 1);
@@ -636,7 +636,7 @@ impl CheckTypeRelatedTo {
         if intersection_state.intersects(IntersectionState::UnionIntersectionCheck) {
             if source.ref_(self).flags().intersects(TypeFlags::Union) {
                 return Ok(
-                    if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation) {
+                    if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation) {
                         self.some_type_related_to_type(
                             source,
                             target,
@@ -658,7 +658,7 @@ impl CheckTypeRelatedTo {
             if target.ref_(self).flags().intersects(TypeFlags::Union) {
                 return self.type_related_to_some_type(
                     self.type_checker
-                        .get_regular_type_of_object_literal(source)?,
+                        .ref_(self).get_regular_type_of_object_literal(source)?,
                     target,
                     report_errors
                         && !source.ref_(self).flags().intersects(TypeFlags::Primitive)
@@ -672,13 +672,13 @@ impl CheckTypeRelatedTo {
             {
                 return self.type_related_to_each_type(
                     self.type_checker
-                        .get_regular_type_of_object_literal(source)?,
+                        .ref_(self).get_regular_type_of_object_literal(source)?,
                     target,
                     report_errors,
                     IntersectionState::Target,
                 );
             }
-            if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
+            if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation)
                 && target.ref_(self).flags().intersects(TypeFlags::Primitive)
             {
                 let constraints = try_map(
@@ -687,7 +687,7 @@ impl CheckTypeRelatedTo {
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned(),
-                    |type_: Id<Type>, _| self.type_checker.get_base_constraint_or_type(type_),
+                    |type_: Id<Type>, _| self.type_checker.ref_(self).get_base_constraint_or_type(type_),
                 )?;
                 if &constraints
                     != source
@@ -695,7 +695,7 @@ impl CheckTypeRelatedTo {
                         .as_union_or_intersection_type_interface()
                         .types()
                 {
-                    source = self.type_checker.get_intersection_type(
+                    source = self.type_checker.ref_(self).get_intersection_type(
                         &constraints,
                         Option::<Id<Symbol>>::None,
                         None,
@@ -724,7 +724,7 @@ impl CheckTypeRelatedTo {
             );
         }
         let flags = source.ref_(self).flags() & target.ref_(self).flags();
-        if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
+        if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation)
             && !flags.intersects(TypeFlags::Object)
         {
             if flags.intersects(TypeFlags::Index) {
@@ -789,9 +789,9 @@ impl CheckTypeRelatedTo {
                         if result != Ternary::False {
                             result &= self.is_related_to(
                                 self.type_checker
-                                    .get_true_type_from_conditional_type(source)?,
+                                    .ref_(self).get_true_type_from_conditional_type(source)?,
                                 self.type_checker
-                                    .get_true_type_from_conditional_type(target)?,
+                                    .ref_(self).get_true_type_from_conditional_type(target)?,
                                 Some(RecursionFlags::Both),
                                 Some(false),
                                 None,
@@ -800,9 +800,9 @@ impl CheckTypeRelatedTo {
                             if result != Ternary::False {
                                 result &= self.is_related_to(
                                     self.type_checker
-                                        .get_false_type_from_conditional_type(source)?,
+                                        .ref_(self).get_false_type_from_conditional_type(source)?,
                                     self.type_checker
-                                        .get_false_type_from_conditional_type(target)?,
+                                        .ref_(self).get_false_type_from_conditional_type(target)?,
                                     Some(RecursionFlags::Both),
                                     Some(false),
                                     None,
@@ -868,7 +868,7 @@ impl CheckTypeRelatedTo {
                             Some(true)
                         )) {
                             let variances =
-                                self.type_checker.get_alias_variances(source_alias_symbol)?;
+                                self.type_checker.ref_(self).get_alias_variances(source_alias_symbol)?;
                             if variances.is_empty() {
                                 return Ok(Ternary::Unknown);
                             }
@@ -894,7 +894,7 @@ impl CheckTypeRelatedTo {
 
         if self
             .type_checker
-            .is_single_element_generic_tuple_type(source)
+            .ref_(self).is_single_element_generic_tuple_type(source)
             && !source
                 .ref_(self)
                 .as_type_reference()
@@ -904,7 +904,7 @@ impl CheckTypeRelatedTo {
                 .readonly
         {
             result = self.is_related_to(
-                self.type_checker.get_type_arguments(source)?[0],
+                self.type_checker.ref_(self).get_type_arguments(source)?[0],
                 target,
                 Some(RecursionFlags::Source),
                 None,
@@ -917,7 +917,7 @@ impl CheckTypeRelatedTo {
         }
         if self
             .type_checker
-            .is_single_element_generic_tuple_type(target)
+            .ref_(self).is_single_element_generic_tuple_type(target)
             && (target
                 .ref_(self)
                 .as_type_reference()
@@ -925,15 +925,15 @@ impl CheckTypeRelatedTo {
                 .ref_(self)
                 .as_tuple_type()
                 .readonly
-                || self.type_checker.is_mutable_array_or_tuple(
+                || self.type_checker.ref_(self).is_mutable_array_or_tuple(
                     self.type_checker
-                        .get_base_constraint_of_type(source)?
+                        .ref_(self).get_base_constraint_of_type(source)?
                         .unwrap_or_else(|| source.clone()),
                 ))
         {
             result = self.is_related_to(
                 source,
-                self.type_checker.get_type_arguments(target)?[0],
+                self.type_checker.ref_(self).get_type_arguments(target)?[0],
                 Some(RecursionFlags::Target),
                 None,
                 None,
@@ -958,9 +958,9 @@ impl CheckTypeRelatedTo {
                     .name_type
                     .is_none()
                 && self.is_related_to(
-                    self.type_checker.get_index_type(target, None, None)?,
+                    self.type_checker.ref_(self).get_index_type(target, None, None)?,
                     self.type_checker
-                        .get_constraint_type_from_mapped_type(source)?,
+                        .ref_(self).get_constraint_type_from_mapped_type(source)?,
                     Some(RecursionFlags::Both),
                     None,
                     None,
@@ -969,16 +969,16 @@ impl CheckTypeRelatedTo {
             {
                 if !self
                     .type_checker
-                    .get_mapped_type_modifiers(source)
+                    .ref_(self).get_mapped_type_modifiers(source)
                     .intersects(MappedTypeModifiers::IncludeOptional)
                 {
                     let template_type = self
                         .type_checker
-                        .get_template_type_from_mapped_type(source)?;
-                    let indexed_access_type = self.type_checker.get_indexed_access_type(
+                        .ref_(self).get_template_type_from_mapped_type(source)?;
+                    let indexed_access_type = self.type_checker.ref_(self).get_indexed_access_type(
                         target,
                         self.type_checker
-                            .get_type_parameter_from_mapped_type(source)?,
+                            .ref_(self).get_type_parameter_from_mapped_type(source)?,
                         None,
                         Option::<Id<Node>>::None,
                         Option::<Id<Symbol>>::None,
@@ -1012,11 +1012,11 @@ impl CheckTypeRelatedTo {
                     return Ok(result);
                 }
             }
-            if self.type_checker.is_tuple_type(target_type) {
+            if self.type_checker.ref_(self).is_tuple_type(target_type) {
                 result = self.is_related_to(
                     source,
                     self.type_checker
-                        .get_known_keys_of_tuple_type(target_type)?,
+                        .ref_(self).get_known_keys_of_tuple_type(target_type)?,
                     Some(RecursionFlags::Target),
                     Some(report_errors),
                     None,
@@ -1028,11 +1028,11 @@ impl CheckTypeRelatedTo {
             } else {
                 let constraint = self
                     .type_checker
-                    .get_simplified_type_or_constraint(target_type)?;
+                    .ref_(self).get_simplified_type_or_constraint(target_type)?;
                 if let Some(constraint) = constraint {
                     if self.is_related_to(
                         source,
-                        self.type_checker.get_index_type(
+                        self.type_checker.ref_(self).get_index_type(
                             constraint,
                             Some({
                                 let strings_only = target.ref_(self).as_index_type().strings_only;
@@ -1048,38 +1048,38 @@ impl CheckTypeRelatedTo {
                     {
                         return Ok(Ternary::True);
                     }
-                } else if self.type_checker.is_generic_mapped_type(target_type)? {
+                } else if self.type_checker.ref_(self).is_generic_mapped_type(target_type)? {
                     let name_type = self
                         .type_checker
-                        .get_name_type_from_mapped_type(target_type)?;
+                        .ref_(self).get_name_type_from_mapped_type(target_type)?;
                     let constraint_type = self
                         .type_checker
-                        .get_constraint_type_from_mapped_type(target_type)?;
+                        .ref_(self).get_constraint_type_from_mapped_type(target_type)?;
                     let target_keys: Id<Type>;
                     if let Some(name_type) = name_type.filter(|_| {
                         self.type_checker
-                            .is_mapped_type_with_keyof_constraint_declaration(target_type)
+                            .ref_(self).is_mapped_type_with_keyof_constraint_declaration(target_type)
                     }) {
-                        let modifiers_type = self.type_checker.get_apparent_type(
+                        let modifiers_type = self.type_checker.ref_(self).get_apparent_type(
                             self.type_checker
-                                .get_modifiers_type_from_mapped_type(target_type)?,
+                                .ref_(self).get_modifiers_type_from_mapped_type(target_type)?,
                         )?;
                         let mut mapped_keys: Vec<Id<Type>> = vec![];
                         self.type_checker
-                            .try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
+                            .ref_(self).try_for_each_mapped_type_property_key_type_and_index_signature_key_type(
                                 modifiers_type,
                                 TypeFlags::StringOrNumberLiteralOrUnique,
                                 false,
                                 |t| {
                                     mapped_keys.push(
-                                        self.type_checker.instantiate_type(
+                                        self.type_checker.ref_(self).instantiate_type(
                                             name_type,
                                             Some(
-                                                self.type_checker.append_type_mapping(
+                                                self.type_checker.ref_(self).append_type_mapping(
                                                     target_type.ref_(self).as_mapped_type().maybe_mapper(),
                                                     self
                                                         .type_checker
-                                                        .get_type_parameter_from_mapped_type(
+                                                        .ref_(self).get_type_parameter_from_mapped_type(
                                                             target_type,
                                                         )?,
                                                     t,
@@ -1092,7 +1092,7 @@ impl CheckTypeRelatedTo {
                                 },
                             )?;
                         mapped_keys.push(name_type.clone());
-                        target_keys = self.type_checker.get_union_type(
+                        target_keys = self.type_checker.ref_(self).get_union_type(
                             &mapped_keys,
                             None,
                             Option::<Id<Symbol>>::None,
@@ -1151,21 +1151,21 @@ impl CheckTypeRelatedTo {
                     original_error_info = self.maybe_error_info();
                 }
             }
-            if Rc::ptr_eq(&self.relation, &self.type_checker.assignable_relation)
-                || Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation)
+            if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).assignable_relation)
+                || Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation)
             {
                 let object_type = target.ref_(self).as_indexed_access_type().object_type;
                 let index_type = target.ref_(self).as_indexed_access_type().index_type;
                 let base_object_type = self
                     .type_checker
-                    .get_base_constraint_of_type(object_type)?
+                    .ref_(self).get_base_constraint_of_type(object_type)?
                     .unwrap_or_else(|| object_type.clone());
                 let base_index_type = self
                     .type_checker
-                    .get_base_constraint_of_type(index_type)?
+                    .ref_(self).get_base_constraint_of_type(index_type)?
                     .unwrap_or_else(|| index_type.clone());
-                if !self.type_checker.is_generic_object_type(base_object_type)?
-                    && !self.type_checker.is_generic_index_type(base_index_type)?
+                if !self.type_checker.ref_(self).is_generic_object_type(base_object_type)?
+                    && !self.type_checker.ref_(self).is_generic_index_type(base_index_type)?
                 {
                     let access_flags = AccessFlags::Writing
                         | if base_object_type != object_type {
@@ -1173,7 +1173,7 @@ impl CheckTypeRelatedTo {
                         } else {
                             AccessFlags::None
                         };
-                    let constraint = self.type_checker.get_indexed_access_type_or_undefined(
+                    let constraint = self.type_checker.ref_(self).get_indexed_access_type_or_undefined(
                         base_object_type,
                         base_index_type,
                         Some(access_flags),
@@ -1219,8 +1219,8 @@ impl CheckTypeRelatedTo {
             if report_errors {
                 original_error_info = None;
             }
-        } else if self.type_checker.is_generic_mapped_type(target)?
-            && !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation)
+        } else if self.type_checker.ref_(self).is_generic_mapped_type(target)?
+            && !Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation)
         {
             let keys_remapped = target
                 .ref_(self)
@@ -1231,8 +1231,8 @@ impl CheckTypeRelatedTo {
                 .is_some();
             let template_type = self
                 .type_checker
-                .get_template_type_from_mapped_type(target)?;
-            let modifiers = self.type_checker.get_mapped_type_modifiers(target);
+                .ref_(self).get_template_type_from_mapped_type(target)?;
+            let modifiers = self.type_checker.ref_(self).get_mapped_type_modifiers(target);
             if !modifiers.intersects(MappedTypeModifiers::ExcludeOptional) {
                 if !keys_remapped
                     && template_type
@@ -1247,25 +1247,25 @@ impl CheckTypeRelatedTo {
                     && template_type.ref_(self).as_indexed_access_type().index_type
                         == self
                             .type_checker
-                            .get_type_parameter_from_mapped_type(target)?
+                            .ref_(self).get_type_parameter_from_mapped_type(target)?
                 {
                     return Ok(Ternary::True);
                 }
-                if !self.type_checker.is_generic_mapped_type(source)? {
+                if !self.type_checker.ref_(self).is_generic_mapped_type(source)? {
                     let target_keys = if keys_remapped {
                         self.type_checker
-                            .get_name_type_from_mapped_type(target)?
+                            .ref_(self).get_name_type_from_mapped_type(target)?
                             .unwrap()
                     } else {
                         self.type_checker
-                            .get_constraint_type_from_mapped_type(target)?
+                            .ref_(self).get_constraint_type_from_mapped_type(target)?
                     };
-                    let source_keys = self.type_checker.get_index_type(source, None, Some(true))?;
+                    let source_keys = self.type_checker.ref_(self).get_index_type(source, None, Some(true))?;
                     let include_optional =
                         modifiers.intersects(MappedTypeModifiers::IncludeOptional);
                     let filtered_by_applicability = if include_optional {
                         self.type_checker
-                            .intersect_types(Some(target_keys), Some(source_keys))?
+                            .ref_(self).intersect_types(Some(target_keys), Some(source_keys))?
                     } else {
                         None
                     };
@@ -1287,14 +1287,14 @@ impl CheckTypeRelatedTo {
                     } {
                         let template_type = self
                             .type_checker
-                            .get_template_type_from_mapped_type(target)?;
+                            .ref_(self).get_template_type_from_mapped_type(target)?;
                         let type_parameter = self
                             .type_checker
-                            .get_type_parameter_from_mapped_type(target)?;
+                            .ref_(self).get_type_parameter_from_mapped_type(target)?;
 
                         let non_null_component = self
                             .type_checker
-                            .extract_types_of_kind(template_type, !TypeFlags::Nullable);
+                            .ref_(self).extract_types_of_kind(template_type, !TypeFlags::Nullable);
                         if !keys_remapped
                             && non_null_component
                                 .ref_(self)
@@ -1326,7 +1326,7 @@ impl CheckTypeRelatedTo {
                             } else if let Some(filtered_by_applicability) =
                                 filtered_by_applicability
                             {
-                                self.type_checker.get_intersection_type(
+                                self.type_checker.ref_(self).get_intersection_type(
                                     &vec![filtered_by_applicability, type_parameter],
                                     Option::<Id<Symbol>>::None,
                                     None,
@@ -1334,7 +1334,7 @@ impl CheckTypeRelatedTo {
                             } else {
                                 type_parameter
                             };
-                            let indexed_access_type = self.type_checker.get_indexed_access_type(
+                            let indexed_access_type = self.type_checker.ref_(self).get_indexed_access_type(
                                 source,
                                 indexing_type,
                                 None,
@@ -1360,7 +1360,7 @@ impl CheckTypeRelatedTo {
                 }
             }
         } else if target.ref_(self).flags().intersects(TypeFlags::Conditional) {
-            if self.type_checker.is_deeply_nested_type(
+            if self.type_checker.ref_(self).is_deeply_nested_type(
                 target,
                 self.maybe_target_stack().as_ref().unwrap(),
                 self.target_depth(),
@@ -1374,24 +1374,24 @@ impl CheckTypeRelatedTo {
                 .ref_(self)
                 .infer_type_parameters
                 .is_none()
-                && !self.type_checker.is_distribution_dependent(
+                && !self.type_checker.ref_(self).is_distribution_dependent(
                     &c.ref_(self).as_conditional_type().root.ref_(self),
                 )?
             {
-                let skip_true = !self.type_checker.is_type_assignable_to(
-                    self.type_checker.get_permissive_instantiation(
+                let skip_true = !self.type_checker.ref_(self).is_type_assignable_to(
+                    self.type_checker.ref_(self).get_permissive_instantiation(
                         c.ref_(self).as_conditional_type().check_type,
                     )?,
-                    self.type_checker.get_permissive_instantiation(
+                    self.type_checker.ref_(self).get_permissive_instantiation(
                         c.ref_(self).as_conditional_type().extends_type,
                     )?,
                 )?;
                 let skip_false = !skip_true
-                    && self.type_checker.is_type_assignable_to(
-                        self.type_checker.get_restrictive_instantiation(
+                    && self.type_checker.ref_(self).is_type_assignable_to(
+                        self.type_checker.ref_(self).get_restrictive_instantiation(
                             c.ref_(self).as_conditional_type().check_type,
                         )?,
-                        self.type_checker.get_restrictive_instantiation(
+                        self.type_checker.ref_(self).get_restrictive_instantiation(
                             c.ref_(self).as_conditional_type().extends_type,
                         )?,
                     )?;
@@ -1400,7 +1400,7 @@ impl CheckTypeRelatedTo {
                 } else {
                     self.is_related_to(
                         source,
-                        self.type_checker.get_true_type_from_conditional_type(c)?,
+                        self.type_checker.ref_(self).get_true_type_from_conditional_type(c)?,
                         Some(RecursionFlags::Target),
                         Some(false),
                         None,
@@ -1413,7 +1413,7 @@ impl CheckTypeRelatedTo {
                     } else {
                         self.is_related_to(
                             source,
-                            self.type_checker.get_false_type_from_conditional_type(c)?,
+                            self.type_checker.ref_(self).get_false_type_from_conditional_type(c)?,
                             Some(RecursionFlags::Target),
                             Some(false),
                             None,
@@ -1436,11 +1436,11 @@ impl CheckTypeRelatedTo {
                 .flags()
                 .intersects(TypeFlags::TemplateLiteral)
             {
-                if Rc::ptr_eq(&self.relation, &self.type_checker.comparable_relation) {
+                if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation) {
                     return Ok(
                         if self
                             .type_checker
-                            .template_literal_types_definitely_unrelated(source, target)
+                            .ref_(self).template_literal_types_definitely_unrelated(source, target)
                         {
                             Ternary::False
                         } else {
@@ -1448,17 +1448,17 @@ impl CheckTypeRelatedTo {
                         },
                     );
                 }
-                self.type_checker.instantiate_type(
+                self.type_checker.ref_(self).instantiate_type(
                     source,
                     Some(
                         self.type_checker
-                            .make_function_type_mapper(ReportUnreliableMarkers),
+                            .ref_(self).make_function_type_mapper(ReportUnreliableMarkers),
                     ),
                 )?;
             }
             if self
                 .type_checker
-                .is_type_matched_by_template_literal_type(source, target)?
+                .ref_(self).is_type_matched_by_template_literal_type(source, target)?
             {
                 return Ok(Ternary::True);
             }
@@ -1478,7 +1478,7 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::IndexedAccess))
             {
-                let constraint = self.type_checker.get_constraint_of_type(source)?;
+                let constraint = self.type_checker.ref_(self).get_constraint_of_type(source)?;
                 if match constraint {
                     None => true,
                     Some(constraint) => {
@@ -1490,9 +1490,9 @@ impl CheckTypeRelatedTo {
                     }
                 } {
                     result = self.is_related_to(
-                        self.type_checker.empty_object_type(),
+                        self.type_checker.ref_(self).empty_object_type(),
                         self.type_checker
-                            .extract_types_of_kind(target, !TypeFlags::NonPrimitive),
+                            .ref_(self).extract_types_of_kind(target, !TypeFlags::NonPrimitive),
                         Some(RecursionFlags::Both),
                         None,
                         None,
@@ -1517,7 +1517,7 @@ impl CheckTypeRelatedTo {
                     return Ok(result);
                 } else if {
                     result = self.is_related_to(
-                        self.type_checker.get_type_with_this_argument(
+                        self.type_checker.ref_(self).get_type_with_this_argument(
                             constraint.unwrap(),
                             Some(source),
                             None,
@@ -1540,7 +1540,7 @@ impl CheckTypeRelatedTo {
             }
         } else if source.ref_(self).flags().intersects(TypeFlags::Index) {
             result = self.is_related_to(
-                self.type_checker.keyof_constraint_type(),
+                self.type_checker.ref_(self).keyof_constraint_type(),
                 target,
                 Some(RecursionFlags::Source),
                 Some(report_errors),
@@ -1562,7 +1562,7 @@ impl CheckTypeRelatedTo {
                 .flags()
                 .intersects(TypeFlags::TemplateLiteral)
             {
-                let constraint = self.type_checker.get_base_constraint_of_type(source)?;
+                let constraint = self.type_checker.ref_(self).get_base_constraint_of_type(source)?;
                 if let Some(constraint) = constraint.filter(|&constraint| constraint != source) {
                     result = self.is_related_to(
                         constraint,
@@ -1603,7 +1603,7 @@ impl CheckTypeRelatedTo {
                     return Ok(result);
                 }
             } else {
-                let constraint = self.type_checker.get_base_constraint_of_type(source)?;
+                let constraint = self.type_checker.ref_(self).get_base_constraint_of_type(source)?;
                 if let Some(constraint) = constraint {
                     result = self.is_related_to(
                         constraint,
@@ -1620,7 +1620,7 @@ impl CheckTypeRelatedTo {
                 }
             }
         } else if source.ref_(self).flags().intersects(TypeFlags::Conditional) {
-            if self.type_checker.is_deeply_nested_type(
+            if self.type_checker.ref_(self).is_deeply_nested_type(
                 source,
                 self.maybe_source_stack().as_ref().unwrap(),
                 self.source_depth(),
@@ -1638,7 +1638,7 @@ impl CheckTypeRelatedTo {
                     source.ref_(self).as_conditional_type().extends_type.clone();
                 let mut mapper: Option<Id<TypeMapper>> = None;
                 if let Some(source_params) = source_params.as_ref() {
-                    let ctx = self.type_checker.create_inference_context(
+                    let ctx = self.type_checker.ref_(self).create_inference_context(
                         source_params,
                         None,
                         InferenceFlags::None,
@@ -1646,7 +1646,7 @@ impl CheckTypeRelatedTo {
                             self.rc_wrapper(),
                         )))),
                     );
-                    self.type_checker.infer_types(
+                    self.type_checker.ref_(self).infer_types(
                         &ctx.inferences(),
                         target.ref_(self).as_conditional_type().extends_type,
                         source_extends,
@@ -1655,10 +1655,10 @@ impl CheckTypeRelatedTo {
                     )?;
                     source_extends = self
                         .type_checker
-                        .instantiate_type(source_extends, Some(ctx.mapper()))?;
+                        .ref_(self).instantiate_type(source_extends, Some(ctx.mapper()))?;
                     mapper = Some(ctx.mapper());
                 }
-                if self.type_checker.is_type_identical_to(
+                if self.type_checker.ref_(self).is_type_identical_to(
                     source_extends,
                     target.ref_(self).as_conditional_type().extends_type,
                 )? && (self.is_related_to(
@@ -1679,13 +1679,13 @@ impl CheckTypeRelatedTo {
                     )? != Ternary::False)
                 {
                     result = self.is_related_to(
-                        self.type_checker.instantiate_type(
+                        self.type_checker.ref_(self).instantiate_type(
                             self.type_checker
-                                .get_true_type_from_conditional_type(source)?,
+                                .ref_(self).get_true_type_from_conditional_type(source)?,
                             mapper,
                         )?,
                         self.type_checker
-                            .get_true_type_from_conditional_type(target)?,
+                            .ref_(self).get_true_type_from_conditional_type(target)?,
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None,
@@ -1694,9 +1694,9 @@ impl CheckTypeRelatedTo {
                     if result != Ternary::False {
                         result &= self.is_related_to(
                             self.type_checker
-                                .get_false_type_from_conditional_type(source)?,
+                                .ref_(self).get_false_type_from_conditional_type(source)?,
                             self.type_checker
-                                .get_false_type_from_conditional_type(target)?,
+                                .ref_(self).get_false_type_from_conditional_type(target)?,
                             Some(RecursionFlags::Both),
                             Some(report_errors),
                             None,
@@ -1711,7 +1711,7 @@ impl CheckTypeRelatedTo {
             } else {
                 let distributive_constraint = self
                     .type_checker
-                    .get_constraint_of_distributive_conditional_type(source)?;
+                    .ref_(self).get_constraint_of_distributive_conditional_type(source)?;
                 if let Some(distributive_constraint) = distributive_constraint {
                     result = self.is_related_to(
                         distributive_constraint,
@@ -1730,7 +1730,7 @@ impl CheckTypeRelatedTo {
 
             let default_constraint = self
                 .type_checker
-                .get_default_constraint_of_conditional_type(source)?;
+                .ref_(self).get_default_constraint_of_conditional_type(source)?;
             // if (defaultConstraint) {
             result = self.is_related_to(
                 default_constraint,
@@ -1746,15 +1746,15 @@ impl CheckTypeRelatedTo {
             }
             // }
         } else {
-            if !Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
-                && !Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation)
-                && self.type_checker.is_partial_mapped_type(target)
-                && self.type_checker.is_empty_object_type(source)?
+            if !Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).subtype_relation)
+                && !Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).strict_subtype_relation)
+                && self.type_checker.ref_(self).is_partial_mapped_type(target)
+                && self.type_checker.ref_(self).is_empty_object_type(source)?
             {
                 return Ok(Ternary::True);
             }
-            if self.type_checker.is_generic_mapped_type(target)? {
-                if self.type_checker.is_generic_mapped_type(source)? {
+            if self.type_checker.ref_(self).is_generic_mapped_type(target)? {
+                if self.type_checker.ref_(self).is_generic_mapped_type(source)? {
                     result = self.mapped_type_related_to(source, target, report_errors)?;
                     if result != Ternary::False {
                         self.reset_error_info(save_error_info);
@@ -1764,20 +1764,20 @@ impl CheckTypeRelatedTo {
                 return Ok(Ternary::False);
             }
             let source_is_primitive = source.ref_(self).flags().intersects(TypeFlags::Primitive);
-            if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
-                source = self.type_checker.get_apparent_type(source)?;
-            } else if self.type_checker.is_generic_mapped_type(source)? {
+            if !Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation) {
+                source = self.type_checker.ref_(self).get_apparent_type(source)?;
+            } else if self.type_checker.ref_(self).is_generic_mapped_type(source)? {
                 return Ok(Ternary::False);
             }
             if get_object_flags(&source.ref_(self)).intersects(ObjectFlags::Reference)
                 && get_object_flags(&target.ref_(self)).intersects(ObjectFlags::Reference)
                 && source.ref_(self).as_type_reference_interface().target()
                     == target.ref_(self).as_type_reference_interface().target()
-                && !self.type_checker.is_tuple_type(source)
+                && !self.type_checker.ref_(self).is_tuple_type(source)
                 && !(get_object_flags(&source.ref_(self)).intersects(ObjectFlags::MarkerType)
                     || get_object_flags(&target.ref_(self)).intersects(ObjectFlags::MarkerType))
             {
-                let variances = self.type_checker.get_variances({
+                let variances = self.type_checker.ref_(self).get_variances({
                     let target = source.ref_(self).as_type_reference_interface().target();
                     target
                 });
@@ -1790,19 +1790,19 @@ impl CheckTypeRelatedTo {
                     &mut original_error_info,
                     &save_error_info,
                     &mut variance_check_failed,
-                    Some(&*self.type_checker.get_type_arguments(source)?),
-                    Some(&*self.type_checker.get_type_arguments(target)?),
+                    Some(&*self.type_checker.ref_(self).get_type_arguments(source)?),
+                    Some(&*self.type_checker.ref_(self).get_type_arguments(target)?),
                     &variances,
                     intersection_state,
                 )?;
                 if let Some(variance_result) = variance_result {
                     return Ok(variance_result);
                 }
-            } else if if self.type_checker.is_readonly_array_type(target) {
-                self.type_checker.is_array_type(source) || self.type_checker.is_tuple_type(source)
+            } else if if self.type_checker.ref_(self).is_readonly_array_type(target) {
+                self.type_checker.ref_(self).is_array_type(source) || self.type_checker.ref_(self).is_tuple_type(source)
             } else {
-                self.type_checker.is_array_type(target)
-                    && self.type_checker.is_tuple_type(source)
+                self.type_checker.ref_(self).is_array_type(target)
+                    && self.type_checker.ref_(self).is_tuple_type(source)
                     && !source
                         .ref_(self)
                         .as_type_reference_interface()
@@ -1811,14 +1811,14 @@ impl CheckTypeRelatedTo {
                         .as_tuple_type()
                         .readonly
             } {
-                if !Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+                if !Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation) {
                     return self.is_related_to(
                         self.type_checker
-                            .get_index_type_of_type_(source, self.type_checker.number_type())?
-                            .unwrap_or_else(|| self.type_checker.any_type()),
+                            .ref_(self).get_index_type_of_type_(source, self.type_checker.ref_(self).number_type())?
+                            .unwrap_or_else(|| self.type_checker.ref_(self).any_type()),
                         self.type_checker
-                            .get_index_type_of_type_(target, self.type_checker.number_type())?
-                            .unwrap_or_else(|| self.type_checker.any_type()),
+                            .ref_(self).get_index_type_of_type_(target, self.type_checker.ref_(self).number_type())?
+                            .unwrap_or_else(|| self.type_checker.ref_(self).any_type()),
                         Some(RecursionFlags::Both),
                         Some(report_errors),
                         None,
@@ -1827,11 +1827,11 @@ impl CheckTypeRelatedTo {
                 } else {
                     return Ok(Ternary::False);
                 }
-            } else if (Rc::ptr_eq(&self.relation, &self.type_checker.subtype_relation)
-                || Rc::ptr_eq(&self.relation, &self.type_checker.strict_subtype_relation))
-                && self.type_checker.is_empty_object_type(target)?
+            } else if (Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).subtype_relation)
+                || Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).strict_subtype_relation))
+                && self.type_checker.ref_(self).is_empty_object_type(target)?
                 && get_object_flags(&target.ref_(self)).intersects(ObjectFlags::FreshLiteral)
-                && !self.type_checker.is_empty_object_type(source)?
+                && !self.type_checker.ref_(self).is_empty_object_type(source)?
             {
                 return Ok(Ternary::False);
             }
@@ -1894,7 +1894,7 @@ impl CheckTypeRelatedTo {
                 .intersects(TypeFlags::Object | TypeFlags::Intersection)
                 && target.ref_(self).flags().intersects(TypeFlags::Union)
             {
-                let object_only_target = self.type_checker.extract_types_of_kind(
+                let object_only_target = self.type_checker.ref_(self).extract_types_of_kind(
                     target,
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::Substitution,
                 );

@@ -592,7 +592,7 @@ impl TypeChecker {
                                 let type_checker = self.arena_id();
                                 let prop_clone = prop.clone();
                                 move || {
-                                    type_checker.get_context_free_type_of_expression(prop_clone.ref_(&*type_checker).as_has_initializer().maybe_initializer().unwrap())
+                                    type_checker.ref_(self).get_context_free_type_of_expression(prop_clone.ref_(self).as_has_initializer().maybe_initializer().unwrap())
                                 }
                             }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                             prop.ref_(self).symbol().ref_(self).escaped_name().to_owned(),
@@ -622,7 +622,7 @@ impl TypeChecker {
                                 Box::new({
                                     let type_checker = self.arena_id();
                                     move || {
-                                        Ok(type_checker.undefined_type())
+                                        Ok(type_checker.ref_(self).undefined_type())
                                     }
                                 }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                                 s.ref_(self).escaped_name().to_owned(),
@@ -666,15 +666,15 @@ impl TypeChecker {
                             let arena = unsafe { &*arena_raw };
                             move || -> io::Result<_> {
                                 if prop_clone.ref_(arena).kind() != SyntaxKind::JsxAttribute {
-                                    return Ok(type_checker.true_type());
+                                    return Ok(type_checker.ref_(self).true_type());
                                 }
                                 let prop_clone_ref = prop_clone.ref_(arena);
                                 let prop_as_jsx_attribute = prop_clone_ref.as_jsx_attribute();
                                 let prop_initializer = prop_as_jsx_attribute.initializer;
                                 Ok(match prop_initializer {
-                                    None => type_checker.true_type(),
+                                    None => type_checker.ref_(self).true_type(),
                                     Some(prop_initializer) =>
-                                        type_checker.get_context_free_type_of_expression(prop_initializer)?
+                                        type_checker.ref_(self).get_context_free_type_of_expression(prop_initializer)?
                                 })
                             }
                         }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
@@ -706,7 +706,7 @@ impl TypeChecker {
                                 Box::new({
                                     let type_checker = self.arena_id();
                                     move || {
-                                        Ok(type_checker.undefined_type())
+                                        Ok(type_checker.ref_(self).undefined_type())
                                     }
                                 }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                                 s.ref_(self).escaped_name().to_owned(),
