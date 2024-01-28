@@ -320,11 +320,11 @@ impl TypeChecker {
         if matches!(symbol.ref_(self).maybe_const_enum_only_module(), Some(true)) {
             result.ref_(self).set_const_enum_only_module(Some(true));
         }
-        if let Some(symbol_members) = symbol.ref_(self).maybe_members() {
+        if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
             *result.ref_(self).maybe_members_mut() =
                 Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()));
         }
-        if let Some(symbol_exports) = symbol.ref_(self).maybe_exports() {
+        if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
             *result.ref_(self).maybe_exports_mut() =
                 Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()));
         }

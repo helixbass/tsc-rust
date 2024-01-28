@@ -168,7 +168,7 @@ impl TypeChecker {
             return Ok(false);
         }
         Ok(for_each_entry_bool(
-            &*self.get_exports_of_symbol(symbol)?.ref(self),
+            &*self.get_exports_of_symbol(symbol)?.ref_(self),
             |&p: &Id<Symbol>, _| {
                 p.ref_(self).flags().intersects(SymbolFlags::Value)
                     && matches!(

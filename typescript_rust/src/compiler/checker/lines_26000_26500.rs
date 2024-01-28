@@ -607,7 +607,7 @@ impl TypeChecker {
                                     matches!(
                                         node.ref_(self).maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.ref_(self).maybe_members(),
+                                            node_symbol.ref_(self).maybe_members().as_ref(),
                                             Some(node_symbol_members) if !node_symbol_members.ref_(self).contains_key(s.ref_(self).escaped_name())
                                         )
                                     ) &&
@@ -691,7 +691,7 @@ impl TypeChecker {
                                     matches!(
                                         node.ref_(self).maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.ref_(self).maybe_members(),
+                                            node_symbol.ref_(self).maybe_members().as_ref(),
                                             Some(node_symbol_members) if !node_symbol_members.ref_(self).contains_key(s.ref_(self).escaped_name())
                                         )
                                     ) &&

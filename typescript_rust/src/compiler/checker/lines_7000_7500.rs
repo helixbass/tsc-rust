@@ -565,7 +565,7 @@ impl SymbolTableToDeclarationStatements {
             .flags()
             .intersects(SymbolFlags::ValueModule | SymbolFlags::NamespaceModule)
             && matches!(
-                symbol.ref_(self).maybe_exports(),
+                symbol.ref_(self).maybe_exports().as_ref(),
                 Some(symbol_exports) if !symbol_exports.ref_(self).is_empty()
             ))
         {

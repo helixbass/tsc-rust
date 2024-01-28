@@ -1140,7 +1140,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_import_clause = node_ref.as_import_clause();
         if matches!(
-            module_symbol.ref_(self).maybe_exports(),
+            module_symbol.ref_(self).maybe_exports().as_ref(),
             Some(exports) if exports.ref_(self).contains_key(node.ref_(self).symbol().ref_(self).escaped_name())
         ) {
             self.error(
@@ -1296,12 +1296,12 @@ impl TypeChecker {
                 .ref_(self)
                 .set_value_declaration(value_symbol_value_declaration);
         }
-        if let Some(type_symbol_members) = type_symbol.ref_(self).maybe_members() {
+        if let Some(type_symbol_members) = type_symbol.ref_(self).maybe_members().as_ref() {
             *result.ref_(self).maybe_members_mut() = Some(self.alloc_symbol_table(
                 type_symbol_members.ref_(self).clone(),
             ));
         }
-        if let Some(value_symbol_exports) = value_symbol.ref_(self).maybe_exports() {
+        if let Some(value_symbol_exports) = value_symbol.ref_(self).maybe_exports().as_ref() {
             *result.ref_(self).maybe_exports_mut() = Some(self.alloc_symbol_table(
                 value_symbol_exports.ref_(self).clone(),
             ));
@@ -1513,7 +1513,7 @@ impl TypeChecker {
                     }
                 } else {
                     if matches!(
-                        module_symbol.ref_(self).maybe_exports(),
+                        module_symbol.ref_(self).maybe_exports().as_ref(),
                         Some(exports) if exports.ref_(self).contains_key(InternalSymbolName::Default)
                     ) {
                         self.error(

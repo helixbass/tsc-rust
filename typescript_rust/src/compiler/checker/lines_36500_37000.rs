@@ -557,7 +557,7 @@ impl TypeChecker {
                         .ref_(self).is_empty()
                         || is_prototype_access(node_name, self))
                     && matches!(
-                        symbol.ref_(self).maybe_exports(),
+                        symbol.ref_(self).maybe_exports().as_ref(),
                         Some(symbol_exports) if !symbol_exports.ref_(self).is_empty()
                     );
                 if !is_js_object_literal_initializer

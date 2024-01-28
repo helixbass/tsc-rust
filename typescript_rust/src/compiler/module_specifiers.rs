@@ -1090,7 +1090,7 @@ fn try_get_module_name_from_ambient_module(
                 .as_ref()
                 .and_then(|top_namespace_parent_parent_symbol_exports| {
                     top_namespace_parent_parent_symbol_exports
-                        .ref_(self)
+                        .ref_(checker)
                         .get("export=")
                         .cloned()
                 })

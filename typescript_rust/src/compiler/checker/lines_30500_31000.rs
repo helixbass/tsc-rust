@@ -611,7 +611,7 @@ impl TypeChecker {
                 inferred.ref_(self).flags() | (source.ref_(self).flags() & SymbolFlags::Class),
             );
             if matches!(
-                source.ref_(self).maybe_exports(),
+                source.ref_(self).maybe_exports().as_ref(),
                 Some(source_exports) if !source_exports.ref_(self).is_empty()
             ) {
                 self.merge_symbol_table(
@@ -621,7 +621,7 @@ impl TypeChecker {
                 )?;
             }
             if matches!(
-                source.ref_(self).maybe_members(),
+                source.ref_(self).maybe_members().as_ref(),
                 Some(source_members) if !source_members.ref_(self).is_empty()
             ) {
                 self.merge_symbol_table(

@@ -314,7 +314,7 @@ impl TypeChecker {
                     attribute_symbol_links.type_ = Some(expr_type.clone());
                     attribute_symbol_links.target = Some(member.clone());
                 }
-                attributes_table.borrow_mut().insert(
+                attributes_table.ref_mut(self).insert(
                     attribute_symbol.ref_(self).escaped_name().to_owned(),
                     attribute_symbol.clone(),
                 );
@@ -341,7 +341,7 @@ impl TypeChecker {
                     attribute_decl.ref_(self).kind() == SyntaxKind::JsxSpreadAttribute,
                     None,
                 );
-                if !(*attributes_table).borrow().is_empty() {
+                if !attributes_table.ref_(self).is_empty() {
                     spread = self.get_spread_type(
                         spread,
                         self.create_jsx_attributes_type(
@@ -353,7 +353,7 @@ impl TypeChecker {
                         object_flags,
                         false,
                     )?;
-                    *attributes_table.borrow_mut() =
+                    *attributes_table.ref_mut(self) =
                         create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 }
                 let expr_type = self.get_reduced_type(self.check_expression_cached(
@@ -395,7 +395,7 @@ impl TypeChecker {
         }
 
         if !has_spread_any_type {
-            if !(*attributes_table).borrow().is_empty() {
+            if !attributes_table.ref_(self).is_empty() {
                 spread = self.get_spread_type(
                     spread,
                     self.create_jsx_attributes_type(
