@@ -155,7 +155,7 @@ impl Printer {
                             self.write_lines(helper_text);
                         }
                         EmitHelperText::Callback(helper_text) => {
-                            self.write_lines(&helper_text.call(&|name: &str| {
+                            self.write_lines(&helper_text.ref_(self).call(&|name: &str| {
                                 self.make_file_level_optimistic_unique_name(name)
                             }));
                         }

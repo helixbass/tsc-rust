@@ -826,7 +826,7 @@ mod _EmitHelperTextDeriveTraceScope {
     #[derive(Clone, Trace, Finalize)]
     pub enum EmitHelperText {
         String(String),
-        Callback(Gc<Box<dyn EmitHelperTextCallback>>),
+        Callback(Id<Box<dyn EmitHelperTextCallback>>),
     }
 }
 pub use _EmitHelperTextDeriveTraceScope::EmitHelperText;
@@ -848,8 +848,8 @@ impl From<String> for EmitHelperText {
     }
 }
 
-impl From<Gc<Box<dyn EmitHelperTextCallback>>> for EmitHelperText {
-    fn from(value: Gc<Box<dyn EmitHelperTextCallback>>) -> Self {
+impl From<Id<Box<dyn EmitHelperTextCallback>>> for EmitHelperText {
+    fn from(value: Id<Box<dyn EmitHelperTextCallback>>) -> Self {
         Self::Callback(value)
     }
 }

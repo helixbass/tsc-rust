@@ -604,8 +604,9 @@ pub(crate) fn compare_emit_helpers(x: Id<EmitHelper>, y: Id<EmitHelper>, arena: 
 pub fn helper_string(
     input: &[&'static str], /*TemplateStringsArray*/
     args: &[&'static str],
-) -> Gc<Box<dyn EmitHelperTextCallback>> {
-    Gc::new(Box::new(HelperString {
+    arena: &impl HasArena,
+) -> Id<Box<dyn EmitHelperTextCallback>> {
+    arena.alloc_emit_helper_text_callback(Box::new(HelperString {
         input: input.to_owned(),
         args: args.to_owned(),
     }))
@@ -1069,6 +1070,7 @@ pub fn async_super_helper(arena: &impl HasArena) -> Id<EmitHelper> {
                 r#" = name => super[name];"#,
             ],
             &["_superIndex"],
+            arena,
         ))
         .build()
         .unwrap()
@@ -1088,6 +1090,7 @@ pub fn advanced_async_super_helper(arena: &impl HasArena) -> Id<EmitHelper> {
                     })(name => super[name], (name, value) => super[name] = value);"#,
             ],
             &["_superIndex"],
+            arena,
         ))
         .build()
         .unwrap()

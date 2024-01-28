@@ -17,7 +17,7 @@ use crate::{
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
-    SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState,
+    SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
 };
 
 #[derive(Default)]
@@ -86,6 +86,7 @@ pub struct AllArenas {
     pub sys_format_diagnostics_hosts: RefCell<Arena<SysFormatDiagnosticsHost>>,
     pub class_lexical_environments: RefCell<Arena<ClassLexicalEnvironment>>,
     pub converted_loop_states: RefCell<Arena<ConvertedLoopState>>,
+    pub emit_helper_text_callbacks: RefCell<Arena<Box<dyn EmitHelperTextCallback>>>,
 }
 
 pub trait HasArena {
@@ -597,6 +598,14 @@ pub trait HasArena {
 
     fn alloc_converted_loop_state(&self, converted_loop_state: ConvertedLoopState) -> Id<ConvertedLoopState> {
         self.arena().alloc_converted_loop_state(converted_loop_state)
+    }
+
+    fn emit_helper_text_callback(&self, emit_helper_text_callback: Id<Box<dyn EmitHelperTextCallback>>) -> Ref<Box<dyn EmitHelperTextCallback>> {
+        self.arena().emit_helper_text_callback(emit_helper_text_callback)
+    }
+
+    fn alloc_emit_helper_text_callback(&self, emit_helper_text_callback: Box<dyn EmitHelperTextCallback>) -> Id<Box<dyn EmitHelperTextCallback>> {
+        self.arena().alloc_emit_helper_text_callback(emit_helper_text_callback)
     }
 }
 
@@ -1243,6 +1252,16 @@ impl HasArena for AllArenas {
         let id = self.converted_loop_states.borrow_mut().alloc(converted_loop_state);
         id
     }
+
+    #[track_caller]
+    fn emit_helper_text_callback(&self, emit_helper_text_callback: Id<Box<dyn EmitHelperTextCallback>>) -> Ref<Box<dyn EmitHelperTextCallback>> {
+        Ref::map(self.emit_helper_text_callbacks.borrow(), |emit_helper_text_callbacks| &emit_helper_text_callbacks[emit_helper_text_callback])
+    }
+
+    fn alloc_emit_helper_text_callback(&self, emit_helper_text_callback: Box<dyn EmitHelperTextCallback>) -> Id<Box<dyn EmitHelperTextCallback>> {
+        let id = self.emit_helper_text_callbacks.borrow_mut().alloc(emit_helper_text_callback);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1760,6 +1779,14 @@ impl InArena for Id<ConvertedLoopState> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, ConvertedLoopState> {
         has_arena.converted_loop_state_mut(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn EmitHelperTextCallback>> {
+    type Item = Box<dyn EmitHelperTextCallback>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn EmitHelperTextCallback>> {
+        has_arena.emit_helper_text_callback(*self)
     }
 }
 
