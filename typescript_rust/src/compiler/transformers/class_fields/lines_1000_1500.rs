@@ -39,7 +39,7 @@ impl TransformClassFields {
         let node_as_class_declaration = node_ref.as_class_declaration();
         let facts = self.get_class_facts(node);
         if facts != ClassFacts::None {
-            self.get_class_lexical_environment().borrow_mut().facts = facts;
+            self.get_class_lexical_environment().ref_mut(self).facts = facts;
         }
         if facts.intersects(ClassFacts::NeedsSubstitutionForThisInClassStaticField) {
             self.enable_substitution_for_class_static_this_or_super_reference();
@@ -56,7 +56,7 @@ impl TransformClassFields {
                 Some(true),
             );
             self.get_class_lexical_environment()
-                .borrow_mut()
+                .ref_mut(self)
                 .class_constructor = Some(self.factory.ref_(self).clone_node(temp));
             pending_class_reference_assignment = Some(
                 self.factory
@@ -128,7 +128,7 @@ impl TransformClassFields {
         let node_as_class_expression = node_ref.as_class_expression();
         let facts = self.get_class_facts(node);
         if facts != ClassFacts::None {
-            self.get_class_lexical_environment().borrow_mut().facts = facts;
+            self.get_class_lexical_environment().ref_mut(self).facts = facts;
         }
 
         if facts.intersects(ClassFacts::NeedsSubstitutionForThisInClassStaticField) {
@@ -162,7 +162,7 @@ impl TransformClassFields {
         if facts.intersects(ClassFacts::NeedsClassConstructorReference) {
             temp = Some(self.create_class_temp_var(node));
             self.get_class_lexical_environment()
-                .borrow_mut()
+                .ref_mut(self)
                 .class_constructor = Some(self.factory.ref_(self).clone_node(temp.unwrap()));
         }
 
@@ -665,7 +665,7 @@ impl TransformClassFields {
                 if let Some(current_class_lexical_environment) = self
                     .maybe_current_class_lexical_environment()
                     .filter(|current_class_lexical_environment| {
-                        (**current_class_lexical_environment).borrow().facts != ClassFacts::None
+                        current_class_lexical_environment.ref_(self).facts != ClassFacts::None
                     })
                 {
                     set_original_node(transformed, Some(property), self);

@@ -376,7 +376,7 @@ pub use compiler::{
         WrapCustomTransformerFactoryHandleDefault,
     },
     transformers::{
-        class_fields::PrivateIdentifierKind,
+        class_fields::{PrivateIdentifierKind, ClassLexicalEnvironment},
         declarations::{
             diagnostics::{
                 can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,

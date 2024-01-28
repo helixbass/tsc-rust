@@ -96,10 +96,12 @@ impl TransformClassFields {
         );
     }
 
-    pub(super) fn get_class_lexical_environment(&self) -> Gc<GcCell<ClassLexicalEnvironment>> {
-        self.maybe_current_class_lexical_environment()
-            .get_or_insert_default_()
-            .clone()
+    pub(super) fn get_class_lexical_environment(&self) -> Id<ClassLexicalEnvironment> {
+        if let Some(current_class_lexical_environment) = self.maybe_current_class_lexical_environment() {
+            return current_class_lexical_environment;
+        }
+        self.set_current_class_lexical_environment(Some(Default::default()));
+        self.maybe_current_class_lexical_environment().unwrap()
     }
 
     pub(super) fn get_private_identifier_environment(
@@ -107,7 +109,7 @@ impl TransformClassFields {
     ) -> Gc<GcCell<PrivateIdentifierEnvironment>> {
         let lex = self.get_class_lexical_environment();
         let ret = lex
-            .borrow_mut()
+            .ref_mut(self)
             .private_identifier_environment
             .get_or_insert_default_()
             .clone();
@@ -133,7 +135,7 @@ impl TransformClassFields {
         let node_name_as_private_identifier = node_name_ref.as_private_identifier();
         let text = get_text_of_property_name(node_name, self);
         let lex = self.get_class_lexical_environment();
-        let lex = (*lex).borrow();
+        let lex = lex.ref_(self);
         let class_constructor = lex.class_constructor;
 
         let private_env = self.get_private_identifier_environment();
@@ -397,8 +399,8 @@ impl TransformClassFields {
         if let Some(current_class_lexical_environment_private_identifier_environment) = self
             .maybe_current_class_lexical_environment()
             .and_then(|current_class_lexical_environment| {
-                (*current_class_lexical_environment)
-                    .borrow()
+                current_class_lexical_environment
+                    .ref_(self)
                     .private_identifier_environment
                     .clone()
             })
@@ -414,8 +416,8 @@ impl TransformClassFields {
         }
         for env in self.class_lexical_environment_stack().iter().rev() {
             let env = continue_if_none!(env);
-            let info = (**env)
-                .borrow()
+            let info = env
+                .ref_(self)
                 .private_identifier_environment
                 .as_ref()
                 .and_then(|env_private_identifier_environment| {
@@ -496,7 +498,7 @@ impl TransformClassFields {
                     self.maybe_current_class_lexical_environment()
                 {
                     let current_class_lexical_environment =
-                        (*current_class_lexical_environment).borrow();
+                        current_class_lexical_environment.ref_(self);
                     let class_constructor =
                         current_class_lexical_environment.class_constructor.as_ref();
                     let super_class_reference = current_class_lexical_environment
@@ -596,7 +598,7 @@ impl TransformClassFields {
                         self.maybe_current_class_lexical_environment()
                     {
                         let current_class_lexical_environment =
-                            (*current_class_lexical_environment).borrow();
+                            current_class_lexical_environment.ref_(self);
                         let class_constructor =
                             current_class_lexical_environment.class_constructor.as_ref();
                         let super_class_reference = current_class_lexical_environment

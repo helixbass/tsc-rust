@@ -17,7 +17,7 @@ use crate::{
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
-    SysFormatDiagnosticsHost,
+    SysFormatDiagnosticsHost, ClassLexicalEnvironment,
 };
 
 #[derive(Default)]
@@ -84,6 +84,7 @@ pub struct AllArenas {
     pub symbol_tables: RefCell<Arena<SymbolTable>>,
     pub inference_infos: RefCell<Arena<InferenceInfo>>,
     pub sys_format_diagnostics_hosts: RefCell<Arena<SysFormatDiagnosticsHost>>,
+    pub class_lexical_environments: RefCell<Arena<ClassLexicalEnvironment>>,
 }
 
 pub trait HasArena {
@@ -571,6 +572,18 @@ pub trait HasArena {
 
     fn alloc_sys_format_diagnostics_host(&self, sys_format_diagnostics_host: SysFormatDiagnosticsHost) -> Id<SysFormatDiagnosticsHost> {
         self.arena().alloc_sys_format_diagnostics_host(sys_format_diagnostics_host)
+    }
+
+    fn class_lexical_environment(&self, class_lexical_environment: Id<ClassLexicalEnvironment>) -> Ref<ClassLexicalEnvironment> {
+        self.arena().class_lexical_environment(class_lexical_environment)
+    }
+
+    fn class_lexical_environment_mut(&self, class_lexical_environment: Id<ClassLexicalEnvironment>) -> RefMut<ClassLexicalEnvironment> {
+        self.arena().class_lexical_environment_mut(class_lexical_environment)
+    }
+
+    fn alloc_class_lexical_environment(&self, class_lexical_environment: ClassLexicalEnvironment) -> Id<ClassLexicalEnvironment> {
+        self.arena().alloc_class_lexical_environment(class_lexical_environment)
     }
 }
 
@@ -1189,6 +1202,20 @@ impl HasArena for AllArenas {
         let id = self.sys_format_diagnostics_hosts.borrow_mut().alloc(sys_format_diagnostics_host);
         id
     }
+
+    #[track_caller]
+    fn class_lexical_environment(&self, class_lexical_environment: Id<ClassLexicalEnvironment>) -> Ref<ClassLexicalEnvironment> {
+        Ref::map(self.class_lexical_environments.borrow(), |class_lexical_environments| &class_lexical_environments[class_lexical_environment])
+    }
+
+    fn class_lexical_environment_mut(&self, class_lexical_environment: Id<ClassLexicalEnvironment>) -> RefMut<ClassLexicalEnvironment> {
+        RefMut::map(self.class_lexical_environments.borrow_mut(), |class_lexical_environments| &mut class_lexical_environments[class_lexical_environment])
+    }
+
+    fn alloc_class_lexical_environment(&self, class_lexical_environment: ClassLexicalEnvironment) -> Id<ClassLexicalEnvironment> {
+        let id = self.class_lexical_environments.borrow_mut().alloc(class_lexical_environment);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1682,6 +1709,18 @@ impl InArena for Id<SysFormatDiagnosticsHost> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SysFormatDiagnosticsHost> {
         has_arena.sys_format_diagnostics_host(*self)
+    }
+}
+
+impl InArena for Id<ClassLexicalEnvironment> {
+    type Item = ClassLexicalEnvironment;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ClassLexicalEnvironment> {
+        has_arena.class_lexical_environment(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, ClassLexicalEnvironment> {
+        has_arena.class_lexical_environment_mut(*self)
     }
 }
 

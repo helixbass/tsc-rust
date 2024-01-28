@@ -40,8 +40,7 @@ impl TransformClassFields {
             if let Some(current_class_lexical_environment) =
                 self.maybe_current_class_lexical_environment()
             {
-                let current_class_lexical_environment =
-                    (*current_class_lexical_environment).borrow();
+                let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
                 let class_constructor =
                     current_class_lexical_environment.class_constructor.as_ref();
                 let super_class_reference = current_class_lexical_environment
@@ -159,8 +158,7 @@ impl TransformClassFields {
                 if let Some(current_class_lexical_environment) =
                     self.maybe_current_class_lexical_environment()
                 {
-                    let current_class_lexical_environment =
-                        (*current_class_lexical_environment).borrow();
+                    let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
                     let class_constructor =
                         current_class_lexical_environment.class_constructor.as_ref();
                     let super_class_reference = current_class_lexical_environment
@@ -469,8 +467,8 @@ impl TransformClassFields {
             if let Some(ref current_class_lexical_environment_class_constructor) = self
                 .maybe_current_class_lexical_environment()
                 .and_then(|current_class_lexical_environment| {
-                    (*current_class_lexical_environment)
-                        .borrow()
+                    current_class_lexical_environment
+                        .ref_(self)
                         .class_constructor
                         .clone()
                 })
@@ -566,8 +564,8 @@ impl TransformClassFields {
             if let Some(ref current_class_lexical_environment_class_constructor) = self
                 .maybe_current_class_lexical_environment()
                 .and_then(|current_class_lexical_environment| {
-                    (*current_class_lexical_environment)
-                        .borrow()
+                    current_class_lexical_environment
+                        .ref_(self)
                         .class_constructor
                         .clone()
                 })
@@ -730,8 +728,7 @@ impl TransformClassFields {
                 if let Some(current_class_lexical_environment) =
                     self.maybe_current_class_lexical_environment()
                 {
-                    let current_class_lexical_environment =
-                        (*current_class_lexical_environment).borrow();
+                    let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
                     let class_constructor =
                         current_class_lexical_environment.class_constructor.as_ref();
                     let super_class_reference = current_class_lexical_environment
@@ -1096,7 +1093,7 @@ impl TransformClassFields {
         let facts = self
             .maybe_current_class_lexical_environment()
             .map_or_default(|current_class_lexical_environment| {
-                (*current_class_lexical_environment).borrow().facts
+                current_class_lexical_environment.ref_(self).facts
             });
         if facts.intersects(ClassFacts::NeedsClassSuperReference) {
             let temp = self.factory.ref_(self).create_temp_variable(
@@ -1106,7 +1103,7 @@ impl TransformClassFields {
                 Some(true),
             );
             self.get_class_lexical_environment()
-                .borrow_mut()
+                .ref_mut(self)
                 .super_class_reference = Some(temp.clone());
             return Some(
                 self.factory

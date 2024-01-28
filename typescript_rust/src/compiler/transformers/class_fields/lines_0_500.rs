@@ -376,7 +376,7 @@ pub(super) struct PrivateIdentifierEnvironment {
 }
 
 #[derive(Default, Trace, Finalize)]
-pub(super) struct ClassLexicalEnvironment {
+pub struct ClassLexicalEnvironment {
     #[unsafe_ignore_trace]
     pub facts: ClassFacts,
     pub class_constructor: Option<Id<Node /*Identifier*/>>,
@@ -415,13 +415,13 @@ pub(super) struct TransformClassFields {
     pub(super) pending_expressions: GcCell<Option<Vec<Id<Node /*Expression*/>>>>,
     pub(super) pending_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
     pub(super) class_lexical_environment_stack:
-        GcCell<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>>,
+        GcCell<Vec<Option<Id<ClassLexicalEnvironment>>>>,
     pub(super) class_lexical_environment_map:
-        GcCell<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>>,
+        GcCell<HashMap<NodeId, Id<ClassLexicalEnvironment>>>,
     pub(super) current_class_lexical_environment:
-        GcCell<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
+        GcCell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_computed_property_name_class_lexical_environment:
-        GcCell<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
+        GcCell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_static_property_declaration_or_static_block:
         GcCell<Option<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
 }
@@ -561,44 +561,44 @@ impl TransformClassFields {
 
     pub(super) fn class_lexical_environment_stack(
         &self,
-    ) -> GcCellRef<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>> {
+    ) -> GcCellRef<Vec<Option<Id<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_stack.borrow()
     }
 
     pub(super) fn class_lexical_environment_stack_mut(
         &self,
-    ) -> GcCellRefMut<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>> {
+    ) -> GcCellRefMut<Vec<Option<Id<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_stack.borrow_mut()
     }
 
     pub(super) fn class_lexical_environment_map(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>> {
+    ) -> GcCellRef<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
         self.class_lexical_environment_map.borrow()
     }
 
     pub(super) fn class_lexical_environment_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
         self.class_lexical_environment_map.borrow_mut()
     }
 
     pub(super) fn maybe_current_class_lexical_environment(
         &self,
-    ) -> Option<Gc<GcCell<ClassLexicalEnvironment>>> {
+    ) -> Option<Id<ClassLexicalEnvironment>> {
         self.current_class_lexical_environment.borrow().clone()
     }
 
     pub(super) fn set_current_class_lexical_environment(
         &self,
-        current_class_lexical_environment: Option<Gc<GcCell<ClassLexicalEnvironment>>>,
+        current_class_lexical_environment: Option<Id<ClassLexicalEnvironment>>,
     ) {
         *self.current_class_lexical_environment.borrow_mut() = current_class_lexical_environment;
     }
 
     pub(super) fn maybe_current_computed_property_name_class_lexical_environment(
         &self,
-    ) -> Option<Gc<GcCell<ClassLexicalEnvironment>>> {
+    ) -> Option<Id<ClassLexicalEnvironment>> {
         self.current_computed_property_name_class_lexical_environment
             .borrow()
             .clone()
@@ -607,7 +607,7 @@ impl TransformClassFields {
     pub(super) fn set_current_computed_property_name_class_lexical_environment(
         &self,
         current_computed_property_name_class_lexical_environment: Option<
-            Gc<GcCell<ClassLexicalEnvironment>>,
+            Id<ClassLexicalEnvironment>,
         >,
     ) {
         *self
@@ -1143,8 +1143,7 @@ impl TransformClassFields {
             if let Some(current_class_lexical_environment) =
                 self.maybe_current_class_lexical_environment()
             {
-                let current_class_lexical_environment =
-                    (*current_class_lexical_environment).borrow();
+                let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
                 let class_constructor =
                     current_class_lexical_environment.class_constructor.as_ref();
                 let super_class_reference = current_class_lexical_environment
@@ -1402,8 +1401,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                 .transform_class_fields()
                 .maybe_current_class_lexical_environment()
             {
-                let current_class_lexical_environment =
-                    (*current_class_lexical_environment).borrow();
+                let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
                 let facts = current_class_lexical_environment.facts;
                 let class_constructor =
                     current_class_lexical_environment.class_constructor;
