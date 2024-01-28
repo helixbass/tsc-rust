@@ -1132,7 +1132,7 @@ impl PartialEq for RecursionIdentity {
             (Self::Node(a), Self::Node(b)) => a == b,
             (Self::Symbol(a), Self::Symbol(b)) => a == b,
             (Self::Type(a), Self::Type(b)) => a == b,
-            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Gc::ptr_eq(a, b),
+            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => a == b,
             (Self::None, Self::None) => true,
             _ => false,
         }

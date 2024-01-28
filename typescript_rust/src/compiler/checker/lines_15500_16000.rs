@@ -129,17 +129,17 @@ impl TypeChecker {
         &self,
         root: Id<ConditionalRoot>,
     ) -> bool {
-        !(*root).borrow().is_distributive
+        !root.ref_(self).is_distributive
             && self.is_singleton_tuple_type(
-                (*root)
-                    .borrow()
+                root
+                    .ref_(self)
                     .node
                     .ref_(self).as_conditional_type_node()
                     .check_type,
             )
             && self.is_singleton_tuple_type(
-                (*root)
-                    .borrow()
+                root
+                    .ref_(self)
                     .node
                     .ref_(self).as_conditional_type_node()
                     .extends_type,
@@ -195,7 +195,7 @@ impl TypeChecker {
             let check_type = self.instantiate_type(
                 self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
-                    self.get_actual_type_variable((*root).borrow().check_type.clone())?,
+                    self.get_actual_type_variable(root.ref_(self).check_type.clone())?,
                 )?,
                 mapper.clone(),
             )?;
@@ -203,7 +203,7 @@ impl TypeChecker {
             let extends_type = self.instantiate_type(
                 self.unwrap_nondistributive_conditional_tuple(
                     root.clone(),
-                    (*root).borrow().extends_type.clone(),
+                    root.ref_(self).extends_type.clone(),
                 )?,
                 mapper.clone(),
             )?;
@@ -212,7 +212,7 @@ impl TypeChecker {
             }
             let mut combined_mapper: Option<Id<TypeMapper>> = None;
             if let Some(root_infer_type_parameters) =
-                (*root).borrow().infer_type_parameters.clone().as_ref()
+                root.ref_(self).infer_type_parameters.clone().as_ref()
             {
                 let context = self.create_inference_context(
                     root_infer_type_parameters,
@@ -239,7 +239,7 @@ impl TypeChecker {
                 self.instantiate_type(
                     self.unwrap_nondistributive_conditional_tuple(
                         root.clone(),
-                        (*root).borrow().extends_type.clone(),
+                        root.ref_(self).extends_type.clone(),
                     )?,
                     Some(combined_mapper.clone()),
                 )?
@@ -264,8 +264,8 @@ impl TypeChecker {
                         extra_types.as_mut().unwrap().push(
                             self.instantiate_type(
                                 self.get_type_from_type_node_(
-                                    (*root)
-                                        .borrow()
+                                    root
+                                        .ref_(self)
                                         .node
                                         .ref_(self).as_conditional_type_node()
                                         .true_type,
@@ -275,8 +275,8 @@ impl TypeChecker {
                         );
                     }
                     let false_type = self.get_type_from_type_node_(
-                        (*root)
-                            .borrow()
+                        root
+                            .ref_(self)
                             .node
                             .ref_(self).as_conditional_type_node()
                             .false_type,
@@ -287,9 +287,9 @@ impl TypeChecker {
                         .intersects(TypeFlags::Conditional)
                     {
                         let new_root = false_type.ref_(self).as_conditional_type().root.clone();
-                        if (*new_root).borrow().node.ref_(self).parent() == (*root).borrow().node
-                            && (!(*new_root).borrow().is_distributive
-                                || (*new_root).borrow().check_type == (*root).borrow().check_type)
+                        if new_root.ref_(self).node.ref_(self).parent() == root.ref_(self).node
+                            && (!new_root.ref_(self).is_distributive
+                                || new_root.ref_(self).check_type == root.ref_(self).check_type)
                         {
                             root = new_root.clone();
                             continue;
@@ -320,8 +320,8 @@ impl TypeChecker {
                     )?
                 {
                     let true_type = self.get_type_from_type_node_(
-                        (*root)
-                            .borrow()
+                        root
+                            .ref_(self)
                             .node
                             .ref_(self).as_conditional_type_node()
                             .true_type,
@@ -347,8 +347,8 @@ impl TypeChecker {
                 ConditionalType::new(
                     result_base,
                     root.clone(),
-                    self.instantiate_type((*root).borrow().check_type.clone(), mapper.clone())?,
-                    self.instantiate_type((*root).borrow().extends_type.clone(), mapper.clone())?,
+                    self.instantiate_type(root.ref_(self).check_type.clone(), mapper.clone())?,
+                    self.instantiate_type(root.ref_(self).extends_type.clone(), mapper.clone())?,
                     mapper.clone(),
                     combined_mapper,
                 )
@@ -356,12 +356,12 @@ impl TypeChecker {
             );
             *result.ref_(self).maybe_alias_symbol_mut() = alias_symbol
                 .clone()
-                .or_else(|| (*root).borrow().alias_symbol.clone());
+                .or_else(|| root.ref_(self).alias_symbol.clone());
             *result.ref_(self).maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
                 self.instantiate_types(
-                    (*root).borrow().alias_type_arguments.clone().as_deref(),
+                    root.ref_(self).alias_type_arguments.clone().as_deref(),
                     mapper.clone(),
                 )?
             };
@@ -393,7 +393,7 @@ impl TypeChecker {
             if let Some(new_mapper) = new_mapper {
                 let new_root = new_type.ref_(self).as_conditional_type().root.clone();
                 let new_root_outer_type_parameters =
-                    (*new_root).borrow().outer_type_parameters.clone();
+                    new_root.ref_(self).outer_type_parameters.clone();
                 if let Some(new_root_outer_type_parameters) =
                     new_root_outer_type_parameters.as_ref()
                 {
@@ -409,9 +409,9 @@ impl TypeChecker {
                         new_root_outer_type_parameters.clone(),
                         Some(type_arguments),
                     );
-                    let new_check_type = if (*new_root).borrow().is_distributive {
+                    let new_check_type = if new_root.ref_(self).is_distributive {
                         Some(self.get_mapped_type(
-                            (*new_root).borrow().clone().check_type,
+                            new_root.ref_(self).clone().check_type,
                             new_root_mapper,
                         )?)
                     } else {
@@ -420,7 +420,7 @@ impl TypeChecker {
                     if match new_check_type {
                         None => true,
                         Some(new_check_type) => {
-                            new_check_type == (*new_root).borrow().check_type
+                            new_check_type == new_root.ref_(self).check_type
                                 || !new_check_type
                                     .ref_(self)
                                     .flags()
@@ -431,7 +431,7 @@ impl TypeChecker {
                         *mapper = Some(new_root_mapper);
                         *alias_symbol = None;
                         *alias_type_arguments = None;
-                        if (*new_root).borrow().alias_symbol.is_some() {
+                        if new_root.ref_(self).alias_symbol.is_some() {
                             *tail_count += 1;
                         }
                         return Ok(true);
@@ -458,11 +458,11 @@ impl TypeChecker {
                 .maybe_resolved_true_type() = Some(
                 self.instantiate_type(
                     self.get_type_from_type_node_(
-                        (*{
+                        {
                             let root = type_.ref_(self).as_conditional_type().root.clone();
                             root
-                        })
-                        .borrow()
+                        }
+                        .ref_(self)
                         .node
                         .ref_(self).as_conditional_type_node()
                         .true_type,
@@ -498,11 +498,11 @@ impl TypeChecker {
                 .maybe_resolved_false_type() = Some(
                 self.instantiate_type(
                     self.get_type_from_type_node_(
-                        (*{
+                        {
                             let root = type_.ref_(self).as_conditional_type().root.clone();
                             root
-                        })
-                        .borrow()
+                        }
+                        .ref_(self)
                         .node
                         .ref_(self).as_conditional_type_node()
                         .false_type,
@@ -544,8 +544,8 @@ impl TypeChecker {
                 {
                     self.instantiate_type(
                         self.get_type_from_type_node_(
-                            (*type_.ref_(self).as_conditional_type().root)
-                                .borrow()
+                            type_.ref_(self).as_conditional_type().root
+                                .ref_(self)
                                 .node
                                 .clone()
                                 .ref_(self).as_conditional_type_node()
@@ -652,7 +652,7 @@ impl TypeChecker {
                     self.get_type_list_id(Some(&outer_type_parameters)),
                     resolved_type,
                 );
-                *root.borrow_mut().maybe_instantiations() = Some(instantiations);
+                *root.ref_mut(self).maybe_instantiations() = Some(instantiations);
             }
         }
         let ret = (*links).borrow().resolved_type.clone().unwrap();

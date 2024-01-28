@@ -632,8 +632,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Option<Id<Type>>> {
-        if (*type_.ref_(self).as_conditional_type().root)
-            .borrow()
+        if type_.ref_(self).as_conditional_type().root
+            .ref_(self)
             .is_distributive
             && !matches!(
                 *type_.ref_(self).maybe_restrictive_instantiation(),
@@ -653,13 +653,12 @@ impl TypeChecker {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
                     self.prepend_type_mapping(
-                        (*{
+                        {
                             let root = type_.ref_(self).as_conditional_type().root.clone();
                             root
-                        })
-                        .borrow()
-                        .check_type
-                        .clone(),
+                        }
+                        .ref_(self)
+                        .check_type,
                         constraint,
                         {
                             let mapper = type_.ref_(self).as_conditional_type().mapper.clone();

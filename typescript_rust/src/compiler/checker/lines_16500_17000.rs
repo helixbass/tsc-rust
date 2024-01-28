@@ -468,7 +468,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let root = type_.ref_(self).as_conditional_type().root.clone();
         if let Some(root_outer_type_parameters) =
-            (*root).borrow().outer_type_parameters.clone().as_deref()
+            root.ref_(self).outer_type_parameters.clone().as_deref()
         {
             let type_arguments = try_map(root_outer_type_parameters, |&t: &Id<Type>, _| {
                 self.get_mapped_type(t, mapper)
@@ -478,8 +478,8 @@ impl TypeChecker {
                 self.get_type_list_id(Some(&type_arguments)),
                 self.get_alias_id(alias_symbol, alias_type_arguments)
             );
-            let mut result = (*root)
-                .borrow()
+            let mut result = root
+                .ref_(self)
                 .maybe_instantiations()
                 .as_ref()
                 .unwrap()
@@ -490,8 +490,8 @@ impl TypeChecker {
                     root_outer_type_parameters.to_owned(),
                     Some(type_arguments),
                 );
-                let check_type = (*root).borrow().check_type.clone();
-                let distribution_type = if (*root).borrow().is_distributive {
+                let check_type = root.ref_(self).check_type.clone();
+                let distribution_type = if root.ref_(self).is_distributive {
                     Some(self.get_mapped_type(check_type, new_mapper)?)
                 } else {
                     None
@@ -532,8 +532,8 @@ impl TypeChecker {
                         )?
                     },
                 );
-                (*root)
-                    .borrow()
+                root
+                    .ref_(self)
                     .maybe_instantiations()
                     .as_mut()
                     .unwrap()

@@ -866,8 +866,8 @@ impl TypeChecker {
             });
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
-            if (*type_.ref_(self).as_conditional_type().root)
-                .borrow()
+            if type_.ref_(self).as_conditional_type().root
+                .ref_(self)
                 .is_distributive
             {
                 let check_type = type_.ref_(self).as_conditional_type().check_type;
@@ -876,10 +876,9 @@ impl TypeChecker {
                     return self.get_conditional_type_instantiation(
                         type_,
                         self.prepend_type_mapping(
-                            (*type_.ref_(self).as_conditional_type().root)
-                                .borrow()
-                                .check_type
-                                .clone(),
+                            type_.ref_(self).as_conditional_type().root
+                                .ref_(self)
+                                .check_type,
                             constraint,
                             type_.ref_(self).as_conditional_type().mapper.clone(),
                         ),

@@ -40,8 +40,8 @@ impl NodeBuilder {
             .unwrap();
         let save_infer_type_parameters = context.infer_type_parameters.borrow().clone();
         *context.infer_type_parameters.borrow_mut() =
-            (*type_.ref_(self).as_conditional_type().root)
-                .borrow()
+            type_.ref_(self).as_conditional_type().root
+                .ref_(self)
                 .infer_type_parameters
                 .clone();
         let extends_type_node = self
@@ -320,8 +320,8 @@ impl NodeBuilder {
             Some(format!(
                 "N{}",
                 get_node_id(
-                    &(*type_.ref_(self).as_conditional_type().root)
-                        .borrow()
+                    &type_.ref_(self).as_conditional_type().root
+                        .ref_(self)
                         .node
                         .ref_(self)
                 )

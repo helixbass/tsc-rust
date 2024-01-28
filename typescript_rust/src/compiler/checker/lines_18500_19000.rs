@@ -762,11 +762,11 @@ impl CheckTypeRelatedTo {
                 }
             }
             if flags.intersects(TypeFlags::Conditional) {
-                if (*source.ref_(self).as_conditional_type().root)
-                    .borrow()
+                if source.ref_(self).as_conditional_type().root
+                    .ref_(self)
                     .is_distributive
-                    == (*target.ref_(self).as_conditional_type().root)
-                        .borrow()
+                    == target.ref_(self).as_conditional_type().root
+                        .ref_(self)
                         .is_distributive
                 {
                     result = self.is_related_to(
@@ -1370,12 +1370,12 @@ impl CheckTypeRelatedTo {
                 return Ok(Ternary::Maybe);
             }
             let c = target;
-            if (*c.ref_(self).as_conditional_type().root)
-                .borrow()
+            if c.ref_(self).as_conditional_type().root
+                .ref_(self)
                 .infer_type_parameters
                 .is_none()
                 && !self.type_checker.is_distribution_dependent(
-                    &(*c.ref_(self).as_conditional_type().root).borrow(),
+                    &c.ref_(self).as_conditional_type().root.ref_(self),
                 )?
             {
                 let skip_true = !self.type_checker.is_type_assignable_to(
@@ -1630,8 +1630,8 @@ impl CheckTypeRelatedTo {
                 return Ok(Ternary::Maybe);
             }
             if target.ref_(self).flags().intersects(TypeFlags::Conditional) {
-                let source_params = (*source.ref_(self).as_conditional_type().root)
-                    .borrow()
+                let source_params = source.ref_(self).as_conditional_type().root
+                    .ref_(self)
                     .infer_type_parameters
                     .clone();
                 let mut source_extends =

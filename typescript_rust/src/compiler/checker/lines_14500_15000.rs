@@ -660,8 +660,8 @@ impl TypeChecker {
         ) {
             true
         } else if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
-            (*type_.ref_(self).as_conditional_type().root)
-                .borrow()
+            type_.ref_(self).as_conditional_type().root
+                .ref_(self)
                 .is_distributive
                 && type_.ref_(self).as_conditional_type().check_type == type_variable
         } else if type_
