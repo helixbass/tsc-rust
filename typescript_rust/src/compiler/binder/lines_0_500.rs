@@ -808,10 +808,10 @@ impl BinderType {
             let symbol_ref = symbol.ref_(self);
             let mut exports = symbol_ref.maybe_exports_mut();
             if exports.is_none() {
-                *exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                *exports = Some(self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     Option::<&[Id<Symbol>]>::None,
-                ))));
+                )));
             }
         }
 
@@ -824,10 +824,10 @@ impl BinderType {
             let symbol_ref = symbol.ref_(self);
             let mut members = symbol_ref.maybe_members_mut();
             if members.is_none() {
-                *members = Some(Gc::new(GcCell::new(create_symbol_table(
+                *members = Some(self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     Option::<&[Id<Symbol>]>::None,
-                ))));
+                )));
             }
         }
 

@@ -521,11 +521,11 @@ impl TypeChecker {
         }
         if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
             *result.ref_(self).maybe_members_mut() =
-                Some(Gc::new(GcCell::new((**symbol_members).borrow().clone())));
+                Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()));
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
             *result.ref_(self).maybe_exports_mut() =
-                Some(Gc::new(GcCell::new((**symbol_exports).borrow().clone())));
+                Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()));
         }
         self.record_merged_symbol(result, symbol);
         result
@@ -593,14 +593,14 @@ impl TypeChecker {
                 let target_ref = target.ref_(self);
                 let mut target_members = target_ref.maybe_members_mut();
                 if target_members.is_none() {
-                    *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *target_members = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
                 self.merge_symbol_table(
                     target_members.clone().unwrap(),
-                    &(**source_members).borrow(),
+                    &source_members.ref_(self),
                     Some(unidirectional),
                 )?;
             }
@@ -608,14 +608,14 @@ impl TypeChecker {
                 let target_ref = target.ref_(self);
                 let mut target_exports = target_ref.maybe_exports_mut();
                 if target_exports.is_none() {
-                    *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *target_exports = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
                 self.merge_symbol_table(
                     target_exports.clone().unwrap(),
-                    &(**source_exports).borrow(),
+                    &source_exports.ref_(self),
                     Some(unidirectional),
                 )?;
             }
@@ -860,18 +860,18 @@ impl TypeChecker {
         }
         let first = first.unwrap();
         let second = second.unwrap();
-        if (*first).borrow().is_empty() {
+        if first.ref_(self).is_empty() {
             return Ok(Some(second));
         }
-        if (*second).borrow().is_empty() {
+        if second.ref_(self).is_empty() {
             return Ok(Some(first));
         }
-        let combined = Gc::new(GcCell::new(create_symbol_table(
+        let combined = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        )));
-        self.merge_symbol_table(combined.clone(), &(*first).borrow(), None)?;
-        self.merge_symbol_table(combined.clone(), &(*second).borrow(), None)?;
+        ));
+        self.merge_symbol_table(combined, &first.ref_(self), None)?;
+        self.merge_symbol_table(combined, &second.ref_(self), None)?;
         Ok(Some(combined))
     }
 
@@ -884,7 +884,7 @@ impl TypeChecker {
         let unidirectional = unidirectional.unwrap_or(false);
         for (id, &source_symbol) in source {
             let target_symbol = {
-                let value = (*target).borrow().get(id).cloned();
+                let value = target.ref_(self).get(id).cloned();
                 value
             };
             let value = if let Some(target_symbol) = target_symbol {
@@ -892,7 +892,7 @@ impl TypeChecker {
             } else {
                 source_symbol.clone()
             };
-            target.borrow_mut().insert(id.clone(), value);
+            target.ref_mut(self).insert(id.clone(), value);
         }
 
         Ok(())
@@ -924,7 +924,7 @@ impl TypeChecker {
                     .ref_(self).symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 None,
             )?;
         } else {
@@ -974,26 +974,26 @@ impl TypeChecker {
                         .maybe_exports()
                         .as_ref()
                         .and_then(|exports| {
-                            (**exports)
-                                .borrow()
+                            exports
+                                .ref_(self)
                                 .get(InternalSymbolName::ExportStar)
                                 .cloned()
                         })
                         .is_some()
                         && matches!(
                             module_augmentation.ref_(self).symbol().ref_(self).maybe_exports().as_ref(),
-                            Some(exports) if !(**exports).borrow().is_empty()
+                            Some(exports) if !exports.ref_(self).is_empty()
                         )
                     {
                         let resolved_exports = self.get_resolved_members_or_exports_of_symbol(
                             main_module,
                             MembersOrExportsResolutionKind::resolved_exports,
                         )?;
-                        let resolved_exports = (*resolved_exports).borrow();
+                        let resolved_exports = resolved_exports.ref_(self);
                         let main_module_exports = main_module.ref_(self).exports();
-                        let main_module_exports = (*main_module_exports).borrow();
+                        let main_module_exports = main_module_exports.ref_(self);
                         for (key, &value) in
-                            &*(*module_augmentation.ref_(self).symbol().ref_(self).exports()).borrow()
+                            &*module_augmentation.ref_(self).symbol().ref_(self).exports().ref_(self)
                         {
                             if resolved_exports.contains_key(key)
                                 && !main_module_exports.contains_key(key)
@@ -1117,12 +1117,12 @@ impl TypeChecker {
         let class_declaration = parameter.ref_(self).parent().ref_(self).parent();
 
         let parameter_symbol = self.get_symbol(
-            &(*constructor_declaration.ref_(self).locals()).borrow(),
+            &constructor_declaration.ref_(self).locals().ref_(self),
             parameter_name,
             SymbolFlags::Value,
         )?;
         let property_symbol = self.get_symbol(
-            &(*self.get_members_of_symbol(class_declaration.ref_(self).symbol())?).borrow(),
+            &self.get_members_of_symbol(class_declaration.ref_(self).symbol())?.ref_(self),
             parameter_name,
             SymbolFlags::Value,
         )?;
@@ -1568,7 +1568,7 @@ impl TypeChecker {
                 let location_maybe_locals = location_unwrapped.ref_(self).maybe_locals();
                 if let Some(location_locals) = location_maybe_locals.as_ref() {
                     if !self.is_global_source_file(location_unwrapped) {
-                        result = lookup(&(**location_locals).borrow(), name, meaning)?;
+                        result = lookup(&location_locals.ref_(self), name, meaning)?;
                         if let Some(result_unwrapped) = result {
                             let mut use_result = true;
                             if is_function_like(Some(&location_unwrapped.ref_(self)))
@@ -1664,7 +1664,7 @@ impl TypeChecker {
                             .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());
-                        let module_exports = (*module_exports).borrow();
+                        let module_exports = module_exports.ref_(self);
                         let mut should_skip_rest_of_match_arm = false;
                         if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
                             || (is_module_declaration(&location_unwrapped.ref_(self))
@@ -1729,11 +1729,11 @@ impl TypeChecker {
                 }
                 SyntaxKind::EnumDeclaration => {
                     result = lookup(
-                        &(*self
+                        &self
                             .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
-                            .unwrap_or_else(|| self.empty_symbols()))
-                        .borrow(),
+                            .unwrap_or_else(|| self.empty_symbols())
+                            .ref_(self),
                         name,
                         meaning & SymbolFlags::EnumMember,
                     )?;
@@ -1745,9 +1745,9 @@ impl TypeChecker {
                     if !is_static(location_unwrapped, self) {
                         let ctor = self.find_constructor_declaration(location_unwrapped.ref_(self).parent());
                         if let Some(ctor) = ctor {
-                            if let Some(ctor_locals) = ctor.ref_(self).maybe_locals().as_ref() {
+                            if let Some(ctor_locals) = ctor.ref_(self).maybe_locals() {
                                 if lookup(
-                                    &(**ctor_locals).borrow(),
+                                    &ctor_locals.ref_(self),
                                     name,
                                     meaning & SymbolFlags::Value,
                                 )?
@@ -1764,14 +1764,14 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
-                        &*(*self
+                        &*self
                             .get_symbol_of_node(location_unwrapped)?
                             .unwrap()
                             .ref_(self)
                             .maybe_members()
                             .clone()
-                            .unwrap_or_else(|| self.empty_symbols()))
-                        .borrow(),
+                            .unwrap_or_else(|| self.empty_symbols())
+                            .ref_(self),
                         name,
                         meaning & SymbolFlags::Type,
                     )?;
@@ -1824,12 +1824,12 @@ impl TypeChecker {
                         let container = location_unwrapped.ref_(self).parent().ref_(self).parent();
                         if is_class_like(&container.ref_(self)) {
                             result = lookup(
-                                &(*self
+                                &self
                                     .get_symbol_of_node(container)?
                                     .unwrap()
                                     .ref_(self)
-                                    .members())
-                                .borrow(),
+                                    .members()
+                                    .ref_(self),
                                 name,
                                 meaning & SymbolFlags::Type,
                             )?;
@@ -1848,12 +1848,12 @@ impl TypeChecker {
                         || grandparent.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
-                            &(*self
+                            &self
                                 .get_symbol_of_node(grandparent)?
                                 .unwrap()
                                 .ref_(self)
-                                .members())
-                            .borrow(),
+                                .members()
+                                .ref_(self),
                             name,
                             meaning & SymbolFlags::Type,
                         )?;
@@ -2267,8 +2267,8 @@ impl TypeChecker {
                         candidate.ref_(self).maybe_value_declaration(),
                         Some(value_declaration) if value_declaration.ref_(self).pos() > associated_declaration_for_containing_initializer_or_binding_name.ref_(self).pos() &&
                             matches!(
-                                root.ref_(self).parent().ref_(self).maybe_locals().as_ref(),
-                                Some(locals) if lookup(&(**locals).borrow(), candidate.ref_(self).escaped_name(), meaning)? == Some(candidate)
+                                root.ref_(self).parent().ref_(self).maybe_locals(),
+                                Some(locals) if lookup(&locals.ref_(self), candidate.ref_(self).escaped_name(), meaning)? == Some(candidate)
                             )
                     ) {
                         self.error(

@@ -191,7 +191,7 @@ impl TypeChecker {
         )?;
         let result = self.create_anonymous_type(
             Option::<Id<Symbol>>::None,
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             if let Some(string_index_info) = string_index_info {
@@ -459,20 +459,20 @@ impl TypeChecker {
                         .set_value_declaration(file_symbol_value_declaration);
                 }
                 if let Some(file_symbol_members) = file_symbol.ref_(self).maybe_members().as_ref() {
-                    *result.ref_(self).maybe_members_mut() = Some(Gc::new(GcCell::new(
-                        (**file_symbol_members).borrow().clone(),
-                    )));
+                    *result.ref_(self).maybe_members_mut() = Some(self.alloc_symbol_table(
+                        file_symbol_members.ref_(self).clone(),
+                    ));
                 }
                 if let Some(file_symbol_exports) = file_symbol.ref_(self).maybe_exports().as_ref() {
-                    *result.ref_(self).maybe_exports_mut() = Some(Gc::new(GcCell::new(
-                        (**file_symbol_exports).borrow().clone(),
-                    )));
+                    *result.ref_(self).maybe_exports_mut() = Some(self.alloc_symbol_table(
+                        file_symbol_exports.ref_(self).clone(),
+                    ));
                 }
                 let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);
                 return self.create_anonymous_type(
                     Some(symbol),
-                    Gc::new(GcCell::new(members)),
+                    self.alloc_symbol_table(members),
                     vec![],
                     vec![],
                     vec![],

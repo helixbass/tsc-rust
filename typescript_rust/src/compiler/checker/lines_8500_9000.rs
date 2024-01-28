@@ -1008,15 +1008,15 @@ impl TypeChecker {
         {
             return Ok(None);
         }
-        let exports = Gc::new(GcCell::new(create_symbol_table(
+        let exports = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        )));
+        ));
         while is_binary_expression(&decl.ref_(self)) || is_property_access_expression(&decl.ref_(self)) {
             let s = self.get_symbol_of_node(decl)?;
             if let Some(s) = s {
-                if let Some(s_exports) = s.ref_(self).maybe_exports().as_deref() {
-                    let s_exports = (*s_exports).borrow();
+                if let Some(s_exports) = s.ref_(self).maybe_exports() {
+                    let s_exports = s_exports.ref_(self);
                     if !s_exports.is_empty() {
                         self.merge_symbol_table(exports.clone(), &s_exports, None)?;
                     }
@@ -1030,8 +1030,8 @@ impl TypeChecker {
         }
         let s = self.get_symbol_of_node(decl)?;
         if let Some(s) = s {
-            if let Some(s_exports) = s.ref_(self).maybe_exports().as_deref() {
-                let s_exports = (*s_exports).borrow();
+            if let Some(s_exports) = s.ref_(self).maybe_exports() {
+                let s_exports = s_exports.ref_(self);
                 if !s_exports.is_empty() {
                     self.merge_symbol_table(exports.clone(), &s_exports, None)?;
                 }
@@ -1148,7 +1148,7 @@ impl TypeChecker {
             let exported_type = self.resolve_structured_type_members(type_)?;
             let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             copy_entries(
-                &*(*exported_type.ref_(self).as_resolved_type().members()).borrow(),
+                &*exported_type.ref_(self).as_resolved_type().members().ref_(self),
                 &mut members,
             );
             let initial_size = members.len();
@@ -1156,13 +1156,13 @@ impl TypeChecker {
                 let resolved_symbol_ref = resolved_symbol.ref_(self);
                 let mut resolved_symbol_exports = resolved_symbol_ref.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
-                    *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *resolved_symbol_exports = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
             }
-            for (name, &s) in &*(*resolved_symbol.unwrap_or(symbol).ref_(self).exports()).borrow() {
+            for (name, &s) in &*resolved_symbol.unwrap_or(symbol).ref_(self).exports().ref_(self) {
                 let exported_member = members.get(name).cloned();
                 if let Some(exported_member) =
                     exported_member.filter(|&exported_member| exported_member != s)
@@ -1277,7 +1277,7 @@ impl TypeChecker {
                 } else {
                     exported_type.ref_(self).maybe_symbol()
                 },
-                Gc::new(GcCell::new(members)),
+                self.alloc_symbol_table(members),
                 exported_type
                     .ref_(self)
                     .as_resolved_type()

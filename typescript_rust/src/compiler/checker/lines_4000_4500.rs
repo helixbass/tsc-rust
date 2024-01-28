@@ -16,6 +16,7 @@ use crate::{
     SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
     SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
     OptionInArena,
+    push_if_unique_eq,
 };
 
 impl TypeChecker {
@@ -33,10 +34,9 @@ impl TypeChecker {
         let export_equals = container
             .ref_(self)
             .maybe_exports()
-            .as_ref()
             .and_then(|exports| {
-                (**exports)
-                    .borrow()
+                exports
+                    .ref_(self)
                     .get(InternalSymbolName::ExportEquals)
                     .cloned()
             });
@@ -45,7 +45,7 @@ impl TypeChecker {
             return Ok(Some(container));
         }
         let exports = self.get_exports_of_symbol(container)?;
-        let exports = (*exports).borrow();
+        let exports = exports.ref_(self);
         let quick = exports.get(symbol.ref_(self).escaped_name());
         if let Some(&quick) = quick {
             if self.get_symbol_if_same_reference(quick, symbol)?.is_some() {
@@ -260,8 +260,8 @@ impl TypeChecker {
             construct_signatures,
             index_infos,
         );
-        if !Gc::ptr_eq(&members, &self.empty_symbols()) {
-            type_.set_properties(self.get_named_members(&(*members).borrow())?.into());
+        if members != self.empty_symbols() {
+            type_.set_properties(self.get_named_members(&members.ref_(self))?.into());
         }
         // type_
 
@@ -429,14 +429,13 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     let mut table: Option<SymbolTable> = None;
-                    for (key, &member_symbol) in &*(*self
+                    for (key, &member_symbol) in &*self
                         .get_symbol_of_node(location_unwrapped)?
                         .unwrap()
                         .ref_(self)
                         .maybe_members()
-                        .clone()
-                        .unwrap_or_else(|| self.empty_symbols()))
-                    .borrow()
+                        .unwrap_or_else(|| self.empty_symbols())
+                        .ref_(self)
                     {
                         if member_symbol
                             .ref_(self)
@@ -457,7 +456,7 @@ impl TypeChecker {
                     }
                     if let Some(table) = table {
                         result = callback(
-                            Gc::new(GcCell::new(table)),
+                            self.alloc_symbol_table(table),
                             None,
                             Some(false),
                             Some(location_unwrapped),
@@ -571,7 +570,7 @@ impl TypeChecker {
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
-        if !push_if_unique_gc(&mut visited_symbol_tables.borrow_mut(), &symbols) {
+        if !push_if_unique_eq(&mut visited_symbol_tables.borrow_mut(), &symbols) {
             return Ok(None);
         }
 
@@ -670,8 +669,8 @@ impl TypeChecker {
             enclosing_declaration,
             use_only_external_aliasing,
             visited_symbol_tables_map,
-            (*symbols)
-                .borrow()
+            symbols
+                .ref_(self)
                 .get(symbol.ref_(self).escaped_name())
                 .cloned(),
             Option::<Id<Symbol>>::None,
@@ -681,7 +680,7 @@ impl TypeChecker {
         }
 
         let result: Option<Vec<Id<Symbol>>> = try_for_each_entry(
-            &*(*symbols).borrow(),
+            &*symbols.ref_(self),
             |&symbol_from_symbol_table, _| -> io::Result<_> {
                 if symbol_from_symbol_table
                     .ref_(self)
@@ -768,7 +767,7 @@ impl TypeChecker {
         )?;
 
         result.try_or_else(|| {
-            Ok(if Gc::ptr_eq(&symbols, &self.globals_id()) {
+            Ok(if symbols == self.globals_id() {
                 self.get_candidate_list_for_symbol(
                     symbol,
                     meaning,
@@ -851,8 +850,8 @@ impl TypeChecker {
             enclosing_declaration,
             |symbol_table, _, _, _| -> io::Result<_> {
                 let symbol_from_symbol_table = self.get_merged_symbol(
-                    (*symbol_table)
-                        .borrow()
+                    symbol_table
+                        .ref_(self)
                         .get(symbol.ref_(self).escaped_name())
                         .cloned(),
                 );

@@ -224,30 +224,30 @@ impl SymbolTableToDeclarationStatements {
 
     pub fn call(&self) -> io::Result<Vec<Id<Node>>> {
         for_each_entry(
-            &*(*self.symbol_table()).borrow(),
+            &*self.symbol_table().ref_(self),
             |&symbol: &Id<Symbol>, name: &String| -> Option<()> {
                 let base_name = unescape_leading_underscores(name);
                 self.get_internal_symbol_name(symbol, base_name);
                 None
             },
         );
-        let export_equals = (*self.symbol_table())
-            .borrow()
+        let export_equals = self.symbol_table()
+            .ref_(self)
             .get(InternalSymbolName::ExportEquals)
             .cloned();
         if let Some(export_equals) = export_equals.filter(|&export_equals| {
-            (*self.symbol_table()).borrow().len() > 1
+            self.symbol_table().ref_(self).len() > 1
                 && export_equals
                     .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Alias)
         }) {
-            self.set_symbol_table(Gc::new(GcCell::new(create_symbol_table(
+            self.set_symbol_table(self.alloc_symbol_table(create_symbol_table(
                 self.type_checker.arena(),
                 Option::<&[Id<Symbol>]>::None,
-            ))));
+            )));
             self.symbol_table()
-                .borrow_mut()
+                .ref_mut(self)
                 .insert(InternalSymbolName::ExportEquals.to_owned(), export_equals);
         }
 
@@ -672,8 +672,8 @@ impl SymbolTableToDeclarationStatements {
         if suppress_new_private_context != Some(true) {
             self.deferred_privates_stack_mut().push(Default::default());
         }
-        (*symbol_table)
-            .borrow()
+        symbol_table
+            .ref_(self)
             .values()
             .try_for_each(|&symbol| -> io::Result<_> {
                 self.serialize_symbol(symbol, false, property_as_alias == Some(true))?;

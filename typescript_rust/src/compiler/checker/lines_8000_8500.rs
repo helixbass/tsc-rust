@@ -832,7 +832,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             symbol,
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             self.get_index_infos_of_type(source)?,

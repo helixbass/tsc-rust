@@ -928,7 +928,7 @@ impl NodeBuilder {
                         if matches!(
                             parent.ref_(self).maybe_exports().as_ref(),
                             Some(parent_exports) if matches!(
-                                (**parent_exports).borrow().get(InternalSymbolName::ExportEquals),
+                                parent_exports.ref_(self).get(InternalSymbolName::ExportEquals),
                                 Some(&parent_exports_get) if self.type_checker.get_symbol_if_same_reference(
                                     parent_exports_get,
                                     symbol,

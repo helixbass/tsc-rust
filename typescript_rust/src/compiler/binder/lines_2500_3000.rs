@@ -100,7 +100,7 @@ impl BinderType {
                         .is_none()
                 {
                     self.declare_symbol(
-                        &mut self.file().ref_(self).locals().borrow_mut(),
+                        &mut self.file().ref_(self).locals().ref_mut(self),
                         Option::<Id<Symbol>>::None,
                         expr.ref_(self).as_has_expression().expression(),
                         SymbolFlags::FunctionScopedVariable | SymbolFlags::ModuleExports,
@@ -485,7 +485,7 @@ impl BinderType {
             self.bind_source_file_as_external_module();
             let original_symbol = file.ref_(self).symbol();
             self.declare_symbol(
-                &mut file.ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                &mut file.ref_(self).symbol().ref_(self).exports().ref_mut(self),
                 Some(file.ref_(self).symbol()),
                 file,
                 SymbolFlags::Property,
@@ -531,7 +531,7 @@ impl BinderType {
                     .symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 flags,
@@ -597,13 +597,13 @@ impl BinderType {
             let file_symbol_ref = file_symbol.ref_(self);
             let mut global_exports = file_symbol_ref.maybe_global_exports();
             if global_exports.is_none() {
-                *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                *global_exports = Some(self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     Option::<&[Id<Symbol>]>::None,
-                ))));
+                )));
             }
             self.declare_symbol(
-                &mut global_exports.as_ref().unwrap().borrow_mut(),
+                &mut global_exports.as_ref().unwrap().ref_mut(self),
                 Some(self.file().ref_(self).symbol()),
                 node,
                 SymbolFlags::Alias,
@@ -634,7 +634,7 @@ impl BinderType {
                     .symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 SymbolFlags::ExportStar,
@@ -650,7 +650,7 @@ impl BinderType {
                     .symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node_as_export_declaration.export_clause.unwrap(),
                 SymbolFlags::Alias,
@@ -714,7 +714,7 @@ impl BinderType {
         if let Some(symbol) = symbol {
             let flags = SymbolFlags::Property | SymbolFlags::ExportValue;
             self.declare_symbol(
-                &mut symbol.ref_(self).exports().borrow_mut(),
+                &mut symbol.ref_(self).exports().ref_mut(self),
                 Some(symbol),
                 node,
                 flags,
@@ -773,7 +773,7 @@ impl BinderType {
             };
             set_parent(&node_as_binary_expression.left.ref_(self), Some(node));
             self.declare_symbol(
-                &mut symbol.ref_(self).exports().borrow_mut(),
+                &mut symbol.ref_(self).exports().ref_mut(self),
                 Some(symbol),
                 node_as_binary_expression.left,
                 flags,
@@ -832,7 +832,7 @@ impl BinderType {
                 .symbol()
                 .ref_(self)
                 .exports()
-                .borrow_mut(),
+                .ref_mut(self),
             Some(self.file().ref_(self).symbol()),
             node,
             flags | SymbolFlags::Assignment,
@@ -854,7 +854,7 @@ impl BinderType {
                 .symbol()
                 .ref_(self)
                 .exports()
-                .borrow_mut(),
+                .ref_mut(self),
             Some(self.file().ref_(self).symbol()),
             node,
             SymbolFlags::Alias | SymbolFlags::Assignment,
@@ -923,17 +923,17 @@ impl BinderType {
                                 constructor_symbol_ref.maybe_members_mut();
                             if constructor_symbol_members.is_none() {
                                 *constructor_symbol_members =
-                                    Some(Gc::new(GcCell::new(create_symbol_table(
+                                    Some(self.alloc_symbol_table(create_symbol_table(
                                         self.arena(),
                                         Option::<&[Id<Symbol>]>::None,
-                                    ))));
+                                    )));
                             }
                             let constructor_symbol_members =
                                 constructor_symbol_members.clone().unwrap();
                             constructor_symbol_members
                         };
                         let mut constructor_symbol_members =
-                            constructor_symbol_members.borrow_mut();
+                            constructor_symbol_members.ref_mut(self);
                         if has_dynamic_name(node, self) {
                             self.bind_dynamically_named_this_property_assignment(
                                 node,
@@ -972,7 +972,7 @@ impl BinderType {
                 } else {
                     containing_class.ref_(self).symbol().ref_(self).members()
                 };
-                let mut symbol_table = symbol_table.borrow_mut();
+                let mut symbol_table = symbol_table.ref_mut(self);
                 if has_dynamic_name(node, self) {
                     self.bind_dynamically_named_this_property_assignment(
                         node,
@@ -1006,7 +1006,7 @@ impl BinderType {
                             .symbol()
                             .ref_(self)
                             .exports()
-                            .borrow_mut(),
+                            .ref_mut(self),
                         Some(this_container.ref_(self).symbol()),
                         node,
                         SymbolFlags::Property | SymbolFlags::ExportValue,

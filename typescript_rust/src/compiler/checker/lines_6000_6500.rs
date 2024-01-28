@@ -74,7 +74,7 @@ impl NodeBuilder {
             {
                 let exports = self.type_checker.get_exports_of_symbol(parent)?;
                 try_for_each_entry_bool(
-                    &*(*exports).borrow(),
+                    &*exports.ref_(self),
                     |&ex: &Id<Symbol>, name: &__String| -> io::Result<_> {
                         if self
                             .type_checker
@@ -107,8 +107,8 @@ impl NodeBuilder {
         {
             if parent.try_matches(|&parent| -> io::Result<_> {
                 Ok(matches!(
-                    (*self.type_checker.get_members_of_symbol(parent)?)
-                        .borrow()
+                    self.type_checker.get_members_of_symbol(parent)?
+                        .ref_(self)
                         .get(symbol.ref_(self).escaped_name()),
                     Some(&got_member_of_symbol) if self.type_checker.get_symbol_if_same_reference(
                         got_member_of_symbol,

@@ -325,10 +325,9 @@ impl SymbolTableToDeclarationStatements {
         symbol
             .ref_(self)
             .maybe_exports()
-            .as_ref()
             .map_or_default(|symbol_exports| {
-                (**symbol_exports)
-                    .borrow()
+                symbol_exports
+                    .ref_(self)
                     .values()
                     .filter(|&&value| self.is_namespace_member(value))
                     .cloned()
@@ -566,8 +565,8 @@ impl SymbolTableToDeclarationStatements {
             .flags()
             .intersects(SymbolFlags::ValueModule | SymbolFlags::NamespaceModule)
             && matches!(
-                symbol.ref_(self).maybe_exports().as_ref(),
-                Some(symbol_exports) if !(**symbol_exports).borrow().is_empty()
+                symbol.ref_(self).maybe_exports(),
+                Some(symbol_exports) if !symbol_exports.ref_(self).is_empty()
             ))
         {
             let props = self
@@ -651,10 +650,10 @@ impl SymbolTableToDeclarationStatements {
                 Some(NodeFlags::Namespace),
             );
             set_parent(&fakespace.ref_(self), Some(self.enclosing_declaration));
-            fakespace.ref_(self).set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
+            fakespace.ref_(self).set_locals(Some(self.alloc_symbol_table(create_symbol_table(
                 self.type_checker.arena(),
                 Some(props),
-            )))));
+            ))));
             if let Some(props_0_parent) = props[0].ref_(self).maybe_parent() {
                 fakespace.ref_(self).set_symbol(props_0_parent);
             }
@@ -669,10 +668,10 @@ impl SymbolTableToDeclarationStatements {
             let old_context = self.context();
             self.set_context(subcontext);
             self.visit_symbol_table(
-                Gc::new(GcCell::new(create_symbol_table(
+                self.alloc_symbol_table(create_symbol_table(
                     self.type_checker.arena(),
                     Some(&local_props),
-                ))),
+                )),
                 Some(suppress_new_private_context),
                 Some(true),
             )?;
