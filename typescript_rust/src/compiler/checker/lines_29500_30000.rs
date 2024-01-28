@@ -31,7 +31,7 @@ use crate::{
     RelationComparisonResult, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
     OptionInArena,
-    get_factory,
+    get_factory, AllArenas,
 };
 
 impl TypeChecker {
@@ -1380,5 +1380,11 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
                 )?,
             ]),
         )))))
+    }
+}
+
+impl HasArena for ResolveCallOverloadContainingMessageChain {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

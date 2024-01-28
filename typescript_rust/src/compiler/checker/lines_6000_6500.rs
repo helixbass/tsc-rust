@@ -1320,7 +1320,7 @@ impl NodeBuilder {
                 node,
                 self.type_checker.ref_(self).get_type_from_type_node_(node)?
             ) || self.type_checker.ref_(self).get_intended_type_from_jsdoc_type_reference(node)?.is_some() ||
-                self.type_checker.ref_(self).unknown_symbol() == self.tyref_(self).pe_checker.resolve_type_reference_name(
+                self.type_checker.ref_(self).unknown_symbol() == self.type_checker.ref_(self).resolve_type_reference_name(
                     node,
                     SymbolFlags::Type,
                     Some(true)

@@ -1478,7 +1478,7 @@ impl CheckTypeRelatedTo {
             || Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation))
             && (self
                 .type_checker
-                .ref_(self).is_type_subset_of(self.tyref_(self).pe_checker.global_object_type(), target)?
+                .ref_(self).is_type_subset_of(self.type_checker.ref_(self).global_object_type(), target)?
                 || !is_comparing_jsx_attributes
                     && self.type_checker.ref_(self).is_empty_object_type(target)?)
         {

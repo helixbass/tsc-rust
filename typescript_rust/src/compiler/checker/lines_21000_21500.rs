@@ -14,7 +14,7 @@ use crate::{
     is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
     try_some, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext, InferenceFlags,
     InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext, AllArenas,
 };
 
 impl TypeChecker {
@@ -1232,5 +1232,11 @@ impl TypeComparerCompareTypesAssignable {
 impl TypeComparer for TypeComparerCompareTypesAssignable {
     fn call(&self, s: Id<Type>, t: Id<Type>, _report_errors: Option<bool>) -> io::Result<Ternary> {
         self.type_checker.ref_(self).compare_types_assignable(s, t)
+    }
+}
+
+impl HasArena for TypeComparerCompareTypesAssignable {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

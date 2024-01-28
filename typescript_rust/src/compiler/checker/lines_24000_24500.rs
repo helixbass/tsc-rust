@@ -1038,7 +1038,7 @@ impl GetFlowTypeOfReference {
     pub(super) fn narrow_union_member_by_typeof(
         &self,
         candidate: Id<Type>,
-    ) -> impl FnMut(Id<Type>) -> io::Result<Id<Type>> + 'static {
+    ) -> impl FnMut(Id<Type>) -> io::Result<Id<Type>> + '_ {
         let type_checker = self.type_checker.clone();
         move |type_: Id<Type>| {
             if type_checker.ref_(self).is_type_subtype_of(type_, candidate)? {

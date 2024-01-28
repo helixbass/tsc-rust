@@ -19,7 +19,7 @@ use crate::{
     HasInitializerInterface, InArena, InterfaceTypeInterface, Matches, MemberOverrideStatus,
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeInterface,
+    TransientSymbolInterface, Type, TypeChecker, TypeInterface, AllArenas,
 };
 
 impl TypeChecker {
@@ -906,6 +906,12 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                 ])
             )
         ))))
+    }
+}
+
+impl HasArena for IssueMemberSpecificErrorContainingMessageChain {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
