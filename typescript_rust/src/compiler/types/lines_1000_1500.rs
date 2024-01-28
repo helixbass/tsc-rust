@@ -244,7 +244,7 @@ impl From<&NodeArrayOrVecRef<'_>> for Vec<Id<Node>> {
     fn from(value: &NodeArrayOrVecRef) -> Vec<Id<Node>> {
         match value {
             NodeArrayOrVecRef::NodeArray(value) => value.to_vec(),
-            NodeArrayOrVecRef::Vec(value) => value.clone(),
+            NodeArrayOrVecRef::Vec(value) => (*value).clone(),
         }
     }
 }

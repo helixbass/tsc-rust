@@ -101,7 +101,7 @@ impl ParserType {
             }) {
                 let last_child_ref = last_child.ref_(self);
                 let last_child_as_jsx_element = last_child_ref.as_jsx_element();
-                let end = last_child_as_jsx_element.children.end();
+                let end = last_child_as_jsx_element.children.ref_(self).end();
                 let last_child_opening_element_pos =
                     last_child_as_jsx_element.opening_element.ref_(self).pos();
                 let new_last = self.finish_node(

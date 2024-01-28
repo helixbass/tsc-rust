@@ -562,9 +562,8 @@ impl NodeFactory {
             self.create_node_array(
                 Some(same_flat_map_id_node(elements, |element: Id<Node>, _| {
                     self.flatten_comma_elements(element)
-                })),
+                }, self)),
                 None,
-                self,
             ),
         );
         node.set_transform_flags(

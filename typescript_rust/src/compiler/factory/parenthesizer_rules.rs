@@ -487,11 +487,11 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete
         type_arguments: Option<NodeArrayOrVec>,
     ) -> Option<Id<NodeArray>> {
         if some(
-            type_arguments.as_ref().map(NodeArrayOrVec::ref_).as_deref(),
+            type_arguments.as_ref().map(|type_arguments| type_arguments.ref_(self)).as_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
             return Some(self.factory.ref_(self).create_node_array(
-                maybe_same_map(type_arguments.as_ref().map(NodeArrayOrVec::ref_).as_deref(), |&type_arguments, index| {
+                maybe_same_map(type_arguments.as_ref().map(|type_arguments| type_arguments.ref_(self)).as_deref(), |&type_arguments, index| {
                     self.parenthesize_ordinal_type_argument(type_arguments, index)
                 }),
                 None,
