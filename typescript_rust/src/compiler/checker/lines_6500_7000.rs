@@ -90,7 +90,7 @@ pub(super) struct SymbolTableToDeclarationStatements {
 
 impl HasArena for SymbolTableToDeclarationStatements {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.ref_(self).arena()
+        unimplemented!()
     }
 }
 
@@ -1310,7 +1310,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
 
 impl HasArena for SymbolTableToDeclarationStatementsSymbolTracker {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.ref_(self).arena()
+        unimplemented!()
     }
 }
 

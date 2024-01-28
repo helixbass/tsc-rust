@@ -668,7 +668,7 @@ pub(super) struct MakeSerializePropertySymbol {
 
 impl HasArena for MakeSerializePropertySymbol {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.ref_(self).arena()
+        unimplemented!()
     }
 }
 

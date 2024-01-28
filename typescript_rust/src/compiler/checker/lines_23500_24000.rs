@@ -146,7 +146,7 @@ pub(super) struct GetFlowTypeOfReference {
 
 impl HasArena for GetFlowTypeOfReference {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.ref_(self).arena()
+        unimplemented!()
     }
 }
 

@@ -942,8 +942,11 @@ impl TypeChecker {
                         let p_clone = p.clone();
                         let type_checker = self.arena_id();
                         (
-                            Box::new(move || type_checker.ref_(self).get_type_of_symbol(p_clone))
-                                as Box<dyn Fn() -> io::Result<Id<Type>>>,
+                            Box::new({
+                                let arena_raw: *const AllArenas = self.arena();
+                                let arena = unsafe { &*arena_raw };
+                                move || type_checker.ref_(arena).get_type_of_symbol(p_clone)
+                            }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                             p.ref_(self).escaped_name().to_owned(),
                         )
                     }),

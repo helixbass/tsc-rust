@@ -591,7 +591,7 @@ pub(super) struct InferTypes {
 
 impl HasArena for InferTypes {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.ref_(self).arena()
+        unimplemented!()
     }
 }
 
