@@ -151,7 +151,7 @@ impl TransformSystemModule {
                         node,
                         node.ref_(self).maybe_decorators(),
                         maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers().as_deref(),
+                            node.ref_(self).maybe_modifiers(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
@@ -165,7 +165,7 @@ impl TransformSystemModule {
                         ),
                         Option::<Id<NodeArray>>::None,
                         try_visit_nodes(
-                            &node_as_function_declaration.parameters(),
+                            node_as_function_declaration.parameters(),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_parameter_declaration(node, self)),
                             None,
@@ -227,7 +227,7 @@ impl TransformSystemModule {
                         self.factory
                             .ref_(self).create_class_expression(
                                 try_maybe_visit_nodes(
-                                    node.ref_(self).maybe_decorators().as_deref(),
+                                    node.ref_(self).maybe_decorators(),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_decorator(&node.ref_(self))),
                                     None,
@@ -239,8 +239,7 @@ impl TransformSystemModule {
                                 Option::<Id<NodeArray>>::None,
                                 try_maybe_visit_nodes(
                                     node_as_class_declaration
-                                        .maybe_heritage_clauses()
-                                        .as_deref(),
+                                        .maybe_heritage_clauses(),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                                     None,
@@ -248,7 +247,7 @@ impl TransformSystemModule {
                                     self,
                                 )?,
                                 try_visit_nodes(
-                                    &node_as_class_declaration.members(),
+                                    node_as_class_declaration.members(),
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                                     None,
@@ -298,10 +297,10 @@ impl TransformSystemModule {
         let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
         let is_exported_declaration = has_syntactic_modifier(node, ModifierFlags::Export, self);
         let is_marked_declaration = self.has_associated_end_of_declaration_marker(node);
-        for &variable in &node_as_variable_statement
+        for &variable in &*node_as_variable_statement
             .declaration_list
             .ref_(self).as_variable_declaration_list()
-            .declarations
+            .declarations.ref_(self)
         {
             let variable_ref = variable.ref_(self);
             let variable_as_variable_declaration = variable_ref.as_variable_declaration();
@@ -351,7 +350,7 @@ impl TransformSystemModule {
         let node_as_named_declaration = node_ref.as_named_declaration();
         let node_name = node_as_named_declaration.name();
         if is_binding_pattern(Some(&*node_name.ref_(self))) {
-            for &element in &node_name.ref_(self).as_has_elements().elements() {
+            for &element in &*node_name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.hoist_binding_element(element);
                 }
@@ -535,7 +534,7 @@ impl TransformSystemModule {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for &import_binding in &named_bindings.ref_(self).as_named_imports().elements {
+                    for &import_binding in &*named_bindings.ref_(self).as_named_imports().elements.ref_(self) {
                         self.append_exports_of_declaration(statements, import_binding, None);
                     }
                 }
@@ -572,10 +571,10 @@ impl TransformSystemModule {
             return /*statements*/;
         }
 
-        for &decl in &node_as_variable_statement
+        for &decl in &*node_as_variable_statement
             .declaration_list
             .ref_(self).as_variable_declaration_list()
-            .declarations
+            .declarations.ref_(self)
         {
             if decl.ref_(self).as_variable_declaration().maybe_initializer().is_some() || export_self {
                 self.append_exports_of_binding_element(statements, decl, export_self);

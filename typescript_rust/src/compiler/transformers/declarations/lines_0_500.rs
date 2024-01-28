@@ -95,7 +95,7 @@ pub fn is_internal_declaration(
             .ref_(arena).parent()
             .ref_(arena).as_signature_declaration()
             .parameters()
-            .into_iter()
+            .ref_(arena).into_iter()
             .position(|&parameter: &Id<Node>| parameter == parse_tree_node);
         let previous_sibling = if let Some(param_idx) = param_idx.filter(|param_idx| *param_idx > 0)
         {
@@ -103,7 +103,7 @@ pub fn is_internal_declaration(
                 .ref_(arena).parent()
                 .ref_(arena).as_signature_declaration()
                 .parameters()
-                .get(param_idx - 1)
+                .ref_(arena).get(param_idx - 1)
                 .copied()
         } else {
             None
@@ -638,7 +638,7 @@ impl TransformDeclarations {
                                     )
                                 } else {
                                     try_visit_nodes(
-                                        &source_file_as_source_file.statements(),
+                                        source_file_as_source_file.statements(),
                                         Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                                         Option::<fn(Id<Node>) -> bool>::None,
                                         None,
@@ -672,11 +672,11 @@ impl TransformDeclarations {
                                                             set_text_range_node_array(
                                                                 self.factory.ref_(self).create_node_array(
                                                                     Some(self.transform_and_replace_late_painted_statements(
-                                                                        &statements,
+                                                                        statements,
                                                                     )?),
                                                                     None,
                                                                 ),
-                                                                Some(&*source_file_as_source_file.statements()),
+                                                                Some(&*source_file_as_source_file.statements().ref_(self)),
                                                                 self,
                                                             )
                                                         )
@@ -701,7 +701,7 @@ impl TransformDeclarations {
                                 )
                             } else {
                                 try_visit_nodes(
-                                    &source_file_as_source_file.statements(),
+                                    source_file_as_source_file.statements(),
                                     Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
@@ -713,7 +713,7 @@ impl TransformDeclarations {
                                 self.factory.ref_(self).update_source_file(
                                     source_file,
                                     self.transform_and_replace_late_painted_statements(
-                                        &updated
+                                        updated
                                     )?,
                                     Some(true),
                                     Some(Default::default()),
@@ -828,12 +828,12 @@ impl TransformDeclarations {
                     Ok(())
                 })?;
             self.set_emitted_imports(Some(filter(
-                &combined_statements,
+                &combined_statements.ref_(self),
                 |statement: &Id<Node>| is_any_import_syntax(&statement.ref_(self)),
             )));
         } else {
             let statements = try_visit_nodes(
-                &node_as_source_file.statements(),
+                node_as_source_file.statements(),
                 Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
                 None,
@@ -842,10 +842,10 @@ impl TransformDeclarations {
             )?;
             combined_statements = set_text_range_node_array(
                 self.factory.ref_(self).create_node_array(
-                    Some(self.transform_and_replace_late_painted_statements(&statements)?),
+                    Some(self.transform_and_replace_late_painted_statements(statements)?),
                     None,
                 ),
-                Some(&*node_as_source_file.statements()),
+                Some(&*node_as_source_file.statements().ref_(self)),
                 self,
             );
             self.refs()
@@ -856,7 +856,7 @@ impl TransformDeclarations {
                     Ok(())
                 })?;
             self.set_emitted_imports(Some(filter(
-                &combined_statements,
+                &combined_statements.ref_(self),
                 |&statement: &Id<Node>| is_any_import_syntax(&statement.ref_(self)),
             )));
             if is_external_module(&node.ref_(self))
@@ -866,13 +866,13 @@ impl TransformDeclarations {
                 combined_statements = set_text_range_node_array(
                     self.factory.ref_(self).create_node_array(
                         Some({
-                            let mut combined_statements = combined_statements.to_vec();
+                            let mut combined_statements = combined_statements.ref_(self).to_vec();
                             combined_statements.push(create_empty_exports(&self.factory.ref_(self)));
                             combined_statements
                         }),
                         None,
                     ),
-                    Some(&*combined_statements),
+                    Some(&*combined_statements.ref_(self)),
                     self,
                 );
             }
@@ -1113,7 +1113,7 @@ impl TransformDeclarations {
                 self.factory.ref_(self).update_array_binding_pattern(
                     name,
                     try_visit_nodes(
-                        &name.ref_(self).as_array_binding_pattern().elements,
+                        name.ref_(self).as_array_binding_pattern().elements,
                         Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),
@@ -1127,7 +1127,7 @@ impl TransformDeclarations {
                 self.factory.ref_(self).update_object_binding_pattern(
                     name,
                     try_visit_nodes(
-                        &name.ref_(self).as_object_binding_pattern().elements,
+                        name.ref_(self).as_object_binding_pattern().elements,
                         Some(|node: Id<Node>| -> io::Result<_> {
                             Ok(Some(self.visit_binding_element(node)?.into()))
                         }),

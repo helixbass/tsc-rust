@@ -77,13 +77,13 @@ impl TransformGenerators {
             let variable: Id<Node /*Expression*/> = if is_variable_declaration_list(&initializer.ref_(self)) {
                 let initializer_ref = initializer.ref_(self);
                 let initializer_as_variable_declaration_list = initializer_ref.as_variable_declaration_list();
-                for &variable in &initializer_as_variable_declaration_list.declarations {
+                for &variable in &*initializer_as_variable_declaration_list.declarations.ref_(self) {
                     self.context
                         .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
                 }
 
                 self.factory.ref_(self).clone_node(
-                    initializer_as_variable_declaration_list.declarations[0]
+                    initializer_as_variable_declaration_list.declarations.ref_(self)[0]
                         .ref_(self).as_variable_declaration()
                         .name(),
                 )
@@ -135,14 +135,14 @@ impl TransformGenerators {
         if is_variable_declaration_list(&initializer.ref_(self)) {
             let initializer_ref = initializer.ref_(self);
             let initializer_as_variable_declaration_list = initializer_ref.as_variable_declaration_list();
-            for &variable in &initializer_as_variable_declaration_list.declarations {
+            for &variable in &*initializer_as_variable_declaration_list.declarations.ref_(self) {
                 self.context
                     .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
             }
 
             node = self.factory.ref_(self).update_for_in_statement(
                 node,
-                initializer_as_variable_declaration_list.declarations[0]
+                initializer_as_variable_declaration_list.declarations.ref_(self)[0]
                     .ref_(self).as_variable_declaration()
                     .name(),
                 visit_node(
@@ -318,7 +318,7 @@ impl TransformGenerators {
             let case_block = node_as_switch_statement.case_block;
             let case_block_ref = case_block.ref_(self);
             let case_block_as_case_block = case_block_ref.as_case_block();
-            let num_clauses = case_block_as_case_block.clauses.len();
+            let num_clauses = case_block_as_case_block.clauses.ref_(self).len();
             let end_label = self.begin_switch_block();
 
             let expression = self.cache_expression(visit_node(
@@ -332,7 +332,7 @@ impl TransformGenerators {
             let mut default_clause_index: Option<usize> = _d();
             for (i, clause) in case_block_as_case_block
                 .clauses
-                .iter()
+                .ref_(self).iter()
                 .enumerate()
                 .take(num_clauses)
             {
@@ -348,7 +348,7 @@ impl TransformGenerators {
                 let mut default_clauses_skipped = 0;
                 for (i, clause) in case_block_as_case_block
                     .clauses
-                    .iter()
+                    .ref_(self).iter()
                     .enumerate()
                     .skip(clauses_written)
                     .take(num_clauses - clauses_written)
@@ -406,7 +406,7 @@ impl TransformGenerators {
             for (i, &clause_label) in clause_labels.iter().enumerate().take(num_clauses) {
                 self.mark_label(clause_label);
                 self.transform_and_emit_statements(
-                    &case_block_as_case_block.clauses[i]
+                    &case_block_as_case_block.clauses.ref_(self)[i]
                         .ref_(self).as_has_statements()
                         .statements(),
                     None,
@@ -544,7 +544,7 @@ impl TransformGenerators {
         nodes: Id<NodeArray>, /*<Node>*/
     ) -> Option<usize> {
         nodes
-            .iter()
+            .ref_(self).iter()
             .position(|&node| self.contains_yield(Some(node)))
     }
 

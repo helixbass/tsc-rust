@@ -70,7 +70,7 @@ impl TransformES2015 {
     ) -> io::Result<SpreadSegment> {
         let expression = self.factory.ref_(self).create_array_literal_expression(
             Some(try_visit_nodes(
-                &self
+                self
                     .factory
                     .ref_(self).create_node_array(Some(chunk), Some(has_trailing_comma)),
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -180,7 +180,7 @@ impl TransformES2015 {
             None,
             None,
         );
-        for span in &node_as_template_expression.template_spans {
+        for span in &*node_as_template_expression.template_spans.ref_(self) {
             let span_ref = span.ref_(self);
             let span_as_template_span = span_ref.as_template_span();
             let mut args = vec![try_visit_node(
@@ -342,7 +342,7 @@ impl TransformES2015 {
 
         if !constructor_as_constructor_declaration
             .parameters()
-            .is_empty()
+            .ref_(self).is_empty()
         {
             return false;
         }
@@ -352,7 +352,7 @@ impl TransformES2015 {
                 .maybe_body()
                 .unwrap()
                 .ref_(self).as_block()
-                .statements,
+                .statements.ref_(self),
         )
         .cloned();
         if statement.is_none_or_matches(|statement| {

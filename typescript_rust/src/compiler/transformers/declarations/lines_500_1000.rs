@@ -236,7 +236,7 @@ impl TransformDeclarations {
             .filter(|elem_name| is_binding_pattern(Some(&elem_name.ref_(self))))
         {
             some(
-                Some(&elem_name.ref_(self).as_has_elements().elements()),
+                Some(&*elem_name.ref_(self).as_has_elements().elements().ref_(self)),
                 Some(|&element: &Id<Node>| self.get_binding_name_visible(element)),
             )
         } else {
@@ -253,13 +253,13 @@ impl TransformDeclarations {
         if has_effective_modifier(node, ModifierFlags::Private, self) {
             return Ok(None);
         }
-        let new_params = return_ok_default_if_none!(try_maybe_map(params, |&p: &Id<Node>, _| {
+        let new_params = return_ok_default_if_none!(try_maybe_map(params.refed(self).as_deref(), |&p: &Id<Node>, _| {
             self.ensure_parameter(p, modifier_mask, None)
         })
         .transpose()?);
         Ok(Some(self.factory.ref_(self).create_node_array(
             Some(new_params),
-            Some(params.unwrap().has_trailing_comma),
+            Some(params.unwrap().ref_(self).has_trailing_comma),
         )))
     }
 
@@ -542,9 +542,9 @@ impl TransformDeclarations {
         }
         let binding_list = map_defined(
             Some(
-                &decl_import_clause_named_bindings
+                &*decl_import_clause_named_bindings
                     .ref_(self).as_named_imports()
-                    .elements,
+                    .elements.ref_(self),
             ),
             |&b: &Id<Node>, _| {
                 if self.resolver.ref_(self).is_declaration_visible(b) {
@@ -857,12 +857,11 @@ impl TransformDeclarations {
                                 self.ensure_type_params(
                                     input,
                                     input_as_construct_signature_declaration
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_construct_signature_declaration.parameters()),
+                                    Some(input_as_construct_signature_declaration.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -884,7 +883,7 @@ impl TransformDeclarations {
                         self.ensure_modifiers(input),
                         self.update_params_list(
                             input,
-                            Some(&input_as_constructor_declaration.parameters()),
+                            Some(input_as_constructor_declaration.parameters()),
                             Some(ModifierFlags::None),
                         )?,
                         None,
@@ -922,12 +921,11 @@ impl TransformDeclarations {
                         self.ensure_type_params(
                             input,
                             input_as_method_declaration
-                                .maybe_type_parameters()
-                                .as_deref(),
+                                .maybe_type_parameters(),
                         )?,
                         self.update_params_list(
                             input,
-                            Some(&input_as_method_declaration.parameters()),
+                            Some(input_as_method_declaration.parameters()),
                             None,
                         )?
                         .unwrap(),
@@ -1120,11 +1118,11 @@ impl TransformDeclarations {
                                 input_as_method_signature.maybe_question_token(),
                                 self.ensure_type_params(
                                     input,
-                                    input_as_method_signature.maybe_type_parameters().as_deref(),
+                                    input_as_method_signature.maybe_type_parameters(),
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_method_signature.parameters()),
+                                    Some(input_as_method_signature.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1153,12 +1151,11 @@ impl TransformDeclarations {
                                 self.ensure_type_params(
                                     input,
                                     input_as_call_signature_declaration
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_call_signature_declaration.parameters()),
+                                    Some(input_as_call_signature_declaration.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1188,7 +1185,7 @@ impl TransformDeclarations {
                                 self.ensure_modifiers(input),
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_index_signature_declaration.parameters()),
+                                    Some(input_as_index_signature_declaration.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1337,8 +1334,7 @@ impl TransformDeclarations {
                                 input,
                                 try_maybe_visit_nodes(
                                     input_as_function_type_node
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                     Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
@@ -1347,7 +1343,7 @@ impl TransformDeclarations {
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_function_type_node.parameters()),
+                                    Some(input_as_function_type_node.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1377,8 +1373,7 @@ impl TransformDeclarations {
                                 self.ensure_modifiers(input),
                                 try_maybe_visit_nodes(
                                     input_as_constructor_type_node
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                     Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
@@ -1387,7 +1382,7 @@ impl TransformDeclarations {
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_constructor_type_node.parameters()),
+                                    Some(input_as_constructor_type_node.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1440,7 +1435,7 @@ impl TransformDeclarations {
                                 ),
                                 input_as_import_type_node.qualifier.clone(),
                                 try_maybe_visit_nodes(
-                                    input_as_import_type_node.maybe_type_arguments().as_deref(),
+                                    input_as_import_type_node.maybe_type_arguments(),
                                     Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
                                     None,

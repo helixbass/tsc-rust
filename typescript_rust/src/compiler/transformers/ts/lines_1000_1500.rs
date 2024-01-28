@@ -45,7 +45,7 @@ impl TransformTypeScript {
             second_accessor,
             set_accessor,
             ..
-        } = get_all_accessor_declarations(&node.ref_(self).as_class_like_declaration().members(), accessor, self);
+        } = get_all_accessor_declarations(&node.ref_(self).as_class_like_declaration().members().ref_(self), accessor, self);
         let first_accessor_with_decorators = if first_accessor.ref_(self).maybe_decorators().is_some() {
             Some(first_accessor)
         } else if second_accessor
@@ -524,7 +524,7 @@ impl TransformTypeScript {
         if let Some(value_declaration) = value_declaration {
             let parameters =
                 self.get_parameters_of_decorated_declaration(value_declaration, container);
-            for (i, parameter) in parameters.iter().enumerate() {
+            for (i, parameter) in parameters.ref_(self).iter().enumerate() {
                 let parameter = *parameter;
                 let parameter_ref = parameter.ref_(self);
                 let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
@@ -565,7 +565,7 @@ impl TransformTypeScript {
         /*container &&*/
         node.ref_(self).kind() == SyntaxKind::GetAccessor {
             let AllAccessorDeclarations { set_accessor, .. } = get_all_accessor_declarations(
-                &container.ref_(self).as_class_like_declaration().members(),
+                &container.ref_(self).as_class_like_declaration().members().ref_(self),
                 node,
                 self,
             );
@@ -670,7 +670,7 @@ impl TransformTypeScript {
 
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => {
                 return self
-                    .serialize_type_list(&node.ref_(self).as_union_or_intersection_type_node().types());
+                    .serialize_type_list(&node.ref_(self).as_union_or_intersection_type_node().types().ref_(self));
             }
 
             SyntaxKind::ConditionalType => {

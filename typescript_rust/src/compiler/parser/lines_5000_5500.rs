@@ -69,10 +69,10 @@ impl ParserType {
             let closing_element: Id<Node /*JsxClosingElement*/>;
 
             let opening_as_jsx_opening_element = opening.as_jsx_opening_element();
-            let last_child = if children.is_empty() {
+            let last_child = if children.ref_(self).is_empty() {
                 None
             } else {
-                Some(children[children.len() - 1].clone())
+                Some(children[children.ref_(self).len() - 1].clone())
             };
             if let Some(last_child) = last_child.filter(|last_child| {
                 if last_child.ref_(self).kind() != SyntaxKind::JsxElement {
@@ -130,9 +130,9 @@ impl ParserType {
                     Some(end),
                 );
 
-                let children_pos = children.pos();
-                let mut children_vec = children.to_vec();
-                let children_len = children.len();
+                let children_pos = children.ref_(self).pos();
+                let mut children_vec = children.ref_(self).to_vec();
+                let children_len = children.ref_(self).len();
                 children_vec[children_len - 1] = new_last.alloc(self.arena());
                 children = self.create_node_array(children_vec, children_pos, Some(end), None);
                 closing_element = last_child_as_jsx_element.closing_element.clone();

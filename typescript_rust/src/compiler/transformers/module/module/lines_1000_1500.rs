@@ -139,7 +139,7 @@ impl TransformModule {
                             .set_original_node(Some(node), self),
                     );
                 }
-                for &specifier in &node_export_clause.ref_(self).as_named_exports().elements {
+                for &specifier in &*node_export_clause.ref_(self).as_named_exports().elements.ref_(self) {
                     let specifier_ref = specifier.ref_(self);
                     let specifier_as_export_specifier = specifier_ref.as_export_specifier();
                     if self.language_version == ScriptTarget::ES3 {
@@ -316,7 +316,7 @@ impl TransformModule {
                     .ref_(self).create_function_declaration(
                         Option::<Id<NodeArray>>::None,
                         maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers().as_deref(),
+                            node.ref_(self).maybe_modifiers(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
@@ -330,7 +330,7 @@ impl TransformModule {
                         ),
                         Option::<Id<NodeArray>>::None,
                         try_visit_nodes(
-                            &node_as_function_declaration.parameters(),
+                            node_as_function_declaration.parameters(),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
@@ -385,7 +385,7 @@ impl TransformModule {
                     .ref_(self).create_class_declaration(
                         Option::<Id<NodeArray>>::None,
                         maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers().as_deref(),
+                            node.ref_(self).maybe_modifiers(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
@@ -399,8 +399,7 @@ impl TransformModule {
                         Option::<Id<NodeArray>>::None,
                         try_maybe_visit_nodes(
                             node_as_class_declaration
-                                .maybe_heritage_clauses()
-                                .as_deref(),
+                                .maybe_heritage_clauses(),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
@@ -408,7 +407,7 @@ impl TransformModule {
                             self,
                         )?,
                         try_visit_nodes(
-                            &node_as_class_declaration.members(),
+                            node_as_class_declaration.members(),
                             Some(|node: Id<Node>| self.visitor(node)),
                             Option::<fn(Id<Node>) -> bool>::None,
                             None,
@@ -457,10 +456,10 @@ impl TransformModule {
             let mut modifiers: Option<Id<NodeArray /*Modifier*/>> = _d();
             let mut remove_comments_on_expressions = false;
 
-            for &variable in &node_as_variable_statement
+            for &variable in &*node_as_variable_statement
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
-                .declarations
+                .declarations.ref_(self)
             {
                 let variable_ref = variable.ref_(self);
                 let variable_as_variable_declaration = variable_ref.as_variable_declaration();
@@ -469,7 +468,7 @@ impl TransformModule {
                 {
                     if modifiers.is_none() {
                         modifiers = maybe_visit_nodes(
-                            node.ref_(self).maybe_modifiers().as_deref(),
+                            node.ref_(self).maybe_modifiers(),
                             Some(|node: Id<Node>| self.modifier_visitor(node)),
                             Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                             None,
@@ -711,7 +710,7 @@ impl TransformModule {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for &import_binding in &named_bindings.ref_(self).as_named_imports().elements {
+                    for &import_binding in &*named_bindings.ref_(self).as_named_imports().elements.ref_(self) {
                         self.append_exports_of_declaration(statements, import_binding, Some(true));
                     }
                 }

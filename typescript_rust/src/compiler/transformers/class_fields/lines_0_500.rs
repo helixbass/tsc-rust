@@ -21,6 +21,7 @@ use crate::{
     NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
     HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
+    OptionInArena,
 };
 
 bitflags! {
@@ -891,7 +892,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         Debug_.assert(
-            !node.ref_(self).maybe_decorators().as_double_deref().is_non_empty(),
+            !node.ref_(self).maybe_decorators().refed(self).as_double_deref().is_non_empty(),
             None,
         );
 
@@ -926,14 +927,14 @@ impl TransformClassFields {
                 self.factory.ref_(self).create_assignment(
                     function_name.clone(),
                     self.factory.ref_(self).create_function_expression(
-                        maybe_filter(node.ref_(self).maybe_modifiers().as_double_deref(), |m: &Id<Node>| {
+                        maybe_filter(node.ref_(self).maybe_modifiers().refed(self).as_double_deref(), |m: &Id<Node>| {
                             !is_static_modifier(&m.ref_(self))
                         }),
                         node_as_function_like_declaration.maybe_asterisk_token(),
                         Some(function_name),
                         Option::<Id<NodeArray>>::None,
                         visit_parameter_list(
-                            Some(&node_as_function_like_declaration.parameters()),
+                            Some(node_as_function_like_declaration.parameters()),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &*self.context.ref_(self),
                             self,
@@ -998,7 +999,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_property_declaration = node_ref.as_property_declaration();
         Debug_.assert(
-            !node.ref_(self).maybe_decorators().as_double_deref().is_non_empty(),
+            !node.ref_(self).maybe_decorators().refed(self).as_double_deref().is_non_empty(),
             None,
         );
 
@@ -1010,7 +1011,7 @@ impl TransformClassFields {
                             node,
                             Option::<Id<NodeArray>>::None,
                             maybe_visit_nodes(
-                                node.ref_(self).maybe_modifiers().as_deref(),
+                                node.ref_(self).maybe_modifiers(),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                                 None,

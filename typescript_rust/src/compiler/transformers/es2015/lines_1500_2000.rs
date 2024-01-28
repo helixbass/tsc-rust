@@ -173,7 +173,7 @@ impl TransformES2015 {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
-        for &member in &node_as_class_like_declaration.members() {
+        for &member in &*node_as_class_like_declaration.members().ref_(self) {
             match member.ref_(self).kind() {
                 SyntaxKind::SemicolonClassElement => {
                     statements.push(self.transform_semicolon_class_element_to_statement(member));
@@ -187,7 +187,7 @@ impl TransformES2015 {
                 }
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                     let accessors = get_all_accessor_declarations(
-                        &node_as_class_like_declaration.members(),
+                        &node_as_class_like_declaration.members().ref_(self),
                         member,
                         self,
                     );
@@ -467,7 +467,7 @@ impl TransformES2015 {
                 Option::<Id<Node>>::None,
                 Option::<Id<NodeArray>>::None,
                 try_visit_parameter_list(
-                    Some(&node_as_arrow_function.parameters()),
+                    Some(node_as_arrow_function.parameters()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -510,7 +510,7 @@ impl TransformES2015 {
         self.set_converted_loop_state(None);
 
         let parameters = try_visit_parameter_list(
-            Some(&node_as_function_expression.parameters()),
+            Some(node_as_function_expression.parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -558,7 +558,7 @@ impl TransformES2015 {
             HierarchyFacts::FunctionIncludes,
         );
         let parameters = try_visit_parameter_list(
-            Some(&node_as_function_declaration.parameters()),
+            Some(node_as_function_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -585,7 +585,7 @@ impl TransformES2015 {
             node,
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -625,7 +625,7 @@ impl TransformES2015 {
                 )
             };
         let parameters = try_visit_parameter_list(
-            Some(&node_as_function_like_declaration.parameters()),
+            Some(node_as_function_like_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -687,19 +687,19 @@ impl TransformES2015 {
             let body_ref = body.ref_(self);
             let body_as_block = body_ref.as_block();
             statement_offset = Some(self.factory.ref_(self).copy_standard_prologue(
-                &body_as_block.statements,
+                &body_as_block.statements.ref_(self),
                 &mut prologue,
                 Some(false),
             ));
             statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
-                &body_as_block.statements,
+                &body_as_block.statements.ref_(self),
                 &mut prologue,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_hoisted_function(&node.ref_(self))),
             )?;
             statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
-                &body_as_block.statements,
+                &body_as_block.statements.ref_(self),
                 &mut prologue,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -715,25 +715,25 @@ impl TransformES2015 {
             let body_ref = body.ref_(self);
             let body_as_block = body_ref.as_block();
             statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
-                &body_as_block.statements,
+                &body_as_block.statements.ref_(self),
                 &mut statements,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
             )?;
 
-            statements_location = Some((&*body_as_block.statements).into());
+            statements_location = Some((&*body_as_block.statements.ref_(self)).into());
             add_range(
                 &mut statements,
                 try_maybe_visit_nodes(
-                    Some(&body_as_block.statements),
+                    Some(body_as_block.statements),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     statement_offset,
                     None,
                     self,
                 )?
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
                 None,
                 None,
             );
@@ -793,7 +793,7 @@ impl TransformES2015 {
         }
 
         statements = concatenate(prologue, statements);
-        if is_block(&body.ref_(self)) && &*statements == &**body.ref_(self).as_block().statements {
+        if is_block(&body.ref_(self)) && &*statements == &**body.ref_(self).as_block().statements.ref_(self) {
             return Ok(body);
         }
 

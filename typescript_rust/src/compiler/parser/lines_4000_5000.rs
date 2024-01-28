@@ -11,7 +11,7 @@ use crate::{
     BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant, Node, NodeArray,
     NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression, ReadonlyTextRange,
     SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl ParserType {
@@ -551,7 +551,7 @@ impl ParserType {
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         let modifiers = self.parse_modifiers_for_arrow_function();
         let is_async = if some(
-            modifiers.as_double_deref(),
+            modifiers.refed(self).as_double_deref(),
             Some(|modifier: &Id<Node>| is_async_modifier(&modifier.ref_(self))),
         ) {
             SignatureFlags::Await
@@ -597,7 +597,7 @@ impl ParserType {
             SyntaxKind::EqualsGreaterThanToken | SyntaxKind::OpenBraceToken
         ) {
             self.parse_arrow_function_expression_body(some(
-                modifiers.as_double_deref(),
+                modifiers.refed(self).as_double_deref(),
                 Some(|modifier: &Id<Node>| is_async_modifier(&modifier.ref_(self))),
             ))
         } else {

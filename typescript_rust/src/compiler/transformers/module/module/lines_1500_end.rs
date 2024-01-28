@@ -39,10 +39,10 @@ impl TransformModule {
             return /*statements*/;
         }
 
-        for &decl in &node_as_variable_statement
+        for &decl in &*node_as_variable_statement
             .declaration_list
             .ref_(self).as_variable_declaration_list()
-            .declarations
+            .declarations.ref_(self)
         {
             self.append_exports_of_binding_element(statements, decl);
         }
@@ -63,10 +63,10 @@ impl TransformModule {
         }
 
         if is_binding_pattern(decl_as_named_declaration.maybe_name().refed(self).as_deref()) {
-            for &element in &decl_as_named_declaration
+            for &element in &*decl_as_named_declaration
                 .name()
                 .ref_(self).as_has_elements()
-                .elements()
+                .elements().ref_(self)
             {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element);

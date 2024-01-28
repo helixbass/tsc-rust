@@ -35,7 +35,7 @@ impl TransformES2015 {
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.ref_(self).start_lexical_environment();
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements(),
+            &node_as_source_file.statements().ref_(self),
             &mut prologue,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
@@ -43,13 +43,13 @@ impl TransformES2015 {
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
-                &node_as_source_file.statements(),
+                node_as_source_file.statements(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Some(statement_offset),
                 None,
                 self,
-            )?),
+            )?.ref_(self)),
             None,
             None,
         );
@@ -74,7 +74,7 @@ impl TransformES2015 {
             node,
             self.factory
                 .ref_(self).create_node_array(Some(concatenate(prologue, statements)), None)
-                .set_text_range(Some(&*node_as_source_file.statements()), self),
+                .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
             None,
             None,
             None,
@@ -514,7 +514,7 @@ impl TransformES2015 {
         let closing_brace_location = create_token_range(
             skip_trivia(
                 &self.current_text(),
-                node_as_class_like_declaration.members().end(),
+                node_as_class_like_declaration.members().ref_(self).end(),
                 None,
                 None,
                 None,
@@ -546,7 +546,7 @@ impl TransformES2015 {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*node_as_class_like_declaration.members()), self),
+                    .set_text_range(Some(&*node_as_class_like_declaration.members().ref_(self)), self),
                 Some(true),
             )
             .set_emit_flags(EmitFlags::NoComments, self))
@@ -633,8 +633,7 @@ impl TransformES2015 {
         Ok(try_visit_parameter_list(
             constructor
                 .filter(|_| !has_synthesized_super)
-                .map(|constructor| constructor.ref_(self).as_constructor_declaration().parameters())
-                .as_deref(),
+                .map(|constructor| constructor.ref_(self).as_constructor_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -667,7 +666,7 @@ impl TransformES2015 {
         let statements_array = self
             .factory
             .ref_(self).create_node_array(Some(statements), None)
-            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members()), self);
+            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members().ref_(self)), self);
 
         self.factory
             .ref_(self).create_block(statements_array, Some(true))
@@ -712,7 +711,7 @@ impl TransformES2015 {
         let mut statement_offset = 0;
         if !has_synthesized_super {
             statement_offset = self.factory.ref_(self).copy_standard_prologue(
-                &constructor_body_as_block.statements,
+                &constructor_body_as_block.statements.ref_(self),
                 &mut prologue,
                 Some(false),
             );
@@ -723,7 +722,7 @@ impl TransformES2015 {
             statement_offset = self
                 .factory
                 .ref_(self).try_copy_custom_prologue(
-                    &constructor_body_as_block.statements,
+                    &constructor_body_as_block.statements.ref_(self),
                     &mut statements,
                     Some(statement_offset),
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -735,9 +734,9 @@ impl TransformES2015 {
         let mut super_call_expression: Option<Id<Node /*Expression*/>> = None;
         if has_synthesized_super {
             super_call_expression = Some(self.create_default_super_call_or_this());
-        } else if is_derived_class && statement_offset < constructor_body_as_block.statements.len()
+        } else if is_derived_class && statement_offset < constructor_body_as_block.statements.ref_(self).len()
         {
-            let first_statement = &constructor_body_as_block.statements[statement_offset];
+            let first_statement = &constructor_body_as_block.statements.ref_(self)[statement_offset];
             if is_expression_statement(&first_statement.ref_(self))
                 && is_super_call(first_statement.ref_(self).as_expression_statement().expression, self)
             {
@@ -758,13 +757,13 @@ impl TransformES2015 {
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
-                &constructor_body_as_block.statements,
+                constructor_body_as_block.statements,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 None,
                 None,
                 self,
-            )?),
+            )?.ref_(self)),
             None,
             None,
         );
@@ -777,7 +776,7 @@ impl TransformES2015 {
 
         if is_derived_class {
             if let Some(super_call_expression) = super_call_expression.clone().filter(|_| {
-                statement_offset == constructor_body_as_block.statements.len()
+                statement_offset == constructor_body_as_block.statements.ref_(self).len()
                     && !constructor_body
                         .ref_(self).transform_flags()
                         .intersects(TransformFlags::ContainsLexicalThis)
@@ -826,7 +825,7 @@ impl TransformES2015 {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(concatenate(prologue, statements)), None)
-                    .set_text_range(Some(&*constructor_body_as_block.statements), self),
+                    .set_text_range(Some(&*constructor_body_as_block.statements.ref_(self)), self),
                 Some(true),
             )
             .set_text_range(Some(&*constructor_body.ref_(self)), self))

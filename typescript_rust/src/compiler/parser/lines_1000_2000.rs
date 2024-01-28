@@ -160,17 +160,17 @@ impl ParserType {
         let source_file_ref = source_file.ref_(self);
         let source_file_as_source_file = source_file_ref.as_source_file();
         let source_file_statements = source_file_as_source_file.statements();
-        let mut start = self.find_next_statement_with_await(&source_file_statements, 0);
+        let mut start = self.find_next_statement_with_await(&source_file_statements.ref_(self), 0);
         while let Some(start_present) = start {
-            let prev_statement = &source_file_statements[pos.unwrap()];
-            let next_statement = &source_file_statements[start_present];
+            let prev_statement = source_file_statements.ref_(self)[pos.unwrap()];
+            let next_statement = source_file_statements.ref_(self)[start_present];
             add_range(
                 &mut statements,
-                Some(&source_file_statements),
+                Some(&source_file_statements.ref_(self)),
                 pos.map(|pos| pos.try_into().unwrap()),
                 Some(start_present.try_into().unwrap()),
             );
-            pos = self.find_next_statement_without_await(&source_file_statements, start_present);
+            pos = self.find_next_statement_without_await(&source_file_statements.ref_(self), start_present);
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
@@ -213,13 +213,13 @@ impl ParserType {
                         }
 
                         if let Some(pos_present) = pos {
-                            let non_await_statement = source_file_statements[pos_present];
+                            let non_await_statement = source_file_statements.ref_(self)[pos_present];
                             if statement.ref_(self).end() == non_await_statement.ref_(self).pos() {
                                 break;
                             }
                             if statement.ref_(self).end() > non_await_statement.ref_(self).pos() {
                                 pos = self.find_next_statement_without_await(
-                                    &source_file_statements,
+                                    &source_file_statements.ref_(self),
                                     pos_present + 1,
                                 );
                             }
@@ -233,14 +233,14 @@ impl ParserType {
             );
 
             start = pos
-                .and_then(|pos| self.find_next_statement_with_await(&source_file_statements, pos));
+                .and_then(|pos| self.find_next_statement_with_await(&source_file_statements.ref_(self), pos));
         }
 
         if let Some(pos) = pos {
-            let prev_statement = &source_file_statements[pos];
+            let prev_statement = source_file_statements.ref_(self)[pos];
             add_range(
                 &mut statements,
-                Some(&source_file_statements),
+                Some(&source_file_statements.ref_(self)),
                 Some(pos.try_into().unwrap()),
                 None,
             );
@@ -262,7 +262,7 @@ impl ParserType {
 
         self.set_syntax_cursor(saved_syntax_cursor);
         let new_statements = self.factory().ref_(self).create_node_array(Some(statements), None);
-        set_text_range(&*new_statements, Some(&*source_file_statements));
+        set_text_range(&*new_statements.ref_(self), Some(&*source_file_statements.ref_(self)));
         self.factory()
             .ref_(self).update_source_file(source_file, new_statements, None, None, None, None, None)
     }
@@ -1089,7 +1089,7 @@ impl ParserType {
             .factory()
             .ref_(self).create_node_array(Some(elements), has_trailing_comma);
         set_text_range_pos_end(
-            &*array,
+            &*array.ref_(self),
             pos,
             end.unwrap_or_else(|| self.scanner().get_start_pos().try_into().unwrap()),
         );

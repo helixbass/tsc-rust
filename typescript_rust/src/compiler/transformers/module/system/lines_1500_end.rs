@@ -120,7 +120,7 @@ impl TransformSystemModule {
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
-            first_or_undefined(&node_as_call_expression.arguments).cloned(),
+            first_or_undefined(&node_as_call_expression.arguments.ref_(self)).cloned(),
             Some(|node: Id<Node>| self.visitor(node)),
             Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -190,14 +190,14 @@ impl TransformSystemModule {
             )?
         } else if is_object_literal_expression(&node.ref_(self)) {
             try_some(
-                Some(&node.ref_(self).as_object_literal_expression().properties),
+                Some(&*node.ref_(self).as_object_literal_expression().properties.ref_(self)),
                 Some(|&property: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(property)
                 }),
             )?
         } else if is_array_literal_expression(&node.ref_(self)) {
             try_some(
-                Some(&node.ref_(self).as_array_literal_expression().elements),
+                Some(&*node.ref_(self).as_array_literal_expression().elements.ref_(self)),
                 Some(|&element: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(element)
                 }),

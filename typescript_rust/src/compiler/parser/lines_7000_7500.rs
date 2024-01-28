@@ -10,7 +10,8 @@ use crate::{
     DiagnosticRelatedInformationInterface, Diagnostics, ExpressionWithTypeArguments,
     ExternalModuleReference, HeritageClause, ImportClause, ModuleBlock, NamespaceExport,
     NamespaceImport, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
+    AsDoubleDeref,
 };
 
 impl ParserType {
@@ -30,10 +31,7 @@ impl ParserType {
             .map(|node| node.alloc(self.arena()));
         let type_parameters = self.parse_type_parameters();
         if some(
-            modifiers.as_ref().map(|node_array| {
-                let node_array: &[Id<Node>] = node_array;
-                node_array
-            }),
+            modifiers.refed(self).as_double_deref(),
             Some(|modifier: &Id<Node>| is_export_modifier(&modifier.ref_(self))),
         ) {
             self.set_await_context(true);

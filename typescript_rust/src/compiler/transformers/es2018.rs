@@ -752,7 +752,7 @@ impl TransformES2018 {
             .intersects(TransformFlags::ContainsObjectRestOrSpread)
         {
             let mut objects =
-                self.chunk_object_literal_elements(&node_as_object_literal_expression.properties);
+                self.chunk_object_literal_elements(&node_as_object_literal_expression.properties.ref_(self));
             if !objects.is_empty() && objects[0].ref_(self).kind() != SyntaxKind::ObjectLiteralExpression {
                 objects.insert(
                     0,
@@ -828,7 +828,7 @@ impl TransformES2018 {
                         self.maybe_tagged_template_string_declarations().as_ref()
                     {
                         statements
-                            .to_vec()
+                            .ref_(self).to_vec()
                             .and_push(self.factory.ref_(self).create_variable_statement(
                                 Option::<Id<NodeArray>>::None,
                                 self.factory.ref_(self).create_variable_declaration_list(
@@ -845,7 +845,7 @@ impl TransformES2018 {
             visited,
             set_text_range_node_array(
                 self.factory.ref_(self).create_node_array(Some(statement), None),
-                Some(&*node.ref_(self).as_source_file().statements()),
+                Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
                 self,
             ),
             None,
@@ -943,12 +943,12 @@ impl TransformES2018 {
             );
         }
         let mut result: Option<Vec<Id<Node /*Expression*/>>> = None;
-        for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
+        for (i, element) in node_as_comma_list_expression.elements.ref_(self).iter().enumerate() {
             let element = *element;
             let visited = visit_node(
                 element,
                 Some(|node: Id<Node>| {
-                    if i < node_as_comma_list_expression.elements.len() - 1 {
+                    if i < node_as_comma_list_expression.elements.ref_(self).len() - 1 {
                         self.visitor_with_unused_expression_result(node)
                     } else {
                         self.visitor(node)
@@ -959,7 +959,7 @@ impl TransformES2018 {
             );
             if result.is_some() || visited != element {
                 result
-                    .get_or_insert_with(|| node_as_comma_list_expression.elements[0..i].to_owned())
+                    .get_or_insert_with(|| node_as_comma_list_expression.elements.ref_(self)[0..i].to_owned())
                     .push(visited);
             }
         }
@@ -968,7 +968,7 @@ impl TransformES2018 {
             |result| {
                 self.factory
                     .ref_(self).create_node_array(Some(result), None)
-                    .set_text_range(Some(&*node_as_comma_list_expression.elements), self)
+                    .set_text_range(Some(&*node_as_comma_list_expression.elements.ref_(self)), self)
             },
         );
         self.factory.ref_(self).update_comma_list_expression(node, elements)
@@ -1025,7 +1025,7 @@ impl TransformES2018 {
                         Option::<Id<NodeArray>>::None,
                         visited_bindings,
                     )]
-                    .and_extend(block.ref_(self).as_block().statements.iter().cloned()),
+                    .and_extend(block.ref_(self).as_block().statements.ref_(self).iter().cloned()),
                 );
             }
             return Some(
@@ -1240,12 +1240,12 @@ impl TransformES2018 {
                 let node_statement_as_block = node_statement_ref.as_block();
                 add_range(
                     &mut statements,
-                    Some(&node_statement_as_block.statements),
+                    Some(&node_statement_as_block.statements.ref_(self)),
                     None,
                     None,
                 );
                 body_location = Some(node_as_for_of_statement.statement.clone());
-                statements_location = Some((&*node_statement_as_block.statements).into());
+                statements_location = Some((&*node_statement_as_block.statements.ref_(self)).into());
             } else
             /*if (node.statement)*/
             {
@@ -1311,7 +1311,7 @@ impl TransformES2018 {
             let statement_as_block = statement_ref.as_block();
             add_range(
                 &mut statements,
-                Some(&statement_as_block.statements),
+                Some(&statement_as_block.statements.ref_(self)),
                 None,
                 None,
             );
@@ -1325,7 +1325,7 @@ impl TransformES2018 {
             .ref_(self).create_block(
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(statements_location.as_deref(), self),
+                    .set_text_range(statements_location.refed(self).as_deref(), self),
                 Some(true),
             )
             .set_text_range(body_location.refed(self).as_deref(), self)
@@ -1598,7 +1598,7 @@ impl TransformES2018 {
             Option::<Id<NodeArray>>::None,
             node.ref_(self).maybe_modifiers(),
             visit_parameter_list(
-                Some(&node.ref_(self).as_constructor_declaration().parameters()),
+                Some(node.ref_(self).as_constructor_declaration().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1629,7 +1629,7 @@ impl TransformES2018 {
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             visit_parameter_list(
-                Some(&node_as_get_accessor_declaration.parameters()),
+                Some(node_as_get_accessor_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1661,7 +1661,7 @@ impl TransformES2018 {
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
             ),
             visit_parameter_list(
-                Some(&node_as_set_accessor_declaration.parameters()),
+                Some(node_as_set_accessor_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1688,7 +1688,7 @@ impl TransformES2018 {
                 })
             {
                 maybe_visit_nodes(
-                    node.ref_(self).maybe_modifiers().as_deref(),
+                    node.ref_(self).maybe_modifiers(),
                     Some(|node: Id<Node>| self.visitor_no_async_modifier(node)),
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
@@ -1722,7 +1722,7 @@ impl TransformES2018 {
             ),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(&node_as_method_declaration.parameters()),
+                Some(node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1769,7 +1769,7 @@ impl TransformES2018 {
                 })
             {
                 maybe_visit_nodes(
-                    node.ref_(self).maybe_modifiers().as_deref(),
+                    node.ref_(self).maybe_modifiers(),
                     Some(|node: Id<Node>| self.visitor_no_async_modifier(node)),
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
@@ -1792,7 +1792,7 @@ impl TransformES2018 {
             node_as_function_declaration.maybe_name(),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(&node_as_function_declaration.parameters()),
+                Some(node_as_function_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1831,7 +1831,7 @@ impl TransformES2018 {
             node.ref_(self).maybe_modifiers(),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(&node_as_arrow_function.parameters()),
+                Some(node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1859,7 +1859,7 @@ impl TransformES2018 {
                 })
             {
                 maybe_visit_nodes(
-                    node.ref_(self).maybe_modifiers().as_deref(),
+                    node.ref_(self).maybe_modifiers(),
                     Some(|node: Id<Node>| self.visitor_no_async_modifier(node)),
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
@@ -1882,7 +1882,7 @@ impl TransformES2018 {
             node_as_function_expression.maybe_name(),
             Option::<Id<NodeArray>>::None,
             visit_parameter_list(
-                Some(&node_as_function_expression.parameters()),
+                Some(node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -1922,7 +1922,7 @@ impl TransformES2018 {
                 .maybe_body()
                 .unwrap()
                 .ref_(self).as_block()
-                .statements,
+                .statements.ref_(self),
             &mut statements,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
@@ -1953,7 +1953,7 @@ impl TransformES2018 {
                     self.factory.ref_(self).update_block(
                         node_as_function_like_declaration.maybe_body().unwrap(),
                         visit_lexical_environment(
-                            &node_as_function_like_declaration
+                            node_as_function_like_declaration
                                 .maybe_body()
                                 .unwrap()
                                 .ref_(self).as_block()
@@ -2050,7 +2050,7 @@ impl TransformES2018 {
         .unwrap_or_else(|| self.factory.ref_(self).create_block(vec![], None));
         if is_block(&body.ref_(self)) {
             statement_offset = self.factory.ref_(self).copy_prologue(
-                &body.ref_(self).as_block().statements,
+                &body.ref_(self).as_block().statements.ref_(self),
                 &mut statements,
                 Some(false),
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -2082,7 +2082,7 @@ impl TransformES2018 {
             let block_ref = block.ref_(self);
             let block_as_block = block_ref.as_block();
             statements.add_range(
-                Some(&block_as_block.statements[statement_offset..]),
+                Some(&block_as_block.statements.ref_(self)[statement_offset..]),
                 None,
                 None,
             );
@@ -2090,7 +2090,7 @@ impl TransformES2018 {
                 block,
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*block_as_block.statements), self),
+                    .set_text_range(Some(&*block_as_block.statements.ref_(self)), self),
             );
         }
         body
@@ -2101,7 +2101,7 @@ impl TransformES2018 {
         mut statements: Option<Vec<Id<Node /*Statement*/>>>,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> Option<Vec<Id<Node /*Statement*/>>> {
-        for &parameter in &node.ref_(self).as_function_like_declaration().parameters() {
+        for &parameter in &*node.ref_(self).as_function_like_declaration().parameters().ref_(self) {
             if parameter
                 .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsObjectRestOrSpread)
@@ -2367,7 +2367,7 @@ impl TransformES2018OnSubstituteNodeOverrider {
                 Option::<Id<NodeArray>>::None,
                 Some(
                     vec![self.transform_es2018().factory.ref_(self).create_this()]
-                        .and_extend(node_as_call_expression.arguments.iter().cloned()),
+                        .and_extend(node_as_call_expression.arguments.ref_(self).iter().cloned()),
                 ),
             );
         }

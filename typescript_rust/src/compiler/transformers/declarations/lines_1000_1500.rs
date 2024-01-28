@@ -252,8 +252,7 @@ impl TransformDeclarations {
                             input_as_type_alias_declaration.name(),
                             try_maybe_visit_nodes(
                                 input_as_type_alias_declaration
-                                    .maybe_type_parameters()
-                                    .as_deref(),
+                                    .maybe_type_parameters(),
                                 Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                 Some(|node: Id<Node>| is_type_parameter_declaration(&node.ref_(self))),
                                 None,
@@ -290,18 +289,16 @@ impl TransformDeclarations {
                             self.ensure_type_params(
                                 input,
                                 input_as_interface_declaration
-                                    .maybe_type_parameters()
-                                    .as_deref(),
+                                    .maybe_type_parameters(),
                             )?,
                             Some(
                                 self.transform_heritage_clauses(
                                     input_as_interface_declaration
-                                        .maybe_heritage_clauses()
-                                        .as_deref(),
+                                        .maybe_heritage_clauses(),
                                 )?,
                             ),
                             try_visit_nodes(
-                                &input_as_interface_declaration.members,
+                                input_as_interface_declaration.members,
                                 Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                 Option::<fn(Id<Node>) -> bool>::None,
                                 None,
@@ -331,12 +328,11 @@ impl TransformDeclarations {
                             self.ensure_type_params(
                                 input,
                                 input_as_function_declaration
-                                    .maybe_type_parameters()
-                                    .as_deref(),
+                                    .maybe_type_parameters(),
                             )?,
                             self.update_params_list(
                                 input,
-                                Some(&input_as_function_declaration.parameters()),
+                                Some(input_as_function_declaration.parameters()),
                                 None,
                             )?
                             .unwrap(),
@@ -527,7 +523,7 @@ impl TransformDeclarations {
                     self.set_result_has_scope_marker(false);
                     self.set_needs_scope_fix_marker(false);
                     let statements = try_visit_nodes(
-                        &inner.ref_(self).as_module_block().statements,
+                        inner.ref_(self).as_module_block().statements,
                         Some(|node: Id<Node>| self.visit_declaration_statements(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
@@ -535,18 +531,18 @@ impl TransformDeclarations {
                         self,
                     )?;
                     let mut late_statements =
-                        self.transform_and_replace_late_painted_statements(&statements)?;
+                        self.transform_and_replace_late_painted_statements(statements)?;
                     if input.ref_(self).flags().intersects(NodeFlags::Ambient) {
                         self.set_needs_scope_fix_marker(false);
                     }
                     if !is_global_scope_augmentation(&input.ref_(self))
-                        && !self.has_scope_marker(&late_statements)
+                        && !self.has_scope_marker(late_statements)
                         && !self.result_has_scope_marker()
                     {
                         if self.needs_scope_fix_marker() {
                             late_statements = self.factory.ref_(self).create_node_array(
                                 Some({
-                                    let mut late_statements = late_statements.to_vec();
+                                    let mut late_statements = late_statements.ref_(self).to_vec();
                                     late_statements.push(create_empty_exports(&self.factory.ref_(self)));
                                     late_statements
                                 }),
@@ -554,7 +550,7 @@ impl TransformDeclarations {
                             );
                         } else {
                             late_statements = visit_nodes(
-                                &late_statements,
+                                late_statements,
                                 Some(|node: Id<Node>| {
                                     Some(self.strip_export_modifiers(node).into())
                                 }),
@@ -634,8 +630,7 @@ impl TransformDeclarations {
                 let type_parameters = self.ensure_type_params(
                     input,
                     input_as_class_declaration
-                        .maybe_type_parameters()
-                        .as_deref(),
+                        .maybe_type_parameters(),
                 )?;
                 let ctor = get_first_constructor_with_body(input, self);
                 let mut parameter_properties: Option<Vec<Id<Node /*PropertyDeclaration*/>>> =
@@ -645,7 +640,7 @@ impl TransformDeclarations {
                     let ctor_ref = ctor.ref_(self);
                     let ctor_as_constructor_declaration = ctor_ref.as_constructor_declaration();
                     parameter_properties = Some(/*compact(*/ try_flat_map(
-                        Some(&ctor_as_constructor_declaration.parameters()),
+                        Some(&*ctor_as_constructor_declaration.parameters().ref_(self)),
                         |&param: &Id<Node>, _| -> io::Result<_> {
                             if !has_syntactic_modifier(
                                 param,
@@ -694,7 +689,7 @@ impl TransformDeclarations {
                 }
 
                 let has_private_identifier = some(
-                    Some(&input_as_class_declaration.members()),
+                    Some(&*input_as_class_declaration.members().ref_(self)),
                     Some(|member: &Id<Node>| {
                         matches!(
                             member.ref_(self).as_named_declaration().maybe_name(),
@@ -717,14 +712,14 @@ impl TransformDeclarations {
                 let member_nodes = maybe_concatenate(
                     maybe_concatenate(private_identifier, parameter_properties),
                     try_maybe_visit_nodes(
-                        Some(&input_as_class_declaration.members()),
+                        Some(input_as_class_declaration.members()),
                         Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                         Option::<fn(Id<Node>) -> bool>::None,
                         None,
                         None,
                         self,
                     )?
-                    .map(|node_array| node_array.to_vec()),
+                    .map(|node_array| node_array.ref_(self).to_vec()),
                 );
                 let members = self.factory.ref_(self).create_node_array(member_nodes, None);
 
@@ -786,7 +781,7 @@ impl TransformDeclarations {
                         try_maybe_map(
                             input_as_class_declaration
                                 .maybe_heritage_clauses()
-                                .as_deref(),
+                                .refed(self).as_deref(),
                             |&clause: &Id<Node>, _| -> io::Result<_> {
                                 let clause_ref = clause.ref_(self);
                                 let clause_as_heritage_clause = clause_ref.as_heritage_clause();
@@ -794,14 +789,14 @@ impl TransformDeclarations {
                                     let old_diag = self.get_symbol_accessibility_diagnostic();
                                     self.set_get_symbol_accessibility_diagnostic(
                                         create_get_symbol_accessibility_diagnostic_for_node(
-                                            clause_as_heritage_clause.types[0],
+                                            clause_as_heritage_clause.types.ref_(self)[0],
                                             self,
                                         ),
                                     );
                                     let new_clause = self.factory.ref_(self).update_heritage_clause(
                                         clause,
                                         try_map(
-                                            &clause_as_heritage_clause.types,
+                                            &*clause_as_heritage_clause.types.ref_(self),
                                             |&t: &Id<Node>, _| -> io::Result<_> {
                                                 Ok(self
                                                     .factory
@@ -810,8 +805,7 @@ impl TransformDeclarations {
                                                         new_id.clone(),
                                                         try_maybe_visit_nodes(
                                                             t.ref_(self).as_expression_with_type_arguments()
-                                                                .maybe_type_arguments()
-                                                                .as_deref(),
+                                                                .maybe_type_arguments(),
                                                             Some(|node: Id<Node>| {
                                                                 self.visit_declaration_subtree(node)
                                                             }),
@@ -830,11 +824,11 @@ impl TransformDeclarations {
                                 Ok(self.factory.ref_(self).update_heritage_clause(
                                     clause,
                                     try_visit_nodes(
-                                        &self.factory.ref_(self).create_node_array(
+                                        self.factory.ref_(self).create_node_array(
                                             Some(
                                                 clause_as_heritage_clause
                                                     .types
-                                                    .iter()
+                                                    .ref_(self).iter()
                                                     .filter(|t| {
                                                         let t_ref = t.ref_(self);
                                                         let t_as_expression_with_type_arguments = t_ref.as_expression_with_type_arguments();
@@ -890,8 +884,7 @@ impl TransformDeclarations {
                 } else {
                     let heritage_clauses = self.transform_heritage_clauses(
                         input_as_class_declaration
-                            .maybe_heritage_clauses()
-                            .as_deref(),
+                            .maybe_heritage_clauses(),
                     )?;
                     self.transform_top_level_declaration_cleanup(
                         input,
@@ -939,7 +932,7 @@ impl TransformDeclarations {
                             input_as_enum_declaration.name(),
                             Some(self.factory.ref_(self).create_node_array(
                                 Some(try_map_defined(
-                                    Some(&input_as_enum_declaration.members),
+                                    Some(&*input_as_enum_declaration.members.ref_(self)),
                                     |&m: &Id<Node>, _| -> io::Result<_> {
                                         if self.should_strip_internal(m) {
                                             return Ok(None);
@@ -991,7 +984,7 @@ impl TransformDeclarations {
         pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let mut elems: Option<Vec<Id<Node /*PropertyDeclaration*/>>> = Default::default();
-        for &elem in &pattern.ref_(self).as_has_elements().elements() {
+        for &elem in &*pattern.ref_(self).as_has_elements().elements().ref_(self) {
             let elem_ref = elem.ref_(self);
             let elem_as_binding_element = elem_ref.as_binding_element();
             if is_omitted_expression(&elem.ref_(self)) {

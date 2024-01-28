@@ -128,7 +128,7 @@ impl TransformES2015 {
         let block_ref = block.ref_(self);
         let block_as_block = block_ref.as_block();
         let transformed_statements = try_visit_nodes(
-            &block_as_block.statements,
+            block_as_block.statements,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_statement(node, self)),
             None,
@@ -137,7 +137,7 @@ impl TransformES2015 {
         )?;
         Ok(self.factory.ref_(self).update_block(
             block,
-            vec![statement].and_extend(transformed_statements.owned_iter()),
+            vec![statement].and_extend(transformed_statements.ref_(self).iter().copied()),
         ))
     }
 
@@ -179,7 +179,7 @@ impl TransformES2015 {
         );
         let updated: Id<Node /*AccessorDeclaration*/>;
         let parameters = try_visit_parameter_list(
-            Some(&node.ref_(self).as_signature_declaration().parameters()),
+            Some(node.ref_(self).as_signature_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -258,14 +258,14 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         if some(
-            Some(&node_as_array_literal_expression.elements),
+            Some(&*node_as_array_literal_expression.elements.ref_(self)),
             Some(|element: &Id<Node>| is_spread_element(&element.ref_(self))),
         ) {
             return self.transform_and_spread_elements(
-                &node_as_array_literal_expression.elements,
+                node_as_array_literal_expression.elements,
                 false,
                 node_as_array_literal_expression.multi_line == Some(true),
-                node_as_array_literal_expression.elements.has_trailing_comma,
+                node_as_array_literal_expression.elements.ref_(self).has_trailing_comma,
             );
         }
         try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
@@ -285,7 +285,7 @@ impl TransformES2015 {
         if expression.ref_(self).kind() == SyntaxKind::SuperKeyword
             || is_super_property(expression, self)
             || some(
-                Some(&node_as_call_expression.arguments),
+                Some(&*node_as_call_expression.arguments.ref_(self)),
                 Some(|argument: &Id<Node>| is_spread_element(&argument.ref_(self))),
             )
         {
@@ -307,7 +307,7 @@ impl TransformES2015 {
                     )?,
                     Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
-                        &node_as_call_expression.arguments,
+                        node_as_call_expression.arguments,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         None,
@@ -341,7 +341,7 @@ impl TransformES2015 {
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let body_statements = try_visit_nodes(
-            &body_as_block.statements,
+            body_as_block.statements,
             Some(|node: Id<Node>| self.class_wrapper_statement_visitor(node)),
             Some(|node| is_statement(node, self)),
             None,
@@ -350,10 +350,10 @@ impl TransformES2015 {
         )?;
         self.set_converted_loop_state(saved_converted_loop_state);
 
-        let class_statements = filter(&body_statements, |&statement: &Id<Node>| {
+        let class_statements = filter(&body_statements.ref_(self), |&statement: &Id<Node>| {
             self.is_variable_statement_with_initializer(statement)
         });
-        let remaining_statements = filter(&body_statements, |&stmt: &Id<Node>| {
+        let remaining_statements = filter(&body_statements.ref_(self), |&stmt: &Id<Node>| {
             !self.is_variable_statement_with_initializer(stmt)
         });
         let var_statement =
@@ -366,7 +366,7 @@ impl TransformES2015 {
         let variable = var_statement_as_variable_statement
             .declaration_list
             .ref_(self).as_variable_declaration_list()
-            .declarations[0];
+            .declarations.ref_(self)[0];
         let variable_ref = variable.ref_(self);
         let variable_as_variable_declaration = variable_ref.as_variable_declaration();
         let initializer = skip_outer_expressions(
@@ -420,7 +420,7 @@ impl TransformES2015 {
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         if let Some(alias_assignment) = alias_assignment {
             let extends_call = try_cast(
-                func_statements.get(0).cloned(),
+                func_statements.ref_(self).get(0).cloned(),
                 |node: &Option<Id<Node>>| {
                     node.matches(|node| is_expression_statement(&node.ref_(self)))
                 },
@@ -431,7 +431,7 @@ impl TransformES2015 {
                 class_body_start += 1;
             }
 
-            statements.push(func_statements[class_body_start].clone());
+            statements.push(func_statements.ref_(self)[class_body_start].clone());
             class_body_start += 1;
 
             statements.push(self.factory.ref_(self).create_expression_statement(
@@ -445,13 +445,13 @@ impl TransformES2015 {
             ));
         }
 
-        while !is_return_statement(&element_at(&func_statements, class_body_end).unwrap().ref_(self)) {
+        while !is_return_statement(&element_at(&func_statements.ref_(self), class_body_end).unwrap().ref_(self)) {
             class_body_end -= 1;
         }
 
         add_range(
             &mut statements,
-            Some(&func_statements),
+            Some(&func_statements.ref_(self)),
             Some(isize::try_from(class_body_start).unwrap()),
             Some(class_body_end),
         );
@@ -459,7 +459,7 @@ impl TransformES2015 {
         if class_body_end < -1 {
             add_range(
                 &mut statements,
-                Some(&func_statements),
+                Some(&func_statements.ref_(self)),
                 Some(class_body_end + 1),
                 None,
             );
@@ -521,7 +521,7 @@ impl TransformES2015 {
                     .ref_(self).as_variable_statement()
                     .declaration_list
                     .ref_(self).as_variable_declaration_list()
-                    .declarations,
+                    .declarations.ref_(self),
             )
             .ref_(self).as_variable_declaration()
             .maybe_initializer()
@@ -587,7 +587,7 @@ impl TransformES2015 {
                         )?
                     },
                     self.transform_and_spread_elements(
-                        &node_as_call_expression.arguments,
+                        node_as_call_expression.arguments,
                         true,
                         false,
                         false,
@@ -614,7 +614,7 @@ impl TransformES2015 {
                             )?
                         },
                         try_visit_nodes(
-                            &node_as_call_expression.arguments,
+                            node_as_call_expression.arguments,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             None,
@@ -657,7 +657,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_new_expression = node_ref.as_new_expression();
         if some(
-            node_as_new_expression.arguments.as_double_deref(),
+            node_as_new_expression.arguments.refed(self).as_double_deref(),
             Some(|node: &Id<Node>| is_spread_element(&node.ref_(self))),
         ) {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
@@ -681,14 +681,14 @@ impl TransformES2015 {
                     )?,
                     this_arg,
                     self.transform_and_spread_elements(
-                        &self.factory.ref_(self).create_node_array(
+                        self.factory.ref_(self).create_node_array(
                             Some(
                                 vec![self.factory.ref_(self).create_void_zero()].and_extend(
                                     node_as_new_expression
                                         .arguments
                                         .clone()
                                         .unwrap()
-                                        .owned_iter(),
+                                        .ref_(self).iter().copied(),
                                 ),
                             ),
                             None,
@@ -712,9 +712,9 @@ impl TransformES2015 {
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let num_elements = elements.len();
+        let num_elements = elements.ref_(self).len();
         let segments = flatten(&try_span_map(
-            elements,
+            &elements.ref_(self),
             |node: &Id<Node>, _| -> Rc<dyn PartitionSpread> {
                 if is_spread_element(&node.ref_(self)) {
                     Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.arena_id()))

@@ -165,7 +165,7 @@ impl TransformEcmascriptModule {
                     self.factory
                         .ref_(self).create_node_array(
                             {
-                                let mut statements = result.ref_(self).as_source_file().statements().to_vec();
+                                let mut statements = result.ref_(self).as_source_file().statements().ref_(self).to_vec();
                                 insert_statements_after_custom_prologue(
                                     &mut statements,
                                     Some(&[
@@ -178,7 +178,7 @@ impl TransformEcmascriptModule {
                             },
                             None,
                         )
-                        .set_text_range(Some(&*result.ref_(self).as_source_file().statements()), self),
+                        .set_text_range(Some(&*result.ref_(self).as_source_file().statements().ref_(self)), self),
                     None,
                     None,
                     None,
@@ -190,7 +190,7 @@ impl TransformEcmascriptModule {
                 || result
                     .ref_(self).as_source_file()
                     .statements()
-                    .iter()
+                    .ref_(self).iter()
                     .any(|&statement| is_external_module_indicator(statement, self))
             {
                 return Ok(result);
@@ -203,12 +203,12 @@ impl TransformEcmascriptModule {
                             result
                                 .ref_(self).as_source_file()
                                 .statements()
-                                .to_vec()
+                                .ref_(self).to_vec()
                                 .and_push(create_empty_exports(&self.factory.ref_(self))),
                         ),
                         None,
                     )
-                    .set_text_range(Some(&*result.ref_(self).as_source_file().statements()), self),
+                    .set_text_range(Some(&*result.ref_(self).as_source_file().statements().ref_(self)), self),
                 None,
                 None,
                 None,
@@ -237,7 +237,7 @@ impl TransformEcmascriptModule {
             Some(external_helpers_import_declaration) => {
                 let mut statements: Vec<Id<Node /*Statement*/>> = _d();
                 let statement_offset = self.factory.ref_(self).copy_prologue(
-                    &node_as_source_file.statements(),
+                    &node_as_source_file.statements().ref_(self),
                     &mut statements,
                     None,
                     Option::<fn(Id<Node>) -> VisitResult>::None,
@@ -245,20 +245,20 @@ impl TransformEcmascriptModule {
                 statements.push(external_helpers_import_declaration);
                 statements.extend(
                     try_visit_nodes(
-                        &node_as_source_file.statements(),
+                        node_as_source_file.statements(),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_statement(node, self)),
                         Some(statement_offset),
                         None,
                         self,
                     )?
-                    .owned_iter(),
+                    .ref_(self).iter().copied(),
                 );
                 self.factory.ref_(self).update_source_file(
                     node,
                     self.factory
                         .ref_(self).create_node_array(Some(statements), None)
-                        .set_text_range(Some(&*node_as_source_file.statements()), self),
+                        .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
                     None,
                     None,
                     None,
@@ -368,7 +368,7 @@ impl TransformEcmascriptModule {
             .ref_(self).as_variable_statement()
             .declaration_list
             .ref_(self).as_variable_declaration_list()
-            .declarations[0]
+            .declarations.ref_(self)[0]
             .ref_(self).as_variable_declaration()
             .name();
         Debug_.assert_node(Some(name), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), None);

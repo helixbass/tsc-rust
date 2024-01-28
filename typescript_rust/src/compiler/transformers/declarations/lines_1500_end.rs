@@ -23,16 +23,16 @@ impl TransformDeclarations {
         let input_ref = input.ref_(self);
         let input_as_variable_statement = input_ref.as_variable_statement();
         if !for_each_bool(
-            &input_as_variable_statement
+            &*input_as_variable_statement
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
-                .declarations,
+                .declarations.ref_(self),
             |&declaration: &Id<Node>, _| self.get_binding_name_visible(declaration),
         ) {
             return Ok(None);
         }
         let nodes = return_ok_default_if_none!(Some(try_visit_nodes(
-            &input_as_variable_statement
+            input_as_variable_statement
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
                 .declarations,
@@ -42,7 +42,7 @@ impl TransformDeclarations {
             None,
             self,
         )?));
-        if nodes.is_empty() {
+        if nodes.ref_(self).is_empty() {
             return Ok(None);
         }
         Ok(Some(
@@ -65,7 +65,7 @@ impl TransformDeclarations {
         d: Id<Node>, /*BindingPattern*/
     ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
         Ok(flatten(&try_map_defined(
-            Some(&d.ref_(self).as_has_elements().elements()),
+            Some(&*d.ref_(self).as_has_elements().elements().ref_(self)),
             |&e: &Id<Node>, _| self.recreate_binding_element(e),
         )?))
     }
@@ -140,7 +140,7 @@ impl TransformDeclarations {
 
     pub(super) fn has_scope_marker(&self, statements: Id<NodeArray>) -> bool {
         some(
-            Some(statements),
+            Some(&*statements.ref_(self)),
             Some(|&statement: &Id<Node>| self.is_scope_marker(statement)),
         )
     }
@@ -209,13 +209,13 @@ impl TransformDeclarations {
         Ok(self.factory.ref_(self).create_node_array(
             nodes.try_map(|nodes| -> io::Result<_> {
                 let mut ret = vec![];
-                for &clause in nodes {
+                for &clause in &*nodes.ref_(self){
                     let clause_ref = clause.ref_(self);
                     let clause_as_heritage_clause = clause_ref.as_heritage_clause();
                     let clause = self.factory.ref_(self).update_heritage_clause(
                         clause,
                         try_visit_nodes(
-                            &self.factory.ref_(self).create_node_array(
+                            self.factory.ref_(self).create_node_array(
                                 Some(
                                     clause_as_heritage_clause
                                         .types
@@ -247,7 +247,7 @@ impl TransformDeclarations {
                     );
                     if
                     /*clause.types &&*/
-                    !clause.ref_(self).as_heritage_clause().types.is_empty() {
+                    !clause.ref_(self).as_heritage_clause().types.ref_(self).is_empty() {
                         ret.push(clause);
                     }
                 }
@@ -308,8 +308,8 @@ pub(super) fn get_type_annotation_from_accessor(
     } else {
         let accessor_ref = accessor.ref_(arena);
         let accessor_as_set_accessor_declaration = accessor_ref.as_set_accessor_declaration();
-        if !accessor_as_set_accessor_declaration.parameters().is_empty() {
-            accessor_as_set_accessor_declaration.parameters()[0]
+        if !accessor_as_set_accessor_declaration.parameters().ref_(arena).is_empty() {
+            accessor_as_set_accessor_declaration.parameters().ref_(arena)[0]
                 .ref_(arena).as_parameter_declaration()
                 .maybe_type()
         } else {

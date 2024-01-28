@@ -72,13 +72,13 @@ impl TransformGenerators {
         self.context.ref_(self).resume_lexical_environment();
 
         let statement_offset = self.factory.ref_(self).copy_prologue(
-            &body_as_block.statements,
+            &body_as_block.statements.ref_(self),
             &mut statements,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
         );
 
-        self.transform_and_emit_statements(&body_as_block.statements, Some(statement_offset));
+        self.transform_and_emit_statements(&body_as_block.statements.ref_(self), Some(statement_offset));
 
         let build_result = self.build();
         insert_statements_after_standard_prologue(
@@ -126,10 +126,10 @@ impl TransformGenerators {
                 return Some(node);
             }
 
-            for &variable in &node_as_variable_statement
+            for &variable in &*node_as_variable_statement
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
-                .declarations
+                .declarations.ref_(self)
             {
                 self.context
                     .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
@@ -354,7 +354,7 @@ impl TransformGenerators {
         let node_ref = node.ref_(self);
         let node_as_comma_list_expression = node_ref.as_comma_list_expression();
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
-        for &elem in &node_as_comma_list_expression.elements {
+        for &elem in &*node_as_comma_list_expression.elements.ref_(self) {
             if is_binary_expression(&elem.ref_(self))
                 && elem.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::CommaToken
             {
@@ -525,7 +525,7 @@ impl TransformGenerators {
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         Some(
             self.visit_elements(
-                &node_as_array_literal_expression.elements,
+                node_as_array_literal_expression.elements,
                 Option::<Id<Node>>::None,
                 Option::<&Node>::None,
                 node_as_array_literal_expression.multi_line,
@@ -561,7 +561,7 @@ impl TransformGenerators {
                 self.factory.ref_(self).create_array_literal_expression(
                     Some(if let Some(leading_element) = leading_element.as_ref() {
                         vec![leading_element.clone()]
-                            .and_extend(initial_elements.to_vec())
+                            .and_extend(initial_elements.ref_(self).to_vec())
                             .into()
                     } else {
                         initial_elements.into_a::<NodeArrayOrVec>()
@@ -574,7 +574,7 @@ impl TransformGenerators {
         }
 
         let expressions = reduce_left(
-            elements,
+            &elements.ref_(self),
             |expressions: Vec<Id<Node>>, &element: &Id<Node>, _| {
                 self.reduce_element(
                     &mut temp,

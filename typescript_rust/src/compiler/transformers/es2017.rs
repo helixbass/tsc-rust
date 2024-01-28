@@ -655,7 +655,7 @@ impl TransformES2017 {
             node,
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -667,7 +667,7 @@ impl TransformES2017 {
             None,
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(&node_as_method_declaration.parameters()),
+                Some(node_as_method_declaration.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -699,7 +699,7 @@ impl TransformES2017 {
                     node,
                     Option::<Id<NodeArray>>::None,
                     try_maybe_visit_nodes(
-                        node.ref_(self).maybe_modifiers().as_deref(),
+                        node.ref_(self).maybe_modifiers(),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                         None,
@@ -710,7 +710,7 @@ impl TransformES2017 {
                     node_as_function_declaration.maybe_name(),
                     Option::<Id<NodeArray>>::None,
                     try_visit_parameter_list(
-                        Some(&node_as_function_declaration.parameters()),
+                        Some(node_as_function_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
@@ -741,7 +741,7 @@ impl TransformES2017 {
         Ok(self.factory.ref_(self).update_function_expression(
             node,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -752,7 +752,7 @@ impl TransformES2017 {
             node_as_function_expression.maybe_name(),
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(&node_as_function_expression.parameters()),
+                Some(node_as_function_expression.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -779,7 +779,7 @@ impl TransformES2017 {
         Ok(self.factory.ref_(self).update_arrow_function(
             node,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -788,7 +788,7 @@ impl TransformES2017 {
             )?,
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(&node_as_arrow_function.parameters()),
+                Some(node_as_arrow_function.parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -819,7 +819,7 @@ impl TransformES2017 {
         if is_identifier(&name.ref_(self)) {
             names.insert(name.ref_(self).as_identifier().escaped_text.clone());
         } else {
-            for &element in &name.ref_(self).as_has_elements().elements() {
+            for &element in &*name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.record_declaration_name(element, names);
                 }
@@ -839,7 +839,7 @@ impl TransformES2017 {
             && node
                 .ref_(self).as_variable_declaration_list()
                 .declarations
-                .iter()
+                .ref_(self).iter()
                 .any(|node: &Id<Node>| {
                     self.collides_with_parameter_name(node.ref_(self).as_named_declaration().name())
                 })
@@ -862,7 +862,7 @@ impl TransformES2017 {
                         self.factory
                             .ref_(self).converters()
                             .convert_to_assignment_element_target(
-                                node_as_variable_declaration_list.declarations[0]
+                                node_as_variable_declaration_list.declarations.ref_(self)[0]
                                     .ref_(self).as_variable_declaration()
                                     .name(),
                             ),
@@ -883,7 +883,7 @@ impl TransformES2017 {
 
     fn hoist_variable_declaration_list(&self, node: Id<Node> /*VariableDeclarationList*/) {
         for_each(
-            &node.ref_(self).as_variable_declaration_list().declarations,
+            &*node.ref_(self).as_variable_declaration_list().declarations.ref_(self),
             |declaration: &Id<Node>, _| -> Option<()> {
                 self.hoist_variable(declaration.ref_(self).as_named_declaration().name());
                 None
@@ -895,7 +895,7 @@ impl TransformES2017 {
         if is_identifier(&name.ref_(self)) {
             self.context.ref_(self).hoist_variable_declaration(name);
         } else {
-            for &element in &name.ref_(self).as_has_elements().elements() {
+            for &element in &*name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.hoist_variable(element);
                 }
@@ -933,7 +933,7 @@ impl TransformES2017 {
                 .enclosing_function_parameter_names()
                 .contains(&name.ref_(self).as_identifier().escaped_text);
         } else {
-            for &element in &name.ref_(self).as_has_elements().elements() {
+            for &element in &*name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) && self.collides_with_parameter_name(element) {
                     return true;
                 }
@@ -966,7 +966,7 @@ impl TransformES2017 {
         let saved_enclosing_function_parameter_names =
             self.maybe_enclosing_function_parameter_names().clone();
         self.set_enclosing_function_parameter_names(Some(HashSet::new()));
-        for &parameter in &node_as_function_like_declaration.parameters() {
+        for &parameter in &*node_as_function_like_declaration.parameters().ref_(self) {
             self.record_declaration_name(
                 parameter,
                 &mut self.enclosing_function_parameter_names_mut(),
@@ -988,7 +988,7 @@ impl TransformES2017 {
                     .maybe_body()
                     .unwrap()
                     .ref_(self).as_block()
-                    .statements,
+                    .statements.ref_(self),
                 &mut statements,
                 Some(false),
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -1093,11 +1093,11 @@ impl TransformES2017 {
                         self.factory.ref_(self).create_node_array(
                             Some(concatenate(
                                 declarations,
-                                block_as_block.statements.to_vec(),
+                                block_as_block.statements.ref_(self).to_vec(),
                             )),
                             None,
                         ),
-                        Some(&*block_as_block.statements),
+                        Some(&*block_as_block.statements.ref_(self)),
                         self,
                     ),
                 );
@@ -1123,7 +1123,7 @@ impl TransformES2017 {
             self.factory.ref_(self).update_block(
                 body,
                 try_visit_nodes(
-                    &body.ref_(self).as_block().statements,
+                    body.ref_(self).as_block().statements,
                     Some(|node: Id<Node>| self.async_body_visitor(node)),
                     Some(|node| is_statement(node, self)),
                     start,
@@ -1270,7 +1270,7 @@ impl TransformES2017 {
                 Some(
                     [
                         vec![self.factory.ref_(self).create_this()],
-                        node_as_call_expression.arguments.to_vec(),
+                        node_as_call_expression.arguments.ref_(self).to_vec(),
                     ]
                     .concat(),
                 ),

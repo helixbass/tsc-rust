@@ -30,7 +30,7 @@ impl TransformSystemModule {
 
         let decl_name = decl.ref_(self).as_named_declaration().name();
         if is_binding_pattern(Some(&*decl_name.ref_(self))) {
-            for &element in &decl_name.ref_(self).as_has_elements().elements() {
+            for &element in &*decl_name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element, export_self);
                 }
@@ -330,7 +330,7 @@ impl TransformSystemModule {
     ) -> io::Result<Id<Node /*ForInitializer*/>> {
         Ok(if self.should_hoist_for_initializer(node) {
             let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
-            for &variable in &node.ref_(self).as_variable_declaration_list().declarations {
+            for &variable in &*node.ref_(self).as_variable_declaration_list().declarations.ref_(self) {
                 expressions
                     .get_or_insert_default_()
                     .push(self.transform_initialized_variable(variable, false)?);
@@ -499,7 +499,7 @@ impl TransformSystemModule {
         let node = self.factory.ref_(self).update_case_block(
             node,
             try_visit_nodes(
-                &node_as_case_block.clauses,
+                node_as_case_block.clauses,
                 Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                 Some(|node: Id<Node>| is_case_or_default_clause(&node.ref_(self))),
                 None,
@@ -529,7 +529,7 @@ impl TransformSystemModule {
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_nodes(
-                        &node_as_case_clause.statements,
+                        node_as_case_clause.statements,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                         Some(|node| is_statement(node, self)),
                         None,

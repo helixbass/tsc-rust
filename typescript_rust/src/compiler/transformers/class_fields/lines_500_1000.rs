@@ -411,14 +411,14 @@ impl TransformClassFields {
                             )]
                             .and_extend(
                                 visit_nodes(
-                                    &node_as_call_expression.arguments,
+                                    node_as_call_expression.arguments,
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node| is_expression(node, self)),
                                     None,
                                     None,
                                     self,
                                 )
-                                .owned_iter(),
+                                .ref_(self).iter().copied(),
                             ),
                         )
                         .into(),
@@ -446,14 +446,14 @@ impl TransformClassFields {
                         )]
                         .and_extend(
                             visit_nodes(
-                                &node_as_call_expression.arguments,
+                                node_as_call_expression.arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
                                 None,
                                 self,
                             )
-                            .owned_iter(),
+                            .ref_(self).iter().copied(),
                         ),
                     )
                     .into(),
@@ -486,7 +486,7 @@ impl TransformClassFields {
                             ),
                             current_class_lexical_environment_class_constructor.clone(),
                             visit_nodes(
-                                &node_as_call_expression.arguments,
+                                node_as_call_expression.arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
@@ -628,7 +628,7 @@ impl TransformClassFields {
                 self.maybe_current_static_property_declaration_or_static_block();
             self.set_current_static_property_declaration_or_static_block(Some(node));
             let mut statements = visit_nodes(
-                &node_as_class_static_block_declaration
+                node_as_class_static_block_declaration
                     .body
                     .ref_(self).as_block()
                     .statements,
@@ -966,7 +966,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         if !for_each_bool(
-            &node_as_class_like_declaration.members(),
+            &*node_as_class_like_declaration.members().ref_(self),
             |&member: &Id<Node>, _| self.does_class_element_need_transform(member),
         ) {
             return Some(
@@ -1033,7 +1033,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         filter(
-            &node_as_class_like_declaration.members(),
+            &*node_as_class_like_declaration.members().ref_(self),
             |&member: &Id<Node>| is_non_static_method_or_accessor_with_private_name(member, self),
         )
     }
@@ -1049,7 +1049,7 @@ impl TransformClassFields {
         if is_class_declaration(&original.ref_(self)) && class_or_constructor_parameter_is_decorated(original, self) {
             facts |= ClassFacts::ClassWasDecorated;
         }
-        for &member in &node_as_class_like_declaration.members() {
+        for &member in &*node_as_class_like_declaration.members().ref_(self) {
             if !is_static(member, self) {
                 continue;
             }

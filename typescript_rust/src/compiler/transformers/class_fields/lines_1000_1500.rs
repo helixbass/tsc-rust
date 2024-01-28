@@ -86,8 +86,7 @@ impl TransformClassFields {
                 Option::<Id<NodeArray>>::None,
                 maybe_visit_nodes(
                     node_as_class_declaration
-                        .maybe_heritage_clauses()
-                        .as_deref(),
+                        .maybe_heritage_clauses(),
                     Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,
@@ -170,7 +169,7 @@ impl TransformClassFields {
         let class_expression = self.factory.ref_(self).update_class_expression(
             node,
             maybe_visit_nodes(
-                node.ref_(self).maybe_decorators().as_deref(),
+                node.ref_(self).maybe_decorators(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_decorator(&node.ref_(self))),
                 None,
@@ -181,7 +180,7 @@ impl TransformClassFields {
             node_as_class_expression.maybe_name(),
             Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
-                node_as_class_expression.maybe_heritage_clauses().as_deref(),
+                node_as_class_expression.maybe_heritage_clauses(),
                 Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                 Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                 None,
@@ -337,7 +336,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         if self.should_transform_private_elements_or_class_static_blocks {
-            for &member in &node_as_class_like_declaration.members() {
+            for &member in &*node_as_class_like_declaration.members().ref_(self) {
                 if is_private_identifier_class_element_declaration(member, self) {
                     self.add_private_identifier_to_environment(member);
                 }
@@ -359,19 +358,19 @@ impl TransformClassFields {
         add_range(
             &mut members,
             Some(&visit_nodes(
-                &node_as_class_like_declaration.members(),
+                node_as_class_like_declaration.members(),
                 Some(|node: Id<Node>| self.class_element_visitor(node)),
                 Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                 None,
                 None,
                 self,
-            )),
+            ).ref_(self)),
             None,
             None,
         );
         self.factory
             .ref_(self).create_node_array(Some(members), None)
-            .set_text_range(Some(&*node_as_class_like_declaration.members()), self)
+            .set_text_range(Some(&*node_as_class_like_declaration.members().ref_(self)), self)
     }
 
     pub(super) fn create_brand_check_weak_set_for_private_methods(&self) {
@@ -427,16 +426,15 @@ impl TransformClassFields {
         );
         let elements = node_as_class_like_declaration
             .members()
-            .owned_iter()
-            .filter(|&member| self.is_class_element_that_requires_constructor_statement(member))
+            .ref_(self).iter()
+            .filter(|&&member| self.is_class_element_that_requires_constructor_statement(member))
             .collect_vec();
         if elements.is_empty() {
             return constructor;
         }
         let parameters = visit_parameter_list(
             constructor
-                .map(|constructor| constructor.ref_(self).as_signature_declaration().parameters())
-                .as_deref(),
+                .map(|constructor| constructor.ref_(self).as_signature_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -516,26 +514,26 @@ impl TransformClassFields {
             let constructor_as_constructor_declaration = constructor_ref.as_constructor_declaration();
             if let Some(constructor_body) = constructor_as_constructor_declaration.maybe_body() {
                 let after_parameter_properties = find_index(
-                    &constructor_body.ref_(self).as_block().statements,
+                    &constructor_body.ref_(self).as_block().statements.ref_(self),
                     |&s: &Id<Node>, _| {
                         !is_parameter_property_declaration(get_original_node(s, self), constructor, self)
                     },
                     Some(index_of_first_statement),
                 );
                 let after_parameter_properties = after_parameter_properties
-                    .unwrap_or_else(|| constructor_body.ref_(self).as_block().statements.len());
+                    .unwrap_or_else(|| constructor_body.ref_(self).as_block().statements.ref_(self).len());
                 if after_parameter_properties > index_of_first_statement {
                     if !self.use_define_for_class_fields {
                         add_range(
                             &mut statements,
                             Some(&visit_nodes(
-                                &constructor_body.ref_(self).as_block().statements,
+                                constructor_body.ref_(self).as_block().statements,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_statement(node, self)),
                                 Some(index_of_first_statement),
                                 Some(after_parameter_properties - index_of_first_statement),
                                 self,
-                            )),
+                            ).ref_(self)),
                             None,
                             None,
                         );
@@ -552,7 +550,7 @@ impl TransformClassFields {
             add_range(
                 &mut statements,
                 Some(&visit_nodes(
-                    &constructor
+                    constructor
                         .ref_(self).as_constructor_declaration()
                         .maybe_body()
                         .unwrap()
@@ -563,7 +561,7 @@ impl TransformClassFields {
                     Some(index_of_first_statement),
                     None,
                     self,
-                )),
+                ).ref_(self)),
                 None,
                 None,
             );
@@ -593,7 +591,7 @@ impl TransformClassFields {
                                     .statements
                                     .clone()
                             },
-                        )), self),
+                        ).ref_(self)), self),
                     Some(true),
                 )
                 .set_text_range(

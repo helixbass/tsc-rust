@@ -8,7 +8,8 @@ use crate::{
     Diagnostics, ImportTypeNode, InferTypeNode, KeywordTypeNode, LiteralTypeNode, MappedTypeNode,
     Node, NodeArray, NodeFlags, NodeInterface, ParameterDeclaration, ReadonlyTextRange, SyntaxKind,
     TupleTypeNode, TypeLiteralNode, TypeOperatorNode, TypeParameterDeclaration, TypeQueryNode,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
+    AsDoubleDeref,
 };
 
 impl ParserType {
@@ -180,10 +181,7 @@ impl ParserType {
         ));
         if get_full_width(&name.ref_(self)) == 0
             && !some(
-                modifiers.as_ref().map(|modifiers| {
-                    let modifiers: &[Id<Node>] = modifiers;
-                    modifiers
-                }),
+                modifiers.refed(self).as_double_deref(),
                 Option::<fn(&Id<Node>) -> bool>::None,
             )
             && is_modifier_kind(self.token())
@@ -229,7 +227,7 @@ impl ParserType {
 
             if let Some(decorators) = decorators {
                 self.parse_error_at_range(
-                    &*decorators[0].ref_(self),
+                    &*decorators.ref_(self)[0].ref_(self),
                     &Diagnostics::Decorators_may_not_be_applied_to_this_parameters,
                     None,
                 );
@@ -242,7 +240,7 @@ impl ParserType {
         self.set_top_level(false);
         let modifiers = self.parse_modifiers(None, None);
         let dot_dot_dot_token = self.parse_optional_token(SyntaxKind::DotDotDotToken);
-        let name = self.parse_name_of_parameter(modifiers.as_deref());
+        let name = self.parse_name_of_parameter(modifiers);
         let question_token = self.parse_optional_token(SyntaxKind::QuestionToken);
         let type_annotation = self.parse_type_annotation();
         let initializer = self.parse_initializer();

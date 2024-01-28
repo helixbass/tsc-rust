@@ -745,18 +745,18 @@ impl ParserType {
 
     pub(super) fn create_missing_list(&self) -> Id<NodeArray> {
         let list = self.create_node_array(vec![], self.get_node_pos(), None, None);
-        list.set_is_missing_list(true);
+        list.ref_(self).set_is_missing_list(true);
         list
     }
 
     pub(super) fn is_missing_list(&self, arr: Id<NodeArray>) -> bool {
-        arr.is_missing_list()
+        arr.ref_(self).is_missing_list()
     }
 
-    pub(super) fn parse_bracketed_list<TParseElement: FnMut() -> Id<Node>>(
+    pub(super) fn parse_bracketed_list(
         &self,
         kind: ParsingContext,
-        parse_element: TParseElement,
+        parse_element: impl FnMut() -> Id<Node>,
         open: SyntaxKind,
         close: SyntaxKind,
     ) -> Id<NodeArray> {
@@ -1098,7 +1098,7 @@ impl ParserType {
                 let node_as_signature_declaration = node_ref.as_signature_declaration();
                 let parameters = node_as_signature_declaration.parameters();
                 let type_ = node_as_signature_declaration.maybe_type().unwrap();
-                self.is_missing_list(&parameters)
+                self.is_missing_list(parameters)
                     || self.type_has_arrow_function_blocking_parse_error(type_)
             }
             SyntaxKind::ParenthesizedType => self.type_has_arrow_function_blocking_parse_error(

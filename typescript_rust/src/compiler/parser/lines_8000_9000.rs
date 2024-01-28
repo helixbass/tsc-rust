@@ -466,7 +466,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
                                 Some(comment_end.try_into().unwrap()),
                             )
                             .alloc(self.arena())],
-                        comments.to_vec(),
+                        comments.ref_(self).to_vec(),
                     ),
                     comment_start,
                     None,

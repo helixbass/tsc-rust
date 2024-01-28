@@ -21,7 +21,7 @@ impl TransformClassFields {
                     .ref_(self).update_array_literal_expression(
                         node,
                         visit_nodes(
-                            &node_as_array_literal_expression.elements,
+                            node_as_array_literal_expression.elements,
                             Some(|node: Id<Node>| self.visit_array_assignment_target(node)),
                             Some(|node| is_expression(node, self)),
                             None,
@@ -39,7 +39,7 @@ impl TransformClassFields {
                     .ref_(self).update_object_literal_expression(
                         node,
                         visit_nodes(
-                            &node_as_object_literal_expression.properties,
+                            node_as_object_literal_expression.properties,
                             Some(|node: Id<Node>| self.visit_object_assignment_target(node)),
                             Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))),
                             None,

@@ -20,6 +20,7 @@ use crate::{
     SyntaxKind, TypeReferenceSerializationKind, VisitResult,
     HasArena, InArena, OptionInArena,
     CoreTransformationContext,
+    AsDoubleDeref,
 };
 
 impl TransformTypeScript {
@@ -293,7 +294,7 @@ impl TransformTypeScript {
         if is_computed_property_name(&name.ref_(self))
             && (!has_static_modifier(member, self)
                 && self.maybe_current_class_has_parameter_properties() == Some(true)
-                || member.ref_(self).maybe_decorators().is_non_empty())
+                || member.ref_(self).maybe_decorators().refed(self).as_double_deref().is_non_empty())
         {
             let name_ref = name.ref_(self);
             let name_as_computed_property_name = name_ref.as_computed_property_name();
@@ -376,7 +377,7 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -421,7 +422,7 @@ impl TransformTypeScript {
                     Option::<Id<NodeArray>>::None,
                     Option::<Id<NodeArray>>::None,
                     try_visit_parameter_list(
-                        Some(&node_as_constructor_declaration.parameters()),
+                        Some(node_as_constructor_declaration.parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,

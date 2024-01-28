@@ -355,7 +355,7 @@ impl TransformSystemModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements()), self),
+                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
                 None,
                 None,
                 None,
@@ -437,7 +437,7 @@ impl TransformSystemModule {
             || self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)
                 && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements(),
+            &node_as_source_file.statements().ref_(self),
             &mut statements,
             Some(ensure_use_strict),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
@@ -471,7 +471,7 @@ impl TransformSystemModule {
         )?;
 
         let execute_statements = try_visit_nodes(
-            &node_as_source_file.statements(),
+            node_as_source_file.statements(),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
             Some(|node| is_statement(node, self)),
             Some(statement_offset),
@@ -755,7 +755,7 @@ impl TransformSystemModule {
                         {
                             if is_named_exports(&entry_export_clause.ref_(self)) {
                                 let mut properties: Vec<Id<Node /*PropertyAssignment*/>> = _d();
-                                for e in &entry_export_clause.ref_(self).as_named_exports().elements {
+                                for e in &*entry_export_clause.ref_(self).as_named_exports().elements.ref_(self) {
                                     let e_ref = e.ref_(self);
                                     let e_as_export_specifier = e_ref.as_export_specifier();
                                     properties.push(

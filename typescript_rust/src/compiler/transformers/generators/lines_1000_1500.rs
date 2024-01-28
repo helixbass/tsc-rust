@@ -10,7 +10,7 @@ use crate::{
     start_on_new_line, visit_each_child, visit_iteration_body, visit_node, visit_nodes,
     CallBinding, HasInitializerInterface, NamedDeclarationInterface, NodeArray, NodeExt,
     NodeInterface, SyntaxKind,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
     CoreTransformationContext,
 };
 
@@ -69,7 +69,7 @@ impl TransformGenerators {
     ) -> VisitResult {
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        let properties = &node_as_object_literal_expression.properties;
+        let properties = node_as_object_literal_expression.properties;
         let multi_line = node_as_object_literal_expression.multi_line;
         let num_initial_properties = self
             .count_initial_nodes_without_yield(properties)
@@ -97,7 +97,7 @@ impl TransformGenerators {
         );
 
         let mut expressions = reduce_left(
-            properties,
+            &properties.ref_(self),
             |expressions: Vec<Id<Node>>, &property: &Id<Node>, _| {
                 self.reduce_property(temp, multi_line, node, expressions, property)
             },
@@ -191,7 +191,7 @@ impl TransformGenerators {
         let node_as_call_expression = node_ref.as_call_expression();
         if !is_import_call(node, self)
             && for_each_bool(
-                &node_as_call_expression.arguments,
+                &*node_as_call_expression.arguments.ref_(self),
                 |&argument: &Id<Node>, _| self.contains_yield(Some(argument)),
             )
         {
@@ -214,7 +214,7 @@ impl TransformGenerators {
                         )),
                         this_arg,
                         self.visit_elements(
-                            &node_as_call_expression.arguments,
+                            node_as_call_expression.arguments,
                             Option::<Id<Node>>::None,
                             Option::<&Node>::None,
                             None,
@@ -236,7 +236,7 @@ impl TransformGenerators {
         let node_ref = node.ref_(self);
         let node_as_new_expression = node_ref.as_new_expression();
         if maybe_for_each_bool(
-            node_as_new_expression.arguments.as_deref(),
+            node_as_new_expression.arguments.refed(self).as_deref(),
             |&argument: &Id<Node>, _| self.contains_yield(Some(argument)),
         ) {
             let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
@@ -262,7 +262,7 @@ impl TransformGenerators {
                             )),
                             this_arg,
                             self.visit_elements(
-                                node_as_new_expression.arguments.as_ref().unwrap(),
+                                node_as_new_expression.arguments.unwrap(),
                                 Some(self.factory.ref_(self).create_void_zero()),
                                 Option::<&Node>::None,
                                 None,
@@ -293,7 +293,7 @@ impl TransformGenerators {
 
     pub(super) fn transform_and_emit_embedded_statement(&self, node: Id<Node>) {
         if is_block(&node.ref_(self)) {
-            self.transform_and_emit_statements(&node.ref_(self).as_block().statements, None);
+            self.transform_and_emit_statements(&node.ref_(self).as_block().statements.ref_(self), None);
         } else {
             self.transform_and_emit_statement(node);
         }
@@ -339,7 +339,7 @@ impl TransformGenerators {
         let node_ref = node.ref_(self);
         let node_as_block = node_ref.as_block();
         if self.contains_yield(Some(node)) {
-            self.transform_and_emit_statements(&node_as_block.statements, None);
+            self.transform_and_emit_statements(&node_as_block.statements.ref_(self), None);
         } else {
             self.emit_statement(visit_node(
                 node,
@@ -368,7 +368,7 @@ impl TransformGenerators {
     ) -> Option<Id<Node /*VariableDeclarationList*/>> {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
-        for variable in &node_as_variable_declaration_list.declarations {
+        for variable in &*node_as_variable_declaration_list.declarations.ref_(self) {
             let variable_ref = variable.ref_(self);
             let variable_as_variable_declaration = variable_ref.as_variable_declaration();
             let name = self
@@ -655,7 +655,7 @@ impl TransformGenerators {
         if let Some(initializer) =
             initializer.filter(|initializer| is_variable_declaration_list(&initializer.ref_(self)))
         {
-            for variable in &initializer.ref_(self).as_variable_declaration_list().declarations {
+            for variable in &*initializer.ref_(self).as_variable_declaration_list().declarations.ref_(self) {
                 self.context
                     .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
             }

@@ -6,7 +6,8 @@ use crate::{
     is_identifier, set_text_range_pos, some, token_is_identifier_or_keyword, BindingElement,
     CaseBlock, CatchClause, DefaultClause, DiagnosticMessage, Diagnostics, Node, NodeArray,
     NodeFlags, NodeInterface, SyntaxKind,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
+    AsDoubleDeref,
 };
 
 impl ParserType {
@@ -453,11 +454,7 @@ impl ParserType {
                 self.parse_decorators();
                 self.parse_modifiers(None, None)
             })
-            .as_ref()
-            .map(|node_array| {
-                let node_array: &[Id<Node>] = node_array;
-                node_array
-            }),
+            .refed(self).as_double_deref(),
             Some(|&modifier: &Id<Node>| self.is_declare_modifier(modifier)),
         );
         if is_ambient {
@@ -472,7 +469,7 @@ impl ParserType {
         let decorators = self.parse_decorators();
         let modifiers = self.parse_modifiers(None, None);
         if is_ambient {
-            for m in modifiers.as_ref().unwrap() {
+            for m in &*modifiers.unwrap().ref_(self) {
                 m.ref_(self).set_flags(m.ref_(self).flags() | NodeFlags::Ambient);
             }
             self.do_inside_of_context(NodeFlags::Ambient, move || {

@@ -227,7 +227,7 @@ impl TransformModule {
             || self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)
                 && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements(),
+            &node_as_source_file.statements().ref_(self),
             &mut statements,
             Some(ensure_use_strict && !is_json_source_file(&node.ref_(self))),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
@@ -276,13 +276,13 @@ impl TransformModule {
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
-                &node_as_source_file.statements(),
+                node_as_source_file.statements(),
                 Some(|node: Id<Node>| self.top_level_visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Some(statement_offset),
                 None,
                 self,
-            )?),
+            )?.ref_(self)),
             None,
             None,
         );
@@ -299,7 +299,7 @@ impl TransformModule {
                 node,
                 self.factory
                     .ref_(self).create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*node_as_source_file.statements()), self),
+                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
                 None,
                 None,
                 None,
@@ -372,7 +372,7 @@ impl TransformModule {
                                             json_source_file
                                                 .ref_(self).as_source_file()
                                                 .statements()
-                                                .non_empty()
+                                                .ref_(self).non_empty()
                                                 .map_or_else(
                                                     || {
                                                         self.factory
@@ -426,7 +426,7 @@ impl TransformModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements()), self),
+                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
                 None,
                 None,
                 None,
@@ -630,7 +630,7 @@ impl TransformModule {
                         )]),
                         None,
                     )
-                    .set_text_range(Some(&*node_as_source_file.statements()), self),
+                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
                 None,
                 None,
                 None,
@@ -761,7 +761,7 @@ impl TransformModule {
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements(),
+            &node_as_source_file.statements().ref_(self),
             &mut statements,
             Some(self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
@@ -819,13 +819,13 @@ impl TransformModule {
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
-                &node_as_source_file.statements(),
+                node_as_source_file.statements(),
                 Some(|node: Id<Node>| self.top_level_visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Some(statement_offset),
                 None,
                 self,
-            )?),
+            )?.ref_(self)),
             None,
             None,
         );

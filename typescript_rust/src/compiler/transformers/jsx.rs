@@ -328,10 +328,7 @@ impl TransformJsx {
         }
         if !matches!(
             &statements,
-            NodeArrayOrVec::NodeArray(statements) if Gc::ptr_eq(
-                statements,
-                &visited.ref_(self).as_source_file().statements()
-            )
+            NodeArrayOrVec::NodeArray(statements) if *statements == visited.ref_(self).as_source_file().statements()
         ) {
             visited = self
                 .factory
@@ -384,10 +381,10 @@ impl TransformJsx {
         let node_ref = node.ref_(self);
         let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         let mut spread = false;
-        for elem in &node_as_jsx_opening_like_element
+        for elem in &*node_as_jsx_opening_like_element
             .attributes()
             .ref_(self).as_jsx_attributes()
-            .properties
+            .properties.ref_(self)
         {
             if is_jsx_spread_attribute(&elem.ref_(self)) {
                 spread = true;
@@ -416,14 +413,14 @@ impl TransformJsx {
         if self.should_use_create_element(node_as_jsx_element.opening_element) {
             self.visit_jsx_opening_like_element_create_element(
                 node_as_jsx_element.opening_element,
-                Some(&node_as_jsx_element.children),
+                Some(&node_as_jsx_element.children.ref_(self)),
                 is_child,
                 &*node.ref_(self),
             )
         } else {
             self.visit_jsx_opening_like_element_jsx(
                 node_as_jsx_element.opening_element,
-                Some(&node_as_jsx_element.children),
+                Some(&node_as_jsx_element.children.ref_(self)),
                 is_child,
                 &*node.ref_(self),
             )
@@ -452,14 +449,14 @@ impl TransformJsx {
         if self.current_file_state().import_specifier.is_none() {
             self.visit_jsx_opening_fragment_create_element(
                 node_as_jsx_fragment.opening_fragment,
-                &node_as_jsx_fragment.children,
+                &node_as_jsx_fragment.children.ref_(self),
                 is_child,
                 &*node.ref_(self),
             )
         } else {
             self.visit_jsx_opening_fragment_jsx(
                 node_as_jsx_fragment.opening_fragment,
-                &node_as_jsx_fragment.children,
+                &node_as_jsx_fragment.children.ref_(self),
                 is_child,
                 &*node.ref_(self),
             )
@@ -521,7 +518,7 @@ impl TransformJsx {
             .attributes()
             .ref_(self).as_jsx_attributes()
             .properties
-            .iter()
+            .ref_(self).iter()
             .find(|p| {
                 p.ref_(self).as_named_declaration().maybe_name().matches(|p_name| {
                     is_identifier(&p_name.ref_(self)) && p_name.ref_(self).as_identifier().escaped_text == "key"
@@ -542,7 +539,7 @@ impl TransformJsx {
                     &node_as_jsx_opening_like_element
                         .attributes()
                         .ref_(self).as_jsx_attributes()
-                        .properties,
+                        .properties.ref_(self),
                     |&p: &Id<Node>| p != key_attr,
                 )
                 .into()
@@ -666,8 +663,8 @@ impl TransformJsx {
             .ref_(self).as_jsx_attributes()
             .properties
             .clone();
-        let object_properties = if !attrs.is_empty() {
-            self.transform_jsx_attributes_to_object_props(&attrs, Option::<Id<Node>>::None)
+        let object_properties = if !attrs.ref_(self).is_empty() {
+            self.transform_jsx_attributes_to_object_props(&attrs.ref_(self), Option::<Id<Node>>::None)
         } else {
             self.factory.ref_(self).create_null()
         };

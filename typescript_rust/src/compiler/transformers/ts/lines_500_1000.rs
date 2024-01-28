@@ -18,7 +18,7 @@ use crate::{
     ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt,
     NodeFlags, NodeInterface, ReadonlyTextRange, ScriptTarget,
     SignatureDeclarationInterface, SourceFileLike, SyntaxKind, TextRange, TransformFlags,
-    VisitResult, HasArena, InArena,
+    VisitResult, HasArena, InArena, OptionInArena,
     CoreTransformationContext,
 };
 
@@ -34,7 +34,7 @@ impl TransformTypeScript {
         Ok(self.factory.ref_(self).update_source_file(
             node,
             try_visit_lexical_environment_full(
-                &node.ref_(self).as_source_file().statements(),
+                node.ref_(self).as_source_file().statements(),
                 |node: Id<Node>| self.source_element_visitor(node),
                 &*self.context.ref_(self),
                 Some(0),
@@ -114,20 +114,20 @@ impl TransformTypeScript {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         some(
-            node.ref_(self).maybe_decorators().as_double_deref(),
+            node.ref_(self).maybe_decorators().refed(self).as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) || some(
             node_as_class_like_declaration
                 .maybe_type_parameters()
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) || some(
             node_as_class_like_declaration
                 .maybe_heritage_clauses()
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
             Some(|&heritage_clause: &Id<Node>| self.has_type_script_class_syntax(heritage_clause)),
         ) || some(
-            Some(&**node_as_class_like_declaration.members()),
+            Some(&**node_as_class_like_declaration.members().ref_(self)),
             Some(|&member: &Id<Node>| self.has_type_script_class_syntax(member)),
         )
     }
@@ -182,7 +182,7 @@ impl TransformTypeScript {
             let closing_brace_location = create_token_range(
                 skip_trivia(
                     &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
-                    node_as_class_declaration.members().end(),
+                    node_as_class_declaration.members().ref_(self).end(),
                     None,
                     None,
                     None,
@@ -287,7 +287,7 @@ impl TransformTypeScript {
         let modifiers = (!(facts.intersects(ClassFacts::UseImmediatelyInvokedFunctionExpression)))
             .then_and(|| {
                 maybe_visit_nodes(
-                    node.ref_(self).maybe_modifiers().as_deref(),
+                    node.ref_(self).maybe_modifiers(),
                     Some(|node: Id<Node>| self.modifier_visitor(node)),
                     Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                     None,
@@ -303,8 +303,7 @@ impl TransformTypeScript {
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
                 node_as_class_declaration
-                    .maybe_heritage_clauses()
-                    .as_deref(),
+                    .maybe_heritage_clauses(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                 None,
@@ -344,8 +343,7 @@ impl TransformTypeScript {
 
         let heritage_clauses = try_maybe_visit_nodes(
             node_as_class_declaration
-                .maybe_heritage_clauses()
-                .as_deref(),
+                .maybe_heritage_clauses(),
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
             None,
@@ -413,7 +411,7 @@ impl TransformTypeScript {
                 node_as_class_expression.maybe_name(),
                 Option::<Id<NodeArray>>::None,
                 try_maybe_visit_nodes(
-                    node_as_class_expression.maybe_heritage_clauses().as_deref(),
+                    node_as_class_expression.maybe_heritage_clauses(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,
@@ -436,8 +434,10 @@ impl TransformTypeScript {
             constructor
                 .ref_(self).as_constructor_declaration()
                 .parameters()
-                .owned_iter()
-                .filter(move |&p| is_parameter_property_declaration(p, constructor, self))
+                .ref_(self).iter()
+                .filter(|&&p| is_parameter_property_declaration(p, constructor, self))
+                .copied()
+                .collect::<Vec<_>>()
         });
         if let Some(parameters_with_property_assignments) = parameters_with_property_assignments {
             for parameter in parameters_with_property_assignments {
@@ -465,37 +465,39 @@ impl TransformTypeScript {
         add_range(
             &mut members,
             Some(&try_visit_nodes(
-                &node_as_class_like_declaration.members(),
+                node_as_class_like_declaration.members(),
                 Some(|node: Id<Node>| self.class_element_visitor(node)),
                 Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
                 None,
                 None,
                 self,
-            )?),
+            )?.ref_(self)),
             None,
             None,
         );
         Ok(self
             .factory
             .ref_(self).create_node_array(Some(members), None)
-            .set_text_range(Some(&*node_as_class_like_declaration.members()), self))
+            .set_text_range(Some(&*node_as_class_like_declaration.members().ref_(self)), self))
     }
 
-    pub(super) fn get_decorated_class_elements<'a>(
-        &'a self,
+    pub(super) fn get_decorated_class_elements(
+        &self,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         is_static: bool,
-    ) -> impl Iterator<Item = Id<Node /*ClassElement*/>> + 'a {
+    ) -> Vec<Id<Node /*ClassElement*/>> {
         node.ref_(self).as_class_like_declaration()
             .members()
-            .owned_iter()
-            .filter(move |&m| {
+            .ref_(self).iter()
+            .filter(|&&m| {
                 if is_static {
                     self.is_static_decorated_class_element(m, node)
                 } else {
                     self.is_instance_decorated_class_element(m, node)
                 }
             })
+            .copied()
+            .collect()
     }
 
     pub(super) fn is_static_decorated_class_element(
@@ -534,15 +536,15 @@ impl TransformTypeScript {
             let node_as_function_like_declaration = node_ref.as_function_like_declaration();
             let parameters = node_as_function_like_declaration.parameters();
             let first_parameter_is_this =
-                !parameters.is_empty() && parameter_is_this_keyword(parameters[0], self);
+                !parameters.ref_(self).is_empty() && parameter_is_this_keyword(parameters.ref_(self)[0], self);
             let first_parameter_offset = if first_parameter_is_this { 1 } else { 0 };
             let num_parameters = if first_parameter_is_this {
-                parameters.len() - 1
+                parameters.ref_(self).len() - 1
             } else {
-                parameters.len()
+                parameters.ref_(self).len()
             };
             for i in 0..num_parameters {
-                let parameter = &parameters[i + first_parameter_offset];
+                let parameter = parameters.ref_(self)[i + first_parameter_offset];
                 if decorators.is_some() || parameter.ref_(self).maybe_decorators().is_some() {
                     decorators.get_or_insert_with(|| vec![None; num_parameters])[i] =
                         parameter.ref_(self).maybe_decorators().map(Into::into);

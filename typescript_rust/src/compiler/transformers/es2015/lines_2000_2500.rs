@@ -144,12 +144,12 @@ impl TransformES2015 {
             );
         }
         let mut result: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
-        for (i, element) in node_as_comma_list_expression.elements.iter().enumerate() {
+        for (i, element) in node_as_comma_list_expression.elements.ref_(self).iter().enumerate() {
             let element = *element;
             let visited = try_visit_node(
                 element,
                 Some(|node: Id<Node>| {
-                    Ok(if i < node_as_comma_list_expression.elements.len() - 1 {
+                    Ok(if i < node_as_comma_list_expression.elements.ref_(self).len() - 1 {
                         self.visitor_with_unused_expression_result(node)?
                     } else {
                         self.visitor(node)?
@@ -160,7 +160,7 @@ impl TransformES2015 {
             )?;
             if result.is_some() || visited != element {
                 result
-                    .get_or_insert_with(|| node_as_comma_list_expression.elements[0..i].to_owned())
+                    .get_or_insert_with(|| node_as_comma_list_expression.elements.ref_(self)[0..i].to_owned())
                     .push(visited);
             }
         }
@@ -169,7 +169,7 @@ impl TransformES2015 {
             |result| {
                 self.factory
                     .ref_(self).create_node_array(Some(result), None)
-                    .set_text_range(Some(&*node_as_comma_list_expression.elements), self)
+                    .set_text_range(Some(&*node_as_comma_list_expression.elements.ref_(self)), self)
             },
         );
         Ok(self.factory.ref_(self).update_comma_list_expression(node, elements))
@@ -185,9 +185,9 @@ impl TransformES2015 {
         let node_declaration_list_as_variable_declaration_list = node_declaration_list_ref.as_variable_declaration_list();
         node_declaration_list_as_variable_declaration_list
             .declarations
-            .len()
+            .ref_(self).len()
             == 1
-            && node_declaration_list_as_variable_declaration_list.declarations[0]
+            && node_declaration_list_as_variable_declaration_list.declarations.ref_(self)[0]
                 .ref_(self).as_variable_declaration()
                 .maybe_initializer()
                 .matches(|node_declaration_list_declarations_0_initializer| {
@@ -219,10 +219,10 @@ impl TransformES2015 {
                 && !self.is_variable_statement_of_type_script_class_wrapper(node)
         }) {
             let mut assignments: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
-            for &decl in &node_as_variable_statement
+            for &decl in &*node_as_variable_statement
                 .declaration_list
                 .ref_(self).as_variable_declaration_list()
-                .declarations
+                .declarations.ref_(self)
             {
                 let decl_ref = decl.ref_(self);
                 let decl_as_variable_declaration = decl_ref.as_variable_declaration();
@@ -305,7 +305,7 @@ impl TransformES2015 {
             }
 
             let declarations: Vec<Id<Node>> = try_flat_map(
-                Some(&node_as_variable_declaration_list.declarations),
+                Some(&*node_as_variable_declaration_list.declarations.ref_(self)),
                 |&declaration: &Id<Node>, _| -> io::Result<_> {
                     Ok(if node.ref_(self).flags().intersects(NodeFlags::Let) {
                         self.visit_variable_declaration_in_let_declaration_list(declaration)?
@@ -328,11 +328,11 @@ impl TransformES2015 {
                 .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsBindingPattern)
                 && (is_binding_pattern(
-                    node_as_variable_declaration_list.declarations[0]
+                    node_as_variable_declaration_list.declarations.ref_(self)[0]
                         .ref_(self).as_variable_declaration()
                         .maybe_name().refed(self).as_deref(),
                 ) || is_binding_pattern(
-                    last(&node_as_variable_declaration_list.declarations)
+                    last(&node_as_variable_declaration_list.declarations.ref_(self))
                         .ref_(self).as_variable_declaration()
                         .maybe_name().refed(self).as_deref(),
                 ))
@@ -771,7 +771,7 @@ impl TransformES2015 {
             }
 
             let first_original_declaration =
-                first_or_undefined(&initializer.ref_(self).as_variable_declaration_list().declarations).copied();
+                first_or_undefined(&initializer.ref_(self).as_variable_declaration_list().declarations.ref_(self)).copied();
             if let Some(first_original_declaration) =
                 first_original_declaration.filter(|first_original_declaration| {
                     is_binding_pattern(
@@ -898,11 +898,11 @@ impl TransformES2015 {
                             .ref_(self).create_node_array(
                                 Some(concatenate(
                                     statements,
-                                    statement_as_block.statements.to_vec(),
+                                    statement_as_block.statements.ref_(self).to_vec(),
                                 )),
                                 None,
                             )
-                            .set_text_range(Some(&*statement_as_block.statements), self),
+                            .set_text_range(Some(&*statement_as_block.statements.ref_(self)), self),
                     )
                 } else {
                     statements.push(statement);

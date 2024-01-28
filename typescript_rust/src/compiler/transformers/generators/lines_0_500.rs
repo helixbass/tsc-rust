@@ -1005,7 +1005,7 @@ impl TransformGenerators {
                     node.ref_(self).as_function_declaration().maybe_name(),
                     Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(&node.ref_(self).as_function_declaration().parameters()),
+                        Some(node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
@@ -1053,7 +1053,7 @@ impl TransformGenerators {
                     node.ref_(self).as_function_expression().maybe_name(),
                     Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(&node.ref_(self).as_function_expression().parameters()),
+                        Some(node.ref_(self).as_function_expression().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,

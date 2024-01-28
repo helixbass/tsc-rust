@@ -75,12 +75,12 @@ impl IncrementalParserSyntaxCursorCreated {
         let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
 
-        Debug_.assert(current_array_index < current_array.len(), None);
+        Debug_.assert(current_array_index < current_array.ref_(self).len(), None);
         Self {
             source_file: source_file.arena_id(),
             current_array: GcCell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
-            current: GcCell::new(Some(current_array[current_array_index].clone())),
+            current: GcCell::new(Some(current_array.ref_(self)[current_array_index].clone())),
             last_queried_position: Default::default(), /*InvalidPosition::Value*/
         }
     }
@@ -146,12 +146,12 @@ impl IncrementalParserSyntaxCursorCreated {
     }
 
     fn visit_array(&self, position_as_isize: isize, array: Id<NodeArray>) -> bool {
-        if position_as_isize >= array.pos() && position_as_isize < array.end() {
-            for (i, child) in array.iter().enumerate() {
+        if position_as_isize >= array.ref_(self).pos() && position_as_isize < array.ref_(self).end() {
+            for (i, child) in array.ref_(self).iter().enumerate() {
                 let child = *child;
                 // if (child) {
                 if child.ref_(self).pos() == position_as_isize {
-                    self.set_current_array(Some(array.rc_wrapper()));
+                    self.set_current_array(Some(array));
                     self.set_current_array_index(Some(i));
                     self.set_current(Some(child.clone()));
                     return true;
@@ -183,12 +183,12 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCre
         } {
             if let Some(current) = self.maybe_current() {
                 if current.ref_(self).end() == position_as_isize
-                    && self.current_array_index() < (self.current_array().len() - 1)
+                    && self.current_array_index() < (self.current_array().ref_(self).len() - 1)
                 {
                     self.set_current_array_index(Some(self.current_array_index() + 1));
                     self.set_current(
                         self.current_array()
-                            .get(self.current_array_index())
+                            .ref_(self).get(self.current_array_index())
                             .map(Clone::clone),
                     );
                 }

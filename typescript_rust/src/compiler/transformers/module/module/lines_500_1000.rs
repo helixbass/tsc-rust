@@ -105,7 +105,7 @@ impl TransformModule {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         if is_object_literal_expression(&node.ref_(self)) {
-            for elem in &node.ref_(self).as_object_literal_expression().properties {
+            for elem in &*node.ref_(self).as_object_literal_expression().properties.ref_(self) {
                 match elem.ref_(self).kind() {
                     SyntaxKind::PropertyAssignment => {
                         if self.destructuring_needs_flattening(
@@ -135,7 +135,7 @@ impl TransformModule {
                 }
             }
         } else if is_array_literal_expression(&node.ref_(self)) {
-            for &elem in &node.ref_(self).as_array_literal_expression().elements {
+            for &elem in &*node.ref_(self).as_array_literal_expression().elements.ref_(self) {
                 if is_spread_element(&elem.ref_(self)) {
                     if self.destructuring_needs_flattening(elem.ref_(self).as_spread_element().expression)? {
                         return Ok(true);
@@ -382,7 +382,7 @@ impl TransformModule {
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
-            first_or_undefined(&node_as_call_expression.arguments).cloned(),
+            first_or_undefined(&node_as_call_expression.arguments.ref_(self)).cloned(),
             Some(|node: Id<Node>| self.visitor(node)),
             Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

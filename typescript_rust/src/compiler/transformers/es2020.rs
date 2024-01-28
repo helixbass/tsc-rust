@@ -234,7 +234,7 @@ impl TransformES2020 {
                 false,
             );
             let args = visit_nodes(
-                &node_as_call_expression.arguments,
+                node_as_call_expression.arguments,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 None,
@@ -376,7 +376,7 @@ impl TransformES2020 {
                                 left_this_arg.clone()
                             },
                             visit_nodes(
-                                &segment.ref_(self).as_call_expression().arguments,
+                                segment.ref_(self).as_call_expression().arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,
@@ -389,7 +389,7 @@ impl TransformES2020 {
                             right_expression,
                             Option::<Id<NodeArray>>::None,
                             Some(visit_nodes(
-                                &segment.ref_(self).as_call_expression().arguments,
+                                segment.ref_(self).as_call_expression().arguments,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node| is_expression(node, self)),
                                 None,

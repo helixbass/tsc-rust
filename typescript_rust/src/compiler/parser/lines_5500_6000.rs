@@ -9,7 +9,7 @@ use crate::{
     ArrayLiteralExpression, AsDoubleDeref, CaseClause, Debug_, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, Node, NodeArray, NodeFlags, NodeInterface,
     ObjectLiteralExpression, SyntaxKind,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl ParserType {
@@ -347,7 +347,7 @@ impl ParserType {
             SignatureFlags::None
         };
         let is_async = if some(
-            modifiers.as_double_deref(),
+            modifiers.refed(self).as_double_deref(),
             Some(|modifier: &Id<Node>| is_async_modifier(&modifier.ref_(self))),
         ) {
             SignatureFlags::Await

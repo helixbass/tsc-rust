@@ -8,7 +8,7 @@ use crate::{
     Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionLikeDeclarationInterface,
     HasTypeInterface, HasTypeParametersInterface, ModifierFlags, Node, NodeArray, NodeFlags,
     NodeInterface, ObjectBindingPattern, SyntaxKind, VariableDeclarationList,
-    HasArena, InArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl ParserType {
@@ -187,7 +187,7 @@ impl ParserType {
     ) -> Id<Node /*FunctionDeclaration*/> {
         let saved_await_context = self.in_await_context();
 
-        let modifier_flags = modifiers_to_flags(modifiers.as_double_deref(), self);
+        let modifier_flags = modifiers_to_flags(modifiers.refed(self).as_double_deref(), self);
         self.parse_expected(SyntaxKind::FunctionKeyword, None, None);
         let asterisk_token = self.parse_optional_token(SyntaxKind::AsteriskToken);
         let name = if modifier_flags.intersects(ModifierFlags::Default) {
@@ -293,7 +293,7 @@ impl ParserType {
             SignatureFlags::None
         };
         let is_async = if some(
-            modifiers.as_double_deref(),
+            modifiers.refed(self).as_double_deref(),
             Some(|modifier: &Id<Node>| is_async_modifier(&modifier.ref_(self))),
         ) {
             SignatureFlags::Await
@@ -709,14 +709,11 @@ impl ParserType {
             )
         {
             let is_ambient = some(
-                modifiers.as_ref().map(|node_array| {
-                    let node_array: &[Id<Node>] = node_array;
-                    node_array
-                }),
+                modifiers.refed(self).as_double_deref(),
                 Some(|&modifier: &Id<Node>| self.is_declare_modifier(modifier)),
             );
             if is_ambient {
-                for m in modifiers.as_ref().unwrap() {
+                for m in &*modifiers.unwrap().ref_(self) {
                     m.ref_(self).set_flags(m.ref_(self).flags() | NodeFlags::Ambient);
                 }
                 return self.do_inside_of_context(NodeFlags::Ambient, || {
