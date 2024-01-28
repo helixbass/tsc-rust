@@ -611,6 +611,7 @@ impl NodeFactory {
                     elements.ref_(self).end(),
                     has_trailing_comma.unwrap(),
                     elements.ref_(self).maybe_transform_flags(),
+                    self,
                 );
                 Debug_.attach_node_array_debug_info(array);
                 array
@@ -619,7 +620,7 @@ impl NodeFactory {
                 // let length = elements.len();
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
                 let array =
-                    NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None);
+                    NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None, self);
                 aggregate_children_flags(array, self);
                 Debug_.attach_node_array_debug_info(array);
                 array

@@ -634,7 +634,7 @@ pub fn read_json_config_file(
             .alloc(arena.arena());
             let source_file = SourceFile::new(
                 base_node,
-                NodeArray::new(vec![], -1, -1, false, None),
+                NodeArray::new(vec![], -1, -1, false, None, arena),
                 end_of_file_token,
                 file_name.to_owned(),
                 "".to_owned(),

@@ -53,16 +53,16 @@ mod _NodeArrayDeriveTraceScope {
             end: isize,
             has_trailing_comma: bool,
             transform_flags: Option<TransformFlags>,
+            arena: &impl HasArena,
         ) -> Id<Self> {
-            let ret = Gc::new(NodeArray {
+            arena.alloc_node_array(NodeArray {
                 _nodes: nodes,
                 pos: Cell::new(pos),
                 end: Cell::new(end),
                 has_trailing_comma,
                 transform_flags: Cell::new(transform_flags),
                 is_missing_list: Cell::new(false),
-            });
-            ret
+            })
         }
 
         pub fn iter(&self) -> NodeArrayIter {
@@ -185,6 +185,13 @@ mod _NodeArrayOrVecDeriveTraceScope {
         pub fn as_node_array(self) -> Id<NodeArray> {
             enum_unwrapped!(self, [NodeArrayOrVec, NodeArray])
         }
+
+        pub fn ref_<'a>(&'a self, arena: &'a impl HasArena) -> NodeArrayOrVecRef<'a> {
+            match self {
+                Self::NodeArray(value) => value.ref_(arena).into(),
+                Self::Vec(value) => value.into(),
+            }
+        }
     }
 }
 
@@ -204,19 +211,36 @@ impl From<Vec<Id<Node>>> for NodeArrayOrVec {
     }
 }
 
-impl Deref for NodeArrayOrVec {
+pub enum NodeArrayOrVecRef<'a> {
+    NodeArray(debug_cell::Ref<'a, NodeArray>),
+    Vec(&'a Vec<Id<Node>>),
+}
+
+impl<'a> From<debug_cell::Ref<'a, NodeArray>> for NodeArrayOrVecRef<'a> {
+    fn from(value: debug_cell::Ref<'a, NodeArray>) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+impl<'a> From<&'a Vec<Id<Node>>> for NodeArrayOrVecRef<'a> {
+    fn from(value: &'a Vec<Id<Node>>) -> Self {
+        Self::Vec(value)
+    }
+}
+
+impl Deref for NodeArrayOrVecRef<'_> {
     type Target = [Id<Node>];
 
     fn deref(&self) -> &Self::Target {
         match self {
-            NodeArrayOrVec::NodeArray(node_array) => node_array.deref(),
-            NodeArrayOrVec::Vec(vec) => vec.deref(),
+            NodeArrayOrVecRef::NodeArray(node_array) => node_array.deref(),
+            NodeArrayOrVecRef::Vec(vec) => vec.deref(),
         }
     }
 }
 
-impl From<&NodeArrayOrVec> for Vec<Id<Node>> {
-    fn from(value: &NodeArrayOrVec) -> Vec<Id<Node>> {
+impl From<&NodeArrayOrVecRef<'_>> for Vec<Id<Node>> {
+    fn from(value: &NodeArrayOrVecRef) -> Vec<Id<Node>> {
         match value {
             NodeArrayOrVec::NodeArray(value) => value.to_vec(),
             NodeArrayOrVec::Vec(value) => value.clone(),
@@ -224,7 +248,7 @@ impl From<&NodeArrayOrVec> for Vec<Id<Node>> {
     }
 }
 
-impl IntoIterator for NodeArrayOrVec {
+impl IntoIterator for NodeArrayOrVecRef<'_> {
     type Item = Id<Node>;
     type IntoIter = <Vec<Id<Node>> as IntoIterator>::IntoIter;
 

@@ -501,7 +501,7 @@ pub use compiler::{
         ModuleSpecifierCache, ModuleSpecifierResolutionHost,
         ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface,
         NamedExports, NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration,
-        NamespaceImport, NewExpression, NewLineKind, Node, NodeArray, NodeArrayExt, NodeArrayOrVec,
+        NamespaceImport, NewExpression, NewLineKind, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeArrayOrVecRef,
         NodeBuilderFlags, NodeCheckFlags, NodeConverters, NodeExt, NodeFactory, NodeFlags, NodeId,
         NodeIdOverride, NodeInterface, NodeLinks, NodeLinksSerializedType, NodeSymbolOverride,
         NonNullExpression, NotActuallyInterfaceType, NumberLiteralType, NumericLiteral,
