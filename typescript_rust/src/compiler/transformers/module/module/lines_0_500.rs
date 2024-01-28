@@ -1194,7 +1194,7 @@ impl TransformModuleOnSubstituteNodeOverrider {
         if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind())
             && is_identifier(&node_as_binary_expression.left.ref_(self))
             && !is_generated_identifier(&node_as_binary_expression.left.ref_(self))
-            && !is_local_name(node_as_binary_expression, self)
+            && !is_local_name(node_as_binary_expression.left, self)
             && !is_declaration_name_of_enum_or_namespace(node_as_binary_expression.left, self)
         {
             let exported_names = self

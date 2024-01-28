@@ -447,7 +447,7 @@ pub fn is_custom_prologue(node: Id<Node /*Statement*/>, arena: &impl HasArena) -
 }
 
 pub fn is_hoisted_function(node: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
-    is_custom_prologue(node, arena) && is_function_declaration(node)
+    is_custom_prologue(node, arena) && is_function_declaration(&node.ref_(arena))
 }
 
 fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/, arena: &impl HasArena) -> bool {

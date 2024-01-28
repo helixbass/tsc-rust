@@ -167,7 +167,7 @@ impl EmitHelperFactory {
             .ref_(self).maybe_emit_node_mut()
             .get_or_insert_with(|| self.alloc_emit_node(Default::default()))
             .clone();
-        let mut generator_func_emit_node = generator_func_emit_node.borrow_mut();
+        let mut generator_func_emit_node = generator_func_emit_node.ref_mut(self);
         generator_func_emit_node.flags = Some(
             generator_func_emit_node.flags.unwrap_or_default()
                 | EmitFlags::AsyncFunctionBody
@@ -289,7 +289,7 @@ impl EmitHelperFactory {
             .ref_(self).maybe_emit_node_mut()
             .get_or_insert_with(|| self.alloc_emit_node(Default::default()))
             .clone();
-        let mut generator_func_emit_node = generator_func_emit_node.borrow_mut();
+        let mut generator_func_emit_node = generator_func_emit_node.ref_mut(self);
         generator_func_emit_node.flags = Some(
             generator_func_emit_node.flags.unwrap_or_default()
                 | EmitFlags::AsyncFunctionBody
@@ -1106,7 +1106,7 @@ pub fn is_call_to_helper(
         let first_segment_ref = first_segment.ref_(arena);
         let first_segment_as_call_expression = first_segment_ref.as_call_expression();
         is_identifier(&first_segment_as_call_expression.expression.ref_(arena))
-            && get_emit_flags(first_segment_as_call_expression, self)
+            && get_emit_flags(first_segment_as_call_expression.expression, arena)
                 .intersects(EmitFlags::HelperName)
             && first_segment_as_call_expression
                 .expression

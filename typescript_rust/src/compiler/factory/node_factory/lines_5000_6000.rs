@@ -1485,7 +1485,7 @@ impl NodeFactory {
         );
         let left_hoisted_functions_end = self.find_span_end(
             &*statements.ref_(self),
-            |node: &Id<Node>| is_hoisted_function(node, self),
+            |&node: &Id<Node>| is_hoisted_function(node, self),
             left_standard_prologue_end,
         );
         let left_hoisted_variables_end = self.find_span_end(
@@ -1501,7 +1501,7 @@ impl NodeFactory {
         );
         let right_hoisted_functions_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_hoisted_function(node, self),
+            |&node: &Id<Node>| is_hoisted_function(node, self),
             right_standard_prologue_end,
         );
         let right_hoisted_variables_end = self.find_span_end(
@@ -1511,7 +1511,7 @@ impl NodeFactory {
         );
         let right_custom_prologue_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_custom_prologue(node, self),
+            |&node: &Id<Node>| is_custom_prologue(node, self),
             right_hoisted_variables_end,
         );
         Debug_.assert(

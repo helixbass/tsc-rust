@@ -930,7 +930,7 @@ fn insert_statement_after_prologue(
 }
 
 fn is_any_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_prologue_directive(node, arena) || get_emit_flags(node, self).intersects(EmitFlags::CustomPrologue)
+    is_prologue_directive(node, arena) || get_emit_flags(node, arena).intersects(EmitFlags::CustomPrologue)
 }
 
 pub fn insert_statements_after_standard_prologue(

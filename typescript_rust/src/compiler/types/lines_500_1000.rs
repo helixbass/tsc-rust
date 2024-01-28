@@ -2155,7 +2155,7 @@ impl NodeExt for Id<Node> {
     }
 
     fn set_additional_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self {
-        let existing_emit_flags = get_emit_flags(self, self);
+        let existing_emit_flags = get_emit_flags(self, arena);
         set_emit_flags(self, emit_flags | existing_emit_flags, arena)
     }
 
