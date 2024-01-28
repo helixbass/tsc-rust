@@ -66,7 +66,7 @@ bitflags! {
 
 #[derive(Clone, Builder, Trace, Finalize)]
 #[builder(setter(strip_option))]
-pub(super) struct ConvertedLoopState {
+pub struct ConvertedLoopState {
     #[builder(default)]
     pub labels: Option<HashMap<String, bool>>,
     #[builder(default)]
@@ -197,7 +197,7 @@ pub(super) struct TransformES2015 {
     pub(super) hierarchy_facts: Cell<Option<HierarchyFacts>>,
     pub(super) tagged_template_string_declarations:
         GcCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
-    pub(super) converted_loop_state: GcCell<Option<Gc<GcCell<ConvertedLoopState>>>>,
+    pub(super) converted_loop_state: GcCell<Option<Id<ConvertedLoopState>>>,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ES2015SubstitutionFlags>>,
 }
@@ -275,17 +275,17 @@ impl TransformES2015 {
         self.hierarchy_facts.set(hierarchy_facts);
     }
 
-    pub(super) fn maybe_converted_loop_state(&self) -> Option<Gc<GcCell<ConvertedLoopState>>> {
+    pub(super) fn maybe_converted_loop_state(&self) -> Option<Id<ConvertedLoopState>> {
         self.converted_loop_state.borrow().clone()
     }
 
-    pub(super) fn converted_loop_state(&self) -> Gc<GcCell<ConvertedLoopState>> {
+    pub(super) fn converted_loop_state(&self) -> Id<ConvertedLoopState> {
         self.converted_loop_state.borrow().clone().unwrap()
     }
 
     pub(super) fn set_converted_loop_state(
         &self,
-        converted_loop_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+        converted_loop_state: Option<Id<ConvertedLoopState>>,
     ) {
         *self.converted_loop_state.borrow_mut() = converted_loop_state;
     }

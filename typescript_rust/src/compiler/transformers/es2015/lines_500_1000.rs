@@ -88,12 +88,12 @@ impl TransformES2015 {
         node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<Id<Node /*SwitchStatement*/>> {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
-            let saved_allowed_non_labeled_jumps = (*converted_loop_state)
-                .borrow()
+            let saved_allowed_non_labeled_jumps = converted_loop_state
+                .ref_(self)
                 .allowed_non_labeled_jumps
                 .clone();
             {
-                let mut converted_loop_state = converted_loop_state.borrow_mut();
+                let mut converted_loop_state = converted_loop_state.ref_mut(self);
                 converted_loop_state.allowed_non_labeled_jumps = Some(
                     converted_loop_state
                         .allowed_non_labeled_jumps
@@ -103,7 +103,7 @@ impl TransformES2015 {
             }
             let result =
                 try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?;
-            converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
+            converted_loop_state.ref_mut(self).allowed_non_labeled_jumps =
                 saved_allowed_non_labeled_jumps;
             return Ok(result);
         }
@@ -139,7 +139,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Statement*/>> {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             {
-                let mut converted_loop_state = converted_loop_state.borrow_mut();
+                let mut converted_loop_state = converted_loop_state.ref_mut(self);
                 converted_loop_state.non_local_jumps =
                     Some(converted_loop_state.non_local_jumps.unwrap_or_default() | Jump::Return);
             }
@@ -195,13 +195,13 @@ impl TransformES2015 {
                 .intersects(HierarchyFacts::ArrowFunction)
             {
                 self.converted_loop_state()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .contains_lexical_this = Some(true);
                 return node;
             }
             return self
                 .converted_loop_state()
-                .borrow_mut()
+                .ref_mut(self)
                 .this_name
                 .get_or_insert_with(|| self.factory.ref_(self).create_unique_name("this", None))
                 .clone();
@@ -231,7 +231,7 @@ impl TransformES2015 {
         if self.resolver.ref_(self).is_arguments_local_binding(node)? {
             return Ok(self
                 .converted_loop_state()
-                .borrow_mut()
+                .ref_mut(self)
                 .arguments_name
                 .get_or_insert_with(|| self.factory.ref_(self).create_unique_name("arguments", None))
                 .clone());
@@ -252,13 +252,13 @@ impl TransformES2015 {
                 Jump::Continue
             };
             let can_use_break_or_continue = matches!(
-                (node_as_has_label.maybe_label().as_ref(), (*self.converted_loop_state()).borrow().labels.as_ref()),
+                (node_as_has_label.maybe_label().as_ref(), self.converted_loop_state().ref_(self).labels.as_ref()),
                 (Some(node_label), Some(converted_loop_state_labels)) if converted_loop_state_labels.get(
                     id_text(&node_label.ref_(self))
                 ).copied() == Some(true)
             ) || node_as_has_label.maybe_label().is_none()
-                && (*self.converted_loop_state())
-                    .borrow()
+                && self.converted_loop_state()
+                    .ref_(self)
                     .allowed_non_labeled_jumps
                     .unwrap_or_default()
                     .intersects(jump);
@@ -271,14 +271,14 @@ impl TransformES2015 {
                         if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                             *self
                                 .converted_loop_state()
-                                .borrow_mut()
+                                .ref_mut(self)
                                 .non_local_jumps
                                 .get_or_insert_default_() |= Jump::Break;
                             label_marker = "break".to_owned();
                         } else {
                             *self
                                 .converted_loop_state()
-                                .borrow_mut()
+                                .ref_mut(self)
                                 .non_local_jumps
                                 .get_or_insert_default_() |= Jump::Continue;
                             label_marker = "continue".to_owned();
@@ -288,7 +288,7 @@ impl TransformES2015 {
                         if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                             label_marker = format!("break-{}", label.ref_(self).as_identifier().escaped_text);
                             self.set_labeled_jump(
-                                &mut self.converted_loop_state().borrow_mut(),
+                                &mut self.converted_loop_state().ref_mut(self),
                                 true,
                                 id_text(&label.ref_(self)).to_owned(),
                                 label_marker.clone(),
@@ -297,7 +297,7 @@ impl TransformES2015 {
                             label_marker =
                                 format!("continue-{}", label.ref_(self).as_identifier().escaped_text);
                             self.set_labeled_jump(
-                                &mut self.converted_loop_state().borrow_mut(),
+                                &mut self.converted_loop_state().ref_mut(self),
                                 false,
                                 id_text(&label.ref_(self)).to_owned(),
                                 label_marker.clone(),
@@ -307,13 +307,13 @@ impl TransformES2015 {
                 }
                 let mut return_expression =
                     self.factory.ref_(self).create_string_literal(label_marker, None, None);
-                if !(*self.converted_loop_state())
-                    .borrow()
+                if !self.converted_loop_state()
+                    .ref_(self)
                     .loop_out_parameters
                     .is_empty()
                 {
                     let converted_loop_state = self.converted_loop_state();
-                    let converted_loop_state = (*converted_loop_state).borrow();
+                    let converted_loop_state = converted_loop_state.ref_(self);
                     let out_params = &converted_loop_state.loop_out_parameters;
                     let mut expr: Option<Id<Node>> = None;
                     for (i, out_param) in out_params.iter().enumerate() {

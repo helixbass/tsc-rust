@@ -17,7 +17,7 @@ use crate::{
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
-    SysFormatDiagnosticsHost, ClassLexicalEnvironment,
+    SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState,
 };
 
 #[derive(Default)]
@@ -85,6 +85,7 @@ pub struct AllArenas {
     pub inference_infos: RefCell<Arena<InferenceInfo>>,
     pub sys_format_diagnostics_hosts: RefCell<Arena<SysFormatDiagnosticsHost>>,
     pub class_lexical_environments: RefCell<Arena<ClassLexicalEnvironment>>,
+    pub converted_loop_states: RefCell<Arena<ConvertedLoopState>>,
 }
 
 pub trait HasArena {
@@ -584,6 +585,18 @@ pub trait HasArena {
 
     fn alloc_class_lexical_environment(&self, class_lexical_environment: ClassLexicalEnvironment) -> Id<ClassLexicalEnvironment> {
         self.arena().alloc_class_lexical_environment(class_lexical_environment)
+    }
+
+    fn converted_loop_state(&self, converted_loop_state: Id<ConvertedLoopState>) -> Ref<ConvertedLoopState> {
+        self.arena().converted_loop_state(converted_loop_state)
+    }
+
+    fn converted_loop_state_mut(&self, converted_loop_state: Id<ConvertedLoopState>) -> RefMut<ConvertedLoopState> {
+        self.arena().converted_loop_state_mut(converted_loop_state)
+    }
+
+    fn alloc_converted_loop_state(&self, converted_loop_state: ConvertedLoopState) -> Id<ConvertedLoopState> {
+        self.arena().alloc_converted_loop_state(converted_loop_state)
     }
 }
 
@@ -1216,6 +1229,20 @@ impl HasArena for AllArenas {
         let id = self.class_lexical_environments.borrow_mut().alloc(class_lexical_environment);
         id
     }
+
+    #[track_caller]
+    fn converted_loop_state(&self, converted_loop_state: Id<ConvertedLoopState>) -> Ref<ConvertedLoopState> {
+        Ref::map(self.converted_loop_states.borrow(), |converted_loop_states| &converted_loop_states[converted_loop_state])
+    }
+
+    fn converted_loop_state_mut(&self, converted_loop_state: Id<ConvertedLoopState>) -> RefMut<ConvertedLoopState> {
+        RefMut::map(self.converted_loop_states.borrow_mut(), |converted_loop_states| &mut converted_loop_states[converted_loop_state])
+    }
+
+    fn alloc_converted_loop_state(&self, converted_loop_state: ConvertedLoopState) -> Id<ConvertedLoopState> {
+        let id = self.converted_loop_states.borrow_mut().alloc(converted_loop_state);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1721,6 +1748,18 @@ impl InArena for Id<ClassLexicalEnvironment> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, ClassLexicalEnvironment> {
         has_arena.class_lexical_environment_mut(*self)
+    }
+}
+
+impl InArena for Id<ConvertedLoopState> {
+    type Item = ConvertedLoopState;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ConvertedLoopState> {
+        has_arena.converted_loop_state(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, ConvertedLoopState> {
+        has_arena.converted_loop_state_mut(*self)
     }
 }
 

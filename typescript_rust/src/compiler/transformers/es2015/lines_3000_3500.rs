@@ -33,7 +33,7 @@ impl TransformES2015 {
     pub(super) fn create_function_for_initializer_of_for_statement(
         &self,
         node: Id<Node>, /*ForStatementWithConvertibleInitializer*/
-        current_state: Gc<GcCell<ConvertedLoopState>>,
+        current_state: Id<ConvertedLoopState>,
     ) -> io::Result<IterationStatementPartFunction<Id<Node /*VariableDeclarationList*/>>> {
         let node_ref = node.ref_(self);
         let node_as_for_statement = node_ref.as_for_statement();
@@ -44,7 +44,7 @@ impl TransformES2015 {
             .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsYield);
         let mut emit_flags = EmitFlags::None;
-        let current_state = (*current_state).borrow();
+        let current_state = current_state.ref_(self);
         if current_state.contains_lexical_this == Some(true) {
             emit_flags |= EmitFlags::CapturesThis;
         }
@@ -124,8 +124,8 @@ impl TransformES2015 {
     pub(super) fn create_function_for_body_of_iteration_statement(
         &self,
         node: Id<Node>, /*IterationStatement*/
-        current_state: Gc<GcCell<ConvertedLoopState>>,
-        outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+        current_state: Id<ConvertedLoopState>,
+        outer_state: Option<Id<ConvertedLoopState>>,
     ) -> io::Result<IterationStatementPartFunction<Vec<Id<Node /*Statement*/>>>> {
         let function_name = self.factory.ref_(self).create_unique_name("_loop", None);
         self.context.ref_(self).start_lexical_environment();
@@ -141,15 +141,15 @@ impl TransformES2015 {
         if self.should_convert_condition_of_for_statement(node)
             || self.should_convert_incrementor_of_for_statement(node)
         {
-            current_state.borrow_mut().condition_variable =
+            current_state.ref_mut(self).condition_variable =
                 Some(self.factory.ref_(self).create_unique_name("inc", None));
             let node_ref = node.ref_(self);
             let node_as_for_statement = node_ref.as_for_statement();
             if let Some(node_incrementor) = node_as_for_statement.incrementor {
                 statements.push(
                     self.factory.ref_(self).create_if_statement(
-                        (*current_state)
-                            .borrow()
+                        current_state
+                            .ref_(self)
                             .condition_variable
                             .clone()
                             .unwrap(),
@@ -162,8 +162,8 @@ impl TransformES2015 {
                         Some(
                             self.factory.ref_(self).create_expression_statement(
                                 self.factory.ref_(self).create_assignment(
-                                    (*current_state)
-                                        .borrow()
+                                    current_state
+                                        .ref_(self)
                                         .condition_variable
                                         .clone()
                                         .unwrap(),
@@ -177,16 +177,16 @@ impl TransformES2015 {
                 statements.push(
                     self.factory.ref_(self).create_if_statement(
                         self.factory.ref_(self).create_logical_not(
-                            (*current_state)
-                                .borrow()
+                            current_state
+                                .ref_(self)
                                 .condition_variable
                                 .clone()
                                 .unwrap(),
                         ),
                         self.factory.ref_(self).create_expression_statement(
                             self.factory.ref_(self).create_assignment(
-                                (*current_state)
-                                    .borrow()
+                                current_state
+                                    .ref_(self)
                                     .condition_variable
                                     .clone()
                                     .unwrap(),
@@ -236,7 +236,7 @@ impl TransformES2015 {
         }
 
         self.copy_out_parameters(
-            &(*current_state).borrow().loop_out_parameters,
+            &current_state.ref_(self).loop_out_parameters,
             LoopOutParameterFlags::Body,
             CopyDirection::ToOutParameter,
             &mut statements,
@@ -255,7 +255,7 @@ impl TransformES2015 {
             .intersects(TransformFlags::ContainsYield);
 
         let mut emit_flags = EmitFlags::ReuseTempVariableScope;
-        if (*current_state).borrow().contains_lexical_this == Some(true) {
+        if current_state.ref_(self).contains_lexical_this == Some(true) {
             emit_flags |= EmitFlags::CapturesThis;
         }
         if contains_yield
@@ -284,7 +284,7 @@ impl TransformES2015 {
                                     }),
                                     Option::<Id<Node>>::None,
                                     Option::<Id<NodeArray>>::None,
-                                    Some((*current_state).borrow().loop_parameters.clone()),
+                                    Some(current_state.ref_(self).loop_parameters.clone()),
                                     None,
                                     loop_body,
                                 )
@@ -370,12 +370,12 @@ impl TransformES2015 {
     pub(super) fn generate_call_to_converted_loop(
         &self,
         loop_function_expression_name: Id<Node>, /*Identifier*/
-        state: Gc<GcCell<ConvertedLoopState>>,
-        outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+        state: Id<ConvertedLoopState>,
+        outer_state: Option<Id<ConvertedLoopState>>,
         contains_yield: bool,
     ) -> Vec<Id<Node /*Statement*/>> {
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
-        let state = (*state).borrow();
+        let state = state.ref_(self);
         let is_simple_loop = !state
             .non_local_jumps
             .unwrap_or_default()
@@ -436,7 +436,7 @@ impl TransformES2015 {
                 let return_statement: Id<Node /*ReturnStatement*/>;
                 if let Some(outer_state) = outer_state.as_ref() {
                     *outer_state
-                        .borrow_mut()
+                        .ref_mut(self)
                         .non_local_jumps
                         .get_or_insert_default_() |= Jump::Return;
                     return_statement = self
@@ -529,17 +529,17 @@ impl TransformES2015 {
         table: Option<&IndexMap<String, String>>,
         is_break: bool,
         loop_result_name: Id<Node>, /*Identifier*/
-        outer_loop: Option<Gc<GcCell<ConvertedLoopState>>>,
+        outer_loop: Option<Id<ConvertedLoopState>>,
         case_clauses: &mut Vec<Id<Node /*CaseClause*/>>,
     ) {
         let table = return_if_none!(table);
         for (label_text, label_marker) in table {
             let mut statements: Vec<Id<Node /*Statement*/>> = _d();
-            if match outer_loop.as_ref() {
+            if match outer_loop {
                 None => true,
                 Some(outer_loop) => {
-                    (**outer_loop)
-                        .borrow()
+                    outer_loop
+                        .ref_(self)
                         .labels
                         .as_ref()
                         .matches(|outer_loop_labels| {
@@ -555,7 +555,7 @@ impl TransformES2015 {
                 });
             } else {
                 self.set_labeled_jump(
-                    &mut outer_loop.as_ref().unwrap().borrow_mut(),
+                    &mut outer_loop.as_ref().unwrap().ref_mut(self),
                     is_break,
                     label_text.clone(),
                     label_marker.clone(),

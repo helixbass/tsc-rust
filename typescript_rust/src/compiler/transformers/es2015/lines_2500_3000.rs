@@ -14,7 +14,7 @@ use crate::{
     try_visit_node, BoolExt, Debug_, EmitFlags, GetOrInsertDefault, Matches,
     NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeExt, NodeFlags, NodeInterface,
     OptionTry, SyntaxKind, TransformFlags,
-    InArena,
+    HasArena, InArena,
     CoreTransformationContext,
 };
 
@@ -467,7 +467,7 @@ impl TransformES2015 {
         if !self.should_convert_iteration_statement(node) {
             let mut save_allowed_non_labeled_jumps: Option<Jump> = _d();
             if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
-                let mut converted_loop_state = converted_loop_state.borrow_mut();
+                let mut converted_loop_state = converted_loop_state.ref_mut(self);
                 save_allowed_non_labeled_jumps = converted_loop_state.allowed_non_labeled_jumps;
                 converted_loop_state.allowed_non_labeled_jumps = Some(Jump::Break | Jump::Continue);
             }
@@ -504,7 +504,7 @@ impl TransformES2015 {
             )?;
 
             if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
-                converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
+                converted_loop_state.ref_mut(self).allowed_non_labeled_jumps =
                     save_allowed_non_labeled_jumps;
             }
             return Ok(Some(result.into()));
@@ -542,7 +542,7 @@ impl TransformES2015 {
 
         self.add_extra_declarations_for_converted_loop(
             &mut statements,
-            &(*current_state).borrow(),
+            &current_state.ref_(self),
             outer_converted_loop_state,
         );
 
@@ -782,7 +782,7 @@ impl TransformES2015 {
     pub(super) fn create_converted_loop_state(
         &self,
         node: Id<Node>, /*IterationStatement*/
-    ) -> io::Result<Gc<GcCell<ConvertedLoopState>>> {
+    ) -> io::Result<Id<ConvertedLoopState>> {
         let mut loop_initializer: Option<Id<Node /*VariableDeclarationList*/>> = _d();
         match node.ref_(self).kind() {
             SyntaxKind::ForStatement | SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement => {
@@ -820,7 +820,7 @@ impl TransformES2015 {
             .build()
             .unwrap();
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
-            let converted_loop_state = (*converted_loop_state).borrow();
+            let converted_loop_state = converted_loop_state.ref_(self);
             if let Some(converted_loop_state_arguments_name) =
                 converted_loop_state.arguments_name.as_ref()
             {
@@ -836,19 +836,19 @@ impl TransformES2015 {
                     Some(converted_loop_state_hoisted_local_variables.clone());
             }
         }
-        Ok(Gc::new(GcCell::new(current_state)))
+        Ok(self.alloc_converted_loop_state(current_state))
     }
 
     pub(super) fn add_extra_declarations_for_converted_loop(
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
         state: &ConvertedLoopState,
-        outer_state: Option<Gc<GcCell<ConvertedLoopState>>>,
+        outer_state: Option<Id<ConvertedLoopState>>,
     ) {
         let mut extra_variable_declarations: Option<Vec<Id<Node /*VariableDeclaration*/>>> = _d();
         if let Some(state_arguments_name) = state.arguments_name.as_ref() {
-            if let Some(outer_state) = outer_state.as_ref() {
-                outer_state.borrow_mut().arguments_name = Some(state_arguments_name.clone());
+            if let Some(outer_state) = outer_state {
+                outer_state.ref_mut(self).arguments_name = Some(state_arguments_name.clone());
             } else {
                 extra_variable_declarations.get_or_insert_default_().push(
                     self.factory.ref_(self).create_variable_declaration(
@@ -861,9 +861,9 @@ impl TransformES2015 {
             }
         }
 
-        if let Some(state_this_name) = state.this_name.as_ref() {
-            if let Some(outer_state) = outer_state.as_ref() {
-                outer_state.borrow_mut().this_name = Some(state_this_name.clone());
+        if let Some(state_this_name) = state.this_name {
+            if let Some(outer_state) = outer_state {
+                outer_state.ref_mut(self).this_name = Some(state_this_name);
             } else {
                 extra_variable_declarations.get_or_insert_default_().push(
                     self.factory.ref_(self).create_variable_declaration(
@@ -878,7 +878,7 @@ impl TransformES2015 {
 
         if let Some(state_hoisted_local_variables) = state.hoisted_local_variables.as_ref() {
             if let Some(outer_state) = outer_state.as_ref() {
-                outer_state.borrow_mut().hoisted_local_variables =
+                outer_state.ref_mut(self).hoisted_local_variables =
                     Some(state_hoisted_local_variables.clone());
             } else {
                 let extra_variable_declarations =

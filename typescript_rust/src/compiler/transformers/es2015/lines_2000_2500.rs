@@ -227,7 +227,7 @@ impl TransformES2015 {
                 let decl_ref = decl.ref_(self);
                 let decl_as_variable_declaration = decl_ref.as_variable_declaration();
                 self.hoist_variable_declaration_declared_in_converted_loop(
-                    &mut converted_loop_state.borrow_mut(),
+                    &mut converted_loop_state.ref_mut(self),
                     decl,
                 );
                 if let Some(decl_initializer) = decl_as_variable_declaration.maybe_initializer() {
@@ -478,7 +478,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_labeled_statement = node_ref.as_labeled_statement();
         self.converted_loop_state()
-            .borrow_mut()
+            .ref_mut(self)
             .labels
             .as_mut()
             .unwrap()
@@ -489,7 +489,7 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_labeled_statement = node_ref.as_labeled_statement();
         self.converted_loop_state()
-            .borrow_mut()
+            .ref_mut(self)
             .labels
             .as_mut()
             .unwrap()
@@ -502,7 +502,7 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             converted_loop_state
-                .borrow_mut()
+                .ref_mut(self)
                 .labels
                 .get_or_insert_default_();
         }
