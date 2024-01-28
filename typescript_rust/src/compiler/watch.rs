@@ -28,12 +28,12 @@ use crate::{
     WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback, AllArenas, InArena,
 };
 
-fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Gc<SysFormatDiagnosticsHost>/*>*/ {
-    /*sys ?*/ Gc::new(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
+fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Id<SysFormatDiagnosticsHost>/*>*/ {
+    /*sys ?*/ arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
 }
 
 #[derive(Trace, Finalize)]
-struct SysFormatDiagnosticsHost {
+pub struct SysFormatDiagnosticsHost {
     system: Id<Box<dyn System>>,
     #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
@@ -76,13 +76,13 @@ pub fn create_diagnostic_reporter(
     pretty: Option<bool>,
     arena: &impl HasArena,
 ) -> Id<Box<dyn DiagnosticReporter>> {
-    let host: Gc<SysFormatDiagnosticsHost> =
+    let host: Id<SysFormatDiagnosticsHost> =
         if system == get_sys(arena)
         /*&& sysFormatDiagnosticsHost*/
         {
             get_sys_format_diagnostics_host(arena)
         } else {
-            Gc::new(SysFormatDiagnosticsHost::new(system.clone(), arena))
+            arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(system.clone(), arena))
         };
     arena.alloc_diagnostic_reporter(Box::new(DiagnosticReporterConcrete::new(
         host, pretty, system,
@@ -91,7 +91,7 @@ pub fn create_diagnostic_reporter(
 
 #[derive(Trace, Finalize)]
 struct DiagnosticReporterConcrete {
-    host: Gc<SysFormatDiagnosticsHost>,
+    host: Id<SysFormatDiagnosticsHost>,
     pretty: bool,
     diagnostics: GcCell<Vec<Id<Diagnostic>>>,
     system: Id<Box<dyn System>>,
@@ -99,7 +99,7 @@ struct DiagnosticReporterConcrete {
 
 impl DiagnosticReporterConcrete {
     pub fn new(
-        host: Gc<SysFormatDiagnosticsHost>,
+        host: Id<SysFormatDiagnosticsHost>,
         pretty: Option<bool>,
         system: Id<Box<dyn System>>,
     ) -> Self {
@@ -116,7 +116,7 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Id<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
             self.system
-                .ref_(self).write(&format_diagnostic(&diagnostic.ref_(self), &*self.host, self)?);
+                .ref_(self).write(&format_diagnostic(&diagnostic.ref_(self), &*self.host.ref_(self), self)?);
             return Ok(());
         }
 
@@ -124,8 +124,8 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
         diagnostics.push(diagnostic);
         self.system.ref_(self).write(&format!(
             "{}{}",
-            format_diagnostics_with_color_and_context(&diagnostics, &*self.host, self)?,
-            self.host.get_new_line()
+            format_diagnostics_with_color_and_context(&diagnostics, &*self.host.ref_(self), self)?,
+            self.host.ref_(self).get_new_line()
         ));
         diagnostics.pop();
 

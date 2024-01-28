@@ -812,7 +812,7 @@ pub use compiler::{
         get_matched_include_spec, get_watch_error_summary_diagnostic_message,
         parse_config_file_with_system, perform_incremental_compilation,
         CreateWatchCompilerHostOfConfigFileInput, IncrementalCompilationOptions,
-        ProgramOrBuilderProgram,
+        ProgramOrBuilderProgram, SysFormatDiagnosticsHost,
     },
     watch_public::{
         create_incremental_compiler_host, create_watch_program, CreateProgram, ProgramHost,

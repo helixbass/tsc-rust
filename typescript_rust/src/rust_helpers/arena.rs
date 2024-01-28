@@ -17,6 +17,7 @@ use crate::{
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
+    SysFormatDiagnosticsHost,
 };
 
 #[derive(Default)]
@@ -82,6 +83,7 @@ pub struct AllArenas {
     pub bundle_file_infos: RefCell<Arena<BundleFileInfo>>,
     pub symbol_tables: RefCell<Arena<SymbolTable>>,
     pub inference_infos: RefCell<Arena<InferenceInfo>>,
+    pub sys_format_diagnostics_hosts: RefCell<Arena<SysFormatDiagnosticsHost>>,
 }
 
 pub trait HasArena {
@@ -561,6 +563,14 @@ pub trait HasArena {
 
     fn alloc_inference_info(&self, inference_info: InferenceInfo) -> Id<InferenceInfo> {
         self.arena().alloc_inference_info(inference_info)
+    }
+
+    fn sys_format_diagnostics_host(&self, sys_format_diagnostics_host: Id<SysFormatDiagnosticsHost>) -> Ref<SysFormatDiagnosticsHost> {
+        self.arena().sys_format_diagnostics_host(sys_format_diagnostics_host)
+    }
+
+    fn alloc_sys_format_diagnostics_host(&self, sys_format_diagnostics_host: SysFormatDiagnosticsHost) -> Id<SysFormatDiagnosticsHost> {
+        self.arena().alloc_sys_format_diagnostics_host(sys_format_diagnostics_host)
     }
 }
 
@@ -1169,6 +1179,16 @@ impl HasArena for AllArenas {
         let id = self.inference_infos.borrow_mut().alloc(inference_info);
         id
     }
+
+    #[track_caller]
+    fn sys_format_diagnostics_host(&self, sys_format_diagnostics_host: Id<SysFormatDiagnosticsHost>) -> Ref<SysFormatDiagnosticsHost> {
+        Ref::map(self.sys_format_diagnostics_hosts.borrow(), |sys_format_diagnostics_hosts| &sys_format_diagnostics_hosts[sys_format_diagnostics_host])
+    }
+
+    fn alloc_sys_format_diagnostics_host(&self, sys_format_diagnostics_host: SysFormatDiagnosticsHost) -> Id<SysFormatDiagnosticsHost> {
+        let id = self.sys_format_diagnostics_hosts.borrow_mut().alloc(sys_format_diagnostics_host);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1654,6 +1674,14 @@ impl InArena for Id<InferenceInfo> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, InferenceInfo> {
         has_arena.inference_info(*self)
+    }
+}
+
+impl InArena for Id<SysFormatDiagnosticsHost> {
+    type Item = SysFormatDiagnosticsHost;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SysFormatDiagnosticsHost> {
+        has_arena.sys_format_diagnostics_host(*self)
     }
 }
 
