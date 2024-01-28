@@ -936,7 +936,7 @@ impl Printer {
             let pos = self.writer().get_text_pos();
             self.write_comment("/// <reference no-default-lib=\"true\"/>");
             if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                bundle_file_info.borrow_mut().sections.push(self.alloc_bundle_file_section(
+                bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
                     BundleFileSection::new_has_no_default_lib(
                         None,
                         pos.try_into().unwrap(),
@@ -993,7 +993,7 @@ impl Printer {
                 directive.file_name,
             ));
             if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                bundle_file_info.borrow_mut().sections.push(self.alloc_bundle_file_section(
+                bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
                     BundleFileSection::new_reference(
                         BundleFileSectionKind::Reference,
                         directive.file_name.clone(),
@@ -1011,7 +1011,7 @@ impl Printer {
                 directive.file_name,
             ));
             if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                bundle_file_info.borrow_mut().sections.push(self.alloc_bundle_file_section(
+                bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
                     BundleFileSection::new_reference(
                         BundleFileSectionKind::Type,
                         directive.file_name.clone(),
@@ -1029,7 +1029,7 @@ impl Printer {
                 directive.file_name,
             ));
             if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                bundle_file_info.borrow_mut().sections.push(self.alloc_bundle_file_section(
+                bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
                     BundleFileSection::new_reference(
                         BundleFileSectionKind::Lib,
                         directive.file_name.clone(),
@@ -1133,7 +1133,7 @@ impl Printer {
                     self.emit(Some(statement), None)?;
                     if record_bundle_file_section == Some(true) {
                         if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                            bundle_file_info.borrow_mut().sections.push(self.alloc_bundle_file_section(
+                            bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
                                 BundleFileSection::new_prologue(
                                     statement
                                         .ref_(self).as_expression_statement()

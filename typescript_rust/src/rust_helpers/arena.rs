@@ -1,6 +1,6 @@
 use std::{any::Any, rc::Rc};
 
-use debug_cell::{Ref, RefCell};
+use debug_cell::{Ref, RefCell, RefMut};
 use gc::GcCell;
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
@@ -16,6 +16,7 @@ use crate::{
     GetCanonicalFileName, EmitHelperFactory, TransformationContextOnSubstituteNodeOverrider,
     ParsedCommandLine, CancellationToken, ResolvedProjectReference, TransformerFactoryOrCustomTransformerFactory,
     SymlinkCache, WriteFileCallback, ResolvedModuleFull, NodeArray, BundleFileSection,
+    BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo,
 };
 
 #[derive(Default)]
@@ -75,6 +76,10 @@ pub struct AllArenas {
     pub resolved_module_fulls: RefCell<Arena<ResolvedModuleFull>>,
     pub node_arrays: RefCell<Arena<NodeArray>>,
     pub bundle_file_sections: RefCell<Arena<BundleFileSection>>,
+    pub build_infos: RefCell<Arena<BuildInfo>>,
+    pub program_build_infos: RefCell<Arena<ProgramBuildInfo>>,
+    pub bundle_build_infos: RefCell<Arena<BundleBuildInfo>>,
+    pub bundle_file_infos: RefCell<Arena<BundleFileInfo>>,
 }
 
 pub trait HasArena {
@@ -494,6 +499,46 @@ pub trait HasArena {
 
     fn alloc_bundle_file_section(&self, bundle_file_section: BundleFileSection) -> Id<BundleFileSection> {
         self.arena().alloc_bundle_file_section(bundle_file_section)
+    }
+
+    fn build_info(&self, build_info: Id<BuildInfo>) -> Ref<BuildInfo> {
+        self.arena().build_info(build_info)
+    }
+
+    fn alloc_build_info(&self, build_info: BuildInfo) -> Id<BuildInfo> {
+        self.arena().alloc_build_info(build_info)
+    }
+
+    fn program_build_info(&self, program_build_info: Id<ProgramBuildInfo>) -> Ref<ProgramBuildInfo> {
+        self.arena().program_build_info(program_build_info)
+    }
+
+    fn alloc_program_build_info(&self, program_build_info: ProgramBuildInfo) -> Id<ProgramBuildInfo> {
+        self.arena().alloc_program_build_info(program_build_info)
+    }
+
+    fn bundle_build_info(&self, bundle_build_info: Id<BundleBuildInfo>) -> Ref<BundleBuildInfo> {
+        self.arena().bundle_build_info(bundle_build_info)
+    }
+
+    fn bundle_build_info_mut(&self, bundle_build_info: Id<BundleBuildInfo>) -> RefMut<BundleBuildInfo> {
+        self.arena().bundle_build_info_mut(bundle_build_info)
+    }
+
+    fn alloc_bundle_build_info(&self, bundle_build_info: BundleBuildInfo) -> Id<BundleBuildInfo> {
+        self.arena().alloc_bundle_build_info(bundle_build_info)
+    }
+
+    fn bundle_file_info(&self, bundle_file_info: Id<BundleFileInfo>) -> Ref<BundleFileInfo> {
+        self.arena().bundle_file_info(bundle_file_info)
+    }
+
+    fn bundle_file_info_mut(&self, bundle_file_info: Id<BundleFileInfo>) -> RefMut<BundleFileInfo> {
+        self.arena().bundle_file_info_mut(bundle_file_info)
+    }
+
+    fn alloc_bundle_file_info(&self, bundle_file_info: BundleFileInfo) -> Id<BundleFileInfo> {
+        self.arena().alloc_bundle_file_info(bundle_file_info)
     }
 }
 
@@ -1030,13 +1075,64 @@ impl HasArena for AllArenas {
         let id = self.bundle_file_sections.borrow_mut().alloc(bundle_file_section);
         id
     }
+
+    #[track_caller]
+    fn build_info(&self, build_info: Id<BuildInfo>) -> Ref<BuildInfo> {
+        Ref::map(self.build_infos.borrow(), |build_infos| &build_infos[build_info])
+    }
+
+    fn alloc_build_info(&self, build_info: BuildInfo) -> Id<BuildInfo> {
+        let id = self.build_infos.borrow_mut().alloc(build_info);
+        id
+    }
+
+    #[track_caller]
+    fn program_build_info(&self, program_build_info: Id<ProgramBuildInfo>) -> Ref<ProgramBuildInfo> {
+        Ref::map(self.program_build_infos.borrow(), |program_build_infos| &program_build_infos[program_build_info])
+    }
+
+    fn alloc_program_build_info(&self, program_build_info: ProgramBuildInfo) -> Id<ProgramBuildInfo> {
+        let id = self.program_build_infos.borrow_mut().alloc(program_build_info);
+        id
+    }
+
+    #[track_caller]
+    fn bundle_build_info(&self, bundle_build_info: Id<BundleBuildInfo>) -> Ref<BundleBuildInfo> {
+        Ref::map(self.bundle_build_infos.borrow(), |bundle_build_infos| &bundle_build_infos[bundle_build_info])
+    }
+
+    fn bundle_build_info_mut(&self, bundle_build_info: Id<BundleBuildInfo>) -> RefMut<BundleBuildInfo> {
+        RefMut::map(self.bundle_build_infos.borrow_mut(), |bundle_build_infos| &mut bundle_build_infos[bundle_build_info])
+    }
+
+    fn alloc_bundle_build_info(&self, bundle_build_info: BundleBuildInfo) -> Id<BundleBuildInfo> {
+        let id = self.bundle_build_infos.borrow_mut().alloc(bundle_build_info);
+        id
+    }
+
+    #[track_caller]
+    fn bundle_file_info(&self, bundle_file_info: Id<BundleFileInfo>) -> Ref<BundleFileInfo> {
+        Ref::map(self.bundle_file_infos.borrow(), |bundle_file_infos| &bundle_file_infos[bundle_file_info])
+    }
+
+    fn bundle_file_info_mut(&self, bundle_file_info: Id<BundleFileInfo>) -> RefMut<BundleFileInfo> {
+        RefMut::map(self.bundle_file_infos.borrow_mut(), |bundle_file_infos| &mut bundle_file_infos[bundle_file_info])
+    }
+
+    fn alloc_bundle_file_info(&self, bundle_file_info: BundleFileInfo) -> Id<BundleFileInfo> {
+        let id = self.bundle_file_infos.borrow_mut().alloc(bundle_file_info);
+        id
+    }
 }
 
 pub trait InArena {
     type Item: ?Sized;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Self::Item>;
-    // fn ref_mut(&self) -> RefMut<Type>;
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Self::Item> {
+        // TODO: this is mad janky but I think this method might go away?
+        unimplemented!()
+    }
 }
 
 impl InArena for Id<Node> {
@@ -1452,6 +1548,46 @@ impl InArena for Id<BundleFileSection> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, BundleFileSection> {
         has_arena.bundle_file_section(*self)
+    }
+}
+
+impl InArena for Id<BuildInfo> {
+    type Item = BuildInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, BuildInfo> {
+        has_arena.build_info(*self)
+    }
+}
+
+impl InArena for Id<ProgramBuildInfo> {
+    type Item = ProgramBuildInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ProgramBuildInfo> {
+        has_arena.program_build_info(*self)
+    }
+}
+
+impl InArena for Id<BundleBuildInfo> {
+    type Item = BundleBuildInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, BundleBuildInfo> {
+        has_arena.bundle_build_info(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, BundleBuildInfo> {
+        has_arena.bundle_build_info_mut(*self)
+    }
+}
+
+impl InArena for Id<BundleFileInfo> {
+    type Item = BundleFileInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, BundleFileInfo> {
+        has_arena.bundle_file_info(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, BundleFileInfo> {
+        has_arena.bundle_file_info_mut(*self)
     }
 }
 

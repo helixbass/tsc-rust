@@ -733,7 +733,7 @@ pub fn create_input_files(
     javascript_path: Option<String>,
     declaration_path: Option<String>,
     build_info_path: Option<String>,
-    build_info: Option<Gc<BuildInfo>>,
+    build_info: Option<Id<BuildInfo>>,
     old_file_of_current_emit: Option<bool>,
     arena: &impl HasArena,
 ) -> Id<Node /*InputFiles*/> {

@@ -967,7 +967,7 @@ impl InputFiles {
         javascript_path: Option<String>,
         declaration_path: Option<String>,
         build_info_path: Option<String>,
-        build_info: Option<Gc<BuildInfo>>,
+        build_info: Option<Id<BuildInfo>>,
         old_file_of_current_emit: Option<bool>,
     ) {
         self.initialized_state = Gc::new(InputFilesInitializedState::InitializedWithString(
@@ -1047,7 +1047,7 @@ impl InputFiles {
         }
     }
 
-    pub fn build_info(&self) -> Option<Gc<BuildInfo>> {
+    pub fn build_info(&self) -> Option<Id<BuildInfo>> {
         match &*self.initialized_state {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
@@ -1100,7 +1100,7 @@ struct InputFilesInitializedWithReadFileCallback {
     declaration_map_path: Option<String>,
     declaration_map_text_or_build_info_path: Option<String>,
     #[unsafe_ignore_trace]
-    build_info: GcCell<Option<Option<Gc<BuildInfo>>>>,
+    build_info: GcCell<Option<Option<Id<BuildInfo>>>>,
 }
 
 impl InputFilesInitializedWithReadFileCallback {
@@ -1154,7 +1154,7 @@ impl InputFilesInitializedWithReadFileCallback {
     fn get_and_cache_build_info(
         &self,
         mut get_text: impl FnMut() -> Option<String>,
-    ) -> Option<Gc<BuildInfo>> {
+    ) -> Option<Id<BuildInfo>> {
         let mut build_info = self.build_info.borrow_mut();
         if build_info.is_none() {
             let result = get_text();
@@ -1170,7 +1170,7 @@ struct InputFilesInitializedWithString {
     javascript_map_text: Option<String>,
     declaration_text: String,
     declaration_map_text: Option<String>,
-    build_info: Option<Gc<BuildInfo>>,
+    build_info: Option<Id<BuildInfo>>,
 }
 
 impl InputFilesInitializedWithString {
@@ -1179,7 +1179,7 @@ impl InputFilesInitializedWithString {
         javascript_map_text: Option<String>,
         declaration_text: String,
         declaration_map_text: Option<String>,
-        build_info: Option<Gc<BuildInfo>>,
+        build_info: Option<Id<BuildInfo>>,
     ) -> Self {
         Self {
             javascript_text,
@@ -1715,5 +1715,5 @@ impl fmt::Debug for Program {
 }
 
 pub trait GetProgramBuildInfo: Trace + Finalize {
-    fn call(&self) -> Option<Gc<ProgramBuildInfo>>;
+    fn call(&self) -> Option<Id<ProgramBuildInfo>>;
 }

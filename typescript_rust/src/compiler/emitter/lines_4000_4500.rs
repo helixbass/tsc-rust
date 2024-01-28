@@ -36,7 +36,7 @@ impl Printer {
                 let pos = self.writer().get_text_pos();
                 self.emit(Some(prologue), None)?;
                 if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                    bundle_file_info.borrow_mut().sections.push(self.alloc_bundle_file_section(
+                    bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
                         BundleFileSection::new_prologue(
                             prologue_as_unparsed_prologue
                                 .maybe_data()

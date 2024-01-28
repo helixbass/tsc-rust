@@ -551,7 +551,7 @@ pub(crate) fn emit_files(
     let new_line = get_new_line_character(compiler_options.ref_(arena).new_line, Some(|| host.ref_(arena).get_new_line()), arena);
     let writer = create_text_writer(&new_line, arena);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
-    let mut bundle_build_info: Option<Gc<GcCell<BundleBuildInfo>>> = None;
+    let mut bundle_build_info: Option<Id<BundleBuildInfo>> = None;
     let mut emit_skipped = false;
     let mut exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit> =
         None;
@@ -608,7 +608,7 @@ pub(crate) fn emit_files(
 
 fn emit_source_file_or_bundle(
     host: Id<Box<dyn EmitHost>>,
-    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle_build_info: &mut Option<Id<BundleBuildInfo>>,
     emitted_files_list: &mut Option<Vec<String>>,
     emit_only_dts_files: Option<bool>,
     emit_skipped: &mut bool,
@@ -643,7 +643,7 @@ fn emit_source_file_or_bundle(
                 build_info_path,
                 Some(&ScriptReferenceHost::get_current_directory(&**host.ref_(arena))),
             )));
-            *bundle_build_info = Some(Gc::new(GcCell::new(BundleBuildInfo {
+            *bundle_build_info = Some(self.alloc_bundle_build_info(BundleBuildInfo {
                 common_source_directory: relative_to_build_info(
                     build_info_directory.as_ref().unwrap(),
                     &**host.ref_(arena),
@@ -667,7 +667,7 @@ fn emit_source_file_or_bundle(
                     .collect(),
                 js: Default::default(),
                 dts: Default::default(),
-            })));
+            }));
         }
     }
     // tracing?.push(tracing.Phase.Emit, "emitJsFileOrBundle", { jsFilePath });
@@ -812,7 +812,7 @@ fn emit_build_info(
     emit_skipped: &mut bool,
     host: Id<Box<dyn EmitHost>>,
     emitter_diagnostics: &mut DiagnosticCollection,
-    bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle: Option<Id<BundleBuildInfo>>,
     build_info_path: Option<&str>,
     arena: &impl HasArena,
 ) -> io::Result<()> {
@@ -833,7 +833,7 @@ fn emit_build_info(
             bundle: bundle.clone(),
             program: program.clone(),
             version: version.to_owned(),
-        }),
+        }, arena),
         false,
         None,
         arena,
@@ -849,7 +849,7 @@ fn emit_js_file_or_bundle(
     emit_skipped: &mut bool,
     resolver: Id<Box<dyn EmitResolver>>,
     script_transformers: &[TransformerFactory],
-    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle_build_info: &mut Option<Id<BundleBuildInfo>>,
     writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
@@ -929,7 +929,7 @@ fn emit_js_file_or_bundle(
 
     transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
-        bundle_build_info.borrow_mut().js = printer.ref_(arena).maybe_bundle_file_info().clone();
+        bundle_build_info.ref_mut(arena).js = printer.ref_(arena).maybe_bundle_file_info().clone();
     }
 
     Ok(())
@@ -1003,7 +1003,7 @@ fn emit_declaration_file_or_bundle(
     declaration_transformers: &[TransformerFactory],
     emitter_diagnostics: &mut DiagnosticCollection,
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
-    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle_build_info: &mut Option<Id<BundleBuildInfo>>,
     writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
@@ -1153,7 +1153,7 @@ fn emit_declaration_file_or_bundle(
     }
     declaration_transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
-        bundle_build_info.borrow_mut().js = declaration_printer.ref_(arena).maybe_bundle_file_info().clone();
+        bundle_build_info.ref_mut(arena).js = declaration_printer.ref_(arena).maybe_bundle_file_info().clone();
     }
 
     Ok(())
@@ -1487,11 +1487,11 @@ fn get_source_mapping_url(
     encode_uri(&source_map_file)
 }
 
-pub(crate) fn get_build_info_text(build_info: &BuildInfo) -> String {
-    serde_json::to_string(build_info).unwrap()
+pub(crate) fn get_build_info_text(build_info: &BuildInfo, arena: &impl HasArena) -> String {
+    serde_json::to_string(&build_info.serializable(arena)).unwrap()
 }
 
-pub(crate) fn get_build_info(_build_info_text: &str) -> Gc<BuildInfo> {
+pub(crate) fn get_build_info(_build_info_text: &str) -> Id<BuildInfo> {
     unimplemented!()
 }
 
@@ -1861,10 +1861,10 @@ impl Printer {
         );
         let preserve_source_newlines = printer_options.preserve_source_newlines;
         let bundle_file_info = if printer_options.write_bundle_file_info == Some(true) {
-            Some(Gc::new(GcCell::new(BundleFileInfo {
+            Some(arena_ref.alloc_bundle_file_info(BundleFileInfo {
                 sections: vec![],
                 sources: None,
-            })))
+            }))
         } else {
             None
         };
@@ -2134,11 +2134,11 @@ impl Printer {
         self.is_own_file_emit.set(is_own_file_emit);
     }
 
-    pub(super) fn maybe_bundle_file_info(&self) -> Option<Gc<GcCell<BundleFileInfo>>> {
+    pub(super) fn maybe_bundle_file_info(&self) -> Option<Id<BundleFileInfo>> {
         self.bundle_file_info.borrow().clone()
     }
 
-    pub(super) fn bundle_file_info(&self) -> Gc<GcCell<BundleFileInfo>> {
+    pub(super) fn bundle_file_info(&self) -> Id<BundleFileInfo> {
         self.bundle_file_info.borrow().clone().unwrap()
     }
 
@@ -2479,7 +2479,7 @@ impl Printer {
         kind: BundleFileSectionKind, /*BundleFileTextLikeKind*/
     ) {
         let bundle_file_info = self.bundle_file_info();
-        let mut bundle_file_info = bundle_file_info.borrow_mut();
+        let mut bundle_file_info = bundle_file_info.ref_mut(self);
         let last = last_or_undefined(&bundle_file_info.sections);
         if let Some(last) = last.filter(|last| last.ref_(self).kind() == kind) {
             last.ref_(self).set_end(end);

@@ -1502,7 +1502,7 @@ impl EmitHost for ProgramEmitHost {
         CompilerHost::use_case_sensitive_file_names(&**self.program.ref_(self).host().ref_(self))
     }
 
-    fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>> {
+    fn get_program_build_info(&self) -> Option<Id<ProgramBuildInfo>> {
         self.program
             .ref_(self).maybe_get_program_build_info_rc()
             .and_then(|get_program_build_info| get_program_build_info.call())

@@ -17,7 +17,7 @@ use crate::{
     is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
     BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
     GetOrInsertDefault, Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
-    InArena, static_arena,
+    HasArena, InArena, static_arena,
 };
 
 impl Printer {
@@ -93,14 +93,13 @@ impl Printer {
             let pos = self.writer().get_text_pos();
             let bundle_file_info = self.maybe_bundle_file_info();
             let saved_sections = bundle_file_info
-                .as_ref()
-                .map(|bundle_file_info| (**bundle_file_info).borrow().sections.clone());
+                .map(|bundle_file_info| bundle_file_info.ref_(self).sections.clone());
             if saved_sections.is_some() {
-                bundle_file_info.as_ref().unwrap().borrow_mut().sections = vec![];
+                bundle_file_info.unwrap().ref_mut(self).sections = vec![];
             }
             self.print(EmitHint::Unspecified, prepend, None)?;
             if let Some(bundle_file_info) = bundle_file_info {
-                let mut bundle_file_info = bundle_file_info.borrow_mut();
+                let mut bundle_file_info = bundle_file_info.ref_mut(self);
                 let mut new_sections = bundle_file_info.sections.clone();
                 bundle_file_info.sections = saved_sections.unwrap();
                 if prepend
@@ -138,7 +137,7 @@ impl Printer {
                     let prologues = self.get_prologue_directives_from_bundled_source_files(bundle);
                     if let Some(prologues) = prologues {
                         bundle_file_info
-                            .borrow_mut()
+                            .ref_mut(self)
                             .sources
                             .get_or_insert_default_()
                             .prologues = Some(prologues);
@@ -147,7 +146,7 @@ impl Printer {
                     let helpers = self.get_helpers_from_bundled_source_files(bundle);
                     if let Some(helpers) = helpers {
                         bundle_file_info
-                            .borrow_mut()
+                            .ref_mut(self)
                             .sources
                             .get_or_insert_default_()
                             .helpers = Some(helpers);
