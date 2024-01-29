@@ -86,7 +86,7 @@ impl SymbolTableToDeclarationStatements {
     ) {
         if can_have_modifiers(&node.ref_(self)) {
             let mut new_modifier_flags = ModifierFlags::None;
-            let enclosing_declaration = self.context().maybe_enclosing_declaration().and_then(
+            let enclosing_declaration = self.context().ref_(self).maybe_enclosing_declaration().and_then(
                 |context_enclosing_declaration| {
                     if is_jsdoc_type_alias(&context_enclosing_declaration.ref_(self)) {
                         maybe_get_source_file_of_node(Some(context_enclosing_declaration), self)
@@ -151,7 +151,7 @@ impl SymbolTableToDeclarationStatements {
             .clone();
         let type_param_decls = try_maybe_map(type_params.as_ref(), |&p: &Id<Type>, _| {
             self.node_builder
-                .ref_(self).type_parameter_to_declaration_(p, &self.context(), None)
+                .ref_(self).type_parameter_to_declaration_(p, &self.context().ref_(self), None)
         })
         .transpose()?;
         let jsdoc_alias_decl =
@@ -173,12 +173,12 @@ impl SymbolTableToDeclarationStatements {
                 .or_else(|| jsdoc_alias_decl.ref_(self).parent().ref_(self).as_jsdoc().comment.clone())
         });
         let comment_text = get_text_of_jsdoc_comment(comment.as_ref(), self);
-        let old_flags = self.context().flags();
+        let old_flags = self.context().ref_(self).flags();
         self.context()
-            .set_flags(self.context().flags() | NodeBuilderFlags::InTypeAlias);
-        let old_enclosing_decl = self.context().maybe_enclosing_declaration();
+            .ref_(self).set_flags(self.context().ref_(self).flags() | NodeBuilderFlags::InTypeAlias);
+        let old_enclosing_decl = self.context().ref_(self).maybe_enclosing_declaration();
         self.context()
-            .set_enclosing_declaration(jsdoc_alias_decl.clone());
+            .ref_(self).set_enclosing_declaration(jsdoc_alias_decl.clone());
         let type_node = jsdoc_alias_decl
             .and_then(|jsdoc_alias_decl| {
                 jsdoc_alias_decl
@@ -190,7 +190,7 @@ impl SymbolTableToDeclarationStatements {
             })
             .try_and_then(|jsdoc_alias_decl_type_expression| {
                 self.node_builder.ref_(self).serialize_existing_type_node(
-                    &self.context(),
+                    &self.context().ref_(self),
                     jsdoc_alias_decl_type_expression
                         .ref_(self).as_jsdoc_type_expression()
                         .type_,
@@ -203,7 +203,7 @@ impl SymbolTableToDeclarationStatements {
             .try_unwrap_or_else(|| -> io::Result<_> {
                 Ok(self
                     .node_builder
-                    .ref_(self).type_to_type_node_helper(Some(alias_type), &self.context())?
+                    .ref_(self).type_to_type_node_helper(Some(alias_type), &self.context().ref_(self))?
                     .unwrap())
             })?;
         self.add_result(
@@ -229,8 +229,8 @@ impl SymbolTableToDeclarationStatements {
             ),
             modifier_flags,
         );
-        self.context().set_flags(old_flags);
-        self.context().set_enclosing_declaration(old_enclosing_decl);
+        self.context().ref_(self).set_flags(old_flags);
+        self.context().ref_(self).set_enclosing_declaration(old_enclosing_decl);
 
         Ok(())
     }
@@ -249,7 +249,7 @@ impl SymbolTableToDeclarationStatements {
             .ref_(self).get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         let type_param_decls = try_maybe_map(local_params.as_deref(), |&p: &Id<Type>, _| {
             self.node_builder
-                .ref_(self).type_parameter_to_declaration_(p, &self.context(), None)
+                .ref_(self).type_parameter_to_declaration_(p, &self.context().ref_(self), None)
         })
         .transpose()?;
         let base_types = self.type_checker.ref_(self).get_base_types(interface_type)?;
@@ -386,7 +386,7 @@ impl SymbolTableToDeclarationStatements {
         }
         if !merged_members.is_empty() {
             let containing_file =
-                maybe_get_source_file_of_node(self.context().maybe_enclosing_declaration(), self);
+                maybe_get_source_file_of_node(self.context().ref_(self).maybe_enclosing_declaration(), self);
             let local_name = self.get_internal_symbol_name(symbol, symbol_name);
             let ns_body =
                 get_factory(self).create_module_block(Some(vec![get_factory(self)
@@ -420,7 +420,7 @@ impl SymbolTableToDeclarationStatements {
                                         }
                                     })
                                 {
-                                    self.context().tracker_ref().report_nonlocal_augmentation(
+                                    self.context().ref_(self).tracker_ref().report_nonlocal_augmentation(
                                         containing_file,
                                         symbol,
                                         s,
@@ -540,7 +540,7 @@ impl SymbolTableToDeclarationStatements {
                 .ref_(self).signature_to_signature_declaration_helper(
                     sig.clone(),
                     SyntaxKind::FunctionDeclaration,
-                    &self.context(),
+                    &self.context().ref_(self),
                     Some(SignatureToSignatureDeclarationOptions {
                         name: Some(get_factory(self).create_identifier(local_name)),
                         private_symbol_visitor: Some(|symbol: Id<Symbol>| {
@@ -625,7 +625,7 @@ impl SymbolTableToDeclarationStatements {
                             Some(|&d: &Id<Node>| {
                                 maybe_get_source_file_of_node(Some(d), self) ==
                                 maybe_get_source_file_of_node(
-                                    self.context().maybe_enclosing_declaration(),
+                                    self.context().ref_(self).maybe_enclosing_declaration(),
                                     self,
                                 )
                             }),
@@ -662,7 +662,7 @@ impl SymbolTableToDeclarationStatements {
             self.set_results(vec![]);
             let old_adding_declare = self.adding_declare();
             self.set_adding_declare(false);
-            let subcontext = Gc::new((*self.context()).clone());
+            let subcontext = self.alloc_node_builder_context(self.context().ref_(self).clone());
             subcontext.set_rc_wrapper(Some(subcontext.clone()));
             subcontext.set_enclosing_declaration(Some(fakespace.clone()));
             let old_context = self.context();
@@ -747,8 +747,8 @@ impl SymbolTableToDeclarationStatements {
         let result = try_map_defined(Some(clauses), |&e: &Id<Node>, _| -> io::Result<_> {
             let e_ref = e.ref_(self);
             let e_as_expression_with_type_arguments = e_ref.as_expression_with_type_arguments();
-            let old_enclosing = self.context().maybe_enclosing_declaration();
-            self.context().set_enclosing_declaration(Some(e));
+            let old_enclosing = self.context().ref_(self).maybe_enclosing_declaration();
+            self.context().ref_(self).set_enclosing_declaration(Some(e));
             let mut expr = e_as_expression_with_type_arguments.expression;
             if is_entity_name_expression(expr, self) {
                 if is_identifier(&expr.ref_(self)) && id_text(&expr.ref_(self)) == "" {
@@ -759,7 +759,7 @@ impl SymbolTableToDeclarationStatements {
                     node,
                 } = self.node_builder.ref_(self).track_existing_entity_name(
                     expr,
-                    &self.context(),
+                    &self.context().ref_(self),
                     Some(&|symbol: Id<Symbol>| {
                         self.include_private_symbol(symbol);
                     }),
@@ -781,7 +781,7 @@ impl SymbolTableToDeclarationStatements {
                             |&a: &Id<Node>, _| -> io::Result<_> {
                                 self.node_builder
                                     .ref_(self).serialize_existing_type_node(
-                                        &self.context(),
+                                        &self.context().ref_(self),
                                         a,
                                         Some(&|symbol: Id<Symbol>| {
                                             self.include_private_symbol(symbol);
@@ -796,7 +796,7 @@ impl SymbolTableToDeclarationStatements {
                                                     self.type_checker
                                                         .ref_(self).get_type_from_type_node_(a)?,
                                                 ),
-                                                &self.context(),
+                                                &self.context().ref_(self),
                                             )?
                                             .unwrap())
                                     })
@@ -818,7 +818,7 @@ impl SymbolTableToDeclarationStatements {
         old_enclosing: Option<Id<Node>>,
         result: Option<Id<Node>>,
     ) -> Option<Id<Node>> {
-        self.context().set_enclosing_declaration(old_enclosing);
+        self.context().ref_(self).set_enclosing_declaration(old_enclosing);
         result
     }
 
@@ -839,15 +839,15 @@ impl SymbolTableToDeclarationStatements {
                         .find(|declaration| is_class_like(&declaration.ref_(self)))
                         .cloned()
                 });
-        let old_enclosing = self.context().maybe_enclosing_declaration();
+        let old_enclosing = self.context().ref_(self).maybe_enclosing_declaration();
         self.context()
-            .set_enclosing_declaration(original_decl.clone().or_else(|| old_enclosing.clone()));
+            .ref_(self).set_enclosing_declaration(original_decl.clone().or_else(|| old_enclosing.clone()));
         let local_params = self
             .type_checker
             .ref_(self).get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
         let type_param_decls = try_maybe_map(local_params.as_ref(), |&p: &Id<Type>, _| {
             self.node_builder
-                .ref_(self).type_parameter_to_declaration_(p, &self.context(), None)
+                .ref_(self).type_parameter_to_declaration_(p, &self.context().ref_(self), None)
         })
         .transpose()?;
         let class_type = self
@@ -989,7 +989,7 @@ impl SymbolTableToDeclarationStatements {
         };
         let index_signatures =
             self.serialize_index_signatures(class_type, base_types.get(0).copied())?;
-        self.context().set_enclosing_declaration(old_enclosing);
+        self.context().ref_(self).set_enclosing_declaration(old_enclosing);
         self.add_result(
             set_text_range_id_node(
                 get_factory(self).create_class_declaration(
@@ -1108,7 +1108,7 @@ impl SymbolTableToDeclarationStatements {
                 ) {
                     let specifier = self.node_builder.ref_(self).get_specifier_for_module_symbol(
                         target.ref_(self).maybe_parent().unwrap_or(target),
-                        &self.context(),
+                        &self.context().ref_(self),
                     )?;
                     let property_name = node.ref_(self).as_binding_element().property_name;
                     self.add_result(
@@ -1174,7 +1174,7 @@ impl SymbolTableToDeclarationStatements {
                     let unique_name = get_factory(self).create_unique_name(local_name, None);
                     let specifier = self.node_builder.ref_(self).get_specifier_for_module_symbol(
                         target.ref_(self).maybe_parent().unwrap_or(target),
-                        &self.context(),
+                        &self.context().ref_(self),
                     )?;
                     self.add_result(
                         get_factory(self).create_import_equals_declaration(
@@ -1226,7 +1226,7 @@ impl SymbolTableToDeclarationStatements {
                         if is_local_import {
                             self.node_builder.ref_(self).symbol_to_name(
                                 target,
-                                &self.context(),
+                                &self.context().ref_(self),
                                 Some(SymbolFlags::All),
                                 false,
                             )?
@@ -1234,7 +1234,7 @@ impl SymbolTableToDeclarationStatements {
                             get_factory(self).create_external_module_reference(
                                 get_factory(self).create_string_literal(
                                     self.node_builder
-                                        .ref_(self).get_specifier_for_module_symbol(target, &self.context())?,
+                                        .ref_(self).get_specifier_for_module_symbol(target, &self.context().ref_(self))?,
                                     None,
                                     None,
                                 ),
@@ -1272,7 +1272,7 @@ impl SymbolTableToDeclarationStatements {
                         if is_local_import {
                             self.node_builder.ref_(self).symbol_to_name(
                                 target,
-                                &self.context(),
+                                &self.context().ref_(self),
                                 Some(SymbolFlags::All),
                                 false,
                             )?
@@ -1280,7 +1280,7 @@ impl SymbolTableToDeclarationStatements {
                             get_factory(self).create_external_module_reference(
                                 get_factory(self).create_string_literal(
                                     self.node_builder
-                                        .ref_(self).get_specifier_for_module_symbol(target, &self.context())?,
+                                        .ref_(self).get_specifier_for_module_symbol(target, &self.context().ref_(self))?,
                                     None,
                                     None,
                                 ),
@@ -1315,7 +1315,7 @@ impl SymbolTableToDeclarationStatements {
                         get_factory(self).create_string_literal(
                             self.node_builder.ref_(self).get_specifier_for_module_symbol(
                                 target.ref_(self).maybe_parent().unwrap_or(target),
-                                &self.context(),
+                                &self.context().ref_(self),
                             )?,
                             None,
                             None,
@@ -1339,7 +1339,7 @@ impl SymbolTableToDeclarationStatements {
                         )),
                         get_factory(self).create_string_literal(
                             self.node_builder
-                                .ref_(self).get_specifier_for_module_symbol(target, &self.context())?,
+                                .ref_(self).get_specifier_for_module_symbol(target, &self.context().ref_(self))?,
                             None,
                             None,
                         ),
@@ -1362,7 +1362,7 @@ impl SymbolTableToDeclarationStatements {
                         Some(
                             get_factory(self).create_string_literal(
                                 self.node_builder
-                                    .ref_(self).get_specifier_for_module_symbol(target, &self.context())?,
+                                    .ref_(self).get_specifier_for_module_symbol(target, &self.context().ref_(self))?,
                                 None,
                                 None,
                             ),
@@ -1393,7 +1393,7 @@ impl SymbolTableToDeclarationStatements {
                         get_factory(self).create_string_literal(
                             self.node_builder.ref_(self).get_specifier_for_module_symbol(
                                 target.ref_(self).maybe_parent().unwrap_or(target),
-                                &self.context(),
+                                &self.context().ref_(self),
                             )?,
                             None,
                             None,

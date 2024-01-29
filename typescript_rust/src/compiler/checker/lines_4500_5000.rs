@@ -741,6 +741,7 @@ impl NodeBuilder {
             enclosing_declaration,
             flags.unwrap_or(NodeBuilderFlags::None),
             tracker.clone(),
+            self,
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
         context.set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
@@ -786,6 +787,7 @@ impl NodeBuilder {
             enclosing_declaration,
             flags.unwrap_or(NodeBuilderFlags::None),
             tracker.clone(),
+            self,
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
         context.set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
@@ -1607,7 +1609,7 @@ impl HasArena for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
 }
 
 pub(super) fn wrap_symbol_tracker_to_report_for_context(
-    context: Gc<NodeBuilderContext>,
+    context: Id<NodeBuilderContext>,
     tracker: Id<Box<dyn SymbolTracker>>,
 ) -> NodeBuilderContextWrappedSymbolTracker {
     NodeBuilderContextWrappedSymbolTracker::new(tracker, context)
@@ -1618,13 +1620,13 @@ pub(super) struct NodeBuilderContextWrappedSymbolTracker {
     #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
     tracker: Id<Box<dyn SymbolTracker>>,
-    context: Gc<NodeBuilderContext>,
+    context: Id<NodeBuilderContext>,
 }
 
 impl NodeBuilderContextWrappedSymbolTracker {
     pub(super) fn new(
         tracker: Id<Box<dyn SymbolTracker>>,
-        context: Gc<NodeBuilderContext>,
+        context: Id<NodeBuilderContext>,
     ) -> Self {
         Self {
             is_track_symbol_disabled: Default::default(),
@@ -1634,7 +1636,7 @@ impl NodeBuilderContextWrappedSymbolTracker {
     }
 
     fn mark_context_reported_diagnostic(&self) {
-        (*self.context).borrow().reported_diagnostic.set(true);
+        self.context.ref_(self).reported_diagnostic.set(true);
     }
 }
 
@@ -1812,7 +1814,7 @@ impl HasArena for NodeBuilderContextWrappedSymbolTracker {
 
 #[derive(Trace, Finalize)]
 pub struct NodeBuilderContext {
-    pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilderContext>>>,
+    pub(super) _arena_id: GcCell<Option<Id<NodeBuilderContext>>>,
     pub(super) enclosing_declaration: Gc<GcCell<Option<Id<Node>>>>,
     #[unsafe_ignore_trace]
     pub flags: Cell<NodeBuilderFlags>,
@@ -1850,9 +1852,10 @@ impl NodeBuilderContext {
         enclosing_declaration: Option<Id<Node>>,
         flags: NodeBuilderFlags,
         tracker: Id<Box<dyn SymbolTracker>>,
-    ) -> Gc<Self> {
-        let ret = Gc::new(Self {
-            _rc_wrapper: Default::default(),
+        arena: &impl HasArena,
+    ) -> Id<Self> {
+        arena.alloc_node_builder_context(Self {
+            _arena_id: Default::default(),
             enclosing_declaration: Gc::new(GcCell::new(enclosing_declaration)),
             flags: Cell::new(flags),
             tracker: GcCell::new(tracker),
@@ -1870,17 +1873,15 @@ impl NodeBuilderContext {
             used_symbol_names: Default::default(),
             remapped_symbol_names: Default::default(),
             reverse_mapped_stack: Default::default(),
-        });
-        *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
-        ret
+        })
     }
 
-    pub fn rc_wrapper(&self) -> Gc<Self> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_rc_wrapper(&self, rc_wrapper: Option<Gc<Self>>) {
-        *self._rc_wrapper.borrow_mut() = rc_wrapper;
+    pub(super) fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     pub fn maybe_enclosing_declaration(&self) -> Option<Id<Node>> {
@@ -1956,7 +1957,7 @@ impl NodeBuilderContext {
 impl Clone for NodeBuilderContext {
     fn clone(&self) -> Self {
         Self {
-            _rc_wrapper: Default::default(),
+            _arena_id: Default::default(),
             enclosing_declaration: self.enclosing_declaration.clone(),
             flags: self.flags.clone(),
             tracker: self.tracker.clone(),

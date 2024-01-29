@@ -598,9 +598,9 @@ impl NodeBuilder {
 
     pub(super) fn clone_node_builder_context(
         &self,
-        context: Gc<NodeBuilderContext>,
-    ) -> Gc<NodeBuilderContext> {
-        let initial = Gc::new((*context).clone());
+        context: Id<NodeBuilderContext>,
+    ) -> Id<NodeBuilderContext> {
+        let initial = self.alloc_node_builder_context(context.ref_(self).clone());
         {
             let mut initial_type_parameter_names = initial.type_parameter_names.borrow_mut();
             if initial_type_parameter_names.is_some() {

@@ -30,7 +30,7 @@ use crate::{
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer, NodeBuilder,
+    CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext,
 };
 
 #[derive(Default)]
@@ -148,6 +148,7 @@ pub struct AllArenas {
     pub check_type_error_output_containers: RefCell<Arena<Box<dyn CheckTypeErrorOutputContainer>>>,
     pub resolved_type_reference_directives_maps: RefCell<Arena<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
     pub node_builders: RefCell<Arena<NodeBuilder>>,
+    pub node_builder_contexts: RefCell<Arena<NodeBuilderContext>>,
 }
 
 pub trait HasArena {
@@ -1115,6 +1116,14 @@ pub trait HasArena {
 
     fn alloc_node_builder(&self, node_builder: NodeBuilder) -> Id<NodeBuilder> {
         self.arena().alloc_node_builder(node_builder)
+    }
+
+    fn node_builder_context(&self, node_builder_context: Id<NodeBuilderContext>) -> Ref<NodeBuilderContext> {
+        self.arena().node_builder_context(node_builder_context)
+    }
+
+    fn alloc_node_builder_context(&self, node_builder_context: NodeBuilderContext) -> Id<NodeBuilderContext> {
+        self.arena().alloc_node_builder_context(node_builder_context)
     }
 }
 
@@ -2323,6 +2332,17 @@ impl HasArena for AllArenas {
         id.ref_(self).set_arena_id(id);
         id
     }
+
+    #[track_caller]
+    fn node_builder_context(&self, node_builder_context: Id<NodeBuilderContext>) -> Ref<NodeBuilderContext> {
+        Ref::map(self.node_builder_contexts.borrow(), |node_builder_contexts| &node_builder_contexts[node_builder_context])
+    }
+
+    fn alloc_node_builder_context(&self, node_builder_context: NodeBuilderContext) -> Id<NodeBuilderContext> {
+        let id = self.node_builder_contexts.borrow_mut().alloc(node_builder_context);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3296,6 +3316,14 @@ impl InArena for Id<NodeBuilder> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeBuilder> {
         has_arena.node_builder(*self)
+    }
+}
+
+impl InArena for Id<NodeBuilderContext> {
+    type Item = NodeBuilderContext;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeBuilderContext> {
+        has_arena.node_builder_context(*self)
     }
 }
 

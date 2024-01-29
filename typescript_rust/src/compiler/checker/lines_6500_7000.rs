@@ -73,7 +73,7 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) _rc_wrapper: GcCell<Option<Gc<Self>>>,
     pub(super) bundled: Option<bool>,
     pub(super) type_checker: Id<TypeChecker>,
-    pub(super) context: GcCell<Gc<NodeBuilderContext>>,
+    pub(super) context: GcCell<Id<NodeBuilderContext>>,
     pub(super) node_builder: Id<NodeBuilder>,
     pub(super) serialize_property_symbol_for_class: GcCell<Option<MakeSerializePropertySymbol>>,
     pub(super) serialize_property_symbol_for_interface_worker:
@@ -82,7 +82,7 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) results: GcCell<Vec<Id<Node>>>,
     pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
     pub(super) deferred_privates_stack: GcCell<Vec<HashMap<SymbolId, Id<Symbol>>>>,
-    pub(super) oldcontext: Gc<NodeBuilderContext>,
+    pub(super) oldcontext: Id<NodeBuilderContext>,
     pub(super) symbol_table: GcCell<Id<SymbolTable>>,
     #[unsafe_ignore_trace]
     pub(super) adding_declare: Cell<bool>,
@@ -103,7 +103,7 @@ impl SymbolTableToDeclarationStatements {
         bundled: Option<bool>,
         arena: &impl HasArena,
     ) -> Gc<Self> {
-        let oldcontext = context.rc_wrapper();
+        let oldcontext = context.arena_id();
         let mut context = context.clone();
         context.used_symbol_names = Rc::new(RefCell::new(Some(
             match oldcontext.maybe_used_symbol_names().as_ref() {
@@ -112,7 +112,7 @@ impl SymbolTableToDeclarationStatements {
             },
         )));
         context.remapped_symbol_names = Rc::new(RefCell::new(Some(Default::default())));
-        let context = Gc::new(context);
+        let context = arena.alloc_node_builder_context(context);
         let ret = Gc::new(Self {
             _rc_wrapper: Default::default(),
             bundled,
@@ -143,7 +143,7 @@ impl SymbolTableToDeclarationStatements {
             false,
         ));
         context.set_tracker(SymbolTableToDeclarationStatementsSymbolTracker::new(
-            oldcontext.tracker(),
+            oldcontext.ref_(arena).tracker(),
             type_checker,
             node_builder.clone(),
             context.clone(),
@@ -160,11 +160,11 @@ impl SymbolTableToDeclarationStatements {
         self._rc_wrapper.borrow().clone().unwrap()
     }
 
-    pub fn context(&self) -> Gc<NodeBuilderContext> {
+    pub fn context(&self) -> Id<NodeBuilderContext> {
         self.context.borrow().clone()
     }
 
-    pub fn set_context(&self, context: Gc<NodeBuilderContext>) {
+    pub fn set_context(&self, context: Id<NodeBuilderContext>) {
         *self.context.borrow_mut() = context;
     }
 
@@ -736,9 +736,9 @@ impl SymbolTableToDeclarationStatements {
             self.set_context(self.node_builder.ref_(self).clone_node_builder_context(self.context()));
             /*const result =*/
             self.serialize_symbol_worker(symbol, is_private, property_as_alias)?;
-            if self.context().reported_diagnostic() {
+            if self.context().ref_(self).reported_diagnostic() {
                 self.oldcontext
-                    .set_reported_diagnostic(self.context().reported_diagnostic());
+                    .ref_(self).set_reported_diagnostic(self.context().ref_(self).reported_diagnostic());
             }
             self.set_context(old_context);
             return Ok(()) /*result*/;
@@ -759,12 +759,12 @@ impl SymbolTableToDeclarationStatements {
         if is_private
             && self
                 .context()
-                .flags()
+                .ref_(self).flags()
                 .intersects(NodeBuilderFlags::AllowAnonymousIdentifier)
             && is_string_a_non_contextual_keyword(symbol_name)
             && !is_default
         {
-            self.context().set_encountered_error(true);
+            self.context().ref_(self).set_encountered_error(true);
             return Ok(());
         }
         let mut needs_post_export_default = is_default
@@ -930,9 +930,9 @@ impl SymbolTableToDeclarationStatements {
                             ),
                             ModifierFlags::None
                         );
-                        self.context().tracker_ref().track_symbol(
+                        self.context().ref_(self).tracker_ref().track_symbol(
                             type_.ref_(self).symbol(),
-                            self.context().maybe_enclosing_declaration(),
+                            self.context().ref_(self).maybe_enclosing_declaration(),
                             SymbolFlags::Value,
                         ).transpose()?;
                     } else {
@@ -945,7 +945,7 @@ impl SymbolTableToDeclarationStatements {
                                                 Some(&*name),
                                                 None,
                                                 Some(self.node_builder.ref_(self).serialize_type_for_declaration(
-                                                    &self.context(),
+                                                    &self.context().ref_(self),
                                                     type_,
                                                     symbol,
                                                     Some(self.enclosing_declaration),
@@ -1069,7 +1069,7 @@ impl SymbolTableToDeclarationStatements {
                             Some(get_factory(self).create_string_literal(
                                 self.node_builder.ref_(self).get_specifier_for_module_symbol(
                                     resolved_module,
-                                    &self.context(),
+                                    &self.context().ref_(self),
                                 )?,
                                 None,
                                 None,
@@ -1123,7 +1123,7 @@ struct SymbolTableToDeclarationStatementsSymbolTracker {
     oldcontext_tracker: Id<Box<dyn SymbolTracker>>,
     type_checker: Id<TypeChecker>,
     node_builder: NodeBuilder,
-    context: Gc<NodeBuilderContext>,
+    context: Id<NodeBuilderContext>,
     symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
 }
 
@@ -1132,7 +1132,7 @@ impl SymbolTableToDeclarationStatementsSymbolTracker {
         oldcontext_tracker: Id<Box<dyn SymbolTracker>>,
         type_checker: Id<TypeChecker>,
         node_builder: NodeBuilder,
-        context: Gc<NodeBuilderContext>,
+        context: Id<NodeBuilderContext>,
         symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
         arena: &impl HasArena,
     ) -> Id<Box<dyn SymbolTracker>> {
@@ -1171,7 +1171,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
         if accessible_result.accessibility == SymbolAccessibility::Accessible {
             let chain = match self.node_builder.lookup_symbol_chain_worker(
                 sym,
-                &self.context,
+                &self.context.ref_(self),
                 Some(meaning),
                 None,
             ) {
