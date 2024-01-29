@@ -1673,7 +1673,7 @@ pub struct Program {
         GcCell<Option<Option<Id<Node /*ObjectLiteralExpression*/>>>>,
     pub(crate) module_resolution_cache: GcCell<Option<Gc<ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
-        GcCell<Option<Gc<TypeReferenceDirectiveResolutionCache>>>,
+        GcCell<Option<Id<TypeReferenceDirectiveResolutionCache>>>,
     pub(crate) actual_resolve_module_names_worker:
         GcCell<Option<Gc<Box<dyn ActualResolveModuleNamesWorker>>>>,
     pub(crate) actual_resolve_type_reference_directive_names_worker:

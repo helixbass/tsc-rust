@@ -530,7 +530,7 @@ pub fn resolve_type_reference_directive(
     mut options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
-    cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
+    cache: Option<Id<TypeReferenceDirectiveResolutionCache>>,
     arena: &impl HasArena,
 ) -> io::Result<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&options.ref_(arena), host);
@@ -544,7 +544,7 @@ pub fn resolve_type_reference_directive(
         if let (Some(containing_directory), Some(cache)) =
             (containing_directory.as_ref(), cache.as_ref())
         {
-            Some(cache.get_or_create_cache_for_directory(
+            Some(cache.ref_(arena).get_or_create_cache_for_directory(
                 containing_directory,
                 redirected_reference.clone(),
             ))
@@ -665,7 +665,7 @@ pub fn resolve_type_reference_directive(
         host,
         trace_enabled,
         failed_lookup_locations: RefCell::new(failed_lookup_locations),
-        package_json_info_cache: cache_clone.map(|cache| cache.as_dyn_package_json_info_cache()),
+        package_json_info_cache: cache_clone.map(|cache| cache.ref_(arena).as_dyn_package_json_info_cache()),
         features: NodeResolutionFeatures::AllFeatures,
         conditions: vec!["node".to_owned(), "require".to_owned(), "types".to_owned()],
         result_from_cache: RefCell::new(None),

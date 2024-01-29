@@ -57,7 +57,7 @@ pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
 pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     options: Id<CompilerOptions>,
     host: Id<Box<dyn CompilerHost>>,
-    type_reference_directive_resolution_cache: Option<Gc<TypeReferenceDirectiveResolutionCache>>,
+    type_reference_directive_resolution_cache: Option<Id<TypeReferenceDirectiveResolutionCache>>,
 }
 
 impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
@@ -65,7 +65,7 @@ impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
         options: Id<CompilerOptions>,
         host: Id<Box<dyn CompilerHost>>,
         type_reference_directive_resolution_cache: Option<
-            Gc<TypeReferenceDirectiveResolutionCache>,
+            Id<TypeReferenceDirectiveResolutionCache>,
         >,
     ) -> Self {
         Self {
@@ -1027,7 +1027,7 @@ impl Program {
             )));
         } else {
             *self.type_reference_directive_resolution_cache.borrow_mut() =
-                Some(Gc::new(create_type_reference_directive_resolution_cache(
+                Some(self.alloc_type_reference_directive_resolution_cache(create_type_reference_directive_resolution_cache(
                     &self.current_directory(),
                     self.get_canonical_file_name_rc(),
                     None,
@@ -1637,7 +1637,7 @@ impl Program {
 
     pub(super) fn maybe_type_reference_directive_resolution_cache(
         &self,
-    ) -> GcCellRefMut<Option<Gc<TypeReferenceDirectiveResolutionCache>>> {
+    ) -> GcCellRefMut<Option<Id<TypeReferenceDirectiveResolutionCache>>> {
         self.type_reference_directive_resolution_cache.borrow_mut()
     }
 

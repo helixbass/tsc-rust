@@ -22,7 +22,7 @@ use crate::{
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
-    BuilderProgram,
+    BuilderProgram, TypeReferenceDirectiveResolutionCache,
 };
 
 #[derive(Default)]
@@ -108,6 +108,7 @@ pub struct AllArenas {
     pub compiler_host_likes: RefCell<Arena<Box<dyn CompilerHostLike>>>,
     pub directory_structure_hosts: RefCell<Arena<Box<dyn DirectoryStructureHost>>>,
     pub builder_programs: RefCell<Arena<Box<dyn BuilderProgram>>>,
+    pub type_reference_directive_resolution_caches: RefCell<Arena<TypeReferenceDirectiveResolutionCache>>,
 }
 
 pub trait HasArena {
@@ -787,6 +788,14 @@ pub trait HasArena {
 
     fn alloc_builder_program(&self, builder_program: Box<dyn BuilderProgram>) -> Id<Box<dyn BuilderProgram>> {
         self.arena().alloc_builder_program(builder_program)
+    }
+
+    fn type_reference_directive_resolution_cache(&self, type_reference_directive_resolution_cache: Id<TypeReferenceDirectiveResolutionCache>) -> Ref<TypeReferenceDirectiveResolutionCache> {
+        self.arena().type_reference_directive_resolution_cache(type_reference_directive_resolution_cache)
+    }
+
+    fn alloc_type_reference_directive_resolution_cache(&self, type_reference_directive_resolution_cache: TypeReferenceDirectiveResolutionCache) -> Id<TypeReferenceDirectiveResolutionCache> {
+        self.arena().alloc_type_reference_directive_resolution_cache(type_reference_directive_resolution_cache)
     }
 }
 
@@ -1642,6 +1651,16 @@ impl HasArena for AllArenas {
         let id = self.builder_programs.borrow_mut().alloc(builder_program);
         id
     }
+
+    #[track_caller]
+    fn type_reference_directive_resolution_cache(&self, type_reference_directive_resolution_cache: Id<TypeReferenceDirectiveResolutionCache>) -> Ref<TypeReferenceDirectiveResolutionCache> {
+        Ref::map(self.type_reference_directive_resolution_caches.borrow(), |type_reference_directive_resolution_caches| &type_reference_directive_resolution_caches[type_reference_directive_resolution_cache])
+    }
+
+    fn alloc_type_reference_directive_resolution_cache(&self, type_reference_directive_resolution_cache: TypeReferenceDirectiveResolutionCache) -> Id<TypeReferenceDirectiveResolutionCache> {
+        let id = self.type_reference_directive_resolution_caches.borrow_mut().alloc(type_reference_directive_resolution_cache);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2327,6 +2346,14 @@ impl InArena for Id<Box<dyn BuilderProgram>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn BuilderProgram>> {
         has_arena.builder_program(*self)
+    }
+}
+
+impl InArena for Id<TypeReferenceDirectiveResolutionCache> {
+    type Item = TypeReferenceDirectiveResolutionCache;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TypeReferenceDirectiveResolutionCache> {
+        has_arena.type_reference_directive_resolution_cache(*self)
     }
 }
 
