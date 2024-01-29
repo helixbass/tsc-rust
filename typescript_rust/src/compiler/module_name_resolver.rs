@@ -532,7 +532,7 @@ pub fn resolve_type_reference_directive(
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     cache: Option<Id<TypeReferenceDirectiveResolutionCache>>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference {
         options = redirected_reference.ref_(arena).command_line.ref_(arena).options.clone();
@@ -583,7 +583,7 @@ pub fn resolve_type_reference_directive(
                     containing_directory.clone().unwrap(),
                 ])
             );
-            trace_result(host, type_reference_directive_name, result, arena);
+            trace_result(host, type_reference_directive_name, &result.ref_(arena), arena);
         }
         return Ok(result.clone());
     }
@@ -716,7 +716,7 @@ pub fn resolve_type_reference_directive(
             is_external_library_import: Some(path_contains_node_modules(&file_name)),
         }));
     }
-    result = Some(Gc::new(
+    result = Some(arena.alloc_resolved_type_reference_directive_with_failed_lookup_locations(
         ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
             resolved_type_reference_directive,
             failed_lookup_locations: module_resolution_state
@@ -730,7 +730,7 @@ pub fn resolve_type_reference_directive(
         per_folder_cache.set(type_reference_directive_name, None, result.clone());
     }
     if trace_enabled {
-        trace_result(host, type_reference_directive_name, &result, arena);
+        trace_result(host, type_reference_directive_name, &result.ref_(arena), arena);
     }
     Ok(result)
 }
@@ -961,7 +961,7 @@ pub fn get_automatic_type_directive_names(
 #[derive(Trace, Finalize)]
 pub struct TypeReferenceDirectiveResolutionCache {
     pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
-        Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
+        Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
     >,
     pub package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
@@ -1551,7 +1551,7 @@ pub fn create_type_reference_directive_resolution_cache(
     directory_to_module_name_map: Option<
         Gc<
             CacheWithRedirects<
-                ModeAwareCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
+                ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
             >,
         >,
     >,
@@ -1581,14 +1581,14 @@ impl TypeReferenceDirectiveResolutionCache {
     }
 }
 
-impl PerDirectoryResolutionCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>
+impl PerDirectoryResolutionCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>
     for TypeReferenceDirectiveResolutionCache
 {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<Gc<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+    ) -> Gc<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }

@@ -27,6 +27,7 @@ use crate::{
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
 };
 
 #[derive(Default)]
@@ -127,6 +128,7 @@ pub struct AllArenas {
     pub private_identifier_infos: RefCell<Arena<PrivateIdentifierInfo>>,
     pub external_module_infos: RefCell<Arena<ExternalModuleInfo>>,
     pub resolved_modules_with_failed_lookup_locations: RefCell<Arena<ResolvedModuleWithFailedLookupLocations>>,
+    pub resolved_type_reference_directives_with_failed_lookup_locations: RefCell<Arena<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
 }
 
 pub trait HasArena {
@@ -938,6 +940,14 @@ pub trait HasArena {
 
     fn alloc_resolved_module_with_failed_lookup_locations(&self, resolved_module_with_failed_lookup_locations: ResolvedModuleWithFailedLookupLocations) -> Id<ResolvedModuleWithFailedLookupLocations> {
         self.arena().alloc_resolved_module_with_failed_lookup_locations(resolved_module_with_failed_lookup_locations)
+    }
+
+    fn resolved_type_reference_directive_with_failed_lookup_locations(&self, resolved_type_reference_directive_with_failed_lookup_locations: Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>) -> Ref<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+        self.arena().resolved_type_reference_directive_with_failed_lookup_locations(resolved_type_reference_directive_with_failed_lookup_locations)
+    }
+
+    fn alloc_resolved_type_reference_directive_with_failed_lookup_locations(&self, resolved_type_reference_directive_with_failed_lookup_locations: ResolvedTypeReferenceDirectiveWithFailedLookupLocations) -> Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+        self.arena().alloc_resolved_type_reference_directive_with_failed_lookup_locations(resolved_type_reference_directive_with_failed_lookup_locations)
     }
 }
 
@@ -1955,6 +1965,16 @@ impl HasArena for AllArenas {
         let id = self.resolved_modules_with_failed_lookup_locations.borrow_mut().alloc(resolved_module_with_failed_lookup_locations);
         id
     }
+
+    #[track_caller]
+    fn resolved_type_reference_directive_with_failed_lookup_locations(&self, resolved_type_reference_directive_with_failed_lookup_locations: Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>) -> Ref<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+        Ref::map(self.resolved_type_reference_directives_with_failed_lookup_locations.borrow(), |resolved_type_reference_directives_with_failed_lookup_locations| &resolved_type_reference_directives_with_failed_lookup_locations[resolved_type_reference_directive_with_failed_lookup_locations])
+    }
+
+    fn alloc_resolved_type_reference_directive_with_failed_lookup_locations(&self, resolved_type_reference_directive_with_failed_lookup_locations: ResolvedTypeReferenceDirectiveWithFailedLookupLocations) -> Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+        let id = self.resolved_type_reference_directives_with_failed_lookup_locations.borrow_mut().alloc(resolved_type_reference_directive_with_failed_lookup_locations);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2772,6 +2792,14 @@ impl InArena for Id<ResolvedModuleWithFailedLookupLocations> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedModuleWithFailedLookupLocations> {
         has_arena.resolved_module_with_failed_lookup_locations(*self)
+    }
+}
+
+impl InArena for Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+    type Item = ResolvedTypeReferenceDirectiveWithFailedLookupLocations;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
+        has_arena.resolved_type_reference_directive_with_failed_lookup_locations(*self)
     }
 }
 

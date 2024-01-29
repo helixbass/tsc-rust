@@ -94,7 +94,7 @@ impl LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>
             self.type_reference_directive_resolution_cache.clone(),
             self,
         )?
-        .resolved_type_reference_directive
+        .ref_(self).resolved_type_reference_directive
         .clone()
         .unwrap())
     }
