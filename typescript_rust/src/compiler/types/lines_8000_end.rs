@@ -29,7 +29,7 @@ pub struct Printer {
     pub arena: *const AllArenas,
     pub _arena_id: GcCell<Option<Id<Printer>>>,
     pub printer_options: PrinterOptions,
-    pub handlers: Gc<Box<dyn PrintHandlers>>,
+    pub handlers: Id<Box<dyn PrintHandlers>>,
     pub extended_diagnostics: bool,
     pub new_line: String,
     #[unsafe_ignore_trace]

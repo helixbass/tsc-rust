@@ -901,7 +901,7 @@ fn emit_js_file_or_bundle(
 
     let printer = create_printer(
         printer_options,
-        Some(Gc::new(Box::new(EmitJsFileOrBundlePrintHandlers::new(
+        Some(arena.alloc_print_handlers(Box::new(EmitJsFileOrBundlePrintHandlers::new(
             resolver.clone(),
             transform.clone(),
         )))),
@@ -1099,7 +1099,7 @@ fn emit_declaration_file_or_bundle(
 
     let declaration_printer = create_printer(
         printer_options,
-        Some(Gc::new(Box::new(
+        Some(arena.alloc_print_handlers(Box::new(
             EmitDeclarationFileOrBundlePrintHandlers::new(
                 resolver.clone(),
                 declaration_transform.clone(),
@@ -1820,10 +1820,10 @@ impl PipelinePhase {
 
 pub fn create_printer(
     printer_options: PrinterOptions,
-    handlers: Option<Gc<Box<dyn PrintHandlers>>>,
+    handlers: Option<Id<Box<dyn PrintHandlers>>>,
     arena: &impl HasArena,
 ) -> Id<Printer> {
-    let handlers = handlers.unwrap_or_else(|| Gc::new(Box::new(DummyPrintHandlers)));
+    let handlers = handlers.unwrap_or_else(|| arena.alloc_print_handlers(Box::new(DummyPrintHandlers)));
     let printer = arena.alloc_printer(Printer::new(&*static_arena(), printer_options, handlers));
     *printer.ref_(arena)._arena_id.borrow_mut() = Some(printer.clone());
     printer.ref_(arena).reset();
@@ -1849,7 +1849,7 @@ impl Printer {
     pub fn new(
         arena: *const AllArenas,
         printer_options: PrinterOptions,
-        handlers: Gc<Box<dyn PrintHandlers>>,
+        handlers: Id<Box<dyn PrintHandlers>>,
     ) -> Self {
         let arena_ref = unsafe { &*arena };
         let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
@@ -2058,7 +2058,7 @@ impl Printer {
     }
 
     pub(super) fn has_global_name(&self, name: &str) -> Option<bool> {
-        self.handlers.has_global_name(name)
+        self.handlers.ref_(self).has_global_name(name)
     }
 
     pub(super) fn on_emit_node(
@@ -2067,19 +2067,19 @@ impl Printer {
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        Ok(if self.handlers.is_on_emit_node_supported() {
-            self.handlers.on_emit_node(hint, node, emit_callback)?
+        Ok(if self.handlers.ref_(self).is_on_emit_node_supported() {
+            self.handlers.ref_(self).on_emit_node(hint, node, emit_callback)?
         } else {
             no_emit_notification(hint, node, emit_callback)?
         })
     }
 
     pub(super) fn is_on_emit_node_no_emit_notification(&self) -> bool {
-        !self.handlers.is_on_emit_node_supported()
+        !self.handlers.ref_(self).is_on_emit_node_supported()
     }
 
     pub(super) fn is_emit_notification_enabled(&self, node: Id<Node>) -> Option<bool> {
-        self.handlers.is_emit_notification_enabled(node)
+        self.handlers.ref_(self).is_emit_notification_enabled(node)
     }
 
     pub(super) fn substitute_node(
@@ -2087,39 +2087,39 @@ impl Printer {
         hint: EmitHint,
         node: Id<Node>,
     ) -> io::Result<Option<Id<Node>>> {
-        Ok(Some(if self.handlers.is_substitute_node_supported() {
-            self.handlers.substitute_node(hint, node)?.unwrap()
+        Ok(Some(if self.handlers.ref_(self).is_substitute_node_supported() {
+            self.handlers.ref_(self).substitute_node(hint, node)?.unwrap()
         } else {
             no_emit_substitution(hint, node)
         }))
     }
 
     pub(super) fn is_substitute_node_no_emit_substitution(&self) -> bool {
-        !self.handlers.is_substitute_node_supported()
+        !self.handlers.ref_(self).is_substitute_node_supported()
     }
 
     pub(super) fn on_before_emit_node(&self, node: Option<Id<Node>>) {
-        self.handlers.on_before_emit_node(node)
+        self.handlers.ref_(self).on_before_emit_node(node)
     }
 
     pub(super) fn on_after_emit_node(&self, node: Option<Id<Node>>) {
-        self.handlers.on_after_emit_node(node)
+        self.handlers.ref_(self).on_after_emit_node(node)
     }
 
     pub(super) fn on_before_emit_node_array(&self, nodes: Option<Id<NodeArray>>) {
-        self.handlers.on_before_emit_node_array(nodes)
+        self.handlers.ref_(self).on_before_emit_node_array(nodes)
     }
 
     pub(super) fn on_after_emit_node_array(&self, nodes: Option<Id<NodeArray>>) {
-        self.handlers.on_after_emit_node_array(nodes)
+        self.handlers.ref_(self).on_after_emit_node_array(nodes)
     }
 
     pub(super) fn on_before_emit_token(&self, node: Option<Id<Node>>) {
-        self.handlers.on_before_emit_token(node)
+        self.handlers.ref_(self).on_before_emit_token(node)
     }
 
     pub(super) fn on_after_emit_token(&self, node: Option<Id<Node>>) {
-        self.handlers.on_after_emit_token(node)
+        self.handlers.ref_(self).on_after_emit_token(node)
     }
 
     pub(super) fn write(&self, text: &str) {

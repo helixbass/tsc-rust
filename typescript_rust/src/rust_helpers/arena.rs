@@ -20,7 +20,7 @@ use crate::{
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
-    EmitBinaryExpression, RelativeToBuildInfo,
+    EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers,
 };
 
 #[derive(Default)]
@@ -100,6 +100,7 @@ pub struct AllArenas {
     pub get_symlink_caches: RefCell<Arena<Box<dyn GetSymlinkCache>>>,
     pub emit_binary_expressions: RefCell<Arena<EmitBinaryExpression>>,
     pub relative_to_build_infos: RefCell<Arena<Box<dyn RelativeToBuildInfo>>>,
+    pub print_handlers: RefCell<Arena<Box<dyn PrintHandlers>>>,
 }
 
 pub trait HasArena {
@@ -731,6 +732,14 @@ pub trait HasArena {
 
     fn alloc_relative_to_build_info(&self, relative_to_build_info: Box<dyn RelativeToBuildInfo>) -> Id<Box<dyn RelativeToBuildInfo>> {
         self.arena().alloc_relative_to_build_info(relative_to_build_info)
+    }
+
+    fn print_handlers(&self, print_handlers: Id<Box<dyn PrintHandlers>>) -> Ref<Box<dyn PrintHandlers>> {
+        self.arena().print_handlers(print_handlers)
+    }
+
+    fn alloc_print_handlers(&self, print_handlers: Box<dyn PrintHandlers>) -> Id<Box<dyn PrintHandlers>> {
+        self.arena().alloc_print_handlers(print_handlers)
     }
 }
 
@@ -1526,6 +1535,16 @@ impl HasArena for AllArenas {
         let id = self.relative_to_build_infos.borrow_mut().alloc(relative_to_build_info);
         id
     }
+
+    #[track_caller]
+    fn print_handlers(&self, print_handlers: Id<Box<dyn PrintHandlers>>) -> Ref<Box<dyn PrintHandlers>> {
+        Ref::map(self.print_handlers.borrow(), |print_handlers_| &print_handlers_[print_handlers])
+    }
+
+    fn alloc_print_handlers(&self, print_handlers: Box<dyn PrintHandlers>) -> Id<Box<dyn PrintHandlers>> {
+        let id = self.print_handlers.borrow_mut().alloc(print_handlers);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2163,6 +2182,14 @@ impl InArena for Id<Box<dyn RelativeToBuildInfo>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn RelativeToBuildInfo>> {
         has_arena.relative_to_build_info(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn PrintHandlers>> {
+    type Item = Box<dyn PrintHandlers>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn PrintHandlers>> {
+        has_arena.print_handlers(*self)
     }
 }
 
