@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::{Cell, Ref, RefCell, RefMut},
     cmp,
     collections::HashMap,
@@ -2008,7 +2008,7 @@ pub fn match_pattern_or_exact(
         }
     }
 
-    find_best_pattern_match(&patterns, |pattern: &Rc<Pattern>| &**pattern, candidate)
+    find_best_pattern_match(&patterns, |pattern: &Rc<Pattern>| pattern.clone(), candidate)
         .map(|value| StringOrPattern::Pattern(value.clone()))
 }
 

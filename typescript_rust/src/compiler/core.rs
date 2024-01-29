@@ -2222,16 +2222,16 @@ pub fn matched_text(pattern: &Pattern, candidate: &str) -> String {
     candidate[pattern.prefix.len()..candidate.len() - pattern.suffix.len()].to_owned()
 }
 
-pub fn find_best_pattern_match<'array, TItem, TGetPattern: Fn(&TItem) -> &Pattern>(
-    values: &'array [TItem],
-    get_pattern: TGetPattern,
+pub fn find_best_pattern_match<'a, TItem>(
+    values: &'a [TItem],
+    get_pattern: impl Fn(&TItem) -> Rc<Pattern>,
     candidate: &str,
-) -> Option<&'array TItem> {
+) -> Option<&'a TItem> {
     let mut matched_value: Option<&TItem> = None;
     let mut longest_match_prefix_length: isize = -1;
 
     for v in values {
-        let pattern = get_pattern(v);
+        let pattern = &get_pattern(v);
         let pattern_prefix_len_as_isize: isize = pattern.prefix.len().try_into().unwrap();
         if is_pattern_match(pattern, candidate)
             && pattern_prefix_len_as_isize > longest_match_prefix_length

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, io, ptr};
+use std::{borrow::{Borrow, Cow}, io, ptr};
 
 use gc::{Gc, GcCell};
 use id_arena::Id;
@@ -1012,7 +1012,7 @@ impl TypeChecker {
         if let Some(pattern_ambient_modules) = self.maybe_pattern_ambient_modules().as_ref() {
             let pattern = find_best_pattern_match(
                 pattern_ambient_modules,
-                |pattern| &pattern.ref_(self).pattern,
+                |pattern| pattern.ref_(self).pattern.clone(),
                 module_reference,
             );
             if let Some(pattern) = pattern {
