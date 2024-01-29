@@ -217,7 +217,7 @@ impl TransformDeclarations {
         let host = context.ref_(arena_ref).get_emit_host();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            get_symbol_accessibility_diagnostic: GcCell::new(throw_diagnostic()),
+            get_symbol_accessibility_diagnostic: GcCell::new(throw_diagnostic(arena_ref)),
             needs_declare: Cell::new(true),
             is_bundled_emit: Cell::new(false),
             result_has_external_module_indicator: Cell::new(false),
