@@ -2403,6 +2403,14 @@ impl OptionInArena for Option<Id<NodeArray>> {
     }
 }
 
+impl OptionInArena for Option<Id<TypeReferenceDirectiveResolutionCache>> {
+    type Item = TypeReferenceDirectiveResolutionCache;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, TypeReferenceDirectiveResolutionCache>> {
+        self.map(|type_reference_directive_resolution_cache| has_arena.type_reference_directive_resolution_cache(type_reference_directive_resolution_cache))
+    }
+}
+
 thread_local! {
     static ARENA: Lazy<Rc<AllArenas>> = Lazy::new(Default::default);
 }

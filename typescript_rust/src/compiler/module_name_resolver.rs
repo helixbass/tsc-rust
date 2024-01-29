@@ -25,7 +25,7 @@ use crate::{
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, OptionInArena,
 };
 
 pub(crate) fn trace(
@@ -660,12 +660,14 @@ pub fn resolve_type_reference_directive(
     let failed_lookup_locations: Vec<String> = vec![];
     let cache_clone = cache.clone();
     let cache_clone = cache_clone.as_ref();
+    let cache_ref = cache.refed(arena);
+    let cache_as_dyn_package_json_info_cache = cache_ref.map(|cache| debug_cell::Ref::map(cache, |cache| cache.as_dyn_package_json_info_cache()));
     let module_resolution_state = ModuleResolutionState {
         compiler_options: options.clone(),
         host,
         trace_enabled,
         failed_lookup_locations: RefCell::new(failed_lookup_locations),
-        package_json_info_cache: cache_clone.map(|cache| cache.ref_(arena).as_dyn_package_json_info_cache()),
+        package_json_info_cache: cache_as_dyn_package_json_info_cache.as_deref(),
         features: NodeResolutionFeatures::AllFeatures,
         conditions: vec!["node".to_owned(), "require".to_owned(), "types".to_owned()],
         result_from_cache: RefCell::new(None),
@@ -1575,7 +1577,7 @@ pub fn create_type_reference_directive_resolution_cache(
 }
 
 impl TypeReferenceDirectiveResolutionCache {
-    pub fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache {
+    pub fn as_dyn_package_json_info_cache(&self) -> &(dyn PackageJsonInfoCache + 'static) {
         self
     }
 }
