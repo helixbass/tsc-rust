@@ -890,7 +890,7 @@ impl Program {
                 cached_bind_and_check_diagnostics_for_file: Default::default(),
                 cached_declaration_diagnostics_for_file: Default::default(),
 
-                resolved_type_reference_directives: arena.alloc_resolved_type_reference_directives_map(Default::default()),
+                resolved_type_reference_directives: GcCell::new(arena.alloc_resolved_type_reference_directives_map(Default::default())),
                 file_processing_diagnostics: Default::default(),
 
                 max_node_module_js_depth,
