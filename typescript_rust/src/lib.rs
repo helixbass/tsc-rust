@@ -827,7 +827,7 @@ pub use compiler::{
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
-    arena::{static_arena, AllArenas, HasArena, InArena, OptionInArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory},
+    arena::{static_arena, AllArenas, HasArena, InArena, OptionInArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ArenaAlloc},
     capitalize,
     cell::{gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped},
     combinators::With,

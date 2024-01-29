@@ -25,7 +25,7 @@ use crate::{
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
-    HasArena, AllArenas, InArena, OptionInArena,
+    HasArena, AllArenas, InArena, OptionInArena, ArenaAlloc,
 };
 
 pub(crate) fn trace(
@@ -973,7 +973,10 @@ pub struct ModeAwareCache<TValue: Trace + Finalize + 'static> {
     memoized_reverse_keys: RefCell<HashMap<String, (String, Option<ModuleKind>)>>,
 }
 
-pub trait PerDirectoryResolutionCache<TValue: Trace + Finalize> {
+pub trait PerDirectoryResolutionCache<TValue: Trace + Finalize + 'static>
+where
+    ModeAwareCache<TValue>: ArenaAlloc 
+{
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
@@ -1204,8 +1207,10 @@ pub trait GetCanonicalFileName: Trace + Finalize {
     fn call(&self, file_name: &str) -> String;
 }
 
-impl<TValue: Clone + Trace + Finalize> PerDirectoryResolutionCache<TValue>
+impl<TValue: Clone + Trace + Finalize + 'static> PerDirectoryResolutionCache<TValue>
     for PerDirectoryResolutionCacheConcrete<TValue>
+where
+    ModeAwareCache<TValue>: ArenaAlloc 
 {
     fn get_or_create_cache_for_directory(
         &self,
