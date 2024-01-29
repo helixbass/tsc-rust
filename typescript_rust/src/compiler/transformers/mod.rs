@@ -3,6 +3,7 @@ pub use class_fields::*;
 pub mod declarations;
 pub use declarations::*;
 pub mod destructuring;
+pub use destructuring::*;
 mod esnext;
 pub use esnext::*;
 mod es2021;

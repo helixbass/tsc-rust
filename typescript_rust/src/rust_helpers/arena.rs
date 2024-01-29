@@ -29,6 +29,7 @@ use crate::{
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
+    PendingDeclaration,
 };
 
 #[derive(Default)]
@@ -138,6 +139,7 @@ pub struct AllArenas {
     pub file_reasons: RefCell<Arena<MultiMap<Path, Id<FileIncludeReason>>>>,
     pub get_symbol_accessibility_diagnostic_interfaces: RefCell<Arena<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>>,
     pub option_vec_nodes: RefCell<Arena<Option<Vec<Id<Node>>>>>,
+    pub vec_pending_declarations: RefCell<Arena<Vec<PendingDeclaration>>>,
 }
 
 pub trait HasArena {
@@ -1033,6 +1035,18 @@ pub trait HasArena {
 
     fn alloc_option_vec_node(&self, option_vec_node: Option<Vec<Id<Node>>>) -> Id<Option<Vec<Id<Node>>>> {
         self.arena().alloc_option_vec_node(option_vec_node)
+    }
+
+    fn vec_pending_declaration(&self, vec_pending_declaration: Id<Vec<PendingDeclaration>>) -> Ref<Vec<PendingDeclaration>> {
+        self.arena().vec_pending_declaration(vec_pending_declaration)
+    }
+
+    fn vec_pending_declaration_mut(&self, vec_pending_declaration: Id<Vec<PendingDeclaration>>) -> RefMut<Vec<PendingDeclaration>> {
+        self.arena().vec_pending_declaration_mut(vec_pending_declaration)
+    }
+
+    fn alloc_vec_pending_declaration(&self, vec_pending_declaration: Vec<PendingDeclaration>) -> Id<Vec<PendingDeclaration>> {
+        self.arena().alloc_vec_pending_declaration(vec_pending_declaration)
     }
 }
 
@@ -2152,6 +2166,20 @@ impl HasArena for AllArenas {
         let id = self.option_vec_nodes.borrow_mut().alloc(option_vec_node);
         id
     }
+
+    #[track_caller]
+    fn vec_pending_declaration(&self, vec_pending_declaration: Id<Vec<PendingDeclaration>>) -> Ref<Vec<PendingDeclaration>> {
+        Ref::map(self.vec_pending_declarations.borrow(), |vec_pending_declarations| &vec_pending_declarations[vec_pending_declaration])
+    }
+
+    fn vec_pending_declaration_mut(&self, vec_pending_declaration: Id<Vec<PendingDeclaration>>) -> RefMut<Vec<PendingDeclaration>> {
+        RefMut::map(self.vec_pending_declarations.borrow_mut(), |vec_pending_declarations| &mut vec_pending_declarations[vec_pending_declaration])
+    }
+
+    fn alloc_vec_pending_declaration(&self, vec_pending_declaration: Vec<PendingDeclaration>) -> Id<Vec<PendingDeclaration>> {
+        let id = self.vec_pending_declarations.borrow_mut().alloc(vec_pending_declaration);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3053,6 +3081,18 @@ impl InArena for Id<Option<Vec<Id<Node>>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Vec<Id<Node>>>> {
         has_arena.option_vec_node_mut(*self)
+    }
+}
+
+impl InArena for Id<Vec<PendingDeclaration>> {
+    type Item = Vec<PendingDeclaration>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<PendingDeclaration>> {
+        has_arena.vec_pending_declaration(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Vec<PendingDeclaration>> {
+        has_arena.vec_pending_declaration_mut(*self)
     }
 }
 

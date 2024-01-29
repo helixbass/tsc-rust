@@ -501,7 +501,7 @@ pub fn flatten_destructuring_binding(
 }
 
 #[derive(Trace, Finalize)]
-struct PendingDeclaration {
+pub struct PendingDeclaration {
     pending_expressions: Option<Vec<Id<Node /*Expression*/>>>,
     name: Id<Node /*BindingName*/>,
     value: Id<Node /*Expression*/>,
@@ -522,7 +522,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
 ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
     let hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
     let pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>> = arena.alloc_option_vec_node(_d());
-    let pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>> = _d();
+    let pending_declarations: Id<Vec<PendingDeclaration>> = arena.alloc_vec_pending_declaration(_d());
     let mut declarations: Vec<Id<Node /*VariableDeclaration*/>> = _d();
     let visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>> =
         Rc::new(RefCell::new(visitor));
@@ -583,7 +583,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
             emit_binding_or_assignment(
                 &mut pending_expressions.ref_mut(arena),
                 &*context.ref_(arena),
-                &mut pending_declarations.borrow_mut(),
+                &mut pending_declarations.ref_mut(arena),
                 temp,
                 value,
                 Option::<&Node>::None,
@@ -592,7 +592,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
             );
         } else {
             context.ref_(arena).hoist_variable_declaration(temp);
-            let mut pending_declarations = pending_declarations.borrow_mut();
+            let mut pending_declarations = pending_declarations.ref_mut(arena);
             let pending_declarations_len = pending_declarations.len();
             let pending_declaration = &mut pending_declarations[pending_declarations_len - 1];
             pending_declaration
@@ -624,7 +624,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
         value,
         location,
         original,
-    } in (*pending_declarations).borrow().iter()
+    } in pending_declarations.ref_(arena).iter()
     {
         let variable = context.ref_(arena).factory().ref_(arena).create_variable_declaration(
             Some(name.clone()),
@@ -679,7 +679,7 @@ struct FlattenDestructuringBindingFlattenContext<'visitor> {
     downlevel_iteration: bool,
     hoist_temp_variables: bool,
     pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>>,
-    pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
+    pending_declarations: Id<Vec<PendingDeclaration>>,
     visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>,
     has_transformed_prior_element: Cell<Option<bool>>,
 }
@@ -691,7 +691,7 @@ impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
         downlevel_iteration: bool,
         hoist_temp_variables: bool,
         pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>>,
-        pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
+        pending_declarations: Id<Vec<PendingDeclaration>>,
         visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>,
     ) -> Self {
         Self {
@@ -741,7 +741,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
         emit_binding_or_assignment(
             &mut self.pending_expressions.ref_mut(self),
             &*self.context.ref_(self),
-            &mut self.pending_declarations.borrow_mut(),
+            &mut self.pending_declarations.ref_mut(self),
             target,
             value,
             Some(location),
