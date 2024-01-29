@@ -602,15 +602,17 @@ impl NodeBuilder {
     ) -> Id<NodeBuilderContext> {
         let initial = self.alloc_node_builder_context(context.ref_(self).clone());
         {
-            let mut initial_type_parameter_names = initial.type_parameter_names.borrow_mut();
+            let initial_ref = initial.ref_(self);
+            let mut initial_type_parameter_names = initial_ref.type_parameter_names.borrow_mut();
             if initial_type_parameter_names.is_some() {
                 *initial_type_parameter_names =
                     Some(initial_type_parameter_names.as_ref().unwrap().clone());
             }
         }
         {
+            let initial_ref = initial.ref_(self);
             let mut initial_type_parameter_names_by_text =
-                initial.type_parameter_names_by_text.borrow_mut();
+                initial_ref.type_parameter_names_by_text.borrow_mut();
             if initial_type_parameter_names_by_text.is_some() {
                 *initial_type_parameter_names_by_text = Some(
                     initial_type_parameter_names_by_text
@@ -621,15 +623,16 @@ impl NodeBuilder {
             }
         }
         {
+            let initial_ref = initial.ref_(self);
             let mut initial_type_parameter_symbol_list =
-                initial.type_parameter_symbol_list.borrow_mut();
+                initial_ref.type_parameter_symbol_list.borrow_mut();
             if initial_type_parameter_symbol_list.is_some() {
                 *initial_type_parameter_symbol_list =
                     Some(initial_type_parameter_symbol_list.as_ref().unwrap().clone());
             }
         }
-        let initial_tracker = wrap_symbol_tracker_to_report_for_context(context, initial.tracker());
-        initial.set_tracker(self.alloc_symbol_tracker(Box::new(initial_tracker)));
+        let initial_tracker = wrap_symbol_tracker_to_report_for_context(context, initial.ref_(self).tracker());
+        initial.ref_(self).set_tracker(self.alloc_symbol_tracker(Box::new(initial_tracker)));
         initial
     }
 

@@ -744,8 +744,8 @@ impl NodeBuilder {
             self,
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
-        let context = (*context).borrow();
+        context.ref_(self).set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
+        let context = context.ref_(self);
         let resulting_node = cb(&context);
         if context.truncating.get() == Some(true)
             && context
@@ -790,8 +790,8 @@ impl NodeBuilder {
             self,
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
-        let context = (*context).borrow();
+        context.ref_(self).set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
+        let context = context.ref_(self);
         let resulting_node = cb(&context)?;
         if context.truncating.get() == Some(true)
             && context
@@ -1880,7 +1880,7 @@ impl NodeBuilderContext {
         self._arena_id.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_arena_id(&self, id: Id<Self>) {
+    pub fn set_arena_id(&self, id: Id<Self>) {
         *self._arena_id.borrow_mut() = Some(id);
     }
 
