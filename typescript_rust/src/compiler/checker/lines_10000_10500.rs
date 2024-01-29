@@ -88,7 +88,7 @@ impl TypeChecker {
             *type_
                 .ref_(self)
                 .as_interface_type()
-                .maybe_resolved_base_types() = Some(Gc::new(vec![]));
+                .maybe_resolved_base_types() = Some(self.alloc_vec_type(vec![]));
         }
         if let Some(type_symbol_declarations) = {
             let type_symbol_declarations = type_
@@ -113,20 +113,21 @@ impl TypeChecker {
                                 if type_ != base_type
                                     && !self.has_base_type(base_type, Some(type_))?
                                 {
-                                    let mut resolved_base_types = Vec::clone(
+                                    let mut resolved_base_types =
                                         type_
                                             .ref_(self)
                                             .as_interface_type()
                                             .maybe_resolved_base_types()
-                                            .as_ref()
-                                            .unwrap(),
-                                    );
+                                            .clone()
+                                            .unwrap()
+                                            .ref_(self)
+                                            .clone();
                                     resolved_base_types.push(base_type);
                                     *type_
                                         .ref_(self)
                                         .as_interface_type()
                                         .maybe_resolved_base_types() =
-                                        Some(Gc::new(resolved_base_types));
+                                        Some(self.alloc_vec_type(resolved_base_types));
                                 } else {
                                     self.report_circular_base_type(declaration, type_)?;
                                 }

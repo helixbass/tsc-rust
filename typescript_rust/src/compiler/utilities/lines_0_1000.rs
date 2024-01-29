@@ -44,13 +44,15 @@ use crate::{
     SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
     TokenFlags, Type, UnderscoreEscapedMap, OptionInArena,
+    per_arena,
 };
 
-thread_local! {
-    static resolving_empty_array_: Gc<Vec<Id<Type>>> = Gc::new(vec![]);
-}
-pub fn resolving_empty_array() -> Gc<Vec<Id<Type>>> {
-    resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())
+pub fn resolving_empty_array(arena: &impl HasArena) -> Id<Vec<Id<Type>>> {
+    per_arena!(
+        Vec<Id<Type>>,
+        arena,
+        arena.alloc_vec_type(Default::default())
+    )
 }
 
 pub const external_helpers_module_name_text: &str = "tslib";

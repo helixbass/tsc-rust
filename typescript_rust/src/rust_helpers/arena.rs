@@ -141,6 +141,7 @@ pub struct AllArenas {
     pub option_vec_nodes: RefCell<Arena<Option<Vec<Id<Node>>>>>,
     pub vec_pending_declarations: RefCell<Arena<Vec<PendingDeclaration>>>,
     pub package_json_infos: RefCell<Arena<PackageJsonInfo>>,
+    pub vec_types: RefCell<Arena<Vec<Id<Type>>>>,
 }
 
 pub trait HasArena {
@@ -1056,6 +1057,14 @@ pub trait HasArena {
 
     fn alloc_package_json_info(&self, package_json_info: PackageJsonInfo) -> Id<PackageJsonInfo> {
         self.arena().alloc_package_json_info(package_json_info)
+    }
+
+    fn vec_type(&self, vec_type: Id<Vec<Id<Type>>>) -> Ref<Vec<Id<Type>>> {
+        self.arena().vec_type(vec_type)
+    }
+
+    fn alloc_vec_type(&self, vec_type: Vec<Id<Type>>) -> Id<Vec<Id<Type>>> {
+        self.arena().alloc_vec_type(vec_type)
     }
 }
 
@@ -2199,6 +2208,16 @@ impl HasArena for AllArenas {
         let id = self.package_json_infos.borrow_mut().alloc(package_json_info);
         id
     }
+
+    #[track_caller]
+    fn vec_type(&self, vec_type: Id<Vec<Id<Type>>>) -> Ref<Vec<Id<Type>>> {
+        Ref::map(self.vec_types.borrow(), |vec_types| &vec_types[vec_type])
+    }
+
+    fn alloc_vec_type(&self, vec_type: Vec<Id<Type>>) -> Id<Vec<Id<Type>>> {
+        let id = self.vec_types.borrow_mut().alloc(vec_type);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3120,6 +3139,14 @@ impl InArena for Id<PackageJsonInfo> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PackageJsonInfo> {
         has_arena.package_json_info(*self)
+    }
+}
+
+impl InArena for Id<Vec<Id<Type>>> {
+    type Item = Vec<Id<Type>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<Type>>> {
+        has_arena.vec_type(*self)
     }
 }
 

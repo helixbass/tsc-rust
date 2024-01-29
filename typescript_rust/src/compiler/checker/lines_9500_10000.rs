@@ -1001,7 +1001,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_not_actually_interface_type()
                         .maybe_resolved_base_types() =
-                        Some(Gc::new(vec![self.get_tuple_base_type(type_)?]));
+                        Some(self.alloc_vec_type(vec![self.get_tuple_base_type(type_)?]));
                 } else if type_
                     .ref_(self)
                     .symbol()
@@ -1054,14 +1054,15 @@ impl TypeChecker {
                 .as_not_actually_interface_type()
                 .set_base_types_resolved(Some(true));
         }
-        let ret = Vec::clone(
+        let ret =
             type_
                 .ref_(self)
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_types()
                 .as_ref()
-                .unwrap(),
-        );
+                .unwrap()
+                .ref_(self)
+                .clone();
         Ok(ret)
     }
 
@@ -1117,11 +1118,11 @@ impl TypeChecker {
     pub(super) fn resolve_base_types_of_class(
         &self,
         type_: Id<Type>, /*InterfaceType*/
-    ) -> io::Result<Gc<Vec<Id<Type /*BaseType*/>>>> {
+    ) -> io::Result<Id<Vec<Id<Type /*BaseType*/>>>> {
         *type_
             .ref_(self)
             .as_not_actually_interface_type()
-            .maybe_resolved_base_types() = Some(resolving_empty_array());
+            .maybe_resolved_base_types() = Some(resolving_empty_array(self));
         let base_constructor_type =
             self.get_apparent_type(self.get_base_constructor_type_of_class(type_)?)?;
         if !base_constructor_type
@@ -1129,7 +1130,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::Intersection | TypeFlags::Any)
         {
-            let ret = Gc::new(vec![]);
+            let ret = sef.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1183,7 +1184,7 @@ impl TypeChecker {
                     &Diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
                     None,
                 );
-                let ret = Gc::new(vec![]);
+                let ret = sef.alloc_vec_type(vec![]);
                 *type_
                     .ref_(self)
                     .as_not_actually_interface_type()
@@ -1194,7 +1195,7 @@ impl TypeChecker {
         }
 
         if self.is_error_type(base_type) {
-            let ret = Gc::new(vec![]);
+            let ret = sef.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1222,7 +1223,7 @@ impl TypeChecker {
                 )
                 .into(),
             ));
-            let ret = Gc::new(vec![]);
+            let ret = sef.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1244,28 +1245,25 @@ impl TypeChecker {
                     None,
                 )?]),
             );
-            let ret = Gc::new(vec![]);
+            let ret = sef.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_types() = Some(ret.clone());
             return Ok(ret);
         }
-        if Gc::ptr_eq(
-            type_
-                .ref_(self)
-                .as_not_actually_interface_type()
-                .maybe_resolved_base_types()
-                .as_ref()
-                .unwrap(),
-            &resolving_empty_array(),
-        ) {
+        if type_
+            .ref_(self)
+            .as_not_actually_interface_type()
+            .maybe_resolved_base_types()
+            .clone()
+            .unwrap() == resolving_empty_array(self) {
             type_
                 .ref_(self)
                 .as_not_actually_interface_type()
                 .set_members(None);
         }
-        let ret = Gc::new(vec![reduced_base_type]);
+        let ret = self.alloc_vec_type(vec![reduced_base_type]);
         *type_
             .ref_(self)
             .as_not_actually_interface_type()

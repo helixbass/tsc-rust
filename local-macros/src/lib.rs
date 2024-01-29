@@ -1728,7 +1728,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_resolved_base_constructor_type()
                     }
 
-                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::std::vec::Vec<::id_arena::Id<crate::Type>>>>> {
+                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Type>>>>> {
                         self.#first_field_name.maybe_resolved_base_types()
                     }
 
@@ -2396,7 +2396,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<::std::vec::Vec<::id_arena::Id<crate::Type>>>>> {
+                    fn maybe_resolved_base_types(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Type>>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_base_types()),*
                         }

@@ -444,7 +444,7 @@ pub struct BaseObjectType {
     // FreshObjectLiteralType fields
     regular_type: GcCell<Option<Id<Type /*ResolvedType*/>>>,
     // "not actually interface type" fields
-    not_actually_interface_type_resolved_base_types: GcCell<Option<Gc<Vec<Id<Type>>>>>,
+    not_actually_interface_type_resolved_base_types: GcCell<Option<Id<Vec<Id<Type>>>>>,
     #[unsafe_ignore_trace]
     not_actually_interface_type_base_types_resolved: Cell<Option<bool>>,
     not_actually_interface_type_resolved_base_constructor_type: GcCell<Option<Id<Type>>>,
@@ -473,7 +473,7 @@ impl BaseObjectType {
 
     pub fn not_actually_interface_type_maybe_resolved_base_types(
         &self,
-    ) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>> {
+    ) -> GcCellRefMut<Option<Id<Vec<Id<Type>>>>> {
         self.not_actually_interface_type_resolved_base_types
             .borrow_mut()
     }
@@ -640,7 +640,7 @@ pub enum NotActuallyInterfaceType<'a> {
 }
 
 impl NotActuallyInterfaceType<'_> {
-    pub fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>> {
+    pub fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Id<Vec<Id<Type>>>>> {
         match self {
             Self::InterfaceType(value) => value.maybe_resolved_base_types(),
             Self::BaseObjectType(value) => {
@@ -713,7 +713,7 @@ pub struct BaseInterfaceType {
     local_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     this_type: GcCell<Option<Id<Type /*TypeParameter*/>>>,
     resolved_base_constructor_type: GcCell<Option<Id<Type /*TypeParameter*/>>>,
-    resolved_base_types: GcCell<Option<Gc<Vec<Id<Type /*BaseType*/>>>>>,
+    resolved_base_types: GcCell<Option<Id<Vec<Id<Type /*BaseType*/>>>>>,
     #[unsafe_ignore_trace]
     base_types_resolved: Cell<Option<bool>>,
     // InterfaceTypeWithDeclaredMembers fields
@@ -778,7 +778,7 @@ pub trait InterfaceTypeInterface:
     fn maybe_this_type(&self) -> Option<Id<Type>>;
     fn maybe_this_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>>;
     fn maybe_resolved_base_constructor_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>>;
+    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Id<Vec<Id<Type>>>>>;
     fn maybe_base_types_resolved(&self) -> Option<bool>;
     fn set_base_types_resolved(&self, base_types_resolved: Option<bool>);
 }
@@ -808,7 +808,7 @@ impl InterfaceTypeInterface for BaseInterfaceType {
         self.resolved_base_constructor_type.borrow_mut()
     }
 
-    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Gc<Vec<Id<Type>>>>> {
+    fn maybe_resolved_base_types(&self) -> GcCellRefMut<Option<Id<Vec<Id<Type>>>>> {
         self.resolved_base_types.borrow_mut()
     }
 
