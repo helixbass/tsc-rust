@@ -697,8 +697,8 @@ pub trait HasArena {
         self.arena().alloc_binder(binder)
     }
 
-    fn get_source_file(&self, get_source_file: Id<Box<dyn GetSourceFile>>) -> Ref<Box<dyn GetSourceFile>> {
-        self.arena().get_source_file(get_source_file)
+    fn get_source_file_ref(&self, get_source_file: Id<Box<dyn GetSourceFile>>) -> Ref<Box<dyn GetSourceFile>> {
+        self.arena().get_source_file_ref(get_source_file)
     }
 
     fn alloc_get_source_file(&self, get_source_file: Box<dyn GetSourceFile>) -> Id<Box<dyn GetSourceFile>> {
@@ -1460,7 +1460,7 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn get_source_file(&self, get_source_file: Id<Box<dyn GetSourceFile>>) -> Ref<Box<dyn GetSourceFile>> {
+    fn get_source_file_ref(&self, get_source_file: Id<Box<dyn GetSourceFile>>) -> Ref<Box<dyn GetSourceFile>> {
         Ref::map(self.get_source_files.borrow(), |get_source_files| &get_source_files[get_source_file])
     }
 
@@ -2080,7 +2080,7 @@ impl InArena for Id<Box<dyn GetSourceFile>> {
     type Item = Box<dyn GetSourceFile>;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetSourceFile>> {
-        has_arena.get_source_file(*self)
+        has_arena.get_source_file_ref(*self)
     }
 }
 
