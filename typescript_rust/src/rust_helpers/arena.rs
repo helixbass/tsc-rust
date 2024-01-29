@@ -2244,7 +2244,7 @@ impl InArena for Id<Box<dyn ForEachResolvedProjectReference>> {
     type Item = Box<dyn ForEachResolvedProjectReference>;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ForEachResolvedProjectReference>> {
-        has_arena.for_each_resolved_project_reference(*self)
+        has_arena.for_each_resolved_project_reference_ref(*self)
     }
 }
 
