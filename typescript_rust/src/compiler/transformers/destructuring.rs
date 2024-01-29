@@ -111,7 +111,7 @@ struct FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment
     context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     downlevel_iteration: bool,
-    expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
+    expressions: Id<Option<Vec<Id<Node /*Expression*/>>>>,
     create_assignment_callback: Option<
         Rc<
             RefCell<
@@ -135,7 +135,7 @@ impl<'visitor, 'create_assignment_callback>
         context: Id<TransformNodesTransformationResult>,
         level: FlattenLevel,
         downlevel_iteration: bool,
-        expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
+        expressions: Id<Option<Vec<Id<Node /*Expression*/>>>>,
         create_assignment_callback: Option<
             Rc<
                 RefCell<
@@ -180,7 +180,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
     }
 
     fn emit_expression(&self, value: Id<Node> /*Expression*/) {
-        emit_expression(&mut self.expressions.borrow_mut(), value);
+        emit_expression(&mut self.expressions.ref_mut(self), value);
     }
 
     fn emit_binding_or_assignment(
@@ -351,7 +351,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
         }
     }
 
-    let expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>> = _d();
+    let expressions: Id<Option<Vec<Id<Node /*Expression*/>>>> = arena.alloc_option_vec_node(_d());
     let flatten_context = FlattenDestructuringAssignmentFlattenContext::new(
         context.clone(),
         level,
@@ -409,16 +409,16 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     )?;
 
     if let Some(value) = value.filter(|_| needs_value == Some(true)) {
-        if !(*expressions).borrow().as_ref().is_non_empty() {
+        if !expressions.ref_(arena).as_ref().is_non_empty() {
             return Ok(value);
         }
 
-        expressions.borrow_mut().as_mut().unwrap().push(value);
+        expressions.ref_mut(arena).as_mut().unwrap().push(value);
     }
 
     let ret = context
         .ref_(arena).factory()
-        .ref_(arena).inline_expressions((*expressions).borrow().as_ref().unwrap()) /* || context.factory.createOmittedExpression()*/;
+        .ref_(arena).inline_expressions(expressions.ref_(arena).as_ref().unwrap()) /* || context.factory.createOmittedExpression()*/;
     Ok(ret)
 }
 
@@ -521,7 +521,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     arena: &impl HasArena,
 ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
     let hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
-    let pending_expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>> = _d();
+    let pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>> = arena.alloc_option_vec_node(_d());
     let pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>> = _d();
     let mut declarations: Vec<Id<Node /*VariableDeclaration*/>> = _d();
     let visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>> =
@@ -571,17 +571,17 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     }
 
     flatten_binding_or_assignment_element(&flatten_context, node, rval, &*node.ref_(arena), skip_initializer, arena)?;
-    if (*pending_expressions).borrow().is_some() {
+    if pending_expressions.ref_(arena).is_some() {
         let temp = context
             .ref_(arena).factory()
             .ref_(arena).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         if hoist_temp_variables {
             let value = context
                 .ref_(arena).factory()
-                .ref_(arena).inline_expressions((*pending_expressions).borrow().as_ref().unwrap());
-            *pending_expressions.borrow_mut() = None;
+                .ref_(arena).inline_expressions(pending_expressions.ref_(arena).as_ref().unwrap());
+            *pending_expressions.ref_mut(arena) = None;
             emit_binding_or_assignment(
-                &mut pending_expressions.borrow_mut(),
+                &mut pending_expressions.ref_mut(arena),
                 &*context.ref_(arena),
                 &mut pending_declarations.borrow_mut(),
                 temp,
@@ -608,8 +608,8 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 .as_mut()
                 .unwrap()
                 .extend(
-                    (*pending_expressions)
-                        .borrow()
+                    pending_expressions
+                        .ref_(arena)
                         .as_ref()
                         .unwrap()
                         .iter()
@@ -678,7 +678,7 @@ struct FlattenDestructuringBindingFlattenContext<'visitor> {
     level: FlattenLevel,
     downlevel_iteration: bool,
     hoist_temp_variables: bool,
-    pending_expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
+    pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>>,
     pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
     visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>,
     has_transformed_prior_element: Cell<Option<bool>>,
@@ -690,7 +690,7 @@ impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
         level: FlattenLevel,
         downlevel_iteration: bool,
         hoist_temp_variables: bool,
-        pending_expressions: Gc<GcCell<Option<Vec<Id<Node /*Expression*/>>>>>,
+        pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>>,
         pending_declarations: Gc<GcCell<Vec<PendingDeclaration>>>,
         visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>,
     ) -> Self {
@@ -726,7 +726,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
 
     fn emit_expression(&self, value: Id<Node> /*Expression*/) {
         self.pending_expressions
-            .borrow_mut()
+            .ref_mut(self)
             .get_or_insert_default_()
             .push(value);
     }
@@ -739,7 +739,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
         original: Option<Id<Node>>,
     ) -> io::Result<()> {
         emit_binding_or_assignment(
-            &mut self.pending_expressions.borrow_mut(),
+            &mut self.pending_expressions.ref_mut(self),
             &*self.context.ref_(self),
             &mut self.pending_declarations.borrow_mut(),
             target,

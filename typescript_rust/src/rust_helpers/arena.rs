@@ -137,6 +137,7 @@ pub struct AllArenas {
     pub vec_diagnostics: RefCell<Arena<Vec<Id<Diagnostic>>>>,
     pub file_reasons: RefCell<Arena<MultiMap<Path, Id<FileIncludeReason>>>>,
     pub get_symbol_accessibility_diagnostic_interfaces: RefCell<Arena<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>>,
+    pub option_vec_nodes: RefCell<Arena<Option<Vec<Id<Node>>>>>,
 }
 
 pub trait HasArena {
@@ -1020,6 +1021,18 @@ pub trait HasArena {
 
     fn alloc_get_symbol_accessibility_diagnostic_interface(&self, get_symbol_accessibility_diagnostic_interface: Box<dyn GetSymbolAccessibilityDiagnosticInterface>) -> Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
         self.arena().alloc_get_symbol_accessibility_diagnostic_interface(get_symbol_accessibility_diagnostic_interface)
+    }
+
+    fn option_vec_node(&self, option_vec_node: Id<Option<Vec<Id<Node>>>>) -> Ref<Option<Vec<Id<Node>>>> {
+        self.arena().option_vec_node(option_vec_node)
+    }
+
+    fn option_vec_node_mut(&self, option_vec_node: Id<Option<Vec<Id<Node>>>>) -> RefMut<Option<Vec<Id<Node>>>> {
+        self.arena().option_vec_node_mut(option_vec_node)
+    }
+
+    fn alloc_option_vec_node(&self, option_vec_node: Option<Vec<Id<Node>>>) -> Id<Option<Vec<Id<Node>>>> {
+        self.arena().alloc_option_vec_node(option_vec_node)
     }
 }
 
@@ -2125,6 +2138,20 @@ impl HasArena for AllArenas {
         let id = self.get_symbol_accessibility_diagnostic_interfaces.borrow_mut().alloc(get_symbol_accessibility_diagnostic_interface);
         id
     }
+
+    #[track_caller]
+    fn option_vec_node(&self, option_vec_node: Id<Option<Vec<Id<Node>>>>) -> Ref<Option<Vec<Id<Node>>>> {
+        Ref::map(self.option_vec_nodes.borrow(), |option_vec_nodes| &option_vec_nodes[option_vec_node])
+    }
+
+    fn option_vec_node_mut(&self, option_vec_node: Id<Option<Vec<Id<Node>>>>) -> RefMut<Option<Vec<Id<Node>>>> {
+        RefMut::map(self.option_vec_nodes.borrow_mut(), |option_vec_nodes| &mut option_vec_nodes[option_vec_node])
+    }
+
+    fn alloc_option_vec_node(&self, option_vec_node: Option<Vec<Id<Node>>>) -> Id<Option<Vec<Id<Node>>>> {
+        let id = self.option_vec_nodes.borrow_mut().alloc(option_vec_node);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3014,6 +3041,18 @@ impl InArena for Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
         has_arena.get_symbol_accessibility_diagnostic_interface(*self)
+    }
+}
+
+impl InArena for Id<Option<Vec<Id<Node>>>> {
+    type Item = Option<Vec<Id<Node>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Option<Vec<Id<Node>>>> {
+        has_arena.option_vec_node(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Vec<Id<Node>>>> {
+        has_arena.option_vec_node_mut(*self)
     }
 }
 
