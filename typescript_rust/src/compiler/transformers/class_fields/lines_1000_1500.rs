@@ -722,7 +722,7 @@ impl TransformClassFields {
         {
             let private_identifier_info = self.access_private_identifier(property_name);
             if let Some(private_identifier_info) = private_identifier_info {
-                let private_identifier_info = (*private_identifier_info).borrow();
+                let private_identifier_info = private_identifier_info.ref_(self);
                 if private_identifier_info.kind() == PrivateIdentifierKind::Field {
                     if !private_identifier_info.is_static() {
                         return Some(create_private_instance_field_initializer(

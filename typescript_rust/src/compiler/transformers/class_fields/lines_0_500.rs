@@ -250,7 +250,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
 }
 
 #[derive(Trace, Finalize)]
-pub(super) enum PrivateIdentifierInfo {
+pub enum PrivateIdentifierInfo {
     PrivateIdentifierMethodInfo(PrivateIdentifierMethodInfo),
     PrivateIdentifierInstanceFieldInfo(PrivateIdentifierInstanceFieldInfo),
     PrivateIdentifierStaticFieldInfo(PrivateIdentifierStaticFieldInfo),
@@ -326,21 +326,9 @@ impl From<PrivateIdentifierMethodInfo> for PrivateIdentifierInfo {
     }
 }
 
-impl From<PrivateIdentifierMethodInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierMethodInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 impl From<PrivateIdentifierInstanceFieldInfo> for PrivateIdentifierInfo {
     fn from(value: PrivateIdentifierInstanceFieldInfo) -> Self {
         Self::PrivateIdentifierInstanceFieldInfo(value)
-    }
-}
-
-impl From<PrivateIdentifierInstanceFieldInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierInstanceFieldInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
     }
 }
 
@@ -350,21 +338,9 @@ impl From<PrivateIdentifierStaticFieldInfo> for PrivateIdentifierInfo {
     }
 }
 
-impl From<PrivateIdentifierStaticFieldInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierStaticFieldInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 impl From<PrivateIdentifierAccessorInfo> for PrivateIdentifierInfo {
     fn from(value: PrivateIdentifierAccessorInfo) -> Self {
         Self::PrivateIdentifierAccessorInfo(value)
-    }
-}
-
-impl From<PrivateIdentifierAccessorInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierAccessorInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
     }
 }
 
@@ -372,7 +348,7 @@ impl From<PrivateIdentifierAccessorInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
 pub struct PrivateIdentifierEnvironment {
     pub class_name: String,
     pub weak_set_name: Option<Id<Node /*Identifier*/>>,
-    pub identifiers: UnderscoreEscapedMap<Gc<GcCell<PrivateIdentifierInfo>>>,
+    pub identifiers: UnderscoreEscapedMap<Id<PrivateIdentifierInfo>>,
 }
 
 #[derive(Default, Trace, Finalize)]
@@ -820,7 +796,7 @@ impl TransformClassFields {
                 self.context
                     .ref_(self).get_emit_helper_factory()
                     .ref_(self).create_class_private_field_in_helper(
-                        (*info).borrow().brand_check_identifier(),
+                        info.ref_(self).brand_check_identifier(),
                         receiver,
                     )
                     .set_original_node(Some(node), self)
@@ -917,7 +893,7 @@ impl TransformClassFields {
             Some("Undeclared private name for property declaration."),
         );
         let info = info.unwrap();
-        if !(*info).borrow().is_valid() {
+        if !info.ref_(self).is_valid() {
             return Some(node.into());
         }
 
@@ -969,7 +945,7 @@ impl TransformClassFields {
             Some("Undeclared private name for property declaration."),
         );
         let info = info.unwrap();
-        let info = (*info).borrow();
+        let info = info.ref_(self);
 
         if info.kind() == PrivateIdentifierKind::Method {
             return Some(info.as_private_identifier_method_info().method_name.clone());
@@ -1033,7 +1009,7 @@ impl TransformClassFields {
                 Some("Undeclared private name for property declaration."),
             );
             let info = info.unwrap();
-            if !(*info).borrow().is_valid() {
+            if !info.ref_(self).is_valid() {
                 return Some(node.into());
             }
         }
@@ -1124,7 +1100,7 @@ impl TransformClassFields {
             if let Some(private_identifier_info) = private_identifier_info {
                 return Some(
                     self.create_private_identifier_access(
-                        &(*private_identifier_info).borrow(),
+                        &private_identifier_info.ref_(self),
                         node_as_property_access_expression.expression,
                     )
                     .set_original_node(Some(node), self)

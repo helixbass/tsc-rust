@@ -26,6 +26,7 @@ use crate::{
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
+    PrivateIdentifierInfo,
 };
 
 #[derive(Default)]
@@ -123,6 +124,7 @@ pub struct AllArenas {
     pub symbol_accessibility_diagnostics: RefCell<Arena<SymbolAccessibilityDiagnostic>>,
     pub code_blocks: RefCell<Arena<CodeBlock>>,
     pub private_identifier_environments: RefCell<Arena<PrivateIdentifierEnvironment>>,
+    pub private_identifier_infos: RefCell<Arena<PrivateIdentifierInfo>>,
 }
 
 pub trait HasArena {
@@ -906,6 +908,18 @@ pub trait HasArena {
 
     fn alloc_private_identifier_environment(&self, private_identifier_environment: PrivateIdentifierEnvironment) -> Id<PrivateIdentifierEnvironment> {
         self.arena().alloc_private_identifier_environment(private_identifier_environment)
+    }
+
+    fn private_identifier_info(&self, private_identifier_info: Id<PrivateIdentifierInfo>) -> Ref<PrivateIdentifierInfo> {
+        self.arena().private_identifier_info(private_identifier_info)
+    }
+
+    fn private_identifier_info_mut(&self, private_identifier_info: Id<PrivateIdentifierInfo>) -> RefMut<PrivateIdentifierInfo> {
+        self.arena().private_identifier_info_mut(private_identifier_info)
+    }
+
+    fn alloc_private_identifier_info(&self, private_identifier_info: PrivateIdentifierInfo) -> Id<PrivateIdentifierInfo> {
+        self.arena().alloc_private_identifier_info(private_identifier_info)
     }
 }
 
@@ -1889,6 +1903,20 @@ impl HasArena for AllArenas {
         let id = self.private_identifier_environments.borrow_mut().alloc(private_identifier_environment);
         id
     }
+
+    #[track_caller]
+    fn private_identifier_info(&self, private_identifier_info: Id<PrivateIdentifierInfo>) -> Ref<PrivateIdentifierInfo> {
+        Ref::map(self.private_identifier_infos.borrow(), |private_identifier_infos| &private_identifier_infos[private_identifier_info])
+    }
+
+    fn private_identifier_info_mut(&self, private_identifier_info: Id<PrivateIdentifierInfo>) -> RefMut<PrivateIdentifierInfo> {
+        RefMut::map(self.private_identifier_infos.borrow_mut(), |private_identifier_infos| &mut private_identifier_infos[private_identifier_info])
+    }
+
+    fn alloc_private_identifier_info(&self, private_identifier_info: PrivateIdentifierInfo) -> Id<PrivateIdentifierInfo> {
+        let id = self.private_identifier_infos.borrow_mut().alloc(private_identifier_info);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2678,6 +2706,18 @@ impl InArena for Id<PrivateIdentifierEnvironment> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, PrivateIdentifierEnvironment> {
         has_arena.private_identifier_environment_mut(*self)
+    }
+}
+
+impl InArena for Id<PrivateIdentifierInfo> {
+    type Item = PrivateIdentifierInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PrivateIdentifierInfo> {
+        has_arena.private_identifier_info(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, PrivateIdentifierInfo> {
+        has_arena.private_identifier_info_mut(*self)
     }
 }
 
