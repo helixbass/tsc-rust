@@ -184,8 +184,8 @@ impl TransformClassFields {
             } else if is_get_accessor_declaration(&node.ref_(self)) {
                 let getter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_get"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && previous_info.is_static()
                         && previous_info
@@ -194,7 +194,7 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .getter_name = Some(getter_name);
                 } else {
@@ -213,8 +213,8 @@ impl TransformClassFields {
             } else if is_set_accessor_declaration(&node.ref_(self)) {
                 let setter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_set"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && previous_info.is_static()
                         && previous_info
@@ -223,7 +223,7 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .setter_name = Some(setter_name);
                 } else {
@@ -284,8 +284,8 @@ impl TransformClassFields {
             if is_get_accessor(&node.ref_(self)) {
                 let getter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_get"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && !previous_info.is_static()
                         && previous_info
@@ -294,7 +294,7 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .getter_name = Some(getter_name);
                 } else {
@@ -313,8 +313,8 @@ impl TransformClassFields {
             } else {
                 let setter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_set"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && !previous_info.is_static()
                         && previous_info
@@ -323,7 +323,7 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .setter_name = Some(setter_name);
                 } else {
@@ -469,7 +469,7 @@ impl TransformClassFields {
         let ret = self.factory.ref_(self).create_assignment_target_wrapper(
             parameter,
             self.create_private_identifier_assignment(
-                &(*info).borrow(),
+                &info.ref_(self),
                 receiver,
                 parameter,
                 SyntaxKind::EqualsToken,
