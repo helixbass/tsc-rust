@@ -353,6 +353,7 @@ pub use compiler::{
         CompilerHostLikeRcDynCompilerHost, EmitHostWriteFileCallback, FilesByNameValue,
         FormatDiagnosticsHost, ToPath, GetSymlinkCache, GetResolvedProjectReferences,
         ForEachResolvedProjectReference, CompilerHostLike, LoadWithModeAwareCacheLoader,
+        LoadWithLocalCacheLoader,
     },
     scanner::{
         compute_line_starts, could_start_trivia, create_scanner, for_each_leading_comment_range,

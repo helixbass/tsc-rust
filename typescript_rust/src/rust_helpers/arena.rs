@@ -25,6 +25,7 @@ use crate::{
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
+    LoadWithLocalCacheLoader,
 };
 
 #[derive(Default)]
@@ -118,6 +119,7 @@ pub struct AllArenas {
     pub actual_resolve_type_reference_directive_names_workers: RefCell<Arena<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>,
     pub get_program_build_infos: RefCell<Arena<Box<dyn GetProgramBuildInfo>>>,
     pub load_with_mode_aware_cache_loaders: RefCell<Arena<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>>,
+    pub load_with_local_cache_loaders: RefCell<Arena<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>>,
 }
 
 pub trait HasArena {
@@ -861,6 +863,14 @@ pub trait HasArena {
 
     fn alloc_load_with_mode_aware_cache_loader(&self, load_with_mode_aware_cache_loader: Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>) -> Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
         self.arena().alloc_load_with_mode_aware_cache_loader(load_with_mode_aware_cache_loader)
+    }
+
+    fn load_with_local_cache_loader(&self, load_with_local_cache_loader: Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>) -> Ref<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
+        self.arena().load_with_local_cache_loader(load_with_local_cache_loader)
+    }
+
+    fn alloc_load_with_local_cache_loader(&self, load_with_local_cache_loader: Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>) -> Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
+        self.arena().alloc_load_with_local_cache_loader(load_with_local_cache_loader)
     }
 }
 
@@ -1796,6 +1806,16 @@ impl HasArena for AllArenas {
         let id = self.load_with_mode_aware_cache_loaders.borrow_mut().alloc(load_with_mode_aware_cache_loader);
         id
     }
+
+    #[track_caller]
+    fn load_with_local_cache_loader(&self, load_with_local_cache_loader: Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>) -> Ref<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
+        Ref::map(self.load_with_local_cache_loaders.borrow(), |load_with_local_cache_loaders| &load_with_local_cache_loaders[load_with_local_cache_loader])
+    }
+
+    fn alloc_load_with_local_cache_loader(&self, load_with_local_cache_loader: Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>) -> Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
+        let id = self.load_with_local_cache_loaders.borrow_mut().alloc(load_with_local_cache_loader);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2545,6 +2565,14 @@ impl InArena for Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModul
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
         has_arena.load_with_mode_aware_cache_loader(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
+    type Item = Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
+        has_arena.load_with_local_cache_loader(*self)
     }
 }
 

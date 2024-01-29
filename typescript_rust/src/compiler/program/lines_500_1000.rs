@@ -1047,7 +1047,7 @@ impl Program {
             *self
                 .actual_resolve_type_reference_directive_names_worker
                 .borrow_mut() = Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
-                ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(Gc::new(
+                ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(self.alloc_load_with_local_cache_loader(
                     Box::new(loader),
                 )),
             )));
@@ -2023,12 +2023,12 @@ impl HasArena for ActualResolveTypeReferenceDirectiveNamesWorkerHost {
 
 #[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
-    loader: Gc<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
+    loader: Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
     pub fn new(
-        loader: Gc<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
+        loader: Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -2047,7 +2047,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
             /*Debug.checkEachDefined(*/ type_reference_directive_names, /*)*/
             containing_file,
             redirected_reference,
-            &**self.loader,
+            &**self.loader.ref_(self),
         )?
         .into_iter()
         .map(Some)
