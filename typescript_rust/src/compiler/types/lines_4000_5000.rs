@@ -331,7 +331,7 @@ pub struct TypeChecker {
     pub(crate) in_infer_type_for_homomorphic_mapped_type: Cell<bool>,
     pub(crate) ambient_modules_cache: GcCell<Option<Vec<Id<Symbol>>>>,
 
-    pub(crate) pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
+    pub(crate) pattern_ambient_modules: GcCell<Option<Vec<Id<PatternAmbientModule>>>>,
     pub(crate) pattern_ambient_module_augmentations: GcCell<Option<HashMap<String, Id<Symbol>>>>,
 
     pub(crate) global_object_type: GcCell<Option<Id<Type /*ObjectType*/>>>,

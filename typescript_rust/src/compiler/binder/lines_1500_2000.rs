@@ -642,7 +642,7 @@ impl Binder {
                     pattern_ambient_modules.as_mut().unwrap(),
                     match pattern {
                         Some(StringOrPattern::Pattern(pattern)) => {
-                            Some(Gc::new(PatternAmbientModule::new(pattern, symbol)))
+                            Some(self.alloc_pattern_ambient_module(PatternAmbientModule::new(pattern, symbol)))
                         }
                         _ => None,
                     },

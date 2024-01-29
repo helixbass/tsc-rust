@@ -29,7 +29,7 @@ use crate::{
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
-    PendingDeclaration, PackageJsonInfo,
+    PendingDeclaration, PackageJsonInfo, PatternAmbientModule,
 };
 
 #[derive(Default)]
@@ -142,6 +142,7 @@ pub struct AllArenas {
     pub vec_pending_declarations: RefCell<Arena<Vec<PendingDeclaration>>>,
     pub package_json_infos: RefCell<Arena<PackageJsonInfo>>,
     pub vec_types: RefCell<Arena<Vec<Id<Type>>>>,
+    pub pattern_ambient_modules: RefCell<Arena<PatternAmbientModule>>,
 }
 
 pub trait HasArena {
@@ -1065,6 +1066,14 @@ pub trait HasArena {
 
     fn alloc_vec_type(&self, vec_type: Vec<Id<Type>>) -> Id<Vec<Id<Type>>> {
         self.arena().alloc_vec_type(vec_type)
+    }
+
+    fn pattern_ambient_module(&self, pattern_ambient_module: Id<PatternAmbientModule>) -> Ref<PatternAmbientModule> {
+        self.arena().pattern_ambient_module(pattern_ambient_module)
+    }
+
+    fn alloc_pattern_ambient_module(&self, pattern_ambient_module: PatternAmbientModule) -> Id<PatternAmbientModule> {
+        self.arena().alloc_pattern_ambient_module(pattern_ambient_module)
     }
 }
 
@@ -2218,6 +2227,16 @@ impl HasArena for AllArenas {
         let id = self.vec_types.borrow_mut().alloc(vec_type);
         id
     }
+
+    #[track_caller]
+    fn pattern_ambient_module(&self, pattern_ambient_module: Id<PatternAmbientModule>) -> Ref<PatternAmbientModule> {
+        Ref::map(self.pattern_ambient_modules.borrow(), |pattern_ambient_modules| &pattern_ambient_modules[pattern_ambient_module])
+    }
+
+    fn alloc_pattern_ambient_module(&self, pattern_ambient_module: PatternAmbientModule) -> Id<PatternAmbientModule> {
+        let id = self.pattern_ambient_modules.borrow_mut().alloc(pattern_ambient_module);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3147,6 +3166,14 @@ impl InArena for Id<Vec<Id<Type>>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<Type>>> {
         has_arena.vec_type(*self)
+    }
+}
+
+impl InArena for Id<PatternAmbientModule> {
+    type Item = PatternAmbientModule;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PatternAmbientModule> {
+        has_arena.pattern_ambient_module(*self)
     }
 }
 

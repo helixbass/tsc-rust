@@ -1012,7 +1012,7 @@ impl TypeChecker {
         if let Some(pattern_ambient_modules) = self.maybe_pattern_ambient_modules().as_ref() {
             let pattern = find_best_pattern_match(
                 pattern_ambient_modules,
-                |pattern| &pattern.pattern,
+                |pattern| &pattern.ref_(self).pattern,
                 module_reference,
             );
             if let Some(pattern) = pattern {
@@ -1027,7 +1027,7 @@ impl TypeChecker {
                 if let Some(augmentation) = augmentation {
                     return Ok(self.get_merged_symbol(Some(augmentation)));
                 }
-                return Ok(self.get_merged_symbol(Some(pattern.symbol)));
+                return Ok(self.get_merged_symbol(Some(pattern.ref_(self).symbol)));
             }
         }
 

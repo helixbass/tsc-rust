@@ -955,7 +955,7 @@ impl TypeChecker {
             {
                 if some(
                     self.maybe_pattern_ambient_modules().as_deref(),
-                    Some(|module: &Gc<PatternAmbientModule>| main_module == module.symbol),
+                    Some(|module: &Id<PatternAmbientModule>| main_module == module.ref_(self).symbol),
                 ) {
                     let merged =
                         self.merge_symbol(module_augmentation.ref_(self).symbol(), main_module, Some(true))?;

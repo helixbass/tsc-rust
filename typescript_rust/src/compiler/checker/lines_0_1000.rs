@@ -3114,7 +3114,7 @@ impl TypeChecker {
 
     pub(super) fn maybe_pattern_ambient_modules(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<PatternAmbientModule>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<PatternAmbientModule>>>> {
         self.pattern_ambient_modules.borrow_mut()
     }
 

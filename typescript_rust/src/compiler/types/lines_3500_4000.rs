@@ -223,7 +223,7 @@ pub struct SourceFileContents {
         GcCell<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>>,
     imports: GcCell<Option<Vec<Id<Node /*StringLiteralLike*/>>>>,
     module_augmentations: GcCell<Option<Vec<Id<Node /*StringLiteral | Identifier*/>>>>,
-    pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
+    pattern_ambient_modules: GcCell<Option<Vec<Id<PatternAmbientModule>>>>,
     #[unsafe_ignore_trace]
     ambient_module_names: RefCell<Option<Vec<String>>>,
     #[unsafe_ignore_trace]
@@ -688,7 +688,7 @@ impl SourceFile {
 
     pub fn maybe_pattern_ambient_modules(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<PatternAmbientModule>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<PatternAmbientModule>>>> {
         self.contents.pattern_ambient_modules.borrow_mut()
     }
 
