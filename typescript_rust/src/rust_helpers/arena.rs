@@ -19,7 +19,7 @@ use crate::{
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
-    BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile,
+    BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
 };
 
 #[derive(Default)]
@@ -96,6 +96,7 @@ pub struct AllArenas {
     pub read_file_callbacks: RefCell<Arena<Box<dyn ReadFileCallback>>>,
     pub binders: RefCell<Arena<Binder>>,
     pub get_source_files: RefCell<Arena<Box<dyn GetSourceFile>>>,
+    pub get_symlink_caches: RefCell<Arena<Box<dyn GetSymlinkCache>>>,
 }
 
 pub trait HasArena {
@@ -703,6 +704,14 @@ pub trait HasArena {
 
     fn alloc_get_source_file(&self, get_source_file: Box<dyn GetSourceFile>) -> Id<Box<dyn GetSourceFile>> {
         self.arena().alloc_get_source_file(get_source_file)
+    }
+
+    fn get_symlink_cache(&self, get_symlink_cache: Id<Box<dyn GetSymlinkCache>>) -> Ref<Box<dyn GetSymlinkCache>> {
+        self.arena().get_symlink_cache(get_symlink_cache)
+    }
+
+    fn alloc_get_symlink_cache(&self, get_symlink_cache: Box<dyn GetSymlinkCache>) -> Id<Box<dyn GetSymlinkCache>> {
+        self.arena().alloc_get_symlink_cache(get_symlink_cache)
     }
 }
 
@@ -1468,6 +1477,16 @@ impl HasArena for AllArenas {
         let id = self.get_source_files.borrow_mut().alloc(get_source_file);
         id
     }
+
+    #[track_caller]
+    fn get_symlink_cache(&self, get_symlink_cache: Id<Box<dyn GetSymlinkCache>>) -> Ref<Box<dyn GetSymlinkCache>> {
+        Ref::map(self.get_symlink_caches.borrow(), |get_symlink_caches| &get_symlink_caches[get_symlink_cache])
+    }
+
+    fn alloc_get_symlink_cache(&self, get_symlink_cache: Box<dyn GetSymlinkCache>) -> Id<Box<dyn GetSymlinkCache>> {
+        let id = self.get_symlink_caches.borrow_mut().alloc(get_symlink_cache);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2081,6 +2100,14 @@ impl InArena for Id<Box<dyn GetSourceFile>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetSourceFile>> {
         has_arena.get_source_file_ref(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn GetSymlinkCache>> {
+    type Item = Box<dyn GetSymlinkCache>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetSymlinkCache>> {
+        has_arena.get_symlink_cache(*self)
     }
 }
 

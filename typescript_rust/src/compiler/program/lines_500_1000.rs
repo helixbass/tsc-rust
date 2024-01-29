@@ -1075,7 +1075,7 @@ impl Program {
         } = update_host_for_use_source_of_project_reference_redirect(
             HostForUseSourceOfProjectReferenceRedirect {
                 compiler_host: self.host(),
-                get_symlink_cache: self.get_symlink_cache_rc(),
+                get_symlink_cache: self.get_symlink_cache_id(),
                 use_source_of_project_reference_redirect: self
                     .use_source_of_project_reference_redirect(),
                 to_path: self.to_path_rc(),

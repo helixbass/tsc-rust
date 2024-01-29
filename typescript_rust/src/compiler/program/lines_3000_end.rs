@@ -2005,8 +2005,8 @@ impl Program {
         symlinks
     }
 
-    pub fn get_symlink_cache_rc(&self) -> Gc<Box<dyn GetSymlinkCache>> {
-        Gc::new(Box::new(ProgramGetSymlinkCache::new(self.arena_id())))
+    pub fn get_symlink_cache_id(&self) -> Id<Box<dyn GetSymlinkCache>> {
+        self.alloc_get_symlink_cache(Box::new(ProgramGetSymlinkCache::new(self.arena_id())))
     }
 }
 
@@ -2058,7 +2058,7 @@ impl HasArena for ProgramGetSymlinkCache {
 
 pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
     pub compiler_host: Id<Box<dyn CompilerHost>>,
-    pub get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
+    pub get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
     pub use_source_of_project_reference_redirect: bool,
     pub to_path: Id<Box<dyn ToPath>>,
     pub get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
@@ -2126,7 +2126,7 @@ pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
 #[derive(Trace, Finalize)]
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Id<Box<dyn CompilerHost>>,
-    pub host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
+    pub host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
     pub host_to_path: Id<Box<dyn ToPath>>,
     pub host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
     pub host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
@@ -2137,7 +2137,7 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
 impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub fn new(
         host_compiler_host: Id<Box<dyn CompilerHost>>,
-        host_get_symlink_cache: Gc<Box<dyn GetSymlinkCache>>,
+        host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
         host_to_path: Id<Box<dyn ToPath>>,
         host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
         host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
@@ -2246,7 +2246,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             return None;
         }
         self.host_get_symlink_cache
-            .call()
+            .ref_(self).call()
             .ref_(self).get_symlinked_files()
             .as_ref()
             .and_then(|symlinked_files| symlinked_files.get(&self.host_to_path.ref_(self).call(s)).cloned())

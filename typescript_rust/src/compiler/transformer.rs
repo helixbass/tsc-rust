@@ -337,10 +337,9 @@ pub fn transform_nodes(
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
     arena: &impl HasArena,
-    // TODO: would presumably have to do some further Gc-dyn-casting shenanigans in order to return
-    // this type, but looks like there aren't any other TransformationResult implementers so maybe
-    // returning the concrete type is fine?
-    // ) -> Gc<Box<dyn TransformationResult>> {
+    // TODO: would presumably have to do some further dyn-casting shenanigans in order to return
+    // TransformationResult, but looks like there aren't any other TransformationResult
+    // implementers so maybe returning the concrete type is fine?
 ) -> io::Result<Id<TransformNodesTransformationResult>> {
     let transformation_result = TransformNodesTransformationResult::new(
         vec![],

@@ -351,7 +351,7 @@ pub use compiler::{
         parse_config_host_from_compiler_host_like, resolve_tripleslash_reference,
         ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
         CompilerHostLikeRcDynCompilerHost, EmitHostWriteFileCallback, FilesByNameValue,
-        FormatDiagnosticsHost, ToPath,
+        FormatDiagnosticsHost, ToPath, GetSymlinkCache,
     },
     scanner::{
         compute_line_starts, could_start_trivia, create_scanner, for_each_leading_comment_range,
@@ -367,7 +367,7 @@ pub use compiler::{
         try_get_source_mapping_url, try_parse_raw_source_map, LineInfo, Mapping, MappingsDecoder,
     },
     sys::{
-        generate_djb2_hash, get_sys, get_sys_concrete, Buffer, DirectoryWatcherCallback,
+        generate_djb2_hash, get_sys, Buffer, DirectoryWatcherCallback,
         FileWatcher, FileWatcherCallback, System,
     },
     tracing::{dump_tracing_legend, start_tracing},
