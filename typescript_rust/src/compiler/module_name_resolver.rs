@@ -981,7 +981,7 @@ where
         &self,
         directory_name: &str,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<TValue>>;
+    ) -> Id<ModeAwareCache<TValue>>;
     fn clear(&self);
     fn update(&self, options: &CompilerOptions);
 }
@@ -1216,7 +1216,7 @@ where
         &self,
         directory_name: &str,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<TValue>> {
+    ) -> Id<ModeAwareCache<TValue>> {
         let path = to_path(directory_name, Some(&self.current_directory), |path| {
             self.get_canonical_file_name.ref_(self).call(path)
         });
@@ -1488,7 +1488,7 @@ impl PerDirectoryResolutionCache<Id<ResolvedModuleWithFailedLookupLocations>>
         &self,
         directory_name: &str,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>> {
+    ) -> Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }
@@ -1601,7 +1601,7 @@ impl PerDirectoryResolutionCache<Id<ResolvedTypeReferenceDirectiveWithFailedLook
         &self,
         directory_name: &str,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+    ) -> Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }

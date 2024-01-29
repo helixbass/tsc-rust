@@ -132,6 +132,7 @@ pub struct AllArenas {
     pub resolved_type_reference_directives_with_failed_lookup_locations: RefCell<Arena<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
     pub package_json_info_caches: RefCell<Arena<Box<dyn PackageJsonInfoCache>>>,
     pub mode_aware_cache_resolved_module_with_failed_lookup_locations: RefCell<Arena<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
+    pub mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: RefCell<Arena<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>,
 }
 
 pub trait HasArena {
@@ -967,6 +968,14 @@ pub trait HasArena {
 
     fn alloc_mode_aware_cache_resolved_module_with_failed_lookup_locations(&self, mode_aware_cache_resolved_module_with_failed_lookup_locations: ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>) -> Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>> {
         self.arena().alloc_mode_aware_cache_resolved_module_with_failed_lookup_locations(mode_aware_cache_resolved_module_with_failed_lookup_locations)
+    }
+
+    fn mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(&self, mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>) -> Ref<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+        self.arena().mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations)
+    }
+
+    fn alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(&self, mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>) -> Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+        self.arena().alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations)
     }
 }
 
@@ -2014,6 +2023,16 @@ impl HasArena for AllArenas {
         let id = self.mode_aware_cache_resolved_module_with_failed_lookup_locations.borrow_mut().alloc(mode_aware_cache_resolved_module_with_failed_lookup_locations);
         id
     }
+
+    #[track_caller]
+    fn mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(&self, mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>) -> Ref<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+        Ref::map(self.mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations.borrow(), |mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_| &mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_[mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations])
+    }
+
+    fn alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(&self, mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>) -> Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+        let id = self.mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations.borrow_mut().alloc(mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2858,6 +2877,14 @@ impl InArena for Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>
     }
 }
 
+impl InArena for Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+    type Item = ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
+        has_arena.mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -2942,7 +2969,13 @@ pub trait ArenaAlloc: Sized {
 
 impl ArenaAlloc for ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>> {
     fn alloc(self, arena: &impl HasArena) -> Id<Self> {
-        arena.mode_aware_cache_resolved_module_with_failed_lookup_locations(self)
+        arena.alloc_mode_aware_cache_resolved_module_with_failed_lookup_locations(self)
+    }
+}
+
+impl ArenaAlloc for ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
+    fn alloc(self, arena: &impl HasArena) -> Id<Self> {
+        arena.alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(self)
     }
 }
 
