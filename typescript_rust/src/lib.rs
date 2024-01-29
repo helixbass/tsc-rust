@@ -380,6 +380,7 @@ pub use compiler::{
     },
     transformers::{
         PrivateIdentifierKind, ClassLexicalEnvironment, ConvertedLoopState, CodeBlock,
+        PrivateIdentifierEnvironment,
         declarations::{
             diagnostics::{
                 can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,

@@ -369,7 +369,7 @@ impl From<PrivateIdentifierAccessorInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
 }
 
 #[derive(Default, Trace, Finalize)]
-pub(super) struct PrivateIdentifierEnvironment {
+pub struct PrivateIdentifierEnvironment {
     pub class_name: String,
     pub weak_set_name: Option<Id<Node /*Identifier*/>>,
     pub identifiers: UnderscoreEscapedMap<Gc<GcCell<PrivateIdentifierInfo>>>,
@@ -381,7 +381,7 @@ pub struct ClassLexicalEnvironment {
     pub facts: ClassFacts,
     pub class_constructor: Option<Id<Node /*Identifier*/>>,
     pub super_class_reference: Option<Id<Node /*Identifier*/>>,
-    pub private_identifier_environment: Option<Gc<GcCell<PrivateIdentifierEnvironment>>>,
+    pub private_identifier_environment: Option<Id<PrivateIdentifierEnvironment>>,
 }
 
 bitflags! {

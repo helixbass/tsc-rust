@@ -979,7 +979,7 @@ impl TransformClassFields {
             let name = get_name_of_declaration(Some(node), self);
             if let Some(name) = name.filter(|name| is_identifier(&name.ref_(self))) {
                 self.get_private_identifier_environment()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .class_name = id_text(&name.ref_(self)).to_owned();
             }
 
@@ -987,7 +987,7 @@ impl TransformClassFields {
                 self.get_private_instance_methods_and_accessors(node);
             if !private_instance_methods_and_accessors.is_empty() {
                 self.get_private_identifier_environment()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .weak_set_name = Some(
                     self.create_hoisted_variable_for_class(
                         "instances",

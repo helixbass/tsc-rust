@@ -375,7 +375,7 @@ impl TransformClassFields {
 
     pub(super) fn create_brand_check_weak_set_for_private_methods(&self) {
         let private_identifier_environment = self.get_private_identifier_environment();
-        let private_identifier_environment = (*private_identifier_environment).borrow();
+        let private_identifier_environment = private_identifier_environment.ref_(self);
         let weak_set_name = private_identifier_environment.weak_set_name.as_ref();
         Debug_.assert(
             weak_set_name.is_some(),
@@ -892,7 +892,7 @@ impl TransformClassFields {
         }
 
         let private_identifier_environment = self.get_private_identifier_environment();
-        let private_identifier_environment = (*private_identifier_environment).borrow();
+        let private_identifier_environment = private_identifier_environment.ref_(self);
         let weak_set_name = private_identifier_environment.weak_set_name;
         Debug_.assert(
             weak_set_name.is_some(),

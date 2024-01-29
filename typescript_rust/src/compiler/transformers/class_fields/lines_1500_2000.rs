@@ -106,12 +106,12 @@ impl TransformClassFields {
 
     pub(super) fn get_private_identifier_environment(
         &self,
-    ) -> Gc<GcCell<PrivateIdentifierEnvironment>> {
+    ) -> Id<PrivateIdentifierEnvironment> {
         let lex = self.get_class_lexical_environment();
         let ret = lex
             .ref_mut(self)
             .private_identifier_environment
-            .get_or_insert_default_()
+            .get_or_insert_with(|| self.alloc_private_identifier_environment(Default::default()))
             .clone();
         ret
     }
@@ -139,13 +139,13 @@ impl TransformClassFields {
         let class_constructor = lex.class_constructor;
 
         let private_env = self.get_private_identifier_environment();
-        let weak_set_name = (*private_env).borrow().weak_set_name.clone();
+        let weak_set_name = private_env.ref_(self).weak_set_name.clone();
 
         let mut assignment_expressions: Vec<Id<Node /*Expression*/>> = _d();
 
         let private_name = &node_name_as_private_identifier.escaped_text;
-        let previous_info = (*private_env)
-            .borrow()
+        let previous_info = private_env
+            .ref_(self)
             .identifiers
             .get(private_name)
             .cloned();
@@ -160,7 +160,7 @@ impl TransformClassFields {
             let class_constructor = class_constructor.unwrap();
             if is_property_declaration(&node.ref_(self)) {
                 let variable_name = self.create_hoisted_variable_for_private_name(&text, node);
-                private_env.borrow_mut().identifiers.insert(
+                private_env.ref_mut(self).identifiers.insert(
                     private_name.clone(),
                     PrivateIdentifierStaticFieldInfo::new(
                         class_constructor.clone(),
@@ -171,7 +171,7 @@ impl TransformClassFields {
                 );
             } else if is_method_declaration(&node.ref_(self)) {
                 let function_name = self.create_hoisted_variable_for_private_name(&text, node);
-                private_env.borrow_mut().identifiers.insert(
+                private_env.ref_mut(self).identifiers.insert(
                     private_name.clone(),
                     PrivateIdentifierMethodInfo::new(
                         class_constructor.clone(),
@@ -198,7 +198,7 @@ impl TransformClassFields {
                         .as_private_identifier_accessor_info_mut()
                         .getter_name = Some(getter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
                         PrivateIdentifierAccessorInfo::new(
                             class_constructor.clone(),
@@ -227,7 +227,7 @@ impl TransformClassFields {
                         .as_private_identifier_accessor_info_mut()
                         .setter_name = Some(setter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
                         PrivateIdentifierAccessorInfo::new(
                             class_constructor.clone(),
@@ -244,7 +244,7 @@ impl TransformClassFields {
             }
         } else if is_property_declaration(&node.ref_(self)) {
             let weak_map_name = self.create_hoisted_variable_for_private_name(&text, node);
-            private_env.borrow_mut().identifiers.insert(
+            private_env.ref_mut(self).identifiers.insert(
                 private_name.clone(),
                 PrivateIdentifierInstanceFieldInfo::new(weak_map_name.clone(), is_valid).into(),
             );
@@ -264,7 +264,7 @@ impl TransformClassFields {
             );
             let weak_set_name = weak_set_name.as_ref().unwrap();
 
-            private_env.borrow_mut().identifiers.insert(
+            private_env.ref_mut(self).identifiers.insert(
                 private_name.clone(),
                 PrivateIdentifierMethodInfo::new(
                     weak_set_name.clone(),
@@ -298,7 +298,7 @@ impl TransformClassFields {
                         .as_private_identifier_accessor_info_mut()
                         .getter_name = Some(getter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
                         PrivateIdentifierAccessorInfo::new(
                             weak_set_name.clone(),
@@ -327,7 +327,7 @@ impl TransformClassFields {
                         .as_private_identifier_accessor_info_mut()
                         .setter_name = Some(setter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
                         PrivateIdentifierAccessorInfo::new(
                             weak_set_name.clone(),
@@ -354,7 +354,7 @@ impl TransformClassFields {
         node: Id<Node>, /*PrivateIdentifier | ClassStaticBlockDeclaration*/
     ) -> Id<Node /*Identifier*/> {
         let private_identifier_environment = self.get_private_identifier_environment();
-        let private_identifier_environment = (*private_identifier_environment).borrow();
+        let private_identifier_environment = private_identifier_environment.ref_(self);
         let class_name = &private_identifier_environment.class_name;
         let prefix = if !class_name.is_empty() {
             format!("_{class_name}")
@@ -406,7 +406,7 @@ impl TransformClassFields {
             })
         {
             let current_class_lexical_environment_private_identifier_environment =
-                (*current_class_lexical_environment_private_identifier_environment).borrow();
+                current_class_lexical_environment_private_identifier_environment.ref_(self);
             let info = current_class_lexical_environment_private_identifier_environment
                 .identifiers
                 .get(&name_as_private_identifier.escaped_text);
@@ -419,10 +419,9 @@ impl TransformClassFields {
             let info = env
                 .ref_(self)
                 .private_identifier_environment
-                .as_ref()
                 .and_then(|env_private_identifier_environment| {
-                    (**env_private_identifier_environment)
-                        .borrow()
+                    env_private_identifier_environment
+                        .ref_(self)
                         .identifiers
                         .get(&name_as_private_identifier.escaped_text)
                         .cloned()

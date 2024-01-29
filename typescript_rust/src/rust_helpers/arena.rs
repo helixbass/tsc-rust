@@ -25,7 +25,7 @@ use crate::{
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
-    LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock,
+    LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
 };
 
 #[derive(Default)]
@@ -122,6 +122,7 @@ pub struct AllArenas {
     pub load_with_local_cache_loaders: RefCell<Arena<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>>,
     pub symbol_accessibility_diagnostics: RefCell<Arena<SymbolAccessibilityDiagnostic>>,
     pub code_blocks: RefCell<Arena<CodeBlock>>,
+    pub private_identifier_environments: RefCell<Arena<PrivateIdentifierEnvironment>>,
 }
 
 pub trait HasArena {
@@ -893,6 +894,18 @@ pub trait HasArena {
 
     fn alloc_code_block(&self, code_block: CodeBlock) -> Id<CodeBlock> {
         self.arena().alloc_code_block(code_block)
+    }
+
+    fn private_identifier_environment(&self, private_identifier_environment: Id<PrivateIdentifierEnvironment>) -> Ref<PrivateIdentifierEnvironment> {
+        self.arena().private_identifier_environment(private_identifier_environment)
+    }
+
+    fn private_identifier_environment_mut(&self, private_identifier_environment: Id<PrivateIdentifierEnvironment>) -> RefMut<PrivateIdentifierEnvironment> {
+        self.arena().private_identifier_environment_mut(private_identifier_environment)
+    }
+
+    fn alloc_private_identifier_environment(&self, private_identifier_environment: PrivateIdentifierEnvironment) -> Id<PrivateIdentifierEnvironment> {
+        self.arena().alloc_private_identifier_environment(private_identifier_environment)
     }
 }
 
@@ -1862,6 +1875,20 @@ impl HasArena for AllArenas {
         let id = self.code_blocks.borrow_mut().alloc(code_block);
         id
     }
+
+    #[track_caller]
+    fn private_identifier_environment(&self, private_identifier_environment: Id<PrivateIdentifierEnvironment>) -> Ref<PrivateIdentifierEnvironment> {
+        Ref::map(self.private_identifier_environments.borrow(), |private_identifier_environments| &private_identifier_environments[private_identifier_environment])
+    }
+
+    fn private_identifier_environment_mut(&self, private_identifier_environment: Id<PrivateIdentifierEnvironment>) -> RefMut<PrivateIdentifierEnvironment> {
+        RefMut::map(self.private_identifier_environments.borrow_mut(), |private_identifier_environments| &mut private_identifier_environments[private_identifier_environment])
+    }
+
+    fn alloc_private_identifier_environment(&self, private_identifier_environment: PrivateIdentifierEnvironment) -> Id<PrivateIdentifierEnvironment> {
+        let id = self.private_identifier_environments.borrow_mut().alloc(private_identifier_environment);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2639,6 +2666,18 @@ impl InArena for Id<CodeBlock> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, CodeBlock> {
         has_arena.code_block_mut(*self)
+    }
+}
+
+impl InArena for Id<PrivateIdentifierEnvironment> {
+    type Item = PrivateIdentifierEnvironment;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PrivateIdentifierEnvironment> {
+        has_arena.private_identifier_environment(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, PrivateIdentifierEnvironment> {
+        has_arena.private_identifier_environment_mut(*self)
     }
 }
 
