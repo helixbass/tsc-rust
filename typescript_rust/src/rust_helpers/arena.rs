@@ -21,7 +21,7 @@ use crate::{
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
-    ForEachResolvedProjectReference,
+    ForEachResolvedProjectReference, CompilerHostLike,
 };
 
 #[derive(Default)]
@@ -104,6 +104,7 @@ pub struct AllArenas {
     pub print_handlers: RefCell<Arena<Box<dyn PrintHandlers>>>,
     pub get_resolved_project_references: RefCell<Arena<Box<dyn GetResolvedProjectReferences>>>,
     pub for_each_resolved_project_references: RefCell<Arena<Box<dyn ForEachResolvedProjectReference>>>,
+    pub compiler_host_likes: RefCell<Arena<Box<dyn CompilerHostLike>>>,
 }
 
 pub trait HasArena {
@@ -759,6 +760,14 @@ pub trait HasArena {
 
     fn alloc_for_each_resolved_project_reference(&self, for_each_resolved_project_reference: Box<dyn ForEachResolvedProjectReference>) -> Id<Box<dyn ForEachResolvedProjectReference>> {
         self.arena().alloc_for_each_resolved_project_reference(for_each_resolved_project_reference)
+    }
+
+    fn compiler_host_like(&self, compiler_host_like: Id<Box<dyn CompilerHostLike>>) -> Ref<Box<dyn CompilerHostLike>> {
+        self.arena().compiler_host_like(compiler_host_like)
+    }
+
+    fn alloc_compiler_host_like(&self, compiler_host_like: Box<dyn CompilerHostLike>) -> Id<Box<dyn CompilerHostLike>> {
+        self.arena().alloc_compiler_host_like(compiler_host_like)
     }
 }
 
@@ -1584,6 +1593,16 @@ impl HasArena for AllArenas {
         let id = self.for_each_resolved_project_references.borrow_mut().alloc(for_each_resolved_project_reference);
         id
     }
+
+    #[track_caller]
+    fn compiler_host_like(&self, compiler_host_like: Id<Box<dyn CompilerHostLike>>) -> Ref<Box<dyn CompilerHostLike>> {
+        Ref::map(self.compiler_host_likes.borrow(), |compiler_host_likes| &compiler_host_likes[compiler_host_like])
+    }
+
+    fn alloc_compiler_host_like(&self, compiler_host_like: Box<dyn CompilerHostLike>) -> Id<Box<dyn CompilerHostLike>> {
+        let id = self.compiler_host_likes.borrow_mut().alloc(compiler_host_like);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2245,6 +2264,14 @@ impl InArena for Id<Box<dyn ForEachResolvedProjectReference>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ForEachResolvedProjectReference>> {
         has_arena.for_each_resolved_project_reference_ref(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn CompilerHostLike>> {
+    type Item = Box<dyn CompilerHostLike>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CompilerHostLike>> {
+        has_arena.compiler_host_like(*self)
     }
 }
 

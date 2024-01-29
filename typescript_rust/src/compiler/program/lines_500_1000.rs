@@ -961,7 +961,7 @@ impl Program {
         }));
         *self.config_parsing_host.borrow_mut() = Some(Gc::new(Box::new(
             parse_config_host_from_compiler_host_like(
-                Gc::new(Box::new(CompilerHostLikeRcDynCompilerHost::new(
+                self.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::new(
                     self.host(),
                 ))),
                 None,

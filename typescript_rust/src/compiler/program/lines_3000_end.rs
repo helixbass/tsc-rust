@@ -2513,30 +2513,30 @@ impl From<Id<Box<dyn CompilerHost>>> for CompilerHostLikeRcDynCompilerHost {
 
 #[derive(Trace, Finalize)]
 pub struct DirectoryStructureHostRcDynCompilerHostLike {
-    host: Gc<Box<dyn CompilerHostLike>>,
+    host: Id<Box<dyn CompilerHostLike>>,
 }
 
 impl DirectoryStructureHostRcDynCompilerHostLike {
-    pub fn new(host: Gc<Box<dyn CompilerHostLike>>) -> Self {
+    pub fn new(host: Id<Box<dyn CompilerHostLike>>) -> Self {
         Self { host }
     }
 }
 
 impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
     fn file_exists(&self, path: &str) -> bool {
-        self.host.file_exists(path)
+        self.host.ref_(self).file_exists(path)
     }
 
     fn read_file(&self, path: &str, _encoding: Option<&str>) -> io::Result<Option<String>> {
-        self.host.read_file(path)
+        self.host.ref_(self).read_file(path)
     }
 
     fn directory_exists(&self, path: &str) -> Option<bool> {
-        self.host.directory_exists(path)
+        self.host.ref_(self).directory_exists(path)
     }
 
     fn get_directories(&self, path: &str) -> Option<Vec<String>> {
-        self.host.get_directories(path)
+        self.host.ref_(self).get_directories(path)
     }
 
     fn read_directory(
@@ -2548,19 +2548,19 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         depth: Option<usize>,
     ) -> Option<io::Result<Vec<String>>> {
         self.host
-            .read_directory(path, extensions, exclude, include.unwrap(), depth)
+            .ref_(self).read_directory(path, extensions, exclude, include.unwrap(), depth)
     }
 
     fn is_read_directory_implemented(&self) -> bool {
-        self.host.is_read_directory_implemented()
+        self.host.ref_(self).is_read_directory_implemented()
     }
 
     fn realpath(&self, path: &str) -> Option<String> {
-        self.host.realpath(path)
+        self.host.ref_(self).realpath(path)
     }
 
     fn create_directory(&self, path: &str) -> io::Result<()> {
-        self.host.create_directory(path)
+        self.host.ref_(self).create_directory(path)
     }
 
     fn write_file(
@@ -2569,12 +2569,12 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
         data: &str,
         write_byte_order_mark: Option<bool>,
     ) -> io::Result<()> {
-        self.host.write_file(path, data, write_byte_order_mark)
+        self.host.ref_(self).write_file(path, data, write_byte_order_mark)
     }
 }
 
 pub fn parse_config_host_from_compiler_host_like(
-    host: Gc<Box<dyn CompilerHostLike>>,
+    host: Id<Box<dyn CompilerHostLike>>,
     directory_structure_host: Option<Gc<Box<dyn DirectoryStructureHost>>>,
 ) -> ParseConfigHostFromCompilerHostLike {
     let directory_structure_host = directory_structure_host.unwrap_or_else(|| {
@@ -2587,13 +2587,13 @@ pub fn parse_config_host_from_compiler_host_like(
 
 #[derive(Trace, Finalize)]
 pub struct ParseConfigHostFromCompilerHostLike {
-    host: Gc<Box<dyn CompilerHostLike>>,
+    host: Id<Box<dyn CompilerHostLike>>,
     directory_structure_host: Gc<Box<dyn DirectoryStructureHost>>,
 }
 
 impl ParseConfigHostFromCompilerHostLike {
     pub fn new(
-        host: Gc<Box<dyn CompilerHostLike>>,
+        host: Id<Box<dyn CompilerHostLike>>,
         directory_structure_host: Gc<Box<dyn DirectoryStructureHost>>,
     ) -> Self {
         Self {
@@ -2605,13 +2605,13 @@ impl ParseConfigHostFromCompilerHostLike {
 
 impl ParseConfigFileHost for ParseConfigHostFromCompilerHostLike {
     fn get_current_directory(&self) -> io::Result<String> {
-        self.host.get_current_directory()
+        self.host.ref_(self).get_current_directory()
     }
 }
 
 impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
     fn use_case_sensitive_file_names(&self) -> bool {
-        self.host.use_case_sensitive_file_names()
+        self.host.ref_(self).use_case_sensitive_file_names()
     }
 
     fn read_directory(
@@ -2637,11 +2637,11 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
     }
 
     fn trace(&self, s: &str) {
-        CompilerHostLike::trace(&**self.host, s)
+        CompilerHostLike::trace(&**self.host.ref_(self), s)
     }
 
     fn is_trace_supported(&self) -> bool {
-        self.host.is_trace_supported()
+        self.host.ref_(self).is_trace_supported()
     }
 
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
@@ -2652,7 +2652,13 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
 impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>) {
         self.host
-            .on_un_recoverable_config_file_diagnostic(diagnostic)
+            .ref_(self).on_un_recoverable_config_file_diagnostic(diagnostic)
+    }
+}
+
+impl HasArena for ParseConfigHostFromCompilerHostLike {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
