@@ -1855,7 +1855,7 @@ impl HasArena for AllArenas {
     }
 
     fn code_block_mut(&self, code_block: Id<CodeBlock>) -> RefMut<CodeBlock> {
-        RefMut::map(self.code_blocks.borrow_mut(), |code_block| &mut code_block[code_block])
+        RefMut::map(self.code_blocks.borrow_mut(), |code_blocks| &mut code_blocks[code_block])
     }
 
     fn alloc_code_block(&self, code_block: CodeBlock) -> Id<CodeBlock> {
