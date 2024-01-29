@@ -329,13 +329,12 @@ impl TransformSystemModule {
 
                 if let Some(value) = self
                     .maybe_module_info()
-                    .as_ref()
-                    .and_then(|module_info| {
+                    .matches(|module_info| {
                         module_info
                             .ref_(self).exported_bindings
                             .get(&get_original_node_id(value_declaration, self))
+                            .non_empty()
                     })
-                    .non_empty()
                 {
                     exported_names
                         .get_or_insert_default_()

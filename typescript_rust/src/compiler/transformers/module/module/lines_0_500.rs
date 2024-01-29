@@ -237,7 +237,8 @@ impl TransformModule {
             statements.push(self.create_underscore_underscore_es_module());
         }
         let current_module_info = self.current_module_info();
-        let current_module_info_exported_names = current_module_info.ref_(self).exported_names.as_ref();
+        let current_module_info_ref = current_module_info.ref_(self);
+        let current_module_info_exported_names = current_module_info_ref.exported_names.as_ref();
         if current_module_info_exported_names.is_non_empty() {
             let current_module_info_exported_names = current_module_info_exported_names.unwrap();
             let chunk_size = 50;

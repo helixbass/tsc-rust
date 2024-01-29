@@ -121,7 +121,8 @@ impl TransformModule {
     {
         let name = self.factory.ref_(self).get_declaration_name(Some(decl), None, None);
         let current_module_info = self.current_module_info();
-        let export_specifiers = current_module_info.ref_(self).export_specifiers.get(id_text(&*name.ref_(self)));
+        let current_module_info_ref = current_module_info.ref_(self);
+        let export_specifiers = current_module_info_ref.export_specifiers.get(id_text(&*name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
                 let export_specifier_ref = export_specifier.ref_(self);
