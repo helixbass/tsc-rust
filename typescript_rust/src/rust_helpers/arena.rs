@@ -27,7 +27,7 @@ use crate::{
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
-    ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
+    ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
 };
 
 #[derive(Default)]
@@ -129,6 +129,7 @@ pub struct AllArenas {
     pub external_module_infos: RefCell<Arena<ExternalModuleInfo>>,
     pub resolved_modules_with_failed_lookup_locations: RefCell<Arena<ResolvedModuleWithFailedLookupLocations>>,
     pub resolved_type_reference_directives_with_failed_lookup_locations: RefCell<Arena<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
+    pub package_json_info_caches: RefCell<Arena<Box<dyn PackageJsonInfoCache>>>,
 }
 
 pub trait HasArena {
@@ -948,6 +949,14 @@ pub trait HasArena {
 
     fn alloc_resolved_type_reference_directive_with_failed_lookup_locations(&self, resolved_type_reference_directive_with_failed_lookup_locations: ResolvedTypeReferenceDirectiveWithFailedLookupLocations) -> Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
         self.arena().alloc_resolved_type_reference_directive_with_failed_lookup_locations(resolved_type_reference_directive_with_failed_lookup_locations)
+    }
+
+    fn package_json_info_cache(&self, package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>>) -> Ref<Box<dyn PackageJsonInfoCache>> {
+        self.arena().package_json_info_cache(package_json_info_cache)
+    }
+
+    fn alloc_package_json_info_cache(&self, package_json_info_cache: Box<dyn PackageJsonInfoCache>) -> Id<Box<dyn PackageJsonInfoCache>> {
+        self.arena().alloc_package_json_info_cache(package_json_info_cache)
     }
 }
 
@@ -1975,6 +1984,16 @@ impl HasArena for AllArenas {
         let id = self.resolved_type_reference_directives_with_failed_lookup_locations.borrow_mut().alloc(resolved_type_reference_directive_with_failed_lookup_locations);
         id
     }
+
+    #[track_caller]
+    fn package_json_info_cache(&self, package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>>) -> Ref<Box<dyn PackageJsonInfoCache>> {
+        Ref::map(self.package_json_info_caches.borrow(), |package_json_info_caches| &package_json_info_caches[package_json_info_cache])
+    }
+
+    fn alloc_package_json_info_cache(&self, package_json_info_cache: Box<dyn PackageJsonInfoCache>) -> Id<Box<dyn PackageJsonInfoCache>> {
+        let id = self.package_json_info_caches.borrow_mut().alloc(package_json_info_cache);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2803,6 +2822,14 @@ impl InArena for Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations> {
     }
 }
 
+impl InArena for Id<Box<dyn PackageJsonInfoCache>> {
+    type Item = Box<dyn PackageJsonInfoCache>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn PackageJsonInfoCache>> {
+        has_arena.package_json_info_cache(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -2870,6 +2897,14 @@ impl OptionInArena for Option<Id<ExternalModuleInfo>> {
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, ExternalModuleInfo>> {
         self.map(|external_module_info| has_arena.external_module_info(external_module_info))
+    }
+}
+
+impl OptionInArena for Option<Id<Box<dyn PackageJsonInfoCache>>> {
+    type Item = Box<dyn PackageJsonInfoCache>;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Box<dyn PackageJsonInfoCache>>> {
+        self.map(|package_json_info_cache| has_arena.package_json_info_cache(package_json_info_cache))
     }
 }
 

@@ -1003,6 +1003,7 @@ impl Program {
                     Some(self.options.clone()),
                     None,
                     None,
+                    self,
                 )));
             let loader = LoadWithModeAwareCacheLoaderResolveModuleName::new(
                 self.options.clone(),
@@ -1037,6 +1038,7 @@ impl Program {
                             module_resolution_cache.ref_(self).get_package_json_info_cache()
                         }),
                     None,
+                    self,
                 )));
             let loader = LoadWithLocalCacheLoaderResolveTypeReferenceDirective::new(
                 self.options.clone(),

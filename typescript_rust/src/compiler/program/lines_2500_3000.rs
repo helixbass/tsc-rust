@@ -20,7 +20,7 @@ use crate::{
     NodeSymbolOverride, NonEmpty, PackageId, Path, Program, RedirectInfo, ReferencedFile,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile,
     SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, OptionInArena,
 };
 
 impl Program {
@@ -521,6 +521,7 @@ impl Program {
                     .map(|module_resolution_cache| {
                         module_resolution_cache.ref_(self).get_package_json_info_cache()
                     })
+                    .refed(self)
                     .as_double_deref(),
                 self.host().ref_(self).as_dyn_module_resolution_host(),
                 self.options.clone(),

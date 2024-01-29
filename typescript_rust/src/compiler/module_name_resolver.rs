@@ -963,7 +963,7 @@ pub struct TypeReferenceDirectiveResolutionCache {
     pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
         Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
     >,
-    pub package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
+    pub package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>>,
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -990,7 +990,7 @@ pub struct ModuleResolutionCache {
     pre_directory_resolution_cache:
         PerDirectoryResolutionCacheConcrete<Id<ResolvedModuleWithFailedLookupLocations>>,
     module_name_to_directory_map: Gc<CacheWithRedirects<PerModuleNameCache>>,
-    package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
+    package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>>,
 }
 
 pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
@@ -1331,6 +1331,7 @@ pub fn create_module_resolution_cache(
         Gc<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
     module_name_to_directory_map: Option<Gc<CacheWithRedirects<PerModuleNameCache>>>,
+    arena: &impl HasArena,
 ) -> ModuleResolutionCache {
     let directory_to_module_name_map = directory_to_module_name_map
         .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options.clone())));
@@ -1341,7 +1342,7 @@ pub fn create_module_resolution_cache(
     );
     let module_name_to_directory_map = module_name_to_directory_map
         .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options.clone())));
-    let package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>> = Gc::new(Box::new(
+    let package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>> = arena.alloc_package_json_info_cache(Box::new(
         create_package_json_info_cache(current_directory, get_canonical_file_name.clone()),
     ));
 
@@ -1355,7 +1356,7 @@ pub fn create_module_resolution_cache(
 }
 
 impl ModuleResolutionCache {
-    pub fn get_package_json_info_cache(&self) -> Gc<Box<dyn PackageJsonInfoCache>> {
+    pub fn get_package_json_info_cache(&self) -> Id<Box<dyn PackageJsonInfoCache>> {
         self.package_json_info_cache.clone()
     }
 
@@ -1526,20 +1527,26 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
 impl PackageJsonInfoCache for ModuleResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
         self.package_json_info_cache
-            .get_package_json_info(package_json_path)
+            .ref_(self).get_package_json_info(package_json_path)
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
         self.package_json_info_cache
-            .set_package_json_info(package_json_path, info)
+            .ref_(self).set_package_json_info(package_json_path, info)
     }
 
     fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
-        self.package_json_info_cache.entries()
+        self.package_json_info_cache.ref_(self).entries()
     }
 
     fn clear(&self) {
-        self.package_json_info_cache.clear()
+        self.package_json_info_cache.ref_(self).clear()
+    }
+}
+
+impl HasArena for ModuleResolutionCache {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1547,7 +1554,7 @@ pub fn create_type_reference_directive_resolution_cache(
     current_directory: &str,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     options: Option<Id<CompilerOptions>>,
-    package_json_info_cache: Option<Gc<Box<dyn PackageJsonInfoCache>>>,
+    package_json_info_cache: Option<Id<Box<dyn PackageJsonInfoCache>>>,
     directory_to_module_name_map: Option<
         Gc<
             CacheWithRedirects<
@@ -1555,6 +1562,7 @@ pub fn create_type_reference_directive_resolution_cache(
             >,
         >,
     >,
+    arena: &impl HasArena,
 ) -> TypeReferenceDirectiveResolutionCache {
     let pre_directory_resolution_cache = create_per_directory_resolution_cache(
         current_directory,
@@ -1563,7 +1571,7 @@ pub fn create_type_reference_directive_resolution_cache(
             .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options))),
     );
     let package_json_info_cache = package_json_info_cache.unwrap_or_else(|| {
-        Gc::new(Box::new(create_package_json_info_cache(
+        arena.alloc_package_json_info_cache(Box::new(create_package_json_info_cache(
             current_directory,
             get_canonical_file_name,
         )))
@@ -1605,20 +1613,26 @@ impl PerDirectoryResolutionCache<Id<ResolvedTypeReferenceDirectiveWithFailedLook
 impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
         self.package_json_info_cache
-            .get_package_json_info(package_json_path)
+            .ref_(self).get_package_json_info(package_json_path)
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
         self.package_json_info_cache
-            .set_package_json_info(package_json_path, info)
+            .ref_(self).set_package_json_info(package_json_path, info)
     }
 
     fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
-        self.package_json_info_cache.entries()
+        self.package_json_info_cache.ref_(self).entries()
     }
 
     fn clear(&self) {
-        self.package_json_info_cache.clear()
+        self.package_json_info_cache.ref_(self).clear()
+    }
+}
+
+impl HasArena for TypeReferenceDirectiveResolutionCache {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
