@@ -28,7 +28,7 @@ use crate::{
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
-    ModeAwareCache,
+    ModeAwareCache, PerModuleNameCache,
 };
 
 #[derive(Default)]
@@ -133,6 +133,7 @@ pub struct AllArenas {
     pub package_json_info_caches: RefCell<Arena<Box<dyn PackageJsonInfoCache>>>,
     pub mode_aware_cache_resolved_module_with_failed_lookup_locations: RefCell<Arena<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
     pub mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: RefCell<Arena<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>,
+    pub per_module_name_caches: RefCell<Arena<PerModuleNameCache>>,
 }
 
 pub trait HasArena {
@@ -976,6 +977,14 @@ pub trait HasArena {
 
     fn alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(&self, mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>) -> Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>> {
         self.arena().alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations)
+    }
+
+    fn per_module_name_cache(&self, per_module_name_cache: Id<PerModuleNameCache>) -> Ref<PerModuleNameCache> {
+        self.arena().per_module_name_cache(per_module_name_cache)
+    }
+
+    fn alloc_per_module_name_cache(&self, per_module_name_cache: PerModuleNameCache) -> Id<PerModuleNameCache> {
+        self.arena().alloc_per_module_name_cache(per_module_name_cache)
     }
 }
 
@@ -2033,6 +2042,16 @@ impl HasArena for AllArenas {
         let id = self.mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations.borrow_mut().alloc(mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations);
         id
     }
+
+    #[track_caller]
+    fn per_module_name_cache(&self, per_module_name_cache: Id<PerModuleNameCache>) -> Ref<PerModuleNameCache> {
+        Ref::map(self.per_module_name_caches.borrow(), |per_module_name_caches| &per_module_name_caches[per_module_name_cache])
+    }
+
+    fn alloc_per_module_name_cache(&self, per_module_name_cache: PerModuleNameCache) -> Id<PerModuleNameCache> {
+        let id = self.per_module_name_caches.borrow_mut().alloc(per_module_name_cache);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2885,6 +2904,14 @@ impl InArena for Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLo
     }
 }
 
+impl InArena for Id<PerModuleNameCache> {
+    type Item = PerModuleNameCache;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PerModuleNameCache> {
+        has_arena.per_module_name_cache(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -2963,6 +2990,14 @@ impl OptionInArena for Option<Id<Box<dyn PackageJsonInfoCache>>> {
     }
 }
 
+impl OptionInArena for Option<Id<PerModuleNameCache>> {
+    type Item = PerModuleNameCache;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, PerModuleNameCache>> {
+        self.map(|per_module_name_cache| has_arena.per_module_name_cache(per_module_name_cache))
+    }
+}
+
 pub trait ArenaAlloc: Sized {
     fn alloc(self, arena: &impl HasArena) -> Id<Self>;
 }
@@ -2976,6 +3011,12 @@ impl ArenaAlloc for ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>> 
 impl ArenaAlloc for ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
     fn alloc(self, arena: &impl HasArena) -> Id<Self> {
         arena.alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(self)
+    }
+}
+
+impl ArenaAlloc for PerModuleNameCache {
+    fn alloc(self, arena: &impl HasArena) -> Id<Self> {
+        arena.alloc_per_module_name_cache(self)
     }
 }
 

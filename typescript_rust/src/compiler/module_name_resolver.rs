@@ -1001,7 +1001,7 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<PerModuleNameCache>;
+    ) -> Id<PerModuleNameCache>;
     fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache;
 }
 
@@ -1511,7 +1511,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
         non_relative_module_name: &str,
         mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<PerModuleNameCache> {
+    ) -> Id<PerModuleNameCache> {
         Debug_.assert(
             !is_external_module_name_relative(non_relative_module_name),
             None,
@@ -1799,7 +1799,7 @@ pub fn resolve_module_name(
                         resolution_mode,
                         redirected_reference.clone(),
                     )
-                    .set(&containing_directory, result.clone().unwrap());
+                    .ref_(arena).set(&containing_directory, result.clone().unwrap());
             }
         }
     }
@@ -3814,7 +3814,7 @@ fn load_module_from_nearest_node_modules_directory_worker(
     try_for_each_ancestor_directory(&normalize_slashes(directory).into(), |ancestor_directory| {
         if get_base_file_name(ancestor_directory, None, None) != "node_modules" {
             let resolution_from_cache = try_find_non_relative_module_name_in_cache(
-                per_module_name_cache.as_deref(),
+                per_module_name_cache.refed(arena).as_deref(),
                 module_name,
                 ancestor_directory,
                 state,
@@ -4363,7 +4363,7 @@ fn classic_name_resolver_try_resolve(
             &containing_directory.to_owned().into(),
             |directory: &Path| {
                 let resolution_from_cache = try_find_non_relative_module_name_in_cache(
-                    per_module_name_cache.as_deref(),
+                    per_module_name_cache.refed(arena).as_deref(),
                     module_name,
                     directory,
                     state,
