@@ -29,7 +29,7 @@ use crate::{
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
-    PendingDeclaration,
+    PendingDeclaration, PackageJsonInfo,
 };
 
 #[derive(Default)]
@@ -140,6 +140,7 @@ pub struct AllArenas {
     pub get_symbol_accessibility_diagnostic_interfaces: RefCell<Arena<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>>,
     pub option_vec_nodes: RefCell<Arena<Option<Vec<Id<Node>>>>>,
     pub vec_pending_declarations: RefCell<Arena<Vec<PendingDeclaration>>>,
+    pub package_json_infos: RefCell<Arena<PackageJsonInfo>>,
 }
 
 pub trait HasArena {
@@ -1047,6 +1048,14 @@ pub trait HasArena {
 
     fn alloc_vec_pending_declaration(&self, vec_pending_declaration: Vec<PendingDeclaration>) -> Id<Vec<PendingDeclaration>> {
         self.arena().alloc_vec_pending_declaration(vec_pending_declaration)
+    }
+
+    fn package_json_info(&self, package_json_info: Id<PackageJsonInfo>) -> Ref<PackageJsonInfo> {
+        self.arena().package_json_info(package_json_info)
+    }
+
+    fn alloc_package_json_info(&self, package_json_info: PackageJsonInfo) -> Id<PackageJsonInfo> {
+        self.arena().alloc_package_json_info(package_json_info)
     }
 }
 
@@ -2180,6 +2189,16 @@ impl HasArena for AllArenas {
         let id = self.vec_pending_declarations.borrow_mut().alloc(vec_pending_declaration);
         id
     }
+
+    #[track_caller]
+    fn package_json_info(&self, package_json_info: Id<PackageJsonInfo>) -> Ref<PackageJsonInfo> {
+        Ref::map(self.package_json_infos.borrow(), |package_json_infos| &package_json_infos[package_json_info])
+    }
+
+    fn alloc_package_json_info(&self, package_json_info: PackageJsonInfo) -> Id<PackageJsonInfo> {
+        let id = self.package_json_infos.borrow_mut().alloc(package_json_info);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3096,6 +3115,14 @@ impl InArena for Id<Vec<PendingDeclaration>> {
     }
 }
 
+impl InArena for Id<PackageJsonInfo> {
+    type Item = PackageJsonInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PackageJsonInfo> {
+        has_arena.package_json_info(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -3179,6 +3206,14 @@ impl OptionInArena for Option<Id<PerModuleNameCache>> {
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, PerModuleNameCache>> {
         self.map(|per_module_name_cache| has_arena.per_module_name_cache(per_module_name_cache))
+    }
+}
+
+impl OptionInArena for Option<Id<PackageJsonInfo>> {
+    type Item = PackageJsonInfo;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, PackageJsonInfo>> {
+        self.map(|package_json_info| has_arena.package_json_info(package_json_info))
     }
 }
 

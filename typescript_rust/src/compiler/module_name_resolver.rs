@@ -2542,7 +2542,7 @@ fn node_load_module_by_relative_name(
                 get_package_json_info(package_directory, false, state, arena)
             });
             return Ok(with_package_id(
-                package_info.as_deref(),
+                package_info.refed(arena).as_deref(),
                 Some(resolved_from_file),
             ));
         }
@@ -2880,13 +2880,11 @@ fn load_node_module_from_directory(
         None
     };
     let package_json_content = package_info
-        .as_ref()
-        .map(|package_info| package_info.package_json_content.clone());
+        .map(|package_info| package_info.ref_(arena).package_json_content.clone());
     let version_paths = package_info
-        .as_ref()
-        .and_then(|package_info| package_info.version_paths.clone());
+        .and_then(|package_info| package_info.ref_(arena).version_paths.clone());
     Ok(with_package_id(
-        package_info.as_deref(),
+        package_info.refed(arena).as_deref(),
         load_node_module_from_directory_worker(
             extensions,
             candidate,
@@ -2916,7 +2914,7 @@ pub(crate) fn get_package_scope_for_path(
     host: &dyn ModuleResolutionHost,
     options: Id<CompilerOptions>,
     arena: &impl HasArena,
-) -> Option<Gc<PackageJsonInfo>> {
+) -> Option<Id<PackageJsonInfo>> {
     let state = ModuleResolutionState {
         host,
         compiler_options: options.clone(),
@@ -2944,7 +2942,7 @@ pub(crate) fn get_package_json_info(
     only_record_failures: bool,
     state: &ModuleResolutionState,
     arena: &impl HasArena,
-) -> Option<Gc<PackageJsonInfo>> {
+) -> Option<Id<PackageJsonInfo>> {
     let host = state.host;
     let trace_enabled = state.trace_enabled;
     let package_json_path = combine_paths(package_directory, &[Some("package.json")]);
@@ -3007,7 +3005,7 @@ pub(crate) fn get_package_json_info(
             );
         }
         let version_paths = read_package_json_types_version_paths(&package_json_content, state);
-        let result = Gc::new(PackageJsonInfo {
+        let result = arena.alloc_package_json_info(PackageJsonInfo {
             package_directory: package_directory.to_owned(),
             package_json_content,
             version_paths: version_paths.map(Rc::new),
@@ -3286,7 +3284,8 @@ fn load_module_from_self_name_reference(
         return Ok(None);
     }
     let scope = scope.unwrap();
-    let scope_package_json_content = scope.package_json_content.as_object();
+    let scope_ref = scope.ref_(arena);
+    let scope_package_json_content = scope_ref.package_json_content.as_object();
     if scope_package_json_content.is_none() {
         return Ok(None);
     }
@@ -3313,7 +3312,7 @@ fn load_module_from_self_name_reference(
     }
     let trailing_parts = &parts[name_parts.len()..];
     load_module_from_exports(
-        &scope,
+        &scope.ref_(arena),
         extensions,
         &if trailing_parts.is_empty() {
             ".".to_owned()
@@ -3950,12 +3949,12 @@ fn load_module_from_specific_node_modules_directory(
                 &candidate,
                 !node_modules_directory_exists,
                 state,
-                Some(&package_info.package_json_content),
-                package_info.version_paths.as_deref(),
+                Some(&package_info.ref_(arena).package_json_content),
+                package_info.ref_(arena).version_paths.as_deref(),
                 arena,
             )?;
             return Ok(with_package_id(
-                Some(&**package_info),
+                Some(&package_info.ref_(arena)),
                 from_directory.as_ref(),
             ));
         }
@@ -3972,12 +3971,12 @@ fn load_module_from_specific_node_modules_directory(
             let arena = unsafe { &*arena_raw };
             if let Some(package_info) = (*package_info).borrow().as_ref().filter(|package_info| {
                 matches!(
-                    package_info.package_json_content.as_object(),
+                    package_info.ref_(arena).package_json_content.as_object(),
                     Some(package_info_package_json_content) if package_info_package_json_content.get("exports").is_some()
                 ) && state.features.intersects(NodeResolutionFeatures::Exports)
             }) {
                 return Ok(load_module_from_exports(
-                    package_info,
+                    &package_info.ref_(arena),
                     extensions,
                     &combine_paths(
                         ".",
@@ -3998,18 +3997,20 @@ fn load_module_from_specific_node_modules_directory(
                             state,
                             (*package_info)
                                 .borrow()
+                                .clone()
+                                .refed(arena)
                                 .as_ref()
                                 .map(|package_info| &*package_info.package_json_content),
                             (*package_info)
                                 .borrow()
-                                .as_ref()
-                                .and_then(|package_info| package_info.version_paths.clone())
+                                .clone()
+                                .and_then(|package_info| package_info.ref_(arena).version_paths.clone())
                                 .as_deref(),
                             arena,
                         )
                     })?;
             Ok(with_package_id(
-                (*package_info).borrow().as_deref(),
+                (*package_info).borrow().refed(arena).as_deref(),
                 path_and_extension.as_ref(),
             ))
         }
@@ -4023,7 +4024,7 @@ fn load_module_from_specific_node_modules_directory(
         if let Some(package_info_version_paths) = (*package_info)
             .borrow()
             .as_ref()
-            .and_then(|package_info| package_info.version_paths.clone())
+            .and_then(|package_info| package_info.ref_(arena).version_paths.clone())
             .as_ref()
         {
             if state.trace_enabled {
@@ -4074,14 +4075,14 @@ mod _PackageJsonInfoOrBoolDeriveTraceScope {
 
     #[derive(Clone, Trace, Finalize)]
     pub enum PackageJsonInfoOrBool {
-        PackageJsonInfo(Gc<PackageJsonInfo>),
+        PackageJsonInfo(Id<PackageJsonInfo>),
         Bool(bool),
     }
 }
 pub use _PackageJsonInfoOrBoolDeriveTraceScope::PackageJsonInfoOrBool;
 
-impl From<Gc<PackageJsonInfo>> for PackageJsonInfoOrBool {
-    fn from(value: Gc<PackageJsonInfo>) -> Self {
+impl From<Id<PackageJsonInfo>> for PackageJsonInfoOrBool {
+    fn from(value: Id<PackageJsonInfo>) -> Self {
         Self::PackageJsonInfo(value)
     }
 }

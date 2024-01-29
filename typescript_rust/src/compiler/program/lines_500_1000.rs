@@ -821,9 +821,9 @@ pub fn lookup_from_package_json(
 ) -> ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/ {
     let scope = get_package_scope_for_path(file_name, package_json_info_cache, host, options, arena);
     if matches!(
-        scope.as_ref(),
+        scope,
         Some(scope) if matches!(
-            scope.package_json_content.as_object().and_then(|scope_package_json_content| {
+            scope.ref_(arena).package_json_content.as_object().and_then(|scope_package_json_content| {
                 scope_package_json_content.get("type_")
             }),
             Some(serde_json::Value::String(value)) if &**value == "module"
