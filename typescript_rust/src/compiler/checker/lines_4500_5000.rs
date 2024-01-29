@@ -1581,7 +1581,7 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
         self.host.ref_(self).file_exists(file_name)
     }
 
-    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
+    fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.host.ref_(self).get_file_include_reasons()
     }
 

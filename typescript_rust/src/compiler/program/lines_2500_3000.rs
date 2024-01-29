@@ -239,8 +239,8 @@ impl Program {
         let existing_file_as_source_file = existing_file_ref.as_source_file();
         let has_existing_reason_to_report_error_on = !is_referenced_file(Some(&reason.ref_(self)))
             && some(
-                (*self.file_reasons())
-                    .borrow()
+                self.file_reasons()
+                    .ref_(self)
                     .get(&*existing_file_as_source_file.path())
                     .as_deref(),
                 Some(|reason: &Id<FileIncludeReason>| is_referenced_file(Some(&reason.ref_(self)))),
@@ -586,8 +586,8 @@ impl Program {
     ) {
         if let Some(file) = file {
             let file = file.borrow();
-            (*self.file_reasons())
-                .borrow_mut()
+            self.file_reasons()
+                .ref_mut(self)
                 .add(file.ref_(self).as_source_file().path().clone(), reason.clone());
         }
     }

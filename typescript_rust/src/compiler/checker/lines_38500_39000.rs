@@ -15,7 +15,7 @@ use crate::{
     is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
     is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
     maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, CheckFlags,
-    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap, HasArena,
+    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasArena,
     HasInitializerInterface, InArena, InterfaceTypeInterface, Matches, MemberOverrideStatus,
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
@@ -704,7 +704,7 @@ impl TypeChecker {
         type_: Id<Type>, /*InterfaceType*/
         base_types: &[Id<Type /*BaseType*/>],
         properties: TProperties,
-    ) -> io::Result<impl Iterator<Item = Id<Symbol>> + Clone>
+    ) -> io::Result<Vec<Id<Symbol>>>
     where
         TProperties: IntoIterator<Item = TPropertiesItem> + Clone,
         TPropertiesItem: Borrow<Id<Symbol>>,
@@ -712,9 +712,9 @@ impl TypeChecker {
     {
         let properties = properties.into_iter();
         if length(Some(base_types)) == 0 {
-            return Ok(Either::Left(
-                properties.map(|property| property.borrow().clone()),
-            ));
+            return Ok(
+                properties.map(|property| property.borrow().clone()).collect(),
+            );
         }
         let mut seen: HashMap<__String, Id<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
@@ -743,7 +743,7 @@ impl TypeChecker {
             }
         }
 
-        Ok(Either::Right(GcHashMap::from(seen).owned_values()))
+        Ok(seen.into_values().collect())
     }
 
     pub(super) fn check_inherited_properties_are_identical(

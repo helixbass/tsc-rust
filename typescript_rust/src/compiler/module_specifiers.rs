@@ -466,7 +466,7 @@ fn compute_module_specifiers(
     );
     let existing_specifier = for_each(module_paths, |module_path: &ModulePath, _| {
         maybe_for_each(
-            (*host.get_file_include_reasons()).borrow().get(&to_path(
+            host.get_file_include_reasons().ref_(arena).get(&to_path(
                 &module_path.path,
                 Some(&host.get_current_directory()),
                 info.get_canonical_file_name,

@@ -249,7 +249,7 @@ impl Program {
         CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self))
     }
 
-    pub fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
+    pub fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.file_reasons.borrow().clone()
     }
 
@@ -1606,7 +1606,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
         self.program.ref_(self).redirect_targets_map()
     }
 
-    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
+    fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.program.ref_(self).get_file_include_reasons()
     }
 

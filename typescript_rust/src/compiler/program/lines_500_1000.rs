@@ -886,7 +886,7 @@ impl Program {
                 no_diagnostics_type_checker: Default::default(),
                 classifiable_names: Default::default(),
                 ambient_module_name_to_unmodified_file_name: Default::default(),
-                file_reasons: GcCell::new(Gc::new(GcCell::new(create_multi_map()))),
+                file_reasons: GcCell::new(arena.alloc_file_reasons(create_multi_map())),
                 cached_bind_and_check_diagnostics_for_file: Default::default(),
                 cached_declaration_diagnostics_for_file: Default::default(),
 
@@ -1526,13 +1526,13 @@ impl Program {
             .borrow_mut()
     }
 
-    pub(super) fn file_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
+    pub(super) fn file_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.file_reasons.borrow().clone()
     }
 
     pub(super) fn set_file_reasons(
         &self,
-        file_reasons: Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>>,
+        file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>,
     ) {
         *self.file_reasons.borrow_mut() = file_reasons;
     }
@@ -2124,7 +2124,7 @@ impl ModuleSpecifierResolutionHost for Program {
         self.is_source_of_project_reference_redirect_(file_name)
     }
 
-    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
+    fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.file_reasons()
     }
 

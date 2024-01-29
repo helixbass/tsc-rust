@@ -1630,7 +1630,7 @@ pub struct Program {
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    pub(crate) file_reasons: GcCell<Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>>>,
+    pub(crate) file_reasons: GcCell<Id<MultiMap<Path, Id<FileIncludeReason>>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 

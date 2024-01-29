@@ -28,7 +28,7 @@ use crate::{
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
-    ModeAwareCache, PerModuleNameCache,
+    ModeAwareCache, PerModuleNameCache, MultiMap, Path,
 };
 
 #[derive(Default)]
@@ -135,6 +135,7 @@ pub struct AllArenas {
     pub mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: RefCell<Arena<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>,
     pub per_module_name_caches: RefCell<Arena<PerModuleNameCache>>,
     pub vec_diagnostics: RefCell<Arena<Vec<Id<Diagnostic>>>>,
+    pub file_reasons: RefCell<Arena<MultiMap<Path, Id<FileIncludeReason>>>>,
 }
 
 pub trait HasArena {
@@ -998,6 +999,18 @@ pub trait HasArena {
 
     fn alloc_vec_diagnostic(&self, vec_diagnostic: Vec<Id<Diagnostic>>) -> Id<Vec<Id<Diagnostic>>> {
         self.arena().alloc_vec_diagnostic(vec_diagnostic)
+    }
+
+    fn file_reasons(&self, file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>) -> Ref<MultiMap<Path, Id<FileIncludeReason>>> {
+        self.arena().file_reasons(file_reasons)
+    }
+
+    fn file_reasons_mut(&self, file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>) -> RefMut<MultiMap<Path, Id<FileIncludeReason>>> {
+        self.arena().file_reasons_mut(file_reasons)
+    }
+
+    fn alloc_file_reasons(&self, file_reasons: MultiMap<Path, Id<FileIncludeReason>>) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
+        self.arena().alloc_file_reasons(file_reasons)
     }
 }
 
@@ -2079,6 +2092,20 @@ impl HasArena for AllArenas {
         let id = self.vec_diagnostics.borrow_mut().alloc(vec_diagnostic);
         id
     }
+
+    #[track_caller]
+    fn file_reasons(&self, file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>) -> Ref<MultiMap<Path, Id<FileIncludeReason>>> {
+        Ref::map(self.file_reasons.borrow(), |file_reasons_| &file_reasons_[file_reasons])
+    }
+
+    fn file_reasons_mut(&self, file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>) -> RefMut<MultiMap<Path, Id<FileIncludeReason>>> {
+        RefMut::map(self.file_reasons.borrow_mut(), |file_reasons_| &mut file_reasons_[file_reasons])
+    }
+
+    fn alloc_file_reasons(&self, file_reasons: MultiMap<Path, Id<FileIncludeReason>>) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
+        let id = self.file_reasons.borrow_mut().alloc(file_reasons);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2948,6 +2975,18 @@ impl InArena for Id<Vec<Id<Diagnostic>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Vec<Id<Diagnostic>>> {
         has_arena.vec_diagnostic_mut(*self)
+    }
+}
+
+impl InArena for Id<MultiMap<Path, Id<FileIncludeReason>>> {
+    type Item = MultiMap<Path, Id<FileIncludeReason>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, MultiMap<Path, Id<FileIncludeReason>>> {
+        has_arena.file_reasons(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, MultiMap<Path, Id<FileIncludeReason>>> {
+        has_arena.file_reasons_mut(*self)
     }
 }
 

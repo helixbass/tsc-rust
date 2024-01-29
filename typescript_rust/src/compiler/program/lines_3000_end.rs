@@ -1172,7 +1172,7 @@ impl Program {
         };
         let file_reasons = self.file_reasons();
         if let Some(file) = file {
-            let file_reasons = (*file_reasons).borrow();
+            let file_reasons = file_reasons.ref_(self);
             if let Some(reasons) = file_reasons.get(&*file.ref_(self).as_source_file().path()) {
                 for &reason in reasons {
                     self.process_reason(

@@ -834,7 +834,6 @@ pub use rust_helpers::{
     debugging::{if_debugging, is_logging, start_debugging, stop_debugging, while_debugging},
     default::_d,
     deref::AsDoubleDeref,
-    hash_map::{GcHashMap, GcHashMapOwnedValues},
     index_of, index_of_eq, index_of_gc, index_of_rc,
     io::io_error_from_name,
     is_option_str_empty, is_same_variant,

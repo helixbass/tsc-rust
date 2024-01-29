@@ -454,8 +454,8 @@ pub fn explain_files(program: &Program, mut write: impl FnMut(&str)) {
     };
     for &file in &*program.get_source_files() {
         write(&to_file_name(file.clone(), Some(&relative_file_name), program));
-        (*reasons)
-            .borrow()
+        reasons
+            .ref_(program)
             .get(&file.ref_(program).as_source_file().path())
             .map(|reasons| {
                 reasons.iter().for_each(|&reason| {

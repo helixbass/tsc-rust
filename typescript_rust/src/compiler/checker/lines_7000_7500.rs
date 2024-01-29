@@ -897,12 +897,12 @@ impl SymbolTableToDeclarationStatements {
                 }
                 heritage_clauses
             };
-        let mut symbol_props = self.type_checker.ref_(self).get_non_interhited_properties(
+        let symbol_props = self.type_checker.ref_(self).get_non_interhited_properties(
             class_type,
             &base_types,
             self.type_checker.ref_(self).get_properties_of_type(class_type)?,
         )?;
-        let public_symbol_props = symbol_props.clone().filter(|&s| {
+        let public_symbol_props = symbol_props.iter().copied().filter(|&s| {
             let value_decl = s.ref_(self).maybe_value_declaration();
             matches!(
                 value_decl.as_ref(),
@@ -912,7 +912,7 @@ impl SymbolTableToDeclarationStatements {
                 )
             )
         });
-        let has_private_identifier = symbol_props.any(|s| {
+        let has_private_identifier = symbol_props.iter().any(|s| {
             let value_decl = s.ref_(self).maybe_value_declaration();
             matches!(
                 value_decl,
