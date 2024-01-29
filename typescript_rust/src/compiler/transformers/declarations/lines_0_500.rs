@@ -41,7 +41,7 @@ use crate::{
     InArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     push_if_unique_eq, contains, 
     TransformNodesTransformationResult, CoreTransformationContext,
-    get_factory_id,
+    get_factory_id, per_arena,
 };
 
 pub fn get_declaration_diagnostics(
@@ -499,7 +499,7 @@ impl TransformDeclarations {
         } else {
             let error_info = self
                 .get_symbol_accessibility_diagnostic()
-                .call(symbol_accessibility_result);
+                .ref_(self).call(symbol_accessibility_result);
             if let Some(error_info) = error_info {
                 if let Some(error_info_type_name) = error_info.ref_(self).type_name {
                     let mut args: Vec<String> =
@@ -561,7 +561,7 @@ impl TransformDeclarations {
         bundled: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         let old_diag = self.get_symbol_accessibility_diagnostic();
-        self.set_get_symbol_accessibility_diagnostic(Gc::new(Box::new(
+        self.set_get_symbol_accessibility_diagnostic(self.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(
             TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic::new(
                 source_file,
             ),
@@ -614,7 +614,7 @@ impl TransformDeclarations {
                             self.set_late_statement_replacement_map(
                                 Some(HashMap::new())
                             );
-                            self.set_get_symbol_accessibility_diagnostic(throw_diagnostic());
+                            self.set_get_symbol_accessibility_diagnostic(throw_diagnostic(self));
                             self.set_needs_scope_fix_marker(false);
                             self.set_result_has_scope_marker(false);
                             self.collect_references(
@@ -789,7 +789,7 @@ impl TransformDeclarations {
         self.set_result_has_scope_marker(false);
         self.set_enclosing_declaration(Some(node));
         self.set_current_source_file(Some(node));
-        self.set_get_symbol_accessibility_diagnostic(throw_diagnostic());
+        self.set_get_symbol_accessibility_diagnostic(throw_diagnostic(self));
         self.set_is_bundled_emit(false);
         self.set_result_has_external_module_indicator(false);
         self.set_suppress_new_diagnostic_contexts(Some(false));
@@ -1244,12 +1244,12 @@ impl TransformerInterface for TransformDeclarations {
     }
 }
 
-thread_local! {
-    static throw_diagnostic_: GetSymbolAccessibilityDiagnostic = Gc::new(Box::new(ThrowDiagnostic))
-}
-
-pub(super) fn throw_diagnostic() -> GetSymbolAccessibilityDiagnostic {
-    throw_diagnostic_.with(|throw_diagnostic| throw_diagnostic.clone())
+pub(super) fn throw_diagnostic(arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+    per_arena!(
+        Box<dyn GetSymbolAccessibilityDiagnosticInterface>,
+        arena,
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(ThrowDiagnostic))
+    )
 }
 
 #[derive(Trace, Finalize)]
@@ -1655,7 +1655,7 @@ impl GetSymbolAccessibilityDiagnosticInterface
             .error_node
             .filter(|s_error_node| can_produce_diagnostics(&s_error_node.ref_(self)))
         {
-            create_get_symbol_accessibility_diagnostic_for_node(s_error_node, self).call(s)
+            create_get_symbol_accessibility_diagnostic_for_node(s_error_node, self).ref_(self).call(s)
         } else {
             Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
                 diagnostic_message: if s.error_module_name.as_ref().non_empty().is_some() {

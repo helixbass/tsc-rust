@@ -123,7 +123,7 @@ impl TransformDeclarations {
                         .factory
                         .ref_(self).create_unique_name("_default", Some(GeneratedIdentifierFlags::Optimistic));
                     self.set_get_symbol_accessibility_diagnostic(
-                        VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic::new(input),
+                        VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic::new(input, self),
                     );
                     self.set_error_fallback_node(Some(input));
                     let var_decl = self.factory.ref_(self).create_variable_declaration(
@@ -749,6 +749,7 @@ impl TransformDeclarations {
                         TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic::new(
                             extends_clause,
                             input,
+                            self,
                         ),
                     );
                     let var_decl = self.factory.ref_(self).create_variable_declaration(
@@ -1050,8 +1051,8 @@ struct VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
 }
 
 impl VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
-    fn new(input: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(input: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             input,
         }))
     }
@@ -1086,8 +1087,8 @@ struct TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
 }
 
 impl TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
-    fn new(extends_clause: Id<Node>, input: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(extends_clause: Id<Node>, input: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             extends_clause,
             input,
         }))

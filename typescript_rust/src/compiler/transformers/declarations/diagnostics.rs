@@ -22,7 +22,7 @@ pub trait GetSymbolAccessibilityDiagnosticInterface: Trace + Finalize {
     ) -> Option<Id<SymbolAccessibilityDiagnostic>>;
 }
 
-pub type GetSymbolAccessibilityDiagnostic = Gc<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>;
+pub type GetSymbolAccessibilityDiagnostic = Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>;
 
 #[derive(Trace, Finalize)]
 pub struct SymbolAccessibilityDiagnostic {
@@ -65,9 +65,9 @@ pub fn create_get_symbol_accessibility_diagnostic_for_node(
         || is_binding_element(&node.ref_(arena))
         || is_constructor_declaration(&node.ref_(arena))
     {
-        GetVariableDeclarationTypeVisibilityError::new(node)
+        GetVariableDeclarationTypeVisibilityError::new(node, arena)
     } else if is_set_accessor(&node.ref_(arena)) || is_get_accessor(&node.ref_(arena)) {
-        GetAccessorDeclarationTypeVisibilityError::new(node)
+        GetAccessorDeclarationTypeVisibilityError::new(node, arena)
     } else if is_construct_signature_declaration(&node.ref_(arena))
         || is_call_signature_declaration(&node.ref_(arena))
         || is_method_declaration(&node.ref_(arena))
@@ -75,22 +75,22 @@ pub fn create_get_symbol_accessibility_diagnostic_for_node(
         || is_function_declaration(&node.ref_(arena))
         || is_index_signature_declaration(&node.ref_(arena))
     {
-        GetReturnTypeVisibilityError::new(node)
+        GetReturnTypeVisibilityError::new(node, arena)
     } else if is_parameter(&node.ref_(arena)) {
         if is_parameter_property_declaration(node, node.ref_(arena).parent(), arena)
             && has_syntactic_modifier(node.ref_(arena).parent(), ModifierFlags::Private, arena)
         {
-            return GetVariableDeclarationTypeVisibilityError::new(node);
+            return GetVariableDeclarationTypeVisibilityError::new(node, arena);
         }
-        GetParameterDeclarationTypeVisibilityError::new(node)
+        GetParameterDeclarationTypeVisibilityError::new(node, arena)
     } else if is_type_parameter_declaration(&node.ref_(arena)) {
-        GetTypeParameterConstraintVisibilityError::new(node)
+        GetTypeParameterConstraintVisibilityError::new(node, arena)
     } else if is_expression_with_type_arguments(&node.ref_(arena)) {
-        GetHeritageClauseVisibilityError::new(node)
+        GetHeritageClauseVisibilityError::new(node, arena)
     } else if is_import_equals_declaration(&node.ref_(arena)) {
-        GetImportEntityNameVisibilityError::new(node)
+        GetImportEntityNameVisibilityError::new(node, arena)
     } else if is_type_alias_declaration(&node.ref_(arena)) || is_jsdoc_type_alias(&node.ref_(arena)) {
-        GetTypeAliasDeclarationVisibilityError::new(node)
+        GetTypeAliasDeclarationVisibilityError::new(node, arena)
     } else {
         Debug_.assert_never(
             node,
@@ -199,8 +199,8 @@ struct GetVariableDeclarationTypeVisibilityError {
 }
 
 impl GetVariableDeclarationTypeVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }
@@ -238,8 +238,8 @@ struct GetAccessorDeclarationTypeVisibilityError {
 }
 
 impl GetAccessorDeclarationTypeVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }
@@ -332,8 +332,8 @@ struct GetReturnTypeVisibilityError {
 }
 
 impl GetReturnTypeVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }
@@ -478,8 +478,8 @@ struct GetParameterDeclarationTypeVisibilityError {
 }
 
 impl GetParameterDeclarationTypeVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }
@@ -662,8 +662,8 @@ struct GetTypeParameterConstraintVisibilityError {
 }
 
 impl GetTypeParameterConstraintVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }
@@ -733,8 +733,8 @@ struct GetHeritageClauseVisibilityError {
 }
 
 impl GetHeritageClauseVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }
@@ -788,8 +788,8 @@ struct GetImportEntityNameVisibilityError {
 }
 
 impl GetImportEntityNameVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }
@@ -820,8 +820,8 @@ struct GetTypeAliasDeclarationVisibilityError {
 }
 
 impl GetTypeAliasDeclarationVisibilityError {
-    fn new(node: Id<Node>) -> GetSymbolAccessibilityDiagnostic {
-        Gc::new(Box::new(Self {
+    fn new(node: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
             node,
         }))
     }

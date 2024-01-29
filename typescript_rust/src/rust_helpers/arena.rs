@@ -28,7 +28,7 @@ use crate::{
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
-    ModeAwareCache, PerModuleNameCache, MultiMap, Path,
+    ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
 };
 
 #[derive(Default)]
@@ -136,6 +136,7 @@ pub struct AllArenas {
     pub per_module_name_caches: RefCell<Arena<PerModuleNameCache>>,
     pub vec_diagnostics: RefCell<Arena<Vec<Id<Diagnostic>>>>,
     pub file_reasons: RefCell<Arena<MultiMap<Path, Id<FileIncludeReason>>>>,
+    pub get_symbol_accessibility_diagnostic_interfaces: RefCell<Arena<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>>,
 }
 
 pub trait HasArena {
@@ -1011,6 +1012,14 @@ pub trait HasArena {
 
     fn alloc_file_reasons(&self, file_reasons: MultiMap<Path, Id<FileIncludeReason>>) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.arena().alloc_file_reasons(file_reasons)
+    }
+
+    fn get_symbol_accessibility_diagnostic_interface(&self, get_symbol_accessibility_diagnostic_interface: Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>) -> Ref<Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
+        self.arena().get_symbol_accessibility_diagnostic_interface(get_symbol_accessibility_diagnostic_interface)
+    }
+
+    fn alloc_get_symbol_accessibility_diagnostic_interface(&self, get_symbol_accessibility_diagnostic_interface: Box<dyn GetSymbolAccessibilityDiagnosticInterface>) -> Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
+        self.arena().alloc_get_symbol_accessibility_diagnostic_interface(get_symbol_accessibility_diagnostic_interface)
     }
 }
 
@@ -2106,6 +2115,16 @@ impl HasArena for AllArenas {
         let id = self.file_reasons.borrow_mut().alloc(file_reasons);
         id
     }
+
+    #[track_caller]
+    fn get_symbol_accessibility_diagnostic_interface(&self, get_symbol_accessibility_diagnostic_interface: Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>) -> Ref<Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
+        Ref::map(self.get_symbol_accessibility_diagnostic_interfaces.borrow(), |get_symbol_accessibility_diagnostic_interfaces| &get_symbol_accessibility_diagnostic_interfaces[get_symbol_accessibility_diagnostic_interface])
+    }
+
+    fn alloc_get_symbol_accessibility_diagnostic_interface(&self, get_symbol_accessibility_diagnostic_interface: Box<dyn GetSymbolAccessibilityDiagnosticInterface>) -> Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
+        let id = self.get_symbol_accessibility_diagnostic_interfaces.borrow_mut().alloc(get_symbol_accessibility_diagnostic_interface);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2987,6 +3006,14 @@ impl InArena for Id<MultiMap<Path, Id<FileIncludeReason>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, MultiMap<Path, Id<FileIncludeReason>>> {
         has_arena.file_reasons_mut(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
+    type Item = Box<dyn GetSymbolAccessibilityDiagnosticInterface>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetSymbolAccessibilityDiagnosticInterface>> {
+        has_arena.get_symbol_accessibility_diagnostic_interface(*self)
     }
 }
 
