@@ -2810,6 +2810,14 @@ impl OptionInArena for Option<Id<ModuleResolutionCache>> {
     }
 }
 
+impl OptionInArena for Option<Id<ExternalModuleInfo>> {
+    type Item = ExternalModuleInfo;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, ExternalModuleInfo>> {
+        self.map(|external_module_info| has_arena.external_module_info(external_module_info))
+    }
+}
+
 thread_local! {
     static ARENA: Lazy<Rc<AllArenas>> = Lazy::new(Default::default);
 }
