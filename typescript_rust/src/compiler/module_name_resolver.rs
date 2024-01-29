@@ -134,7 +134,7 @@ fn create_resolved_module_with_failed_lookup_locations(
 ) -> Id<ResolvedModuleWithFailedLookupLocations> {
     if let Some(result_from_cache) = result_from_cache {
         result_from_cache
-            .ref_(self).failed_lookup_locations_mut()
+            .ref_(arena).failed_lookup_locations_mut()
             .append(&mut failed_lookup_locations);
         return result_from_cache;
     }

@@ -665,7 +665,7 @@ pub(super) fn get_extends_config_path(
         None,
         arena,
     )?;
-    if let Some(resolved_resolved_module) = resolved.ref_(self).resolved_module {
+    if let Some(resolved_resolved_module) = resolved.ref_(arena).resolved_module {
         return Ok(Some(resolved_resolved_module.ref_(arena).resolved_file_name.clone()));
     }
     errors.push(create_diagnostic(
