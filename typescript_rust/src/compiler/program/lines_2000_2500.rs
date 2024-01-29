@@ -229,8 +229,8 @@ impl Program {
         source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Id<Diagnostic /*DiagnosticWithLocation*/>> {
         self.run_with_cancellation_token(|| {
-            let diagnostics: Gc<GcCell<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>> =
-                Default::default();
+            let diagnostics: Id<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> =
+                self.alloc_vec_diagnostic(Default::default());
             self.get_js_syntactic_diagnostics_for_file_walk(
                 diagnostics.clone(),
                 source_file,
@@ -264,14 +264,14 @@ impl Program {
                 self,
             );
 
-            let ret = (*diagnostics).borrow().clone();
+            let ret = diagnostics.ref_(self).clone();
             ret
         })
     }
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_walk(
         &self,
-        diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        diagnostics: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
         node: Id<Node>,
         parent: Id<Node>,
@@ -281,7 +281,7 @@ impl Program {
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::MethodDeclaration => {
                 if parent.ref_(self).as_has_question_token().maybe_question_token() == Some(node) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -293,7 +293,7 @@ impl Program {
                     return Some(ForEachChildRecursivelyCallbackReturn::Skip);
                 }
                 if parent.ref_(self).as_has_type().maybe_type() == Some(node) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -314,7 +314,7 @@ impl Program {
             | SyntaxKind::ArrowFunction
             | SyntaxKind::VariableDeclaration => {
                 if parent.ref_(self).as_has_type().maybe_type() == Some(node) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -332,7 +332,7 @@ impl Program {
         match node.ref_(self).kind() {
             SyntaxKind::ImportClause => {
                 if node.ref_(self).as_import_clause().is_type_only {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             parent,
@@ -346,7 +346,7 @@ impl Program {
             }
             SyntaxKind::ExportDeclaration => {
                 if node.ref_(self).as_export_declaration().is_type_only {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -359,7 +359,7 @@ impl Program {
                 }
             }
             SyntaxKind::ImportEqualsDeclaration => {
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -372,7 +372,7 @@ impl Program {
             }
             SyntaxKind::ExportAssignment => {
                 if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -388,7 +388,7 @@ impl Program {
                 let node_ref = node.ref_(self);
                 let heritage_clause = node_ref.as_heritage_clause();
                 if heritage_clause.token == SyntaxKind::ImplementsKeyword {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -404,7 +404,7 @@ impl Program {
                 let interface_keyword = token_to_string(SyntaxKind::InterfaceKeyword);
                 Debug_.assert_is_defined(&interface_keyword, None);
                 let interface_keyword = interface_keyword.unwrap();
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -423,7 +423,7 @@ impl Program {
                 };
                 Debug_.assert_is_defined(&module_keyword, None);
                 let module_keyword = module_keyword.unwrap();
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -435,7 +435,7 @@ impl Program {
                 return Some(ForEachChildRecursivelyCallbackReturn::Skip);
             }
             SyntaxKind::TypeAliasDeclaration => {
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -449,7 +449,7 @@ impl Program {
             SyntaxKind::EnumDeclaration => {
                 let enum_keyword =
                     Debug_.check_defined(token_to_string(SyntaxKind::EnumKeyword), None);
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -461,7 +461,7 @@ impl Program {
                 return Some(ForEachChildRecursivelyCallbackReturn::Skip);
             }
             SyntaxKind::NonNullExpression => {
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -473,7 +473,7 @@ impl Program {
                 return Some(ForEachChildRecursivelyCallbackReturn::Skip);
             }
             SyntaxKind::AsExpression => {
-                diagnostics.borrow_mut().push(
+                diagnostics.ref_mut(self).push(
                     self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                         node.ref_(self).as_as_expression().type_,
@@ -493,7 +493,7 @@ impl Program {
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_walk_array(
         &self,
-        diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        diagnostics: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
         nodes: Id<NodeArray>,
         parent: Id<Node>,
@@ -501,7 +501,7 @@ impl Program {
         if parent.ref_(self).maybe_decorators() == Some(nodes)
             && self.options.ref_(self).experimental_decorators != Some(true)
         {
-            diagnostics.borrow_mut().push(
+            diagnostics.ref_mut(self).push(
                 self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                     source_file,
                     parent,
@@ -522,7 +522,7 @@ impl Program {
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::ArrowFunction => {
                 if parent.ref_(self).as_has_type_parameters().maybe_type_parameters() == Some(nodes) {
-                    diagnostics.borrow_mut().push(
+                    diagnostics.ref_mut(self).push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
                             nodes,
@@ -564,7 +564,7 @@ impl Program {
                 if parent.ref_(self).maybe_modifiers() == Some(nodes) {
                     for &modifier in &*nodes.ref_(self) {
                         if modifier.ref_(self).kind() != SyntaxKind::StaticKeyword {
-                            diagnostics.borrow_mut().push(
+                            diagnostics.ref_mut(self).push(
                                 self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                                     source_file,
                                     modifier,
@@ -579,7 +579,7 @@ impl Program {
             }
             SyntaxKind::Parameter => {
                 if parent.ref_(self).maybe_modifiers() == Some(nodes) {
-                    diagnostics.borrow_mut().push(
+                    diagnostics.ref_mut(self).push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
                             nodes,
@@ -597,7 +597,7 @@ impl Program {
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::TaggedTemplateExpression => {
                 if parent.ref_(self).as_has_type_arguments().maybe_type_arguments() == Some(nodes) {
-                    diagnostics.borrow_mut().push(
+                    diagnostics.ref_mut(self).push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
                             nodes,
@@ -615,7 +615,7 @@ impl Program {
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_check_modifiers(
         &self,
-        diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        diagnostics: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
         modifiers: Id<NodeArray>, /*<Modifier>*/
         is_const_valid: bool,
@@ -627,7 +627,7 @@ impl Program {
                         continue;
                     }
 
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             modifier,
@@ -644,7 +644,7 @@ impl Program {
                 | SyntaxKind::DeclareKeyword
                 | SyntaxKind::AbstractKeyword
                 | SyntaxKind::OverrideKeyword => {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             modifier,

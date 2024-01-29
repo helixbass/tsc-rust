@@ -1374,13 +1374,13 @@ impl Program {
                     .get_or_insert_with(|| self.get_js_syntactic_diagnostics_for_file(source_file));
             return concatenate(
                 source_file_additional_syntactic_diagnostics.clone(),
-                (*source_file.ref_(self).as_source_file().parse_diagnostics())
-                    .borrow()
+                source_file.ref_(self).as_source_file().parse_diagnostics()
+                    .ref_(self)
                     .clone(),
             );
         }
-        (*source_file.ref_(self).as_source_file().parse_diagnostics())
-            .borrow()
+        source_file.ref_(self).as_source_file().parse_diagnostics()
+            .ref_(self)
             .clone()
     }
 

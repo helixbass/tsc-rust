@@ -201,7 +201,7 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     symbol_count: Cell<Option<usize>>,
 
-    parse_diagnostics: GcCell<Option<Gc<GcCell<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>>>,
+    parse_diagnostics: GcCell<Option<Id<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>>,
 
     bind_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
     bind_suggestion_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
@@ -566,11 +566,11 @@ impl SourceFile {
         self.contents.symbol_count.set(Some(symbol_count))
     }
 
-    pub fn parse_diagnostics(&self) -> Gc<GcCell<Vec<Id<Diagnostic>>>> {
+    pub fn parse_diagnostics(&self) -> Id<Vec<Id<Diagnostic>>> {
         self.contents.parse_diagnostics.borrow().clone().unwrap()
     }
 
-    pub fn set_parse_diagnostics(&self, parse_diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>) {
+    pub fn set_parse_diagnostics(&self, parse_diagnostics: Id<Vec<Id<Diagnostic>>>) {
         *self.contents.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
     }
 

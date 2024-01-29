@@ -134,6 +134,7 @@ pub struct AllArenas {
     pub mode_aware_cache_resolved_module_with_failed_lookup_locations: RefCell<Arena<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
     pub mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: RefCell<Arena<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>,
     pub per_module_name_caches: RefCell<Arena<PerModuleNameCache>>,
+    pub vec_diagnostics: RefCell<Arena<Vec<Id<Diagnostic>>>>,
 }
 
 pub trait HasArena {
@@ -985,6 +986,18 @@ pub trait HasArena {
 
     fn alloc_per_module_name_cache(&self, per_module_name_cache: PerModuleNameCache) -> Id<PerModuleNameCache> {
         self.arena().alloc_per_module_name_cache(per_module_name_cache)
+    }
+
+    fn vec_diagnostic(&self, vec_diagnostic: Id<Vec<Id<Diagnostic>>>) -> Ref<Vec<Id<Diagnostic>>> {
+        self.arena().vec_diagnostic(vec_diagnostic)
+    }
+
+    fn vec_diagnostic_mut(&self, vec_diagnostic: Id<Vec<Id<Diagnostic>>>) -> RefMut<Vec<Id<Diagnostic>>> {
+        self.arena().vec_diagnostic_mut(vec_diagnostic)
+    }
+
+    fn alloc_vec_diagnostic(&self, vec_diagnostic: Vec<Id<Diagnostic>>) -> Id<Vec<Id<Diagnostic>>> {
+        self.arena().alloc_vec_diagnostic(vec_diagnostic)
     }
 }
 
@@ -2052,6 +2065,20 @@ impl HasArena for AllArenas {
         let id = self.per_module_name_caches.borrow_mut().alloc(per_module_name_cache);
         id
     }
+
+    #[track_caller]
+    fn vec_diagnostic(&self, vec_diagnostic: Id<Vec<Id<Diagnostic>>>) -> Ref<Vec<Id<Diagnostic>>> {
+        Ref::map(self.vec_diagnostics.borrow(), |vec_diagnostics| &vec_diagnostics[vec_diagnostic])
+    }
+
+    fn vec_diagnostic_mut(&self, vec_diagnostic: Id<Vec<Id<Diagnostic>>>) -> RefMut<Vec<Id<Diagnostic>>> {
+        RefMut::map(self.vec_diagnostics.borrow_mut(), |vec_diagnostics| &mut vec_diagnostics[vec_diagnostic])
+    }
+
+    fn alloc_vec_diagnostic(&self, vec_diagnostic: Vec<Id<Diagnostic>>) -> Id<Vec<Id<Diagnostic>>> {
+        let id = self.vec_diagnostics.borrow_mut().alloc(vec_diagnostic);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2909,6 +2936,18 @@ impl InArena for Id<PerModuleNameCache> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PerModuleNameCache> {
         has_arena.per_module_name_cache(*self)
+    }
+}
+
+impl InArena for Id<Vec<Id<Diagnostic>>> {
+    type Item = Vec<Id<Diagnostic>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<Diagnostic>>> {
+        has_arena.vec_diagnostic(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Vec<Id<Diagnostic>>> {
+        has_arena.vec_diagnostic_mut(*self)
     }
 }
 

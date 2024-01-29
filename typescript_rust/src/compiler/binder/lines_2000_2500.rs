@@ -393,8 +393,8 @@ impl Binder {
         &self,
         node: Id<Node>, /*Identifier (and whatever ThisKeyword is) */
     ) {
-        if (*self.file().ref_(self).as_source_file().parse_diagnostics())
-            .borrow()
+        if self.file().ref_(self).as_source_file().parse_diagnostics()
+            .ref_(self)
             .is_empty()
             && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
             && !node.ref_(self).flags().intersects(NodeFlags::JSDoc)
@@ -486,8 +486,8 @@ impl Binder {
             let file = self.file();
             let file_ref = file.ref_(self);
             let file_as_source_file = file_ref.as_source_file();
-            if (*file_as_source_file.parse_diagnostics())
-                .borrow()
+            if file_as_source_file.parse_diagnostics()
+                .ref_(self)
                 .is_empty()
             {
                 file_as_source_file.bind_diagnostics_mut().push(self.alloc_diagnostic(

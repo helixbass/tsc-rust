@@ -595,7 +595,7 @@ pub fn parse_config_file_text_to_json(
         Option::<&JsonConversionNotifierDummy>::None,
         arena,
     )?;
-    let json_source_file_parse_diagnostics = (*json_source_file_parse_diagnostics).borrow();
+    let json_source_file_parse_diagnostics = json_source_file_parse_diagnostics.ref_(arena);
     Ok(ReadConfigFileReturn {
         config,
         error: if !json_source_file_parse_diagnostics.is_empty() {
@@ -647,7 +647,7 @@ pub fn read_json_config_file(
             .alloc(arena.arena());
             source_file
                 .ref_(arena).as_source_file()
-                .set_parse_diagnostics(Gc::new(GcCell::new(vec![text_or_diagnostic])));
+                .set_parse_diagnostics(arena.alloc_vec_diagnostic(vec![text_or_diagnostic]));
             source_file
         }
     }
@@ -1055,7 +1055,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
 
 pub(super) fn convert_config_file_to_object(
     source_file: Id<Node>, /*JsonSourceFile*/
-    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+    errors: Id<Vec<Id<Diagnostic>>>,
     report_options_errors: bool,
     options_iterator: Option<&impl JsonConversionNotifier>,
     arena: &impl HasArena,
@@ -1074,7 +1074,7 @@ pub(super) fn convert_config_file_to_object(
     if let Some(root_expression) = root_expression
         .filter(|root_expression| root_expression.ref_(arena).kind() != SyntaxKind::ObjectLiteralExpression)
     {
-        errors.borrow_mut().push(arena.alloc_diagnostic(
+        errors.ref_mut(arena).push(arena.alloc_diagnostic(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 root_expression,
@@ -1124,7 +1124,7 @@ pub(super) fn convert_config_file_to_object(
 
 pub fn convert_to_object(
     source_file: Id<Node>, /*JsonSourceFile*/
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     convert_to_object_worker(
@@ -1145,7 +1145,7 @@ pub fn convert_to_object(
 pub(crate) fn convert_to_object_worker(
     source_file: Id<Node>, /*JsonSourceFile*/
     root_expression: Option<Id<Node>>,
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,

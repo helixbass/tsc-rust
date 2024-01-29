@@ -199,8 +199,8 @@ impl TypeChecker {
     }
 
     pub(super) fn has_parse_diagnostics(&self, source_file: Id<Node> /*SourceFile*/) -> bool {
-        !(*source_file.ref_(self).as_source_file().parse_diagnostics())
-            .borrow()
+        !source_file.ref_(self).as_source_file().parse_diagnostics()
+            .ref_(self)
             .is_empty()
     }
 

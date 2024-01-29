@@ -2058,7 +2058,7 @@ impl ParsedCommandLineWithBaseOptions {
             project_references: self.project_references,
             watch_options: self.watch_options,
             raw: self.raw,
-            errors: Gc::new(GcCell::new(self.errors)),
+            errors: arena.alloc_vec_diagnostic(self.errors),
             wildcard_directories: self.wildcard_directories,
             compile_on_save: self.compile_on_save,
         }
@@ -2088,8 +2088,8 @@ mod _ParsedCommandLineDeriveTraceScope {
         #[unsafe_ignore_trace]
         #[builder(default)]
         pub raw: Option<serde_json::Value>,
-        #[builder(default, setter(custom))]
-        pub errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        #[builder(setter(custom))]
+        pub errors: Id<Vec<Id<Diagnostic>>>,
         #[unsafe_ignore_trace]
         #[builder(default)]
         pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
@@ -2098,8 +2098,8 @@ mod _ParsedCommandLineDeriveTraceScope {
     }
 
     impl ParsedCommandLineBuilder {
-        pub fn errors(&mut self, value: impl Into<Vec<Id<Diagnostic>>>) -> &mut Self {
-            self.errors = Some(Gc::new(GcCell::new(value.into())));
+        pub fn errors(&mut self, value: impl Into<Vec<Id<Diagnostic>>>, arena: &impl HasArena) -> &mut Self {
+            self.errors = Some(arena.alloc_vec_diagnostic(value.into()));
             self
         }
     }

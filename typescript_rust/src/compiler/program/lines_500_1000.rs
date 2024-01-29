@@ -757,14 +757,14 @@ pub fn get_config_file_parsing_diagnostics(
     if let Some(config_file_parse_result_options_config_file) =
         config_file_parse_result.options.ref_(arena).config_file.as_ref()
     {
-        (*config_file_parse_result_options_config_file
+        config_file_parse_result_options_config_file
             .ref_(arena).as_source_file()
-            .parse_diagnostics())
-        .borrow()
-        .clone()
-        .and_extend((*config_file_parse_result.errors).borrow().iter().cloned())
+            .parse_diagnostics()
+            .ref_(arena)
+            .clone()
+            .and_extend(config_file_parse_result.errors.ref_(arena).iter().cloned())
     } else {
-        (*config_file_parse_result.errors).borrow().clone()
+        config_file_parse_result.errors.ref_(arena).clone()
     }
 }
 

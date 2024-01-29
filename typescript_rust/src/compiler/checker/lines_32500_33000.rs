@@ -934,8 +934,8 @@ impl TypeChecker {
                     let sf_as_source_file = sf_ref.as_source_file();
                     let source_text = sf_as_source_file.text_as_chars();
                     let start = skip_trivia(&source_text, left.ref_(self).pos(), None, None, None);
-                    let is_in_diag_2657 = (*sf_as_source_file.parse_diagnostics())
-                        .borrow()
+                    let is_in_diag_2657 = sf_as_source_file.parse_diagnostics()
+                        .ref_(self)
                         .iter()
                         .any(|diag| {
                             if diag.ref_(self).code()

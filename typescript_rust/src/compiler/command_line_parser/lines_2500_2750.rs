@@ -176,7 +176,7 @@ pub(super) fn parse_json_config_file_content_worker(
         json.is_none() && source_file.is_some() || json.is_some() && source_file.is_none(),
         None,
     );
-    let errors: Gc<GcCell<Vec<Id<Diagnostic>>>> = Default::default();
+    let errors: Id<Vec<Id<Diagnostic>>> = arena.alloc_vec_diagnostic(Default::default());
 
     let parsed_config = parse_config(
         json,
@@ -219,7 +219,7 @@ pub(super) fn parse_json_config_file_content_worker(
     let config_file_specs: Rc<ConfigFileSpecs> = Rc::new(get_config_file_specs(
         raw,
         source_file.clone(),
-        &mut errors.borrow_mut(),
+        &mut errors.ref_mut(arena),
         config_file_name,
         arena,
     ));
@@ -248,7 +248,7 @@ pub(super) fn parse_json_config_file_content_worker(
                 extra_file_extensions,
                 raw,
                 resolution_stack,
-                &mut errors.clone().borrow_mut(),
+                &mut errors.clone().ref_mut(arena),
                 config_file_name,
                 &base_path_for_file_names,
                 arena,
@@ -258,7 +258,7 @@ pub(super) fn parse_json_config_file_content_worker(
         project_references: get_project_references(
             raw,
             source_file,
-            &mut errors.clone().borrow_mut(),
+            &mut errors.clone().ref_mut(arena),
             &base_path_for_file_names,
             arena,
         ),

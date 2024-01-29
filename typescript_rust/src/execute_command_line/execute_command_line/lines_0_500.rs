@@ -864,14 +864,14 @@ pub(super) fn execute_command_line_worker(
             validate_locale_and_set_language(
                 command_line_options_locale,
                 &**sys.ref_(arena),
-                Some(&mut command_line.errors.borrow_mut()),
+                Some(&mut command_line.errors.ref_mut(arena)),
                 arena,
             );
         }
     }
 
-    if !(*command_line.errors).borrow().is_empty() {
-        for error in (*command_line.errors).borrow().iter() {
+    if !command_line.errors.ref_(arena).is_empty() {
+        for error in command_line.errors.ref_(arena).iter() {
             report_diagnostic.ref_(arena).call(error.clone())?;
         }
         sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
@@ -996,14 +996,14 @@ pub(super) fn execute_command_line_worker(
             .unwrap(),
         );
         if matches!(command_line.options.ref_(arena).show_config, Some(true)) {
-            if !(*config_parse_result.ref_(arena).errors).borrow().is_empty() {
+            if !config_parse_result.ref_(arena).errors.ref_(arena).is_empty() {
                 report_diagnostic = update_report_diagnostic(
                     sys.clone(),
                     report_diagnostic,
                     config_parse_result.ref_(arena).options.clone().into(),
                     arena,
                 );
-                for error in (*config_parse_result.ref_(arena).errors).borrow().iter() {
+                for error in config_parse_result.ref_(arena).errors.ref_(arena).iter() {
                     report_diagnostic.ref_(arena).call(error.clone())?;
                 }
                 sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
