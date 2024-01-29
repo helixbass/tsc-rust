@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::HashMap};
 use gc::{Gc, GcCell};
 use id_arena::Id;
 
-use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, BinderType};
+use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, Binder};
 use crate::{
     create_symbol_table, every, export_assignment_is_alias, for_each,
     get_assignment_declaration_kind, get_node_id, get_right_most_assigned_expression,
@@ -21,7 +21,7 @@ use crate::{
     OptionInArena,
 };
 
-impl BinderType {
+impl Binder {
     pub(super) fn bind_worker(&self, node: Id<Node>) {
         match node.ref_(self).kind() {
             SyntaxKind::Identifier => {

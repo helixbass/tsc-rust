@@ -3,7 +3,7 @@ use std::{borrow::Borrow, ptr};
 use gc::Gc;
 use id_arena::Id;
 
-use super::{init_flow_node, ActiveLabel, BinderType};
+use super::{init_flow_node, ActiveLabel, Binder};
 use crate::{
     concatenate, for_each_bool, is_binary_expression, is_dotted_name,
     is_logical_or_coalescing_assignment_operator, is_optional_chain, is_outermost_optional_chain,
@@ -14,7 +14,7 @@ use crate::{
     HasArena, InArena,
 };
 
-impl BinderType {
+impl Binder {
     pub(super) fn create_flow_switch_clause(
         &self,
         antecedent: Id<FlowNode>,

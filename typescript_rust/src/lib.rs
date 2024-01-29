@@ -19,7 +19,7 @@ mod rust_helpers;
 
 #[allow(unused_imports)]
 use compiler::{
-    binder::BindBinaryExpressionFlow,
+    binder::{Binder, BindBinaryExpressionFlow},
     checker::{
         DuplicateInfoForFiles, DuplicateInfoForSymbol, IterationTypesResolver, TypeSystemEntity,
         TypeSystemPropertyName,

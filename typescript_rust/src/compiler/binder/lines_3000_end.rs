@@ -3,7 +3,7 @@ use std::{borrow::Borrow, ptr};
 use gc::{Gc, GcCell};
 use id_arena::Id;
 
-use super::{get_module_instance_state, BinderType, ModuleInstanceState};
+use super::{get_module_instance_state, Binder, ModuleInstanceState};
 use crate::{
     cast, create_symbol_table, find_ancestor, get_assigned_expando_initializer,
     get_combined_node_flags, get_effective_container_for_jsdoc_template_tag,
@@ -27,7 +27,7 @@ use crate::{
     OptionInArena, index_of_eq, slice_after_eq,
 };
 
-impl BinderType {
+impl Binder {
     pub(super) fn bind_prototype_assignment(
         &self,
         node: Id<Node>, /*BindableStaticPropertyAssignmentExpression*/
@@ -996,7 +996,7 @@ fn is_purely_type_declaration(s: Id<Node> /*Statement*/, arena: &impl HasArena) 
 }
 
 pub fn is_exports_or_module_exports_or_alias(
-    binder: &BinderType,
+    binder: &Binder,
     source_file: Id<Node>, /*SourceFile*/
     mut node: Id<Node>,        /*Expression*/
 ) -> bool {
@@ -1041,7 +1041,7 @@ pub fn is_exports_or_module_exports_or_alias(
 }
 
 pub(super) fn lookup_symbol_for_name(
-    binder: &BinderType,
+    binder: &Binder,
     container: Id<Node>,
     name: &str, /*__String*/
 ) -> Option<Id<Symbol>> {

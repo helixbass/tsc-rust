@@ -19,7 +19,7 @@ use crate::{
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
-    BindBinaryExpressionFlow, TypeChecker, ReadFileCallback,
+    BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder,
 };
 
 #[derive(Default)]
@@ -94,6 +94,7 @@ pub struct AllArenas {
     pub bind_binary_expression_flows: RefCell<Arena<BindBinaryExpressionFlow>>,
     pub type_checkers: RefCell<Arena<TypeChecker>>,
     pub read_file_callbacks: RefCell<Arena<Box<dyn ReadFileCallback>>>,
+    pub binders: RefCell<Arena<Binder>>,
 }
 
 pub trait HasArena {
@@ -685,6 +686,14 @@ pub trait HasArena {
 
     fn alloc_read_file_callback(&self, read_file_callback: Box<dyn ReadFileCallback>) -> Id<Box<dyn ReadFileCallback>> {
         self.arena().alloc_read_file_callback(read_file_callback)
+    }
+
+    fn binder(&self, binder: Id<Binder>) -> Ref<Binder> {
+        self.arena().binder(binder)
+    }
+
+    fn alloc_binder(&self, binder: Binder) -> Id<Binder> {
+        self.arena().alloc_binder(binder)
     }
 }
 
@@ -1429,6 +1438,17 @@ impl HasArena for AllArenas {
         let id = self.read_file_callbacks.borrow_mut().alloc(read_file_callback);
         id
     }
+
+    #[track_caller]
+    fn binder(&self, binder: Id<Binder>) -> Ref<Binder> {
+        Ref::map(self.binders.borrow(), |binders| &binders[binder])
+    }
+
+    fn alloc_binder(&self, binder: Binder) -> Id<Binder> {
+        let id = self.binders.borrow_mut().alloc(binder);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2026,6 +2046,14 @@ impl InArena for Id<Box<dyn ReadFileCallback>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ReadFileCallback>> {
         has_arena.read_file_callback(*self)
+    }
+}
+
+impl InArena for Id<Binder> {
+    type Item = Binder;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Binder> {
+        has_arena.binder(*self)
     }
 }
 

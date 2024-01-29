@@ -288,8 +288,8 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: &Node /*SourceFile*/, options: Id<CompilerOptions>) {
-    let file_as_source_file = file.as_source_file();
+pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptions>, arena: &impl HasArena) {
+    let file_as_source_file = file.ref_(arena).as_source_file();
     if is_logging {
         println!("binding: {}", file_as_source_file.file_name());
     }
@@ -297,7 +297,7 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Id<CompilerOptions>
     // performance.mark("beforeBind");
     // perfLogger.logStartBindFile("" + file.fileName);
     // binder.call(file, options);
-    create_binder(&*static_arena()).call(file.arena_id(), options);
+    create_binder(&*static_arena()).ref_(arena).call(file, options);
     // perfLogger.logStopBindFile();
     // performance.mark("afterBind");
     // performance.measure("Bind", "beforeBind", "afterBind");
@@ -306,10 +306,10 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Id<CompilerOptions>
 
 #[allow(non_snake_case)]
 #[derive(Trace, Finalize)]
-pub struct BinderType {
+pub struct Binder {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
-    pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
+    pub(super) _arena_id: GcCell<Option<Id<Self>>>,
     pub(super) file: GcCell<Option<Id</*SourceFile*/ Node>>>,
     pub(super) options: GcCell<Option<Id<CompilerOptions>>>,
     #[unsafe_ignore_trace]
@@ -358,11 +358,11 @@ pub struct BinderType {
     pub(super) bind_binary_expression_flow: GcCell<Option<Id<BindBinaryExpressionFlow>>>,
 }
 
-pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
+pub(super) fn create_binder(arena: *const AllArenas) -> Id<Binder> {
     let arena_ref = unsafe { &*arena };
-    let wrapped = Gc::new(BinderType {
+    let ret = arena_ref.alloc_binder(Binder {
         arena,
-        _rc_wrapper: Default::default(),
+        _arena_id: Default::default(),
         file: Default::default(),
         options: Default::default(),
         language_version: Default::default(),
@@ -396,19 +396,22 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
         )),
         bind_binary_expression_flow: Default::default(),
     });
-    *wrapped._rc_wrapper.borrow_mut() = Some(wrapped.clone());
-    *wrapped.bind_binary_expression_flow.borrow_mut() =
-        Some(arena_ref.alloc_bind_binary_expression_flow(wrapped.create_bind_binary_expression_flow()));
-    wrapped
+    *ret.ref_(arena_ref).bind_binary_expression_flow.borrow_mut() =
+        Some(arena_ref.alloc_bind_binary_expression_flow(ret.ref_(arena_ref).create_bind_binary_expression_flow()));
+    ret
 }
 
-impl BinderType {
+impl Binder {
     pub(super) fn call(&self, f: Id<Node>, opts: Id<CompilerOptions>) {
         self.bind_source_file(f, opts);
     }
 
-    pub(super) fn rc_wrapper(&self) -> Gc<Self> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub(super) fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
+    }
+
+    pub fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     pub(super) fn file(&self) -> Id<Node> {
@@ -1245,7 +1248,7 @@ impl BinderType {
     }
 }
 
-impl HasArena for BinderType {
+impl HasArena for Binder {
     fn arena(&self) -> &AllArenas {
         unsafe { &*self.arena }
     }

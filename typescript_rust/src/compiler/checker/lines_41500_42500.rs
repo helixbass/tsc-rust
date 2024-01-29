@@ -706,8 +706,8 @@ impl TypeChecker {
     }
 
     pub(super) fn initialize_type_checker(&self) -> io::Result<()> {
-        for file in &*self.host.ref_(self).get_source_files() {
-            bind_source_file(&file.ref_(self), self.compiler_options.clone());
+        for &file in &*self.host.ref_(self).get_source_files() {
+            bind_source_file(file, self.compiler_options.clone(), self);
             // println!("post-binding: {:#?}", file);
         }
 

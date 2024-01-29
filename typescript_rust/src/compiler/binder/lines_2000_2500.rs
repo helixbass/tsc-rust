@@ -4,7 +4,7 @@ use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{
-    get_module_instance_state, init_flow_node, is_exports_or_module_exports_or_alias, BinderType,
+    get_module_instance_state, init_flow_node, is_exports_or_module_exports_or_alias, Binder,
     ContainerFlags, ModuleInstanceState,
 };
 use crate::{
@@ -31,7 +31,7 @@ enum ElementKind {
     Accessor = 2,
 }
 
-impl BinderType {
+impl Binder {
     pub(super) fn declare_module_symbol(
         &self,
         node: Id<Node>, /*ModuleDeclaration*/

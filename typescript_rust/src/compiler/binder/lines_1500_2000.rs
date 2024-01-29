@@ -3,7 +3,7 @@ use std::{cell::RefCell, io, rc::Rc};
 use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
-use super::{BinderType, ContainerFlags, ModuleInstanceState};
+use super::{Binder, ContainerFlags, ModuleInstanceState};
 use crate::{
     append, create_binary_expression_trampoline, get_host_signature_from_jsdoc,
     has_syntactic_modifier, is_ambient_module, is_assignment_operator, is_assignment_target,
@@ -22,10 +22,10 @@ use crate::{
     OptionInArena, AllArenas,
 };
 
-impl BinderType {
+impl Binder {
     pub(super) fn create_bind_binary_expression_flow(&self) -> BindBinaryExpressionFlow {
         let trampoline = create_binary_expression_trampoline(
-            BindBinaryExpressionFlowStateMachine::new(self.rc_wrapper()),
+            BindBinaryExpressionFlowStateMachine::new(self.arena_id()),
         );
         BindBinaryExpressionFlow::new(trampoline)
     }
@@ -692,11 +692,11 @@ pub struct WorkArea {
 
 #[derive(Trace, Finalize)]
 pub(crate) struct BindBinaryExpressionFlowStateMachine {
-    binder: Gc<BinderType>,
+    binder: Id<Binder>,
 }
 
 impl BindBinaryExpressionFlowStateMachine {
-    pub fn new(binder: Gc<BinderType>) -> Self {
+    pub fn new(binder: Id<Binder>) -> Self {
         Self { binder }
     }
 

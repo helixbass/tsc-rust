@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use gc::{Gc, GcCell};
 use id_arena::Id;
 
-use super::{init_flow_node, BinderType, ContainerFlags};
+use super::{init_flow_node, Binder, ContainerFlags};
 use crate::{
     contains_gc, create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
     get_immediately_invoked_function_expression, get_name_of_declaration, has_syntactic_modifier,
@@ -20,7 +20,7 @@ use crate::{
     contains,
 };
 
-impl BinderType {
+impl Binder {
     pub(super) fn declare_module_member(
         &self,
         node: Id<Node>, /*Declaration*/
