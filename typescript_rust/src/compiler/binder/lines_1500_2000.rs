@@ -709,7 +709,7 @@ impl BindBinaryExpressionFlowStateMachine {
         is_binary_expression(&node.ref_(self)) && !is_destructuring_assignment(node, self) {
             return Some(node);
         }
-        self.binder.bind(Some(node));
+        self.binder.ref_(self).bind(Some(node));
         None
     }
 }
@@ -728,11 +728,11 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         if let Some(state) = state.as_ref() {
             let mut state = state.borrow_mut();
             state.stack_index += 1;
-            set_parent(&node.ref_(self), Some(self.binder.parent()));
-            let save_in_strict_mode = self.binder.maybe_in_strict_mode();
-            self.binder.bind_worker(node);
-            let save_parent = self.binder.parent();
-            self.binder.set_parent(Some(node));
+            set_parent(&node.ref_(self), Some(self.binder.ref_(self).parent()));
+            let save_in_strict_mode = self.binder.ref_(self).maybe_in_strict_mode();
+            self.binder.ref_(self).bind_worker(node);
+            let save_parent = self.binder.ref_(self).parent();
+            self.binder.ref_(self).set_parent(Some(node));
             state.skip = false;
             state.in_strict_mode_stack.push(save_in_strict_mode);
             state.parent_stack.push(Some(save_parent));
@@ -755,20 +755,20 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
                 | SyntaxKind::QuestionQuestionToken
         ) || is_logical_or_coalescing_assignment_operator(operator)
         {
-            if self.binder.is_top_level_logical_expression(node) {
-                let post_expression_label = self.binder.create_branch_label();
-                self.binder.bind_logical_like_expression(
+            if self.binder.ref_(self).is_top_level_logical_expression(node) {
+                let post_expression_label = self.binder.ref_(self).create_branch_label();
+                self.binder.ref_(self).bind_logical_like_expression(
                     node,
                     post_expression_label.clone(),
                     post_expression_label.clone(),
                 );
                 self.binder
-                    .set_current_flow(Some(self.binder.finish_flow_label(post_expression_label)));
+                    .ref_(self).set_current_flow(Some(self.binder.ref_(self).finish_flow_label(post_expression_label)));
             } else {
-                self.binder.bind_logical_like_expression(
+                self.binder.ref_(self).bind_logical_like_expression(
                     node,
-                    self.binder.current_true_target(),
-                    self.binder.current_false_target(),
+                    self.binder.ref_(self).current_true_target(),
+                    self.binder.ref_(self).current_false_target(),
                 );
             }
             state.borrow_mut().skip = true;
@@ -797,9 +797,9 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
         if !(*state).borrow().skip {
             if operator_token.ref_(self).kind() == SyntaxKind::CommaToken {
                 self.binder
-                    .maybe_bind_expression_flow_if_call(node.ref_(self).as_binary_expression().left);
+                    .ref_(self).maybe_bind_expression_flow_if_call(node.ref_(self).as_binary_expression().left);
             }
-            self.binder.bind(Some(operator_token));
+            self.binder.ref_(self).bind(Some(operator_token));
         }
 
         Ok(())
@@ -828,7 +828,7 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             let operator = node_as_binary_expression.operator_token.ref_(self).kind();
             if is_assignment_operator(operator) && !is_assignment_target(node, self) {
                 self.binder
-                    .bind_assignment_target_flow(node_as_binary_expression.left);
+                    .ref_(self).bind_assignment_target_flow(node_as_binary_expression.left);
                 if operator == SyntaxKind::EqualsToken
                     && node_as_binary_expression.left.ref_(self).kind() == SyntaxKind::ElementAccessExpression
                 {
@@ -838,12 +838,12 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
                         .as_element_access_expression();
                     if self
                         .binder
-                        .is_narrowable_operand(element_access.expression)
+                        .ref_(self).is_narrowable_operand(element_access.expression)
                     {
                         self.binder
-                            .set_current_flow(Some(self.binder.create_flow_mutation(
+                            .ref_(self).set_current_flow(Some(self.binder.ref_(self).create_flow_mutation(
                                 FlowFlags::ArrayMutation,
-                                self.binder.current_flow(),
+                                self.binder.ref_(self).current_flow(),
                                 node,
                             )));
                     }
@@ -855,10 +855,10 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
             let saved_in_strict_mode = state.in_strict_mode_stack.pop().unwrap();
             let saved_parent = state.parent_stack.pop().unwrap();
             if saved_in_strict_mode.is_some() {
-                self.binder.set_in_strict_mode(saved_in_strict_mode);
+                self.binder.ref_(self).set_in_strict_mode(saved_in_strict_mode);
             }
             if saved_parent.is_some() {
-                self.binder.set_parent(saved_parent);
+                self.binder.ref_(self).set_parent(saved_parent);
             }
             state.skip = false;
             state.stack_index -= 1;
