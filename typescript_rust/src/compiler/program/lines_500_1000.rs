@@ -2055,6 +2055,12 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
     }
 }
 
+impl HasArena for ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 impl ScriptReferenceHost for Program {
     fn get_compiler_options(&self) -> Id<CompilerOptions> {
         self.options.clone()
