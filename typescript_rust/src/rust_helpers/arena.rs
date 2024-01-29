@@ -24,7 +24,7 @@ use crate::{
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
-    ActualResolveTypeReferenceDirectiveNamesWorker,
+    ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo,
 };
 
 #[derive(Default)]
@@ -116,6 +116,7 @@ pub struct AllArenas {
     pub file_preprocessing_diagnostics: RefCell<Arena<FilePreprocessingDiagnostics>>,
     pub actual_resolve_module_names_workers: RefCell<Arena<Box<dyn ActualResolveModuleNamesWorker>>>,
     pub actual_resolve_type_reference_directive_names_workers: RefCell<Arena<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>,
+    pub get_program_build_infos: RefCell<Arena<Box<dyn GetProgramBuildInfo>>>,
 }
 
 pub trait HasArena {
@@ -843,6 +844,14 @@ pub trait HasArena {
 
     fn alloc_actual_resolve_type_reference_directive_names_worker(&self, actual_resolve_type_reference_directive_names_worker: Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>) -> Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
         self.arena().alloc_actual_resolve_type_reference_directive_names_worker(actual_resolve_type_reference_directive_names_worker)
+    }
+
+    fn get_program_build_info_ref(&self, get_program_build_info: Id<Box<dyn GetProgramBuildInfo>>) -> Ref<Box<dyn GetProgramBuildInfo>> {
+        self.arena().get_program_build_info_ref(get_program_build_info)
+    }
+
+    fn alloc_get_program_build_info(&self, get_program_build_info: Box<dyn GetProgramBuildInfo>) -> Id<Box<dyn GetProgramBuildInfo>> {
+        self.arena().alloc_get_program_build_info(get_program_build_info)
     }
 }
 
@@ -1758,6 +1767,16 @@ impl HasArena for AllArenas {
         let id = self.actual_resolve_type_reference_directive_names_workers.borrow_mut().alloc(actual_resolve_type_reference_directive_names_worker);
         id
     }
+
+    #[track_caller]
+    fn get_program_build_info_ref(&self, get_program_build_info: Id<Box<dyn GetProgramBuildInfo>>) -> Ref<Box<dyn GetProgramBuildInfo>> {
+        Ref::map(self.get_program_build_infos.borrow(), |get_program_build_infos| &get_program_build_infos[get_program_build_info])
+    }
+
+    fn alloc_get_program_build_info(&self, get_program_build_info: Box<dyn GetProgramBuildInfo>) -> Id<Box<dyn GetProgramBuildInfo>> {
+        let id = self.get_program_build_infos.borrow_mut().alloc(get_program_build_info);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2491,6 +2510,14 @@ impl InArena for Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
         has_arena.actual_resolve_type_reference_directive_names_worker(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn GetProgramBuildInfo>> {
+    type Item = Box<dyn GetProgramBuildInfo>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetProgramBuildInfo>> {
+        has_arena.get_program_build_info_ref(*self)
     }
 }
 

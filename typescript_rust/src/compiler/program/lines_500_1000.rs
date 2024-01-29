@@ -1804,9 +1804,9 @@ impl Program {
         self.structure_is_reused.set(Some(structure_is_reused));
     }
 
-    pub(super) fn maybe_get_program_build_info_rc(
+    pub(super) fn maybe_get_program_build_info_id(
         &self,
-    ) -> Option<Gc<Box<dyn GetProgramBuildInfo>>> {
+    ) -> Option<Id<Box<dyn GetProgramBuildInfo>>> {
         self.get_program_build_info.borrow().clone()
     }
 }

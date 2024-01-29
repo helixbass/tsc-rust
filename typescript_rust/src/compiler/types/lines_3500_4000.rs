@@ -1712,7 +1712,7 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,
 
-    pub(crate) get_program_build_info: GcCell<Option<Gc<Box<dyn GetProgramBuildInfo>>>>,
+    pub(crate) get_program_build_info: GcCell<Option<Id<Box<dyn GetProgramBuildInfo>>>>,
 }
 
 impl fmt::Debug for Program {

@@ -1504,8 +1504,8 @@ impl EmitHost for ProgramEmitHost {
 
     fn get_program_build_info(&self) -> Option<Id<ProgramBuildInfo>> {
         self.program
-            .ref_(self).maybe_get_program_build_info_rc()
-            .and_then(|get_program_build_info| get_program_build_info.call())
+            .ref_(self).maybe_get_program_build_info_id()
+            .and_then(|get_program_build_info| get_program_build_info.ref_(self).call())
     }
 
     fn get_source_file_from_reference(
