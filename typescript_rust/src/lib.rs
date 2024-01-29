@@ -379,7 +379,7 @@ pub use compiler::{
         WrapCustomTransformerFactoryHandleDefault,
     },
     transformers::{
-        PrivateIdentifierKind, ClassLexicalEnvironment, ConvertedLoopState,
+        PrivateIdentifierKind, ClassLexicalEnvironment, ConvertedLoopState, CodeBlock,
         declarations::{
             diagnostics::{
                 can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,

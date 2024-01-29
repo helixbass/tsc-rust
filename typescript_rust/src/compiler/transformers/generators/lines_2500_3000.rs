@@ -243,14 +243,14 @@ impl TransformGenerators {
             if let Some(with_block_stack) = self.maybe_with_block_stack().as_ref() {
                 for with_block in with_block_stack.into_iter().rev() {
                     *statements = vec![self.factory.ref_(self).create_with_statement(
-                        (**with_block).borrow().as_with_block().expression.clone(),
+                        with_block.ref_(self).as_with_block().expression.clone(),
                         self.factory.ref_(self).create_block(statements.clone(), None),
                     )];
                 }
             }
 
             if let Some(current_exception_block) = self.maybe_current_exception_block() {
-                let current_exception_block = (*current_exception_block).borrow();
+                let current_exception_block = current_exception_block.ref_(self);
                 let current_exception_block_as_exception_block =
                     current_exception_block.as_exception_block();
                 let start_label = current_exception_block_as_exception_block.start_label;
@@ -354,7 +354,7 @@ impl TransformGenerators {
             {
                 let block = blocks[self.block_index()].clone();
                 let block_action = self.block_actions()[self.block_index()];
-                match (*block).borrow().kind() {
+                match block.ref_(self).kind() {
                     CodeBlockKind::Exception => match block_action {
                         BlockAction::Open => {
                             self.maybe_statements_mut().get_or_insert_default_();

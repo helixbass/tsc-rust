@@ -25,7 +25,7 @@ use crate::{
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
-    LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic,
+    LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock,
 };
 
 #[derive(Default)]
@@ -121,6 +121,7 @@ pub struct AllArenas {
     pub load_with_mode_aware_cache_loaders: RefCell<Arena<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>>,
     pub load_with_local_cache_loaders: RefCell<Arena<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>>,
     pub symbol_accessibility_diagnostics: RefCell<Arena<SymbolAccessibilityDiagnostic>>,
+    pub code_blocks: RefCell<Arena<CodeBlock>>,
 }
 
 pub trait HasArena {
@@ -880,6 +881,18 @@ pub trait HasArena {
 
     fn alloc_symbol_accessibility_diagnostic(&self, symbol_accessibility_diagnostic: SymbolAccessibilityDiagnostic) -> Id<SymbolAccessibilityDiagnostic> {
         self.arena().alloc_symbol_accessibility_diagnostic(symbol_accessibility_diagnostic)
+    }
+
+    fn code_block(&self, code_block: Id<CodeBlock>) -> Ref<CodeBlock> {
+        self.arena().code_block(code_block)
+    }
+
+    fn code_block_mut(&self, code_block: Id<CodeBlock>) -> RefMut<CodeBlock> {
+        self.arena().code_block_mut(code_block)
+    }
+
+    fn alloc_code_block(&self, code_block: CodeBlock) -> Id<CodeBlock> {
+        self.arena().alloc_code_block(code_block)
     }
 }
 
@@ -1835,6 +1848,20 @@ impl HasArena for AllArenas {
         let id = self.symbol_accessibility_diagnostics.borrow_mut().alloc(symbol_accessibility_diagnostic);
         id
     }
+
+    #[track_caller]
+    fn code_block(&self, code_block: Id<CodeBlock>) -> Ref<CodeBlock> {
+        Ref::map(self.code_blocks.borrow(), |code_blocks| &code_blocks[code_block])
+    }
+
+    fn code_block_mut(&self, code_block: Id<CodeBlock>) -> RefMut<CodeBlock> {
+        RefMut::map(self.code_blocks.borrow_mut(), |code_block| &mut code_block[code_block])
+    }
+
+    fn alloc_code_block(&self, code_block: CodeBlock) -> Id<CodeBlock> {
+        let id = self.code_blocks.borrow_mut().alloc(code_block);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2600,6 +2627,18 @@ impl InArena for Id<SymbolAccessibilityDiagnostic> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymbolAccessibilityDiagnostic> {
         has_arena.symbol_accessibility_diagnostic(*self)
+    }
+}
+
+impl InArena for Id<CodeBlock> {
+    type Item = CodeBlock;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CodeBlock> {
+        has_arena.code_block(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, CodeBlock> {
+        has_arena.code_block_mut(*self)
     }
 }
 
