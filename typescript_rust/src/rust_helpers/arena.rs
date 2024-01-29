@@ -125,7 +125,7 @@ pub struct AllArenas {
     pub code_blocks: RefCell<Arena<CodeBlock>>,
     pub private_identifier_environments: RefCell<Arena<PrivateIdentifierEnvironment>>,
     pub private_identifier_infos: RefCell<Arena<PrivateIdentifierInfo>>,
-    pub exteral_module_infos: RefCell<Arena<ExternalModuleInfo>>,
+    pub external_module_infos: RefCell<Arena<ExternalModuleInfo>>,
 }
 
 pub trait HasArena {
