@@ -552,8 +552,7 @@ pub fn resolve_type_reference_directive(
             None
         };
     let mut result = per_folder_cache
-        .as_ref()
-        .and_then(|per_folder_cache| per_folder_cache.get(type_reference_directive_name, None));
+        .and_then(|per_folder_cache| per_folder_cache.ref_(arena).get(type_reference_directive_name, None));
     if let Some(result) = result.as_ref() {
         if trace_enabled {
             trace(
@@ -726,8 +725,8 @@ pub fn resolve_type_reference_directive(
         },
     ));
     let result = result.unwrap();
-    if let Some(per_folder_cache) = per_folder_cache.as_ref() {
-        per_folder_cache.set(type_reference_directive_name, None, result.clone());
+    if let Some(per_folder_cache) = per_folder_cache {
+        per_folder_cache.ref_(arena).set(type_reference_directive_name, None, result.clone());
     }
     if trace_enabled {
         trace_result(host, type_reference_directive_name, &result.ref_(arena), arena);
@@ -1023,8 +1022,8 @@ pub struct PerModuleNameCache {
 #[derive(Trace, Finalize)]
 pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
     options: GcCell<Option<Id<CompilerOptions>>>,
-    own_map: GcCell<Gc<GcCell<HashMap<String, Gc<TCache>>>>>,
-    redirects_map: Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Gc<TCache>>>>>>>,
+    own_map: GcCell<Gc<GcCell<HashMap<String, Id<TCache>>>>>,
+    redirects_map: Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Id<TCache>>>>>>>,
 }
 
 impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
@@ -1036,13 +1035,13 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
         }
     }
 
-    pub fn get_own_map(&self) -> Gc<GcCell<HashMap<String, Gc<TCache>>>> {
+    pub fn get_own_map(&self) -> Gc<GcCell<HashMap<String, Id<TCache>>>> {
         self.own_map.borrow().clone()
     }
 
     pub fn redirects_map(
         &self,
-    ) -> Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Gc<TCache>>>>>>> {
+    ) -> Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Id<TCache>>>>>>> {
         self.redirects_map.clone()
     }
 
@@ -1050,14 +1049,14 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
         *self.options.borrow_mut() = Some(new_options);
     }
 
-    pub fn set_own_map(&self, new_own_map: Gc<GcCell<HashMap<String, Gc<TCache>>>>) {
+    pub fn set_own_map(&self, new_own_map: Gc<GcCell<HashMap<String, Id<TCache>>>>) {
         *self.own_map.borrow_mut() = new_own_map;
     }
 
     pub fn get_or_create_map_of_cache_redirects(
         &self,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<GcCell<HashMap<String, Gc<TCache>>>> {
+    ) -> Gc<GcCell<HashMap<String, Id<TCache>>>> {
         if redirected_reference.is_none() {
             return self.own_map.borrow().clone();
         }
@@ -1167,16 +1166,19 @@ impl HasArena for PackageJsonInfoCacheConcrete {
     }
 }
 
-fn get_or_create_cache<TCache: Trace + Finalize, TCreate: FnMut() -> TCache>(
+fn get_or_create_cache<TCache: Trace + Finalize>(
     cache_with_redirects: &CacheWithRedirects<TCache>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     key: &str,
-    mut create: TCreate,
-) -> Gc<TCache> {
+    mut create: impl FnMut() -> TCache,
+    arena: &impl HasArena,
+) -> Id<TCache>
+    where TCache: ArenaAlloc
+{
     let cache = cache_with_redirects.get_or_create_map_of_cache_redirects(redirected_reference);
-    let mut result: Option<Gc<TCache>> = (*cache).borrow().get(key).cloned();
+    let mut result: Option<Id<TCache>> = (*cache).borrow().get(key).cloned();
     if result.is_none() {
-        result = Some(Gc::new(create()));
+        result = Some(create().alloc(arena));
         cache
             .borrow_mut()
             .insert(key.to_owned(), result.clone().unwrap());
@@ -1225,6 +1227,7 @@ where
             redirected_reference,
             &path,
             || create_mode_aware_cache(),
+            self,
         )
     }
 
@@ -1521,6 +1524,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
                 Some(mode) => format!("{:?}|{}", mode, non_relative_module_name),
             },
             || self.create_per_module_name_cache(),
+            self,
         )
     }
 
@@ -1678,8 +1682,7 @@ pub fn resolve_module_name(
         cache.ref_(arena).get_or_create_cache_for_directory(&containing_directory, redirected_reference.clone())
     });
     let mut result = per_folder_cache
-        .as_ref()
-        .and_then(|per_folder_cache| per_folder_cache.get(module_name, resolution_mode));
+        .and_then(|per_folder_cache| per_folder_cache.ref_(arena).get(module_name, resolution_mode));
 
     if result.is_some() {
         if trace_enabled {
@@ -1786,8 +1789,8 @@ pub fn resolve_module_name(
         }
         // perfLogger.logStopResolvedModule((result && result.resolvedModule) ? "" + result.resolvedModule.resolvedFileName : "null");
 
-        if let Some(per_folder_cache) = per_folder_cache.as_ref() {
-            per_folder_cache.set(module_name, resolution_mode, result.clone().unwrap());
+        if let Some(per_folder_cache) = per_folder_cache {
+            per_folder_cache.ref_(arena).set(module_name, resolution_mode, result.clone().unwrap());
             if !is_external_module_name_relative(module_name) {
                 cache
                     .unwrap()
