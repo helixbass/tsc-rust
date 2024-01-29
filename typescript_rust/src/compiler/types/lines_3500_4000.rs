@@ -1636,7 +1636,7 @@ pub struct Program {
 
     pub(crate) resolved_type_reference_directives:
         GcCell<Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>>,
-    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Gc<FilePreprocessingDiagnostics>>>>,
+    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Id<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,
     #[unsafe_ignore_trace]

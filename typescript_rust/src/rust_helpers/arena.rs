@@ -23,7 +23,7 @@ use crate::{
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
-    ParseConfigFileHost,
+    ParseConfigFileHost, FilePreprocessingDiagnostics,
 };
 
 #[derive(Default)]
@@ -112,6 +112,7 @@ pub struct AllArenas {
     pub type_reference_directive_resolution_caches: RefCell<Arena<TypeReferenceDirectiveResolutionCache>>,
     pub module_resolution_caches: RefCell<Arena<ModuleResolutionCache>>,
     pub parse_config_file_hosts: RefCell<Arena<Box<dyn ParseConfigFileHost>>>,
+    pub file_preprocessing_diagnostics: RefCell<Arena<FilePreprocessingDiagnostics>>,
 }
 
 pub trait HasArena {
@@ -815,6 +816,14 @@ pub trait HasArena {
 
     fn alloc_parse_config_file_host(&self, parse_config_file_host: Box<dyn ParseConfigFileHost>) -> Id<Box<dyn ParseConfigFileHost>> {
         self.arena().alloc_parse_config_file_host(parse_config_file_host)
+    }
+
+    fn file_preprocessing_diagnostics(&self, file_preprocessing_diagnostics: Id<FilePreprocessingDiagnostics>) -> Ref<FilePreprocessingDiagnostics> {
+        self.arena().file_preprocessing_diagnostics(file_preprocessing_diagnostics)
+    }
+
+    fn alloc_file_preprocessing_diagnostics(&self, file_preprocessing_diagnostics: FilePreprocessingDiagnostics) -> Id<FilePreprocessingDiagnostics> {
+        self.arena().alloc_file_preprocessing_diagnostics(file_preprocessing_diagnostics)
     }
 }
 
@@ -1700,6 +1709,16 @@ impl HasArena for AllArenas {
         let id = self.parse_config_file_hosts.borrow_mut().alloc(parse_config_file_host);
         id
     }
+
+    #[track_caller]
+    fn file_preprocessing_diagnostics(&self, file_preprocessing_diagnostics: Id<FilePreprocessingDiagnostics>) -> Ref<FilePreprocessingDiagnostics> {
+        Ref::map(self.file_preprocessing_diagnostics.borrow(), |file_preprocessing_diagnostics_| &file_preprocessing_diagnostics_[file_preprocessing_diagnostics])
+    }
+
+    fn alloc_file_preprocessing_diagnostics(&self, file_preprocessing_diagnostics: FilePreprocessingDiagnostics) -> Id<FilePreprocessingDiagnostics> {
+        let id = self.file_preprocessing_diagnostics.borrow_mut().alloc(file_preprocessing_diagnostics);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2409,6 +2428,14 @@ impl InArena for Id<Box<dyn ParseConfigFileHost>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ParseConfigFileHost>> {
         has_arena.parse_config_file_host(*self)
+    }
+}
+
+impl InArena for Id<FilePreprocessingDiagnostics> {
+    type Item = FilePreprocessingDiagnostics;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, FilePreprocessingDiagnostics> {
+        has_arena.file_preprocessing_diagnostics(*self)
     }
 }
 

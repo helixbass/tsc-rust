@@ -96,7 +96,7 @@ impl Program {
                         &*Diagnostics::Cannot_find_lib_definition_for_0
                     };
                     self.maybe_file_processing_diagnostics().get_or_insert_default_().push(
-                        Gc::new(FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
+                        self.alloc_file_preprocessing_diagnostics(FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
                             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic,
                             reason: ReferencedFile {
                                 kind: FileIncludeKind::LibReferenceDirective,
@@ -1300,13 +1300,13 @@ impl Program {
     ) {
         self.maybe_file_processing_diagnostics()
             .get_or_insert_default_()
-            .push(Gc::new(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
+            .push(self.alloc_file_preprocessing_diagnostics(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
                 kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
                 file: file.map(|file| file.ref_(self).as_source_file().path().clone()),
                 file_processing_reason,
                 diagnostic,
                 args,
-            })))
+            })));
     }
 
     pub fn add_program_diagnostic_explaining_file(

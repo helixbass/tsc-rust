@@ -1356,9 +1356,10 @@ impl Program {
 
         self.maybe_file_processing_diagnostics().as_ref().map(|file_processing_diagnostics| {
             for diagnostic in file_processing_diagnostics {
-                match diagnostic.kind() {
+                match diagnostic.ref_(self).kind() {
                     FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic => {
-                        let diagnostic_as_file_explaining_diagnostic = diagnostic.as_file_explaining_diagnostic();
+                        let diagnostic_ref = diagnostic.ref_(self);
+                        let diagnostic_as_file_explaining_diagnostic = diagnostic_ref.as_file_explaining_diagnostic();
                         self.program_diagnostics_mut().add(
                             self.create_diagnostic_explaining_file(
                                 diagnostic_as_file_explaining_diagnostic.file.as_ref().and_then(|diagnostic_file| {
@@ -1371,7 +1372,8 @@ impl Program {
                         );
                     }
                     FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic => {
-                        let diagnostic_as_referenced_diagnostic = diagnostic.as_referenced_diagnostic();
+                        let diagnostic_ref = diagnostic.ref_(self);
+                        let diagnostic_as_referenced_diagnostic = diagnostic_ref.as_referenced_diagnostic();
                         let referenced_file_location = get_referenced_file_location(
                             |path: &Path| self.get_source_file_by_path(path),
                             &diagnostic_as_referenced_diagnostic.reason,
@@ -1547,7 +1549,7 @@ impl Program {
 
     pub(super) fn maybe_file_processing_diagnostics(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<FilePreprocessingDiagnostics>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<FilePreprocessingDiagnostics>>>> {
         self.file_processing_diagnostics.borrow_mut()
     }
 
