@@ -441,7 +441,7 @@ impl TypeChecker {
         if add_undefined == Some(true) {
             type_ = self.get_optional_type_(type_, None)?;
         }
-        self.node_builder().type_to_type_node(
+        self.node_builder().ref_(self).type_to_type_node(
             type_,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
@@ -464,7 +464,7 @@ impl TypeChecker {
             return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let signature = self.get_signature_from_declaration_(signature_declaration)?;
-        self.node_builder().type_to_type_node(
+        self.node_builder().ref_(self).type_to_type_node(
             self.get_return_type_of_signature(signature)?,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
@@ -483,7 +483,7 @@ impl TypeChecker {
             return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
-        self.node_builder().type_to_type_node(
+        self.node_builder().ref_(self).type_to_type_node(
             type_,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
@@ -574,7 +574,7 @@ impl TypeChecker {
         tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let enum_result = if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral) {
-            self.node_builder().symbol_to_expression(
+            self.node_builder().ref_(self).symbol_to_expression(
                 type_.ref_(self).symbol(),
                 Some(SymbolFlags::Value),
                 Some(enclosing),

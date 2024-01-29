@@ -74,7 +74,7 @@ pub(super) struct SymbolTableToDeclarationStatements {
     pub(super) bundled: Option<bool>,
     pub(super) type_checker: Id<TypeChecker>,
     pub(super) context: GcCell<Gc<NodeBuilderContext>>,
-    pub(super) node_builder: Gc<NodeBuilder>,
+    pub(super) node_builder: Id<NodeBuilder>,
     pub(super) serialize_property_symbol_for_class: GcCell<Option<MakeSerializePropertySymbol>>,
     pub(super) serialize_property_symbol_for_interface_worker:
         GcCell<Option<MakeSerializePropertySymbol>>,
@@ -118,7 +118,7 @@ impl SymbolTableToDeclarationStatements {
             bundled,
             type_checker: type_checker.clone(),
             context: GcCell::new(context.clone()),
-            node_builder: node_builder.rc_wrapper(),
+            node_builder: node_builder.arena_id(),
             serialize_property_symbol_for_class: Default::default(),
             serialize_property_symbol_for_interface_worker: Default::default(),
             enclosing_declaration: context.enclosing_declaration(),
@@ -733,7 +733,7 @@ impl SymbolTableToDeclarationStatements {
                     })
         {
             let old_context = self.context();
-            self.set_context(self.node_builder.clone_node_builder_context(self.context()));
+            self.set_context(self.node_builder.ref_(self).clone_node_builder_context(self.context()));
             /*const result =*/
             self.serialize_symbol_worker(symbol, is_private, property_as_alias)?;
             if self.context().reported_diagnostic() {
@@ -944,7 +944,7 @@ impl SymbolTableToDeclarationStatements {
                                             get_factory(self).create_variable_declaration(
                                                 Some(&*name),
                                                 None,
-                                                Some(self.node_builder.serialize_type_for_declaration(
+                                                Some(self.node_builder.ref_(self).serialize_type_for_declaration(
                                                     &self.context(),
                                                     type_,
                                                     symbol,
@@ -1067,7 +1067,7 @@ impl SymbolTableToDeclarationStatements {
                             false,
                             None,
                             Some(get_factory(self).create_string_literal(
-                                self.node_builder.get_specifier_for_module_symbol(
+                                self.node_builder.ref_(self).get_specifier_for_module_symbol(
                                     resolved_module,
                                     &self.context(),
                                 )?,

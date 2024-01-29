@@ -272,7 +272,7 @@ impl TypeChecker {
         };
         let symbol_to_string_worker = |writer: Id<Box<dyn EmitTextWriter>>| -> io::Result<_> {
             let entity = builder(
-                &self.node_builder(),
+                &self.node_builder().ref_(self),
                 symbol,
                 // meaning.unwrap() TODO: this is ! in the Typescript code but would be undefined at runtime when called from propertyRelatedTo()?
                 meaning,
@@ -379,7 +379,7 @@ impl TypeChecker {
                 SyntaxKind::CallSignature
             };
         }
-        let sig = self.node_builder().signature_to_signature_declaration(
+        let sig = self.node_builder().ref_(self).signature_to_signature_declaration(
             signature,
             sig_output,
             enclosing_declaration,
@@ -428,7 +428,7 @@ impl TypeChecker {
         let writer = writer.unwrap_or_else(|| create_text_writer("", self));
         let no_truncation = matches!(self.compiler_options.ref_(self).no_error_truncation, Some(true))
             || flags.intersects(TypeFormatFlags::NoTruncation);
-        let type_node = self.node_builder().type_to_type_node(
+        let type_node = self.node_builder().ref_(self).type_to_type_node(
             type_,
             enclosing_declaration,
             Some(
@@ -546,14 +546,14 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn create_node_builder(&self) -> Gc<NodeBuilder> {
-        NodeBuilder::new(self.arena_id())
+    pub(super) fn create_node_builder(&self) -> Id<NodeBuilder> {
+        NodeBuilder::new(self.arena_id(), self)
     }
 }
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeBuilder {
-    pub(super) _rc_wrapper: GcCell<Option<Gc<NodeBuilder>>>,
+    pub(super) _arena_id: GcCell<Option<Id<Self>>>,
     pub type_checker: Id<TypeChecker>,
 }
 
@@ -564,17 +564,19 @@ impl HasArena for NodeBuilder {
 }
 
 impl NodeBuilder {
-    pub fn new(type_checker: Id<TypeChecker>) -> Gc<Self> {
-        let ret = Gc::new(Self {
+    pub fn new(type_checker: Id<TypeChecker>, arena: &impl HasArena) -> Id<Self> {
+        arena.alloc_node_builder(Self {
             type_checker,
-            _rc_wrapper: Default::default(),
-        });
-        *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
-        ret
+            _arena_id: Default::default(),
+        })
     }
 
-    pub fn rc_wrapper(&self) -> Gc<Self> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
+    }
+
+    pub fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     pub fn type_to_type_node(

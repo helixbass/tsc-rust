@@ -1692,7 +1692,7 @@ impl TypeChecker {
         self.check_binary_expression.borrow().clone().unwrap()
     }
 
-    pub(super) fn node_builder(&self) -> Gc<NodeBuilder> {
+    pub(super) fn node_builder(&self) -> Id<NodeBuilder> {
         self.node_builder.borrow().clone().unwrap()
     }
 
@@ -1912,7 +1912,7 @@ impl TypeChecker {
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.node_builder()
-            .type_to_type_node(type_, enclosing_declaration, flags, tracker)
+            .ref_(self).type_to_type_node(type_, enclosing_declaration, flags, tracker)
     }
 
     pub fn index_info_to_index_signature_declaration(
@@ -1923,7 +1923,7 @@ impl TypeChecker {
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*IndexSignatureDeclaration*/>>> {
         self.node_builder()
-            .index_info_to_index_signature_declaration(
+            .ref_(self).index_info_to_index_signature_declaration(
                 index_info,
                 enclosing_declaration,
                 flags,
@@ -1940,7 +1940,7 @@ impl TypeChecker {
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
     {
-        self.node_builder().signature_to_signature_declaration(
+        self.node_builder().ref_(self).signature_to_signature_declaration(
             signature,
             kind,
             enclosing_declaration,
@@ -1956,7 +1956,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*EntityName*/>>> {
-        self.node_builder().symbol_to_entity_name(
+        self.node_builder().ref_(self).symbol_to_entity_name(
             symbol,
             Some(meaning),
             enclosing_declaration,
@@ -1972,7 +1972,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
-        self.node_builder().symbol_to_expression(
+        self.node_builder().ref_(self).symbol_to_expression(
             symbol,
             Some(meaning),
             enclosing_declaration,
@@ -1987,7 +1987,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>> {
-        self.node_builder().symbol_to_type_parameter_declarations(
+        self.node_builder().ref_(self).symbol_to_type_parameter_declarations(
             symbol,
             enclosing_declaration,
             flags,
@@ -2001,7 +2001,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
-        self.node_builder().symbol_to_parameter_declaration(
+        self.node_builder().ref_(self).symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
             flags,
@@ -2015,7 +2015,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
-        self.node_builder().type_parameter_to_declaration(
+        self.node_builder().ref_(self).type_parameter_to_declaration(
             parameter,
             enclosing_declaration,
             flags,

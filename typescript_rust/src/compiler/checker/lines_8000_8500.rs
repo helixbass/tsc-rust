@@ -85,7 +85,7 @@ impl TypeChecker {
                 get_factory(self).create_this_type_node()
             },
             type_predicate.ref_(self).type_.try_and_then(|type_| {
-                self.node_builder().type_to_type_node(
+                self.node_builder().ref_(self).type_to_type_node(
                     type_,
                     enclosing_declaration,
                     Some(

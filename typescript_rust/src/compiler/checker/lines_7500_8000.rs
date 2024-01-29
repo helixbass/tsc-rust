@@ -113,7 +113,7 @@ impl SymbolTableToDeclarationStatements {
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
                             Some(is_export_equals),
-                            self.node_builder.symbol_to_expression_(
+                            self.node_builder.ref_(self).symbol_to_expression_(
                                 target,
                                 &self.context(),
                                 Some(SymbolFlags::All),
@@ -143,7 +143,7 @@ impl SymbolTableToDeclarationStatements {
                                 Option::<Id<NodeArray>>::None,
                                 false,
                                 get_factory(self).create_identifier(&var_name),
-                                self.node_builder.symbol_to_name(
+                                self.node_builder.ref_(self).symbol_to_name(
                                     target,
                                     &self.context(),
                                     Some(SymbolFlags::All),
@@ -184,7 +184,7 @@ impl SymbolTableToDeclarationStatements {
                             vec![get_factory(self).create_variable_declaration(
                                 Some(&*var_name),
                                 None,
-                                Some(self.node_builder.serialize_type_for_declaration(
+                                Some(self.node_builder.ref_(self).serialize_type_for_declaration(
                                     &self.context(),
                                     type_to_serialize,
                                     symbol,
@@ -263,7 +263,7 @@ impl SymbolTableToDeclarationStatements {
                 .is_empty()
             && self
                 .node_builder
-                .get_declaration_with_type_annotation(
+                .ref_(self).get_declaration_with_type_annotation(
                     host_symbol,
                     Some(self.enclosing_declaration),
                 )
@@ -405,7 +405,7 @@ impl SymbolTableToDeclarationStatements {
         for sig in &signatures {
             let decl = self
                 .node_builder
-                .signature_to_signature_declaration_helper(
+                .ref_(self).signature_to_signature_declaration_helper(
                     sig.clone(),
                     output_kind,
                     &self.context(),
@@ -438,7 +438,7 @@ impl SymbolTableToDeclarationStatements {
             }
             results.push(
                 self.node_builder
-                    .index_info_to_index_signature_declaration_helper(
+                    .ref_(self).index_info_to_index_signature_declaration_helper(
                         info,
                         &self.context(),
                         Option::<Id<Node>>::None,
@@ -467,7 +467,7 @@ impl SymbolTableToDeclarationStatements {
                     Some(&*temp_name),
                     None,
                     self.node_builder
-                        .type_to_type_node_helper(Some(static_type), &self.context())?,
+                        .ref_(self).type_to_type_node_helper(Some(static_type), &self.context())?,
                     None,
                 )],
                 Some(NodeFlags::Const),
@@ -507,12 +507,12 @@ impl SymbolTableToDeclarationStatements {
                     .map(|&t| -> io::Result<_> {
                         Ok(self
                             .node_builder
-                            .type_to_type_node_helper(Some(t), &self.context())?
+                            .ref_(self).type_to_type_node_helper(Some(t), &self.context())?
                             .unwrap())
                     })
                     .collect::<Result<Vec<_>, _>>()?,
             );
-            reference = Some(self.node_builder.symbol_to_expression_(
+            reference = Some(self.node_builder.ref_(self).symbol_to_expression_(
                 t_target.ref_(self).symbol(),
                 &self.context(),
                 Some(SymbolFlags::Type),
@@ -524,7 +524,7 @@ impl SymbolTableToDeclarationStatements {
                 flags,
             )
         })? {
-            reference = Some(self.node_builder.symbol_to_expression_(
+            reference = Some(self.node_builder.ref_(self).symbol_to_expression_(
                 t_symbol,
                 &self.context(),
                 Some(SymbolFlags::Type),
@@ -544,7 +544,7 @@ impl SymbolTableToDeclarationStatements {
             .maybe_symbol()
             .try_map(|t_symbol| -> io::Result<_> {
                 Ok(get_factory(self).create_expression_with_type_arguments(
-                    self.node_builder.symbol_to_expression_(
+                    self.node_builder.ref_(self).symbol_to_expression_(
                         t_symbol,
                         &self.context(),
                         Some(SymbolFlags::Type),
@@ -658,7 +658,7 @@ impl SymbolTableToDeclarationStatements {
 #[derive(Trace, Finalize)]
 pub(super) struct MakeSerializePropertySymbol {
     type_checker: Id<TypeChecker>,
-    node_builder: Gc<NodeBuilder>,
+    node_builder: Id<NodeBuilder>,
     context: Gc<NodeBuilderContext>,
     symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
     create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
@@ -675,7 +675,7 @@ impl HasArena for MakeSerializePropertySymbol {
 impl MakeSerializePropertySymbol {
     pub(super) fn new(
         type_checker: Id<TypeChecker>,
-        node_builder: Gc<NodeBuilder>,
+        node_builder: Id<NodeBuilder>,
         context: Gc<NodeBuilderContext>,
         symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
         create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
@@ -744,7 +744,7 @@ impl MakeSerializePropertySymbol {
             });
         let ref name = self
             .node_builder
-            .get_property_name_node_for_symbol(p, &self.context)?;
+            .ref_(self).get_property_name_node_for_symbol(p, &self.context)?;
         let first_property_like_decl =
             p.ref_(self)
                 .maybe_declarations()
@@ -784,7 +784,7 @@ impl MakeSerializePropertySymbol {
                                 None
                             } else {
                                 Some(
-                                    self.node_builder.serialize_type_for_declaration(
+                                    self.node_builder.ref_(self).serialize_type_for_declaration(
                                         &self.context,
                                         self.type_checker.ref_(self).get_type_of_symbol(p)?,
                                         p,
@@ -831,7 +831,7 @@ impl MakeSerializePropertySymbol {
                             None
                         } else {
                             Some(
-                                self.node_builder.serialize_type_for_declaration(
+                                self.node_builder.ref_(self).serialize_type_for_declaration(
                                     &self.context,
                                     self.type_checker.ref_(self).get_type_of_symbol(p)?,
                                     p,
@@ -891,7 +891,7 @@ impl MakeSerializePropertySymbol {
                         .then(|| get_factory(self).create_token(SyntaxKind::QuestionToken)),
                     if !is_private {
                         Some(
-                            self.node_builder.serialize_type_for_declaration(
+                            self.node_builder.ref_(self).serialize_type_for_declaration(
                                 &self.context,
                                 self.type_checker.ref_(self).get_type_of_symbol(p)?,
                                 p,
@@ -989,7 +989,7 @@ impl MakeSerializePropertySymbol {
             for ref sig in signatures {
                 let decl = self
                     .node_builder
-                    .signature_to_signature_declaration_helper(
+                    .ref_(self).signature_to_signature_declaration_helper(
                         sig.clone(),
                         self.method_kind,
                         &self.context,

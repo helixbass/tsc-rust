@@ -30,7 +30,7 @@ use crate::{
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer,
+    CheckTypeErrorOutputContainer, NodeBuilder,
 };
 
 #[derive(Default)]
@@ -147,6 +147,7 @@ pub struct AllArenas {
     pub check_type_containing_message_chains: RefCell<Arena<Box<dyn CheckTypeContainingMessageChain>>>,
     pub check_type_error_output_containers: RefCell<Arena<Box<dyn CheckTypeErrorOutputContainer>>>,
     pub resolved_type_reference_directives_maps: RefCell<Arena<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
+    pub node_builders: RefCell<Arena<NodeBuilder>>,
 }
 
 pub trait HasArena {
@@ -1106,6 +1107,14 @@ pub trait HasArena {
 
     fn alloc_resolved_type_reference_directives_map(&self, resolved_type_reference_directives_map: HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>) -> Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
         self.arena().alloc_resolved_type_reference_directives_map(resolved_type_reference_directives_map)
+    }
+
+    fn node_builder(&self, node_builder: Id<NodeBuilder>) -> Ref<NodeBuilder> {
+        self.arena().node_builder(node_builder)
+    }
+
+    fn alloc_node_builder(&self, node_builder: NodeBuilder) -> Id<NodeBuilder> {
+        self.arena().alloc_node_builder(node_builder)
     }
 }
 
@@ -2303,6 +2312,17 @@ impl HasArena for AllArenas {
         let id = self.resolved_type_reference_directives_maps.borrow_mut().alloc(resolved_type_reference_directives_map);
         id
     }
+
+    #[track_caller]
+    fn node_builder(&self, node_builder: Id<NodeBuilder>) -> Ref<NodeBuilder> {
+        Ref::map(self.node_builders.borrow(), |node_builders| &node_builders[node_builder])
+    }
+
+    fn alloc_node_builder(&self, node_builder: NodeBuilder) -> Id<NodeBuilder> {
+        let id = self.node_builders.borrow_mut().alloc(node_builder);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3268,6 +3288,14 @@ impl InArena for Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
         has_arena.resolved_type_reference_directives_map_mut(*self)
+    }
+}
+
+impl InArena for Id<NodeBuilder> {
+    type Item = NodeBuilder;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeBuilder> {
+        has_arena.node_builder(*self)
     }
 }
 

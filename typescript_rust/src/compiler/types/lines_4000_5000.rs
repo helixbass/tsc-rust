@@ -217,7 +217,7 @@ pub struct TypeChecker {
     pub(crate) exact_optional_property_types: Option<bool>,
     pub(crate) check_binary_expression: GcCell<Option<Id<CheckBinaryExpression>>>,
     pub(crate) emit_resolver: GcCell<Option<Id<Box<dyn EmitResolver>>>>,
-    pub(crate) node_builder: GcCell<Option<Gc<NodeBuilder>>>,
+    pub(crate) node_builder: GcCell<Option<Id<NodeBuilder>>>,
     pub(crate) globals: Id<SymbolTable>,
     pub(crate) undefined_symbol: Option<Id<Symbol>>,
     pub(crate) global_this_symbol: Option<Id<Symbol>>,
