@@ -965,6 +965,7 @@ impl Program {
                     self.host(),
                 ))),
                 None,
+                self,
             ),
         )));
 

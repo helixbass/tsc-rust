@@ -2581,10 +2581,11 @@ impl HasArena for DirectoryStructureHostRcDynCompilerHostLike {
 
 pub fn parse_config_host_from_compiler_host_like(
     host: Id<Box<dyn CompilerHostLike>>,
-    directory_structure_host: Option<Gc<Box<dyn DirectoryStructureHost>>>,
+    directory_structure_host: Option<Id<Box<dyn DirectoryStructureHost>>>,
+    arena: &impl HasArena,
 ) -> ParseConfigHostFromCompilerHostLike {
     let directory_structure_host = directory_structure_host.unwrap_or_else(|| {
-        Gc::new(Box::new(DirectoryStructureHostRcDynCompilerHostLike::new(
+        arena.alloc_directory_structure_host(Box::new(DirectoryStructureHostRcDynCompilerHostLike::new(
             host.clone(),
         )))
     });
@@ -2594,13 +2595,13 @@ pub fn parse_config_host_from_compiler_host_like(
 #[derive(Trace, Finalize)]
 pub struct ParseConfigHostFromCompilerHostLike {
     host: Id<Box<dyn CompilerHostLike>>,
-    directory_structure_host: Gc<Box<dyn DirectoryStructureHost>>,
+    directory_structure_host: Id<Box<dyn DirectoryStructureHost>>,
 }
 
 impl ParseConfigHostFromCompilerHostLike {
     pub fn new(
         host: Id<Box<dyn CompilerHostLike>>,
-        directory_structure_host: Gc<Box<dyn DirectoryStructureHost>>,
+        directory_structure_host: Id<Box<dyn DirectoryStructureHost>>,
     ) -> Self {
         Self {
             host,
@@ -2628,18 +2629,18 @@ impl ParseConfigHost for ParseConfigHostFromCompilerHostLike {
         includes: &[String],
         depth: Option<usize>,
     ) -> io::Result<Vec<String>> {
-        Debug_.assert(self.directory_structure_host.is_read_directory_implemented(), Some("'CompilerHost.readDirectory' must be implemented to correctly process 'projectReferences'"));
+        Debug_.assert(self.directory_structure_host.ref_(self).is_read_directory_implemented(), Some("'CompilerHost.readDirectory' must be implemented to correctly process 'projectReferences'"));
         self.directory_structure_host
-            .read_directory(root, extensions, excludes, Some(includes), depth)
+            .ref_(self).read_directory(root, extensions, excludes, Some(includes), depth)
             .unwrap()
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        self.directory_structure_host.file_exists(path)
+        self.directory_structure_host.ref_(self).file_exists(path)
     }
 
     fn read_file(&self, path: &str) -> io::Result<Option<String>> {
-        self.directory_structure_host.read_file(path, None)
+        self.directory_structure_host.ref_(self).read_file(path, None)
     }
 
     fn trace(&self, s: &str) {

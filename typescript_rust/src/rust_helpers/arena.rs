@@ -21,7 +21,7 @@ use crate::{
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
-    ForEachResolvedProjectReference, CompilerHostLike,
+    ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
 };
 
 #[derive(Default)]
@@ -105,6 +105,7 @@ pub struct AllArenas {
     pub get_resolved_project_references: RefCell<Arena<Box<dyn GetResolvedProjectReferences>>>,
     pub for_each_resolved_project_references: RefCell<Arena<Box<dyn ForEachResolvedProjectReference>>>,
     pub compiler_host_likes: RefCell<Arena<Box<dyn CompilerHostLike>>>,
+    pub directory_structure_hosts: RefCell<Arena<Box<dyn DirectoryStructureHost>>>,
 }
 
 pub trait HasArena {
@@ -768,6 +769,14 @@ pub trait HasArena {
 
     fn alloc_compiler_host_like(&self, compiler_host_like: Box<dyn CompilerHostLike>) -> Id<Box<dyn CompilerHostLike>> {
         self.arena().alloc_compiler_host_like(compiler_host_like)
+    }
+
+    fn directory_structure_host(&self, directory_structure_host: Id<Box<dyn DirectoryStructureHost>>) -> Ref<Box<dyn DirectoryStructureHost>> {
+        self.arena().directory_structure_host(directory_structure_host)
+    }
+
+    fn alloc_directory_structure_host(&self, directory_structure_host: Box<dyn DirectoryStructureHost>) -> Id<Box<dyn DirectoryStructureHost>> {
+        self.arena().alloc_directory_structure_host(directory_structure_host)
     }
 }
 
@@ -1603,6 +1612,16 @@ impl HasArena for AllArenas {
         let id = self.compiler_host_likes.borrow_mut().alloc(compiler_host_like);
         id
     }
+
+    #[track_caller]
+    fn directory_structure_host(&self, directory_structure_host: Id<Box<dyn DirectoryStructureHost>>) -> Ref<Box<dyn DirectoryStructureHost>> {
+        Ref::map(self.directory_structure_hosts.borrow(), |directory_structure_hosts| &directory_structure_hosts[directory_structure_host])
+    }
+
+    fn alloc_directory_structure_host(&self, directory_structure_host: Box<dyn DirectoryStructureHost>) -> Id<Box<dyn DirectoryStructureHost>> {
+        let id = self.directory_structure_hosts.borrow_mut().alloc(directory_structure_host);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2272,6 +2291,14 @@ impl InArena for Id<Box<dyn CompilerHostLike>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CompilerHostLike>> {
         has_arena.compiler_host_like(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn DirectoryStructureHost>> {
+    type Item = Box<dyn DirectoryStructureHost>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn DirectoryStructureHost>> {
+        has_arena.directory_structure_host(*self)
     }
 }
 
