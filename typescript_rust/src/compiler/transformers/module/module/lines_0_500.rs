@@ -45,10 +45,10 @@ pub(super) struct TransformModule {
     pub(super) language_version: ScriptTarget,
     #[unsafe_ignore_trace]
     pub(super) module_kind: ModuleKind,
-    pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
+    pub(super) module_info_map: GcCell<HashMap<NodeId, Id<ExternalModuleInfo>>>,
     pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
     pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    pub(super) current_module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
+    pub(super) current_module_info: GcCell<Option<Id<ExternalModuleInfo>>>,
     pub(super) no_substitution: GcCell<HashMap<NodeId, bool>>,
     #[unsafe_ignore_trace]
     pub(super) need_umd_dynamic_import_helper: Cell<bool>,
@@ -100,13 +100,13 @@ impl TransformModule {
         self.context.ref_(self).get_emit_helper_factory().ref_(self)
     }
 
-    pub(super) fn module_info_map(&self) -> GcCellRef<HashMap<NodeId, Gc<ExternalModuleInfo>>> {
+    pub(super) fn module_info_map(&self) -> GcCellRef<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow()
     }
 
     pub(super) fn module_info_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<ExternalModuleInfo>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow_mut()
     }
 
@@ -133,17 +133,17 @@ impl TransformModule {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    pub(super) fn maybe_current_module_info(&self) -> Option<Gc<ExternalModuleInfo>> {
+    pub(super) fn maybe_current_module_info(&self) -> Option<Id<ExternalModuleInfo>> {
         self.current_module_info.borrow().clone()
     }
 
-    pub(super) fn current_module_info(&self) -> Gc<ExternalModuleInfo> {
+    pub(super) fn current_module_info(&self) -> Id<ExternalModuleInfo> {
         self.current_module_info.borrow().clone().unwrap()
     }
 
     pub(super) fn set_current_module_info(
         &self,
-        current_module_info: Option<Gc<ExternalModuleInfo>>,
+        current_module_info: Option<Id<ExternalModuleInfo>>,
     ) {
         *self.current_module_info.borrow_mut() = current_module_info;
     }
@@ -184,7 +184,7 @@ impl TransformModule {
         }
 
         self.set_current_source_file(Some(node));
-        self.set_current_module_info(Some(Gc::new(collect_external_module_info(
+        self.set_current_module_info(Some(self.alloc_external_module_info(collect_external_module_info(
             &*self.context.ref_(self),
             node,
             &**self.resolver.ref_(self),
@@ -206,7 +206,7 @@ impl TransformModule {
     }
 
     pub(super) fn should_emit_underscore_underscore_es_module(&self) -> bool {
-        if self.current_module_info().export_equals.is_none()
+        if self.current_module_info().ref_(self).export_equals.is_none()
             && is_external_module(&self.current_source_file().ref_(self))
         {
             return true;
@@ -237,7 +237,7 @@ impl TransformModule {
             statements.push(self.create_underscore_underscore_es_module());
         }
         let current_module_info = self.current_module_info();
-        let current_module_info_exported_names = current_module_info.exported_names.as_ref();
+        let current_module_info_exported_names = current_module_info.ref_(self).exported_names.as_ref();
         if current_module_info_exported_names.is_non_empty() {
             let current_module_info_exported_names = current_module_info_exported_names.unwrap();
             let chunk_size = 50;
@@ -267,7 +267,7 @@ impl TransformModule {
             &mut statements,
             try_maybe_visit_node(
                 current_module_info
-                    .external_helpers_import_declaration,
+                    .ref_(self).external_helpers_import_declaration,
                 Some(|node: Id<Node>| self.top_level_visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -678,7 +678,7 @@ impl TransformModule {
             }
         }
 
-        for &import_node in &self.current_module_info().external_imports {
+        for &import_node in &self.current_module_info().ref_(self).external_imports {
             let external_module_name = get_external_module_name_literal(
                 &self.factory.ref_(self),
                 import_node,
@@ -772,7 +772,7 @@ impl TransformModule {
         }
         if let Some(current_module_info_exported_names) = self
             .current_module_info()
-            .exported_names
+            .ref_(self).exported_names
             .as_ref()
             .non_empty()
         {
@@ -797,7 +797,7 @@ impl TransformModule {
             &mut statements,
             try_maybe_visit_node(
                 self.current_module_info()
-                    .external_helpers_import_declaration,
+                    .ref_(self).external_helpers_import_declaration,
                 Some(|node: Id<Node>| self.top_level_visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -807,7 +807,7 @@ impl TransformModule {
             add_range(
                 &mut statements,
                 Some(&try_map_defined(
-                    Some(&self.current_module_info().external_imports),
+                    Some(&self.current_module_info().ref_(self).external_imports),
                     |&external_import: &Id<Node>, _| {
                         self.get_amd_import_expression_for_import(external_import)
                     },
@@ -852,7 +852,7 @@ impl TransformModule {
         emit_as_return: bool,
     ) -> io::Result<()> {
         if let Some(current_module_info_export_equals) =
-            self.current_module_info().export_equals.as_ref()
+            self.current_module_info().ref_(self).export_equals.as_ref()
         {
             let expression_result = try_visit_node(
                 current_module_info_export_equals

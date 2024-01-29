@@ -692,7 +692,7 @@ impl TransformModule {
     {
         let decl_ref = decl.ref_(self);
         let decl_as_import_declaration = decl_ref.as_import_declaration();
-        if self.current_module_info().export_equals.is_some() {
+        if self.current_module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 

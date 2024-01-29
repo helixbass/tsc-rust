@@ -37,13 +37,13 @@ pub(super) struct TransformSystemModule {
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) host: Id<Box<dyn EmitHost>>,
-    pub(super) module_info_map: GcCell<HashMap<NodeId, Gc<ExternalModuleInfo>>>,
+    pub(super) module_info_map: GcCell<HashMap<NodeId, Id<ExternalModuleInfo>>>,
     pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
     pub(super) export_functions_map: GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
     pub(super) no_substitution_map: GcCell<HashMap<NodeId, HashMap<NodeId, bool>>>,
     pub(super) context_object_map: GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
     pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    pub(super) module_info: GcCell<Option<Gc<ExternalModuleInfo>>>,
+    pub(super) module_info: GcCell<Option<Id<ExternalModuleInfo>>>,
     pub(super) export_function: GcCell<Option<Id<Node /*Identifier*/>>>,
     pub(super) context_object: GcCell<Option<Id<Node /*Identifier*/>>>,
     pub(super) hoisted_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
@@ -97,13 +97,13 @@ impl TransformSystemModule {
         ret
     }
 
-    pub(super) fn module_info_map(&self) -> GcCellRef<HashMap<NodeId, Gc<ExternalModuleInfo>>> {
+    pub(super) fn module_info_map(&self) -> GcCellRef<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow()
     }
 
     pub(super) fn module_info_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<ExternalModuleInfo>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow_mut()
     }
 
@@ -162,15 +162,15 @@ impl TransformSystemModule {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    pub(super) fn maybe_module_info(&self) -> Option<Gc<ExternalModuleInfo>> {
+    pub(super) fn maybe_module_info(&self) -> Option<Id<ExternalModuleInfo>> {
         self.module_info.borrow().clone()
     }
 
-    pub(super) fn module_info(&self) -> Gc<ExternalModuleInfo> {
+    pub(super) fn module_info(&self) -> Id<ExternalModuleInfo> {
         self.module_info.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_module_info(&self, module_info: Option<Gc<ExternalModuleInfo>>) {
+    pub(super) fn set_module_info(&self, module_info: Option<Id<ExternalModuleInfo>>) {
         *self.module_info.borrow_mut() = module_info;
     }
 
@@ -265,7 +265,7 @@ impl TransformSystemModule {
         let id = get_original_node_id(node, self);
         self.set_current_source_file(Some(node));
         self.set_enclosing_block_scoped_container(Some(node));
-        let module_info = Gc::new(collect_external_module_info(
+        let module_info = self.alloc_external_module_info(collect_external_module_info(
             &*self.context.ref_(self),
             node,
             &**self.resolver.ref_(self),
@@ -284,7 +284,7 @@ impl TransformSystemModule {
         self.set_context_object(Some(context_object));
 
         let dependency_groups =
-            self.collect_dependency_groups(&self.module_info().external_imports)?;
+            self.collect_dependency_groups(&self.module_info().ref_(self).external_imports)?;
         let module_body_block = self.create_system_module_body(node, &dependency_groups)?;
         let module_body_function = self.factory.ref_(self).create_function_expression(
             Option::<Id<NodeArray>>::None,
@@ -464,7 +464,7 @@ impl TransformSystemModule {
 
         try_maybe_visit_node(
             self.module_info()
-                .external_helpers_import_declaration,
+                .ref_(self).external_helpers_import_declaration,
             Some(|node: Id<Node>| self.top_level_visitor(node)),
             Some(|node| is_statement(node, self)),
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -530,15 +530,15 @@ impl TransformSystemModule {
         &self,
         statements: &mut Vec<Id<Node /*Statement*/>>,
     ) -> Option<Id<Node>> {
-        if !self.module_info().has_export_stars_to_export_values {
+        if !self.module_info().ref_(self).has_export_stars_to_export_values {
             return None;
         }
 
-        if self.module_info().exported_names.is_none()
-            && self.module_info().export_specifiers.is_empty()
+        if self.module_info().ref_(self).exported_names.is_none()
+            && self.module_info().ref_(self).export_specifiers.is_empty()
         {
             let mut has_export_declaration_with_export_clause = false;
-            for &external_import in &self.module_info().external_imports {
+            for &external_import in &self.module_info().ref_(self).external_imports {
                 if external_import.ref_(self).kind() == SyntaxKind::ExportDeclaration
                     && external_import
                         .ref_(self).as_export_declaration()
@@ -558,7 +558,7 @@ impl TransformSystemModule {
         }
 
         let mut exported_names: Vec<Id<Node /*ObjectLiteralElementLike*/>> = _d();
-        if let Some(module_info_exported_names) = self.module_info().exported_names.as_ref() {
+        if let Some(module_info_exported_names) = self.module_info().ref_(self).exported_names.as_ref() {
             for &exported_local_name in module_info_exported_names {
                 if exported_local_name.ref_(self).as_identifier().escaped_text == "default" {
                     continue;

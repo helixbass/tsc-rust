@@ -332,7 +332,7 @@ impl TransformSystemModule {
                     .as_ref()
                     .and_then(|module_info| {
                         module_info
-                            .exported_bindings
+                            .ref_(self).exported_bindings
                             .get(&get_original_node_id(value_declaration, self))
                     })
                     .non_empty()

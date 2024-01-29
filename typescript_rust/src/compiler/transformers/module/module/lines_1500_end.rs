@@ -20,7 +20,7 @@ impl TransformModule {
         decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined */
     {
-        if self.current_module_info().export_equals.is_some() {
+        if self.current_module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -35,7 +35,7 @@ impl TransformModule {
     {
         let node_ref = node.ref_(self);
         let node_as_variable_statement = node_ref.as_variable_statement();
-        if self.current_module_info().export_equals.is_some() {
+        if self.current_module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -58,7 +58,7 @@ impl TransformModule {
     {
         let decl_ref = decl.ref_(self);
         let decl_as_named_declaration = decl_ref.as_named_declaration();
-        if self.current_module_info().export_equals.is_some() {
+        if self.current_module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -85,7 +85,7 @@ impl TransformModule {
         decl: Id<Node>, /*ClassDeclaration | FunctionDeclaration*/
     ) /*: Statement[] | undefined */
     {
-        if self.current_module_info().export_equals.is_some() {
+        if self.current_module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -121,7 +121,7 @@ impl TransformModule {
     {
         let name = self.factory.ref_(self).get_declaration_name(Some(decl), None, None);
         let current_module_info = self.current_module_info();
-        let export_specifiers = current_module_info.export_specifiers.get(id_text(&*name.ref_(self)));
+        let export_specifiers = current_module_info.ref_(self).export_specifiers.get(id_text(&*name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
                 let export_specifier_ref = export_specifier.ref_(self);
@@ -304,7 +304,7 @@ impl TransformModule {
                     .maybe_current_module_info()
                     .and_then(|current_module_info| {
                         current_module_info
-                            .exported_bindings
+                            .ref_(self).exported_bindings
                             .get(&get_original_node_id(value_declaration, self))
                             .cloned()
                     }));

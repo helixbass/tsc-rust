@@ -26,7 +26,7 @@ use crate::{
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
-    PrivateIdentifierInfo,
+    PrivateIdentifierInfo, ExternalModuleInfo,
 };
 
 #[derive(Default)]
@@ -125,6 +125,7 @@ pub struct AllArenas {
     pub code_blocks: RefCell<Arena<CodeBlock>>,
     pub private_identifier_environments: RefCell<Arena<PrivateIdentifierEnvironment>>,
     pub private_identifier_infos: RefCell<Arena<PrivateIdentifierInfo>>,
+    pub exteral_module_infos: RefCell<Arena<ExternalModuleInfo>>,
 }
 
 pub trait HasArena {
@@ -920,6 +921,14 @@ pub trait HasArena {
 
     fn alloc_private_identifier_info(&self, private_identifier_info: PrivateIdentifierInfo) -> Id<PrivateIdentifierInfo> {
         self.arena().alloc_private_identifier_info(private_identifier_info)
+    }
+
+    fn external_module_info(&self, external_module_info: Id<ExternalModuleInfo>) -> Ref<ExternalModuleInfo> {
+        self.arena().external_module_info(external_module_info)
+    }
+
+    fn alloc_external_module_info(&self, external_module_info: ExternalModuleInfo) -> Id<ExternalModuleInfo> {
+        self.arena().alloc_external_module_info(external_module_info)
     }
 }
 
@@ -1917,6 +1926,16 @@ impl HasArena for AllArenas {
         let id = self.private_identifier_infos.borrow_mut().alloc(private_identifier_info);
         id
     }
+
+    #[track_caller]
+    fn external_module_info(&self, external_module_info: Id<ExternalModuleInfo>) -> Ref<ExternalModuleInfo> {
+        Ref::map(self.external_module_infos.borrow(), |external_module_infos| &external_module_infos[external_module_info])
+    }
+
+    fn alloc_external_module_info(&self, external_module_info: ExternalModuleInfo) -> Id<ExternalModuleInfo> {
+        let id = self.external_module_infos.borrow_mut().alloc(external_module_info);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2718,6 +2737,14 @@ impl InArena for Id<PrivateIdentifierInfo> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, PrivateIdentifierInfo> {
         has_arena.private_identifier_info_mut(*self)
+    }
+}
+
+impl InArena for Id<ExternalModuleInfo> {
+    type Item = ExternalModuleInfo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ExternalModuleInfo> {
+        has_arena.external_module_info(*self)
     }
 }
 

@@ -516,7 +516,7 @@ impl TransformSystemModule {
     ) {
         let decl_ref = decl.ref_(self);
         let decl_as_import_declaration = decl_ref.as_import_declaration();
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -551,7 +551,7 @@ impl TransformSystemModule {
         decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined*/
     {
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -567,7 +567,7 @@ impl TransformSystemModule {
     {
         let node_ref = node.ref_(self);
         let node_as_variable_statement = node_ref.as_variable_statement();
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 

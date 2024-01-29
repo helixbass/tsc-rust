@@ -24,7 +24,7 @@ impl TransformSystemModule {
         export_self: bool,
     ) /*: Statement[] | undefined*/
     {
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -60,7 +60,7 @@ impl TransformSystemModule {
         decl: Id<Node>, /*ClassDeclaration | FunctionDeclaration*/
     ) /*: Statement[] | undefined*/
     {
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -95,13 +95,13 @@ impl TransformSystemModule {
         exclude_name: Option<&str>,
     ) /*: Statement[] | undefined*/
     {
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
         let name = self.factory.ref_(self).get_declaration_name(Some(decl), None, None);
         let module_info = self.module_info();
-        let export_specifiers = module_info.export_specifiers.get(id_text(&name.ref_(self)));
+        let export_specifiers = module_info.ref_(self).export_specifiers.get(id_text(&name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
                 let export_specifier_ref = export_specifier.ref_(self);
