@@ -2573,6 +2573,12 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
     }
 }
 
+impl HasArena for DirectoryStructureHostRcDynCompilerHostLike {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 pub fn parse_config_host_from_compiler_host_like(
     host: Id<Box<dyn CompilerHostLike>>,
     directory_structure_host: Option<Gc<Box<dyn DirectoryStructureHost>>>,
