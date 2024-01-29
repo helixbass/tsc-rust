@@ -19,7 +19,7 @@ use crate::{
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
-    BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder,
+    BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile,
 };
 
 #[derive(Default)]
@@ -95,6 +95,7 @@ pub struct AllArenas {
     pub type_checkers: RefCell<Arena<TypeChecker>>,
     pub read_file_callbacks: RefCell<Arena<Box<dyn ReadFileCallback>>>,
     pub binders: RefCell<Arena<Binder>>,
+    pub get_source_files: RefCell<Arena<Box<dyn GetSourceFile>>>,
 }
 
 pub trait HasArena {
@@ -694,6 +695,14 @@ pub trait HasArena {
 
     fn alloc_binder(&self, binder: Binder) -> Id<Binder> {
         self.arena().alloc_binder(binder)
+    }
+
+    fn get_source_file(&self, get_source_file: Id<Box<dyn GetSourceFile>>) -> Ref<Box<dyn GetSourceFile>> {
+        self.arena().get_source_file(get_source_file)
+    }
+
+    fn alloc_get_source_file(&self, get_source_file: Box<dyn GetSourceFile>) -> Id<Box<dyn GetSourceFile>> {
+        self.arena().alloc_get_source_file(get_source_file)
     }
 }
 
@@ -1449,6 +1458,16 @@ impl HasArena for AllArenas {
         id.ref_(self).set_arena_id(id);
         id
     }
+
+    #[track_caller]
+    fn get_source_file(&self, get_source_file: Id<Box<dyn GetSourceFile>>) -> Ref<Box<dyn GetSourceFile>> {
+        Ref::map(self.get_source_files.borrow(), |get_source_files| &get_source_files[get_source_file])
+    }
+
+    fn alloc_get_source_file(&self, get_source_file: Box<dyn GetSourceFile>) -> Id<Box<dyn GetSourceFile>> {
+        let id = self.get_source_files.borrow_mut().alloc(get_source_file);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2054,6 +2073,14 @@ impl InArena for Id<Binder> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Binder> {
         has_arena.binder(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn GetSourceFile>> {
+    type Item = Box<dyn GetSourceFile>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetSourceFile>> {
+        has_arena.get_source_file(*self)
     }
 }
 

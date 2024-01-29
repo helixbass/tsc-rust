@@ -64,6 +64,7 @@ use compiler::{
         is_reference_file_location, is_referenced_file, DiagnosticCache,
         ForegroundColorEscapeSequences, ReferenceFileLocation,
         ReferenceFileLocationOrSyntheticReferenceFileLocation, SyntheticReferenceFileLocation,
+        GetSourceFile,
     },
     scanner::{
         compute_line_and_character_of_position, compute_line_of_position,
