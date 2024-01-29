@@ -1063,13 +1063,19 @@ impl GetSymbolAccessibilityDiagnosticInterface
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message:
                 &Diagnostics::Default_export_of_the_module_has_or_is_using_private_name_0,
             error_node: self.input.clone(),
             type_name: None,
         }))
+    }
+}
+
+impl HasArena for VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -1094,8 +1100,8 @@ impl GetSymbolAccessibilityDiagnosticInterface
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message:
                 &Diagnostics::extends_clause_of_exported_class_0_has_or_is_using_private_name_1,
             error_node: self.extends_clause.clone(),

@@ -501,7 +501,7 @@ impl TransformDeclarations {
                 .get_symbol_accessibility_diagnostic()
                 .call(symbol_accessibility_result);
             if let Some(error_info) = error_info {
-                if let Some(error_info_type_name) = error_info.type_name {
+                if let Some(error_info_type_name) = error_info.ref_(self).type_name {
                     let mut args: Vec<String> =
                         vec![get_text_of_node(error_info_type_name, None, self).into_owned()];
                     if let Some(symbol_accessibility_result_error_symbol_name) =
@@ -518,8 +518,8 @@ impl TransformDeclarations {
                         self.alloc_diagnostic(create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
-                                .unwrap_or(error_info.error_node),
-                            error_info.diagnostic_message,
+                                .unwrap_or_else(|| error_info.ref_(self).error_node),
+                            error_info.ref_(self).diagnostic_message,
                             Some(args),
                             self,
                         )
@@ -541,8 +541,8 @@ impl TransformDeclarations {
                         self.alloc_diagnostic(create_diagnostic_for_node(
                             symbol_accessibility_result
                                 .error_node
-                                .unwrap_or(error_info.error_node),
-                            error_info.diagnostic_message,
+                                .unwrap_or_else(|| error_info.ref_(self).error_node),
+                            error_info.ref_(self).diagnostic_message,
                             Some(args),
                             self,
                         )
@@ -1259,7 +1259,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         Debug_.fail(Some("Diagnostic emitted without context"));
     }
 }
@@ -1650,14 +1650,14 @@ impl TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
 impl GetSymbolAccessibilityDiagnosticInterface
     for TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic
 {
-    fn call(&self, s: &SymbolAccessibilityResult) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    fn call(&self, s: &SymbolAccessibilityResult) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         if let Some(s_error_node) = s
             .error_node
             .filter(|s_error_node| can_produce_diagnostics(&s_error_node.ref_(self)))
         {
             create_get_symbol_accessibility_diagnostic_for_node(s_error_node, self).call(s)
         } else {
-            Some(Gc::new(SymbolAccessibilityDiagnostic {
+            Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
                 diagnostic_message: if s.error_module_name.as_ref().non_empty().is_some() {
                     &*Diagnostics::Declaration_emit_for_this_file_requires_using_private_name_0_from_module_1_An_explicit_type_annotation_may_unblock_declaration_emit
                 } else {

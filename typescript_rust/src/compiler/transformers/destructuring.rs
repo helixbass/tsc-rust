@@ -287,7 +287,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     needs_value: Option<bool>,
-    // create_assignment_callback: Option<Gc<Box<dyn TryCreateAssignmentCallback>>>,
+    // create_assignment_callback: Option<Id<Box<dyn TryCreateAssignmentCallback>>>,
     create_assignment_callback: Option<
         impl FnMut(
                 Id<Node>, /*Identifier*/

@@ -19,7 +19,7 @@ pub trait GetSymbolAccessibilityDiagnosticInterface: Trace + Finalize {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>>;
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>>;
 }
 
 pub type GetSymbolAccessibilityDiagnostic = Gc<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>;
@@ -210,14 +210,14 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetVariableDeclarationTypeVis
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message = get_variable_declaration_type_visibility_diagnostic_message(
             self.node,
             symbol_accessibility_result,
             self,
         );
         diagnostic_message.map(|diagnostic_message| {
-            Gc::new(SymbolAccessibilityDiagnostic {
+            self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
                 diagnostic_message,
                 error_node: self.node,
                 type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
@@ -249,7 +249,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
         if self.node.ref_(self).kind() == SyntaxKind::SetAccessor {
             if is_static(self.node, self) {
@@ -312,7 +312,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetAccessorDeclarationTypeVis
                 }
             }
         }
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message,
             error_node: self.node.ref_(self).as_named_declaration().name(),
             type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
@@ -343,7 +343,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
         match self.node.ref_(self).kind() {
             SyntaxKind::ConstructSignature => {
@@ -454,7 +454,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetReturnTypeVisibilityError 
             ))),
         }
 
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message,
             error_node: self
                 .node
@@ -489,14 +489,14 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetParameterDeclarationTypeVi
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message = get_parameter_declaration_type_visibility_diagnostic_message(
             self.node,
             symbol_accessibility_result,
             self,
         );
         /* diagnostisMessage !== undefined ?*/
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message,
             error_node: self.node,
             type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
@@ -673,7 +673,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
         match self.node.ref_(self).parent().ref_(self).kind() {
             SyntaxKind::ClassDeclaration => {
@@ -713,7 +713,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeParameterConstraintVis
             ))),
         }
 
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message,
             error_node: self.node,
             type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
@@ -744,7 +744,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityEr
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
         let diagnostic_message: &'static DiagnosticMessage;
         if is_class_declaration(&self.node.ref_(self).parent().ref_(self).parent().ref_(self)) {
             diagnostic_message = if is_heritage_clause(&self.node.ref_(self).parent().ref_(self))
@@ -768,7 +768,7 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetHeritageClauseVisibilityEr
                 &Diagnostics::extends_clause_of_exported_interface_0_has_or_is_using_private_name_1;
         }
 
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message,
             error_node: self.node,
             type_name: get_name_of_declaration(self.node.ref_(self).parent().ref_(self).maybe_parent(), self),
@@ -799,8 +799,8 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetImportEntityNameVisibility
     fn call(
         &self,
         _symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message: &Diagnostics::Import_declaration_0_is_using_private_name_1,
             error_node: self.node,
             type_name: self.node.ref_(self).as_named_declaration().maybe_name(),
@@ -831,8 +831,8 @@ impl GetSymbolAccessibilityDiagnosticInterface for GetTypeAliasDeclarationVisibi
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
-    ) -> Option<Gc<SymbolAccessibilityDiagnostic>> {
-        Some(Gc::new(SymbolAccessibilityDiagnostic {
+    ) -> Option<Id<SymbolAccessibilityDiagnostic>> {
+        Some(self.alloc_symbol_accessibility_diagnostic(SymbolAccessibilityDiagnostic {
             diagnostic_message: if symbol_accessibility_result
                 .error_module_name
                 .as_ref()

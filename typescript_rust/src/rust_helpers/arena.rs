@@ -25,7 +25,7 @@ use crate::{
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
-    LoadWithLocalCacheLoader,
+    LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic,
 };
 
 #[derive(Default)]
@@ -120,6 +120,7 @@ pub struct AllArenas {
     pub get_program_build_infos: RefCell<Arena<Box<dyn GetProgramBuildInfo>>>,
     pub load_with_mode_aware_cache_loaders: RefCell<Arena<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>>,
     pub load_with_local_cache_loaders: RefCell<Arena<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>>,
+    pub symbol_accessibility_diagnostics: RefCell<Arena<SymbolAccessibilityDiagnostic>>,
 }
 
 pub trait HasArena {
@@ -871,6 +872,14 @@ pub trait HasArena {
 
     fn alloc_load_with_local_cache_loader(&self, load_with_local_cache_loader: Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>) -> Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
         self.arena().alloc_load_with_local_cache_loader(load_with_local_cache_loader)
+    }
+
+    fn symbol_accessibility_diagnostic(&self, symbol_accessibility_diagnostic: Id<SymbolAccessibilityDiagnostic>) -> Ref<SymbolAccessibilityDiagnostic> {
+        self.arena().symbol_accessibility_diagnostic(symbol_accessibility_diagnostic)
+    }
+
+    fn alloc_symbol_accessibility_diagnostic(&self, symbol_accessibility_diagnostic: SymbolAccessibilityDiagnostic) -> Id<SymbolAccessibilityDiagnostic> {
+        self.arena().alloc_symbol_accessibility_diagnostic(symbol_accessibility_diagnostic)
     }
 }
 
@@ -1816,6 +1825,16 @@ impl HasArena for AllArenas {
         let id = self.load_with_local_cache_loaders.borrow_mut().alloc(load_with_local_cache_loader);
         id
     }
+
+    #[track_caller]
+    fn symbol_accessibility_diagnostic(&self, symbol_accessibility_diagnostic: Id<SymbolAccessibilityDiagnostic>) -> Ref<SymbolAccessibilityDiagnostic> {
+        Ref::map(self.symbol_accessibility_diagnostics.borrow(), |symbol_accessibility_diagnostics| &symbol_accessibility_diagnostics[symbol_accessibility_diagnostic])
+    }
+
+    fn alloc_symbol_accessibility_diagnostic(&self, symbol_accessibility_diagnostic: SymbolAccessibilityDiagnostic) -> Id<SymbolAccessibilityDiagnostic> {
+        let id = self.symbol_accessibility_diagnostics.borrow_mut().alloc(symbol_accessibility_diagnostic);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2573,6 +2592,14 @@ impl InArena for Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDir
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>> {
         has_arena.load_with_local_cache_loader(*self)
+    }
+}
+
+impl InArena for Id<SymbolAccessibilityDiagnostic> {
+    type Item = SymbolAccessibilityDiagnostic;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymbolAccessibilityDiagnostic> {
+        has_arena.symbol_accessibility_diagnostic(*self)
     }
 }
 
