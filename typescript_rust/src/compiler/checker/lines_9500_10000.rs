@@ -1130,7 +1130,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::Intersection | TypeFlags::Any)
         {
-            let ret = sef.alloc_vec_type(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1184,7 +1184,7 @@ impl TypeChecker {
                     &Diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
                     None,
                 );
-                let ret = sef.alloc_vec_type(vec![]);
+                let ret = self.alloc_vec_type(vec![]);
                 *type_
                     .ref_(self)
                     .as_not_actually_interface_type()
@@ -1195,7 +1195,7 @@ impl TypeChecker {
         }
 
         if self.is_error_type(base_type) {
-            let ret = sef.alloc_vec_type(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1223,7 +1223,7 @@ impl TypeChecker {
                 )
                 .into(),
             ));
-            let ret = sef.alloc_vec_type(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1245,7 +1245,7 @@ impl TypeChecker {
                     None,
                 )?]),
             );
-            let ret = sef.alloc_vec_type(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
