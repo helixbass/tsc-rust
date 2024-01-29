@@ -20,7 +20,7 @@ use crate::{
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
-    EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers,
+    EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
 };
 
 #[derive(Default)]
@@ -101,6 +101,7 @@ pub struct AllArenas {
     pub emit_binary_expressions: RefCell<Arena<EmitBinaryExpression>>,
     pub relative_to_build_infos: RefCell<Arena<Box<dyn RelativeToBuildInfo>>>,
     pub print_handlers: RefCell<Arena<Box<dyn PrintHandlers>>>,
+    pub get_resolved_project_references: RefCell<Arena<Box<dyn GetResolvedProjectReferences>>>,
 }
 
 pub trait HasArena {
@@ -740,6 +741,14 @@ pub trait HasArena {
 
     fn alloc_print_handlers(&self, print_handlers: Box<dyn PrintHandlers>) -> Id<Box<dyn PrintHandlers>> {
         self.arena().alloc_print_handlers(print_handlers)
+    }
+
+    fn get_resolved_project_references_ref(&self, get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>) -> Ref<Box<dyn GetResolvedProjectReferences>> {
+        self.arena().get_resolved_project_references_ref(get_resolved_project_references)
+    }
+
+    fn alloc_get_resolved_project_references(&self, get_resolved_project_references: Box<dyn GetResolvedProjectReferences>) -> Id<Box<dyn GetResolvedProjectReferences>> {
+        self.arena().alloc_get_resolved_project_references(get_resolved_project_references)
     }
 }
 
@@ -1545,6 +1554,16 @@ impl HasArena for AllArenas {
         let id = self.print_handlers.borrow_mut().alloc(print_handlers);
         id
     }
+
+    #[track_caller]
+    fn get_resolved_project_references_ref(&self, get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>) -> Ref<Box<dyn GetResolvedProjectReferences>> {
+        Ref::map(self.get_resolved_project_references.borrow(), |get_resolved_project_references_| &get_resolved_project_references_[get_resolved_project_references])
+    }
+
+    fn alloc_get_resolved_project_references(&self, get_resolved_project_references: Box<dyn GetResolvedProjectReferences>) -> Id<Box<dyn GetResolvedProjectReferences>> {
+        let id = self.get_resolved_project_references.borrow_mut().alloc(get_resolved_project_references);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2190,6 +2209,14 @@ impl InArena for Id<Box<dyn PrintHandlers>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn PrintHandlers>> {
         has_arena.print_handlers(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn GetResolvedProjectReferences>> {
+    type Item = Box<dyn GetResolvedProjectReferences>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetResolvedProjectReferences>> {
+        has_arena.get_resolved_project_references_ref(*self)
     }
 }
 

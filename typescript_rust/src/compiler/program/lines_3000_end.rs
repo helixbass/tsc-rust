@@ -2061,7 +2061,7 @@ pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
     pub get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
     pub use_source_of_project_reference_redirect: bool,
     pub to_path: Id<Box<dyn ToPath>>,
-    pub get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
+    pub get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
     pub for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
 }
 
@@ -2128,7 +2128,7 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Id<Box<dyn CompilerHost>>,
     pub host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
     pub host_to_path: Id<Box<dyn ToPath>>,
-    pub host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
+    pub host_get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
     pub host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
     #[unsafe_ignore_trace]
     set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
@@ -2139,7 +2139,7 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
         host_compiler_host: Id<Box<dyn CompilerHost>>,
         host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
         host_to_path: Id<Box<dyn ToPath>>,
-        host_get_resolved_project_references: Gc<Box<dyn GetResolvedProjectReferences>>,
+        host_get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
         host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
     ) -> Self {
         Self {
@@ -2170,7 +2170,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         if self.host_compiler_host.ref_(self).file_exists_non_overridden(file) {
             return true;
         }
-        if self.host_get_resolved_project_references.call().is_none() {
+        if self.host_get_resolved_project_references.ref_(self).call().is_none() {
             return false;
         }
         if !is_declaration_file_name(file) {
@@ -2193,7 +2193,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             return Some(true);
         }
 
-        if self.host_get_resolved_project_references.call().is_none() {
+        if self.host_get_resolved_project_references.ref_(self).call().is_none() {
             return Some(false);
         }
 
@@ -2229,7 +2229,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
         if !self.host_compiler_host.ref_(self).is_get_directories_supported() {
             return None;
         }
-        if self.host_get_resolved_project_references.call().is_none()
+        if self.host_get_resolved_project_references.ref_(self).call().is_none()
             || self
                 .host_compiler_host
                 .ref_(self).directory_exists_non_overridden(path)

@@ -351,7 +351,7 @@ pub use compiler::{
         parse_config_host_from_compiler_host_like, resolve_tripleslash_reference,
         ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
         CompilerHostLikeRcDynCompilerHost, EmitHostWriteFileCallback, FilesByNameValue,
-        FormatDiagnosticsHost, ToPath, GetSymlinkCache,
+        FormatDiagnosticsHost, ToPath, GetSymlinkCache, GetResolvedProjectReferences,
     },
     scanner::{
         compute_line_starts, could_start_trivia, create_scanner, for_each_leading_comment_range,
