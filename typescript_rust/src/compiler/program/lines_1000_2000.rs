@@ -56,7 +56,7 @@ impl Program {
         let redirected_reference = self.get_redirect_reference_for_resolution(containing_file);
         // tracing?.push(tracing.Phase.Program, "resolveModuleNamesWorker", { containingFileName });
         // performance.mark("beforeResolveModule");
-        let result = self.actual_resolve_module_names_worker().call(
+        let result = self.actual_resolve_module_names_worker().ref_(self).call(
             module_names,
             containing_file,
             &containing_file_name,

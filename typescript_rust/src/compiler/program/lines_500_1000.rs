@@ -991,7 +991,7 @@ impl Program {
         *self.has_emit_blocking_diagnostics.borrow_mut() = Some(HashMap::new());
 
         if self.host().ref_(self).is_resolve_module_names_supported() {
-            *self.actual_resolve_module_names_worker.borrow_mut() = Some(Gc::new(Box::new(
+            *self.actual_resolve_module_names_worker.borrow_mut() = Some(self.alloc_actual_resolve_module_names_worker(Box::new(
                 ActualResolveModuleNamesWorkerHost::new(self.host(), self.options.clone()),
             )));
             *self.module_resolution_cache.borrow_mut() = self.host().ref_(self).get_module_resolution_cache();
@@ -1009,7 +1009,7 @@ impl Program {
                 self.host(),
                 self.maybe_module_resolution_cache().clone(),
             );
-            *self.actual_resolve_module_names_worker.borrow_mut() = Some(Gc::new(Box::new(
+            *self.actual_resolve_module_names_worker.borrow_mut() = Some(self.alloc_actual_resolve_module_names_worker(Box::new(
                 ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(Gc::new(Box::new(
                     loader,
                 ))),
@@ -1645,7 +1645,7 @@ impl Program {
 
     pub(super) fn actual_resolve_module_names_worker(
         &self,
-    ) -> Gc<Box<dyn ActualResolveModuleNamesWorker>> {
+    ) -> Id<Box<dyn ActualResolveModuleNamesWorker>> {
         self.actual_resolve_module_names_worker
             .borrow_mut()
             .clone()

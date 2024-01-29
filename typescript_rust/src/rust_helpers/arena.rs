@@ -23,7 +23,7 @@ use crate::{
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
-    ParseConfigFileHost, FilePreprocessingDiagnostics,
+    ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
 };
 
 #[derive(Default)]
@@ -113,6 +113,7 @@ pub struct AllArenas {
     pub module_resolution_caches: RefCell<Arena<ModuleResolutionCache>>,
     pub parse_config_file_hosts: RefCell<Arena<Box<dyn ParseConfigFileHost>>>,
     pub file_preprocessing_diagnostics: RefCell<Arena<FilePreprocessingDiagnostics>>,
+    pub actual_resolve_module_names_workers: RefCell<Arena<Box<dyn ActualResolveModuleNamesWorker>>>,
 }
 
 pub trait HasArena {
@@ -824,6 +825,14 @@ pub trait HasArena {
 
     fn alloc_file_preprocessing_diagnostics(&self, file_preprocessing_diagnostics: FilePreprocessingDiagnostics) -> Id<FilePreprocessingDiagnostics> {
         self.arena().alloc_file_preprocessing_diagnostics(file_preprocessing_diagnostics)
+    }
+
+    fn actual_resolve_module_names_worker(&self, actual_resolve_module_names_worker: Id<Box<dyn ActualResolveModuleNamesWorker>>) -> Ref<Box<dyn ActualResolveModuleNamesWorker>> {
+        self.arena().actual_resolve_module_names_worker(actual_resolve_module_names_worker)
+    }
+
+    fn alloc_actual_resolve_module_names_worker(&self, actual_resolve_module_names_worker: Box<dyn ActualResolveModuleNamesWorker>) -> Id<Box<dyn ActualResolveModuleNamesWorker>> {
+        self.arena().alloc_actual_resolve_module_names_worker(actual_resolve_module_names_worker)
     }
 }
 
@@ -1719,6 +1728,16 @@ impl HasArena for AllArenas {
         let id = self.file_preprocessing_diagnostics.borrow_mut().alloc(file_preprocessing_diagnostics);
         id
     }
+
+    #[track_caller]
+    fn actual_resolve_module_names_worker(&self, actual_resolve_module_names_worker: Id<Box<dyn ActualResolveModuleNamesWorker>>) -> Ref<Box<dyn ActualResolveModuleNamesWorker>> {
+        Ref::map(self.actual_resolve_module_names_workers.borrow(), |actual_resolve_module_names_workers| &actual_resolve_module_names_workers[actual_resolve_module_names_worker])
+    }
+
+    fn alloc_actual_resolve_module_names_worker(&self, actual_resolve_module_names_worker: Box<dyn ActualResolveModuleNamesWorker>) -> Id<Box<dyn ActualResolveModuleNamesWorker>> {
+        let id = self.actual_resolve_module_names_workers.borrow_mut().alloc(actual_resolve_module_names_worker);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2436,6 +2455,14 @@ impl InArena for Id<FilePreprocessingDiagnostics> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, FilePreprocessingDiagnostics> {
         has_arena.file_preprocessing_diagnostics(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ActualResolveModuleNamesWorker>> {
+    type Item = Box<dyn ActualResolveModuleNamesWorker>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ActualResolveModuleNamesWorker>> {
+        has_arena.actual_resolve_module_names_worker(*self)
     }
 }
 

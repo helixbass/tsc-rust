@@ -1675,7 +1675,7 @@ pub struct Program {
     pub(crate) type_reference_directive_resolution_cache:
         GcCell<Option<Id<TypeReferenceDirectiveResolutionCache>>>,
     pub(crate) actual_resolve_module_names_worker:
-        GcCell<Option<Gc<Box<dyn ActualResolveModuleNamesWorker>>>>,
+        GcCell<Option<Id<Box<dyn ActualResolveModuleNamesWorker>>>>,
     pub(crate) actual_resolve_type_reference_directive_names_worker:
         GcCell<Option<Gc<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
 
