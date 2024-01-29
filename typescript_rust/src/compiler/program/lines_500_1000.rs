@@ -1082,7 +1082,7 @@ impl Program {
                 get_resolved_project_references: self.alloc_get_resolved_project_references(Box::new(
                     ProgramGetResolvedProjectReferences::new(self.arena_id()),
                 )),
-                for_each_resolved_project_reference: self.for_each_resolved_project_reference_rc(),
+                for_each_resolved_project_reference: self.for_each_resolved_project_reference_id(),
             },
             self,
         );

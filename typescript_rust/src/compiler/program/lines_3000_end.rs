@@ -2062,7 +2062,7 @@ pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
     pub use_source_of_project_reference_redirect: bool,
     pub to_path: Id<Box<dyn ToPath>>,
     pub get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
-    pub for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
+    pub for_each_resolved_project_reference: Id<Box<dyn ForEachResolvedProjectReference>>,
 }
 
 pub(super) fn update_host_for_use_source_of_project_reference_redirect(
@@ -2129,7 +2129,7 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
     pub host_to_path: Id<Box<dyn ToPath>>,
     pub host_get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
-    pub host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
+    pub host_for_each_resolved_project_reference: Id<Box<dyn ForEachResolvedProjectReference>>,
     #[unsafe_ignore_trace]
     set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
 }
@@ -2140,7 +2140,7 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
         host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
         host_to_path: Id<Box<dyn ToPath>>,
         host_get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
-        host_for_each_resolved_project_reference: Gc<Box<dyn ForEachResolvedProjectReference>>,
+        host_for_each_resolved_project_reference: Id<Box<dyn ForEachResolvedProjectReference>>,
     ) -> Self {
         Self {
             host_compiler_host,
@@ -2203,7 +2203,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
             *set_of_declaration_directories = Some(HashSet::new());
             let set_of_declaration_directories = set_of_declaration_directories.as_mut().unwrap();
             self.host_for_each_resolved_project_reference
-                .call(&mut |ref_| {
+                .ref_(self).call(&mut |ref_| {
                     let ref_command_line_options_ref = ref_.ref_(self).command_line.ref_(self).options.ref_(self);
                     let out = out_file(&ref_command_line_options_ref);
                     if let Some(out) = out {

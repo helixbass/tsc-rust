@@ -720,10 +720,10 @@ impl Program {
         )
     }
 
-    pub fn for_each_resolved_project_reference_rc(
+    pub fn for_each_resolved_project_reference_id(
         &self,
-    ) -> Gc<Box<dyn ForEachResolvedProjectReference>> {
-        Gc::new(Box::new(ProgramForEachResolvedProjectReference::new(
+    ) -> Id<Box<dyn ForEachResolvedProjectReference>> {
+        self.alloc_for_each_resolved_project_reference(Box::new(ProgramForEachResolvedProjectReference::new(
             self.arena_id(),
         )))
     }

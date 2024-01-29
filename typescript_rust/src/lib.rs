@@ -352,6 +352,7 @@ pub use compiler::{
         ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
         CompilerHostLikeRcDynCompilerHost, EmitHostWriteFileCallback, FilesByNameValue,
         FormatDiagnosticsHost, ToPath, GetSymlinkCache, GetResolvedProjectReferences,
+        ForEachResolvedProjectReference,
     },
     scanner::{
         compute_line_starts, could_start_trivia, create_scanner, for_each_leading_comment_range,
