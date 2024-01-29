@@ -519,7 +519,7 @@ impl Program {
                 self.maybe_module_resolution_cache()
                     .as_ref()
                     .map(|module_resolution_cache| {
-                        module_resolution_cache.ref_(arena).get_package_json_info_cache()
+                        module_resolution_cache.ref_(self).get_package_json_info_cache()
                     })
                     .as_double_deref(),
                 self.host().ref_(self).as_dyn_module_resolution_host(),
