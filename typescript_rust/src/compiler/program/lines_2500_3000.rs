@@ -1068,7 +1068,7 @@ impl Program {
             self,
         )?;
         if let Some(local_override_module_result_resolved_module) =
-            local_override_module_result.resolved_module.as_ref()
+            local_override_module_result.ref_(self).resolved_module
         {
             return Ok(local_override_module_result_resolved_module
                 .ref_(self).resolved_file_name

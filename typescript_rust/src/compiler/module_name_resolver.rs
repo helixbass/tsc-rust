@@ -129,16 +129,16 @@ fn create_resolved_module_with_failed_lookup_locations(
     resolved: Option<Resolved>,
     is_external_library_import: Option<bool>,
     mut failed_lookup_locations: Vec<String>,
-    result_from_cache: Option<Gc<ResolvedModuleWithFailedLookupLocations>>,
+    result_from_cache: Option<Id<ResolvedModuleWithFailedLookupLocations>>,
     arena: &impl HasArena,
-) -> Gc<ResolvedModuleWithFailedLookupLocations> {
+) -> Id<ResolvedModuleWithFailedLookupLocations> {
     if let Some(result_from_cache) = result_from_cache {
         result_from_cache
-            .failed_lookup_locations_mut()
+            .ref_(self).failed_lookup_locations_mut()
             .append(&mut failed_lookup_locations);
         return result_from_cache;
     }
-    Gc::new(ResolvedModuleWithFailedLookupLocations::new(
+    arena.alloc_resolved_module_with_failed_lookup_locations(ResolvedModuleWithFailedLookupLocations::new(
         resolved.map(|resolved| {
             let Resolved {
                 path: resolved_path,
@@ -170,7 +170,7 @@ pub(crate) struct ModuleResolutionState<'a> {
     pub compiler_options: Id<CompilerOptions>,
     pub trace_enabled: bool,
     pub failed_lookup_locations: RefCell<Vec<String>>,
-    pub result_from_cache: RefCell<Option<Gc<ResolvedModuleWithFailedLookupLocations>>>,
+    pub result_from_cache: RefCell<Option<Id<ResolvedModuleWithFailedLookupLocations>>>,
     pub package_json_info_cache:
         Option<&'a dyn PackageJsonInfoCache>,
     pub features: NodeResolutionFeatures,
@@ -988,7 +988,7 @@ pub struct ModuleResolutionCache {
     current_directory: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     pre_directory_resolution_cache:
-        PerDirectoryResolutionCacheConcrete<Gc<ResolvedModuleWithFailedLookupLocations>>,
+        PerDirectoryResolutionCacheConcrete<Id<ResolvedModuleWithFailedLookupLocations>>,
     module_name_to_directory_map: Gc<CacheWithRedirects<PerModuleNameCache>>,
     package_json_info_cache: Gc<Box<dyn PackageJsonInfoCache>>,
 }
@@ -1014,7 +1014,7 @@ pub trait PackageJsonInfoCache: Trace + Finalize {
 pub struct PerModuleNameCache {
     current_directory: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
-    directory_path_map: GcCell<HashMap<String, Gc<ResolvedModuleWithFailedLookupLocations>>>,
+    directory_path_map: GcCell<HashMap<String, Id<ResolvedModuleWithFailedLookupLocations>>>,
 }
 
 #[derive(Trace, Finalize)]
@@ -1328,7 +1328,7 @@ pub fn create_module_resolution_cache(
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     options: Option<Id<CompilerOptions>>,
     directory_to_module_name_map: Option<
-        Gc<CacheWithRedirects<ModeAwareCache<Gc<ResolvedModuleWithFailedLookupLocations>>>>,
+        Gc<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
     module_name_to_directory_map: Option<Gc<CacheWithRedirects<PerModuleNameCache>>>,
 ) -> ModuleResolutionCache {
@@ -1383,7 +1383,7 @@ impl PerModuleNameCache {
         }
     }
 
-    pub fn get(&self, directory: &str) -> Option<Gc<ResolvedModuleWithFailedLookupLocations>> {
+    pub fn get(&self, directory: &str) -> Option<Id<ResolvedModuleWithFailedLookupLocations>> {
         self.directory_path_map
             .borrow()
             .get(&*to_path(
@@ -1394,7 +1394,7 @@ impl PerModuleNameCache {
             .cloned()
     }
 
-    pub fn set(&self, directory: &str, result: Gc<ResolvedModuleWithFailedLookupLocations>) {
+    pub fn set(&self, directory: &str, result: Id<ResolvedModuleWithFailedLookupLocations>) {
         let path = to_path(directory, Some(&self.current_directory), |path| {
             self.get_canonical_file_name.ref_(self).call(path)
         });
@@ -1406,8 +1406,7 @@ impl PerModuleNameCache {
             .insert(path.to_string(), result.clone());
 
         let resolved_file_name = result
-            .resolved_module
-            .as_ref()
+            .ref_(self).resolved_module
             .map(|result_resolved_module| {
                 result_resolved_module
                     .ref_(self).original_path
@@ -1476,14 +1475,14 @@ impl HasArena for PerModuleNameCache {
     }
 }
 
-impl PerDirectoryResolutionCache<Gc<ResolvedModuleWithFailedLookupLocations>>
+impl PerDirectoryResolutionCache<Id<ResolvedModuleWithFailedLookupLocations>>
     for ModuleResolutionCache
 {
     fn get_or_create_cache_for_directory(
         &self,
         directory_name: &str,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<ModeAwareCache<Gc<ResolvedModuleWithFailedLookupLocations>>> {
+    ) -> Gc<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>> {
         self.pre_directory_resolution_cache
             .get_or_create_cache_for_directory(directory_name, redirected_reference)
     }
@@ -1632,7 +1631,7 @@ pub fn resolve_module_name(
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference {
         compiler_options = redirected_reference.ref_(arena).command_line.ref_(arena).options.clone();
@@ -1762,8 +1761,7 @@ pub fn resolve_module_name(
               // }
         }
         if let Some(ref _result_resolved_module) = result
-            .as_ref()
-            .and_then(|result| result.resolved_module.clone())
+            .and_then(|result| result.ref_(arena).resolved_module.clone())
         {
             // perfLogger.logInfoEvent(`Module "${moduleName}" resolved to "${result.resolvedModule.resolvedFileName}"`);
         }
@@ -1786,7 +1784,7 @@ pub fn resolve_module_name(
     let result = result.unwrap();
 
     if trace_enabled {
-        if let Some(result_resolved_module) = result.resolved_module.as_ref() {
+        if let Some(result_resolved_module) = result.ref_(arena).resolved_module {
             if let Some(result_resolved_module_package_id) =
                 result_resolved_module.ref_(arena).package_id.as_ref()
             {
@@ -2122,7 +2120,7 @@ fn node12_module_name_resolver(
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     node_next_module_name_resolver_worker(
         NodeResolutionFeatures::Imports
             | NodeResolutionFeatures::SelfName
@@ -2147,7 +2145,7 @@ fn node_next_module_name_resolver(
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     node_next_module_name_resolver_worker(
         NodeResolutionFeatures::AllFeatures,
         module_name,
@@ -2171,7 +2169,7 @@ fn node_next_module_name_resolver_worker(
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     let containing_directory = get_directory_path(containing_file);
 
     let esm_mode = if resolution_mode == Some(ModuleKind::ESNext) {
@@ -2216,7 +2214,7 @@ pub fn node_module_name_resolver(
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     lookup_config: Option<bool>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     node_module_name_resolver_worker(
         NodeResolutionFeatures::None,
         module_name,
@@ -2246,7 +2244,7 @@ fn node_module_name_resolver_worker(
     extensions: &[Extensions],
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
 
     let failed_lookup_locations: Vec<String> = vec![];
@@ -3568,7 +3566,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         self.redirected_reference.clone(),
                         self,
                     )?;
-                    return Ok(to_search_result(result.resolved_module.as_ref().map(
+                    return Ok(to_search_result(result.ref_(self).resolved_module.map(
                         |result_resolved_module| Resolved {
                             path: result_resolved_module.ref_(self).resolved_file_name.clone(),
                             extension: result_resolved_module.ref_(self).extension.unwrap(),
@@ -4221,8 +4219,7 @@ fn try_find_non_relative_module_name_in_cache(
     *state.result_from_cache.borrow_mut() = Some(result.clone());
     Some(SearchResultPresent {
         value: result
-            .resolved_module
-            .clone()
+            .ref_(arena).resolved_module
             .map(|result_resolved_module| Resolved {
                 path: result_resolved_module.ref_(arena).resolved_file_name.clone(),
                 original_path: Some(result_resolved_module.ref_(arena).original_path.clone().map_or_else(
@@ -4245,7 +4242,7 @@ pub fn classic_name_resolver(
     cache: Option<&impl NonRelativeModuleNameResolutionCache>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
-) -> io::Result<Gc<ResolvedModuleWithFailedLookupLocations>> {
+) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
     let failed_lookup_locations: RefCell<Vec<String>> = RefCell::new(vec![]);
     let state = ModuleResolutionState {

@@ -255,7 +255,7 @@ impl LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>
             resolver_mode,
             self,
         )?
-        .resolved_module
+        .ref_(self).resolved_module
         .clone())
     }
 }

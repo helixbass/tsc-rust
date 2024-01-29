@@ -105,7 +105,7 @@ pub fn is_transient_symbol(symbol: &Symbol) -> bool {
 }
 
 // lazy_static! {
-//     static ref string_writer: Gc<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
+//     static ref string_writer: Id<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
 // }
 
 fn string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {

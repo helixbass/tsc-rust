@@ -26,7 +26,7 @@ use crate::{
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
     ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
     LoadWithLocalCacheLoader, SymbolAccessibilityDiagnostic, CodeBlock, PrivateIdentifierEnvironment,
-    PrivateIdentifierInfo, ExternalModuleInfo,
+    PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
 };
 
 #[derive(Default)]
@@ -126,6 +126,7 @@ pub struct AllArenas {
     pub private_identifier_environments: RefCell<Arena<PrivateIdentifierEnvironment>>,
     pub private_identifier_infos: RefCell<Arena<PrivateIdentifierInfo>>,
     pub external_module_infos: RefCell<Arena<ExternalModuleInfo>>,
+    pub resolved_modules_with_failed_lookup_locations: RefCell<Arena<ResolvedModuleWithFailedLookupLocations>>,
 }
 
 pub trait HasArena {
@@ -929,6 +930,14 @@ pub trait HasArena {
 
     fn alloc_external_module_info(&self, external_module_info: ExternalModuleInfo) -> Id<ExternalModuleInfo> {
         self.arena().alloc_external_module_info(external_module_info)
+    }
+
+    fn resolved_module_with_failed_lookup_locations(&self, resolved_module_with_failed_lookup_locations: Id<ResolvedModuleWithFailedLookupLocations>) -> Ref<ResolvedModuleWithFailedLookupLocations> {
+        self.arena().resolved_module_with_failed_lookup_locations(resolved_module_with_failed_lookup_locations)
+    }
+
+    fn alloc_resolved_module_with_failed_lookup_locations(&self, resolved_module_with_failed_lookup_locations: ResolvedModuleWithFailedLookupLocations) -> Id<ResolvedModuleWithFailedLookupLocations> {
+        self.arena().alloc_resolved_module_with_failed_lookup_locations(resolved_module_with_failed_lookup_locations)
     }
 }
 
@@ -1936,6 +1945,16 @@ impl HasArena for AllArenas {
         let id = self.external_module_infos.borrow_mut().alloc(external_module_info);
         id
     }
+
+    #[track_caller]
+    fn resolved_module_with_failed_lookup_locations(&self, resolved_module_with_failed_lookup_locations: Id<ResolvedModuleWithFailedLookupLocations>) -> Ref<ResolvedModuleWithFailedLookupLocations> {
+        Ref::map(self.resolved_modules_with_failed_lookup_locations.borrow(), |resolved_modules_with_failed_lookup_locations| &resolved_modules_with_failed_lookup_locations[resolved_module_with_failed_lookup_locations])
+    }
+
+    fn alloc_resolved_module_with_failed_lookup_locations(&self, resolved_module_with_failed_lookup_locations: ResolvedModuleWithFailedLookupLocations) -> Id<ResolvedModuleWithFailedLookupLocations> {
+        let id = self.resolved_modules_with_failed_lookup_locations.borrow_mut().alloc(resolved_module_with_failed_lookup_locations);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2745,6 +2764,14 @@ impl InArena for Id<ExternalModuleInfo> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ExternalModuleInfo> {
         has_arena.external_module_info(*self)
+    }
+}
+
+impl InArena for Id<ResolvedModuleWithFailedLookupLocations> {
+    type Item = ResolvedModuleWithFailedLookupLocations;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ResolvedModuleWithFailedLookupLocations> {
+        has_arena.resolved_module_with_failed_lookup_locations(*self)
     }
 }
 
