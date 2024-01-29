@@ -23,6 +23,7 @@ use crate::{
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
+    ParseConfigFileHost,
 };
 
 #[derive(Default)]
@@ -110,6 +111,7 @@ pub struct AllArenas {
     pub builder_programs: RefCell<Arena<Box<dyn BuilderProgram>>>,
     pub type_reference_directive_resolution_caches: RefCell<Arena<TypeReferenceDirectiveResolutionCache>>,
     pub module_resolution_caches: RefCell<Arena<ModuleResolutionCache>>,
+    pub parse_config_file_hosts: RefCell<Arena<Box<dyn ParseConfigFileHost>>>,
 }
 
 pub trait HasArena {
@@ -805,6 +807,14 @@ pub trait HasArena {
 
     fn alloc_module_resolution_cache(&self, module_resolution_cache: ModuleResolutionCache) -> Id<ModuleResolutionCache> {
         self.arena().alloc_module_resolution_cache(module_resolution_cache)
+    }
+
+    fn parse_config_file_host(&self, parse_config_file_host: Id<Box<dyn ParseConfigFileHost>>) -> Ref<Box<dyn ParseConfigFileHost>> {
+        self.arena().parse_config_file_host(parse_config_file_host)
+    }
+
+    fn alloc_parse_config_file_host(&self, parse_config_file_host: Box<dyn ParseConfigFileHost>) -> Id<Box<dyn ParseConfigFileHost>> {
+        self.arena().alloc_parse_config_file_host(parse_config_file_host)
     }
 }
 
@@ -1680,6 +1690,16 @@ impl HasArena for AllArenas {
         let id = self.module_resolution_caches.borrow_mut().alloc(module_resolution_cache);
         id
     }
+
+    #[track_caller]
+    fn parse_config_file_host(&self, parse_config_file_host: Id<Box<dyn ParseConfigFileHost>>) -> Ref<Box<dyn ParseConfigFileHost>> {
+        Ref::map(self.parse_config_file_hosts.borrow(), |parse_config_file_hosts| &parse_config_file_hosts[parse_config_file_host])
+    }
+
+    fn alloc_parse_config_file_host(&self, parse_config_file_host: Box<dyn ParseConfigFileHost>) -> Id<Box<dyn ParseConfigFileHost>> {
+        let id = self.parse_config_file_hosts.borrow_mut().alloc(parse_config_file_host);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2381,6 +2401,14 @@ impl InArena for Id<ModuleResolutionCache> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ModuleResolutionCache> {
         has_arena.module_resolution_cache(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ParseConfigFileHost>> {
+    type Item = Box<dyn ParseConfigFileHost>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ParseConfigFileHost>> {
+        has_arena.parse_config_file_host(*self)
     }
 }
 

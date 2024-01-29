@@ -323,7 +323,7 @@ impl Program {
             let source_file = source_file.unwrap();
             command_line = Some(parse_json_source_file_config_file_content(
                 source_file,
-                &**self.config_parsing_host(),
+                &**self.config_parsing_host().ref_(self),
                 &base_path,
                 None,
                 Some(&ref_path),

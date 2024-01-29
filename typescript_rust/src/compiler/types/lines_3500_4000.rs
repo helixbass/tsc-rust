@@ -1650,7 +1650,7 @@ pub struct Program {
 
     pub(crate) old_program: GcCell<Option<Id<Program>>>,
     pub(crate) host: GcCell<Option<Id<Box<dyn CompilerHost>>>>,
-    pub(crate) config_parsing_host: GcCell<Option<Gc<Box<dyn ParseConfigFileHost>>>>,
+    pub(crate) config_parsing_host: GcCell<Option<Id<Box<dyn ParseConfigFileHost>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) skip_default_lib: Cell<Option<bool>>,

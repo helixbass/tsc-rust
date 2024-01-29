@@ -862,10 +862,10 @@ impl Program {
     pub fn new(
         create_program_options: CreateProgramOptions,
         arena: &impl HasArena,
-        // options: Gc<CompilerOptions>,
+        // options: Id<CompilerOptions>,
         // files: Vec<Id<Node>>,
         // current_directory: String,
-        // host: Gc<Box<dyn CompilerHost>>,
+        // host: Id<Box<dyn CompilerHost>>,
     ) -> Id<Self> {
         let options = create_program_options.options.clone();
         let max_node_module_js_depth = options.ref_(arena).max_node_module_js_depth.unwrap_or(0);
@@ -959,7 +959,7 @@ impl Program {
         *self.host.borrow_mut() = Some(host.unwrap_or_else(|| {
             self.alloc_compiler_host(Box::new(create_compiler_host(self.options.clone(), None, self)))
         }));
-        *self.config_parsing_host.borrow_mut() = Some(Gc::new(Box::new(
+        *self.config_parsing_host.borrow_mut() = Some(self.alloc_parse_config_file_host(Box::new(
             parse_config_host_from_compiler_host_like(
                 self.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::new(
                     self.host(),
@@ -1507,7 +1507,7 @@ impl Program {
         self.host.borrow().clone().unwrap()
     }
 
-    pub(super) fn config_parsing_host(&self) -> Gc<Box<dyn ParseConfigFileHost>> {
+    pub(super) fn config_parsing_host(&self) -> Id<Box<dyn ParseConfigFileHost>> {
         self.config_parsing_host.borrow().clone().unwrap()
     }
 
