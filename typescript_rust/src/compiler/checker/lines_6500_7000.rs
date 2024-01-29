@@ -106,7 +106,7 @@ impl SymbolTableToDeclarationStatements {
         let oldcontext = context.arena_id();
         let mut context = context.clone();
         context.used_symbol_names = Rc::new(RefCell::new(Some(
-            match oldcontext.ref_(self).maybe_used_symbol_names().as_ref() {
+            match oldcontext.ref_(arena).maybe_used_symbol_names().as_ref() {
                 None => Default::default(),
                 Some(oldcontext_used_symbol_names) => oldcontext_used_symbol_names.clone(),
             },
@@ -121,7 +121,7 @@ impl SymbolTableToDeclarationStatements {
             node_builder: node_builder.arena_id(),
             serialize_property_symbol_for_class: Default::default(),
             serialize_property_symbol_for_interface_worker: Default::default(),
-            enclosing_declaration: context.ref_(self).enclosing_declaration(),
+            enclosing_declaration: context.ref_(arena).enclosing_declaration(),
             results: Default::default(),
             visited_symbols: Default::default(),
             deferred_privates_stack: Default::default(),
@@ -142,7 +142,7 @@ impl SymbolTableToDeclarationStatements {
             SyntaxKind::MethodSignature,
             false,
         ));
-        context.ref_(self).set_tracker(SymbolTableToDeclarationStatementsSymbolTracker::new(
+        context.ref_(arena).set_tracker(SymbolTableToDeclarationStatementsSymbolTracker::new(
             oldcontext.ref_(arena).tracker(),
             type_checker,
             node_builder.clone(),
@@ -150,8 +150,8 @@ impl SymbolTableToDeclarationStatements {
             ret.clone(),
             arena,
         ));
-        context.ref_(self).set_tracker(arena.alloc_symbol_tracker(Box::new(
-            wrap_symbol_tracker_to_report_for_context(context.clone(), context.ref_(self).tracker()),
+        context.ref_(arena).set_tracker(arena.alloc_symbol_tracker(Box::new(
+            wrap_symbol_tracker_to_report_for_context(context.clone(), context.ref_(arena).tracker()),
         )));
         ret
     }

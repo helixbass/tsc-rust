@@ -663,7 +663,6 @@ impl SymbolTableToDeclarationStatements {
             let old_adding_declare = self.adding_declare();
             self.set_adding_declare(false);
             let subcontext = self.alloc_node_builder_context(self.context().ref_(self).clone());
-            subcontext.ref_(self).set_rc_wrapper(Some(subcontext.clone()));
             subcontext.ref_(self).set_enclosing_declaration(Some(fakespace.clone()));
             let old_context = self.context();
             self.set_context(subcontext);
