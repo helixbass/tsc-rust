@@ -985,8 +985,8 @@ impl EmitResolverCreateResolver {
         };
         // if (resolvedTypeReferenceDirectives) {
         ret.file_to_directive = Some(Default::default());
-        (*resolved_type_reference_directives)
-            .borrow()
+        resolved_type_reference_directives
+            .ref_(self)
             .iter()
             .for_each(|(key, resolved_directive)| {
                 if resolved_directive.is_none() {

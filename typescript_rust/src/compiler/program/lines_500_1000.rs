@@ -890,7 +890,7 @@ impl Program {
                 cached_bind_and_check_diagnostics_for_file: Default::default(),
                 cached_declaration_diagnostics_for_file: Default::default(),
 
-                resolved_type_reference_directives: Default::default(),
+                resolved_type_reference_directives: arena.alloc_resolved_type_reference_directives_map(Default::default()),
                 file_processing_diagnostics: Default::default(),
 
                 max_node_module_js_depth,
@@ -1557,15 +1557,13 @@ impl Program {
 
     pub(super) fn resolved_type_reference_directives(
         &self,
-    ) -> Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>> {
+    ) -> Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
         self.resolved_type_reference_directives.borrow().clone()
     }
 
     pub(super) fn set_resolved_type_reference_directives(
         &self,
-        resolved_type_reference_directives: Gc<
-            GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>,
-        >,
+        resolved_type_reference_directives: Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>,
     ) {
         *self.resolved_type_reference_directives.borrow_mut() = resolved_type_reference_directives;
     }
@@ -2148,7 +2146,7 @@ impl TypeCheckerHost for Program {
 
     fn get_resolved_type_reference_directives(
         &self,
-    ) -> Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>> {
+    ) -> Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
         self.resolved_type_reference_directives()
     }
 

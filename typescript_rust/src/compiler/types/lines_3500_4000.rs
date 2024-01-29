@@ -1635,7 +1635,7 @@ pub struct Program {
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        GcCell<Gc<GcCell<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>>,
+        GcCell<Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
     pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Id<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,

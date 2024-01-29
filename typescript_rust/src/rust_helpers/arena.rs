@@ -1,4 +1,4 @@
-use std::{any::Any, rc::Rc};
+use std::{any::Any, rc::Rc, collections::HashMap};
 
 use debug_cell::{Ref, RefCell, RefMut};
 use gc::GcCell;
@@ -146,6 +146,7 @@ pub struct AllArenas {
     pub pattern_ambient_modules: RefCell<Arena<PatternAmbientModule>>,
     pub check_type_containing_message_chains: RefCell<Arena<Box<dyn CheckTypeContainingMessageChain>>>,
     pub check_type_error_output_containers: RefCell<Arena<Box<dyn CheckTypeErrorOutputContainer>>>,
+    pub resolved_type_reference_directives_maps: RefCell<Arena<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
 }
 
 pub trait HasArena {
@@ -1093,6 +1094,18 @@ pub trait HasArena {
 
     fn alloc_check_type_error_output_container(&self, check_type_error_output_container: Box<dyn CheckTypeErrorOutputContainer>) -> Id<Box<dyn CheckTypeErrorOutputContainer>> {
         self.arena().alloc_check_type_error_output_container(check_type_error_output_container)
+    }
+
+    fn resolved_type_reference_directives_map(&self, resolved_type_reference_directives_map: Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>) -> Ref<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        self.arena().resolved_type_reference_directives_map(resolved_type_reference_directives_map)
+    }
+
+    fn resolved_type_reference_directives_map_mut(&self, resolved_type_reference_directives_map: Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>) -> RefMut<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        self.arena().resolved_type_reference_directives_map_mut(resolved_type_reference_directives_map)
+    }
+
+    fn alloc_resolved_type_reference_directives_map(&self, resolved_type_reference_directives_map: HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>) -> Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        self.arena().alloc_resolved_type_reference_directives_map(resolved_type_reference_directives_map)
     }
 }
 
@@ -2276,6 +2289,20 @@ impl HasArena for AllArenas {
         let id = self.check_type_error_output_containers.borrow_mut().alloc(check_type_error_output_container);
         id
     }
+
+    #[track_caller]
+    fn resolved_type_reference_directives_map(&self, resolved_type_reference_directives_map: Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>) -> Ref<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        Ref::map(self.resolved_type_reference_directives_maps.borrow(), |resolved_type_reference_directives_maps| &resolved_type_reference_directives_maps[resolved_type_reference_directives_map])
+    }
+
+    fn resolved_type_reference_directives_map_mut(&self, resolved_type_reference_directives_map: Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>) -> RefMut<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        RefMut::map(self.resolved_type_reference_directives_maps.borrow_mut(), |resolved_type_reference_directives_maps| &mut resolved_type_reference_directives_maps[resolved_type_reference_directives_map])
+    }
+
+    fn alloc_resolved_type_reference_directives_map(&self, resolved_type_reference_directives_map: HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>) -> Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        let id = self.resolved_type_reference_directives_maps.borrow_mut().alloc(resolved_type_reference_directives_map);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3229,6 +3256,18 @@ impl InArena for Id<Box<dyn CheckTypeErrorOutputContainer>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CheckTypeErrorOutputContainer>> {
         has_arena.check_type_error_output_container(*self)
+    }
+}
+
+impl InArena for Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+    type Item = HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        has_arena.resolved_type_reference_directives_map(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
+        has_arena.resolved_type_reference_directives_map_mut(*self)
     }
 }
 

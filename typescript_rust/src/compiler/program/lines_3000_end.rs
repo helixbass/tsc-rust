@@ -1999,7 +1999,7 @@ impl Program {
         !symlinks.ref_(self).has_processed_resolutions() {
             symlinks.ref_(self).set_symlinks_from_resolutions(
                 &self.files(),
-                Some(&(*self.resolved_type_reference_directives()).borrow()),
+                Some(&self.resolved_type_reference_directives().ref_(self)),
             );
         }
         symlinks

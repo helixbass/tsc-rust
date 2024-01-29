@@ -925,8 +925,8 @@ impl Program {
         resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
         reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
-        let previous_resolution = (*self.resolved_type_reference_directives())
-            .borrow()
+        let previous_resolution = self.resolved_type_reference_directives()
+            .ref_(self)
             .get(type_reference_directive)
             .cloned()
             .flatten();
@@ -1017,8 +1017,8 @@ impl Program {
         }
 
         if save_resolution {
-            (*self.resolved_type_reference_directives())
-                .borrow_mut()
+            self.resolved_type_reference_directives()
+                .ref_mut(self)
                 .insert(
                     type_reference_directive.to_owned(),
                     resolved_type_reference_directive,
