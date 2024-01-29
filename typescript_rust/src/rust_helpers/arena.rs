@@ -24,6 +24,7 @@ use crate::{
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
+    ActualResolveTypeReferenceDirectiveNamesWorker,
 };
 
 #[derive(Default)]
@@ -114,6 +115,7 @@ pub struct AllArenas {
     pub parse_config_file_hosts: RefCell<Arena<Box<dyn ParseConfigFileHost>>>,
     pub file_preprocessing_diagnostics: RefCell<Arena<FilePreprocessingDiagnostics>>,
     pub actual_resolve_module_names_workers: RefCell<Arena<Box<dyn ActualResolveModuleNamesWorker>>>,
+    pub actual_resolve_type_reference_directive_names_workers: RefCell<Arena<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>,
 }
 
 pub trait HasArena {
@@ -833,6 +835,14 @@ pub trait HasArena {
 
     fn alloc_actual_resolve_module_names_worker(&self, actual_resolve_module_names_worker: Box<dyn ActualResolveModuleNamesWorker>) -> Id<Box<dyn ActualResolveModuleNamesWorker>> {
         self.arena().alloc_actual_resolve_module_names_worker(actual_resolve_module_names_worker)
+    }
+
+    fn actual_resolve_type_reference_directive_names_worker(&self, actual_resolve_type_reference_directive_names_worker: Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>) -> Ref<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
+        self.arena().actual_resolve_type_reference_directive_names_worker(actual_resolve_type_reference_directive_names_worker)
+    }
+
+    fn alloc_actual_resolve_type_reference_directive_names_worker(&self, actual_resolve_type_reference_directive_names_worker: Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>) -> Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
+        self.arena().alloc_actual_resolve_type_reference_directive_names_worker(actual_resolve_type_reference_directive_names_worker)
     }
 }
 
@@ -1738,6 +1748,16 @@ impl HasArena for AllArenas {
         let id = self.actual_resolve_module_names_workers.borrow_mut().alloc(actual_resolve_module_names_worker);
         id
     }
+
+    #[track_caller]
+    fn actual_resolve_type_reference_directive_names_worker(&self, actual_resolve_type_reference_directive_names_worker: Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>) -> Ref<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
+        Ref::map(self.actual_resolve_type_reference_directive_names_workers.borrow(), |actual_resolve_type_reference_directive_names_workers| &actual_resolve_type_reference_directive_names_workers[actual_resolve_type_reference_directive_names_worker])
+    }
+
+    fn alloc_actual_resolve_type_reference_directive_names_worker(&self, actual_resolve_type_reference_directive_names_worker: Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>) -> Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
+        let id = self.actual_resolve_type_reference_directive_names_workers.borrow_mut().alloc(actual_resolve_type_reference_directive_names_worker);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2463,6 +2483,14 @@ impl InArena for Id<Box<dyn ActualResolveModuleNamesWorker>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ActualResolveModuleNamesWorker>> {
         has_arena.actual_resolve_module_names_worker(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
+    type Item = Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
+        has_arena.actual_resolve_type_reference_directive_names_worker(*self)
     }
 }
 

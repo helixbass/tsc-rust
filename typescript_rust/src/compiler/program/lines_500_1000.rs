@@ -1019,7 +1019,7 @@ impl Program {
         if self.host().ref_(self).is_resolve_type_reference_directives_supported() {
             *self
                 .actual_resolve_type_reference_directive_names_worker
-                .borrow_mut() = Some(Gc::new(Box::new(
+                .borrow_mut() = Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
                 ActualResolveTypeReferenceDirectiveNamesWorkerHost::new(
                     self.host(),
                     self.options.clone(),
@@ -1046,7 +1046,7 @@ impl Program {
             );
             *self
                 .actual_resolve_type_reference_directive_names_worker
-                .borrow_mut() = Some(Gc::new(Box::new(
+                .borrow_mut() = Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
                 ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(Gc::new(
                     Box::new(loader),
                 )),
@@ -1654,7 +1654,7 @@ impl Program {
 
     pub(super) fn actual_resolve_type_reference_directive_names_worker(
         &self,
-    ) -> Gc<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
+    ) -> Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
         self.actual_resolve_type_reference_directive_names_worker
             .borrow_mut()
             .clone()

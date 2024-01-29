@@ -96,7 +96,7 @@ impl Program {
         // performance.mark("beforeResolveTypeReference");
         let result = self
             .actual_resolve_type_reference_directive_names_worker()
-            .call(
+            .ref_(self).call(
                 type_directive_names,
                 &containing_file_name,
                 redirected_reference.clone(),

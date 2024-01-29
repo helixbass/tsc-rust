@@ -1677,7 +1677,7 @@ pub struct Program {
     pub(crate) actual_resolve_module_names_worker:
         GcCell<Option<Id<Box<dyn ActualResolveModuleNamesWorker>>>>,
     pub(crate) actual_resolve_type_reference_directive_names_worker:
-        GcCell<Option<Gc<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
+        GcCell<Option<Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
 
     pub(crate) package_id_to_source_file: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
     #[unsafe_ignore_trace]
