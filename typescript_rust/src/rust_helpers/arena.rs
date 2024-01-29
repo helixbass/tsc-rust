@@ -29,7 +29,7 @@ use crate::{
     PrivateIdentifierInfo, ExternalModuleInfo, ResolvedModuleWithFailedLookupLocations,
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
-    PendingDeclaration, PackageJsonInfo, PatternAmbientModule,
+    PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
 };
 
 #[derive(Default)]
@@ -143,6 +143,7 @@ pub struct AllArenas {
     pub package_json_infos: RefCell<Arena<PackageJsonInfo>>,
     pub vec_types: RefCell<Arena<Vec<Id<Type>>>>,
     pub pattern_ambient_modules: RefCell<Arena<PatternAmbientModule>>,
+    pub check_type_containing_message_chains: RefCell<Arena<Box<dyn CheckTypeContainingMessageChain>>>,
 }
 
 pub trait HasArena {
@@ -1074,6 +1075,14 @@ pub trait HasArena {
 
     fn alloc_pattern_ambient_module(&self, pattern_ambient_module: PatternAmbientModule) -> Id<PatternAmbientModule> {
         self.arena().alloc_pattern_ambient_module(pattern_ambient_module)
+    }
+
+    fn check_type_containing_message_chain(&self, check_type_containing_message_chain: Id<Box<dyn CheckTypeContainingMessageChain>>) -> Ref<Box<dyn CheckTypeContainingMessageChain>> {
+        self.arena().check_type_containing_message_chain(check_type_containing_message_chain)
+    }
+
+    fn alloc_check_type_containing_message_chain(&self, check_type_containing_message_chain: Box<dyn CheckTypeContainingMessageChain>) -> Id<Box<dyn CheckTypeContainingMessageChain>> {
+        self.arena().alloc_check_type_containing_message_chain(check_type_containing_message_chain)
     }
 }
 
@@ -2237,6 +2246,16 @@ impl HasArena for AllArenas {
         let id = self.pattern_ambient_modules.borrow_mut().alloc(pattern_ambient_module);
         id
     }
+
+    #[track_caller]
+    fn check_type_containing_message_chain(&self, check_type_containing_message_chain: Id<Box<dyn CheckTypeContainingMessageChain>>) -> Ref<Box<dyn CheckTypeContainingMessageChain>> {
+        Ref::map(self.check_type_containing_message_chains.borrow(), |check_type_containing_message_chains| &check_type_containing_message_chains[check_type_containing_message_chain])
+    }
+
+    fn alloc_check_type_containing_message_chain(&self, check_type_containing_message_chain: Box<dyn CheckTypeContainingMessageChain>) -> Id<Box<dyn CheckTypeContainingMessageChain>> {
+        let id = self.check_type_containing_message_chains.borrow_mut().alloc(check_type_containing_message_chain);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3174,6 +3193,14 @@ impl InArena for Id<PatternAmbientModule> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, PatternAmbientModule> {
         has_arena.pattern_ambient_module(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn CheckTypeContainingMessageChain>> {
+    type Item = Box<dyn CheckTypeContainingMessageChain>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CheckTypeContainingMessageChain>> {
+        has_arena.check_type_containing_message_chain(*self)
     }
 }
 

@@ -590,7 +590,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<Id<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         CheckTypeRelatedTo::new(

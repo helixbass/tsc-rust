@@ -235,7 +235,7 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
+                    Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element,
                     )))),
                     None,
@@ -256,7 +256,7 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
+                    Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element,
                     )))),
                     None,
@@ -290,7 +290,7 @@ impl TypeChecker {
                 Some(Cow::Borrowed(
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),
-                Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
+                Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
                     opening_like_element,
                 )))),
                 None,

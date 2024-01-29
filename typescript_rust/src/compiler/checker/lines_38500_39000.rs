@@ -280,7 +280,7 @@ impl TypeChecker {
                                 .unwrap_or_else(|| member.clone()),
                         ),
                         None,
-                        Some(Gc::new(Box::new(
+                        Some(self.alloc_check_type_containing_message_chain(Box::new(
                             IssueMemberSpecificErrorContainingMessageChain::new(
                                 self.arena_id(),
                                 declared_prop.clone(),

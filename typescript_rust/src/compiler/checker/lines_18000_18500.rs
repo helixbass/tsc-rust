@@ -38,7 +38,7 @@ pub(super) struct CheckTypeRelatedTo {
     pub error_node: GcCell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
-    pub containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+    pub containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     pub error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     #[unsafe_ignore_trace]
     pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
@@ -80,7 +80,7 @@ impl CheckTypeRelatedTo {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<Id<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> Gc<Self> {
         let instance = Self {
@@ -265,7 +265,7 @@ impl CheckTypeRelatedTo {
             }
         } else if self.maybe_error_info().is_some() {
             if let Some(containing_message_chain) = self.containing_message_chain.as_ref() {
-                let chain = containing_message_chain.get()?;
+                let chain = containing_message_chain.ref_(self).get()?;
                 if let Some(chain) = chain {
                     concatenate_diagnostic_message_chains(
                         &mut chain.borrow_mut(),

@@ -236,8 +236,8 @@ impl TypeChecker {
                     );
                 } else {
                     if let Some(type_predicate_type) = type_predicate.ref_(self).type_ {
-                        let leading_error: Gc<Box<dyn CheckTypeContainingMessageChain>> =
-                            Gc::new(Box::new(CheckTypePredicateContainingMessageChain));
+                        let leading_error: Id<Box<dyn CheckTypeContainingMessageChain>> =
+                            self.alloc_check_type_containing_message_chain(Box::new(CheckTypePredicateContainingMessageChain));
                         self.check_type_assignable_to(
                             type_predicate_type,
                             self.get_type_of_symbol(

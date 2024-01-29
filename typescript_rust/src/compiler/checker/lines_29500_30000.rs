@@ -817,7 +817,7 @@ impl TypeChecker {
                         self.assignable_relation.clone(),
                         CheckMode::Normal,
                         true,
-                        Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
+                        Some(self.alloc_check_type_containing_message_chain(Box::new(ResolveCallContainingMessageChain::new(
                             chain.map(|chain| Rc::new(RefCell::new(chain))),
                         )))),
                     )?;
@@ -877,7 +877,7 @@ impl TypeChecker {
                             self.assignable_relation.clone(),
                             CheckMode::Normal,
                             true,
-                            Some(Gc::new(Box::new(chain))),
+                            Some(self.alloc_check_type_containing_message_chain(Box::new(chain))),
                         )?;
                         if let Some(diags) = diags {
                             if diags.len() <= min {

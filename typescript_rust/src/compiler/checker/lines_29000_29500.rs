@@ -714,9 +714,9 @@ impl TypeChecker {
             );
             let constraint = self.get_constraint_of_type_parameter(type_parameters[i])?;
             if let Some(constraint) = constraint {
-                let error_info: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>> =
+                let error_info: Option<Id<Box<dyn CheckTypeContainingMessageChain>>> =
                     if report_errors && head_message.is_some() {
-                        Some(Gc::new(Box::new(CheckTypeArgumentsErrorInfo)))
+                        Some(self.alloc_check_type_containing_message_chain(Box::new(CheckTypeArgumentsErrorInfo)))
                     } else {
                         None
                     };
@@ -788,7 +788,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
         let param_type =
@@ -960,7 +960,7 @@ impl TypeChecker {
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> io::Result<Option<Vec<Id<Diagnostic>>>> {
         let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
             CheckTypeErrorOutputContainerConcrete::new(Some(true)),
