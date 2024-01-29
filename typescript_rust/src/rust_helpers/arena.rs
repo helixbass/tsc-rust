@@ -22,6 +22,7 @@ use crate::{
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
+    BuilderProgram,
 };
 
 #[derive(Default)]
@@ -106,6 +107,7 @@ pub struct AllArenas {
     pub for_each_resolved_project_references: RefCell<Arena<Box<dyn ForEachResolvedProjectReference>>>,
     pub compiler_host_likes: RefCell<Arena<Box<dyn CompilerHostLike>>>,
     pub directory_structure_hosts: RefCell<Arena<Box<dyn DirectoryStructureHost>>>,
+    pub builder_programs: RefCell<Arena<Box<dyn BuilderProgram>>>,
 }
 
 pub trait HasArena {
@@ -777,6 +779,14 @@ pub trait HasArena {
 
     fn alloc_directory_structure_host(&self, directory_structure_host: Box<dyn DirectoryStructureHost>) -> Id<Box<dyn DirectoryStructureHost>> {
         self.arena().alloc_directory_structure_host(directory_structure_host)
+    }
+
+    fn builder_program(&self, builder_program: Id<Box<dyn BuilderProgram>>) -> Ref<Box<dyn BuilderProgram>> {
+        self.arena().builder_program(builder_program)
+    }
+
+    fn alloc_builder_program(&self, builder_program: Box<dyn BuilderProgram>) -> Id<Box<dyn BuilderProgram>> {
+        self.arena().alloc_builder_program(builder_program)
     }
 }
 
@@ -1622,6 +1632,16 @@ impl HasArena for AllArenas {
         let id = self.directory_structure_hosts.borrow_mut().alloc(directory_structure_host);
         id
     }
+
+    #[track_caller]
+    fn builder_program(&self, builder_program: Id<Box<dyn BuilderProgram>>) -> Ref<Box<dyn BuilderProgram>> {
+        Ref::map(self.builder_programs.borrow(), |builder_programs| &builder_programs[builder_program])
+    }
+
+    fn alloc_builder_program(&self, builder_program: Box<dyn BuilderProgram>) -> Id<Box<dyn BuilderProgram>> {
+        let id = self.builder_programs.borrow_mut().alloc(builder_program);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2299,6 +2319,14 @@ impl InArena for Id<Box<dyn DirectoryStructureHost>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn DirectoryStructureHost>> {
         has_arena.directory_structure_host(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn BuilderProgram>> {
+    type Item = Box<dyn BuilderProgram>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn BuilderProgram>> {
+        has_arena.builder_program(*self)
     }
 }
 

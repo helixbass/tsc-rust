@@ -387,21 +387,21 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
 #[derive(Trace, Finalize)]
 pub enum ProgramOrBuilderProgram {
     Program(Id<Program>),
-    BuilderProgram(Gc<Box<dyn BuilderProgram>>),
+    BuilderProgram(Id<Box<dyn BuilderProgram>>),
 }
 
 impl ProgramOrBuilderProgram {
     fn get_compiler_options(&self, arena: &impl HasArena) -> Id<CompilerOptions> {
         match self {
             Self::Program(program) => program.ref_(arena).get_compiler_options(),
-            Self::BuilderProgram(program) => program.get_compiler_options(),
+            Self::BuilderProgram(program) => program.ref_(arena).get_compiler_options(),
         }
     }
 
     fn get_source_files(&self, arena: &impl HasArena) -> Vec<Id<Node>> {
         match self {
             Self::Program(program) => program.ref_(arena).get_source_files().clone(),
-            Self::BuilderProgram(program) => program.get_source_files().to_owned(),
+            Self::BuilderProgram(program) => program.ref_(arena).get_source_files().to_owned(),
         }
     }
 }
@@ -412,8 +412,8 @@ impl From<Id<Program>> for ProgramOrBuilderProgram {
     }
 }
 
-impl From<Gc<Box<dyn BuilderProgram>>> for ProgramOrBuilderProgram {
-    fn from(value: Gc<Box<dyn BuilderProgram>>) -> Self {
+impl From<Id<Box<dyn BuilderProgram>>> for ProgramOrBuilderProgram {
+    fn from(value: Id<Box<dyn BuilderProgram>>) -> Self {
         Self::BuilderProgram(value)
     }
 }
@@ -427,7 +427,7 @@ pub fn list_files(program: ProgramOrBuilderProgram, mut write: impl FnMut(&str),
     if matches!(options.ref_(arena).explain_files, Some(true)) {
         explain_files(
             &if is_builder_program(&program) {
-                enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).get_program()
+                enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).ref_(arena).get_program()
             } else {
                 enum_unwrapped!(&program, [ProgramOrBuilderProgram, Program]).clone()
             }.ref_(arena),
