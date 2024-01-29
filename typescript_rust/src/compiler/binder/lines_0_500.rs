@@ -289,7 +289,8 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 // }
 
 pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptions>, arena: &impl HasArena) {
-    let file_as_source_file = file.ref_(arena).as_source_file();
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     if is_logging {
         println!("binding: {}", file_as_source_file.file_name());
     }
