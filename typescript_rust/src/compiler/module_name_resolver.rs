@@ -1359,7 +1359,7 @@ impl ModuleResolutionCache {
         self.package_json_info_cache.clone()
     }
 
-    pub fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache {
+    pub fn as_dyn_package_json_info_cache(&self) -> &(dyn PackageJsonInfoCache + 'static) {
         self
     }
 
