@@ -1828,7 +1828,7 @@ pub fn create_printer(
     *printer.ref_(arena)._arena_id.borrow_mut() = Some(printer.clone());
     printer.ref_(arena).reset();
     *printer.ref_(arena).emit_binary_expression.borrow_mut() =
-        Some(Gc::new(printer.ref_(arena).create_emit_binary_expression()));
+        Some(arena.alloc_emit_binary_expression(printer.ref_(arena).create_emit_binary_expression()));
     printer
 }
 
@@ -2352,13 +2352,13 @@ impl Printer {
         // unimplemented!()
     }
 
-    pub(super) fn emit_binary_expression_rc(&self) -> Gc<EmitBinaryExpression> {
+    pub(super) fn emit_binary_expression_id(&self) -> Id<EmitBinaryExpression> {
         self.emit_binary_expression.borrow().clone().unwrap()
     }
 
     pub(super) fn emit_binary_expression(&self, node: Id<Node> /*BinaryExpression*/) {
-        self.emit_binary_expression_rc()
-            .call(node)
+        self.emit_binary_expression_id()
+            .ref_(self).call(node)
             .expect("Don't _think_ this is actually fallible?")
     }
 

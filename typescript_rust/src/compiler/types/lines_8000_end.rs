@@ -96,7 +96,7 @@ pub struct Printer {
     pub last_substitution: GcCell<Option<Id<Node>>>,
     pub current_parenthesizer_rule: GcCell<Option<Id<Box<dyn CurrentParenthesizerRule>>>>,
     pub parenthesizer: Id<Box<dyn ParenthesizerRules>>,
-    pub emit_binary_expression: GcCell<Option<Gc<EmitBinaryExpression>>>,
+    pub emit_binary_expression: GcCell<Option<Id<EmitBinaryExpression>>>,
 }
 
 pub trait CurrentParenthesizerRule: Trace + Finalize {

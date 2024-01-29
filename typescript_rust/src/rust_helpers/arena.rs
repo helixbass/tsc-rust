@@ -20,6 +20,7 @@ use crate::{
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
+    EmitBinaryExpression,
 };
 
 #[derive(Default)]
@@ -97,6 +98,7 @@ pub struct AllArenas {
     pub binders: RefCell<Arena<Binder>>,
     pub get_source_files: RefCell<Arena<Box<dyn GetSourceFile>>>,
     pub get_symlink_caches: RefCell<Arena<Box<dyn GetSymlinkCache>>>,
+    pub emit_binary_expressions: RefCell<Arena<EmitBinaryExpression>>,
 }
 
 pub trait HasArena {
@@ -712,6 +714,14 @@ pub trait HasArena {
 
     fn alloc_get_symlink_cache(&self, get_symlink_cache: Box<dyn GetSymlinkCache>) -> Id<Box<dyn GetSymlinkCache>> {
         self.arena().alloc_get_symlink_cache(get_symlink_cache)
+    }
+
+    fn emit_binary_expression(&self, emit_binary_expression: Id<EmitBinaryExpression>) -> Ref<EmitBinaryExpression> {
+        self.arena().emit_binary_expression(emit_binary_expression)
+    }
+
+    fn alloc_emit_binary_expression(&self, emit_binary_expression: EmitBinaryExpression) -> Id<EmitBinaryExpression> {
+        self.arena().alloc_emit_binary_expression(emit_binary_expression)
     }
 }
 
@@ -1487,6 +1497,16 @@ impl HasArena for AllArenas {
         let id = self.get_symlink_caches.borrow_mut().alloc(get_symlink_cache);
         id
     }
+
+    #[track_caller]
+    fn emit_binary_expression(&self, emit_binary_expression: Id<EmitBinaryExpression>) -> Ref<EmitBinaryExpression> {
+        Ref::map(self.emit_binary_expressions.borrow(), |emit_binary_expressions| &emit_binary_expressions[emit_binary_expression])
+    }
+
+    fn alloc_emit_binary_expression(&self, emit_binary_expression: EmitBinaryExpression) -> Id<EmitBinaryExpression> {
+        let id = self.emit_binary_expressions.borrow_mut().alloc(emit_binary_expression);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2108,6 +2128,14 @@ impl InArena for Id<Box<dyn GetSymlinkCache>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetSymlinkCache>> {
         has_arena.get_symlink_cache(*self)
+    }
+}
+
+impl InArena for Id<EmitBinaryExpression> {
+    type Item = EmitBinaryExpression;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, EmitBinaryExpression> {
+        has_arena.emit_binary_expression(*self)
     }
 }
 
