@@ -218,14 +218,14 @@ pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
 pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
     options: Id<CompilerOptions>,
     host: Id<Box<dyn CompilerHost>>,
-    module_resolution_cache: Option<Gc<ModuleResolutionCache>>,
+    module_resolution_cache: Option<Id<ModuleResolutionCache>>,
 }
 
 impl LoadWithModeAwareCacheLoaderResolveModuleName {
     pub fn new(
         options: Id<CompilerOptions>,
         host: Id<Box<dyn CompilerHost>>,
-        module_resolution_cache: Option<Gc<ModuleResolutionCache>>,
+        module_resolution_cache: Option<Id<ModuleResolutionCache>>,
     ) -> Self {
         Self {
             options,
@@ -997,7 +997,7 @@ impl Program {
             *self.module_resolution_cache.borrow_mut() = self.host().ref_(self).get_module_resolution_cache();
         } else {
             *self.module_resolution_cache.borrow_mut() =
-                Some(Gc::new(create_module_resolution_cache(
+                Some(self.alloc_module_resolution_cache(create_module_resolution_cache(
                     &self.current_directory(),
                     self.get_canonical_file_name_rc(),
                     Some(self.options.clone()),
@@ -1034,7 +1034,7 @@ impl Program {
                     self.maybe_module_resolution_cache()
                         .as_ref()
                         .map(|module_resolution_cache| {
-                            module_resolution_cache.get_package_json_info_cache()
+                            module_resolution_cache.ref_(self).get_package_json_info_cache()
                         }),
                     None,
                 )));
@@ -1631,7 +1631,7 @@ impl Program {
 
     pub(super) fn maybe_module_resolution_cache(
         &self,
-    ) -> GcCellRefMut<Option<Gc<ModuleResolutionCache>>> {
+    ) -> GcCellRefMut<Option<Id<ModuleResolutionCache>>> {
         self.module_resolution_cache.borrow_mut()
     }
 

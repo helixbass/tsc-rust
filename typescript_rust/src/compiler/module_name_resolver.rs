@@ -1628,7 +1628,7 @@ pub fn resolve_module_name(
     containing_file: &str,
     mut compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
@@ -1656,8 +1656,8 @@ pub fn resolve_module_name(
         }
     }
     let containing_directory = get_directory_path(containing_file);
-    let per_folder_cache = cache.as_ref().map(|cache| {
-        cache.get_or_create_cache_for_directory(&containing_directory, redirected_reference.clone())
+    let per_folder_cache = cache.map(|cache| {
+        cache.ref_(arena).get_or_create_cache_for_directory(&containing_directory, redirected_reference.clone())
     });
     let mut result = per_folder_cache
         .as_ref()
@@ -1750,7 +1750,7 @@ pub fn resolve_module_name(
                     containing_file,
                     compiler_options.clone(),
                     host,
-                    cache.as_deref(),
+                    cache.refed(arena).as_deref(),
                     redirected_reference.clone(),
                     arena,
                 )?);
@@ -1774,7 +1774,7 @@ pub fn resolve_module_name(
             if !is_external_module_name_relative(module_name) {
                 cache
                     .unwrap()
-                    .get_or_create_cache_for_module_name(
+                    .ref_(arena).get_or_create_cache_for_module_name(
                         module_name,
                         resolution_mode,
                         redirected_reference.clone(),
@@ -2118,7 +2118,7 @@ fn node12_module_name_resolver(
     containing_file: &str,
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
@@ -2143,7 +2143,7 @@ fn node_next_module_name_resolver(
     containing_file: &str,
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
@@ -2167,7 +2167,7 @@ fn node_next_module_name_resolver_worker(
     containing_file: &str,
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     resolution_mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
     arena: &impl HasArena,
@@ -2212,7 +2212,7 @@ pub fn node_module_name_resolver(
     containing_file: &str,
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     lookup_config: Option<bool>,
     arena: &impl HasArena,
@@ -2242,7 +2242,7 @@ fn node_module_name_resolver_worker(
     containing_directory: &str,
     compiler_options: Id<CompilerOptions>,
     host: &dyn ModuleResolutionHost,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     extensions: &[Extensions],
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
@@ -2250,14 +2250,14 @@ fn node_module_name_resolver_worker(
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
 
     let failed_lookup_locations: Vec<String> = vec![];
+    let cache_ref = cache.refed(arena);
+    let cache_as_dyn_package_json_info_cache = cache_ref.map(|cache| debug_cell::Ref::map(cache, |cache| cache.as_dyn_package_json_info_cache()));
     let state = ModuleResolutionState {
         compiler_options: compiler_options.clone(),
         host,
         trace_enabled,
         failed_lookup_locations: RefCell::new(failed_lookup_locations),
-        package_json_info_cache: cache
-            .as_ref()
-            .map(|cache| cache.as_dyn_package_json_info_cache()),
+        package_json_info_cache: cache_as_dyn_package_json_info_cache.as_deref(),
         features,
         conditions: if features.intersects(NodeResolutionFeatures::EsmMode) {
             vec!["node".to_owned(), "import".to_owned(), "types".to_owned()]
@@ -2311,7 +2311,7 @@ fn try_resolve(
     containing_directory: &str,
     state: &ModuleResolutionState,
     features: NodeResolutionFeatures,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     host: &dyn ModuleResolutionHost,
     compiler_options: &CompilerOptions,
@@ -2358,7 +2358,7 @@ fn try_resolve(
                 module_name,
                 containing_directory,
                 state,
-                cache.as_deref(),
+                cache.refed(arena).as_deref(),
                 redirected_reference,
             );
         }
@@ -3245,7 +3245,7 @@ fn load_module_from_self_name_reference(
     module_name: &str,
     directory: &str,
     state: &ModuleResolutionState,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
@@ -3315,7 +3315,7 @@ fn load_module_from_exports(
     extensions: Extensions,
     subpath: &str,
     state: &ModuleResolutionState,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
 ) -> io::Result<SearchResult<Resolved>> {
     let scope_package_json_exports = scope.package_json_content.get("exports");
@@ -3405,7 +3405,7 @@ fn load_module_from_imports(
 fn load_module_from_imports_or_exports(
     extensions: Extensions,
     state: &ModuleResolutionState,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     module_name: &str,
     lookup_table: &serde_json::Map<String, serde_json::Value>,
@@ -3498,7 +3498,7 @@ fn matches_pattern_with_trailer(target: &str, name: &str) -> bool {
 fn get_load_module_from_target_import_or_export<'a>(
     extensions: Extensions,
     state: &'a ModuleResolutionState,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     module_name: &'a str,
     scope: &'a PackageJsonInfo,
@@ -3518,7 +3518,7 @@ fn get_load_module_from_target_import_or_export<'a>(
 struct LoadModuleFromTargetImportOrExport<'a> {
     extensions: Extensions,
     state: &'a ModuleResolutionState<'a>,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     module_name: &'a str,
     scope: &'a PackageJsonInfo,
@@ -3734,7 +3734,7 @@ fn load_module_from_nearest_node_modules_directory(
     module_name: &str,
     directory: &str,
     state: &ModuleResolutionState,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
@@ -3774,12 +3774,12 @@ fn load_module_from_nearest_node_modules_directory_worker(
     directory: &str,
     state: &ModuleResolutionState,
     types_scope_only: bool,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
     let per_module_name_cache = cache.as_ref().map(|cache| {
-        cache.get_or_create_cache_for_module_name(
+        cache.ref_(arena).get_or_create_cache_for_module_name(
             module_name,
             if state.features == NodeResolutionFeatures::None {
                 None
@@ -3826,7 +3826,7 @@ fn load_module_from_immediate_node_modules_directory(
     directory: &str,
     state: &ModuleResolutionState,
     types_scope_only: bool,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
@@ -3900,7 +3900,7 @@ fn load_module_from_specific_node_modules_directory(
     node_modules_directory: &str,
     node_modules_directory_exists: bool,
     state: &ModuleResolutionState,
-    cache: Option<Gc<ModuleResolutionCache>>,
+    cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {

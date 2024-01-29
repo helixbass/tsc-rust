@@ -1671,7 +1671,7 @@ pub struct Program {
     pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
     pub(crate) _compiler_options_object_literal_syntax:
         GcCell<Option<Option<Id<Node /*ObjectLiteralExpression*/>>>>,
-    pub(crate) module_resolution_cache: GcCell<Option<Gc<ModuleResolutionCache>>>,
+    pub(crate) module_resolution_cache: GcCell<Option<Id<ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
         GcCell<Option<Id<TypeReferenceDirectiveResolutionCache>>>,
     pub(crate) actual_resolve_module_names_worker:

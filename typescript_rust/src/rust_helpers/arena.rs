@@ -22,7 +22,7 @@ use crate::{
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
     EmitBinaryExpression, RelativeToBuildInfo, PrintHandlers, GetResolvedProjectReferences,
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
-    BuilderProgram, TypeReferenceDirectiveResolutionCache,
+    BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
 };
 
 #[derive(Default)]
@@ -109,6 +109,7 @@ pub struct AllArenas {
     pub directory_structure_hosts: RefCell<Arena<Box<dyn DirectoryStructureHost>>>,
     pub builder_programs: RefCell<Arena<Box<dyn BuilderProgram>>>,
     pub type_reference_directive_resolution_caches: RefCell<Arena<TypeReferenceDirectiveResolutionCache>>,
+    pub module_resolution_caches: RefCell<Arena<ModuleResolutionCache>>,
 }
 
 pub trait HasArena {
@@ -796,6 +797,14 @@ pub trait HasArena {
 
     fn alloc_type_reference_directive_resolution_cache(&self, type_reference_directive_resolution_cache: TypeReferenceDirectiveResolutionCache) -> Id<TypeReferenceDirectiveResolutionCache> {
         self.arena().alloc_type_reference_directive_resolution_cache(type_reference_directive_resolution_cache)
+    }
+
+    fn module_resolution_cache(&self, module_resolution_cache: Id<ModuleResolutionCache>) -> Ref<ModuleResolutionCache> {
+        self.arena().module_resolution_cache(module_resolution_cache)
+    }
+
+    fn alloc_module_resolution_cache(&self, module_resolution_cache: ModuleResolutionCache) -> Id<ModuleResolutionCache> {
+        self.arena().alloc_module_resolution_cache(module_resolution_cache)
     }
 }
 
@@ -1661,6 +1670,16 @@ impl HasArena for AllArenas {
         let id = self.type_reference_directive_resolution_caches.borrow_mut().alloc(type_reference_directive_resolution_cache);
         id
     }
+
+    #[track_caller]
+    fn module_resolution_cache(&self, module_resolution_cache: Id<ModuleResolutionCache>) -> Ref<ModuleResolutionCache> {
+        Ref::map(self.module_resolution_caches.borrow(), |module_resolution_caches| &module_resolution_caches[module_resolution_cache])
+    }
+
+    fn alloc_module_resolution_cache(&self, module_resolution_cache: ModuleResolutionCache) -> Id<ModuleResolutionCache> {
+        let id = self.module_resolution_caches.borrow_mut().alloc(module_resolution_cache);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2357,6 +2376,14 @@ impl InArena for Id<TypeReferenceDirectiveResolutionCache> {
     }
 }
 
+impl InArena for Id<ModuleResolutionCache> {
+    type Item = ModuleResolutionCache;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ModuleResolutionCache> {
+        has_arena.module_resolution_cache(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -2408,6 +2435,14 @@ impl OptionInArena for Option<Id<TypeReferenceDirectiveResolutionCache>> {
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, TypeReferenceDirectiveResolutionCache>> {
         self.map(|type_reference_directive_resolution_cache| has_arena.type_reference_directive_resolution_cache(type_reference_directive_resolution_cache))
+    }
+}
+
+impl OptionInArena for Option<Id<ModuleResolutionCache>> {
+    type Item = ModuleResolutionCache;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, ModuleResolutionCache>> {
+        self.map(|module_resolution_cache| has_arena.module_resolution_cache(module_resolution_cache))
     }
 }
 
