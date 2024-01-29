@@ -24,7 +24,7 @@ use crate::{
     ForEachResolvedProjectReference, CompilerHostLike, DirectoryStructureHost,
     BuilderProgram, TypeReferenceDirectiveResolutionCache, ModuleResolutionCache,
     ParseConfigFileHost, FilePreprocessingDiagnostics, ActualResolveModuleNamesWorker,
-    ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo,
+    ActualResolveTypeReferenceDirectiveNamesWorker, GetProgramBuildInfo, LoadWithModeAwareCacheLoader,
 };
 
 #[derive(Default)]
@@ -117,6 +117,7 @@ pub struct AllArenas {
     pub actual_resolve_module_names_workers: RefCell<Arena<Box<dyn ActualResolveModuleNamesWorker>>>,
     pub actual_resolve_type_reference_directive_names_workers: RefCell<Arena<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>,
     pub get_program_build_infos: RefCell<Arena<Box<dyn GetProgramBuildInfo>>>,
+    pub load_with_mode_aware_cache_loaders: RefCell<Arena<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>>,
 }
 
 pub trait HasArena {
@@ -852,6 +853,14 @@ pub trait HasArena {
 
     fn alloc_get_program_build_info(&self, get_program_build_info: Box<dyn GetProgramBuildInfo>) -> Id<Box<dyn GetProgramBuildInfo>> {
         self.arena().alloc_get_program_build_info(get_program_build_info)
+    }
+
+    fn load_with_mode_aware_cache_loader(&self, load_with_mode_aware_cache_loader: Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>) -> Ref<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
+        self.arena().load_with_mode_aware_cache_loader(load_with_mode_aware_cache_loader)
+    }
+
+    fn alloc_load_with_mode_aware_cache_loader(&self, load_with_mode_aware_cache_loader: Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>) -> Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
+        self.arena().alloc_load_with_mode_aware_cache_loader(load_with_mode_aware_cache_loader)
     }
 }
 
@@ -1777,6 +1786,16 @@ impl HasArena for AllArenas {
         let id = self.get_program_build_infos.borrow_mut().alloc(get_program_build_info);
         id
     }
+
+    #[track_caller]
+    fn load_with_mode_aware_cache_loader(&self, load_with_mode_aware_cache_loader: Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>) -> Ref<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
+        Ref::map(self.load_with_mode_aware_cache_loaders.borrow(), |load_with_mode_aware_cache_loaders| &load_with_mode_aware_cache_loaders[load_with_mode_aware_cache_loader])
+    }
+
+    fn alloc_load_with_mode_aware_cache_loader(&self, load_with_mode_aware_cache_loader: Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>) -> Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
+        let id = self.load_with_mode_aware_cache_loaders.borrow_mut().alloc(load_with_mode_aware_cache_loader);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2518,6 +2537,14 @@ impl InArena for Id<Box<dyn GetProgramBuildInfo>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetProgramBuildInfo>> {
         has_arena.get_program_build_info_ref(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
+    type Item = Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>> {
+        has_arena.load_with_mode_aware_cache_loader(*self)
     }
 }
 

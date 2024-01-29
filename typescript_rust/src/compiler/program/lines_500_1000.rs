@@ -1010,7 +1010,7 @@ impl Program {
                 self.maybe_module_resolution_cache().clone(),
             );
             *self.actual_resolve_module_names_worker.borrow_mut() = Some(self.alloc_actual_resolve_module_names_worker(Box::new(
-                ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(Gc::new(Box::new(
+                ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(self.alloc_load_with_mode_aware_cache_loader(Box::new(
                     loader,
                 ))),
             )));
@@ -1936,12 +1936,12 @@ impl HasArena for ActualResolveModuleNamesWorkerHost {
 
 #[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
-    loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
+    loader: Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
 }
 
 impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     pub fn new(
-        loader: Gc<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
+        loader: Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
     ) -> Self {
         Self { loader }
     }
@@ -1961,7 +1961,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
             containing_file,
             containing_file_name,
             redirected_reference,
-            &**self.loader,
+            &**self.loader.ref_(self),
             self,
         )
     }
