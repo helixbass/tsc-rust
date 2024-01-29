@@ -774,7 +774,7 @@ pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {
 
 pub enum StringOrReadFileCallback {
     String(String),
-    ReadFileCallback(Gc<Box<dyn ReadFileCallback>>),
+    ReadFileCallback(Id<Box<dyn ReadFileCallback>>),
 }
 
 impl From<String> for StringOrReadFileCallback {
@@ -783,8 +783,8 @@ impl From<String> for StringOrReadFileCallback {
     }
 }
 
-impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
-    fn from(value: Gc<Box<dyn ReadFileCallback>>) -> Self {
+impl From<Id<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
+    fn from(value: Id<Box<dyn ReadFileCallback>>) -> Self {
         Self::ReadFileCallback(value)
     }
 }

@@ -1214,7 +1214,7 @@ impl Program {
                         resolved_project_reference.ref_(self).command_line.clone()
                     })
             },
-            Gc::new(Box::new(GetPrependNodesReadFileCallback::new(
+            self.alloc_read_file_callback(Box::new(GetPrependNodesReadFileCallback::new(
                 self.arena_id(),
             ))),
             self,

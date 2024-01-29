@@ -26,6 +26,7 @@ use crate::{
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
     __String, get_line_and_character_of_position, AllArenas, HasArena, LineAndCharacter,
     ProgramBuildInfo,
+    InArena,
 };
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -929,7 +930,7 @@ impl InputFiles {
 
     pub fn initialize_with_read_file_callback(
         &mut self,
-        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+        read_file_callback: Id<Box<dyn ReadFileCallback>>,
         declaration_text_or_javascript_path: String,
         javascript_map_path: Option<String>,
         javascript_map_text_or_declaration_path: Option<String>,
@@ -1091,7 +1092,7 @@ impl Default for InputFilesInitializedState {
 
 #[derive(Debug, Trace, Finalize)]
 struct InputFilesInitializedWithReadFileCallback {
-    read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+    read_file_callback: Id<Box<dyn ReadFileCallback>>,
     #[unsafe_ignore_trace]
     cache: RefCell<HashMap<String, Option<String>>>,
     declaration_text_or_javascript_path: String,
@@ -1105,7 +1106,7 @@ struct InputFilesInitializedWithReadFileCallback {
 
 impl InputFilesInitializedWithReadFileCallback {
     pub fn new(
-        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+        read_file_callback: Id<Box<dyn ReadFileCallback>>,
         declaration_text_or_javascript_path: String,
         javascript_map_path: Option<String>,
         javascript_map_text_or_declaration_path: String,
@@ -1133,7 +1134,7 @@ impl InputFilesInitializedWithReadFileCallback {
         let mut cache = self.cache_mut();
         let mut value = cache.get(path).cloned();
         if value.is_none() {
-            value = self.read_file_callback.call(path).map(Some);
+            value = self.read_file_callback.ref_(self).call(path).map(Some);
             cache.insert(
                 path.to_owned(),
                 match value.clone() {
@@ -1161,6 +1162,12 @@ impl InputFilesInitializedWithReadFileCallback {
             *build_info = Some(result.map(|result| get_build_info(&result)));
         }
         build_info.clone().unwrap()
+    }
+}
+
+impl HasArena for InputFilesInitializedWithReadFileCallback {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

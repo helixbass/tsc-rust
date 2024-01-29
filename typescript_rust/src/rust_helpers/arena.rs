@@ -19,7 +19,7 @@ use crate::{
     BuildInfo, ProgramBuildInfo, BundleBuildInfo, BundleFileInfo, SymbolTable, InferenceInfo,
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
-    BindBinaryExpressionFlow, TypeChecker,
+    BindBinaryExpressionFlow, TypeChecker, ReadFileCallback,
 };
 
 #[derive(Default)]
@@ -93,6 +93,7 @@ pub struct AllArenas {
     pub outofband_variance_marker_handlers: RefCell<Arena<Box<dyn OutofbandVarianceMarkerHandler>>>,
     pub bind_binary_expression_flows: RefCell<Arena<BindBinaryExpressionFlow>>,
     pub type_checkers: RefCell<Arena<TypeChecker>>,
+    pub read_file_callbacks: RefCell<Arena<Box<dyn ReadFileCallback>>>,
 }
 
 pub trait HasArena {
@@ -676,6 +677,14 @@ pub trait HasArena {
 
     fn alloc_type_checker(&self, type_checker: TypeChecker) -> Id<TypeChecker> {
         self.arena().alloc_type_checker(type_checker)
+    }
+
+    fn read_file_callback(&self, read_file_callback: Id<Box<dyn ReadFileCallback>>) -> Ref<Box<dyn ReadFileCallback>> {
+        self.arena().read_file_callback(read_file_callback)
+    }
+
+    fn alloc_read_file_callback(&self, read_file_callback: Box<dyn ReadFileCallback>) -> Id<Box<dyn ReadFileCallback>> {
+        self.arena().alloc_read_file_callback(read_file_callback)
     }
 }
 
@@ -1410,6 +1419,16 @@ impl HasArena for AllArenas {
         let id = self.type_checkers.borrow_mut().alloc(type_checker);
         id
     }
+
+    #[track_caller]
+    fn read_file_callback(&self, read_file_callback: Id<Box<dyn ReadFileCallback>>) -> Ref<Box<dyn ReadFileCallback>> {
+        Ref::map(self.read_file_callbacks.borrow(), |read_file_callbacks| &read_file_callbacks[read_file_callback])
+    }
+
+    fn alloc_read_file_callback(&self, read_file_callback: Box<dyn ReadFileCallback>) -> Id<Box<dyn ReadFileCallback>> {
+        let id = self.read_file_callbacks.borrow_mut().alloc(read_file_callback);
+        id
+    }
 }
 
 pub trait InArena {
@@ -1999,6 +2018,14 @@ impl InArena for Id<TypeChecker> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, TypeChecker> {
         has_arena.type_checker(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ReadFileCallback>> {
+    type Item = Box<dyn ReadFileCallback>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn ReadFileCallback>> {
+        has_arena.read_file_callback(*self)
     }
 }
 
