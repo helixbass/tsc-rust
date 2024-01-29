@@ -20,7 +20,7 @@ use crate::{
     SysFormatDiagnosticsHost, ClassLexicalEnvironment, ConvertedLoopState, EmitHelperTextCallback,
     ConditionalRoot, EmitNode, CheckBinaryExpression, SourceMapSource, OutofbandVarianceMarkerHandler,
     BindBinaryExpressionFlow, TypeChecker, ReadFileCallback, Binder, GetSourceFile, GetSymlinkCache,
-    EmitBinaryExpression,
+    EmitBinaryExpression, RelativeToBuildInfo,
 };
 
 #[derive(Default)]
@@ -99,6 +99,7 @@ pub struct AllArenas {
     pub get_source_files: RefCell<Arena<Box<dyn GetSourceFile>>>,
     pub get_symlink_caches: RefCell<Arena<Box<dyn GetSymlinkCache>>>,
     pub emit_binary_expressions: RefCell<Arena<EmitBinaryExpression>>,
+    pub relative_to_build_infos: RefCell<Arena<Box<dyn RelativeToBuildInfo>>>,
 }
 
 pub trait HasArena {
@@ -722,6 +723,14 @@ pub trait HasArena {
 
     fn alloc_emit_binary_expression(&self, emit_binary_expression: EmitBinaryExpression) -> Id<EmitBinaryExpression> {
         self.arena().alloc_emit_binary_expression(emit_binary_expression)
+    }
+
+    fn relative_to_build_info(&self, relative_to_build_info: Id<Box<dyn RelativeToBuildInfo>>) -> Ref<Box<dyn RelativeToBuildInfo>> {
+        self.arena().relative_to_build_info(relative_to_build_info)
+    }
+
+    fn alloc_relative_to_build_info(&self, relative_to_build_info: Box<dyn RelativeToBuildInfo>) -> Id<Box<dyn RelativeToBuildInfo>> {
+        self.arena().alloc_relative_to_build_info(relative_to_build_info)
     }
 }
 
@@ -1507,6 +1516,16 @@ impl HasArena for AllArenas {
         let id = self.emit_binary_expressions.borrow_mut().alloc(emit_binary_expression);
         id
     }
+
+    #[track_caller]
+    fn relative_to_build_info(&self, relative_to_build_info: Id<Box<dyn RelativeToBuildInfo>>) -> Ref<Box<dyn RelativeToBuildInfo>> {
+        Ref::map(self.relative_to_build_infos.borrow(), |relative_to_build_infos| &relative_to_build_infos[relative_to_build_info])
+    }
+
+    fn alloc_relative_to_build_info(&self, relative_to_build_info: Box<dyn RelativeToBuildInfo>) -> Id<Box<dyn RelativeToBuildInfo>> {
+        let id = self.relative_to_build_infos.borrow_mut().alloc(relative_to_build_info);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2136,6 +2155,14 @@ impl InArena for Id<EmitBinaryExpression> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, EmitBinaryExpression> {
         has_arena.emit_binary_expression(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn RelativeToBuildInfo>> {
+    type Item = Box<dyn RelativeToBuildInfo>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn RelativeToBuildInfo>> {
+        has_arena.relative_to_build_info(*self)
     }
 }
 

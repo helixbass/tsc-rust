@@ -63,7 +63,7 @@ pub struct Printer {
     #[unsafe_ignore_trace]
     pub is_own_file_emit: Cell<bool>,
     pub bundle_file_info: GcCell<Option<Id<BundleFileInfo>>>,
-    pub relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
+    pub relative_to_build_info: Option<Id<Box<dyn RelativeToBuildInfo>>>,
     pub record_internal_section: Option<bool>,
     #[unsafe_ignore_trace]
     pub source_file_text_pos: Cell<usize>,
@@ -804,7 +804,7 @@ mod _PrinterOptionsDeriveTraceScope {
         pub(crate) strip_internal: Option<bool>,
         pub(crate) preserve_source_newlines: Option<bool>,
         pub(crate) terminate_unterminated_literals: Option<bool>,
-        pub(crate) relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
+        pub(crate) relative_to_build_info: Option<Id<Box<dyn RelativeToBuildInfo>>>,
     }
 }
 pub use _PrinterOptionsDeriveTraceScope::{PrinterOptions, PrinterOptionsBuilder};

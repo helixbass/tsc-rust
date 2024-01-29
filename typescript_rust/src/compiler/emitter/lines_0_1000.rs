@@ -686,7 +686,7 @@ fn emit_source_file_or_bundle(
         source_file_or_bundle,
         js_file_path,
         source_map_file_path,
-        Gc::new(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
+        arena.alloc_relative_to_build_info(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
             build_info_directory.clone(),
             host.clone(),
         ))),
@@ -712,7 +712,7 @@ fn emit_source_file_or_bundle(
         source_file_or_bundle,
         declaration_file_path,
         declaration_map_path,
-        Gc::new(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
+        arena.alloc_relative_to_build_info(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
             build_info_directory.clone(),
             host.clone(),
         ))),
@@ -857,7 +857,7 @@ fn emit_js_file_or_bundle(
     source_file_or_bundle: Option<Id<Node> /*SourceFile | Bundle*/>,
     js_file_path: Option<&str>,
     source_map_file_path: Option<&str>,
-    relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+    relative_to_build_info: Id<Box<dyn RelativeToBuildInfo>>,
     arena: &impl HasArena,
 ) -> io::Result<()> {
     if source_file_or_bundle.is_none()
@@ -1010,7 +1010,7 @@ fn emit_declaration_file_or_bundle(
     source_file_or_bundle: Option<Id<Node> /*SourceFile | Bundle*/>,
     declaration_file_path: Option<&str>,
     declaration_map_path: Option<&str>,
-    relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+    relative_to_build_info: Id<Box<dyn RelativeToBuildInfo>>,
     arena: &impl HasArena,
 ) -> io::Result<()> {
     if source_file_or_bundle.is_none() {
@@ -2143,7 +2143,7 @@ impl Printer {
     }
 
     pub(super) fn relative_to_build_info(&self, value: &str) -> String {
-        self.relative_to_build_info.clone().unwrap().call(value)
+        self.relative_to_build_info.clone().unwrap().ref_(self).call(value)
     }
 
     pub(super) fn source_file_text_pos(&self) -> usize {
