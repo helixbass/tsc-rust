@@ -789,7 +789,7 @@ impl TypeChecker {
         check_mode: CheckMode,
         report_errors: bool,
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
+        error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
@@ -825,7 +825,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
         report_errors: bool,
-        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
+        error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
         if self
             .get_jsx_namespace_container_for_implicit_import(Some(node))?
@@ -942,10 +942,10 @@ impl TypeChecker {
             }
             if
             /*errorOutputContainer &&*/
-            error_output_container.skip_logging() == Some(true) {
-                error_output_container.push_error(diag.clone());
+            error_output_container.ref_(self).skip_logging() == Some(true) {
+                error_output_container.ref_(self).push_error(diag.clone());
             }
-            if error_output_container.skip_logging() != Some(true) {
+            if error_output_container.ref_(self).skip_logging() != Some(true) {
                 self.diagnostics().add(diag);
             }
         }
@@ -962,7 +962,7 @@ impl TypeChecker {
         report_errors: bool,
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> io::Result<Option<Vec<Id<Diagnostic>>>> {
-        let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
+        let error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>> = self.alloc_check_type_error_output_container(Box::new(
             CheckTypeErrorOutputContainerConcrete::new(Some(true)),
         ));
         if is_jsx_opening_like_element(&node.ref_(self)) {
@@ -976,10 +976,10 @@ impl TypeChecker {
                 error_output_container.clone(),
             )? {
                 Debug_.assert(
-                    !report_errors || error_output_container.errors_len() > 0,
+                    !report_errors || error_output_container.ref_(self).errors_len() > 0,
                     Some("jsx should have errors when reporting errors"),
                 );
-                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
             }
             return Ok(None);
         }
@@ -1008,10 +1008,10 @@ impl TypeChecker {
                 Some(error_output_container.clone()),
             )? {
                 Debug_.assert(
-                    !report_errors || error_output_container.errors_len() > 0,
+                    !report_errors || error_output_container.ref_(self).errors_len() > 0,
                     Some("this parameter should have errors when reporting errors"),
                 );
-                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
             }
         }
         let head_message =
@@ -1048,7 +1048,7 @@ impl TypeChecker {
                     Some(error_output_container.clone()),
                 )? {
                     Debug_.assert(
-                        !report_errors || error_output_container.errors_len() > 0,
+                        !report_errors || error_output_container.ref_(self).errors_len() > 0,
                         Some("parameter should have errors when reporting errors"),
                     );
                     self.maybe_add_missing_await_info(
@@ -1059,7 +1059,7 @@ impl TypeChecker {
                         check_arg_type,
                         param_type,
                     )?;
-                    return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                    return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
                 }
             }
         }
@@ -1103,7 +1103,7 @@ impl TypeChecker {
                 Some(error_output_container.clone()),
             )? {
                 Debug_.assert(
-                    !report_errors || error_output_container.errors_len() > 0,
+                    !report_errors || error_output_container.ref_(self).errors_len() > 0,
                     Some("rest parameter should have errors when reporting errors"),
                 );
                 self.maybe_add_missing_await_info(
@@ -1114,7 +1114,7 @@ impl TypeChecker {
                     spread_type,
                     rest_type,
                 )?;
-                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
             }
         }
         Ok(None)

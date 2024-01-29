@@ -128,7 +128,7 @@ pub use compiler::{
     checker::{
         create_type_checker, get_node_id, get_symbol_id, is_instantiated_module,
         CheckBinaryExpression, DiagnosticMessageOrDiagnosticMessageChain, NodeBuilder,
-        CheckTypeContainingMessageChain,
+        CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer,
     },
     command_line_parser::{
         compiler_options_did_you_mean_diagnostics, convert_compiler_options_from_json,

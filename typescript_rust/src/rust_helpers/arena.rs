@@ -30,6 +30,7 @@ use crate::{
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
+    CheckTypeErrorOutputContainer,
 };
 
 #[derive(Default)]
@@ -144,6 +145,7 @@ pub struct AllArenas {
     pub vec_types: RefCell<Arena<Vec<Id<Type>>>>,
     pub pattern_ambient_modules: RefCell<Arena<PatternAmbientModule>>,
     pub check_type_containing_message_chains: RefCell<Arena<Box<dyn CheckTypeContainingMessageChain>>>,
+    pub check_type_error_output_containers: RefCell<Arena<Box<dyn CheckTypeErrorOutputContainer>>>,
 }
 
 pub trait HasArena {
@@ -1083,6 +1085,14 @@ pub trait HasArena {
 
     fn alloc_check_type_containing_message_chain(&self, check_type_containing_message_chain: Box<dyn CheckTypeContainingMessageChain>) -> Id<Box<dyn CheckTypeContainingMessageChain>> {
         self.arena().alloc_check_type_containing_message_chain(check_type_containing_message_chain)
+    }
+
+    fn check_type_error_output_container(&self, check_type_error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>) -> Ref<Box<dyn CheckTypeErrorOutputContainer>> {
+        self.arena().check_type_error_output_container(check_type_error_output_container)
+    }
+
+    fn alloc_check_type_error_output_container(&self, check_type_error_output_container: Box<dyn CheckTypeErrorOutputContainer>) -> Id<Box<dyn CheckTypeErrorOutputContainer>> {
+        self.arena().alloc_check_type_error_output_container(check_type_error_output_container)
     }
 }
 
@@ -2256,6 +2266,16 @@ impl HasArena for AllArenas {
         let id = self.check_type_containing_message_chains.borrow_mut().alloc(check_type_containing_message_chain);
         id
     }
+
+    #[track_caller]
+    fn check_type_error_output_container(&self, check_type_error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>) -> Ref<Box<dyn CheckTypeErrorOutputContainer>> {
+        Ref::map(self.check_type_error_output_containers.borrow(), |check_type_error_output_containers| &check_type_error_output_containers[check_type_error_output_container])
+    }
+
+    fn alloc_check_type_error_output_container(&self, check_type_error_output_container: Box<dyn CheckTypeErrorOutputContainer>) -> Id<Box<dyn CheckTypeErrorOutputContainer>> {
+        let id = self.check_type_error_output_containers.borrow_mut().alloc(check_type_error_output_container);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3201,6 +3221,14 @@ impl InArena for Id<Box<dyn CheckTypeContainingMessageChain>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CheckTypeContainingMessageChain>> {
         has_arena.check_type_containing_message_chain(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn CheckTypeErrorOutputContainer>> {
+    type Item = Box<dyn CheckTypeErrorOutputContainer>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CheckTypeErrorOutputContainer>> {
+        has_arena.check_type_error_output_container(*self)
     }
 }
 

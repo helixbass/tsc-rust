@@ -38,14 +38,14 @@ impl TypeChecker {
     pub(super) fn maybe_add_missing_await_info(
         &self,
         report_errors: bool,
-        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
+        error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<Id<Node>>,
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
         if let Some(error_node) = error_node {
-            if report_errors && error_output_container.errors_len() > 0 {
+            if report_errors && error_output_container.ref_(self).errors_len() > 0 {
                 if self
                     .get_awaited_type_of_promise(target, Option::<Id<Node>>::None, None, None)?
                     .is_some()
@@ -63,7 +63,7 @@ impl TypeChecker {
                     )?
                 ) {
                     add_related_info(
-                        &error_output_container.get_error(0).unwrap().ref_(self),
+                        &error_output_container.ref_(self).get_error(0).unwrap().ref_(self),
                         vec![self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 error_node,

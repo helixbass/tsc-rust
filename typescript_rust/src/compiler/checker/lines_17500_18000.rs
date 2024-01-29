@@ -591,7 +591,7 @@ impl TypeChecker {
         error_node: Option<Id<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         CheckTypeRelatedTo::new(
             self,

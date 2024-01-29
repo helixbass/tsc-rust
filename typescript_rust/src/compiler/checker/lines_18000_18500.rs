@@ -39,7 +39,7 @@ pub(super) struct CheckTypeRelatedTo {
     #[unsafe_ignore_trace]
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
     pub containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
-    pub error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+    pub error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     #[unsafe_ignore_trace]
     pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
     pub related_info: GcCell<Option<Vec<DiagnosticRelatedInformation>>>,
@@ -81,7 +81,7 @@ impl CheckTypeRelatedTo {
         error_node: Option<Id<Node>>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> Gc<Self> {
         let instance = Self {
             _rc_wrapper: Default::default(),
@@ -261,7 +261,7 @@ impl CheckTypeRelatedTo {
                 ]),
             );
             if let Some(error_output_container) = self.error_output_container.as_ref() {
-                error_output_container.push_error(diag);
+                error_output_container.ref_(self).push_error(diag);
             }
         } else if self.maybe_error_info().is_some() {
             if let Some(containing_message_chain) = self.containing_message_chain.as_ref() {
@@ -328,12 +328,12 @@ impl CheckTypeRelatedTo {
                 add_related_info(&diag.ref_(self), related_info.into_iter().map(|related_info| self.alloc_diagnostic_related_information(related_info)).collect());
             }
             if let Some(error_output_container) = self.error_output_container.as_ref() {
-                error_output_container.push_error(diag.clone());
+                error_output_container.ref_(self).push_error(diag.clone());
             }
             if match self.error_output_container.as_ref() {
                 None => true,
                 Some(error_output_container) => {
-                    !matches!(error_output_container.skip_logging(), Some(true))
+                    !matches!(error_output_container.ref_(self).skip_logging(), Some(true))
                 }
             } {
                 self.type_checker.ref_(self).diagnostics().add(diag);
@@ -344,12 +344,12 @@ impl CheckTypeRelatedTo {
                 self.error_output_container
                     .as_ref()
                     .filter(|error_output_container| {
-                        matches!(error_output_container.skip_logging(), Some(true),)
+                        matches!(error_output_container.ref_(self).skip_logging(), Some(true),)
                     })
             {
                 if result == Ternary::False {
                     Debug_.assert(
-                        error_output_container.errors_len() > 0,
+                        error_output_container.ref_(self).errors_len() > 0,
                         Some("missed opportunity to interact with error."),
                     );
                 }

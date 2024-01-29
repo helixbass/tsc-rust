@@ -1234,7 +1234,7 @@ impl TypeChecker {
         error_node: Option<Id<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_object: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        error_output_object: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         self.check_type_related_to(
             source,
