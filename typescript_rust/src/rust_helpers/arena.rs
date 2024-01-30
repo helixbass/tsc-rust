@@ -31,7 +31,7 @@ use crate::{
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
-    InferenceContext, SkipTrivia,
+    InferenceContext, SkipTrivia, CustomTransformerFactoryInterface,
 };
 
 #[derive(Default)]
@@ -156,6 +156,7 @@ pub struct AllArenas {
     pub type_comparers: RefCell<Arena<Box<dyn TypeComparer>>>,
     pub inference_contexts: RefCell<Arena<InferenceContext>>,
     pub skip_trivias: RefCell<Arena<Box<dyn SkipTrivia>>>,
+    pub custom_transformer_factory_interfaces: RefCell<Arena<Box<dyn CustomTransformerFactoryInterface>>>,
 }
 
 pub trait HasArena {
@@ -1191,6 +1192,14 @@ pub trait HasArena {
 
     fn alloc_skip_trivia(&self, skip_trivia: Box<dyn SkipTrivia>) -> Id<Box<dyn SkipTrivia>> {
         self.arena().alloc_skip_trivia(skip_trivia)
+    }
+
+    fn custom_transformer_factory_interface(&self, custom_transformer_factory_interface: Id<Box<dyn CustomTransformerFactoryInterface>>) -> Ref<Box<dyn CustomTransformerFactoryInterface>> {
+        self.arena().custom_transformer_factory_interface(custom_transformer_factory_interface)
+    }
+
+    fn alloc_custom_transformer_factory_interface(&self, custom_transformer_factory_interface: Box<dyn CustomTransformerFactoryInterface>) -> Id<Box<dyn CustomTransformerFactoryInterface>> {
+        self.arena().alloc_custom_transformer_factory_interface(custom_transformer_factory_interface)
     }
 }
 
@@ -2482,6 +2491,16 @@ impl HasArena for AllArenas {
         let id = self.skip_trivias.borrow_mut().alloc(skip_trivia);
         id
     }
+
+    #[track_caller]
+    fn custom_transformer_factory_interface(&self, custom_transformer_factory_interface: Id<Box<dyn CustomTransformerFactoryInterface>>) -> Ref<Box<dyn CustomTransformerFactoryInterface>> {
+        Ref::map(self.custom_transformer_factory_interfaces.borrow(), |custom_transformer_factory_interfaces| &custom_transformer_factory_interfaces[custom_transformer_factory_interface])
+    }
+
+    fn alloc_custom_transformer_factory_interface(&self, custom_transformer_factory_interface: Box<dyn CustomTransformerFactoryInterface>) -> Id<Box<dyn CustomTransformerFactoryInterface>> {
+        let id = self.custom_transformer_factory_interfaces.borrow_mut().alloc(custom_transformer_factory_interface);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3523,6 +3542,14 @@ impl InArena for Id<Box<dyn SkipTrivia>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn SkipTrivia>> {
         has_arena.skip_trivia(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn CustomTransformerFactoryInterface>> {
+    type Item = Box<dyn CustomTransformerFactoryInterface>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CustomTransformerFactoryInterface>> {
+        has_arena.custom_transformer_factory_interface(*self)
     }
 }
 

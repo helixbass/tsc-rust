@@ -268,7 +268,7 @@ impl TransformerFactoryInterface for WrapCustomTransformerFactory {
                 self.handle_default.ref_(self).call(context, custom_transformer)
             }
             TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
-                let custom_transformer = transformer.call(context);
+                let custom_transformer = transformer.ref_(self).call(context);
                 wrap_custom_transformer(custom_transformer, self)
             }
         }
