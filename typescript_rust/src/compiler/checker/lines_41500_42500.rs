@@ -204,7 +204,7 @@ impl TypeChecker {
             .get(&node_id)
             .cloned()
             .map_or(NodeCheckFlags::None, |node_links| {
-                (*node_links).borrow().flags
+                node_links.ref_(self).flags
             })
     }
 
@@ -213,8 +213,8 @@ impl TypeChecker {
         node: Id<Node>, /*EnumMember*/
     ) -> io::Result<Option<StringOrNumber>> {
         self.compute_enum_member_values(node.ref_(self).parent())?;
-        let ret = (*self.get_node_links(node))
-            .borrow()
+        let ret = self.get_node_links(node)
+            .ref_(self)
             .enum_member_value
             .clone();
         Ok(ret)
@@ -237,8 +237,8 @@ impl TypeChecker {
             return self.get_enum_member_value(node);
         }
 
-        let symbol = (*self.get_node_links(node))
-            .borrow()
+        let symbol = self.get_node_links(node)
+            .ref_(self)
             .resolved_symbol
             .clone();
         if let Some(symbol) = symbol.filter(|&symbol| {
@@ -501,8 +501,8 @@ impl TypeChecker {
         reference: Id<Node>, /*Identifier*/
         start_in_declaration_container: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let resolved_symbol = (*self.get_node_links(reference))
-            .borrow()
+        let resolved_symbol = self.get_node_links(reference)
+            .ref_(self)
             .resolved_symbol
             .clone();
         if resolved_symbol.is_some() {
@@ -814,16 +814,16 @@ impl TypeChecker {
         );
 
         self.get_symbol_links(self.undefined_symbol())
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .type_ = Some(self.undefined_widening_type());
         self.get_symbol_links(self.arguments_symbol())
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .type_ = self.get_global_type("IArguments", 0, true)?;
         self.get_symbol_links(self.unknown_symbol())
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .type_ = Some(self.error_type());
         self.get_symbol_links(self.global_this_symbol())
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .type_ = Some(
             self.alloc_type(
                 self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))

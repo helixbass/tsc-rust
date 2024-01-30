@@ -318,7 +318,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .ref_(self).borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(if is_rest_param {
                 self.create_array_type(union_param_type, None)
             } else {
@@ -337,14 +337,14 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .ref_(self).borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(rest_param_symbol_type.clone());
             if shorter == right {
                 rest_param_symbol
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .ref_(self).borrow_mut()
+                    .ref_mut(self)
                     .type_ = Some(self.instantiate_type(rest_param_symbol_type, mapper.clone())?);
             }
             params.push(rest_param_symbol);
@@ -799,7 +799,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_computed_property_name = node_ref.as_computed_property_name();
         let links = self.get_node_links(node_as_computed_property_name.expression);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             if (is_type_literal_node(&node.ref_(self).parent().ref_(self).parent().ref_(self))
                 || maybe_is_class_like(node.ref_(self).parent().ref_(self).maybe_parent().refed(self).as_deref())
                 || is_interface_declaration(&node.ref_(self).parent().ref_(self).parent().ref_(self)))
@@ -812,12 +812,12 @@ impl TypeChecker {
                     == SyntaxKind::InKeyword
             {
                 let ret = self.error_type();
-                links.borrow_mut().resolved_type = Some(ret.clone());
+                links.ref_mut(self).resolved_type = Some(ret.clone());
                 return Ok(ret);
             }
             let links_resolved_type =
                 self.check_expression(node_as_computed_property_name.expression, None, None)?;
-            links.borrow_mut().resolved_type = Some(links_resolved_type.clone());
+            links.ref_mut(self).resolved_type = Some(links_resolved_type.clone());
             if is_property_declaration(&node.ref_(self).parent().ref_(self))
                 && !has_static_modifier(node.ref_(self).parent(), self)
                 && is_class_expression(&node.ref_(self).parent().ref_(self).parent().ref_(self))
@@ -829,12 +829,12 @@ impl TypeChecker {
                 if let Some(enclosing_iteration_statement) = enclosing_iteration_statement
                 {
                     self.get_node_links(enclosing_iteration_statement)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
-                    self.get_node_links(node).borrow_mut().flags |=
+                    self.get_node_links(node).ref_mut(self).flags |=
                         NodeCheckFlags::BlockScopedBindingInLoop;
                     self.get_node_links(node.ref_(self).parent().ref_(self).parent())
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
                 }
             }
@@ -857,7 +857,7 @@ impl TypeChecker {
             }
         }
 
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -936,13 +936,13 @@ impl TypeChecker {
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().immediate_target.is_none() {
+        if links.ref_(self).immediate_target.is_none() {
             let node = debug_fail_if_none!(self.get_declaration_of_alias_symbol(symbol)?);
-            links.ref_(self).borrow_mut().immediate_target =
+            links.ref_mut(self).immediate_target =
                 self.get_target_of_alias_declaration(node, Some(true))?;
         }
 
-        let ret = (*links.ref_(self)).borrow().immediate_target.clone();
+        let ret = links.ref_(self).immediate_target.clone();
         Ok(ret)
     }
 
@@ -1101,7 +1101,7 @@ impl TypeChecker {
                     prop.ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .ref_(self).borrow_mut()
+                        .ref_mut(self)
                         .name_type = Some(name_type.clone());
                 }
 
@@ -1176,8 +1176,7 @@ impl TypeChecker {
 
                 {
                     let prop_links = prop.ref_(self).as_transient_symbol().symbol_links();
-                    let prop_links_ref = prop_links.ref_(self);
-                    let mut prop_links = prop_links_ref.borrow_mut();
+                    let mut prop_links = prop_links.ref_mut(self);
                     prop_links.type_ = Some(type_);
                     prop_links.target = Some(member_present.clone());
                 }

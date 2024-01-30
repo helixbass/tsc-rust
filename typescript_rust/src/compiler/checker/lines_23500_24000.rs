@@ -100,8 +100,8 @@ impl TypeChecker {
                 return Ok(
                     self.is_constant_reference(node.ref_(self).as_has_expression().expression())?
                         && self.is_readonly_symbol(
-                            (*self.get_node_links(node))
-                                .borrow()
+                            self.get_node_links(node)
+                                .ref_(self)
                                 .resolved_symbol
                                 .clone()
                                 .unwrap_or_else(|| self.unknown_symbol()),

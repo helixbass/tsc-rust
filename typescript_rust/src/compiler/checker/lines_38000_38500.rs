@@ -674,8 +674,8 @@ impl TypeChecker {
         }
 
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().type_parameters_checked != Some(true) {
-            links.ref_(self).borrow_mut().type_parameters_checked = Some(true);
+        if links.ref_(self).type_parameters_checked != Some(true) {
+            links.ref_mut(self).type_parameters_checked = Some(true);
             let declarations = self.get_class_or_interface_declarations_of_symbol(symbol);
             if match declarations.as_ref() {
                 None => true,

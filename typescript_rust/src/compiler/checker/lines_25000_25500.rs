@@ -123,14 +123,14 @@ impl TypeChecker {
                             .get_part_of_for_statement_containing_node(node.ref_(self).parent(), container);
                         if let Some(part) = part {
                             let links = self.get_node_links(part);
-                            links.borrow_mut().flags |=
+                            links.ref_mut(self).flags |=
                                 NodeCheckFlags::ContainsCapturedBlockScopedBinding;
 
-                            if (*links).borrow().captured_block_scope_bindings.is_none() {
-                                links.borrow_mut().captured_block_scope_bindings = Some(vec![]);
+                            if links.ref_(self).captured_block_scope_bindings.is_none() {
+                                links.ref_mut(self).captured_block_scope_bindings = Some(vec![]);
                             }
                             {
-                                let mut links = links.borrow_mut();
+                                let mut links = links.ref_mut(self);
                                 let captured_bindings =
                                     links.captured_block_scope_bindings.as_mut().unwrap();
                                 push_if_unique_eq(captured_bindings, &symbol);
@@ -144,7 +144,7 @@ impl TypeChecker {
                 }
                 if captures_block_scope_binding_in_loop_body {
                     self.get_node_links(enclosing_iteration_statement)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
                 }
             }
@@ -161,19 +161,19 @@ impl TypeChecker {
                         && self.is_assigned_in_body_of_for_statement(node, container)
                 ) {
                     self.get_node_links(symbol_value_declaration)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::NeedsLoopOutParameter;
                 }
             }
 
             self.get_node_links(symbol_value_declaration)
-                .borrow_mut()
+                .ref_mut(self)
                 .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
         }
 
         if is_captured {
             self.get_node_links(symbol_value_declaration)
-                .borrow_mut()
+                .ref_mut(self)
                 .flags |= NodeCheckFlags::CapturedBlockScopedBinding;
         }
     }
@@ -186,7 +186,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         /* !!links &&*/
         let ret = contains(
-            (*links).borrow().captured_block_scope_bindings.as_deref(),
+            links.ref_(self).captured_block_scope_bindings.as_deref(),
             &self.get_symbol_of_node(decl)?.unwrap(),
         );
         Ok(ret)
@@ -233,15 +233,15 @@ impl TypeChecker {
     }
 
     pub(super) fn capture_lexical_this(&self, node: Id<Node>, container: Id<Node>) {
-        self.get_node_links(node).borrow_mut().flags |= NodeCheckFlags::LexicalThis;
+        self.get_node_links(node).ref_mut(self).flags |= NodeCheckFlags::LexicalThis;
         if matches!(
             container.ref_(self).kind(),
             SyntaxKind::PropertyDeclaration | SyntaxKind::Constructor
         ) {
             let class_node = container.ref_(self).parent();
-            self.get_node_links(class_node).borrow_mut().flags |= NodeCheckFlags::CaptureThis;
+            self.get_node_links(class_node).ref_mut(self).flags |= NodeCheckFlags::CaptureThis;
         } else {
-            self.get_node_links(container).borrow_mut().flags |= NodeCheckFlags::CaptureThis;
+            self.get_node_links(container).ref_mut(self).flags |= NodeCheckFlags::CaptureThis;
         }
     }
 
@@ -817,7 +817,7 @@ impl TypeChecker {
             {
                 for_each_enclosing_block_scope_container(node.ref_(self).parent(), |current: Id<Node>| {
                     if !is_source_file(&current.ref_(self)) || is_external_or_common_js_module(&current.ref_(self)) {
-                        self.get_node_links(current).borrow_mut().flags |=
+                        self.get_node_links(current).ref_mut(self).flags |=
                             NodeCheckFlags::ContainsSuperPropertyInStaticInitializer;
                     }
                 }, self);
@@ -826,17 +826,17 @@ impl TypeChecker {
             node_check_flag = NodeCheckFlags::SuperInstance;
         }
 
-        self.get_node_links(node).borrow_mut().flags |= node_check_flag;
+        self.get_node_links(node).ref_mut(self).flags |= node_check_flag;
 
         let container = container.unwrap();
         if container.ref_(self).kind() == SyntaxKind::MethodDeclaration
             && has_syntactic_modifier(container, ModifierFlags::Async, self)
         {
             if is_super_property(node.ref_(self).parent(), self) && is_assignment_target(node.ref_(self).parent(), self) {
-                self.get_node_links(container).borrow_mut().flags |=
+                self.get_node_links(container).ref_mut(self).flags |=
                     NodeCheckFlags::AsyncMethodWithSuperBinding;
             } else {
-                self.get_node_links(container).borrow_mut().flags |=
+                self.get_node_links(container).ref_mut(self).flags |=
                     NodeCheckFlags::AsyncMethodWithSuper;
             }
         }

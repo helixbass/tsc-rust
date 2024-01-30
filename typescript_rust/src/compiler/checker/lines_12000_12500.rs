@@ -245,8 +245,7 @@ impl TypeChecker {
                         .and_then(|symbol| symbol.ref_(self).maybe_parent()),
                 );
                 let clone_symbol_links = clone.ref_(self).as_transient_symbol().symbol_links();
-                let clone_symbol_links_ref = clone_symbol_links.ref_(self);
-                let mut clone_symbol_links = clone_symbol_links_ref.borrow_mut();
+                let mut clone_symbol_links = clone_symbol_links.ref_mut(self);
                 clone_symbol_links.containing_type = Some(containing_type);
                 clone_symbol_links.mapper = single_prop
                     .ref_(self)
@@ -315,8 +314,7 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let result_links_ref = result_links.ref_(self);
-        let mut result_links = result_links_ref.borrow_mut();
+        let mut result_links = result_links.ref_mut(self);
         result_links.containing_type = Some(containing_type);
         if !has_non_uniform_value_declaration {
             if let Some(first_value_declaration) = first_value_declaration {

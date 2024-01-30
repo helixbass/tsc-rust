@@ -57,7 +57,7 @@ impl TypeChecker {
                 ) {
                     let links = self.get_node_links(node);
                     if let Some(links_context_free_type) =
-                        (*links).borrow().context_free_type.clone()
+                        links.ref_(self).context_free_type.clone()
                     {
                         return Ok(links_context_free_type);
                     }
@@ -89,7 +89,7 @@ impl TypeChecker {
                                 .object_flags()
                                 | ObjectFlags::NonInferrableType,
                         );
-                    links.borrow_mut().context_free_type = Some(return_only_type.clone());
+                    links.ref_mut(self).context_free_type = Some(return_only_type.clone());
                     return Ok(return_only_type);
                 }
             }
@@ -112,18 +112,18 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<()> {
         let links = self.get_node_links(node);
-        if !(*links)
-            .borrow()
+        if !links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::ContextChecked)
         {
             let contextual_signature = self.get_contextual_signature(node)?;
-            if !(*links)
-                .borrow()
+            if !links
+                .ref_(self)
                 .flags
                 .intersects(NodeCheckFlags::ContextChecked)
             {
-                links.borrow_mut().flags |= NodeCheckFlags::ContextChecked;
+                links.ref_mut(self).flags |= NodeCheckFlags::ContextChecked;
                 let signatures_of_type = self.get_signatures_of_type(
                     self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?,
                     SignatureKind::Call,
@@ -396,8 +396,8 @@ impl TypeChecker {
         if is_access_expression(&expr.ref_(self)) {
             let node = skip_parentheses(expr.ref_(self).as_has_expression().expression(), None, self);
             if node.ref_(self).kind() == SyntaxKind::Identifier {
-                let symbol = (*self.get_node_links(node))
-                    .borrow()
+                let symbol = self.get_node_links(node)
+                    .ref_(self)
                     .resolved_symbol
                     .clone()
                     .unwrap();
@@ -461,7 +461,7 @@ impl TypeChecker {
             );
         }
         let links = self.get_node_links(expr);
-        let resolved_symbol = (*links).borrow().resolved_symbol.clone();
+        let resolved_symbol = links.ref_(self).resolved_symbol.clone();
         let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved_symbol);
         if let Some(symbol) = symbol {
             if self.is_readonly_symbol(symbol)? {
@@ -958,8 +958,8 @@ impl TypeChecker {
             if self.language_version < ScriptTarget::ESNext {
                 self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn)?;
             }
-            if (*self.get_node_links(left))
-                .borrow()
+            if self.get_node_links(left)
+                .ref_(self)
                 .resolved_symbol
                 .is_none()
                 && get_containing_class(left, self).is_some()

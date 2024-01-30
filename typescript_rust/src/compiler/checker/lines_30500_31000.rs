@@ -347,7 +347,7 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .type_ = Some(result);
         Ok(self.alloc_signature(self.create_signature(
             Some(declaration),
@@ -515,20 +515,20 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Signature>> {
         let links = self.get_node_links(node);
-        let cached = (*links).borrow().resolved_signature.clone();
+        let cached = links.ref_(self).resolved_signature.clone();
         if let Some(cached) = cached.filter(|&cached| {
             cached != self.resolving_signature() && candidates_out_array.is_none()
         }) {
             return Ok(cached.clone());
         }
-        links.borrow_mut().resolved_signature = Some(self.resolving_signature());
+        links.ref_mut(self).resolved_signature = Some(self.resolving_signature());
         let result = self.resolve_signature(
             node,
             candidates_out_array,
             check_mode.unwrap_or(CheckMode::Normal),
         )?;
         if result != self.resolving_signature() {
-            links.borrow_mut().resolved_signature =
+            links.ref_mut(self).resolved_signature =
                 if self.flow_loop_start() == self.flow_loop_count() {
                     Some(result.clone())
                 } else {
@@ -631,8 +631,7 @@ impl TypeChecker {
                 )?;
             }
             {
-                let links_ref = links.ref_(self);
-                let mut links = links_ref.borrow_mut();
+                let mut links = links.ref_mut(self);
                 if links.inferred_class_symbol.is_none() {
                     links.inferred_class_symbol = Some(HashMap::new());
                 }

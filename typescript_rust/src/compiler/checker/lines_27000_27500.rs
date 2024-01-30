@@ -309,8 +309,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links();
-                    let attribute_symbol_links_ref = attribute_symbol_links.ref_(self);
-                    let mut attribute_symbol_links = attribute_symbol_links_ref.borrow_mut();
+                    let mut attribute_symbol_links = attribute_symbol_links.ref_mut(self);
                     attribute_symbol_links.type_ = Some(expr_type.clone());
                     attribute_symbol_links.target = Some(member.clone());
                 }
@@ -461,7 +460,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .ref_(self).borrow_mut()
+                        .ref_mut(self)
                         .type_ = Some(if children_types.len() == 1 {
                         children_types[0].clone()
                     } else if matches!(
@@ -668,7 +667,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let node_ref = node.ref_(self);
         let node_as_has_tag_name = node_ref.as_has_tag_name();
-        if (*links).borrow().resolved_symbol.is_none() {
+        if links.ref_(self).resolved_symbol.is_none() {
             let intrinsic_elements_type =
                 self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?;
             if !self.is_error_type(intrinsic_elements_type) {
@@ -681,16 +680,16 @@ impl TypeChecker {
                     None,
                 )?;
                 if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
-                    links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicNamedElement;
-                    links.borrow_mut().resolved_symbol = Some(intrinsic_prop.clone());
+                    links.ref_mut(self).jsx_flags |= JsxFlags::IntrinsicNamedElement;
+                    links.ref_mut(self).resolved_symbol = Some(intrinsic_prop.clone());
                     return Ok(intrinsic_prop.clone());
                 }
 
                 let index_signature_type =
                     self.get_index_type_of_type_(intrinsic_elements_type, self.string_type())?;
                 if index_signature_type.is_some() {
-                    links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
-                    links.borrow_mut().resolved_symbol =
+                    links.ref_mut(self).jsx_flags |= JsxFlags::IntrinsicIndexedElement;
+                    links.ref_mut(self).resolved_symbol =
                         Some(intrinsic_elements_type.ref_(self).symbol());
                     return Ok(intrinsic_elements_type.ref_(self).symbol());
                 }
@@ -704,7 +703,7 @@ impl TypeChecker {
                     ]),
                 );
                 let ret = self.unknown_symbol();
-                links.borrow_mut().resolved_symbol = Some(ret.clone());
+                links.ref_mut(self).resolved_symbol = Some(ret.clone());
                 return Ok(ret);
             } else {
                 if self.no_implicit_any {
@@ -717,11 +716,11 @@ impl TypeChecker {
                     );
                 }
                 let ret = self.unknown_symbol();
-                links.borrow_mut().resolved_symbol = Some(ret.clone());
+                links.ref_mut(self).resolved_symbol = Some(ret.clone());
                 return Ok(ret);
             }
         }
-        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        let ret = links.ref_(self).resolved_symbol.clone().unwrap();
         Ok(ret)
     }
 
@@ -733,17 +732,16 @@ impl TypeChecker {
             .and_then(|location| maybe_get_source_file_of_node(Some(location), self));
         let links = file.map(|file| self.get_node_links(file));
         if matches!(
-            links.as_ref(),
+            links,
             Some(links) if matches!(
-                (**links).borrow().jsx_implicit_import_container,
+                links.ref_(self).jsx_implicit_import_container,
                 Some(None)
             )
         ) {
             return Ok(None);
         }
         if let Some(Some(links_jsx_implicit_import_container)) = links
-            .as_ref()
-            .and_then(|links| (**links).borrow().jsx_implicit_import_container.clone())
+            .and_then(|links| links.ref_(self).jsx_implicit_import_container.clone())
         {
             return Ok(Some(links_jsx_implicit_import_container));
         }
@@ -776,8 +774,8 @@ impl TypeChecker {
                     .unwrap())
             },
         )?;
-        if let Some(links) = links.as_ref() {
-            links.borrow_mut().jsx_implicit_import_container = Some(result.clone());
+        if let Some(links) = links {
+            links.ref_mut(self).jsx_implicit_import_container = Some(result.clone());
         }
         Ok(result)
     }
@@ -789,14 +787,12 @@ impl TypeChecker {
         let links = location
             .map(|location| self.get_node_links(location));
         if let Some(Some(links_jsx_namespace)) = links
-            .as_ref()
-            .and_then(|links| (**links).borrow().jsx_namespace.clone())
+            .and_then(|links| links.ref_(self).jsx_namespace.clone())
         {
             return Ok(Some(links_jsx_namespace));
         }
         if match links
-            .as_ref()
-            .and_then(|links| (**links).borrow().jsx_namespace.clone())
+            .and_then(|links| links.ref_(self).jsx_namespace.clone())
         {
             None => true,
             Some(None) => false,
@@ -837,14 +833,14 @@ impl TypeChecker {
                 if let Some(candidate) =
                     candidate.filter(|&candidate| candidate != self.unknown_symbol())
                 {
-                    if let Some(links) = links.as_ref() {
-                        links.borrow_mut().jsx_namespace = Some(Some(candidate.clone()));
+                    if let Some(links) = links {
+                        links.ref_mut(self).jsx_namespace = Some(Some(candidate.clone()));
                     }
                     return Ok(Some(candidate.clone()));
                 }
             }
-            if let Some(links) = links.as_ref() {
-                links.borrow_mut().jsx_namespace = Some(None);
+            if let Some(links) = links {
+                links.ref_mut(self).jsx_namespace = Some(None);
             }
         }
         let s = self.resolve_symbol(

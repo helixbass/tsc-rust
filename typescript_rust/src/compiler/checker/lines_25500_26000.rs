@@ -237,8 +237,8 @@ impl TypeChecker {
                 )?));
             }
             let links = self.get_node_links(iife);
-            let cached = (*links).borrow().resolved_signature.clone();
-            links.borrow_mut().resolved_signature = Some(self.any_signature());
+            let cached = links.ref_(self).resolved_signature.clone();
+            links.ref_mut(self).resolved_signature = Some(self.any_signature());
             let type_ = if index_of_parameter < args.len() {
                 Some(self.get_widened_literal_type(self.check_expression(
                     args[index_of_parameter],
@@ -253,7 +253,7 @@ impl TypeChecker {
             } else {
                 Some(self.undefined_widening_type())
             };
-            links.borrow_mut().resolved_signature = cached;
+            links.ref_mut(self).resolved_signature = cached;
             return Ok(type_);
         }
         let contextual_signature = self.get_contextual_signature(func)?;
@@ -614,7 +614,7 @@ impl TypeChecker {
             });
         }
 
-        let signature = if (*self.get_node_links(call_target)).borrow().resolved_signature == Some(self.resolving_signature()) {
+        let signature = if self.get_node_links(call_target).ref_(self).resolved_signature == Some(self.resolving_signature()) {
             self.resolving_signature()
         } else {
             self.get_resolved_signature_(call_target, None, None)?

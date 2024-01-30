@@ -370,10 +370,10 @@ impl TypeChecker {
     pub(super) fn is_declaration_visible(&self, node: Id<Node>) -> bool {
         // if (node) {
         let links = self.get_node_links(node);
-        if (*links).borrow().is_visible.is_none() {
-            links.borrow_mut().is_visible = Some(self.determine_if_declaration_is_visible(node));
+        if links.ref_(self).is_visible.is_none() {
+            links.ref_mut(self).is_visible = Some(self.determine_if_declaration_is_visible(node));
         }
-        let ret = (*links).borrow().is_visible.unwrap();
+        let ret = links.ref_(self).is_visible.unwrap();
         ret
         // }
 
@@ -526,7 +526,7 @@ impl TypeChecker {
                 .get_any_import_syntax(declaration)
                 .unwrap_or(declaration);
             if set_visibility {
-                self.get_node_links(declaration).borrow_mut().is_visible = Some(true);
+                self.get_node_links(declaration).ref_mut(self).is_visible = Some(true);
             } else {
                 let mut result = result.borrow_mut();
                 if result.is_none() {
@@ -624,12 +624,11 @@ impl TypeChecker {
                 .borrow()
                 .type_
                 .is_some(),
-            TypeSystemPropertyName::EnumTagType => (*self.get_node_links(target.as_node()))
-                .borrow()
+            TypeSystemPropertyName::EnumTagType => self.get_node_links(target.as_node())
+                .ref_(self)
                 .resolved_enum_type
                 .is_some(),
-            TypeSystemPropertyName::DeclaredType => (*self.get_symbol_links(target.as_symbol()).ref_(self))
-                .borrow()
+            TypeSystemPropertyName::DeclaredType => self.get_symbol_links(target.as_symbol()).ref_(self)
                 .declared_type
                 .is_some(),
             TypeSystemPropertyName::ResolvedBaseConstructorType => target

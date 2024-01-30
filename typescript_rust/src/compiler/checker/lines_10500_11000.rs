@@ -99,7 +99,7 @@ impl TypeChecker {
             .ref_(self)
             .set_flags(symbol.ref_(self).flags() | symbol_flags);
         self.get_symbol_links(member.ref_(self).symbol())
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .late_symbol = Some(symbol);
         if symbol.ref_(self).maybe_declarations().is_none() {
             symbol
@@ -137,8 +137,8 @@ impl TypeChecker {
             Some("The member is expected to have a symbol."),
         );
         let links = self.get_node_links(decl);
-        if (*links).borrow().resolved_symbol.is_none() {
-            links.borrow_mut().resolved_symbol = decl.ref_(self).maybe_symbol();
+        if links.ref_(self).resolved_symbol.is_none() {
+            links.ref_mut(self).resolved_symbol = decl.ref_(self).maybe_symbol();
             let decl_name = if is_binary_expression(&decl.ref_(self)) {
                 decl.ref_(self).as_binary_expression().left
             } else {
@@ -223,7 +223,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .ref_(self).borrow_mut()
+                    .ref_mut(self)
                     .name_type = Some(type_);
                 self.add_declaration_to_late_bound_symbol(late_symbol, decl, symbol_flags);
                 if let Some(late_symbol_parent) = late_symbol.ref_(self).maybe_parent() {
@@ -234,11 +234,11 @@ impl TypeChecker {
                 } else {
                     late_symbol.ref_(self).set_parent(Some(parent));
                 }
-                links.borrow_mut().resolved_symbol = Some(late_symbol.clone());
+                links.ref_mut(self).resolved_symbol = Some(late_symbol.clone());
                 return Ok(late_symbol);
             }
         }
-        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        let ret = links.ref_(self).resolved_symbol.clone().unwrap();
         Ok(ret)
     }
 
@@ -362,10 +362,10 @@ impl TypeChecker {
     ) {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
-                symbol_links.ref_(self).borrow_mut().resolved_exports = value;
+                symbol_links.ref_mut(self).resolved_exports = value;
             }
             MembersOrExportsResolutionKind::resolved_members => {
-                symbol_links.ref_(self).borrow_mut().resolved_members = value;
+                symbol_links.ref_mut(self).resolved_members = value;
             }
         }
     }
@@ -403,7 +403,7 @@ impl TypeChecker {
         {
             let links = self.get_symbol_links(symbol);
             if {
-                let value = (*links.ref_(self)).borrow().late_symbol.is_none();
+                let value = links.ref_(self).late_symbol.is_none();
                 value
             } && try_some(
                 symbol.ref_(self).maybe_declarations().as_deref(),
@@ -421,8 +421,7 @@ impl TypeChecker {
                     self.get_members_of_symbol(parent)?;
                 }
             }
-            let links_ref = links.ref_(self);
-            let mut links = links_ref.borrow_mut();
+            let mut links = links.ref_mut(self);
             if links.late_symbol.is_none() {
                 links.late_symbol = Some(symbol);
             }
@@ -886,7 +885,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .ref_(self).borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(if flags.intersects(ElementFlags::Rest) {
                 self.create_array_type(t, None)
             } else {

@@ -1247,7 +1247,7 @@ impl NodeBuilder {
                 .clone(),
             );
             links
-                .ref_(self).borrow_mut()
+                .ref_mut(self)
                 .specifier_cache
                 .get_or_insert_default_()
                 .insert(

@@ -62,8 +62,8 @@ impl TypeChecker {
         mut symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let mut links = self.get_symbol_links(symbol);
-        let original_links = links.clone();
-        if (*links.ref_(self)).borrow().type_.is_none() {
+        let original_links = links;
+        if links.ref_(self).type_.is_none() {
             let expando =
                 symbol
                     .ref_(self)
@@ -79,10 +79,10 @@ impl TypeChecker {
                 }
             }
             let type_ = self.get_type_of_func_class_enum_module_worker(symbol)?;
-            original_links.ref_(self).borrow_mut().type_ = Some(type_.clone());
-            links.ref_(self).borrow_mut().type_ = Some(type_);
+            original_links.ref_mut(self).type_ = Some(type_);
+            links.ref_mut(self).type_ = Some(type_);
         }
-        let ret = (*links.ref_(self)).borrow().type_.clone().unwrap();
+        let ret = links.ref_(self).type_.unwrap();
         Ok(ret)
     }
 
@@ -172,17 +172,17 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_enum_member(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_type) = (*links.ref_(self)).borrow().type_.clone() {
+        if let Some(links_type) = links.ref_(self).type_ {
             return Ok(links_type);
         }
         let ret = self.get_declared_type_of_enum_member(symbol)?;
-        links.ref_(self).borrow_mut().type_ = Some(ret.clone());
+        links.ref_mut(self).type_ = Some(ret.clone());
         Ok(ret)
     }
 
     pub(super) fn get_type_of_alias(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().type_.is_none() {
+        if links.ref_(self).type_.is_none() {
             let target_symbol = self.resolve_alias(symbol)?;
             let export_symbol = symbol
                 .ref_(self)
@@ -206,7 +206,7 @@ impl TypeChecker {
                     },
                 )
             })?;
-            links.ref_(self).borrow_mut().type_ = Some(
+            links.ref_mut(self).type_ = Some(
                 if let Some(export_symbol) = export_symbol.filter(|&export_symbol| {
                     matches!(
                         export_symbol.ref_(self).maybe_declarations().as_deref(),
@@ -225,7 +225,7 @@ impl TypeChecker {
                 }
             );
         }
-        let ret = (*links.ref_(self)).borrow().type_.clone().unwrap();
+        let ret = links.ref_(self).type_.unwrap();
         Ok(ret)
     }
 
@@ -234,9 +234,9 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().type_.is_none() {
+        if links.ref_(self).type_.is_none() {
             if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
-                links.ref_(self).borrow_mut().type_ = Some(self.error_type());
+                links.ref_mut(self).type_ = Some(self.error_type());
                 return Ok(self.error_type());
             }
             let mut type_ = self.instantiate_type(
@@ -252,9 +252,9 @@ impl TypeChecker {
             if !self.pop_type_resolution() {
                 type_ = self.report_circularity_error(symbol)?;
             }
-            links.ref_(self).borrow_mut().type_ = Some(type_);
+            links.ref_mut(self).type_ = Some(type_);
         }
-        let ret = (*links.ref_(self)).borrow().type_.clone().unwrap();
+        let ret = links.ref_(self).type_.clone().unwrap();
         Ok(ret)
     }
 
@@ -297,8 +297,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        let links_ref = links.ref_(self);
-        let mut links = links_ref.borrow_mut();
+        let mut links = links.ref_mut(self);
         if links.type_.is_none() {
             Debug_.assert_is_defined(&links.deferral_parent.as_ref(), None);
             Debug_.assert_is_defined(&links.deferral_constituents.as_ref(), None);

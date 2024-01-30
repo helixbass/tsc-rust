@@ -886,7 +886,7 @@ impl TypeChecker {
             let mut lexical_scope = get_enclosing_block_scope_container(node, self);
             while let Some(lexical_scope_present) = lexical_scope {
                 self.get_node_links(lexical_scope_present)
-                    .borrow_mut()
+                    .ref_mut(self)
                     .flags |= NodeCheckFlags::ContainsClassWithPrivateIdentifiers;
                 lexical_scope = get_enclosing_block_scope_container(lexical_scope_present, self);
             }
@@ -897,10 +897,10 @@ impl TypeChecker {
                 if let Some(enclosing_iteration_statement) = enclosing_iteration_statement
                 {
                     self.get_node_links(node_as_named_declaration.name())
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
                     self.get_node_links(enclosing_iteration_statement)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
                 }
             }

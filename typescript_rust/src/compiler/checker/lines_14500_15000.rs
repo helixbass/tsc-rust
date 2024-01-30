@@ -456,9 +456,9 @@ impl TypeChecker {
         node: Id<Node>, /*IntersectionTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            links.borrow_mut().resolved_type = Some(
+            links.ref_mut(self).resolved_type = Some(
                 self.get_intersection_type(
                     &try_map(
                         &*node.ref_(self).as_intersection_type_node().types.ref_(self),
@@ -470,7 +470,7 @@ impl TypeChecker {
                 )?,
             );
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -931,19 +931,19 @@ impl TypeChecker {
         node: Id<Node>, /*TypeOperatorNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_type_operator_node = node_ref.as_type_operator_node();
             match node_as_type_operator_node.operator {
                 SyntaxKind::KeyOfKeyword => {
-                    links.borrow_mut().resolved_type = Some(self.get_index_type(
+                    links.ref_mut(self).resolved_type = Some(self.get_index_type(
                         self.get_type_from_type_node_(node_as_type_operator_node.type_)?,
                         None,
                         None,
                     )?);
                 }
                 SyntaxKind::UniqueKeyword => {
-                    links.borrow_mut().resolved_type = Some(
+                    links.ref_mut(self).resolved_type = Some(
                         if node_as_type_operator_node.type_.ref_(self).kind() == SyntaxKind::SymbolKeyword {
                             self.get_es_symbol_like_type_for_node(
                                 walk_up_parenthesized_types(node.ref_(self).parent(), self).unwrap(),
@@ -954,7 +954,7 @@ impl TypeChecker {
                     );
                 }
                 SyntaxKind::ReadonlyKeyword => {
-                    links.borrow_mut().resolved_type =
+                    links.ref_mut(self).resolved_type =
                         Some(self.get_type_from_type_node_(node_as_type_operator_node.type_)?);
                 }
                 _ => {
@@ -962,7 +962,7 @@ impl TypeChecker {
                 }
             }
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -971,7 +971,7 @@ impl TypeChecker {
         node: Id<Node>, /*TemplateLiteralTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_template_literal_type_node = node_ref.as_template_literal_type_node();
             let mut texts = vec![node_as_template_literal_type_node
@@ -992,7 +992,7 @@ impl TypeChecker {
                 )
                 .into_iter(),
             );
-            links.borrow_mut().resolved_type = Some(self.get_template_literal_type(
+            links.ref_mut(self).resolved_type = Some(self.get_template_literal_type(
                 &texts,
                 &try_map(
                     &*node_as_template_literal_type_node.template_spans.ref_(self),
@@ -1002,7 +1002,7 @@ impl TypeChecker {
                 )?,
             )?);
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 

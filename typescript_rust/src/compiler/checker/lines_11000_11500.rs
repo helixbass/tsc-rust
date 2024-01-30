@@ -119,7 +119,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .ref_(self).borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(if is_rest_param {
                 self.create_array_type(union_param_type, None)
             } else {
@@ -136,7 +136,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .ref_(self).borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(
                 self.create_array_type(self.get_type_at_position(shorter, longest_count)?, None),
             );
@@ -154,7 +154,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .ref_(self).borrow_mut()
+                    .ref_mut(self)
                     .type_ = type_;
             }
             params.push(rest_param_symbol);
@@ -784,8 +784,8 @@ impl TypeChecker {
             if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
                 inferred_prop.set_declarations(prop_declarations);
             }
-            inferred_prop.symbol_links().ref_(self).borrow_mut().name_type =
-                (*self.get_symbol_links(prop).ref_(self)).borrow().name_type.clone();
+            inferred_prop.symbol_links().ref_mut(self).name_type =
+                self.get_symbol_links(prop).ref_(self).name_type;
             let property_type = self.get_type_of_symbol(prop)?;
             let mapped_type: Id<Type>;
             let constraint_type: Id<Type>;
@@ -1123,7 +1123,7 @@ impl TypeChecker {
                     .unwrap();
                 existing_prop_as_mapped_symbol
                     .symbol_links()
-                    .ref_(self).borrow_mut()
+                    .ref_mut(self)
                     .name_type = Some(self.get_union_type(
                     &[existing_prop_name_type, prop_name_type],
                     None,
@@ -1199,11 +1199,11 @@ impl TypeChecker {
                 let prop = self.alloc_symbol(prop.into_mapped_symbol(type_, key_type).into());
                 let prop_ref = prop.ref_(self);
                 let prop_as_mapped_symbol = prop_ref.as_mapped_symbol();
-                prop_as_mapped_symbol.symbol_links().ref_(self).borrow_mut().name_type = Some(prop_name_type);
+                prop_as_mapped_symbol.symbol_links().ref_mut(self).name_type = Some(prop_name_type);
                 if let Some(modifiers_prop) = modifiers_prop {
                     prop_as_mapped_symbol
                         .symbol_links()
-                        .ref_(self).borrow_mut()
+                        .ref_mut(self)
                         .synthetic_origin = Some(modifiers_prop.clone());
                     let declarations = if name_type.is_some() {
                         None
@@ -1313,10 +1313,9 @@ impl TypeChecker {
                 );
                 type_ = self.error_type();
             }
-            symbol_as_mapped_symbol.symbol_links().ref_(self).borrow_mut().type_ = Some(type_);
+            symbol_as_mapped_symbol.symbol_links().ref_mut(self).type_ = Some(type_);
         }
-        Ok((*symbol_as_mapped_symbol.symbol_links().ref_(self))
-            .borrow()
+        Ok(symbol_as_mapped_symbol.symbol_links().ref_(self)
             .type_
             .clone()
             .unwrap())

@@ -295,16 +295,16 @@ impl TypeChecker {
         node: Id<Node>, /*EnumDeclaration*/
     ) -> io::Result<()> {
         let node_links = self.get_node_links(node);
-        if !(*node_links)
-            .borrow()
+        if !node_links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::EnumValuesComputed)
         {
-            node_links.borrow_mut().flags |= NodeCheckFlags::EnumValuesComputed;
+            node_links.ref_mut(self).flags |= NodeCheckFlags::EnumValuesComputed;
             let mut auto_value: Option<Number> = Some(Number::new(0.0));
             for &member in &*node.ref_(self).as_enum_declaration().members.ref_(self) {
                 let value = self.compute_member_value(member, auto_value)?;
-                self.get_node_links(member).borrow_mut().enum_member_value = value.clone();
+                self.get_node_links(member).ref_mut(self).enum_member_value = value.clone();
                 auto_value = if let Some(StringOrNumber::Number(value)) = value.as_ref() {
                     Some(*value + Number::new(1.0))
                 } else {
@@ -858,7 +858,7 @@ impl TypeChecker {
                         merged_class
                     )
                 ) {
-                    self.get_node_links(node).borrow_mut().flags |=
+                    self.get_node_links(node).ref_mut(self).flags |=
                         NodeCheckFlags::LexicalModuleMergesWithClass;
                 }
             }

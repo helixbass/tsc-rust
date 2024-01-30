@@ -504,8 +504,8 @@ impl TypeChecker {
             return Ok(None);
         }
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().accessible_chain_cache.is_none() {
-            links.ref_(self).borrow_mut().accessible_chain_cache = Some(HashMap::new());
+        if links.ref_(self).accessible_chain_cache.is_none() {
+            links.ref_mut(self).accessible_chain_cache = Some(HashMap::new());
         }
         let first_relevant_location = self
             .for_each_symbol_table_in_scope(enclosing_declaration, |_, _, _, node| node);
@@ -520,8 +520,7 @@ impl TypeChecker {
             meaning.bits()
         );
         {
-            let links_ref = links.ref_(self);
-            let mut links = (*links_ref).borrow_mut();
+            let mut links = links.ref_mut(self);
             let cache = links.accessible_chain_cache.as_mut().unwrap();
             if cache.contains_key(&key) {
                 return Ok(cache.get(&key).unwrap().clone());
@@ -549,8 +548,7 @@ impl TypeChecker {
                 )
             },
         )?;
-        (*links.ref_(self))
-            .borrow_mut()
+        links.ref_mut(self)
             .accessible_chain_cache
             .as_mut()
             .unwrap()

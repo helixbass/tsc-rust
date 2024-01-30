@@ -505,7 +505,7 @@ impl TypeChecker {
     pub(super) fn check_grammar_statement_in_ambient_context(&self, node: Id<Node>) -> bool {
         if node.ref_(self).flags().intersects(NodeFlags::Ambient) {
             let links = self.get_node_links(node);
-            if (*links).borrow().has_reported_statement_in_ambient_context != Some(true)
+            if links.ref_(self).has_reported_statement_in_ambient_context != Some(true)
                 && (is_function_like(node.ref_(self).maybe_parent().refed(self).as_deref()) || is_accessor(&node.ref_(self).parent().ref_(self)))
             {
                 let ret = self.grammar_error_on_first_token(
@@ -513,7 +513,7 @@ impl TypeChecker {
                     &Diagnostics::An_implementation_cannot_be_declared_in_ambient_contexts,
                     None,
                 );
-                links.borrow_mut().has_reported_statement_in_ambient_context = Some(ret);
+                links.ref_mut(self).has_reported_statement_in_ambient_context = Some(ret);
                 return ret;
             }
 
@@ -522,13 +522,13 @@ impl TypeChecker {
                 SyntaxKind::Block | SyntaxKind::ModuleBlock | SyntaxKind::SourceFile
             ) {
                 let links = self.get_node_links(node.ref_(self).parent());
-                if (*links).borrow().has_reported_statement_in_ambient_context != Some(true) {
+                if links.ref_(self).has_reported_statement_in_ambient_context != Some(true) {
                     let ret = self.grammar_error_on_first_token(
                         node,
                         &Diagnostics::Statements_are_not_allowed_in_ambient_contexts,
                         None,
                     );
-                    links.borrow_mut().has_reported_statement_in_ambient_context = Some(ret);
+                    links.ref_mut(self).has_reported_statement_in_ambient_context = Some(ret);
                     return ret;
                 }
             }

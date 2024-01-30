@@ -23,8 +23,8 @@ impl TypeChecker {
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_symbol.is_none() {
-            links.borrow_mut().resolved_symbol = Some(if !node_is_missing(Some(&node.ref_(self))) {
+        if links.ref_(self).resolved_symbol.is_none() {
+            links.ref_mut(self).resolved_symbol = Some(if !node_is_missing(Some(&node.ref_(self))) {
                 self.resolve_name_(
                     Some(node),
                     &node.ref_(self).as_identifier().escaped_text,
@@ -39,7 +39,7 @@ impl TypeChecker {
                 self.unknown_symbol()
             });
         }
-        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        let ret = links.ref_(self).resolved_symbol.clone().unwrap();
         Ok(ret)
     }
 
@@ -376,19 +376,17 @@ impl TypeChecker {
                     let prop_ref = prop.ref_(self);
                     let prop_as_transient_symbol = prop_ref.as_transient_symbol();
                     let prop_symbol_links = prop_as_transient_symbol.symbol_links();
-                    if (*prop_symbol_links.ref_(self))
-                        .borrow()
+                    if prop_symbol_links.ref_(self)
                         .is_discriminant_property
                         .is_none()
                     {
-                        prop_symbol_links.ref_(self).borrow_mut().is_discriminant_property = Some(
+                        prop_symbol_links.ref_mut(self).is_discriminant_property = Some(
                             prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
                                 == CheckFlags::Discriminant
                                 && !self.is_generic_type(self.get_type_of_symbol(prop)?)?,
                         );
                     }
-                    return Ok((*prop_symbol_links.ref_(self))
-                        .borrow()
+                    return Ok(prop_symbol_links.ref_(self)
                         .is_discriminant_property
                         .unwrap());
                 }

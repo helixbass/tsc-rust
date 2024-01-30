@@ -567,8 +567,8 @@ impl TypeChecker {
             Some(value_declaration) if is_binary_expression(&value_declaration.ref_(self))
         ) {
             let links = self.get_symbol_links(symbol);
-            if (*links.ref_(self)).borrow().is_constructor_declared_property.is_none() {
-                links.ref_(self).borrow_mut().is_constructor_declared_property = Some(false);
+            if links.ref_(self).is_constructor_declared_property.is_none() {
+                links.ref_mut(self).is_constructor_declared_property = Some(false);
                 let is_constructor_declared_property =
                     self.get_declaring_constructor(symbol)?.is_some()
                         && try_maybe_every(
@@ -598,10 +598,10 @@ impl TypeChecker {
                                         .is_none())
                             },
                         )?;
-                links.ref_(self).borrow_mut().is_constructor_declared_property =
+                links.ref_mut(self).is_constructor_declared_property =
                     Some(is_constructor_declared_property);
             }
-            return Ok((*links.ref_(self)).borrow().is_constructor_declared_property.unwrap());
+            return Ok(links.ref_(self).is_constructor_declared_property.unwrap());
         }
         Ok(false)
     }
@@ -1234,7 +1234,7 @@ impl TypeChecker {
                             .ref_(self)
                             .as_transient_symbol()
                             .symbol_links()
-                            .ref_(self).borrow_mut()
+                            .ref_mut(self)
                             .type_ = Some(self.get_union_type(
                             &[
                                 self.get_type_of_symbol(s)?,

@@ -88,7 +88,7 @@ impl TypeChecker {
         declaration: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
     ) -> io::Result<Id<Signature>> {
         let links = self.get_node_links(declaration);
-        if (*links).borrow().resolved_signature.is_none() {
+        if links.ref_(self).resolved_signature.is_none() {
             let mut parameters: Vec<Id<Symbol>> = vec![];
             let mut flags = SignatureFlags::None;
             let mut min_argument_count = 0;
@@ -235,9 +235,9 @@ impl TypeChecker {
                 min_argument_count,
                 flags,
             ));
-            links.borrow_mut().resolved_signature = Some(resolved_signature);
+            links.ref_mut(self).resolved_signature = Some(resolved_signature);
         }
-        let links = (*links).borrow();
+        let links = links.ref_(self);
         Ok(links.resolved_signature.clone().unwrap())
     }
 
@@ -278,7 +278,7 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .type_ = Some(
             if let Some(last_param_variadic_type) = last_param_variadic_type.as_ref() {
                 self.create_array_type(
@@ -333,9 +333,9 @@ impl TypeChecker {
         declaration: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         let links = self.get_node_links(declaration);
-        if (*links).borrow().contains_arguments_reference.is_none() {
-            let contains_arguments_reference = if (*links)
-                .borrow()
+        if links.ref_(self).contains_arguments_reference.is_none() {
+            let contains_arguments_reference = if links
+                .ref_(self)
                 .flags
                 .intersects(NodeCheckFlags::CaptureArguments)
             {
@@ -347,9 +347,9 @@ impl TypeChecker {
                         .and_then(|declaration| declaration.maybe_body()),
                 )?
             };
-            links.borrow_mut().contains_arguments_reference = Some(contains_arguments_reference);
+            links.ref_mut(self).contains_arguments_reference = Some(contains_arguments_reference);
         }
-        let ret = (*links).borrow().contains_arguments_reference.unwrap();
+        let ret = links.ref_(self).contains_arguments_reference.unwrap();
         Ok(ret)
     }
 

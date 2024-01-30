@@ -177,7 +177,7 @@ impl TypeChecker {
         aliasing_statement: Id<Node>, /*LateVisibilityPaintedStatement*/
     ) -> bool {
         if should_compute_aliases_to_make_visible {
-            self.get_node_links(declaration).borrow_mut().is_visible = Some(true);
+            self.get_node_links(declaration).ref_mut(self).is_visible = Some(true);
             let mut aliases_to_make_visible = aliases_to_make_visible.borrow_mut();
             if aliases_to_make_visible.is_none() {
                 *aliases_to_make_visible = Some(vec![]);

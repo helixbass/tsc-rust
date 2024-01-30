@@ -319,14 +319,14 @@ impl TypeChecker {
         }
 
         let links = self.get_node_links(priv_id);
-        if (*links).borrow().resolved_symbol.is_none() {
-            links.borrow_mut().resolved_symbol = self
+        if links.ref_(self).resolved_symbol.is_none() {
+            links.ref_mut(self).resolved_symbol = self
                 .lookup_symbol_for_private_identifier_declaration(
                     &priv_id.ref_(self).as_private_identifier().escaped_text,
                     priv_id,
                 );
         }
-        let ret = (*links).borrow().resolved_symbol.clone();
+        let ret = links.ref_(self).resolved_symbol.clone();
         ret
     }
 
@@ -466,10 +466,9 @@ impl TypeChecker {
         right: Id<Node>, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let parent_symbol = (*self.get_node_links(left))
-            .borrow()
-            .resolved_symbol
-            .clone();
+        let parent_symbol = self.get_node_links(left)
+            .ref_(self)
+            .resolved_symbol;
         let assignment_kind = get_assignment_target_kind(node, self);
         let apparent_type = self.get_apparent_type(
             if assignment_kind != AssignmentKind::None || self.is_method_access_for_call(node) {
@@ -749,7 +748,7 @@ impl TypeChecker {
                     Some(node),
                     self.is_self_type_access(left, parent_symbol)?,
                 );
-                self.get_node_links(node).borrow_mut().resolved_symbol = Some(prop.clone());
+                self.get_node_links(node).ref_mut(self).resolved_symbol = Some(prop.clone());
                 let writing = is_write_access(node, self);
                 self.check_property_accessibility(
                     node,

@@ -667,14 +667,14 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
+        if let Some(links_context_free_type) = links.ref_(self).context_free_type.clone() {
             return Ok(links_context_free_type);
         }
         let save_contextual_type = node.ref_(self).maybe_contextual_type().clone();
         *node.ref_(self).maybe_contextual_type() = Some(self.any_type());
         // try {
         let type_ = self.check_expression(node, Some(CheckMode::SkipContextSensitive), None)?;
-        links.borrow_mut().context_free_type = Some(type_.clone());
+        links.ref_mut(self).context_free_type = Some(type_.clone());
         // }
         // finally {
         *node.ref_(self).maybe_contextual_type() = save_contextual_type;

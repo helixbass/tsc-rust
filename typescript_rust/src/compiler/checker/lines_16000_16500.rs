@@ -66,8 +66,7 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let result_links_ref = result_links.ref_(self);
-        let mut result_links = result_links_ref.borrow_mut();
+        let mut result_links = result_links.ref_mut(self);
         result_links.type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
@@ -329,12 +328,12 @@ impl TypeChecker {
             return Ok(self.null_type());
         }
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
-            links.borrow_mut().resolved_type = Some(self.get_regular_type_of_literal_type(
+        if links.ref_(self).resolved_type.is_none() {
+            links.ref_mut(self).resolved_type = Some(self.get_regular_type_of_literal_type(
                 self.check_expression(node_as_literal_type_node.literal, None, None)?,
             ));
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -362,11 +361,11 @@ impl TypeChecker {
         if is_valid_es_symbol_declaration(node, self) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(symbol);
-            if (*links.ref_(self)).borrow().unique_es_symbol_type.is_none() {
-                links.ref_(self).borrow_mut().unique_es_symbol_type =
+            if links.ref_(self).unique_es_symbol_type.is_none() {
+                links.ref_mut(self).unique_es_symbol_type =
                     Some(self.create_unique_es_symbol_type(symbol));
             }
-            return Ok((*links.ref_(self)).borrow().unique_es_symbol_type.clone().unwrap());
+            return Ok(links.ref_(self).unique_es_symbol_type.clone().unwrap());
         }
         Ok(self.es_symbol_type())
     }
@@ -464,10 +463,10 @@ impl TypeChecker {
         node: Id<Node>, /*ThisExpression | ThisTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
-            links.borrow_mut().resolved_type = Some(self.get_this_type(node)?);
+        if links.ref_(self).resolved_type.is_none() {
+            links.ref_mut(self).resolved_type = Some(self.get_this_type(node)?);
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -520,10 +519,10 @@ impl TypeChecker {
         node: Id<Node>, /*NamedTupleMember*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_named_tuple_member = node_ref.as_named_tuple_member();
-            links.borrow_mut().resolved_type =
+            links.ref_mut(self).resolved_type =
                 Some(if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
                     self.get_type_from_rest_type_node(node)?
                 } else {
@@ -534,7 +533,7 @@ impl TypeChecker {
                     )?
                 });
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -1069,8 +1068,7 @@ impl TypeChecker {
         }
         result.set_parent(symbol.ref_(self).maybe_parent());
         let result_links = result.symbol_links();
-        let result_links_ref = result_links.ref_(self);
-        let mut result_links = result_links_ref.borrow_mut();
+        let mut result_links = result_links.ref_mut(self);
         result_links.target = Some(symbol.clone());
         result_links.mapper = Some(mapper);
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
@@ -1118,7 +1116,7 @@ impl TypeChecker {
             .object_flags()
             .intersects(ObjectFlags::Reference)
         {
-            (*links).borrow().resolved_type.clone().unwrap()
+            links.ref_(self).resolved_type.clone().unwrap()
         } else if type_
             .ref_(self)
             .as_object_type()
@@ -1129,7 +1127,7 @@ impl TypeChecker {
         } else {
             type_
         };
-        let mut type_parameters = (*links).borrow().outer_type_parameters.clone();
+        let mut type_parameters = links.ref_(self).outer_type_parameters.clone();
         if type_parameters.is_none() {
             let mut outer_type_parameters =
                 self.get_outer_type_parameters(declaration, Some(true))?;
@@ -1189,7 +1187,7 @@ impl TypeChecker {
             } else {
                 type_parameters
             };
-            links.borrow_mut().outer_type_parameters = type_parameters.clone();
+            links.ref_mut(self).outer_type_parameters = type_parameters.clone();
         }
         let type_parameters = type_parameters.unwrap();
         if !type_parameters.is_empty() {

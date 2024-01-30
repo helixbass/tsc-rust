@@ -1341,8 +1341,8 @@ impl NodeBuilder {
             ));
         }
         if is_literal_import_type_node(node, self) {
-            let node_symbol = (*self.type_checker.ref_(self).get_node_links(node))
-                .borrow()
+            let node_symbol = self.type_checker.ref_(self).get_node_links(node)
+                .ref_(self)
                 .resolved_symbol
                 .clone();
             let node_ref = node.ref_(self);

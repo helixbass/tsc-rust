@@ -539,7 +539,7 @@ impl TypeChecker {
                 let type_ = self.get_type_of_expression(location)?;
                 if matches!(
                     self.get_export_symbol_of_value_symbol_if_exported(
-                        (*self.get_node_links(location)).borrow().resolved_symbol.clone()
+                        self.get_node_links(location).ref_(self).resolved_symbol.clone()
                     ),
                     Some(export_symbol) if export_symbol == symbol
                 ) {
@@ -585,13 +585,13 @@ impl TypeChecker {
         let symbol_value_declaration = symbol_value_declaration.unwrap();
         let parent = get_root_declaration(symbol_value_declaration, self).ref_(self).parent();
         let links = self.get_node_links(parent);
-        if !(*links)
-            .borrow()
+        if !links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::AssignmentsMarked)
         {
             {
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 links.flags = links.flags | NodeCheckFlags::AssignmentsMarked;
             }
             if !self.has_parent_with_assignments_marked(parent) {
@@ -604,8 +604,8 @@ impl TypeChecker {
     pub(super) fn has_parent_with_assignments_marked(&self, node: Id<Node>) -> bool {
         find_ancestor(node.ref_(self).maybe_parent(), |node: Id<Node>| {
             (is_function_like(Some(&node.ref_(self))) || is_catch_clause(&node.ref_(self)))
-                && (*self.get_node_links(node))
-                    .borrow()
+                && self.get_node_links(node)
+                    .ref_(self)
                     .flags
                     .intersects(NodeCheckFlags::AssignmentsMarked)
         }, self)
@@ -852,7 +852,7 @@ impl TypeChecker {
                 }
             }
 
-            self.get_node_links(container).borrow_mut().flags |= NodeCheckFlags::CaptureArguments;
+            self.get_node_links(container).ref_mut(self).flags |= NodeCheckFlags::CaptureArguments;
             return self.get_type_of_symbol(symbol);
         }
 
@@ -912,9 +912,9 @@ impl TypeChecker {
                         if container_present == declaration
                             && container_present.ref_(self).as_class_like_declaration().maybe_name() != Some(node)
                         {
-                            self.get_node_links(declaration).borrow_mut().flags |=
+                            self.get_node_links(declaration).ref_mut(self).flags |=
                                 NodeCheckFlags::ClassWithConstructorReference;
-                            self.get_node_links(node).borrow_mut().flags |=
+                            self.get_node_links(node).ref_mut(self).flags |=
                                 NodeCheckFlags::ConstructorReferenceInClass;
                             break;
                         }
@@ -928,9 +928,9 @@ impl TypeChecker {
                             if is_property_declaration(&container.ref_(self)) && is_static(container, self)
                                 || is_class_static_block_declaration(&container.ref_(self))
                             {
-                                self.get_node_links(declaration).borrow_mut().flags |=
+                                self.get_node_links(declaration).ref_mut(self).flags |=
                                     NodeCheckFlags::ClassWithConstructorReference;
-                                self.get_node_links(node).borrow_mut().flags |=
+                                self.get_node_links(node).ref_mut(self).flags |=
                                     NodeCheckFlags::ConstructorReferenceInClass;
                             }
                             break;

@@ -349,15 +349,15 @@ impl NodeBuilder {
             self.type_checker.ref_(self).get_type_id(type_),
             context.flags().bits()
         );
-        if let Some(links) = links.as_ref() {
-            let mut links = links.borrow_mut();
+        if let Some(links) = links {
+            let mut links = links.ref_mut(self);
             if links.serialized_types.is_none() {
                 links.serialized_types = Some(HashMap::new());
             }
         }
-        let cached_result = links.as_ref().and_then(|links| {
-            (**links)
-                .borrow()
+        let cached_result = links.and_then(|links| {
+            links
+                .ref_(self)
                 .serialized_types
                 .as_ref()
                 .unwrap()
@@ -365,7 +365,7 @@ impl NodeBuilder {
                 .cloned()
         });
         if let Some(cached_result) = cached_result.as_ref() {
-            if matches!(cached_result.truncating, Some(true)) {
+            if cached_result.truncating == Some(true) {
                 context.truncating.set(Some(true));
             }
             context.increment_approximate_length_by(cached_result.added_length);
@@ -403,9 +403,9 @@ impl NodeBuilder {
         let result = transform(type_)?;
         let added_length = context.approximate_length.get() - start_length;
         if !context.reported_diagnostic.get() && !context.encountered_error.get() {
-            if let Some(links) = links.as_ref() {
+            if let Some(links) = links {
                 links
-                    .borrow_mut()
+                    .ref_mut(self)
                     .serialized_types
                     .as_mut()
                     .unwrap()

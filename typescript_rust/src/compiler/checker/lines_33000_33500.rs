@@ -632,7 +632,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        let links_resolved_type_is_none = (*links).borrow().resolved_type.is_none();
+        let links_resolved_type_is_none = links.ref_(self).resolved_type.is_none();
         if links_resolved_type_is_none {
             if let Some(check_mode) = check_mode {
                 if check_mode != CheckMode::Normal {
@@ -643,11 +643,11 @@ impl TypeChecker {
             let save_flow_type_cache = self.maybe_flow_type_cache().take();
             self.set_flow_loop_start(self.flow_loop_count());
             let resolved_type = self.check_expression(node, check_mode, None)?;
-            links.borrow_mut().resolved_type = Some(resolved_type);
+            links.ref_mut(self).resolved_type = Some(resolved_type);
             *self.maybe_flow_type_cache() = save_flow_type_cache;
             self.set_flow_loop_start(save_flow_loop_start);
         }
-        let resolved_type = (*links).borrow().resolved_type.clone().unwrap();
+        let resolved_type = links.ref_(self).resolved_type.clone().unwrap();
         Ok(resolved_type)
     }
 }

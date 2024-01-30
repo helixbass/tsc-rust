@@ -206,8 +206,8 @@ impl TypeChecker {
         mut symbol: Id<Symbol>,
     ) -> io::Result<Id<Type /*InterfaceType*/>> {
         let mut links = self.get_symbol_links(symbol);
-        let original_links = links.clone();
-        if (*links.ref_(self)).borrow().declared_type.is_none() {
+        let original_links = links;
+        if links.ref_(self).declared_type.is_none() {
             let kind = if symbol.ref_(self).flags().intersects(SymbolFlags::Class) {
                 ObjectFlags::Class
             } else {
@@ -240,9 +240,9 @@ impl TypeChecker {
                     )
                     .into(),
                 );
-            original_links.ref_(self).borrow_mut().declared_type =
+            original_links.ref_mut(self).declared_type =
                 Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
-            links.ref_(self).borrow_mut().declared_type =
+            links.ref_mut(self).declared_type =
                 Some(temporary_type_to_avoid_infinite_recursion_in_is_thisless_interface.clone());
             let type_ = self.create_object_type(kind, Some(symbol));
             let outer_type_parameters =
@@ -307,10 +307,10 @@ impl TypeChecker {
                 .as_interface_type()
                 .maybe_type_parameters()
                 .map(ToOwned::to_owned);
-            original_links.ref_(self).borrow_mut().declared_type = Some(type_.clone());
-            links.ref_(self).borrow_mut().declared_type = Some(type_.clone());
+            original_links.ref_mut(self).declared_type = Some(type_.clone());
+            links.ref_mut(self).declared_type = Some(type_.clone());
         }
-        let ret = (*links.ref_(self)).borrow().declared_type.clone().unwrap();
+        let ret = links.ref_(self).declared_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -351,8 +351,7 @@ impl TypeChecker {
                 let type_parameters =
                     self.get_local_type_parameters_of_class_or_interface_or_type_alias(symbol)?;
                 if let Some(type_parameters) = type_parameters {
-                    let links_ref = links.ref_(self);
-                    let mut links = links_ref.borrow_mut();
+                    let mut links = links.ref_mut(self);
                     let mut instantiations: HashMap<String, Id<Type>> = HashMap::new();
                     instantiations.insert(
                         self.get_type_list_id(Some(&*type_parameters)),
@@ -402,9 +401,9 @@ impl TypeChecker {
                     );
                 }
             }
-            links.ref_(self).borrow_mut().declared_type = Some(type_);
+            links.ref_mut(self).declared_type = Some(type_);
         }
-        let ret = (*links.ref_(self)).borrow().declared_type.clone().unwrap();
+        let ret = links.ref_(self).declared_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -457,7 +456,7 @@ impl TypeChecker {
 
     pub(super) fn get_enum_kind(&self, symbol: Id<Symbol>) -> io::Result<EnumKind> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_enum_kind) = (*links.ref_(self)).borrow().enum_kind {
+        if let Some(links_enum_kind) = links.ref_(self).enum_kind {
             return Ok(links_enum_kind);
         }
         let mut has_non_literal_member = false;
@@ -470,7 +469,7 @@ impl TypeChecker {
                             Some(initializer) if is_string_literal_like(&initializer.ref_(self))
                         ) {
                             let ret = EnumKind::Literal;
-                            links.ref_(self).borrow_mut().enum_kind = Some(ret);
+                            links.ref_mut(self).enum_kind = Some(ret);
                             return Ok(ret);
                         }
                         if !self.is_literal_enum_member(member)? {
@@ -485,7 +484,7 @@ impl TypeChecker {
         } else {
             EnumKind::Literal
         };
-        links.ref_(self).borrow_mut().enum_kind = Some(ret);
+        links.ref_mut(self).enum_kind = Some(ret);
         Ok(ret)
     }
 
@@ -509,7 +508,7 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_enum(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_declared_type) = (*links.ref_(self)).borrow().declared_type.clone() {
+        if let Some(links_declared_type) = links.ref_(self).declared_type {
             return Ok(links_declared_type);
         }
         if self.get_enum_kind(symbol)? == EnumKind::Literal {
@@ -527,7 +526,7 @@ impl TypeChecker {
                                     self.get_symbol_of_node(member)?.unwrap(),
                                 ));
                             self.get_symbol_links(self.get_symbol_of_node(member)?.unwrap())
-                                .ref_(self).borrow_mut()
+                                .ref_mut(self)
                                 .declared_type = Some(member_type.clone());
                             member_type_list
                                 .push(self.get_regular_type_of_literal_type(member_type));
@@ -549,13 +548,13 @@ impl TypeChecker {
                         .set_flags(enum_type.ref_(self).flags() | TypeFlags::EnumLiteral);
                     enum_type.ref_(self).set_symbol(Some(symbol));
                 }
-                links.ref_(self).borrow_mut().declared_type = Some(enum_type.clone());
+                links.ref_mut(self).declared_type = Some(enum_type.clone());
                 return Ok(enum_type);
             }
         }
         let enum_type = self.alloc_type(self.create_type(TypeFlags::Enum).into());
         enum_type.ref_(self).set_symbol(Some(symbol));
-        links.ref_(self).borrow_mut().declared_type = Some(enum_type.clone());
+        links.ref_mut(self).declared_type = Some(enum_type.clone());
         Ok(enum_type)
     }
 
@@ -564,16 +563,15 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().declared_type.is_none() {
+        if links.ref_(self).declared_type.is_none() {
             let enum_type =
                 self.get_declared_type_of_enum(self.get_parent_of_symbol(symbol)?.unwrap())?;
-            let links_ref = links.ref_(self);
-            let mut links = links_ref.borrow_mut();
+            let mut links = links.ref_mut(self);
             if links.declared_type.is_none() {
                 links.declared_type = Some(enum_type);
             }
         }
-        let ret = (*links.ref_(self)).borrow().declared_type.clone().unwrap();
+        let ret = links.ref_(self).declared_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -582,8 +580,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> Id<Type /*TypeParameter*/> {
         let links = self.get_symbol_links(symbol);
-        let links_ref = links.ref_(self);
-        let mut links = links_ref.borrow_mut();
+        let mut links = links.ref_mut(self);
         if links.declared_type.is_none() {
             links.declared_type =
                 Some(self.alloc_type(self.create_type_parameter(Some(symbol)).into()));
@@ -593,11 +590,11 @@ impl TypeChecker {
 
     pub(super) fn get_declared_type_of_alias(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_declared_type) = (*links.ref_(self)).borrow().declared_type.clone() {
+        if let Some(links_declared_type) = links.ref_(self).declared_type {
             return Ok(links_declared_type);
         }
         let declared_type = self.get_declared_type_of_symbol(self.resolve_alias(symbol)?)?;
-        links.ref_(self).borrow_mut().declared_type = Some(declared_type.clone());
+        links.ref_mut(self).declared_type = Some(declared_type.clone());
         Ok(declared_type)
     }
 

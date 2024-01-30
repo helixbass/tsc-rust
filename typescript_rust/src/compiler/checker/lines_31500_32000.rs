@@ -178,15 +178,15 @@ impl TypeChecker {
         type_: Option<Id<Type>>,
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
-        if (*links.ref_(self)).borrow().type_.is_none() {
+        if links.ref_(self).type_.is_none() {
             let declaration = parameter.ref_(self).maybe_value_declaration().unwrap();
-            links.ref_(self).borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
+            links.ref_mut(self).type_ = Some(type_.try_unwrap_or_else(|| {
                 self.get_widened_type_for_variable_like_declaration(declaration, Some(true))
             })?);
             let declaration_name = declaration.ref_(self).as_named_declaration().name();
             if declaration_name.ref_(self).kind() != SyntaxKind::Identifier {
-                if (*links.ref_(self)).borrow().type_.unwrap() == self.unknown_type() {
-                    links.ref_(self).borrow_mut().type_ =
+                if links.ref_(self).type_.unwrap() == self.unknown_type() {
+                    links.ref_mut(self).type_ =
                         Some(self.get_type_from_binding_pattern(declaration_name, None, None)?);
                 }
                 self.assign_binding_element_types(declaration_name)?;
@@ -206,7 +206,7 @@ impl TypeChecker {
                 let element_as_binding_element = element_ref.as_binding_element();
                 if element_as_binding_element.name().ref_(self).kind() == SyntaxKind::Identifier {
                     self.get_symbol_links(self.get_symbol_of_node(element)?.unwrap())
-                        .ref_(self).borrow_mut()
+                        .ref_mut(self)
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
                     self.assign_binding_element_types(element_as_binding_element.name())?;
@@ -309,7 +309,7 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .ref_(self).borrow_mut()
+            .ref_mut(self)
             .type_ = Some(target_type);
 
         let members = self.alloc_symbol_table(create_symbol_table(
@@ -762,12 +762,12 @@ impl TypeChecker {
         node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<bool> {
         let links = self.get_node_links(node);
-        let links_is_exhaustive = (*links).borrow().is_exhaustive;
+        let links_is_exhaustive = links.ref_(self).is_exhaustive;
         if let Some(links_is_exhaustive) = links_is_exhaustive {
             return Ok(links_is_exhaustive);
         }
         let ret = self.compute_exhaustive_switch_statement(node)?;
-        links.borrow_mut().is_exhaustive = Some(ret);
+        links.ref_mut(self).is_exhaustive = Some(ret);
         Ok(ret)
     }
 

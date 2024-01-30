@@ -28,7 +28,7 @@ impl TypeChecker {
         node: Id<Node>, /*IndexedAccessTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_indexed_access_type_node = node_ref.as_indexed_access_type_node();
             let object_type =
@@ -45,7 +45,7 @@ impl TypeChecker {
                 self.get_type_arguments_for_alias_symbol(potential_alias)?
                     .as_deref(),
             )?;
-            links.borrow_mut().resolved_type = Some(
+            links.ref_mut(self).resolved_type = Some(
                 if resolved
                     .ref_(self)
                     .flags()
@@ -61,7 +61,7 @@ impl TypeChecker {
                 },
             );
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -70,17 +70,17 @@ impl TypeChecker {
         node: Id<Node>, /*MappedTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let type_ = self.create_object_type(ObjectFlags::Mapped, node.ref_(self).maybe_symbol());
             let type_ = self.alloc_type(MappedType::new(type_, node).into());
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             *type_.ref_(self).maybe_alias_symbol_mut() = alias_symbol.clone();
             *type_.ref_(self).maybe_alias_type_arguments_mut() =
                 self.get_type_arguments_for_alias_symbol(alias_symbol)?;
-            links.borrow_mut().resolved_type = Some(type_.clone());
+            links.ref_mut(self).resolved_type = Some(type_.clone());
             self.get_constraint_type_from_mapped_type(type_)?;
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -611,7 +611,7 @@ impl TypeChecker {
         node: Id<Node>, /*ConditionalTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_conditional_type_node = node_ref.as_conditional_type_node();
             let check_type =
@@ -645,7 +645,7 @@ impl TypeChecker {
             ));
             let resolved_type =
                 self.get_conditional_type(root.clone(), None, Option::<Id<Symbol>>::None, None)?;
-            links.borrow_mut().resolved_type = Some(resolved_type.clone());
+            links.ref_mut(self).resolved_type = Some(resolved_type.clone());
             if let Some(outer_type_parameters) = outer_type_parameters {
                 let mut instantiations: HashMap<String, Id<Type>> = HashMap::new();
                 instantiations.insert(
@@ -655,7 +655,7 @@ impl TypeChecker {
                 *root.ref_mut(self).maybe_instantiations() = Some(instantiations);
             }
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -664,15 +664,15 @@ impl TypeChecker {
         node: Id<Node>, /*InferTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
-            links.borrow_mut().resolved_type = Some(
+        if links.ref_(self).resolved_type.is_none() {
+            links.ref_mut(self).resolved_type = Some(
                 self.get_declared_type_of_type_parameter(
                     self.get_symbol_of_node(node.ref_(self).as_infer_type_node().type_parameter)?
                         .unwrap(),
                 ),
             );
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -696,7 +696,7 @@ impl TypeChecker {
         node: Id<Node>, /*ImportTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_import_type_node = node_ref.as_import_type_node();
             if node_as_import_type_node.is_type_of()
@@ -707,7 +707,7 @@ impl TypeChecker {
                     &Diagnostics::Type_arguments_cannot_be_used_here,
                     None,
                 );
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 links.resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.error_type();
                 links.resolved_type = Some(ret.clone());
@@ -719,7 +719,7 @@ impl TypeChecker {
                     &Diagnostics::String_literal_expected,
                     None,
                 );
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 links.resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.error_type();
                 links.resolved_type = Some(ret.clone());
@@ -741,7 +741,7 @@ impl TypeChecker {
                 None,
             )?;
             if inner_module_symbol.is_none() {
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 links.resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.error_type();
                 links.resolved_type = Some(ret.clone());
@@ -799,27 +799,27 @@ impl TypeChecker {
                             ]),
                         );
                         let ret = self.error_type();
-                        links.borrow_mut().resolved_type = Some(ret.clone());
+                        links.ref_mut(self).resolved_type = Some(ret.clone());
                         return Ok(ret);
                     }
                     let next = next.unwrap();
-                    self.get_node_links(current).borrow_mut().resolved_symbol = Some(next.clone());
+                    self.get_node_links(current).ref_mut(self).resolved_symbol = Some(next.clone());
                     self.get_node_links(current.ref_(self).parent())
-                        .borrow_mut()
+                        .ref_mut(self)
                         .resolved_symbol = Some(next.clone());
                     current_namespace = next;
                 }
-                links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
+                links.ref_mut(self).resolved_type = Some(self.resolve_import_symbol_type(
                     node,
-                    &links,
+                    links,
                     current_namespace,
                     target_meaning,
                 )?);
             } else {
                 if module_symbol.ref_(self).flags().intersects(target_meaning) {
-                    links.borrow_mut().resolved_type = Some(self.resolve_import_symbol_type(
+                    links.ref_mut(self).resolved_type = Some(self.resolve_import_symbol_type(
                         node,
-                        &links,
+                        links,
                         module_symbol,
                         target_meaning,
                     )?);
@@ -842,20 +842,20 @@ impl TypeChecker {
                             .clone()]),
                     );
 
-                    let mut links = links.borrow_mut();
+                    let mut links = links.ref_mut(self);
                     links.resolved_symbol = Some(self.unknown_symbol());
                     links.resolved_type = Some(self.error_type());
                 }
             }
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
     pub(super) fn resolve_import_symbol_type(
         &self,
         node: Id<Node>, /*ImportTypeNode*/
-        links: &GcCell<NodeLinks>,
+        links: Id<NodeLinks>,
         symbol: Id<Symbol>,
         meaning: SymbolFlags,
     ) -> io::Result<Id<Type>> {
@@ -873,14 +873,14 @@ impl TypeChecker {
         node: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             if self.get_members_of_symbol(node.ref_(self).symbol())?
                 .ref_(self)
                 .is_empty()
                 && alias_symbol.is_none()
             {
-                links.borrow_mut().resolved_type = Some(self.empty_type_literal_type());
+                links.ref_mut(self).resolved_type = Some(self.empty_type_literal_type());
             } else {
                 let mut type_ = self.alloc_type(
                     self.create_object_type(ObjectFlags::Anonymous, node.ref_(self).maybe_symbol())
@@ -892,10 +892,10 @@ impl TypeChecker {
                 if is_jsdoc_type_literal(&node.ref_(self)) && node.ref_(self).as_jsdoc_type_literal().is_array_type {
                     type_ = self.create_array_type(type_, None);
                 }
-                links.borrow_mut().resolved_type = Some(type_);
+                links.ref_mut(self).resolved_type = Some(type_);
             }
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -1025,8 +1025,7 @@ impl TypeChecker {
                     .into(),
                 );
                 let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-                let result_links_ref = result_links.ref_(self);
-                let mut result_links = result_links_ref.borrow_mut();
+                let mut result_links = result_links.ref_mut(self);
                 result_links.type_ = Some(if is_setonly_accessor {
                     self.undefined_type()
                 } else {
@@ -1227,8 +1226,7 @@ impl TypeChecker {
                         .into(),
                     );
                     let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-                    let result_links_ref = result_links.ref_(self);
-                    let mut result_links = result_links_ref.borrow_mut();
+                    let mut result_links = result_links.ref_mut(self);
                     result_links.type_ = Some(self.get_union_type(
                         &[
                             self.get_type_of_symbol(left_prop)?,

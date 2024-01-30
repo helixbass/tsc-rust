@@ -462,8 +462,8 @@ impl TypeChecker {
             let possible_import_node = self.is_import_type_qualifier_part(name);
             if let Some(possible_import_node) = possible_import_node {
                 self.get_type_from_type_node_(possible_import_node)?;
-                let sym = (*self.get_node_links(name))
-                    .borrow()
+                let sym = self.get_node_links(name)
+                    .ref_(self)
                     .resolved_symbol
                     .clone();
                 return Ok(sym.filter(|&sym| sym != self.unknown_symbol()));
@@ -558,7 +558,7 @@ impl TypeChecker {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName
             ) {
                 let links = self.get_node_links(name);
-                let links_resolved_symbol = (*links).borrow().resolved_symbol.clone();
+                let links_resolved_symbol = links.ref_(self).resolved_symbol.clone();
                 if links_resolved_symbol.is_some() {
                     return Ok(links_resolved_symbol);
                 }
@@ -568,13 +568,13 @@ impl TypeChecker {
                 } else {
                     self.check_qualified_name(name, Some(CheckMode::Normal))?;
                 }
-                if (*links).borrow().resolved_symbol.is_none()
+                if links.ref_(self).resolved_symbol.is_none()
                     && is_jsdoc
                     && is_qualified_name(&name.ref_(self))
                 {
                     return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
                 }
-                return Ok((*links).borrow().resolved_symbol.clone());
+                return Ok(links.ref_(self).resolved_symbol.clone());
             } else if is_jsdoc_member_name(&name.ref_(self)) {
                 return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
             }

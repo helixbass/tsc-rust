@@ -519,8 +519,8 @@ impl TypeChecker {
             .unwrap();
 
         let symbol_links = self.get_symbol_links(module_symbol);
-        if (*symbol_links.ref_(self)).borrow().exports_some_value.is_none() {
-            symbol_links.ref_(self).borrow_mut().exports_some_value = Some(if has_export_assignment {
+        if symbol_links.ref_(self).exports_some_value.is_none() {
+            symbol_links.ref_mut(self).exports_some_value = Some(if has_export_assignment {
                 module_symbol
                     .ref_(self)
                     .flags()
@@ -698,31 +698,31 @@ impl TypeChecker {
                             )?
                             .is_some()
                         {
-                            links.ref_(self).borrow_mut().is_declaration_with_colliding_name = Some(true);
-                        } else if (*node_links)
-                            .borrow()
+                            links.ref_mut(self).is_declaration_with_colliding_name = Some(true);
+                        } else if node_links
+                            .ref_(self)
                             .flags
                             .intersects(NodeCheckFlags::CapturedBlockScopedBinding)
                         {
-                            let is_declared_in_loop = (*node_links)
-                                .borrow()
+                            let is_declared_in_loop = node_links
+                                .ref_(self)
                                 .flags
                                 .intersects(NodeCheckFlags::BlockScopedBindingInLoop);
                             let in_loop_initializer = is_iteration_statement(container, false, self);
                             let in_loop_body_block = container.ref_(self).kind() == SyntaxKind::Block
                                 && is_iteration_statement(container.ref_(self).parent(), false, self);
 
-                            links.ref_(self).borrow_mut().is_declaration_with_colliding_name = Some(
+                            links.ref_mut(self).is_declaration_with_colliding_name = Some(
                                 !is_block_scoped_container_top_level(&container.ref_(self))
                                     && (!is_declared_in_loop
                                         || !in_loop_initializer && !in_loop_body_block),
                             );
                         } else {
-                            links.ref_(self).borrow_mut().is_declaration_with_colliding_name = Some(false);
+                            links.ref_mut(self).is_declaration_with_colliding_name = Some(false);
                         }
                     }
                 }
-                return Ok((*links.ref_(self)).borrow().is_declaration_with_colliding_name == Some(true));
+                return Ok(links.ref_(self).is_declaration_with_colliding_name == Some(true));
             }
         }
         Ok(false)

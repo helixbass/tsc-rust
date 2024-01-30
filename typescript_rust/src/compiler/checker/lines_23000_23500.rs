@@ -60,10 +60,9 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        let ret = (*links)
-            .borrow()
+        let ret = links
+            .ref_(self)
             .resolved_type
-            .clone()
             .try_unwrap_or_else(|| self.get_type_of_expression(node))?;
         Ok(ret)
     }
@@ -178,7 +177,7 @@ impl TypeChecker {
         switch_statement: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<Vec<Id<Type>>> {
         let links = self.get_node_links(switch_statement);
-        if (*links).borrow().switch_types.is_none() {
+        if links.ref_(self).switch_types.is_none() {
             let mut switch_types = vec![];
             for &clause in &*switch_statement
                 .ref_(self).as_switch_statement()
@@ -188,9 +187,9 @@ impl TypeChecker {
             {
                 switch_types.push(self.get_type_of_switch_clause(clause)?);
             }
-            links.borrow_mut().switch_types = Some(switch_types);
+            links.ref_mut(self).switch_types = Some(switch_types);
         }
-        let ret = (*links).borrow().switch_types.clone().unwrap();
+        let ret = links.ref_(self).switch_types.clone().unwrap();
         Ok(ret)
     }
 
@@ -1028,7 +1027,7 @@ impl TypeChecker {
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<Option<Id<Signature>>> {
         let links = self.get_node_links(node);
-        let mut signature = (*links).borrow().effects_signature.clone();
+        let mut signature = links.ref_(self).effects_signature.clone();
         if signature.is_none() {
             let mut func_type: Option<Id<Type>> = None;
             let node_ref = node.ref_(self);
@@ -1078,7 +1077,7 @@ impl TypeChecker {
                     self.unknown_signature()
                 },
             );
-            links.borrow_mut().effects_signature = signature.clone();
+            links.ref_mut(self).effects_signature = signature.clone();
         }
         let signature = signature.unwrap();
         Ok(if signature == self.unknown_signature() {

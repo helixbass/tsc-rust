@@ -145,8 +145,7 @@ impl SymbolTableToDeclarationStatements {
         modifier_flags: ModifierFlags,
     ) -> io::Result<()> {
         let alias_type = self.type_checker.ref_(self).get_declared_type_of_type_alias(symbol)?;
-        let type_params = (*self.type_checker.ref_(self).get_symbol_links(symbol).ref_(self))
-            .borrow()
+        let type_params = self.type_checker.ref_(self).get_symbol_links(symbol).ref_(self)
             .type_parameters
             .clone();
         let type_param_decls = try_maybe_map(type_params.as_ref(), |&p: &Id<Type>, _| {

@@ -177,7 +177,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_skip_direct_inference_flag(&self, node: Id<Node>) -> bool {
-        (*self.get_node_links(node)).borrow().skip_direct_inference == Some(true)
+        self.get_node_links(node).ref_(self).skip_direct_inference == Some(true)
     }
 
     pub(super) fn is_from_inference_blocked_source(&self, type_: Id<Type>) -> bool {

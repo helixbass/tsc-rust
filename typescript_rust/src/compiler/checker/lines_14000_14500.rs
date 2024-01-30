@@ -1044,9 +1044,9 @@ impl TypeChecker {
         node: Id<Node>, /*UnionTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            links.borrow_mut().resolved_type = Some(
+            links.ref_mut(self).resolved_type = Some(
                 self.get_union_type(
                     &try_map(&*node.ref_(self).as_union_type_node().types.ref_(self), |&type_: &Id<Node>, _| {
                         self.get_type_from_type_node_(type_)
@@ -1059,7 +1059,7 @@ impl TypeChecker {
                 )?,
             );
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 

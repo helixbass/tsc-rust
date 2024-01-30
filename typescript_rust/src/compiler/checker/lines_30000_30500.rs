@@ -912,10 +912,9 @@ impl TypeChecker {
                 .arguments
                 .ref_(self).is_empty()
         {
-            let resolved_symbol = (*self.get_node_links(error_target))
-                .borrow()
-                .resolved_symbol
-                .clone();
+            let resolved_symbol = self.get_node_links(error_target)
+                .ref_(self)
+                .resolved_symbol;
             if matches!(
                 resolved_symbol,
                 Some(resolved_symbol) if resolved_symbol.ref_(self).flags().intersects(SymbolFlags::GetAccessor)

@@ -335,7 +335,7 @@ impl TypeChecker {
                     }
                     if access_flags.intersects(AccessFlags::CacheSymbol) {
                         self.get_node_links(access_node.unwrap())
-                            .borrow_mut()
+                            .ref_mut(self)
                             .resolved_symbol = Some(prop.clone());
                     }
                     if self.is_this_property_access_in_constructor(access_expression, prop)? {

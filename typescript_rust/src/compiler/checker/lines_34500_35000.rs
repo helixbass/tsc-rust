@@ -191,7 +191,7 @@ impl TypeChecker {
                             .get_node_check_flags(getter)
                             .intersects(NodeCheckFlags::TypeChecked)
                         {
-                            self.get_node_links(getter).borrow_mut().flags |=
+                            self.get_node_links(getter).ref_mut(self).flags |=
                                 NodeCheckFlags::TypeChecked;
                             let getter_flags = get_effective_modifier_flags(getter, self);
                             let setter_flags = get_effective_modifier_flags(setter, self);
@@ -327,8 +327,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         let type_ = self.get_type_from_type_reference(node)?;
         if !self.is_error_type(type_) {
-            let symbol = (*self.get_node_links(node))
-                .borrow()
+            let symbol = self.get_node_links(node)
+                .ref_(self)
                 .resolved_symbol
                 .clone();
             if let Some(symbol) = symbol {
@@ -406,8 +406,8 @@ impl TypeChecker {
                     self.check_type_argument_constraints(node, type_parameters)?;
                 }
             }
-            let symbol = (*self.get_node_links(node))
-                .borrow()
+            let symbol = self.get_node_links(node)
+                .ref_(self)
                 .resolved_symbol
                 .clone();
             if let Some(symbol) = symbol {

@@ -757,7 +757,7 @@ impl TypeChecker {
                 alias_type_arguments,
             )?);
             links
-                .ref_(self).borrow_mut()
+                .ref_mut(self)
                 .instantiations
                 .as_mut()
                 .unwrap()
@@ -930,7 +930,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .ref_(self).borrow_mut()
+                    .ref_mut(self)
                     .declared_type = Some(self.unresolved_type());
             }
             return result.unwrap();
@@ -1017,7 +1017,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_jsdoc_type.is_none() {
+        if links.ref_(self).resolved_jsdoc_type.is_none() {
             let value_type = self.get_type_of_symbol(symbol)?;
             let mut type_type = value_type.clone();
             if symbol.ref_(self).maybe_value_declaration().is_some() {
@@ -1034,9 +1034,9 @@ impl TypeChecker {
                     type_type = self.get_type_reference_type(node, value_type_symbol)?;
                 }
             }
-            links.borrow_mut().resolved_jsdoc_type = Some(type_type);
+            links.ref_mut(self).resolved_jsdoc_type = Some(type_type);
         }
-        let ret = (*links).borrow().resolved_jsdoc_type.clone();
+        let ret = links.ref_(self).resolved_jsdoc_type.clone();
         Ok(ret)
     }
 

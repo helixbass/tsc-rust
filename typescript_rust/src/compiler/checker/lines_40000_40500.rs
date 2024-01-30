@@ -455,12 +455,12 @@ impl TypeChecker {
     pub(super) fn check_node_deferred(&self, node: Id<Node>) {
         let enclosing_file = get_source_file_of_node(node, self);
         let links = self.get_node_links(enclosing_file);
-        if !(*links)
-            .borrow()
+        if !links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::TypeChecked)
         {
-            let mut links = links.borrow_mut();
+            let mut links = links.ref_mut(self);
             if links.deferred_nodes.is_none() {
                 links.deferred_nodes = Some(IndexMap::new());
             }
@@ -479,18 +479,18 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let links = self.get_node_links(context);
         let links_deferred_nodes_is_some = {
-            let value = (*links).borrow().deferred_nodes.is_some();
+            let value = links.ref_(self).deferred_nodes.is_some();
             value
         };
         if links_deferred_nodes_is_some {
             let mut i = 0;
             while i < {
-                let value = (*links).borrow().deferred_nodes.as_ref().unwrap().len();
+                let value = links.ref_(self).deferred_nodes.as_ref().unwrap().len();
                 value
             } {
                 self.check_deferred_node({
-                    let value = (*links)
-                        .borrow()
+                    let value = links
+                        .ref_(self)
                         .deferred_nodes
                         .as_ref()
                         .unwrap()
@@ -589,8 +589,8 @@ impl TypeChecker {
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         let links = self.get_node_links(node);
-        if !(*links)
-            .borrow()
+        if !links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::TypeChecked)
         {
@@ -716,7 +716,7 @@ impl TypeChecker {
                 }
             }
 
-            links.borrow_mut().flags |= NodeCheckFlags::TypeChecked;
+            links.ref_mut(self).flags |= NodeCheckFlags::TypeChecked;
         }
 
         Ok(())

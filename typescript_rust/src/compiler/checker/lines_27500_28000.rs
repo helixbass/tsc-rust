@@ -311,22 +311,22 @@ impl TypeChecker {
             None,
         );
         let links = self.get_node_links(node);
-        if (*links)
-            .borrow()
+        if links
+            .ref_(self)
             .resolved_jsx_element_attributes_type
             .is_none()
         {
             let symbol = self.get_intrinsic_tag_symbol(node)?;
-            if (*links)
-                .borrow()
+            if links
+                .ref_(self)
                 .jsx_flags
                 .intersects(JsxFlags::IntrinsicNamedElement)
             {
                 let ret = self.get_type_of_symbol(symbol)?; /*|| errorType*/
-                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                links.ref_mut(self).resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
-            } else if (*links)
-                .borrow()
+            } else if links
+                .ref_(self)
                 .jsx_flags
                 .intersects(JsxFlags::IntrinsicIndexedElement)
             {
@@ -336,16 +336,16 @@ impl TypeChecker {
                         self.string_type(),
                     )?
                     .unwrap_or_else(|| self.error_type());
-                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                links.ref_mut(self).resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
             } else {
                 let ret = self.error_type();
-                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                links.ref_mut(self).resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
             }
         }
-        let ret = (*links)
-            .borrow()
+        let ret = links
+            .ref_(self)
             .resolved_jsx_element_attributes_type
             .clone()
             .unwrap();
