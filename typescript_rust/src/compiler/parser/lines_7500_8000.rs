@@ -16,7 +16,7 @@ use crate::{
     last_index_of_returns_isize, set_parent, some, BaseNode, BaseNodeFactory, Debug_, Diagnostic,
     HasStatementsInterface, JSDoc, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
     ScriptKind, ScriptTarget, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
-    HasArena, InArena, AllArenas, OptionInArena,
+    HasArena, InArena, AllArenas, OptionInArena, per_arena,
 };
 
 impl ParserType {
@@ -1093,17 +1093,14 @@ impl BaseNodeFactory for ParserType {
     }
 }
 
-// lazy_static! {
-//     static ref ParserMut: Mutex<ParserType> = Mutex::new(ParserType::new());
-// }
-
 #[allow(non_snake_case)]
-pub(super) fn Parser(arena: &impl HasArena) -> Gc<ParserType> {
-    ParserType::new(arena)
+pub(super) fn Parser(arena: &impl HasArena) -> debug_cell::Ref<ParserType> {
+    per_arena!(
+        ParserType,
+        arena,
+        ParserType::new(arena)
+    ).ref_(arena)
 }
-// fn Parser() -> MutexGuard<'static, ParserType> {
-//     ParserMut.lock().unwrap()
-// }
 
 bitflags! {
     pub struct ParsingContext: u32 {

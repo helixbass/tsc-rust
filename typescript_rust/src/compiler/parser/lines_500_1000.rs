@@ -351,8 +351,8 @@ pub struct ParserType {
 }
 
 impl ParserType {
-    pub(super) fn new(arena: &impl HasArena) -> Gc<Self> {
-        let ret = Gc::new(ParserType {
+    pub(super) fn new(arena: &impl HasArena) -> Id<Self> {
+        let ret = arena.alloc_parser(ParserType {
             scanner: RefCell::new(create_scanner(
                 ScriptTarget::Latest,
                 true,
@@ -392,7 +392,7 @@ impl ParserType {
             parse_error_before_next_finished_node: Default::default(),
             has_deprecated_tag: Default::default(),
         });
-        *ret.factory.borrow_mut() = Some(create_node_factory(
+        *ret.ref_(arena).factory.borrow_mut() = Some(create_node_factory(
             NodeFactoryFlags::NoParenthesizerRules
                 | NodeFactoryFlags::NoNodeConverters
                 | NodeFactoryFlags::NoOriginalNode,

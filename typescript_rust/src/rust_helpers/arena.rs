@@ -31,7 +31,7 @@ use crate::{
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
-    NodeLinks,
+    NodeLinks, ParserType,
 };
 
 #[derive(Default)]
@@ -159,6 +159,7 @@ pub struct AllArenas {
     pub custom_transformer_factory_interfaces: RefCell<Arena<Box<dyn CustomTransformerFactoryInterface>>>,
     pub custom_transformer_interfaces: RefCell<Arena<Box<dyn CustomTransformerInterface>>>,
     pub node_links: RefCell<Arena<NodeLinks>>,
+    pub parsers: RefCell<Arena<ParserType>>,
 }
 
 pub trait HasArena {
@@ -1226,6 +1227,14 @@ pub trait HasArena {
 
     fn alloc_node_links(&self, node_links: NodeLinks) -> Id<NodeLinks> {
         self.arena().alloc_node_links(node_links)
+    }
+
+    fn parser(&self, parser: Id<ParserType>) -> Ref<ParserType> {
+        self.arena().parser(parser)
+    }
+
+    fn alloc_parser(&self, parser: ParserType) -> Id<ParserType> {
+        self.arena().alloc_parser(parser)
     }
 }
 
@@ -2555,6 +2564,16 @@ impl HasArena for AllArenas {
         let id = self.node_links.borrow_mut().alloc(node_links);
         id
     }
+
+    #[track_caller]
+    fn parser(&self, parser: Id<ParserType>) -> Ref<ParserType> {
+        Ref::map(self.parsers.borrow(), |parsers| &parsers[parser])
+    }
+
+    fn alloc_parser(&self, parser: ParserType) -> Id<ParserType> {
+        let id = self.parsers.borrow_mut().alloc(parser);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3628,6 +3647,14 @@ impl InArena for Id<NodeLinks> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, NodeLinks> {
         has_arena.node_links_mut(*self)
+    }
+}
+
+impl InArena for Id<ParserType> {
+    type Item = ParserType;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ParserType> {
+        has_arena.parser(*self)
     }
 }
 
