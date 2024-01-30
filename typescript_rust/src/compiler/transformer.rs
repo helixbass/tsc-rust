@@ -206,9 +206,9 @@ impl WrapCustomTransformer {
 impl TransformerInterface for WrapCustomTransformer {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(if is_bundle(&node.ref_(self)) {
-            self.transformer.transform_bundle(node)
+            self.transformer.ref_(self).transform_bundle(node)
         } else {
-            self.transformer.transform_source_file(node)
+            self.transformer.ref_(self).transform_source_file(node)
         })
     }
 

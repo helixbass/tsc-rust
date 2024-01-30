@@ -63,7 +63,7 @@ pub trait CustomTransformerFactoryInterface: Trace + Finalize {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> CustomTransformer;
 }
 
-pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;
+pub type CustomTransformer = Id<Box<dyn CustomTransformerInterface>>;
 
 pub trait CustomTransformerInterface: Trace + Finalize {
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node /*SourceFile*/>;
