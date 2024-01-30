@@ -871,7 +871,7 @@ impl TypeChecker {
 
     pub(super) fn create_backreference_mapper(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
         index: usize,
     ) -> Id<TypeMapper> {
         self.make_function_type_mapper(BackreferenceMapperCallback::new(context, index))

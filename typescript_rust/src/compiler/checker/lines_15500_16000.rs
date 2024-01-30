@@ -222,7 +222,7 @@ impl TypeChecker {
                 );
                 if !check_type_instantiable {
                     self.infer_types(
-                        &context.inferences(),
+                        &context.ref_(self).inferences(),
                         check_type,
                         extends_type,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
@@ -230,9 +230,9 @@ impl TypeChecker {
                     )?;
                 }
                 combined_mapper = Some(if let Some(mapper) = mapper.as_ref() {
-                    self.combine_type_mappers(Some(context.mapper().clone()), mapper.clone())
+                    self.combine_type_mappers(Some(context.ref_(self).mapper().clone()), mapper.clone())
                 } else {
-                    context.mapper().clone()
+                    context.ref_(self).mapper().clone()
                 });
             }
             let inferred_extends_type = if let Some(combined_mapper) = combined_mapper.as_ref() {

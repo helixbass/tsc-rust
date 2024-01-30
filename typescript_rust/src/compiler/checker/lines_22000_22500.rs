@@ -922,7 +922,7 @@ impl TypeChecker {
 
     pub(super) fn get_inferred_type(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
         index: usize,
     ) -> io::Result<Id<Type>> {
         let inference = context.inferences()[index].clone();
@@ -1027,7 +1027,7 @@ impl TypeChecker {
 
     pub(super) fn get_inferred_types(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut result: Vec<Id<Type>> = vec![];
         for i in 0..context.inferences().len() {

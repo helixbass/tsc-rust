@@ -729,7 +729,7 @@ impl TypeChecker {
 
     pub(super) fn clone_inference_context(
         &self,
-        context: Option<&InferenceContext>,
+        context: Option<Id<InferenceContext>>,
         extra_flags: Option<InferenceFlags>,
     ) -> Option<Id<InferenceContext>> {
         let extra_flags = extra_flags.unwrap_or(InferenceFlags::None);
@@ -755,7 +755,7 @@ impl TypeChecker {
         flags: InferenceFlags,
         compare_types: Id<Box<dyn TypeComparer>>,
     ) -> Id<InferenceContext> {
-        let context = Gc::new(InferenceContext::new(
+        let context = self.alloc_inference_context(InferenceContext::new(
             inferences,
             signature,
             flags,
@@ -776,7 +776,7 @@ impl TypeChecker {
 
     pub(super) fn map_to_inferred_type(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
         t: Id<Type>,
         fix: bool,
     ) -> io::Result<Id<Type>> {
@@ -824,7 +824,7 @@ impl TypeChecker {
 
     pub(super) fn clone_inferred_part_of_context(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
     ) -> Option<Id<InferenceContext>> {
         let inferences = filter(&context.inferences(), |inference: &Id<InferenceInfo>| {
             self.has_inference_candidates(&inference.ref_(self))
@@ -845,7 +845,7 @@ impl TypeChecker {
 
     pub(super) fn get_mapper_from_context(
         &self,
-        context: Option<&InferenceContext>,
+        context: Option<Id<InferenceContext>>,
     ) -> Option<Id<TypeMapper>> {
         context.map(|context| context.mapper().clone())
     }
@@ -1197,7 +1197,7 @@ impl CreateInferenceContextWorkerMapperCallback {
 
 impl TypeMapperCallback for CreateInferenceContextWorkerMapperCallback {
     fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
-        checker.map_to_inferred_type(&self.inference_context, t, true)
+        checker.map_to_inferred_type(self.inference_context, t, true)
     }
 }
 
@@ -1214,7 +1214,7 @@ impl CreateInferenceContextWorkerNonFixingMapperCallback {
 
 impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback {
     fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
-        checker.map_to_inferred_type(&self.inference_context, t, false)
+        checker.map_to_inferred_type(self.inference_context, t, false)
     }
 }
 

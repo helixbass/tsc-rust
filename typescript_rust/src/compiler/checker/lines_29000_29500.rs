@@ -270,7 +270,7 @@ impl TypeChecker {
         &self,
         signature: Id<Signature>,
         contextual_signature: Id<Signature>,
-        inference_context: Option<&InferenceContext>,
+        inference_context: Option<Id<InferenceContext>>,
         compare_types: Option<Id<Box<dyn TypeComparer>>>,
     ) -> io::Result<Id<Signature>> {
         let context = self.create_inference_context(

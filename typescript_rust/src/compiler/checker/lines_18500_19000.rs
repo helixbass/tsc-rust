@@ -1647,7 +1647,7 @@ impl CheckTypeRelatedTo {
                         )))),
                     );
                     self.type_checker.ref_(self).infer_types(
-                        &ctx.inferences(),
+                        &ctx.ref_(self).inferences(),
                         target.ref_(self).as_conditional_type().extends_type,
                         source_extends,
                         Some(InferencePriority::NoConstraints | InferencePriority::AlwaysStrict),
@@ -1655,8 +1655,8 @@ impl CheckTypeRelatedTo {
                     )?;
                     source_extends = self
                         .type_checker
-                        .ref_(self).instantiate_type(source_extends, Some(ctx.mapper()))?;
-                    mapper = Some(ctx.mapper());
+                        .ref_(self).instantiate_type(source_extends, Some(ctx.ref_(self).mapper()))?;
+                    mapper = Some(ctx.ref_(self).mapper());
                 }
                 if self.type_checker.ref_(self).is_type_identical_to(
                     source_extends,

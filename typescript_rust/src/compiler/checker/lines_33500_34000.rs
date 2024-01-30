@@ -467,7 +467,7 @@ impl TypeChecker {
 
     pub(super) fn get_unique_type_parameters(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
         type_parameters: &[Id<Type /*TypeParameter*/>],
     ) -> Vec<Id<Type /*TypeParameter*/>> {
         let mut result: Vec<Id<Type /*TypeParameter*/>> = vec![];
