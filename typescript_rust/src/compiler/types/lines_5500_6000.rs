@@ -1012,7 +1012,7 @@ pub struct InferenceContext {
     pub signature: Option<Id<Signature>>,
     #[unsafe_ignore_trace]
     flags: Cell<InferenceFlags>,
-    pub compare_types: Gc<Box<dyn TypeComparer>>,
+    pub compare_types: Id<Box<dyn TypeComparer>>,
     mapper: GcCell<Option<Id<TypeMapper>>>,
     non_fixing_mapper: GcCell<Option<Id<TypeMapper>>>,
     return_mapper: GcCell<Option<Id<TypeMapper>>>,
@@ -1024,7 +1024,7 @@ impl InferenceContext {
         inferences: Vec<Id<InferenceInfo>>,
         signature: Option<Id<Signature>>,
         flags: InferenceFlags,
-        compare_types: Gc<Box<dyn TypeComparer>>,
+        compare_types: Id<Box<dyn TypeComparer>>,
         mapper: Option<Id<TypeMapper>>,
         non_fixing_mapper: Option<Id<TypeMapper>>,
         return_mapper: Option<Id<TypeMapper>>,

@@ -708,7 +708,7 @@ impl TypeChecker {
         type_parameters: &[Id<Type /*TypeParameter*/>],
         signature: Option<Id<Signature>>,
         flags: InferenceFlags,
-        compare_types: Option<Gc<Box<dyn TypeComparer>>>,
+        compare_types: Option<Id<Box<dyn TypeComparer>>>,
     ) -> Gc<InferenceContext> {
         self.create_inference_context_worker(
             type_parameters
@@ -720,7 +720,7 @@ impl TypeChecker {
             signature,
             flags,
             compare_types.unwrap_or_else(|| {
-                Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
+                self.alloc_type_comparer(Box::new(TypeComparerCompareTypesAssignable::new(
                     self.arena_id(),
                 )))
             }),
@@ -753,7 +753,7 @@ impl TypeChecker {
         inferences: Vec<Id<InferenceInfo>>,
         signature: Option<Id<Signature>>,
         flags: InferenceFlags,
-        compare_types: Gc<Box<dyn TypeComparer>>,
+        compare_types: Id<Box<dyn TypeComparer>>,
     ) -> Gc<InferenceContext> {
         let context = Gc::new(InferenceContext::new(
             inferences,

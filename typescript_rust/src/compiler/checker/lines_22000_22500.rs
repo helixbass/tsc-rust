@@ -993,7 +993,7 @@ impl TypeChecker {
                 if match inferred_type {
                     None => true,
                     Some(inferred_type) => {
-                        context.compare_types.call(
+                        context.compare_types.ref_(self).call(
                             inferred_type,
                             self.get_type_with_this_argument(
                                 instantiated_constraint,

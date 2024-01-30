@@ -30,7 +30,7 @@ use crate::{
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId,
+    CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
 };
 
 #[derive(Default)]
@@ -152,6 +152,7 @@ pub struct AllArenas {
     pub option_vec_types: RefCell<Arena<Option<Vec<Id<Type>>>>>,
     pub option_type_parameter_names: RefCell<Arena<Option<HashMap<TypeId, Id<Node>>>>>,
     pub option_vec_symbols: RefCell<Arena<Option<Vec<Id<Symbol>>>>>,
+    pub type_comparers: RefCell<Arena<Box<dyn TypeComparer>>>,
 }
 
 pub trait HasArena {
@@ -1163,6 +1164,14 @@ pub trait HasArena {
 
     fn alloc_option_vec_symbol(&self, option_vec_symbol: Option<Vec<Id<Symbol>>>) -> Id<Option<Vec<Id<Symbol>>>> {
         self.arena().alloc_option_vec_symbol(option_vec_symbol)
+    }
+
+    fn type_comparer(&self, type_comparer: Id<Box<dyn TypeComparer>>) -> Ref<Box<dyn TypeComparer>> {
+        self.arena().type_comparer(type_comparer)
+    }
+
+    fn alloc_type_comparer(&self, type_comparer: Box<dyn TypeComparer>) -> Id<Box<dyn TypeComparer>> {
+        self.arena().alloc_type_comparer(type_comparer)
     }
 }
 
@@ -2424,6 +2433,16 @@ impl HasArena for AllArenas {
         let id = self.option_vec_symbols.borrow_mut().alloc(option_vec_symbol);
         id
     }
+
+    #[track_caller]
+    fn type_comparer(&self, type_comparer: Id<Box<dyn TypeComparer>>) -> Ref<Box<dyn TypeComparer>> {
+        Ref::map(self.type_comparers.borrow(), |type_comparers| &type_comparers[type_comparer])
+    }
+
+    fn alloc_type_comparer(&self, type_comparer: Box<dyn TypeComparer>) -> Id<Box<dyn TypeComparer>> {
+        let id = self.type_comparers.borrow_mut().alloc(type_comparer);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3441,6 +3460,14 @@ impl InArena for Id<Option<Vec<Id<Symbol>>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Vec<Id<Symbol>>>> {
         has_arena.option_vec_symbol_mut(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn TypeComparer>> {
+    type Item = Box<dyn TypeComparer>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TypeComparer>> {
+        has_arena.type_comparer(*self)
     }
 }
 

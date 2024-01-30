@@ -1642,7 +1642,7 @@ impl CheckTypeRelatedTo {
                         source_params,
                         None,
                         InferenceFlags::None,
-                        Some(Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
+                        Some(self.alloc_type_comparer(Box::new(TypeComparerIsRelatedToWorker::new(
                             self.rc_wrapper(),
                         )))),
                     );

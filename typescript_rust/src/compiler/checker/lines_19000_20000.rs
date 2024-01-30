@@ -1515,7 +1515,7 @@ impl CheckTypeRelatedTo {
                 self.report_error(message, args)
             }),
             Some(&|source: Id<Type>, target: Id<Type>| incompatible_reporter(self, source, target)),
-            Gc::new(Box::new(TypeComparerIsRelatedToWorker::new(
+            self.alloc_type_comparer(Box::new(TypeComparerIsRelatedToWorker::new(
                 self.rc_wrapper(),
             ))),
             Some(
