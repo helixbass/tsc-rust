@@ -725,7 +725,7 @@ impl TypeChecker {
                 results.as_mut().unwrap().push(resolved_module);
             }
             if length(results.as_deref()) > 0 {
-                let mut links_ref = links.ref_mut(self);
+                let mut links = links.ref_mut(self);
                 if links.extended_containers_by_file.is_none() {
                     links.extended_containers_by_file = Some(HashMap::new());
                 }

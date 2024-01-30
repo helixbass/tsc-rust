@@ -860,7 +860,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
     ) -> io::Result<Id<Type>> {
         let resolved_symbol = self.resolve_symbol(Some(symbol), None)?.unwrap();
-        links.borrow_mut().resolved_symbol = Some(resolved_symbol.clone());
+        links.ref_mut(self).resolved_symbol = Some(resolved_symbol.clone());
         Ok(if meaning == SymbolFlags::Value {
             self.get_type_of_symbol(symbol)?
         } else {
