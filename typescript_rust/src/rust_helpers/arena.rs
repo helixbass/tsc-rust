@@ -30,7 +30,7 @@ use crate::{
     ResolvedTypeReferenceDirectiveWithFailedLookupLocations, PackageJsonInfoCache,
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
-    CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext,
+    CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId,
 };
 
 #[derive(Default)]
@@ -150,6 +150,7 @@ pub struct AllArenas {
     pub node_builders: RefCell<Arena<NodeBuilder>>,
     pub node_builder_contexts: RefCell<Arena<NodeBuilderContext>>,
     pub option_vec_types: RefCell<Arena<Option<Vec<Id<Type>>>>>,
+    pub option_type_parameter_names: RefCell<Arena<Option<HashMap<TypeId, Id<Node>>>>>,
 }
 
 pub trait HasArena {
@@ -1137,6 +1138,18 @@ pub trait HasArena {
 
     fn alloc_option_vec_type(&self, option_vec_type: Option<Vec<Id<Type>>>) -> Id<Option<Vec<Id<Type>>>> {
         self.arena().alloc_option_vec_type(option_vec_type)
+    }
+
+    fn option_type_parameter_names(&self, option_type_parameter_names: Id<Option<HashMap<TypeId, Id<Node>>>>) -> Ref<Option<HashMap<TypeId, Id<Node>>>> {
+        self.arena().option_type_parameter_names(option_type_parameter_names)
+    }
+
+    fn option_type_parameter_names_mut(&self, option_type_parameter_names: Id<Option<HashMap<TypeId, Id<Node>>>>) -> RefMut<Option<HashMap<TypeId, Id<Node>>>> {
+        self.arena().option_type_parameter_names_mut(option_type_parameter_names)
+    }
+
+    fn alloc_option_type_parameter_names(&self, option_type_parameter_names: Option<HashMap<TypeId, Id<Node>>>) -> Id<Option<HashMap<TypeId, Id<Node>>>> {
+        self.arena().alloc_option_type_parameter_names(option_type_parameter_names)
     }
 }
 
@@ -2370,6 +2383,20 @@ impl HasArena for AllArenas {
         let id = self.option_vec_types.borrow_mut().alloc(option_vec_type);
         id
     }
+
+    #[track_caller]
+    fn option_type_parameter_names(&self, option_type_parameter_names: Id<Option<HashMap<TypeId, Id<Node>>>>) -> Ref<Option<HashMap<TypeId, Id<Node>>>> {
+        Ref::map(self.option_type_parameter_names.borrow(), |option_type_parameter_names_| &option_type_parameter_names_[option_type_parameter_names])
+    }
+
+    fn option_type_parameter_names_mut(&self, option_type_parameter_names: Id<Option<HashMap<TypeId, Id<Node>>>>) -> RefMut<Option<HashMap<TypeId, Id<Node>>>> {
+        RefMut::map(self.option_type_parameter_names.borrow_mut(), |option_type_parameter_names_| &mut option_type_parameter_names_[option_type_parameter_names])
+    }
+
+    fn alloc_option_type_parameter_names(&self, option_type_parameter_names: Option<HashMap<TypeId, Id<Node>>>) -> Id<Option<HashMap<TypeId, Id<Node>>>> {
+        let id = self.option_type_parameter_names.borrow_mut().alloc(option_type_parameter_names);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3363,6 +3390,18 @@ impl InArena for Id<Option<Vec<Id<Type>>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Vec<Id<Type>>>> {
         has_arena.option_vec_type_mut(*self)
+    }
+}
+
+impl InArena for Id<Option<HashMap<TypeId, Id<Node>>>> {
+    type Item = Option<HashMap<TypeId, Id<Node>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Option<HashMap<TypeId, Id<Node>>>> {
+        has_arena.option_type_parameter_names(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<HashMap<TypeId, Id<Node>>>> {
+        has_arena.option_type_parameter_names_mut(*self)
     }
 }
 

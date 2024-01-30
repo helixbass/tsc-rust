@@ -1836,7 +1836,7 @@ pub struct NodeBuilderContext {
     pub truncating: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub type_parameter_symbol_list: Rc<RefCell<Option<HashSet<SymbolId>>>>,
-    pub type_parameter_names: Gc<GcCell<Option<HashMap<TypeId, Id<Node /*Identifier*/>>>>>,
+    pub type_parameter_names: Id<Option<HashMap<TypeId, Id<Node /*Identifier*/>>>>,
     #[unsafe_ignore_trace]
     pub type_parameter_names_by_text: Rc<RefCell<Option<HashSet<String>>>>,
     #[unsafe_ignore_trace]
@@ -1868,7 +1868,7 @@ impl NodeBuilderContext {
             approximate_length: Default::default(),
             truncating: Default::default(),
             type_parameter_symbol_list: Default::default(),
-            type_parameter_names: Default::default(),
+            type_parameter_names: arena.alloc_option_type_parameter_names(Default::default()),
             type_parameter_names_by_text: Default::default(),
             type_parameter_names_by_text_next_name_count: Default::default(),
             used_symbol_names: Default::default(),

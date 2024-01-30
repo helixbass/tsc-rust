@@ -208,7 +208,7 @@ impl NodeBuilder {
             .intersects(NodeBuilderFlags::GenerateNamesForShadowedTypeParams)
         {
             if let Some(context_type_parameter_names) =
-                (*context.type_parameter_names).borrow().as_ref()
+                context.type_parameter_names.ref_(self).as_ref()
             {
                 let cached =
                     context_type_parameter_names.get(&self.type_checker.ref_(self).get_type_id(type_));
@@ -264,7 +264,7 @@ impl NodeBuilder {
                 .insert(rawtext.clone(), i);
             context
                 .type_parameter_names
-                .borrow_mut()
+                .ref_mut(self)
                 .get_or_insert_default_()
                 .insert(self.type_checker.ref_(self).get_type_id(type_), result.clone());
             context
@@ -603,7 +603,7 @@ impl NodeBuilder {
         let initial = self.alloc_node_builder_context(context.ref_(self).clone());
         {
             let initial_ref = initial.ref_(self);
-            let mut initial_type_parameter_names = initial_ref.type_parameter_names.borrow_mut();
+            let mut initial_type_parameter_names = initial_ref.type_parameter_names.ref_mut(self);
             if initial_type_parameter_names.is_some() {
                 *initial_type_parameter_names =
                     Some(initial_type_parameter_names.as_ref().unwrap().clone());
