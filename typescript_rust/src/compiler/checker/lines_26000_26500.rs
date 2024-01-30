@@ -981,7 +981,7 @@ impl TypeChecker {
         self.get_contextual_type_(node, None)
     }
 
-    pub(super) fn get_inference_context(&self, node: Id<Node>) -> Option<Gc<InferenceContext>> {
+    pub(super) fn get_inference_context(&self, node: Id<Node>) -> Option<Id<InferenceContext>> {
         let ancestor = find_ancestor(Some(node), |n: Id<Node>| {
             n.ref_(self).maybe_inference_context().is_some()
         }, self);

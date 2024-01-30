@@ -256,7 +256,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_contextual_type()
                     }
 
-                    fn maybe_inference_context(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::InferenceContext>>> {
+                    fn maybe_inference_context(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::InferenceContext>>> {
                         self.#first_field_name.maybe_inference_context()
                     }
 
@@ -801,7 +801,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_inference_context(&self) -> ::gc::GcCellRefMut<::std::option::Option<::gc::Gc<crate::InferenceContext>>> {
+                    fn maybe_inference_context(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::InferenceContext>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_inference_context()),*
                         }

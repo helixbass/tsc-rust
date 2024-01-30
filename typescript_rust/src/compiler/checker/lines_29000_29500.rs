@@ -332,7 +332,7 @@ impl TypeChecker {
         node: Id<Node>, /*JsxOpeningLikeElement*/
         signature: Id<Signature>,
         check_mode: CheckMode,
-        context: Gc<InferenceContext>,
+        context: Id<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
@@ -375,7 +375,7 @@ impl TypeChecker {
         signature: Id<Signature>,
         args: &[Id<Node /*Expression*/>],
         check_mode: CheckMode,
-        context: Gc<InferenceContext>,
+        context: Id<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
         if is_jsx_opening_like_element(&node.ref_(self)) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
@@ -591,7 +591,7 @@ impl TypeChecker {
         index: usize,
         arg_count: usize,
         rest_type: Id<Type>,
-        context: Option<Gc<InferenceContext>>,
+        context: Option<Id<InferenceContext>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
         if index >= arg_count - 1 {

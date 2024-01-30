@@ -587,7 +587,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Expression*/
         contextual_type: Id<Type>,
-        inference_context: Option<Gc<InferenceContext>>,
+        inference_context: Option<Id<InferenceContext>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
         let context = self.get_context_node(node);

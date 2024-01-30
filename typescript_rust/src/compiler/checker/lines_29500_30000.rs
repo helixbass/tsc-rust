@@ -1164,7 +1164,7 @@ impl TypeChecker {
             }
 
             let mut check_candidate: Id<Signature>;
-            let mut inference_context: Option<Gc<InferenceContext>> = None;
+            let mut inference_context: Option<Id<InferenceContext>> = None;
 
             if let Some(ref candidate_type_parameters) = candidate.ref_(self).maybe_type_parameters().clone() {
                 let type_argument_types: Option<Vec<Id<Type>>>;

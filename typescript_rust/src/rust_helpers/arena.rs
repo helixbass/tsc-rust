@@ -31,6 +31,7 @@ use crate::{
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
+    InferenceContext,
 };
 
 #[derive(Default)]
@@ -153,6 +154,7 @@ pub struct AllArenas {
     pub option_type_parameter_names: RefCell<Arena<Option<HashMap<TypeId, Id<Node>>>>>,
     pub option_vec_symbols: RefCell<Arena<Option<Vec<Id<Symbol>>>>>,
     pub type_comparers: RefCell<Arena<Box<dyn TypeComparer>>>,
+    pub inference_contexts: RefCell<Arena<InferenceContext>>,
 }
 
 pub trait HasArena {
@@ -1172,6 +1174,14 @@ pub trait HasArena {
 
     fn alloc_type_comparer(&self, type_comparer: Box<dyn TypeComparer>) -> Id<Box<dyn TypeComparer>> {
         self.arena().alloc_type_comparer(type_comparer)
+    }
+
+    fn inference_context(&self, inference_context: Id<InferenceContext>) -> Ref<InferenceContext> {
+        self.arena().inference_context(inference_context)
+    }
+
+    fn alloc_inference_context(&self, inference_context: InferenceContext) -> Id<InferenceContext> {
+        self.arena().alloc_inference_context(inference_context)
     }
 }
 
@@ -2443,6 +2453,17 @@ impl HasArena for AllArenas {
         let id = self.type_comparers.borrow_mut().alloc(type_comparer);
         id
     }
+
+    #[track_caller]
+    fn inference_context(&self, inference_context: Id<InferenceContext>) -> Ref<InferenceContext> {
+        Ref::map(self.inference_contexts.borrow(), |inference_contexts| &inference_contexts[inference_context])
+    }
+
+    fn alloc_inference_context(&self, inference_context: InferenceContext) -> Id<InferenceContext> {
+        let id = self.inference_contexts.borrow_mut().alloc(inference_context);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3468,6 +3489,14 @@ impl InArena for Id<Box<dyn TypeComparer>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TypeComparer>> {
         has_arena.type_comparer(*self)
+    }
+}
+
+impl InArena for Id<InferenceContext> {
+    type Item = InferenceContext;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, InferenceContext> {
+        has_arena.inference_context(*self)
     }
 }
 

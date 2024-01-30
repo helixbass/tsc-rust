@@ -709,7 +709,7 @@ impl TypeChecker {
         signature: Option<Id<Signature>>,
         flags: InferenceFlags,
         compare_types: Option<Id<Box<dyn TypeComparer>>>,
-    ) -> Gc<InferenceContext> {
+    ) -> Id<InferenceContext> {
         self.create_inference_context_worker(
             type_parameters
                 .into_iter()
@@ -731,7 +731,7 @@ impl TypeChecker {
         &self,
         context: Option<&InferenceContext>,
         extra_flags: Option<InferenceFlags>,
-    ) -> Option<Gc<InferenceContext>> {
+    ) -> Option<Id<InferenceContext>> {
         let extra_flags = extra_flags.unwrap_or(InferenceFlags::None);
         context.map(|context| {
             self.create_inference_context_worker(
@@ -754,7 +754,7 @@ impl TypeChecker {
         signature: Option<Id<Signature>>,
         flags: InferenceFlags,
         compare_types: Id<Box<dyn TypeComparer>>,
-    ) -> Gc<InferenceContext> {
+    ) -> Id<InferenceContext> {
         let context = Gc::new(InferenceContext::new(
             inferences,
             signature,
@@ -825,7 +825,7 @@ impl TypeChecker {
     pub(super) fn clone_inferred_part_of_context(
         &self,
         context: &InferenceContext,
-    ) -> Option<Gc<InferenceContext>> {
+    ) -> Option<Id<InferenceContext>> {
         let inferences = filter(&context.inferences(), |inference: &Id<InferenceInfo>| {
             self.has_inference_candidates(&inference.ref_(self))
         });
@@ -1186,11 +1186,11 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerMapperCallback {
-    inference_context: Gc<InferenceContext>,
+    inference_context: Id<InferenceContext>,
 }
 
 impl CreateInferenceContextWorkerMapperCallback {
-    pub fn new(inference_context: Gc<InferenceContext>) -> Self {
+    pub fn new(inference_context: Id<InferenceContext>) -> Self {
         Self { inference_context }
     }
 }
@@ -1203,11 +1203,11 @@ impl TypeMapperCallback for CreateInferenceContextWorkerMapperCallback {
 
 #[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerNonFixingMapperCallback {
-    inference_context: Gc<InferenceContext>,
+    inference_context: Id<InferenceContext>,
 }
 
 impl CreateInferenceContextWorkerNonFixingMapperCallback {
-    pub fn new(inference_context: Gc<InferenceContext>) -> Self {
+    pub fn new(inference_context: Id<InferenceContext>) -> Self {
         Self { inference_context }
     }
 }

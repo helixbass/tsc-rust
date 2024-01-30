@@ -220,7 +220,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Id<EmitNode>>>;
     fn set_emit_node(&self, emit_node: Option<Id<EmitNode>>);
     fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
+    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Id<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Id<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Option<Vec<Id<Node /*JSDoc*/>>>);
     fn maybe_js_doc_cache(&self) -> Option<GcVec<Id<Node /*JSDocTag*/>>>;
@@ -1736,7 +1736,7 @@ pub struct BaseNode {
     local_symbol: GcCell<Option<Id<Symbol>>>,
     emit_node: GcCell<Option<Id<EmitNode>>>,
     contextual_type: GcCell<Option<Id<Type>>>,
-    inference_context: GcCell<Option<Gc<InferenceContext>>>,
+    inference_context: GcCell<Option<Id<InferenceContext>>>,
     flow_node: GcCell<Option<Id<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Id<Node>>>>,
     js_doc_cache: GcCell<Option<GcVec<Id<Node>>>>,
@@ -2005,7 +2005,7 @@ impl NodeInterface for BaseNode {
         self.contextual_type.borrow_mut()
     }
 
-    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>> {
+    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Id<InferenceContext>>> {
         self.inference_context.borrow_mut()
     }
 
