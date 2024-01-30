@@ -2461,7 +2461,6 @@ impl HasArena for AllArenas {
 
     fn alloc_inference_context(&self, inference_context: InferenceContext) -> Id<InferenceContext> {
         let id = self.inference_contexts.borrow_mut().alloc(inference_context);
-        id.ref_(self).set_arena_id(id);
         id
     }
 }
