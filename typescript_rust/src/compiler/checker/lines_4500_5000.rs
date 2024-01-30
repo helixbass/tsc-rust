@@ -1243,7 +1243,7 @@ impl NodeBuilder {
                 .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
-                && contains((*context.infer_type_parameters).borrow().as_deref(), &type_)
+                && contains(context.infer_type_parameters.ref_(self).as_deref(), &type_)
             {
                 context.increment_approximate_length_by(
                     symbol_name(type_.ref_(self).symbol(), self).len() + 6,
@@ -1829,7 +1829,7 @@ pub struct NodeBuilderContext {
     pub visited_types: Rc<RefCell<Option<HashSet<TypeId>>>>,
     #[unsafe_ignore_trace]
     pub symbol_depth: Rc<RefCell<Option<HashMap<String, usize>>>>,
-    pub infer_type_parameters: Gc<GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>>,
+    pub infer_type_parameters: Id<Option<Vec<Id<Type /*TypeParameter*/>>>>,
     #[unsafe_ignore_trace]
     pub approximate_length: Cell<usize>,
     #[unsafe_ignore_trace]
@@ -1864,7 +1864,7 @@ impl NodeBuilderContext {
             reported_diagnostic: Default::default(),
             visited_types: Default::default(),
             symbol_depth: Default::default(),
-            infer_type_parameters: Default::default(),
+            infer_type_parameters: arena.alloc_option_vec_type(Default::default()),
             approximate_length: Default::default(),
             truncating: Default::default(),
             type_parameter_symbol_list: Default::default(),

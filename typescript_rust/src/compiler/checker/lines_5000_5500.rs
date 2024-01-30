@@ -38,8 +38,8 @@ impl NodeBuilder {
                 context,
             )?
             .unwrap();
-        let save_infer_type_parameters = context.infer_type_parameters.borrow().clone();
-        *context.infer_type_parameters.borrow_mut() =
+        let save_infer_type_parameters = context.infer_type_parameters.ref_(self).clone();
+        *context.infer_type_parameters.ref_mut(self) =
             type_.ref_(self).as_conditional_type().root
                 .ref_(self)
                 .infer_type_parameters
@@ -50,7 +50,7 @@ impl NodeBuilder {
                 context,
             )?
             .unwrap();
-        *context.infer_type_parameters.borrow_mut() = save_infer_type_parameters;
+        *context.infer_type_parameters.ref_mut(self) = save_infer_type_parameters;
         let true_type_node = self.type_to_type_node_or_circularity_elision(
             context,
             self.type_checker

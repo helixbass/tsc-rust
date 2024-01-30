@@ -149,6 +149,7 @@ pub struct AllArenas {
     pub resolved_type_reference_directives_maps: RefCell<Arena<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
     pub node_builders: RefCell<Arena<NodeBuilder>>,
     pub node_builder_contexts: RefCell<Arena<NodeBuilderContext>>,
+    pub option_vec_types: RefCell<Arena<Option<Vec<Id<Type>>>>>,
 }
 
 pub trait HasArena {
@@ -1124,6 +1125,18 @@ pub trait HasArena {
 
     fn alloc_node_builder_context(&self, node_builder_context: NodeBuilderContext) -> Id<NodeBuilderContext> {
         self.arena().alloc_node_builder_context(node_builder_context)
+    }
+
+    fn option_vec_type(&self, option_vec_type: Id<Option<Vec<Id<Type>>>>) -> Ref<Option<Vec<Id<Type>>>> {
+        self.arena().option_vec_type(option_vec_type)
+    }
+
+    fn option_vec_type_mut(&self, option_vec_type: Id<Option<Vec<Id<Type>>>>) -> RefMut<Option<Vec<Id<Type>>>> {
+        self.arena().option_vec_type_mut(option_vec_type)
+    }
+
+    fn alloc_option_vec_type(&self, option_vec_type: Option<Vec<Id<Type>>>) -> Id<Option<Vec<Id<Type>>>> {
+        self.arena().alloc_option_vec_type(option_vec_type)
     }
 }
 
@@ -2343,6 +2356,20 @@ impl HasArena for AllArenas {
         id.ref_(self).set_arena_id(id);
         id
     }
+
+    #[track_caller]
+    fn option_vec_type(&self, option_vec_type: Id<Option<Vec<Id<Type>>>>) -> Ref<Option<Vec<Id<Type>>>> {
+        Ref::map(self.option_vec_types.borrow(), |option_vec_types| &option_vec_types[option_vec_type])
+    }
+
+    fn option_vec_type_mut(&self, option_vec_type: Id<Option<Vec<Id<Type>>>>) -> RefMut<Option<Vec<Id<Type>>>> {
+        RefMut::map(self.option_vec_types.borrow_mut(), |option_vec_types| &mut option_vec_types[option_vec_type])
+    }
+
+    fn alloc_option_vec_type(&self, option_vec_type: Option<Vec<Id<Type>>>) -> Id<Option<Vec<Id<Type>>>> {
+        let id = self.option_vec_types.borrow_mut().alloc(option_vec_type);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3324,6 +3351,18 @@ impl InArena for Id<NodeBuilderContext> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeBuilderContext> {
         has_arena.node_builder_context(*self)
+    }
+}
+
+impl InArena for Id<Option<Vec<Id<Type>>>> {
+    type Item = Option<Vec<Id<Type>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Option<Vec<Id<Type>>>> {
+        has_arena.option_vec_type(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Vec<Id<Type>>>> {
+        has_arena.option_vec_type_mut(*self)
     }
 }
 
