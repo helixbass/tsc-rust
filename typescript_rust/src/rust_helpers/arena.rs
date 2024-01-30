@@ -31,7 +31,7 @@ use crate::{
     ModeAwareCache, PerModuleNameCache, MultiMap, Path, GetSymbolAccessibilityDiagnosticInterface,
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
-    InferenceContext,
+    InferenceContext, SkipTrivia,
 };
 
 #[derive(Default)]
@@ -155,6 +155,7 @@ pub struct AllArenas {
     pub option_vec_symbols: RefCell<Arena<Option<Vec<Id<Symbol>>>>>,
     pub type_comparers: RefCell<Arena<Box<dyn TypeComparer>>>,
     pub inference_contexts: RefCell<Arena<InferenceContext>>,
+    pub skip_trivias: RefCell<Arena<Box<dyn SkipTrivia>>>,
 }
 
 pub trait HasArena {
@@ -1182,6 +1183,14 @@ pub trait HasArena {
 
     fn alloc_inference_context(&self, inference_context: InferenceContext) -> Id<InferenceContext> {
         self.arena().alloc_inference_context(inference_context)
+    }
+
+    fn skip_trivia(&self, skip_trivia: Id<Box<dyn SkipTrivia>>) -> Ref<Box<dyn SkipTrivia>> {
+        self.arena().skip_trivia(skip_trivia)
+    }
+
+    fn alloc_skip_trivia(&self, skip_trivia: Box<dyn SkipTrivia>) -> Id<Box<dyn SkipTrivia>> {
+        self.arena().alloc_skip_trivia(skip_trivia)
     }
 }
 
@@ -2463,6 +2472,16 @@ impl HasArena for AllArenas {
         let id = self.inference_contexts.borrow_mut().alloc(inference_context);
         id
     }
+
+    #[track_caller]
+    fn skip_trivia(&self, skip_trivia: Id<Box<dyn SkipTrivia>>) -> Ref<Box<dyn SkipTrivia>> {
+        Ref::map(self.skip_trivias.borrow(), |skip_trivias| &skip_trivias[skip_trivia])
+    }
+
+    fn alloc_skip_trivia(&self, skip_trivia: Box<dyn SkipTrivia>) -> Id<Box<dyn SkipTrivia>> {
+        let id = self.skip_trivias.borrow_mut().alloc(skip_trivia);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3496,6 +3515,14 @@ impl InArena for Id<InferenceContext> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, InferenceContext> {
         has_arena.inference_context(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn SkipTrivia>> {
+    type Item = Box<dyn SkipTrivia>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn SkipTrivia>> {
+        has_arena.skip_trivia(*self)
     }
 }
 

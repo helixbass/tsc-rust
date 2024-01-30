@@ -427,7 +427,7 @@ impl Printer {
     pub(super) fn skip_source_trivia(&self, source: Id<SourceMapSource>, pos: isize) -> isize {
         let source = source.ref_(self);
         let ret = if let Some(source_skip_trivia) = source.ref_(self).skip_trivia() {
-            source_skip_trivia.call(pos)
+            source_skip_trivia.ref_(self).call(pos)
         } else {
             skip_trivia(&source.ref_(self).text_as_chars(), pos, None, None, None)
         };

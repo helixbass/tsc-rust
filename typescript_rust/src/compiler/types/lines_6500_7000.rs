@@ -640,7 +640,7 @@ impl<'a> SourceMapSourceRef<'a> {
         }
     }
 
-    pub fn skip_trivia(&self) -> Option<Gc<Box<dyn SkipTrivia>>> {
+    pub fn skip_trivia(&self) -> Option<Id<Box<dyn SkipTrivia>>> {
         match self {
             Self::SourceFile(_) => None,
             Self::SourceMapSourceConcrete(value) => value.skip_trivia.clone(),
@@ -715,7 +715,7 @@ pub struct SourceMapSourceConcrete {
     text_as_chars: RefCell<SourceTextAsChars>,
     #[unsafe_ignore_trace]
     line_map: RefCell<Option<Vec<usize>>>,
-    pub skip_trivia: Option<Gc<Box<dyn SkipTrivia>>>,
+    pub skip_trivia: Option<Id<Box<dyn SkipTrivia>>>,
 }
 
 impl SourceMapSourceConcrete {
@@ -724,7 +724,7 @@ impl SourceMapSourceConcrete {
         text: String,
         text_as_chars: SourceTextAsChars,
         line_map: Option<Vec<usize>>,
-        skip_trivia: Option<Gc<Box<dyn SkipTrivia>>>,
+        skip_trivia: Option<Id<Box<dyn SkipTrivia>>>,
     ) -> Self {
         Self {
             file_name,
