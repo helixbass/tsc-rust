@@ -17,7 +17,7 @@ use crate::{
     IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
     NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
     TransformFlags,
-    HasArena, InArena,
+    HasArena, InArena, AllArenas,
 };
 
 impl ParserType {
@@ -146,7 +146,7 @@ impl ParserType {
         let saved_syntax_cursor = self.take_syntax_cursor();
         let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file, self);
         self.set_syntax_cursor(Some(
-            IncrementalParserSyntaxCursorReparseTopLevelAwait::new(Gc::new(base_syntax_cursor))
+            IncrementalParserSyntaxCursorReparseTopLevelAwait::new(self.alloc_incremental_parser_syntax_cursor(base_syntax_cursor))
                 .into(),
         ));
 
@@ -1428,18 +1428,18 @@ lazy_static! {
 
 #[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorReparseTopLevelAwait {
-    base_syntax_cursor: Gc<IncrementalParserSyntaxCursor>,
+    base_syntax_cursor: Id<IncrementalParserSyntaxCursor>,
 }
 
 impl IncrementalParserSyntaxCursorReparseTopLevelAwait {
-    pub fn new(base_syntax_cursor: Gc<IncrementalParserSyntaxCursor>) -> Self {
+    pub fn new(base_syntax_cursor: Id<IncrementalParserSyntaxCursor>) -> Self {
         Self { base_syntax_cursor }
     }
 }
 
 impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorReparseTopLevelAwait {
     fn current_node(&self, parser: &ParserType, position: usize) -> Option<Id<Node>> {
-        let node = self.base_syntax_cursor.current_node(parser, position);
+        let node = self.base_syntax_cursor.ref_(self).current_node(parser, position);
         if parser.top_level() {
             if let Some(node) = node {
                 if parser.contains_possible_top_level_await(node) {
@@ -1448,6 +1448,12 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorRep
             }
         }
         node
+    }
+}
+
+impl HasArena for IncrementalParserSyntaxCursorReparseTopLevelAwait {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

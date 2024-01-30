@@ -31,7 +31,7 @@ use crate::{
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
-    NodeLinks, ParserType,
+    NodeLinks, ParserType, IncrementalParserSyntaxCursor,
 };
 
 #[derive(Default)]
@@ -160,6 +160,7 @@ pub struct AllArenas {
     pub custom_transformer_interfaces: RefCell<Arena<Box<dyn CustomTransformerInterface>>>,
     pub node_links: RefCell<Arena<NodeLinks>>,
     pub parsers: RefCell<Arena<ParserType>>,
+    pub incremental_parser_syntax_cursors: RefCell<Arena<IncrementalParserSyntaxCursor>>,
 }
 
 pub trait HasArena {
@@ -1235,6 +1236,14 @@ pub trait HasArena {
 
     fn alloc_parser(&self, parser: ParserType) -> Id<ParserType> {
         self.arena().alloc_parser(parser)
+    }
+
+    fn incremental_parser_syntax_cursor(&self, incremental_parser_syntax_cursor: Id<IncrementalParserSyntaxCursor>) -> Ref<IncrementalParserSyntaxCursor> {
+        self.arena().incremental_parser_syntax_cursor(incremental_parser_syntax_cursor)
+    }
+
+    fn alloc_incremental_parser_syntax_cursor(&self, incremental_parser_syntax_cursor: IncrementalParserSyntaxCursor) -> Id<IncrementalParserSyntaxCursor> {
+        self.arena().alloc_incremental_parser_syntax_cursor(incremental_parser_syntax_cursor)
     }
 }
 
@@ -2574,6 +2583,16 @@ impl HasArena for AllArenas {
         let id = self.parsers.borrow_mut().alloc(parser);
         id
     }
+
+    #[track_caller]
+    fn incremental_parser_syntax_cursor(&self, incremental_parser_syntax_cursor: Id<IncrementalParserSyntaxCursor>) -> Ref<IncrementalParserSyntaxCursor> {
+        Ref::map(self.incremental_parser_syntax_cursors.borrow(), |incremental_parser_syntax_cursors| &incremental_parser_syntax_cursors[incremental_parser_syntax_cursor])
+    }
+
+    fn alloc_incremental_parser_syntax_cursor(&self, incremental_parser_syntax_cursor: IncrementalParserSyntaxCursor) -> Id<IncrementalParserSyntaxCursor> {
+        let id = self.incremental_parser_syntax_cursors.borrow_mut().alloc(incremental_parser_syntax_cursor);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3655,6 +3674,14 @@ impl InArena for Id<ParserType> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, ParserType> {
         has_arena.parser(*self)
+    }
+}
+
+impl InArena for Id<IncrementalParserSyntaxCursor> {
+    type Item = IncrementalParserSyntaxCursor;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, IncrementalParserSyntaxCursor> {
+        has_arena.incremental_parser_syntax_cursor(*self)
     }
 }
 
