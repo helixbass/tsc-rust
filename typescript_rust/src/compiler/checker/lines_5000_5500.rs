@@ -1112,13 +1112,13 @@ impl NodeBuilder {
     ) -> bool {
         get_check_flags(&property_symbol.ref_(self)).intersects(CheckFlags::ReverseMapped)
             && (contains(
-                context.reverse_mapped_stack.borrow().as_deref(),
+                context.reverse_mapped_stack.ref_(self).as_deref(),
                 &property_symbol,
             ) || matches!(
-                context.reverse_mapped_stack.borrow().as_ref(),
+                context.reverse_mapped_stack.ref_(self).as_ref(),
                 Some(reverse_mapped_stack) if reverse_mapped_stack.get(0).is_some()
             ) && !get_object_flags(
-                &*last(context.reverse_mapped_stack.borrow().as_deref().unwrap())
+                &*last(context.reverse_mapped_stack.ref_(self).as_deref().unwrap())
                     .ref_(self)
                     .as_reverse_mapped_symbol()
                     .property_type
@@ -1262,7 +1262,7 @@ impl NodeBuilder {
                 if property_is_reverse_mapped {
                     context
                         .reverse_mapped_stack
-                        .borrow_mut()
+                        .ref_mut(self)
                         .get_or_insert_default_()
                         .push(property_symbol);
                 }
@@ -1283,7 +1283,7 @@ impl NodeBuilder {
                 if property_is_reverse_mapped {
                     context
                         .reverse_mapped_stack
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_mut()
                         .unwrap()
                         .pop();

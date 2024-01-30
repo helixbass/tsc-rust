@@ -1845,7 +1845,7 @@ pub struct NodeBuilderContext {
     pub used_symbol_names: Rc<RefCell<Option<HashSet<String>>>>,
     #[unsafe_ignore_trace]
     pub remapped_symbol_names: Rc<RefCell<Option<HashMap<SymbolId, String>>>>,
-    pub reverse_mapped_stack: Gc<GcCell<Option<Vec<Id<Symbol /*ReverseMappedSymbol*/>>>>>,
+    pub reverse_mapped_stack: Id<Option<Vec<Id<Symbol /*ReverseMappedSymbol*/>>>>,
 }
 
 impl NodeBuilderContext {
@@ -1873,7 +1873,7 @@ impl NodeBuilderContext {
             type_parameter_names_by_text_next_name_count: Default::default(),
             used_symbol_names: Default::default(),
             remapped_symbol_names: Default::default(),
-            reverse_mapped_stack: Default::default(),
+            reverse_mapped_stack: arena.alloc_option_vec_symbol(Default::default()),
         })
     }
 

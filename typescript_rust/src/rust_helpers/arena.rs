@@ -151,6 +151,7 @@ pub struct AllArenas {
     pub node_builder_contexts: RefCell<Arena<NodeBuilderContext>>,
     pub option_vec_types: RefCell<Arena<Option<Vec<Id<Type>>>>>,
     pub option_type_parameter_names: RefCell<Arena<Option<HashMap<TypeId, Id<Node>>>>>,
+    pub option_vec_symbols: RefCell<Arena<Option<Vec<Id<Symbol>>>>>,
 }
 
 pub trait HasArena {
@@ -1150,6 +1151,18 @@ pub trait HasArena {
 
     fn alloc_option_type_parameter_names(&self, option_type_parameter_names: Option<HashMap<TypeId, Id<Node>>>) -> Id<Option<HashMap<TypeId, Id<Node>>>> {
         self.arena().alloc_option_type_parameter_names(option_type_parameter_names)
+    }
+
+    fn option_vec_symbol(&self, option_vec_symbol: Id<Option<Vec<Id<Symbol>>>>) -> Ref<Option<Vec<Id<Symbol>>>> {
+        self.arena().option_vec_symbol(option_vec_symbol)
+    }
+
+    fn option_vec_symbol_mut(&self, option_vec_symbol: Id<Option<Vec<Id<Symbol>>>>) -> RefMut<Option<Vec<Id<Symbol>>>> {
+        self.arena().option_vec_symbol_mut(option_vec_symbol)
+    }
+
+    fn alloc_option_vec_symbol(&self, option_vec_symbol: Option<Vec<Id<Symbol>>>) -> Id<Option<Vec<Id<Symbol>>>> {
+        self.arena().alloc_option_vec_symbol(option_vec_symbol)
     }
 }
 
@@ -2397,6 +2410,20 @@ impl HasArena for AllArenas {
         let id = self.option_type_parameter_names.borrow_mut().alloc(option_type_parameter_names);
         id
     }
+
+    #[track_caller]
+    fn option_vec_symbol(&self, option_vec_symbol: Id<Option<Vec<Id<Symbol>>>>) -> Ref<Option<Vec<Id<Symbol>>>> {
+        Ref::map(self.option_vec_symbols.borrow(), |option_vec_symbols| &option_vec_symbols[option_vec_symbol])
+    }
+
+    fn option_vec_symbol_mut(&self, option_vec_symbol: Id<Option<Vec<Id<Symbol>>>>) -> RefMut<Option<Vec<Id<Symbol>>>> {
+        RefMut::map(self.option_vec_symbols.borrow_mut(), |option_vec_symbols| &mut option_vec_symbols[option_vec_symbol])
+    }
+
+    fn alloc_option_vec_symbol(&self, option_vec_symbol: Option<Vec<Id<Symbol>>>) -> Id<Option<Vec<Id<Symbol>>>> {
+        let id = self.option_vec_symbols.borrow_mut().alloc(option_vec_symbol);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3402,6 +3429,18 @@ impl InArena for Id<Option<HashMap<TypeId, Id<Node>>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<HashMap<TypeId, Id<Node>>>> {
         has_arena.option_type_parameter_names_mut(*self)
+    }
+}
+
+impl InArena for Id<Option<Vec<Id<Symbol>>>> {
+    type Item = Option<Vec<Id<Symbol>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Option<Vec<Id<Symbol>>>> {
+        has_arena.option_vec_symbol(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Vec<Id<Symbol>>>> {
+        has_arena.option_vec_symbol_mut(*self)
     }
 }
 
