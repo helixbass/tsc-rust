@@ -1815,7 +1815,8 @@ impl HasArena for NodeBuilderContextWrappedSymbolTracker {
 #[derive(Trace, Finalize)]
 pub struct NodeBuilderContext {
     pub(super) _arena_id: GcCell<Option<Id<NodeBuilderContext>>>,
-    pub(super) enclosing_declaration: Gc<GcCell<Option<Id<Node>>>>,
+    #[unsafe_ignore_trace]
+    pub(super) enclosing_declaration: Cell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub flags: Cell<NodeBuilderFlags>,
     pub(super) tracker: GcCell<Id<Box<dyn SymbolTracker>>>,
@@ -1856,7 +1857,7 @@ impl NodeBuilderContext {
     ) -> Id<Self> {
         arena.alloc_node_builder_context(Self {
             _arena_id: Default::default(),
-            enclosing_declaration: Gc::new(GcCell::new(enclosing_declaration)),
+            enclosing_declaration: Cell::new(enclosing_declaration),
             flags: Cell::new(flags),
             tracker: GcCell::new(tracker),
             encountered_error: Default::default(),
@@ -1885,15 +1886,15 @@ impl NodeBuilderContext {
     }
 
     pub fn maybe_enclosing_declaration(&self) -> Option<Id<Node>> {
-        (*self.enclosing_declaration).borrow().clone()
+        self.enclosing_declaration.get()
     }
 
     pub fn enclosing_declaration(&self) -> Id<Node> {
-        (*self.enclosing_declaration).borrow().clone().unwrap()
+        self.enclosing_declaration.get().unwrap()
     }
 
     pub fn set_enclosing_declaration(&self, enclosing_declaration: Option<Id<Node>>) {
-        *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
+        self.enclosing_declaration.set(enclosing_declaration);
     }
 
     pub fn flags(&self) -> NodeBuilderFlags {
@@ -1958,7 +1959,7 @@ impl Clone for NodeBuilderContext {
     fn clone(&self) -> Self {
         Self {
             _arena_id: Default::default(),
-            enclosing_declaration: self.enclosing_declaration.clone(),
+            enclosing_declaration: Cell::new(self.maybe_enclosing_declaration()),
             flags: self.flags.clone(),
             tracker: self.tracker.clone(),
             encountered_error: self.encountered_error.clone(),
