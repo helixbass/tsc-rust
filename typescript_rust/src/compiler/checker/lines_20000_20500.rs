@@ -1086,7 +1086,7 @@ impl TypeChecker {
 }
 
 pub(super) enum GetVariancesCache {
-    SymbolLinks(Id<GcCell<SymbolLinks>>),
+    SymbolLinks(Id<SymbolLinks>),
     GenericType(Id<Type /*GenericType*/>),
 }
 
@@ -1105,8 +1105,8 @@ impl GetVariancesCache {
     }
 }
 
-impl From<Id<GcCell<SymbolLinks>>> for GetVariancesCache {
-    fn from(value: Id<GcCell<SymbolLinks>>) -> Self {
+impl From<Id<SymbolLinks>> for GetVariancesCache {
+    fn from(value: Id<SymbolLinks>) -> Self {
         Self::SymbolLinks(value)
     }
 }

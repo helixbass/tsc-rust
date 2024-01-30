@@ -2263,8 +2263,8 @@ impl TypeChecker {
             find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(&node.ref_(self)), self);
         let containing_call_resolved_signature: Option<Id<Signature>> =
             containing_call.and_then(|containing_call| {
-                (*self.get_node_links(containing_call))
-                    .borrow()
+                self.get_node_links(containing_call)
+                    .ref_(self)
                     .resolved_signature
                     .clone()
             });
@@ -2275,13 +2275,13 @@ impl TypeChecker {
                 while {
                     let to_mark_skip_present = to_mark_skip.unwrap();
                     self.get_node_links(to_mark_skip_present)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .skip_direct_inference = Some(true);
                     to_mark_skip = to_mark_skip_present.ref_(self).maybe_parent();
                     matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
-                    .borrow_mut()
+                    .ref_mut(self)
                     .resolved_signature = None;
             }
         }
@@ -2293,13 +2293,13 @@ impl TypeChecker {
                 while {
                     let to_mark_skip_present = to_mark_skip.unwrap();
                     self.get_node_links(to_mark_skip_present)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .skip_direct_inference = None;
                     to_mark_skip = to_mark_skip_present.ref_(self).maybe_parent();
                     matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
-                    .borrow_mut()
+                    .ref_mut(self)
                     .resolved_signature = containing_call_resolved_signature;
             }
         }
@@ -2695,8 +2695,8 @@ impl TypeChecker {
 
         self.check_source_file(file)?;
         Debug_.assert(
-            (*self.get_node_links(file))
-                .borrow()
+            self.get_node_links(file)
+                .ref_(self)
                 .flags
                 .intersects(NodeCheckFlags::TypeChecked),
             None,
@@ -3446,7 +3446,7 @@ impl TypeChecker {
         self.merged_symbols.borrow_mut()
     }
 
-    pub(super) fn node_links(&self) -> GcCellRefMut<HashMap<NodeId, Gc<GcCell<NodeLinks>>>> {
+    pub(super) fn node_links(&self) -> GcCellRefMut<HashMap<NodeId, Id<NodeLinks>>> {
         self.node_links.borrow_mut()
     }
 

@@ -341,7 +341,7 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_links_members_or_exports_resolution_field_value(
         &self,
-        symbol_links: Id<GcCell<SymbolLinks>>,
+        symbol_links: Id<SymbolLinks>,
         resolution_kind: MembersOrExportsResolutionKind,
     ) -> Option<Id<SymbolTable>> {
         match resolution_kind {
@@ -356,7 +356,7 @@ impl TypeChecker {
 
     pub(super) fn set_symbol_links_members_or_exports_resolution_field_value(
         &self,
-        symbol_links: Id<GcCell<SymbolLinks>>,
+        symbol_links: Id<SymbolLinks>,
         resolution_kind: MembersOrExportsResolutionKind,
         value: Option<Id<SymbolTable>>,
     ) {

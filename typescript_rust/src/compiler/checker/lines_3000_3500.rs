@@ -154,7 +154,7 @@ impl TypeChecker {
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().target.is_none() {
+        if links.ref_(self).target.is_none() {
             links.ref_(self).borrow_mut().target = Some(self.resolving_symbol());
             let node = self.get_declaration_of_alias_symbol(symbol)?;
             if node.is_none() {
@@ -231,7 +231,7 @@ impl TypeChecker {
 
     pub(super) fn mark_symbol_of_alias_declaration_if_type_only_worker(
         &self,
-        alias_declaration_links: Id<GcCell<SymbolLinks>>,
+        alias_declaration_links: Id<SymbolLinks>,
         target: Option<Id<Symbol>>,
         overwrite_empty: bool,
     ) -> bool {

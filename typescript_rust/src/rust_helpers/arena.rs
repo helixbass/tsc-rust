@@ -1,7 +1,6 @@
 use std::{any::Any, rc::Rc, collections::HashMap};
 
 use debug_cell::{Ref, RefCell, RefMut};
-use gc::GcCell;
 use id_arena::{Arena, Id};
 use once_cell::unsync::Lazy;
 
@@ -32,6 +31,7 @@ use crate::{
     PendingDeclaration, PackageJsonInfo, PatternAmbientModule, CheckTypeContainingMessageChain,
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
+    NodeLinks,
 };
 
 #[derive(Default)]
@@ -62,7 +62,7 @@ pub struct AllArenas {
     pub emit_resolvers: RefCell<Arena<Box<dyn EmitResolver>>>,
     pub resolved_type_reference_directives: RefCell<Arena<ResolvedTypeReferenceDirective>>,
     pub compiler_hosts: RefCell<Arena<Box<dyn CompilerHost>>>,
-    pub symbol_links: RefCell<Arena<GcCell<SymbolLinks>>>,
+    pub symbol_links: RefCell<Arena<SymbolLinks>>,
     pub printers: RefCell<Arena<Printer>>,
     pub diagnostic_related_informations: RefCell<Arena<DiagnosticRelatedInformation>>,
     pub index_infos: RefCell<Arena<IndexInfo>>,
@@ -158,6 +158,7 @@ pub struct AllArenas {
     pub skip_trivias: RefCell<Arena<Box<dyn SkipTrivia>>>,
     pub custom_transformer_factory_interfaces: RefCell<Arena<Box<dyn CustomTransformerFactoryInterface>>>,
     pub custom_transformer_interfaces: RefCell<Arena<Box<dyn CustomTransformerInterface>>>,
+    pub node_links: RefCell<Arena<NodeLinks>>,
 }
 
 pub trait HasArena {
@@ -371,11 +372,15 @@ pub trait HasArena {
         self.arena().alloc_compiler_host(compiler_host)
     }
 
-    fn symbol_links(&self, symbol_links: Id<GcCell<SymbolLinks>>) -> Ref<GcCell<SymbolLinks>> {
+    fn symbol_links(&self, symbol_links: Id<SymbolLinks>) -> Ref<SymbolLinks> {
         self.arena().symbol_links(symbol_links)
     }
 
-    fn alloc_symbol_links(&self, symbol_links: GcCell<SymbolLinks>) -> Id<GcCell<SymbolLinks>> {
+    fn symbol_links_mut(&self, symbol_links: Id<SymbolLinks>) -> RefMut<SymbolLinks> {
+        self.arena().symbol_links_mut(symbol_links)
+    }
+
+    fn alloc_symbol_links(&self, symbol_links: SymbolLinks) -> Id<SymbolLinks> {
         self.arena().alloc_symbol_links(symbol_links)
     }
 
@@ -1210,6 +1215,18 @@ pub trait HasArena {
     fn alloc_custom_transformer_interface(&self, custom_transformer_interface: Box<dyn CustomTransformerInterface>) -> Id<Box<dyn CustomTransformerInterface>> {
         self.arena().alloc_custom_transformer_interface(custom_transformer_interface)
     }
+
+    fn node_links(&self, node_links: Id<NodeLinks>) -> Ref<NodeLinks> {
+        self.arena().node_links(node_links)
+    }
+
+    fn node_links_mut(&self, node_links: Id<NodeLinks>) -> RefMut<NodeLinks> {
+        self.arena().node_links_mut(node_links)
+    }
+
+    fn alloc_node_links(&self, node_links: NodeLinks) -> Id<NodeLinks> {
+        self.arena().alloc_node_links(node_links)
+    }
 }
 
 impl HasArena for AllArenas {
@@ -1487,11 +1504,15 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn symbol_links(&self, symbol_links: Id<GcCell<SymbolLinks>>) -> Ref<GcCell<SymbolLinks>> {
+    fn symbol_links(&self, symbol_links: Id<SymbolLinks>) -> Ref<SymbolLinks> {
         Ref::map(self.symbol_links.borrow(), |symbol_links_| &symbol_links_[symbol_links])
     }
 
-    fn alloc_symbol_links(&self, symbol_links: GcCell<SymbolLinks>) -> Id<GcCell<SymbolLinks>> {
+    fn symbol_links_mut(&self, symbol_links: Id<SymbolLinks>) -> RefMut<SymbolLinks> {
+        RefMut::map(self.symbol_links.borrow_mut(), |symbol_links_| &mut symbol_links_[symbol_links])
+    }
+
+    fn alloc_symbol_links(&self, symbol_links: SymbolLinks) -> Id<SymbolLinks> {
         let id = self.symbol_links.borrow_mut().alloc(symbol_links);
         id
     }
@@ -2520,6 +2541,20 @@ impl HasArena for AllArenas {
         let id = self.custom_transformer_interfaces.borrow_mut().alloc(custom_transformer_interface);
         id
     }
+
+    #[track_caller]
+    fn node_links(&self, node_links: Id<NodeLinks>) -> Ref<NodeLinks> {
+        Ref::map(self.node_links.borrow(), |node_links_| &node_links_[node_links])
+    }
+
+    fn node_links_mut(&self, node_links: Id<NodeLinks>) -> RefMut<NodeLinks> {
+        RefMut::map(self.node_links.borrow_mut(), |node_links_| &mut node_links_[node_links])
+    }
+
+    fn alloc_node_links(&self, node_links: NodeLinks) -> Id<NodeLinks> {
+        let id = self.node_links.borrow_mut().alloc(node_links);
+        id
+    }
 }
 
 pub trait InArena {
@@ -2740,11 +2775,15 @@ impl InArena for Id<Box<dyn CompilerHost>> {
     }
 }
 
-impl InArena for Id<GcCell<SymbolLinks>> {
-    type Item = GcCell<SymbolLinks>;
+impl InArena for Id<SymbolLinks> {
+    type Item = SymbolLinks;
 
-    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, GcCell<SymbolLinks>> {
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymbolLinks> {
         has_arena.symbol_links(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, SymbolLinks> {
+        has_arena.symbol_links_mut(*self)
     }
 }
 
@@ -3577,6 +3616,18 @@ impl InArena for Id<Box<dyn CustomTransformerInterface>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn CustomTransformerInterface>> {
         has_arena.custom_transformer_interface(*self)
+    }
+}
+
+impl InArena for Id<NodeLinks> {
+    type Item = NodeLinks;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, NodeLinks> {
+        has_arena.node_links(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, NodeLinks> {
+        has_arena.node_links_mut(*self)
     }
 }
 

@@ -1050,7 +1050,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Id<GcCell<SymbolLinks>> {
+    pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Id<SymbolLinks> {
         if let Symbol::TransientSymbol(symbol) = &*symbol.ref_(self) {
             return symbol.symbol_links();
         }
@@ -1059,18 +1059,18 @@ impl TypeChecker {
         if let Some(symbol_links) = symbol_links_table.get(&id) {
             return symbol_links.clone();
         }
-        let symbol_links: Id<GcCell<SymbolLinks>> = self.alloc_symbol_links(_d());
+        let symbol_links = self.alloc_symbol_links(_d());
         symbol_links_table.insert(id, symbol_links.clone());
         symbol_links
     }
 
-    pub(super) fn get_node_links(&self, node: Id<Node>) -> Gc<GcCell<NodeLinks>> {
+    pub(super) fn get_node_links(&self, node: Id<Node>) -> Id<NodeLinks> {
         let id = get_node_id(&node.ref_(self));
         let mut node_links_table = self.node_links.borrow_mut();
         if let Some(node_links) = node_links_table.get(&id) {
             return node_links.clone();
         }
-        let node_links = Gc::new(GcCell::new(NodeLinks::new()));
+        let node_links = self.alloc_node_links(NodeLinks::new());
         node_links_table.insert(id, node_links.clone());
         node_links
     }
@@ -1437,7 +1437,7 @@ impl TypeChecker {
         {
             if target >= ScriptTarget::ES2015 {
                 let links = self.get_node_links(location);
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 if links.declaration_requires_scope_change.is_none() {
                     links.declaration_requires_scope_change = Some(
                         for_each_bool(

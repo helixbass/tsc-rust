@@ -1856,8 +1856,8 @@ impl TypeChecker {
             return Ok(alias_like);
         }
         self.check_expression_cached(expression, None)?;
-        Ok((*self.get_node_links(expression))
-            .borrow()
+        Ok(self.get_node_links(expression)
+            .ref_(self)
             .resolved_symbol
             .clone())
     }
