@@ -1199,7 +1199,7 @@ impl TypeChecker {
                     *arg_check_mode |= if inference_context
                         .as_ref()
                         .unwrap()
-                        .flags()
+                        .ref_(self).flags()
                         .intersects(InferenceFlags::SkippedGenericFunction)
                     {
                         CheckMode::SkipGenericFunctions
@@ -1214,7 +1214,7 @@ impl TypeChecker {
                     inference_context
                         .as_ref()
                         .and_then(|inference_context| {
-                            inference_context.maybe_inferred_type_parameters().clone()
+                            inference_context.ref_(self).maybe_inferred_type_parameters().clone()
                         })
                         .as_deref(),
                 )?;
@@ -1269,7 +1269,7 @@ impl TypeChecker {
                         is_in_js_file(candidate.ref_(self).declaration.refed(self).as_deref()),
                         /*inferenceContext &&*/
                         inference_context
-                            .maybe_inferred_type_parameters()
+                            .ref_(self).maybe_inferred_type_parameters()
                             .as_deref(),
                     )?;
                     if self.get_non_array_rest_type(candidate)?.is_some()

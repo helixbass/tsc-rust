@@ -141,14 +141,14 @@ impl TypeChecker {
                             self.infer_from_annotated_parameters(
                                 signature,
                                 contextual_signature.clone(),
-                                inference_context.as_ref().unwrap(),
+                                inference_context.unwrap(),
                             )?;
                         }
                         let instantiated_contextual_signature =
                             if let Some(inference_context) = inference_context.as_ref() {
                                 self.alloc_signature(self.instantiate_signature(
                                     contextual_signature.clone(),
-                                    inference_context.mapper(),
+                                    inference_context.ref_(self).mapper(),
                                     None,
                                 )?)
                             } else {

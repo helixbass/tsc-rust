@@ -149,7 +149,7 @@ impl TypeChecker {
                         return Ok(Some(self.instantiate_type(
                             this_type,
                             self.get_mapper_from_context(
-                                self.get_inference_context(containing_literal).as_deref(),
+                                self.get_inference_context(containing_literal),
                             ),
                         )?));
                     }

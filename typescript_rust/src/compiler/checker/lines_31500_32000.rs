@@ -57,7 +57,7 @@ impl TypeChecker {
                 let type_node = get_effective_type_annotation_node(declaration, self);
                 if let Some(type_node) = type_node {
                     self.infer_types(
-                        &inference_context.inferences(),
+                        &inference_context.ref_(self).inferences(),
                         self.get_type_from_type_node_(type_node)?,
                         self.get_type_at_position(context, i)?,
                         None,
@@ -75,13 +75,13 @@ impl TypeChecker {
         }) {
             let instantiated_context = self.alloc_signature(self.instantiate_signature(
                 context.clone(),
-                inference_context.non_fixing_mapper(),
+                inference_context.ref_(self).non_fixing_mapper(),
                 None,
             )?);
             self.assign_contextual_parameter_types(signature, instantiated_context)?;
             let rest_pos = self.get_parameter_count(context)? - 1;
             self.infer_types(
-                &inference_context.inferences(),
+                &inference_context.ref_(self).inferences(),
                 self.get_rest_type_at_position(signature, rest_pos)?,
                 rest_type,
                 None,

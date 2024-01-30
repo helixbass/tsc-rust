@@ -736,14 +736,14 @@ impl TypeChecker {
         context.map(|context| {
             self.create_inference_context_worker(
                 map(
-                    &*context.inferences(),
+                    &*context.ref_(self).inferences(),
                     |inference: &Id<InferenceInfo>, _| {
                         self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
                     },
                 ),
-                context.signature.clone(),
-                context.flags() | extra_flags,
-                context.compare_types.clone(),
+                context.ref_(self).signature.clone(),
+                context.ref_(self).flags() | extra_flags,
+                context.ref_(self).compare_types.clone(),
             )
         })
     }
@@ -765,10 +765,10 @@ impl TypeChecker {
             None,
             None,
         ));
-        context.set_mapper(self.make_function_type_mapper(
+        context.ref_(self).set_mapper(self.make_function_type_mapper(
             CreateInferenceContextWorkerMapperCallback::new(context.clone()),
         ));
-        context.set_non_fixing_mapper(self.make_function_type_mapper(
+        context.ref_(self).set_non_fixing_mapper(self.make_function_type_mapper(
             CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
         ));
         context
@@ -780,7 +780,8 @@ impl TypeChecker {
         t: Id<Type>,
         fix: bool,
     ) -> io::Result<Id<Type>> {
-        let inferences = context.inferences();
+        let context_ref = context.ref_(self);
+        let inferences = context_ref.inferences();
         let inferences = &*inferences;
         for (i, inference) in inferences.into_iter().enumerate() {
             if t == inference.ref_(self).type_parameter {
@@ -826,7 +827,7 @@ impl TypeChecker {
         &self,
         context: Id<InferenceContext>,
     ) -> Option<Id<InferenceContext>> {
-        let inferences = filter(&context.inferences(), |inference: &Id<InferenceInfo>| {
+        let inferences = filter(&context.ref_(self).inferences(), |inference: &Id<InferenceInfo>| {
             self.has_inference_candidates(&inference.ref_(self))
         });
         if !inferences.is_empty() {
@@ -834,9 +835,9 @@ impl TypeChecker {
                 map(&inferences, |inference: &Id<InferenceInfo>, _| {
                     self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
                 }),
-                context.signature.clone(),
-                context.flags(),
-                context.compare_types.clone(),
+                context.ref_(self).signature.clone(),
+                context.ref_(self).flags(),
+                context.ref_(self).compare_types.clone(),
             ))
         } else {
             None
@@ -847,7 +848,7 @@ impl TypeChecker {
         &self,
         context: Option<Id<InferenceContext>>,
     ) -> Option<Id<TypeMapper>> {
-        context.map(|context| context.mapper().clone())
+        context.map(|context| context.ref_(self).mapper().clone())
     }
 
     pub(super) fn could_contain_type_variables(&self, type_: Id<Type>) -> io::Result<bool> {

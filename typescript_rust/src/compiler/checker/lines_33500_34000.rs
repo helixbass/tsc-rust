@@ -333,7 +333,7 @@ impl TypeChecker {
                         }
                         let context = self.get_inference_context(node).unwrap();
                         let return_type =
-                            context.signature.as_ref().try_map(|context_signature| {
+                            context.ref_(self).signature.try_map(|context_signature| {
                                 self.get_return_type_of_signature(context_signature.clone())
                             })?;
                         let return_signature = return_type.try_and_then(|return_type| {
@@ -342,14 +342,14 @@ impl TypeChecker {
                         if return_signature.matches(|return_signature| {
                             return_signature.ref_(self).maybe_type_parameters().is_none()
                                 && !every(
-                                    &context.inferences(),
+                                    &context.ref_(self).inferences(),
                                     |inference: &Id<InferenceInfo>, _| {
                                         self.has_inference_candidates(&inference.ref_(self))
                                     },
                                 )
                         }) {
                             let unique_type_parameters = self.get_unique_type_parameters(
-                                &context,
+                                context,
                                 signature.ref_(self).maybe_type_parameters().as_ref().unwrap(),
                             );
                             let instantiated_signature = self
@@ -358,7 +358,7 @@ impl TypeChecker {
                                     Some(&unique_type_parameters),
                                 )?;
                             let inferences =
-                                map(&*context.inferences(), |info: &Id<InferenceInfo>, _| {
+                                map(&*context.ref_(self).inferences(), |info: &Id<InferenceInfo>, _| {
                                     self.alloc_inference_info(self.create_inference_info(info.ref_(self).type_parameter))
                                 });
                             self.apply_to_parameter_types(
@@ -390,15 +390,15 @@ impl TypeChecker {
                                     },
                                 )?;
                                 if !self
-                                    .has_overlapping_inferences(&context.inferences(), &inferences)
+                                    .has_overlapping_inferences(&context.ref_(self).inferences(), &inferences)
                                 {
                                     self.merge_inferences(
-                                        &mut context.inferences_mut(),
+                                        &mut context.ref_(self).inferences_mut(),
                                         &inferences,
                                     );
                                     {
-                                        let mut context_inferred_type_parameters =
-                                            context.maybe_inferred_type_parameters_mut();
+                                        let context_ref = context.ref_(self);
+                                        let mut context_inferred_type_parameters = context_ref.maybe_inferred_type_parameters_mut();
                                         *context_inferred_type_parameters = Some(concatenate(
                                             context_inferred_type_parameters
                                                 .clone()
@@ -416,7 +416,7 @@ impl TypeChecker {
                             self.instantiate_signature_in_context_of(
                                 signature.clone(),
                                 contextual_signature.clone(),
-                                Some(&context),
+                                Some(context),
                                 None,
                             )?,
                         ));
@@ -430,7 +430,7 @@ impl TypeChecker {
     pub(super) fn skipped_generic_function(&self, node: Id<Node>, check_mode: CheckMode) {
         if check_mode.intersects(CheckMode::Inferential) {
             let context = self.get_inference_context(node).unwrap();
-            context.set_flags(context.flags() | InferenceFlags::SkippedGenericFunction);
+            context.ref_(self).set_flags(context.ref_(self).flags() | InferenceFlags::SkippedGenericFunction);
         }
     }
 
@@ -478,14 +478,14 @@ impl TypeChecker {
             let tp_symbol_ref = tp_symbol.ref_(self);
             let name = tp_symbol_ref.escaped_name();
             if self.has_type_parameter_by_name(
-                context.maybe_inferred_type_parameters().as_deref(),
+                context.ref_(self).maybe_inferred_type_parameters().as_deref(),
                 name,
             ) || self.has_type_parameter_by_name(Some(&result), name)
             {
                 let new_name = self.get_unique_type_parameter_name(
                     &concatenate(
                         context
-                            .maybe_inferred_type_parameters()
+                            .ref_(self).maybe_inferred_type_parameters()
                             .clone()
                             .unwrap_or_else(|| vec![]),
                         result.clone(),

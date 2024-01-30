@@ -799,7 +799,7 @@ impl TypeChecker {
             if let Some(inference_context) =
                 inference_context.as_ref().filter(|inference_context| {
                     some(
-                        Some(&**inference_context.inferences()),
+                        Some(&**inference_context.ref_(self).inferences()),
                         Some(|inference: &Id<InferenceInfo>| {
                             self.has_inference_candidates(&inference.ref_(self))
                         }),
@@ -812,10 +812,10 @@ impl TypeChecker {
                 ) {
                     return Ok(Some(self.instantiate_instantiable_types(
                         contextual_type,
-                        inference_context.non_fixing_mapper(),
+                        inference_context.ref_(self).non_fixing_mapper(),
                     )?));
                 }
-                let inference_context_return_mapper = inference_context.maybe_return_mapper();
+                let inference_context_return_mapper = inference_context.ref_(self).maybe_return_mapper();
                 if let Some(inference_context_return_mapper) = inference_context_return_mapper {
                     return Ok(Some(self.instantiate_instantiable_types(
                         contextual_type,

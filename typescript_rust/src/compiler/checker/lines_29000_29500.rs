@@ -285,9 +285,9 @@ impl TypeChecker {
                 rest_type,
                 Some(rest_type) if rest_type.ref_(self).flags().intersects(TypeFlags::TypeParameter)
             ) {
-                inference_context.non_fixing_mapper().clone()
+                inference_context.ref_(self).non_fixing_mapper().clone()
             } else {
-                inference_context.mapper().clone()
+                inference_context.ref_(self).mapper().clone()
             }
         });
         let source_signature = if let Some(mapper) = mapper {
@@ -299,7 +299,7 @@ impl TypeChecker {
             source_signature,
             signature,
             |source: Id<Type>, target: Id<Type>| {
-                self.infer_types(&context.inferences(), source, target, None, None)
+                self.infer_types(&context.ref_(self).inferences(), source, target, None, None)
             },
         )?;
         if inference_context.is_none() {
@@ -308,7 +308,7 @@ impl TypeChecker {
                 signature.clone(),
                 |source: Id<Type>, target: Id<Type>| {
                     self.infer_types(
-                        &context.inferences(),
+                        &context.ref_(self).inferences(),
                         source,
                         target,
                         Some(InferencePriority::ReturnType),
@@ -321,7 +321,7 @@ impl TypeChecker {
         }
         self.get_signature_instantiation(
             signature.clone(),
-            Some(&*self.get_inferred_types(&context)?),
+            Some(&*self.get_inferred_types(context)?),
             is_in_js_file(contextual_signature.ref_(self).declaration.refed(self).as_deref()),
             None,
         )
@@ -343,13 +343,13 @@ impl TypeChecker {
             check_mode,
         )?;
         self.infer_types(
-            &context.inferences(),
+            &context.ref_(self).inferences(),
             check_attr_type,
             param_type,
             None,
             None,
         )?;
-        self.get_inferred_types(&context)
+        self.get_inferred_types(context)
     }
 
     pub(super) fn get_this_argument_type(
@@ -401,10 +401,9 @@ impl TypeChecker {
                 let outer_context = self.get_inference_context(node);
                 let outer_mapper = self.get_mapper_from_context(
                     self.clone_inference_context(
-                        outer_context.as_deref(),
+                        outer_context,
                         Some(InferenceFlags::NoDefault),
-                    )
-                    .as_deref(),
+                    ),
                 );
                 let instantiated_type = self.instantiate_type(contextual_type, outer_mapper)?;
                 let contextual_signature = self.get_single_call_signature(instantiated_type)?;
@@ -424,7 +423,7 @@ impl TypeChecker {
                 };
                 let inference_target_type = self.get_return_type_of_signature(signature.clone())?;
                 self.infer_types(
-                    &context.inferences(),
+                    &context.ref_(self).inferences(),
                     inference_source_type,
                     inference_target_type,
                     Some(InferencePriority::ReturnType),
@@ -433,34 +432,33 @@ impl TypeChecker {
                 let return_context = self.create_inference_context(
                     &signature.ref_(self).maybe_type_parameters().clone().unwrap(),
                     Some(signature.clone()),
-                    context.flags(),
+                    context.ref_(self).flags(),
                     None,
                 );
                 let return_source_type = self.instantiate_type(
                     contextual_type,
                     if let Some(outer_context) = outer_context.as_ref() {
-                        outer_context.maybe_return_mapper()
+                        outer_context.ref_(self).maybe_return_mapper()
                     } else {
                         None
                     },
                 )?;
                 self.infer_types(
-                    &return_context.inferences(),
+                    &return_context.ref_(self).inferences(),
                     return_source_type,
                     inference_target_type,
                     None,
                     None,
                 )?;
-                context.set_return_mapper(
+                context.ref_(self).set_return_mapper(
                     if some(
-                        Some(&**return_context.inferences()),
+                        Some(&**return_context.ref_(self).inferences()),
                         Some(|inference: &Id<InferenceInfo>| {
                             self.has_inference_candidates(&inference.ref_(self))
                         }),
                     ) {
                         self.get_mapper_from_context(
-                            self.clone_inferred_part_of_context(&return_context)
-                                .as_deref(),
+                            self.clone_inferred_part_of_context(return_context),
                         )
                     } else {
                         None
@@ -481,7 +479,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
         }) {
-            let info = find(&context.inferences(), |info: &Id<InferenceInfo>, _| {
+            let info = find(&context.ref_(self).inferences(), |info: &Id<InferenceInfo>, _| {
                 info.ref_(self).type_parameter == rest_type
             })
             .cloned();
@@ -506,7 +504,7 @@ impl TypeChecker {
         if let Some(this_type) = this_type {
             let this_argument_node = self.get_this_argument_of_call(node);
             self.infer_types(
-                &context.inferences(),
+                &context.ref_(self).inferences(),
                 self.get_this_argument_type(this_argument_node)?,
                 this_type,
                 None,
@@ -524,7 +522,7 @@ impl TypeChecker {
                     Some(context.clone()),
                     check_mode,
                 )?;
-                self.infer_types(&context.inferences(), arg_type, param_type, None, None)?;
+                self.infer_types(&context.ref_(self).inferences(), arg_type, param_type, None, None)?;
             }
         }
 
@@ -537,10 +535,10 @@ impl TypeChecker {
                 Some(context.clone()),
                 check_mode,
             )?;
-            self.infer_types(&context.inferences(), spread_type, rest_type, None, None)?;
+            self.infer_types(&context.ref_(self).inferences(), spread_type, rest_type, None, None)?;
         }
 
-        self.get_inferred_types(&context)
+        self.get_inferred_types(context)
     }
 
     pub(super) fn get_mutable_array_or_tuple_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {

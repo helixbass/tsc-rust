@@ -925,10 +925,10 @@ impl TypeChecker {
         context: Id<InferenceContext>,
         index: usize,
     ) -> io::Result<Id<Type>> {
-        let inference = context.inferences()[index].clone();
+        let inference = context.ref_(self).inferences()[index].clone();
         if inference.ref_(self).maybe_inferred_type().is_none() {
             let mut inferred_type: Option<Id<Type>> = None;
-            let signature = context.signature.as_ref();
+            let signature = context.ref_(self).signature;
             if let Some(signature) = signature {
                 let inferred_covariant_type = if inference.ref_(self).maybe_candidates().is_some() {
                     Some(self.get_covariant_inference(&inference.ref_(self), signature.clone())?)
@@ -960,7 +960,7 @@ impl TypeChecker {
                     );
                 } else if let Some(inferred_covariant_type) = inferred_covariant_type.as_ref() {
                     inferred_type = Some(inferred_covariant_type.clone());
-                } else if context.flags().intersects(InferenceFlags::NoDefault) {
+                } else if context.ref_(self).flags().intersects(InferenceFlags::NoDefault) {
                     inferred_type = Some(self.silent_never_type());
                 } else {
                     let default_type =
@@ -970,7 +970,7 @@ impl TypeChecker {
                             default_type,
                             Some(self.merge_type_mappers(
                                 Some(self.create_backreference_mapper(context, index)),
-                                context.non_fixing_mapper().clone(),
+                                context.ref_(self).non_fixing_mapper().clone(),
                             )),
                         )?);
                     }
@@ -982,18 +982,18 @@ impl TypeChecker {
             *inference.ref_(self).maybe_inferred_type_mut() =
                 Some(inferred_type.clone().unwrap_or_else(|| {
                     self.get_default_type_argument_type(
-                        context.flags().intersects(InferenceFlags::AnyDefault),
+                        context.ref_(self).flags().intersects(InferenceFlags::AnyDefault),
                     )
                 }));
 
             let constraint = self.get_constraint_of_type_parameter(inference.ref_(self).type_parameter)?;
             if let Some(constraint) = constraint {
                 let instantiated_constraint =
-                    self.instantiate_type(constraint, Some(context.non_fixing_mapper()))?;
+                    self.instantiate_type(constraint, Some(context.ref_(self).non_fixing_mapper()))?;
                 if match inferred_type {
                     None => true,
                     Some(inferred_type) => {
-                        context.compare_types.ref_(self).call(
+                        context.ref_(self).compare_types.ref_(self).call(
                             inferred_type,
                             self.get_type_with_this_argument(
                                 instantiated_constraint,
@@ -1030,7 +1030,7 @@ impl TypeChecker {
         context: Id<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut result: Vec<Id<Type>> = vec![];
-        for i in 0..context.inferences().len() {
+        for i in 0..context.ref_(self).inferences().len() {
             result.push(self.get_inferred_type(context, i)?);
         }
         Ok(result)
