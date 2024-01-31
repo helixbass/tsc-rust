@@ -16,6 +16,7 @@ use super::{
 use crate::{
     EvolvingArrayType, FreshObjectLiteralTypeInterface, GcVec, Number, TypeId, TypeMapper,
     __String, gc_cell_ref_mut_unwrapped, HasArena,
+    InArena,
 };
 
 pub trait LiteralTypeInterface: TypeInterface {
@@ -45,19 +46,19 @@ impl LiteralType {
 
     pub fn get_or_initialize_fresh_type(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
         if matches!(
-            &*type_checker.type_(self_),
+            &*self_.ref_(type_checker),
             Type::LiteralType(LiteralType::StringLiteralType(_))
         ) {
             return StringLiteralType::get_or_initialize_fresh_type(self_, type_checker);
         }
         if matches!(
-            &*type_checker.type_(self_),
+            &*self_.ref_(type_checker),
             Type::LiteralType(LiteralType::NumberLiteralType(_))
         ) {
             return NumberLiteralType::get_or_initialize_fresh_type(self_, type_checker);
         }
         if matches!(
-            &*type_checker.type_(self_),
+            &*self_.ref_(type_checker),
             Type::LiteralType(LiteralType::BigIntLiteralType(_))
         ) {
             return BigIntLiteralType::get_or_initialize_fresh_type(self_, type_checker);
@@ -137,41 +138,41 @@ impl StringLiteralType {
     }
 
     fn create_fresh_type_from_self(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        let flags = type_checker.type_(self_).flags();
-        let value = type_checker
-            .type_(self_)
+        let flags = self_.ref_(type_checker).flags();
+        let value = self_
+            .ref_(type_checker)
             .as_string_literal_type()
             .value
             .clone();
-        let symbol = type_checker.type_(self_).maybe_symbol();
+        let symbol = self_.ref_(type_checker).maybe_symbol();
         let fresh_type = type_checker.create_string_literal_type(flags, value, symbol, Some(self_));
-        type_checker
-            .type_(fresh_type)
+        fresh_type
+            .ref_(type_checker)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
-        type_checker
-            .type_(self_)
+        self_
+            .ref_(type_checker)
             .as_string_literal_type()
             .set_fresh_type(fresh_type.clone());
         fresh_type
     }
 
     pub fn get_or_initialize_fresh_type(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        if type_checker
-            .type_(self_)
+        if self_
+            .ref_(type_checker)
             .as_string_literal_type()
             .fresh_type()
             .is_none()
         {
             let fresh_type = Self::create_fresh_type_from_self(self_, type_checker);
-            type_checker
-                .type_(self_)
+            self_
+                .ref_(type_checker)
                 .as_string_literal_type()
                 .set_fresh_type(fresh_type.clone());
             return fresh_type;
         }
-        type_checker
-            .type_(self_)
+        self_
+            .ref_(type_checker)
             .as_string_literal_type()
             .fresh_type()
             .unwrap()
@@ -213,37 +214,37 @@ impl NumberLiteralType {
     }
 
     fn create_fresh_type_from_self(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        let flags = type_checker.type_(self_).flags();
-        let value = type_checker.type_(self_).as_number_literal_type().value;
-        let symbol = type_checker.type_(self_).maybe_symbol();
+        let flags = self_.ref_(type_checker).flags();
+        let value = self_.ref_(type_checker).as_number_literal_type().value;
+        let symbol = self_.ref_(type_checker).maybe_symbol();
         let fresh_type = type_checker.create_number_literal_type(flags, value, symbol, Some(self_));
-        type_checker
-            .type_(fresh_type)
+        fresh_type
+            .ref_(type_checker)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
-        type_checker
-            .type_(self_)
+        self_
+            .ref_(type_checker)
             .as_number_literal_type()
             .set_fresh_type(fresh_type.clone());
         fresh_type
     }
 
     pub fn get_or_initialize_fresh_type(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        if type_checker
-            .type_(self_)
+        if self_
+            .ref_(type_checker)
             .as_number_literal_type()
             .fresh_type()
             .is_none()
         {
             let fresh_type = Self::create_fresh_type_from_self(self_, type_checker);
-            type_checker
-                .type_(self_)
+            self_
+                .ref_(type_checker)
                 .as_number_literal_type()
                 .set_fresh_type(fresh_type.clone());
             return fresh_type;
         }
-        type_checker
-            .type_(self_)
+        self_
+            .ref_(type_checker)
             .as_number_literal_type()
             .fresh_type()
             .unwrap()
@@ -285,42 +286,42 @@ impl BigIntLiteralType {
     }
 
     fn create_fresh_type_from_self(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        let flags = type_checker.type_(self_).flags();
-        let value = type_checker
-            .type_(self_)
+        let flags = self_.ref_(type_checker).flags();
+        let value = self_
+            .ref_(type_checker)
             .as_big_int_literal_type()
             .value
             .clone();
-        let symbol = type_checker.type_(self_).maybe_symbol();
+        let symbol = self_.ref_(type_checker).maybe_symbol();
         let fresh_type =
             type_checker.create_big_int_literal_type(flags, value, symbol, Some(self_));
-        type_checker
-            .type_(fresh_type)
+        fresh_type
+            .ref_(type_checker)
             .as_literal_type()
             .set_fresh_type(fresh_type.clone());
-        type_checker
-            .type_(self_)
+        self_
+            .ref_(type_checker)
             .as_big_int_literal_type()
             .set_fresh_type(fresh_type.clone());
         fresh_type
     }
 
     pub fn get_or_initialize_fresh_type(self_: Id<Type>, type_checker: &TypeChecker) -> Id<Type> {
-        if type_checker
-            .type_(self_)
+        if self_
+            .ref_(type_checker)
             .as_big_int_literal_type()
             .fresh_type()
             .is_none()
         {
             let fresh_type = Self::create_fresh_type_from_self(self_, type_checker);
-            type_checker
-                .type_(self_)
+            self_
+                .ref_(type_checker)
                 .as_big_int_literal_type()
                 .set_fresh_type(fresh_type.clone());
             return fresh_type;
         }
-        type_checker
-            .type_(self_)
+        self_
+            .ref_(type_checker)
             .as_big_int_literal_type()
             .fresh_type()
             .unwrap()

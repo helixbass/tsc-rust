@@ -38,7 +38,7 @@ pub enum FlowType {
 impl FlowType {
     pub fn flags(&self, arena: &AllArenas) -> TypeFlags {
         match self {
-            Self::Type(value) => arena.type_(*value).flags(),
+            Self::Type(value) => value.ref_(arena).flags(),
             Self::IncompleteType(value) => value.flags,
         }
     }
