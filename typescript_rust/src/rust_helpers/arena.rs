@@ -3897,6 +3897,14 @@ impl OptionInArena for Option<Id<CommandLineOption>> {
     }
 }
 
+impl OptionInArena for Option<Id<HashMap<String, Id<CommandLineOption>>>> {
+    type Item = HashMap<String, Id<CommandLineOption>>;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, HashMap<String, Id<CommandLineOption>>>> {
+        self.map(|command_line_options_map| has_arena.command_line_options_map(command_line_options_map))
+    }
+}
+
 pub trait ArenaAlloc: Sized {
     fn alloc(self, arena: &impl HasArena) -> Id<Self>;
 }

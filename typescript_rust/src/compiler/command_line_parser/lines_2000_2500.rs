@@ -30,12 +30,19 @@ use crate::{
 pub(super) fn is_root_option_map(
     known_root_options: Option<&CommandLineOption>,
     known_options: Option<&HashMap<String, Id<CommandLineOption>>>,
+    arena: &impl HasArena,
 ) -> bool {
     match known_root_options {
         None => false,
         Some(known_root_options) => match known_root_options {
             CommandLineOption::TsConfigOnlyOption(known_root_options) => {
-                matches!(known_root_options.element_options.as_deref(), Some(element_options) if matches!(known_options, Some(known_options) if ptr::eq(element_options, known_options)))
+                matches!(
+                    known_root_options.element_options,
+                    Some(element_options) if matches!(
+                        known_options,
+                        Some(known_options) if ptr::eq(&*element_options.ref_(arena), known_options)
+                    )
+                )
             }
             _ => false,
         },
@@ -161,7 +168,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             return_value,
             known_root_options,
             element_as_property_assignment.initializer,
-            option,
+            option.refed(arena).as_deref(),
             arena,
         )?;
         if let Some(key_text) = key_text {
@@ -174,18 +181,18 @@ pub(super) fn convert_object_literal_expression_to_json(
                 }
             }
             if let Some(json_conversion_notifier) = json_conversion_notifier {
-                if parent_option.is_some() || is_root_option_map(known_root_options, known_options)
+                if parent_option.is_some() || is_root_option_map(known_root_options, known_options, arena)
                 {
-                    let is_valid_option_value = is_compiler_options_value(option, value.as_ref());
+                    let is_valid_option_value = is_compiler_options_value(&option.ref_(arena), value.as_ref());
                     if let Some(parent_option) = parent_option {
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_parent(
                                 parent_option,
-                                option.unwrap(),
+                                &option.unwrap().ref_(arena),
                                 value.as_ref(),
                             );
                         }
-                    } else if is_root_option_map(known_root_options, known_options) {
+                    } else if is_root_option_map(known_root_options, known_options, arena) {
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_root(
                                 &key_text,
@@ -487,7 +494,7 @@ pub(super) fn convert_property_value_to_json(
 
             if let Some(option) = option {
                 let option_as_ts_config_only_option = option.as_ts_config_only_option();
-                let element_options = option_as_ts_config_only_option.element_options.as_deref();
+                let element_options = option_as_ts_config_only_option.element_options;
                 let extra_key_diagnostics = option_as_ts_config_only_option
                     .extra_key_diagnostics
                     .as_ref()
@@ -502,7 +509,7 @@ pub(super) fn convert_property_value_to_json(
                     json_conversion_notifier,
                     known_root_options,
                     object_literal_expression,
-                    element_options,
+                    element_options.refed(arena).as_deref(),
                     extra_key_diagnostics,
                     if option_name == tsconfig_root_options_dummy_name {
                         None
@@ -972,21 +979,27 @@ impl MatchesSpecs {
 }
 
 pub(super) fn get_custom_type_map_of_command_line_option(
-    option_definition: &CommandLineOption,
+    option_definition: Id<CommandLineOption>,
     arena: &impl HasArena,
-) -> Option<&IndexMap<&'static str, CommandLineOptionMapTypeValue>> {
-    match option_definition.type_() {
+) -> Option<debug_cell::Ref<IndexMap<&'static str, CommandLineOptionMapTypeValue>>> {
+    match option_definition.ref_(arena).type_() {
         CommandLineOptionType::String
         | CommandLineOptionType::Number
         | CommandLineOptionType::Boolean
         | CommandLineOptionType::Object => None,
         CommandLineOptionType::List => get_custom_type_map_of_command_line_option(
-            &option_definition
-                .as_command_line_option_of_list_type()
-                .element.ref_(arena),
+            option_definition
+                .ref_(arena).as_command_line_option_of_list_type()
+                .element,
             arena,
         ),
-        CommandLineOptionType::Map(map) => Some(map),
+        CommandLineOptionType::Map(map) => Some(debug_cell::Ref::map(
+            option_definition.ref_(arena),
+            |option_definition| match option_definition.type_() {
+                CommandLineOptionType::Map(map) => map,
+                _ => unreachable!(),
+            }
+        )),
     }
 }
 
@@ -1052,7 +1065,7 @@ pub(super) fn serialize_option_base_object(
         }
         let option_definition = options_name_map.get(&name.to_lowercase());
         if let Some(option_definition) = option_definition {
-            let custom_type_map = get_custom_type_map_of_command_line_option(&option_definition.ref_(arena), arena);
+            let custom_type_map = get_custom_type_map_of_command_line_option(option_definition, arena);
             match custom_type_map {
                 None => {
                     if path_options.is_some() && option_definition.ref_(arena).is_file_path() {
@@ -1088,7 +1101,7 @@ pub(super) fn serialize_option_base_object(
                                 .map(|element| {
                                     get_name_of_compiler_option_value(
                                         &CompilerOptionsValue::String(Some(element.clone())),
-                                        custom_type_map,
+                                        &custom_type_map,
                                     )
                                     .unwrap()
                                     .to_owned()

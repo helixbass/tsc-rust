@@ -1075,21 +1075,21 @@ pub fn create_type_checker(
         ))
         .into(),
     );
-    type_checker
-        .type_(false_type)
+    false_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_regular_type(regular_false_type.clone());
-    type_checker
-        .type_(false_type)
+    false_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_fresh_type(false_type.clone());
     type_checker.false_type = Some(false_type);
-    type_checker
-        .type_(regular_false_type)
+    regular_false_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_regular_type(regular_false_type.clone());
-    type_checker
-        .type_(regular_false_type)
+    regular_false_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_fresh_type(type_checker.false_type());
     type_checker.regular_false_type = Some(regular_false_type);
@@ -1109,21 +1109,21 @@ pub fn create_type_checker(
         ))
         .into(),
     );
-    type_checker
-        .type_(true_type)
+    true_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_regular_type(regular_true_type.clone());
-    type_checker
-        .type_(true_type)
+    true_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_fresh_type(true_type.clone());
     type_checker.true_type = Some(true_type);
-    type_checker
-        .type_(regular_true_type)
+    regular_true_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_regular_type(regular_true_type.clone());
-    type_checker
-        .type_(regular_true_type)
+    regular_true_type
+        .ref_(&type_checker)
         .as_freshable_intrinsic_type()
         .set_fresh_type(type_checker.true_type());
     type_checker.regular_true_type = Some(regular_true_type);
@@ -1261,12 +1261,12 @@ pub fn create_type_checker(
         vec![],
         vec![],
     )?;
-    type_checker
-        .type_(empty_jsx_object_type)
+    empty_jsx_object_type
+        .ref_(&type_checker)
         .as_object_flags_type()
         .set_object_flags(
-            type_checker
-                .type_(empty_jsx_object_type)
+            empty_jsx_object_type
+                .ref_(&type_checker)
                 .as_object_flags_type()
                 .object_flags()
                 | ObjectFlags::JsxAttributes,
@@ -1309,12 +1309,12 @@ pub fn create_type_checker(
         vec![],
         vec![],
     )?;
-    type_checker
-        .type_(any_function_type)
+    any_function_type
+        .ref_(&type_checker)
         .as_object_flags_type()
         .set_object_flags(
-            type_checker
-                .type_(any_function_type)
+            any_function_type
+                .ref_(&type_checker)
                 .as_object_flags_type()
                 .object_flags()
                 | ObjectFlags::NonInferrableType,
@@ -1478,8 +1478,8 @@ struct RestrictiveMapperFunc {}
 impl TypeMapperCallback for RestrictiveMapperFunc {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if type_checker
-                .type_(t)
+            if t
+                .ref_(type_checker)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
@@ -1497,8 +1497,8 @@ struct PermissiveMapperFunc {}
 impl TypeMapperCallback for PermissiveMapperFunc {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if type_checker
-                .type_(t)
+            if t
+                .ref_(type_checker)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {

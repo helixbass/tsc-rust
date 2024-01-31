@@ -753,8 +753,8 @@ impl TypeChecker {
                     )?
                     .unwrap();
                 return Ok(
-                    if self
-                        .type_(apparent_type)
+                    if apparent_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Union)
                         && is_object_literal_expression(&node.ref_(self))
@@ -765,8 +765,8 @@ impl TypeChecker {
                                 apparent_type,
                             )?,
                         )
-                    } else if self
-                        .type_(apparent_type)
+                    } else if apparent_type
+                        .ref_(self)
                         .flags()
                         .intersects(TypeFlags::Union)
                         && is_jsx_attributes(&node.ref_(self))

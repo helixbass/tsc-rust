@@ -706,7 +706,7 @@ pub(crate) fn try_read_file(
 
 pub(super) fn command_line_options_to_map(
     options: &[Id<CommandLineOption>],
-    arena,
+    arena: &impl HasArena,
 ) -> HashMap<String, Id<CommandLineOption>> {
     array_to_map(
         options,
@@ -868,7 +868,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                         .name(tsconfig_root_options_dummy_name.to_owned())
                         .type_(CommandLineOptionType::Object)
                         .build().unwrap(),
-                    Some(Rc::new(command_line_options_to_map(&vec![
+                    Some(arena.alloc_command_line_options_map(command_line_options_to_map(&vec![
                         arena.alloc_command_line_option(TsConfigOnlyOption::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("compilerOptions".to_string())

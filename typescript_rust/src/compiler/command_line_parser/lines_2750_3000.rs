@@ -601,7 +601,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                 .into(),
             ));
         }
-        if find(&*command_options_without_build(arena).ref_(arena), |opt, _| opt.ref_(arena).name() == key).is_some() {
+        if find(&*command_options_without_build(self).ref_(self), |opt, _| opt.ref_(self).name() == key).is_some() {
             let mut root_compiler_options = self.root_compiler_options.borrow_mut();
             if root_compiler_options.is_none() {
                 *root_compiler_options = Some(vec![]);

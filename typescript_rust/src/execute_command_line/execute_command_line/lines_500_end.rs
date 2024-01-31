@@ -177,13 +177,13 @@ pub(super) fn perform_build(
 
     if build_options.help == Some(true) {
         print_version(&**sys.ref_(arena));
-        print_build_help(&**sys.ref_(arena), &build_opts(arena).ref_(arena));
+        print_build_help(&**sys.ref_(arena), &build_opts(arena).ref_(arena), arena);
         sys.ref_(arena).exit(Some(ExitStatus::Success));
     }
 
     if projects.is_empty() {
         print_version(&**sys.ref_(arena));
-        print_build_help(&**sys.ref_(arena), &build_opts(arena).ref_(arena));
+        print_build_help(&**sys.ref_(arena), &build_opts(arena).ref_(arena), arena);
         sys.ref_(arena).exit(Some(ExitStatus::Success));
     }
 

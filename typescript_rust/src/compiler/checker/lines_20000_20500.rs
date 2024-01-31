@@ -1097,10 +1097,11 @@ impl GetVariancesCache {
     ) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
             Self::SymbolLinks(symbol_links) => (*symbol_links.ref_(type_checker)).borrow().variances.clone(),
-            Self::GenericType(generic_type) => type_checker
-                .type_(*generic_type)
-                .as_generic_type()
-                .maybe_variances(),
+            Self::GenericType(generic_type) =>
+                generic_type
+                    .ref_(type_checker)
+                    .as_generic_type()
+                    .maybe_variances(),
         }
     }
 }

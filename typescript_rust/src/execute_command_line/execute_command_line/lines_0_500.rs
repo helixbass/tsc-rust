@@ -776,7 +776,7 @@ pub(super) fn print_all_help(
     }
 }
 
-pub(super) fn print_build_help(sys: &dyn System, build_options: &[Id<CommandLineOption>]) {
+pub(super) fn print_build_help(sys: &dyn System, build_options: &[Id<CommandLineOption>], arena: &impl HasArena) {
     let mut output = get_header(
         sys,
         &format!(
