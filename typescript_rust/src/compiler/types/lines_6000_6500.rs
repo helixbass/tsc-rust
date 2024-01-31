@@ -18,7 +18,7 @@ use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
     are_option_gcs_equal, hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike,
     Number, OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
-    AllArenas,
+    AllArenas, InArena,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -2626,7 +2626,7 @@ pub trait DidYouMeanOptionsDiagnostics {
 #[command_line_option_type]
 pub struct TsConfigOnlyOption {
     _command_line_option_base: CommandLineOptionBase,
-    pub element_options: Option<Rc<HashMap<String, Id<CommandLineOption>>>>,
+    pub element_options: Option<Id<HashMap<String, Id<CommandLineOption>>>>,
     pub extra_key_diagnostics:
         Option<RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics>,
 }
@@ -2634,7 +2634,7 @@ pub struct TsConfigOnlyOption {
 impl TsConfigOnlyOption {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
-        element_options: Option<Rc<HashMap<String, Id<CommandLineOption>>>>,
+        element_options: Option<Id<HashMap<String, Id<CommandLineOption>>>>,
         extra_key_diagnostics: Option<
             RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics,
         >,
@@ -2746,7 +2746,7 @@ impl CommandLineOption {
             Self::CommandLineOptionOfNumberType(_) => CompilerOptionsValue::Usize(None),
             Self::CommandLineOptionOfBooleanType(_) => CompilerOptionsValue::Bool(None),
             Self::TsConfigOnlyOption(_) => CompilerOptionsValue::MapLikeVecString(None),
-            Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
+            Self::CommandLineOptionOfListType(list_type) => match list_type.element.ref_(self).type_() {
                 CommandLineOptionType::String => CompilerOptionsValue::VecString(None),
                 CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
                 CommandLineOptionType::Map(_) => CompilerOptionsValue::VecString(None),
@@ -2800,7 +2800,7 @@ impl CommandLineOption {
                     _ => unreachable!(),
                 })
             }
-            Self::CommandLineOptionOfListType(list_type) => match list_type.element.type_() {
+            Self::CommandLineOptionOfListType(list_type) => match list_type.element.ref_(self).type_() {
                 CommandLineOptionType::String => CompilerOptionsValue::VecString(match value {
                     serde_json::Value::Array(value) => Some(
                         value
@@ -2868,6 +2868,12 @@ impl TryFrom<CommandLineOptionBase> for CommandLineOption {
             CommandLineOptionType::Boolean => Ok(CommandLineOptionOfBooleanType::new(value).into()),
             _ => Err("Didn't pass a simple CommandLineOptionType"),
         }
+    }
+}
+
+impl HasArena for CommandLineOption {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

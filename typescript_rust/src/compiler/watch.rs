@@ -816,7 +816,7 @@ pub fn file_include_reason_to_diagnostics(
                 );
             }
             let target =
-                for_each_entry(target_option_declaration(arena).type_().as_map(), |value, key| {
+                for_each_entry(target_option_declaration(arena).ref_(arena).type_().as_map(), |value, key| {
                     if enum_unwrapped!(value, [CommandLineOptionMapTypeValue, ScriptTarget])
                         == &get_emit_script_target(&options.ref_(arena))
                     {

@@ -1071,6 +1071,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
                     Some(options) => options_have_module_resolution_changes(
                         &options.ref_(self),
                         &redirected_reference.ref_(self).command_line.ref_(self).options.ref_(self),
+                        self,
                     ),
                 } {
                     Gc::new(GcCell::new(HashMap::new()))

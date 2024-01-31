@@ -179,8 +179,8 @@ pub trait HasArena {
         self.arena().alloc_node(node)
     }
 
-    fn type_(&self, type_: Id<Type>) -> Ref<Type> {
-        self.arena().type_(type_)
+    fn type_ref(&self, type_: Id<Type>) -> Ref<Type> {
+        self.arena().type_ref(type_)
     }
 
     fn alloc_type(&self, type_: Type) -> Id<Type> {
@@ -1300,7 +1300,7 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn type_(&self, type_: Id<Type>) -> Ref<Type> {
+    fn type_ref(&self, type_: Id<Type>) -> Ref<Type> {
         Ref::map(self.types.borrow(), |types| &types[type_])
     }
 
@@ -2695,7 +2695,7 @@ impl InArena for Id<Type> {
     type Item = Type;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Type> {
-        has_arena.type_(*self)
+        has_arena.type_ref(*self)
     }
 }
 
@@ -3886,6 +3886,14 @@ impl OptionInArena for Option<Id<PackageJsonInfo>> {
 
     fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, PackageJsonInfo>> {
         self.map(|package_json_info| has_arena.package_json_info(package_json_info))
+    }
+}
+
+impl OptionInArena for Option<Id<CommandLineOption>> {
+    type Item = CommandLineOption;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, CommandLineOption>> {
+        self.map(|command_line_option| has_arena.command_line_option(command_line_option))
     }
 }
 

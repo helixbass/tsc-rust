@@ -729,7 +729,7 @@ impl Program {
         let old_program = old_program.unwrap();
 
         let old_options = old_program.ref_(self).get_compiler_options();
-        if changes_affect_module_resolution(&old_options.ref_(self), &self.options.ref_(self)) {
+        if changes_affect_module_resolution(&old_options.ref_(self), &self.options.ref_(self), self) {
             return Ok(StructureIsReused::Not);
         }
 
@@ -1092,7 +1092,7 @@ impl Program {
             return Ok(self.structure_is_reused());
         }
 
-        if changes_affecting_program_structure(&old_options.ref_(self), &self.options.ref_(self))
+        if changes_affecting_program_structure(&old_options.ref_(self), &self.options.ref_(self), self)
             || self.host().ref_(self).has_changed_automatic_type_directive_names() == Some(true)
         {
             return Ok(StructureIsReused::SafeModules);

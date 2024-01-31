@@ -260,7 +260,7 @@ pub(crate) fn get_options_name_map(arena: &impl HasArena) -> Id<OptionsNameMap> 
     per_arena!(
         OptionsNameMap,
         arena,
-        arena.alloc_options_name_map(create_option_name_map(&option_declarations(arena), arena))
+        arena.alloc_options_name_map(create_option_name_map(&option_declarations(arena).ref_(arena), arena))
     )
 }
 
@@ -436,7 +436,7 @@ pub(super) fn create_unknown_option_error(
     arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
-        if (diagnostics_alternate_mode.get_options_name_map)(arena)
+        if (diagnostics_alternate_mode.get_options_name_map)(arena.arena())
             .ref_(arena).options_name_map
             .contains_key(&unknown_option.to_lowercase())
         {
@@ -450,7 +450,7 @@ pub(super) fn create_unknown_option_error(
     let diagnostics_option_declarations = diagnostics.option_declarations();
     let possible_option = get_spelling_suggestion(
         unknown_option,
-        &*diagnostics_option_declarations,
+        &*diagnostics_option_declarations.ref_(arena),
         |candidate: &Id<CommandLineOption>| Some(get_option_name(&candidate.ref_(arena)).to_owned()),
     );
     match possible_option {
@@ -1147,6 +1147,7 @@ pub(super) fn parse_strings(
                 || diagnostics.get_options_name_map(),
                 &input_option_name,
                 Some(true),
+                arena,
             );
             if let Some(opt) = opt {
                 i = parse_option_value(args, i, diagnostics, &opt.ref_(arena), options, errors, arena);
@@ -1155,6 +1156,7 @@ pub(super) fn parse_strings(
                     || watch_options_did_you_mean_diagnostics().get_options_name_map(),
                     &input_option_name,
                     Some(true),
+                    arena,
                 );
                 if let Some(watch_opt) = watch_opt {
                     let mut watch_options = watch_options.borrow_mut();

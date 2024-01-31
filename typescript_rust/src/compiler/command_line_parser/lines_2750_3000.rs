@@ -497,7 +497,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                     .borrow_mut()
                     .set_value_from_command_line_option(
                         &option,
-                        normalize_option_value(option, self.base_path, value),
+                        normalize_option_value(option, self.base_path, value, self),
                     );
             }
             "watchOptions" => {
@@ -508,7 +508,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                 set_watch_option_value(
                     watch_options.as_mut().unwrap(),
                     &option,
-                    normalize_option_value(option, self.base_path, value),
+                    normalize_option_value(option, self.base_path, value, self),
                 );
             }
             "typeAcquisition" => {
@@ -519,7 +519,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                 set_type_acquisition_value(
                     type_acquisition.as_mut().unwrap(),
                     &option,
-                    normalize_option_value(option, self.base_path, value),
+                    normalize_option_value(option, self.base_path, value, self),
                 );
             }
             "typingOptions" => {
@@ -532,7 +532,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                 set_type_acquisition_value(
                     typing_options_type_acquisition.as_mut().unwrap(),
                     &option,
-                    normalize_option_value(option, self.base_path, value),
+                    normalize_option_value(option, self.base_path, value, self),
                 );
             }
             _ => Debug_.fail(Some("Unknown option")),
@@ -601,18 +601,16 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                 .into(),
             ));
         }
-        command_options_without_build.with(|command_options_without_build_| {
-            if find(command_options_without_build_, |opt, _| opt.name() == key).is_some() {
-                let mut root_compiler_options = self.root_compiler_options.borrow_mut();
-                if root_compiler_options.is_none() {
-                    *root_compiler_options = Some(vec![]);
-                }
-                append(
-                    root_compiler_options.as_mut().unwrap(),
-                    Some(key_node),
-                );
+        if find(&*command_options_without_build(arena).ref_(arena), |opt, _| opt.ref_(arena).name() == key).is_some() {
+            let mut root_compiler_options = self.root_compiler_options.borrow_mut();
+            if root_compiler_options.is_none() {
+                *root_compiler_options = Some(vec![]);
             }
-        });
+            append(
+                root_compiler_options.as_mut().unwrap(),
+                Some(key_node),
+            );
+        }
     }
 }
 

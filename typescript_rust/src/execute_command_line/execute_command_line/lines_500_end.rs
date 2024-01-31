@@ -175,19 +175,15 @@ pub(super) fn perform_build(
         sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
-    if matches!(build_options.help, Some(true)) {
+    if build_options.help == Some(true) {
         print_version(&**sys.ref_(arena));
-        build_opts.with(|build_opts_| {
-            print_build_help(&**sys.ref_(arena), &build_opts_);
-        });
+        print_build_help(&**sys.ref_(arena), &build_opts(arena).ref_(arena));
         sys.ref_(arena).exit(Some(ExitStatus::Success));
     }
 
     if projects.is_empty() {
         print_version(&**sys.ref_(arena));
-        build_opts.with(|build_opts_| {
-            print_build_help(&**sys.ref_(arena), &build_opts_);
-        });
+        print_build_help(&**sys.ref_(arena), &build_opts(arena).ref_(arena));
         sys.ref_(arena).exit(Some(ExitStatus::Success));
     }
 

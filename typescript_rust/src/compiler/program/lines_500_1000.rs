@@ -838,17 +838,17 @@ pub fn lookup_from_package_json(
 fn should_program_create_new_source_files(
     program: Option<&Program>,
     new_options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> bool {
     let Some(program) = program else {
         return false;
     };
-    source_file_affecting_compiler_options.with(|source_file_affecting_compiler_options_| {
-        options_have_changes(
-            &program.get_compiler_options().ref_(program),
-            new_options,
-            source_file_affecting_compiler_options_,
-        )
-    })
+    options_have_changes(
+        &program.get_compiler_options().ref_(program),
+        new_options,
+        &source_file_affecting_compiler_options(arena).ref_(arena),
+        arena,
+    )
 }
 
 pub fn create_program(root_names_or_options: CreateProgramOptions, arena: &impl HasArena) -> io::Result<Id<Program>> {
@@ -1097,6 +1097,7 @@ impl Program {
             .set(Some(should_program_create_new_source_files(
                 self.maybe_old_program().refed(self).as_deref(),
                 &self.options.ref_(self),
+                self,
             )));
         // tracing?.pop();
         // tracing?.push(tracing.Phase.Program, "tryReuseStructureFromOldProgram", {});

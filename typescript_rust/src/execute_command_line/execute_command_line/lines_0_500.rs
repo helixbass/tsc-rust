@@ -155,18 +155,16 @@ pub(super) fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuild
 }
 
 pub(super) fn get_options_for_help(command_line: &ParsedCommandLine, arena: &impl HasArena) -> Vec<Id<CommandLineOption>> {
-    option_declarations.with(|option_declarations_| {
-        if matches!(command_line.options.ref_(arena).all, Some(true)) {
-            sort(option_declarations_, |a, b| {
-                compare_strings_case_insensitive(a.name(), b.name())
-            })
-            .to_vec()
-        } else {
-            filter(option_declarations_, |v: &Id<CommandLineOption>| {
-                v.show_in_simplified_help_view()
-            })
-        }
-    })
+    if command_line.options.ref_(arena).all == Some(true) {
+        sort(&option_declarations(arena).ref_(arena), |a, b| {
+            compare_strings_case_insensitive(a.ref_(arena).name(), b.ref_(arena).name())
+        })
+        .to_vec()
+    } else {
+        filter(&option_declarations(arena).ref_(arena), |v: &Id<CommandLineOption>| {
+            v.ref_(arena).show_in_simplified_help_view()
+        })
+    }
 }
 
 pub(super) fn print_version(sys: &dyn System) {
@@ -301,13 +299,14 @@ pub(super) fn generate_option_output(
     option: &CommandLineOption,
     right_align_of_left: usize,
     left_align_of_right: usize,
+    arena: &impl HasArena,
 ) -> Vec<String> {
     let mut text = vec![];
     let colors = create_colors(sys);
 
     let name = get_display_name_text_of_option(option);
 
-    let value_candidates = get_value_candidate(option);
+    let value_candidates = get_value_candidate(option, arena);
     let default_value_description = match option.maybe_default_value_description() {
         Some(StringOrDiagnosticMessage::DiagnosticMessage(default_value_description)) => {
             Some(get_diagnostic_text(default_value_description, None))
@@ -476,14 +475,14 @@ pub(super) fn get_pretty_output(
     res
 }
 
-pub(super) fn get_value_candidate(option: &CommandLineOption) -> Option<ValueCandidate> {
+pub(super) fn get_value_candidate(option: &CommandLineOption, arena: &impl HasArena) -> Option<ValueCandidate> {
     if matches!(option.type_(), CommandLineOptionType::Object) {
         return None;
     }
 
     Some(ValueCandidate::new(
         get_value_type(option),
-        get_possible_values(option),
+        get_possible_values(option, arena),
     ))
 }
 
@@ -497,13 +496,13 @@ pub(super) fn get_value_type(option: &CommandLineOption) -> String {
     }
 }
 
-pub(super) fn get_possible_values(option: &CommandLineOption) -> String {
+pub(super) fn get_possible_values(option: &CommandLineOption, arena: &impl HasArena) -> String {
     match option.type_() {
         CommandLineOptionType::String
         | CommandLineOptionType::Number
         | CommandLineOptionType::Boolean => option.type_().as_str().to_owned(),
         CommandLineOptionType::List => {
-            get_possible_values(&option.as_command_line_option_of_list_type().element)
+            get_possible_values(&option.as_command_line_option_of_list_type().element.ref_(arena), arena)
         }
         CommandLineOptionType::Object => "".to_owned(),
         CommandLineOptionType::Map(type_) => {
@@ -516,10 +515,11 @@ pub(super) fn get_possible_values(option: &CommandLineOption) -> String {
 pub(super) fn generate_group_option_output(
     sys: &dyn System,
     options_list: &[Id<CommandLineOption>],
+    arena: &impl HasArena,
 ) -> Vec<String> {
     let mut max_length = 0;
     for option in options_list {
-        let cur_length = get_display_name_text_of_option(option).len();
+        let cur_length = get_display_name_text_of_option(&option.ref_(arena)).len();
         max_length = if max_length > cur_length {
             max_length
         } else {
@@ -533,9 +533,10 @@ pub(super) fn generate_group_option_output(
     for option in options_list {
         let mut tmp = generate_option_output(
             sys,
-            option,
+            &option.ref_(arena),
             right_align_of_left_part,
             left_align_of_right_part,
+            arena,
         );
         lines.append(&mut tmp);
     }
@@ -552,6 +553,7 @@ pub(super) fn generate_section_options_output(
     sub_category: bool,
     before_options_description: Option<&str>,
     after_options_description: Option<&str>,
+    arena: &impl HasArena,
 ) -> Vec<String> {
     let mut res = vec![];
     res.push(format!(
@@ -569,7 +571,7 @@ pub(super) fn generate_section_options_output(
         ));
     }
     if !sub_category {
-        res.append(&mut generate_group_option_output(sys, options));
+        res.append(&mut generate_group_option_output(sys, options, arena));
         if let Some(after_options_description) = after_options_description {
             res.push(format!(
                 "{}{}{}",
@@ -582,16 +584,16 @@ pub(super) fn generate_section_options_output(
     }
     let mut category_map = HashMap::new();
     for option in options {
-        if option.maybe_category().is_none() {
+        if option.ref_(arena).maybe_category().is_none() {
             continue;
         }
-        let cur_category = get_diagnostic_text(option.maybe_category().unwrap(), None);
+        let cur_category = get_diagnostic_text(option.ref_(arena).maybe_category().unwrap(), None);
         let options_of_cur_category = category_map.entry(cur_category).or_insert_with(|| vec![]);
         options_of_cur_category.push(option.clone());
     }
     for (key, value) in category_map {
         res.push(format!("### {}{}{}", key, sys.new_line(), sys.new_line()));
-        res.append(&mut generate_group_option_output(sys, &value));
+        res.append(&mut generate_group_option_output(sys, &value, arena));
     }
     if let Some(after_options_description) = after_options_description {
         res.push(format!(
@@ -604,7 +606,7 @@ pub(super) fn generate_section_options_output(
     res
 }
 
-pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLineOption>]) {
+pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLineOption>], arena: &impl HasArena) {
     let colors = create_colors(sys);
     let mut output = get_header(
         sys,
@@ -659,10 +661,16 @@ pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLine
         &Diagnostics::Compiles_the_current_project_with_additional_settings,
     );
 
-    let cli_commands = simple_options.iter().filter(|opt| opt.is_command_line_only() || matches!(opt.maybe_category(), Some(category) if category == &*Diagnostics::Command_line_Options)).map(Clone::clone).collect::<Vec<_>>();
+    let cli_commands = simple_options.iter().filter(|opt| {
+        opt.ref_(arena).is_command_line_only() ||
+            matches!(
+                opt.ref_(arena).maybe_category(),
+                Some(category) if category == &*Diagnostics::Command_line_Options
+            )
+    }).copied().collect::<Vec<_>>();
     let config_opts = simple_options
         .iter()
-        .filter(|opt| !contains_gc(Some(&cli_commands), opt))
+        .filter(|opt| !contains(Some(&cli_commands), opt))
         .map(Clone::clone)
         .collect::<Vec<_>>();
 
@@ -673,6 +681,7 @@ pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLine
         false,
         None,
         None,
+        arena,
     ));
     output.append(&mut generate_section_options_output(
         sys,
@@ -685,6 +694,7 @@ pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLine
             &Diagnostics::You_can_learn_about_all_of_the_compiler_options_at_0,
             Some(vec!["https://aka.ms/tsconfig-reference".to_owned()]),
         )),
+        arena,
     ));
 
     for line in output {
@@ -716,6 +726,7 @@ pub(super) fn print_all_help(
     compiler_options: &[Id<CommandLineOption>],
     build_options: &[Id<CommandLineOption>],
     watch_options: &[Id<CommandLineOption>],
+    arena: &impl HasArena,
 ) {
     let mut output = get_header(
         sys,
@@ -736,6 +747,7 @@ pub(super) fn print_all_help(
             &Diagnostics::You_can_learn_about_all_of_the_compiler_options_at_0,
             Some(vec!["https://aka.ms/tsconfig-reference".to_owned()]),
         )),
+        arena,
     ));
     output.append(&mut generate_section_options_output(
         sys,
@@ -743,7 +755,8 @@ pub(super) fn print_all_help(
         watch_options,
         false,
         Some(&get_diagnostic_text(&Diagnostics::Including_watch_w_will_start_watching_the_current_project_for_the_file_changes_Once_set_you_can_config_watch_mode_with_Colon, None)),
-        None
+        None,
+        arena,
     ));
     output.append(&mut generate_section_options_output(
         sys,
@@ -755,7 +768,8 @@ pub(super) fn print_all_help(
             &Diagnostics::Using_build_b_will_make_tsc_behave_more_like_a_build_orchestrator_than_a_compiler_This_is_used_to_trigger_building_composite_projects_which_you_can_learn_more_about_at_0,
             Some(vec!["https://aka.ms/tsc-composite-builds".to_owned()]),
         )),
-        None
+        None,
+        arena,
     ));
     for line in output {
         sys.write(&line);
@@ -781,7 +795,8 @@ pub(super) fn print_build_help(sys: &dyn System, build_options: &[Id<CommandLine
             &Diagnostics::Using_build_b_will_make_tsc_behave_more_like_a_build_orchestrator_than_a_compiler_This_is_used_to_trigger_building_composite_projects_which_you_can_learn_more_about_at_0,
             Some(vec!["https://aka.ms/tsc-composite-builds".to_owned()]),
         )),
-        None
+        None,
+        arena,
     ));
     for line in output {
         sys.write(&line);
@@ -825,13 +840,14 @@ pub(super) fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
 
 pub(super) fn print_help(sys: &dyn System, command_line: &ParsedCommandLine, arena: &impl HasArena) {
     if command_line.options.ref_(arena).all != Some(true) {
-        print_easy_help(sys, &get_options_for_help(command_line, arena));
+        print_easy_help(sys, &get_options_for_help(command_line, arena), arena);
     } else {
         print_all_help(
             sys,
             &get_options_for_help(command_line, arena),
             &options_for_build(arena).ref_(arena),
             &options_for_watch(arena).ref_(arena),
+            arena,
         );
     }
 }

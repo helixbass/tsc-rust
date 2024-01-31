@@ -419,46 +419,48 @@ impl SymbolTracker for SingleLineStringWriterSymbolTracker {
 pub fn changes_affect_module_resolution(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> bool {
     old_options.config_file_path != new_options.config_file_path
-        || options_have_module_resolution_changes(old_options, new_options)
+        || options_have_module_resolution_changes(old_options, new_options, arena)
 }
 
 pub fn options_have_module_resolution_changes(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> bool {
-    module_resolution_option_declarations.with(|module_resolution_option_declarations_| {
-        options_have_changes(
-            old_options,
-            new_options,
-            &*module_resolution_option_declarations_,
-        )
-    })
+    options_have_changes(
+        old_options,
+        new_options,
+        &module_resolution_option_declarations(arena).ref_(arena),
+        arena,
+    )
 }
 
 pub fn changes_affecting_program_structure(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> bool {
-    options_affecting_program_structure.with(|options_affecting_program_structure_| {
-        options_have_changes(
-            old_options,
-            new_options,
-            &*options_affecting_program_structure_,
-        )
-    })
+    options_have_changes(
+        old_options,
+        new_options,
+        &options_affecting_program_structure(arena).ref_(arena),
+        arena,
+    )
 }
 
 pub fn options_have_changes(
     old_options: &CompilerOptions,
     new_options: &CompilerOptions,
     option_declarations: &[Id<CommandLineOption>],
+    arena: &impl HasArena,
 ) -> bool {
     !ptr::eq(old_options, new_options)
         && option_declarations.iter().any(|o| {
             /* !is_json_equal(*/
-            get_compiler_option_value(old_options, o) != get_compiler_option_value(new_options, o)
+            get_compiler_option_value(old_options, &o.ref_(arena)) != get_compiler_option_value(new_options, &o.ref_(arena))
             /*)*/
         })
 }

@@ -24,7 +24,7 @@ use crate::{
     JsonConversionNotifier, MultiMapOrdered, NamedDeclarationInterface, Node, NodeArray,
     NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push, SyntaxKind,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
-    InArena,
+    InArena, OptionInArena,
 };
 
 pub(super) fn is_root_option_map(
@@ -113,7 +113,7 @@ pub(super) fn convert_object_literal_expression_to_json(
         let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(text_of_key));
         let option = match (key_text, known_options) {
             (Some(key_text), Some(known_options)) => {
-                known_options.get(key_text).map(|option| &**option)
+                known_options.get(key_text).copied()
             }
             _ => None,
         };
@@ -572,10 +572,10 @@ pub(super) fn convert_property_value_to_json(
                     value_expression.ref_(arena).as_array_literal_expression().elements,
                     option.and_then(|option| match option {
                         CommandLineOption::CommandLineOptionOfListType(option) => {
-                            Some(&*option.element)
+                            Some(option.element)
                         }
                         _ => None,
-                    }),
+                    }).refed(arena).as_deref(),
                     arena,
                 )?,
                 arena,
@@ -816,6 +816,7 @@ pub(crate) fn convert_to_tsconfig(
             ),
             use_case_sensitive_file_names: host.use_case_sensitive_file_names(),
         }),
+        arena,
     );
     let _watch_option_map = config_parse_result
         .watch_options
@@ -972,6 +973,7 @@ impl MatchesSpecs {
 
 pub(super) fn get_custom_type_map_of_command_line_option(
     option_definition: &CommandLineOption,
+    arena: &impl HasArena,
 ) -> Option<&IndexMap<&'static str, CommandLineOptionMapTypeValue>> {
     match option_definition.type_() {
         CommandLineOptionType::String
@@ -981,7 +983,8 @@ pub(super) fn get_custom_type_map_of_command_line_option(
         CommandLineOptionType::List => get_custom_type_map_of_command_line_option(
             &option_definition
                 .as_command_line_option_of_list_type()
-                .element,
+                .element.ref_(arena),
+            arena,
         ),
         CommandLineOptionType::Map(map) => Some(map),
     }
@@ -1007,21 +1010,23 @@ pub(super) struct SerializeOptionBaseObjectPathOptions {
 pub(super) fn serialize_compiler_options(
     options: &CompilerOptions,
     path_options: Option<SerializeOptionBaseObjectPathOptions>,
+    arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    serialize_option_base_object(options, &get_options_name_map(), path_options)
+    serialize_option_base_object(options, &get_options_name_map(arena).ref_(arena), path_options, arena)
 }
 
 pub(super) fn serialize_watch_options(
     options: &WatchOptions,
     arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    serialize_option_base_object(options, &get_watch_options_name_map(arena).ref_(arena), None)
+    serialize_option_base_object(options, &get_watch_options_name_map(arena).ref_(arena), None, arena)
 }
 
 pub(super) fn serialize_option_base_object(
     options: &impl ToHashMapOfCompilerOptionsValues,
     options_name_map: &OptionsNameMap,
     path_options: Option<SerializeOptionBaseObjectPathOptions>,
+    arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
     let options_name_map = &options_name_map.options_name_map;
     let full = options.to_hash_map_of_compiler_options_values();
@@ -1033,7 +1038,7 @@ pub(super) fn serialize_option_base_object(
     for (name, value) in full.into_iter() {
         if options_name_map.contains_key(name)
             && matches!(
-                options_name_map.get(name).unwrap().maybe_category(),
+                options_name_map.get(name).unwrap().ref_(arena).maybe_category(),
                 Some(category) if ptr::eq(
                     category,
                     &*Diagnostics::Command_line_Options
@@ -1047,10 +1052,10 @@ pub(super) fn serialize_option_base_object(
         }
         let option_definition = options_name_map.get(&name.to_lowercase());
         if let Some(option_definition) = option_definition {
-            let custom_type_map = get_custom_type_map_of_command_line_option(option_definition);
+            let custom_type_map = get_custom_type_map_of_command_line_option(&option_definition.ref_(arena), arena);
             match custom_type_map {
                 None => {
-                    if path_options.is_some() && option_definition.is_file_path() {
+                    if path_options.is_some() && option_definition.ref_(arena).is_file_path() {
                         let path_options = path_options.as_ref().unwrap();
                         result.insert(
                             name,
@@ -1071,7 +1076,7 @@ pub(super) fn serialize_option_base_object(
                     }
                 }
                 Some(custom_type_map) => {
-                    if matches!(option_definition.type_(), CommandLineOptionType::List) {
+                    if matches!(option_definition.ref_(arena).type_(), CommandLineOptionType::List) {
                         result.insert(
                             name,
                             CompilerOptionsValue::VecString(Some(
@@ -1125,26 +1130,24 @@ fn get_overwritten_default_options(
 ) -> String {
     let mut result: Vec<String> = vec![];
     let tab = make_padding(2);
-    command_options_without_build.with(|command_options_without_build_| {
-        let default_init_compiler_options_as_hash_map =
-            get_default_init_compiler_options(arena).ref_(arena).to_hash_map_of_compiler_options_values();
-        command_options_without_build_.iter().for_each(|cmd| {
-            if !compiler_options_map.contains_key(cmd.name()) {
-                return;
-            }
+    let default_init_compiler_options_as_hash_map =
+        get_default_init_compiler_options(arena).ref_(arena).to_hash_map_of_compiler_options_values();
+    command_options_without_build(arena).ref_(arena).iter().for_each(|cmd| {
+        if !compiler_options_map.contains_key(cmd.name()) {
+            return;
+        }
 
-            let new_value = compiler_options_map.get(cmd.name()).unwrap();
-            let default_value = get_default_value_for_option(cmd);
-            if new_value != &default_value {
-                // TODO: this presumably needs to print new_value "as JSON"?
-                result.push(format!("{}{}: {:?}", tab, cmd.name(), new_value));
-            } else if match default_init_compiler_options_as_hash_map.get(cmd.name()) {
-                None => false,
-                Some(compiler_options_value) => compiler_options_value.is_some(),
-            } {
-                result.push(format!("{}{}: {:?}", tab, cmd.name(), default_value));
-            }
-            });
+        let new_value = compiler_options_map.get(cmd.name()).unwrap();
+        let default_value = get_default_value_for_option(cmd);
+        if new_value != &default_value {
+            // TODO: this presumably needs to print new_value "as JSON"?
+            result.push(format!("{}{}: {:?}", tab, cmd.name(), new_value));
+        } else if match default_init_compiler_options_as_hash_map.get(cmd.name()) {
+            None => false,
+            Some(compiler_options_value) => compiler_options_value.is_some(),
+        } {
+            result.push(format!("{}{}: {:?}", tab, cmd.name(), default_value));
+        }
     });
     format!("{}{}", result.join(new_line), new_line)
 }
@@ -1155,7 +1158,7 @@ pub(super) fn get_serialized_compiler_option(
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
     let compiler_options = 
         extend_compiler_options(options, &get_default_init_compiler_options(arena).ref_(arena));
-    serialize_compiler_options(&compiler_options, None)
+    serialize_compiler_options(&compiler_options, None, arena)
 }
 
 pub fn generate_tsconfig(
@@ -1165,7 +1168,7 @@ pub fn generate_tsconfig(
     arena: &impl HasArena,
 ) -> String {
     let compiler_options_map = get_serialized_compiler_option(options, arena);
-    write_configurations(&compiler_options_map, file_names, new_line)
+    write_configurations(&compiler_options_map, file_names, new_line, arena)
 }
 
 fn is_allowed_option_for_output(
@@ -1191,22 +1194,21 @@ fn write_configurations(
     compiler_options_map: &IndexMap<&'static str, CompilerOptionsValue>,
     file_names: &[String],
     new_line: &str,
+    arena: &impl HasArena,
 ) -> String {
     let mut categorized_options: MultiMapOrdered<String, Id<CommandLineOption>> =
         create_multi_map_ordered();
-    option_declarations.with(|option_declarations_| {
-        // TODO: implement IntoIterator for &GcVec<T>?
-        for option in option_declarations_.iter() {
-            let category = option.maybe_category();
+    // TODO: implement IntoIterator for &GcVec<T>?
+    for option in option_declarations(arena).ref_(arena).iter() {
+        let category = option.ref_(arena).maybe_category();
 
-            if is_allowed_option_for_output(compiler_options_map, option) {
-                categorized_options.add(
-                    get_locale_specific_message(category.unwrap()),
-                    option.clone(),
-                );
-            }
+        if is_allowed_option_for_output(compiler_options_map, option) {
+            categorized_options.add(
+                get_locale_specific_message(category.unwrap()),
+                option.clone(),
+            );
         }
-    });
+    }
 
     let mut margin_length = 0;
     let mut seen_known_keys = 0;
@@ -1221,11 +1223,11 @@ fn write_configurations(
         ));
         for option in options {
             let option_name: String;
-            if compiler_options_map.contains_key(option.name()) {
+            if compiler_options_map.contains_key(option.ref_(arena).name()) {
                 option_name = format!(
                     "\"{}\": {}{}",
-                    option.name(),
-                    serde_json::to_string(compiler_options_map.get(option.name()).unwrap())
+                    option.ref_(arena).name(),
+                    serde_json::to_string(compiler_options_map.get(option.ref_(arena).name()).unwrap())
                         .unwrap(),
                     {
                         seen_known_keys += 1;
@@ -1239,8 +1241,8 @@ fn write_configurations(
             } else {
                 option_name = format!(
                     "// \"{}\": {},",
-                    option.name(),
-                    serde_json::to_string(&get_default_value_for_option(&option)).unwrap()
+                    option.ref_(arena).name(),
+                    serde_json::to_string(&get_default_value_for_option(&option.ref_(arena))).unwrap()
                 );
             }
             let option_name_len = option_name.len();
@@ -1249,9 +1251,9 @@ fn write_configurations(
                 Some(format!(
                     "/* {} */",
                     option
-                        .maybe_description()
+                        .ref_(arena).maybe_description()
                         .map(|description| get_locale_specific_message(description))
-                        .unwrap_or_else(|| option.name().to_owned())
+                        .unwrap_or_else(|| option.ref_(arena).name().to_owned())
                 )),
             ));
             margin_length = cmp::max(option_name_len, margin_length);

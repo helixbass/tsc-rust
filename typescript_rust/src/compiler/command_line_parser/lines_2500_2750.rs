@@ -27,7 +27,8 @@ pub(crate) fn convert_to_options_with_absolute_paths(
     arena: &impl HasArena,
 ) -> Id<CompilerOptions> {
     let mut result: CompilerOptions = Default::default();
-    let options_name_map = &get_options_name_map().options_name_map;
+    let options_name_map_ref = get_options_name_map(arena).ref_(arena);
+    let options_name_map = &options_name_map_ref.options_name_map;
 
     for (name, value) in options.ref_(arena).to_hash_map_of_compiler_options_values() {
         result.set_value(
@@ -38,6 +39,7 @@ pub(crate) fn convert_to_options_with_absolute_paths(
                     .map(|option| &**option),
                 value,
                 &to_absolute_path,
+                arena,
             ),
         );
     }
@@ -47,10 +49,11 @@ pub(crate) fn convert_to_options_with_absolute_paths(
     arena.alloc_compiler_options(result)
 }
 
-pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&str) -> String>(
+pub(super) fn convert_to_option_value_with_absolute_paths(
     option: Option<&CommandLineOption>,
     value: CompilerOptionsValue,
-    to_absolute_path: &TToAbsolutePath,
+    to_absolute_path: &impl Fn(&str) -> String,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     if let Some(option) = option {
         if value.is_some() {
@@ -62,7 +65,7 @@ pub(super) fn convert_to_option_value_with_absolute_paths<TToAbsolutePath: Fn(&s
                 if option
                     .as_command_line_option_of_list_type()
                     .element
-                    .is_file_path()
+                    .ref_(arena).is_file_path()
                     && !values.is_empty()
                 {
                     return CompilerOptionsValue::VecString(Some(

@@ -28,7 +28,7 @@ use crate::{
     OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
     ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
     TsConfigOnlyOption, WatchOptions,
-    InArena, per_arena, AllArenas,
+    InArena, per_arena, AllArenas, OptionInArena,
 };
 
 pub(super) fn parse_response_file(
@@ -292,7 +292,7 @@ impl DidYouMeanOptionsDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
 
 impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
     fn get_options_name_map(&self) -> Id<OptionsNameMap> {
-        get_options_name_map()
+        get_options_name_map(self)
     }
 
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
@@ -328,20 +328,23 @@ pub fn parse_command_line(
 pub(crate) fn get_option_from_name(
     option_name: &str,
     allow_short: Option<bool>,
+    arena: &impl HasArena,
 ) -> Option<Id<CommandLineOption>> {
-    get_option_declaration_from_name(get_options_name_map, option_name, allow_short)
+    get_option_declaration_from_name(|| get_options_name_map(arena), option_name, allow_short, arena)
 }
 
 pub(super) fn get_option_declaration_from_name(
     mut get_option_name_map: impl FnMut() -> Id<OptionsNameMap>,
     option_name: &str,
     allow_short: Option<bool>,
+    arena: &impl HasArena,
 ) -> Option<Id<CommandLineOption>> {
     let allow_short = allow_short.unwrap_or(false);
     let mut option_name = option_name.to_lowercase();
     let option_name_map = get_option_name_map();
-    let options_name_map = &option_name_map.options_name_map;
-    let short_option_names = &option_name_map.short_option_names;
+    let option_name_map_ref = option_name_map.ref_(arena);
+    let options_name_map = &option_name_map_ref.options_name_map;
+    let short_option_names = &option_name_map_ref.short_option_names;
     if allow_short {
         let short = short_option_names.get(&option_name);
         if let Some(short) = short {
@@ -366,7 +369,7 @@ pub(crate) fn get_build_options_name_map(arena: &impl HasArena) -> Id<OptionsNam
     per_arena!(
         OptionsNameMap,
         arena,
-        arena.alloc_options_name_map(create_option_name_map(&build_opts(arena), arena))
+        arena.alloc_options_name_map(create_option_name_map(&build_opts(arena).ref_(arena), arena))
     )
 }
 
@@ -399,8 +402,8 @@ impl DidYouMeanOptionsDiagnostics for BuildOptionsDidYouMeanDiagnostics {
         Some(build_options_alternate_mode())
     }
 
-    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
-        build_opts.with(|build_opts_| build_opts_.clone())
+    fn option_declarations(&self) -> Id<Vec<Id<CommandLineOption>>> {
+        build_opts(self)
     }
 
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
@@ -414,7 +417,7 @@ impl DidYouMeanOptionsDiagnostics for BuildOptionsDidYouMeanDiagnostics {
 
 impl ParseCommandLineWorkerDiagnostics for BuildOptionsDidYouMeanDiagnostics {
     fn get_options_name_map(&self) -> Id<OptionsNameMap> {
-        get_build_options_name_map()
+        get_build_options_name_map(self)
     }
 
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
@@ -423,6 +426,12 @@ impl ParseCommandLineWorkerDiagnostics for BuildOptionsDidYouMeanDiagnostics {
 
     fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
         self
+    }
+}
+
+impl HasArena for BuildOptionsDidYouMeanDiagnostics {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -697,10 +706,11 @@ pub(crate) fn try_read_file(
 
 pub(super) fn command_line_options_to_map(
     options: &[Id<CommandLineOption>],
+    arena,
 ) -> HashMap<String, Id<CommandLineOption>> {
     array_to_map(
         options,
-        |option| Some(get_option_name(option).to_owned()),
+        |option| Some(get_option_name(&option.ref_(arena)).to_owned()),
         |item| item.clone(),
     )
 }
@@ -722,9 +732,8 @@ impl DidYouMeanOptionsDiagnostics for TypeAcquisitionDidYouMeanDiagnostics {
         None
     }
 
-    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
-        type_acquisition_declarations
-            .with(|type_acquisition_declarations_| type_acquisition_declarations_.clone())
+    fn option_declarations(&self) -> Id<Vec<Id<CommandLineOption>>> {
+        type_acquisition_declarations(self)
     }
 
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
@@ -733,6 +742,12 @@ impl DidYouMeanOptionsDiagnostics for TypeAcquisitionDidYouMeanDiagnostics {
 
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
         &Diagnostics::Unknown_type_acquisition_option_0_Did_you_mean_1
+    }
+}
+
+impl HasArena for TypeAcquisitionDidYouMeanDiagnostics {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -746,7 +761,7 @@ pub(super) fn get_watch_options_name_map(arena: &impl HasArena) -> Id<OptionsNam
     per_arena!(
         OptionsNameMap,
         arena,
-        arena.alloc_options_name_map(create_option_name_map(&options_for_watch(arena).ref_(arena)))
+        arena.alloc_options_name_map(create_option_name_map(&options_for_watch(arena).ref_(arena), arena))
     )
 }
 
@@ -813,7 +828,7 @@ pub(super) fn get_command_line_compiler_options_map(arena: &impl HasArena) -> Id
         HashMap<String, Id<CommandLineOption>>,
         arena,
         arena.alloc_command_line_options_map(
-            command_line_options_to_map(&option_declarations(arena).ref_(arena))
+            command_line_options_to_map(&option_declarations(arena).ref_(arena), arena)
         )
     )
 }
@@ -823,7 +838,7 @@ pub(super) fn get_command_line_watch_options_map(arena: &impl HasArena) -> Id<Ha
         HashMap<String, Id<CommandLineOption>>,
         arena,
         arena.alloc_command_line_options_map(
-            command_line_options_to_map(&options_for_watch(arena).ref_(arena))
+            command_line_options_to_map(&options_for_watch(arena).ref_(arena), arena)
         )
     )
 }
@@ -834,7 +849,7 @@ pub(super) fn get_command_line_type_acquisition_map(arena: &impl HasArena) -> Id
         HashMap<String, Id<CommandLineOption>>,
         arena,
         arena.alloc_command_line_options_map(
-            command_line_options_to_map(&type_acquisition_declarations(arena).ref_(arena))
+            command_line_options_to_map(&type_acquisition_declarations(arena).ref_(arena), arena)
         )
     )
 }
@@ -847,14 +862,14 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
     _tsconfig_root_options.with(|tsconfig_root_options| {
         let mut tsconfig_root_options = tsconfig_root_options.borrow_mut();
         if tsconfig_root_options.is_none() {
-            *tsconfig_root_options = Some(Gc::new(
+            *tsconfig_root_options = Some(arena.alloc_command_line_option(
                 TsConfigOnlyOption::new(
                     CommandLineOptionBaseBuilder::default()
                         .name(tsconfig_root_options_dummy_name.to_owned())
                         .type_(CommandLineOptionType::Object)
                         .build().unwrap(),
                     Some(Rc::new(command_line_options_to_map(&vec![
-                        TsConfigOnlyOption::new(
+                        arena.alloc_command_line_option(TsConfigOnlyOption::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("compilerOptions".to_string())
                                 .type_(CommandLineOptionType::Object)
@@ -862,17 +877,17 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                             Some(get_command_line_compiler_options_map(arena)),
                             Some(compiler_options_did_you_mean_diagnostics().into()),
                         )
-                        .into(),
-                        TsConfigOnlyOption::new(
+                        .into()),
+                        arena.alloc_command_line_option(TsConfigOnlyOption::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("watchOptions".to_string())
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
-                            Some(get_command_line_watch_options_map()),
+                            Some(get_command_line_watch_options_map(arena)),
                             Some(watch_options_did_you_mean_diagnostics().into()),
                         )
-                        .into(),
-                        TsConfigOnlyOption::new(
+                        .into()),
+                        arena.alloc_command_line_option(TsConfigOnlyOption::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("typingOptions".to_string())
                                 .type_(CommandLineOptionType::Object)
@@ -880,8 +895,8 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                             Some(get_command_line_type_acquisition_map(arena)),
                             Some(type_acquisition_did_you_mean_diagnostics().into()),
                         )
-                        .into(),
-                        TsConfigOnlyOption::new(
+                        .into()),
+                        arena.alloc_command_line_option(TsConfigOnlyOption::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("typeAcquisition".to_string())
                                 .type_(CommandLineOptionType::Object)
@@ -889,19 +904,19 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                             Some(get_command_line_type_acquisition_map(arena)),
                             Some(type_acquisition_did_you_mean_diagnostics().into()),
                         )
-                        .into(),
-                        CommandLineOptionBaseBuilder::default()
+                        .into()),
+                        arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                             .name("extends".to_string())
                             .type_(CommandLineOptionType::String)
                             .category(&Diagnostics::File_Management)
-                            .build().unwrap().try_into().unwrap(),
-                        CommandLineOptionOfListType::new(
+                            .build().unwrap().try_into().unwrap()),
+                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("references".to_string())
                                 .type_(CommandLineOptionType::List)
                                 .category(&Diagnostics::Projects)
                                 .build().unwrap(),
-                            TsConfigOnlyOption::new(
+                            arena.alloc_command_line_option(TsConfigOnlyOption::new(
                                 CommandLineOptionBaseBuilder::default()
                                     .name("references".to_string())
                                     .type_(CommandLineOptionType::Object)
@@ -909,49 +924,49 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 None,
                                 None,
                             )
-                            .into(),
+                            .into()),
                         )
-                        .into(),
-                        CommandLineOptionOfListType::new(
+                        .into()),
+                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("files".to_string())
                                 .type_(CommandLineOptionType::List)
                                 .category(&Diagnostics::File_Management)
                                 .build().unwrap(),
-                            CommandLineOptionBaseBuilder::default()
+                            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                                 .name("files".to_string())
                                 .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into().unwrap(),
+                                .build().unwrap().try_into().unwrap()),
                         )
-                        .into(),
-                        CommandLineOptionOfListType::new(
+                        .into()),
+                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("include".to_string())
                                 .type_(CommandLineOptionType::List)
                                 .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::if_files_is_specified_otherwise_Asterisk_Asterisk_Slash_Asterisk))
                                 .category(&Diagnostics::File_Management)
                                 .build().unwrap(),
-                            CommandLineOptionBaseBuilder::default()
+                            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                                 .name("include".to_string())
                                 .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into().unwrap(),
+                                .build().unwrap().try_into().unwrap()),
                         )
-                        .into(),
-                        CommandLineOptionOfListType::new(
+                        .into()),
+                        arena.alloc_command_line_option(CommandLineOptionOfListType::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("exclude".to_string())
                                 .type_(CommandLineOptionType::List)
                                 .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::node_modules_bower_components_jspm_packages_plus_the_value_of_outDir_if_one_is_specified))
                                 .category(&Diagnostics::File_Management)
                                 .build().unwrap(),
-                            CommandLineOptionBaseBuilder::default()
+                            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                                 .name("exclude".to_string())
                                 .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into().unwrap(),
+                                .build().unwrap().try_into().unwrap()),
                         )
-                        .into(),
+                        .into()),
                         compile_on_save_command_line_option(arena),
-                    ]))),
+                    ], arena))),
                     None,
                 )
                 .into(),
@@ -1067,7 +1082,7 @@ pub(super) fn convert_config_file_to_object(
                     Some(first_object),
                     errors,
                     true,
-                    known_root_options.as_deref(),
+                    known_root_options.refed(arena).as_deref(),
                     options_iterator,
                     arena,
                 );
@@ -1080,7 +1095,7 @@ pub(super) fn convert_config_file_to_object(
         root_expression,
         errors,
         true,
-        known_root_options.as_deref(),
+        known_root_options.refed(arena).as_deref(),
         options_iterator,
         arena,
     )

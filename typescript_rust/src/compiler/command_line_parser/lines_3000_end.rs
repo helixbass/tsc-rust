@@ -132,12 +132,12 @@ pub(super) fn convert_compile_on_save_option_from_json(
     arena: &impl HasArena,
 ) -> bool {
     let compile_on_save_command_line_option = compile_on_save_command_line_option(arena);
-    if !json_option.contains_key(compile_on_save_command_line_option.name()) {
+    if !json_option.contains_key(compile_on_save_command_line_option.ref_(arena).name()) {
         return false;
     }
     let result = convert_json_option(
-        &compile_on_save_command_line_option,
-        json_option.get(compile_on_save_command_line_option.name()),
+        &compile_on_save_command_line_option.ref_(arena),
+        json_option.get(compile_on_save_command_line_option.ref_(arena).name()),
         base_path,
         errors,
         arena,
@@ -214,7 +214,7 @@ pub(crate) fn convert_compiler_options_from_json_worker(
 ) -> CompilerOptions {
     let mut options = get_default_compiler_options(config_file_name);
     convert_options_from_json_compiler_options(
-        &get_command_line_compiler_options_map(arena),
+        &get_command_line_compiler_options_map(arena).ref_(arena),
         json_options,
         base_path,
         &mut options,
@@ -251,7 +251,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
     let type_acquisition = convert_enable_auto_discovery_to_enable(json_options);
 
     convert_options_from_json_type_acquisition(
-        &get_command_line_watch_options_map(),
+        &get_command_line_watch_options_map(arena).ref_(arena),
         type_acquisition.as_ref(),
         base_path,
         &mut options,
@@ -269,7 +269,7 @@ pub(crate) fn convert_watch_options_from_json_worker(
     arena: &impl HasArena,
 ) -> Option<WatchOptions> {
     convert_options_from_json_watch_options(
-        &get_command_line_watch_options_map(),
+        &get_command_line_watch_options_map(arena).ref_(arena),
         json_options,
         base_path,
         watch_options_did_you_mean_diagnostics().as_did_you_mean_options_diagnostics(),
@@ -298,8 +298,8 @@ pub(super) fn convert_options_from_json_compiler_options(
                 let opt = options_name_map.get(id);
                 if let Some(opt) = opt {
                     default_options.set_value_from_command_line_option(
-                        opt,
-                        convert_json_option(opt, Some(map_value), base_path, errors, arena),
+                        &opt.ref_(arena),
+                        convert_json_option(&opt.ref_(arena), Some(map_value), base_path, errors, arena),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
@@ -338,8 +338,8 @@ pub(super) fn convert_options_from_json_type_acquisition(
                 if let Some(opt) = opt {
                     set_type_acquisition_value(
                         default_options,
-                        opt,
-                        convert_json_option(opt, Some(map_value), base_path, errors, arena),
+                        &opt.ref_(arena),
+                        convert_json_option(&opt.ref_(arena), Some(map_value), base_path, errors, arena),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
@@ -381,8 +381,8 @@ pub(super) fn convert_options_from_json_watch_options(
                     did_set_any_options = true;
                     set_watch_option_value(
                         &mut default_options,
-                        opt,
-                        convert_json_option(opt, Some(map_value), base_path, errors, arena),
+                        &opt.ref_(arena),
+                        convert_json_option(&opt.ref_(arena), Some(map_value), base_path, errors, arena),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
@@ -463,6 +463,7 @@ pub(super) fn normalize_option_value(
     option: &CommandLineOption,
     base_path: &str,
     value: Option<&serde_json::Value>,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     if value.is_none() {
         return option.to_compiler_options_value_none();
@@ -474,14 +475,14 @@ pub(super) fn normalize_option_value(
     match option.type_() {
         CommandLineOptionType::List => {
             let list_option = option.as_command_line_option_of_list_type();
-            if list_option.element.is_file_path()
-                || matches!(list_option.element.type_(), CommandLineOptionType::Map(_))
+            if list_option.element.ref_(arena).is_file_path()
+                || matches!(list_option.element.ref_(arena).type_(), CommandLineOptionType::Map(_))
             {
                 return match value {
                     serde_json::Value::Array(value) => CompilerOptionsValue::VecString(Some(
                         filter(
                             &map(value, |v, _| {
-                                normalize_option_value(&list_option.element, base_path, Some(v))
+                                normalize_option_value(&list_option.element.ref_(arena), base_path, Some(v), arena)
                             }),
                             |v| v.is_some(),
                         )
@@ -659,7 +660,7 @@ pub(super) fn convert_json_option_of_list_type(
             .into_iter()
             .filter_map(|v| {
                 match convert_json_option(
-                    &option_as_command_line_option_of_list_type.element,
+                    &option_as_command_line_option_of_list_type.element.ref_(arena),
                     Some(v),
                     base_path,
                     errors,
@@ -1154,15 +1155,16 @@ pub(super) fn remove_wildcard_files_with_lower_priority_extension(
 #[allow(dead_code)]
 pub(crate) fn convert_compiler_options_for_telemetry(
     opts: &CompilerOptions,
+    arena: &impl HasArena,
 ) -> HashMap<String, CompilerOptionsValue> {
     // didn't return CompilerOptions because get_option_value_with_empty_strings() seems to violate the expected per-field types
     let mut out: HashMap<String, CompilerOptionsValue> = HashMap::new();
     for (key, value) in opts.to_hash_map_of_compiler_options_values() {
-        let type_ = get_option_from_name(key, None);
+        let type_ = get_option_from_name(key, None, arena);
         if let Some(type_) = type_ {
             out.insert(
                 key.to_owned(),
-                get_option_value_with_empty_strings(&value, &type_),
+                get_option_value_with_empty_strings(&value, &type_.ref_(arena), arena),
             );
         }
     }
@@ -1172,6 +1174,7 @@ pub(crate) fn convert_compiler_options_for_telemetry(
 pub(super) fn get_option_value_with_empty_strings(
     value: &CompilerOptionsValue,
     option: &CommandLineOption,
+    arena: &impl HasArena,
 ) -> CompilerOptionsValue {
     match option.type_() {
         CommandLineOptionType::Object => CompilerOptionsValue::String(Some("".to_owned())),
@@ -1194,7 +1197,8 @@ pub(super) fn get_option_value_with_empty_strings(
                             .map(|v| {
                                 match get_option_value_with_empty_strings(
                                     &CompilerOptionsValue::String(Some(v.clone())),
-                                    element_type,
+                                    &element_type.ref_(arena),
+                                    arena,
                                 ) {
                                     CompilerOptionsValue::String(Some(string)) => string,
                                     _ => panic!("Expected string"),
