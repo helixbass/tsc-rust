@@ -30,7 +30,7 @@ use crate::{
     HasArena, InArena, OptionInArena,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+impl NodeFactory {
     #[generate_node_factory_method_wrapper]
     pub fn create_property_assignment_raw<'name>(
         &self,
@@ -39,14 +39,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> PropertyAssignment {
         let node = self.create_base_named_declaration(
             SyntaxKind::PropertyAssignment,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
         );
         let node = PropertyAssignment::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(initializer),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(initializer),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.name()), self)
@@ -109,15 +109,15 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ShorthandPropertyAssignment {
         let node = self.create_base_named_declaration(
             SyntaxKind::ShorthandPropertyAssignment,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
         );
         let node = ShorthandPropertyAssignment::new(
             node,
             object_assignment_initializer.map(|object_assignment_initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
             }),
         );
         node.add_transform_flags(
@@ -190,7 +190,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = SpreadAssignment::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression.clone()), self)
@@ -226,7 +226,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.as_name(Some(name)).unwrap(),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         node.add_transform_flags(
@@ -263,7 +263,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> SourceFile {
         let node = self
             .base_factory
-            .create_base_source_file_node(SyntaxKind::SourceFile);
+            .ref_(self).create_base_source_file_node(SyntaxKind::SourceFile);
         let node = SourceFile::new(
             node,
             self.create_node_array(Some(statements), None),
@@ -278,7 +278,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         node.set_flags(node.flags() | flags);
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.statements()))
+            propagate_children_flags(Some(&node.statements().ref_(self)))
                 | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
         node
@@ -306,7 +306,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.set_transform_flags(TransformFlags::None);
         node.set_original(None);
         node.set_emit_node(None);
-        self.base_factory.update_cloned_node(&node);
+        self.base_factory.ref_(self).update_cloned_node(node.base_node());
 
         node.set_statements(self.create_node_array(Some(statements), None));
         node.set_end_of_file_token(source_as_source_file.end_of_file_token());
@@ -316,7 +316,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         node.set_has_no_default_lib(has_no_default_lib);
         node.set_lib_reference_directives(lib_reference_directives);
         node.set_transform_flags(
-            propagate_children_flags(Some(&node.statements()))
+            propagate_children_flags(Some(&node.statements().ref_(self)))
                 | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
         node.set_implied_node_format(source_as_source_file.maybe_implied_node_format());
@@ -346,7 +346,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let lib_reference_directives = lib_reference_directives
             .unwrap_or_else(|| node_as_source_file.lib_reference_directives());
         let statements = statements.into();
-        if has_node_array_changed(&node_as_source_file.statements(), &statements)
+        if has_node_array_changed(node_as_source_file.statements(), &statements)
             || node_as_source_file.is_declaration_file() != is_declaration_file
             || !are_option_rcs_equal(
                 node_as_source_file.maybe_referenced_files().as_ref(),
@@ -533,7 +533,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             && node.ref_(self).maybe_id().is_none()
         {
             if is_comma_list_expression(&node.ref_(self)) {
-                return node.ref_(self).as_comma_list_expression().elements.to_vec().into();
+                return node.ref_(self).as_comma_list_expression().elements.ref_(self).to_vec().into();
             }
             if is_binary_expression(&node.ref_(self)) {
                 let node_ref = node.ref_(self);
@@ -562,12 +562,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.create_node_array(
                 Some(same_flat_map_id_node(elements, |element: Id<Node>, _| {
                     self.flatten_comma_elements(element)
-                })),
+                }, self)),
                 None,
             ),
         );
         node.set_transform_flags(
-            node.transform_flags() | propagate_children_flags(Some(&node.elements)),
+            node.transform_flags() | propagate_children_flags(Some(&node.elements.ref_(self))),
         );
         node
     }
@@ -580,7 +580,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_ref = node.ref_(self);
         let node_as_comma_list_expression = node_ref.as_comma_list_expression();
         let elements = elements.into();
-        if has_node_array_changed(&node_as_comma_list_expression.elements, &elements) {
+        if has_node_array_changed(node_as_comma_list_expression.elements, &elements) {
             self.update(self.create_comma_list_expression(elements), node)
         } else {
             node
@@ -591,7 +591,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self
             .create_base_node(SyntaxKind::EndOfDeclarationMarker)
             .alloc(self.arena());
-        node.ref_(self).set_emit_node(Some(_d()));
+        node.ref_(self).set_emit_node(Some(self.alloc_emit_node(_d())));
         node.ref_(self).set_original(Some(original));
         node
     }
@@ -600,7 +600,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self
             .create_base_node(SyntaxKind::MergeDeclarationMarker)
             .alloc(self.arena());
-        node.ref_(self).set_emit_node(Some(_d()));
+        node.ref_(self).set_emit_node(Some(self.alloc_emit_node(_d())));
         node.ref_(self).set_original(Some(original));
         node
     }
@@ -631,7 +631,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         clone.ref_(self).set_id(0);
         clone.ref_(self).set_modifier_flags_cache(ModifierFlags::None);
         clone.ref_(self).set_parent(None);
-        self.base_factory.update_cloned_node(&*clone.ref_(self));
+        self.base_factory.ref_(self).update_cloned_node(clone.ref_(self).base_node());
 
         clone.ref_(self).set_flags(clone.ref_(self).flags() | (node.ref_(self).flags() & !NodeFlags::Synthesized));
         clone.ref_(self).set_transform_flags(node.ref_(self).transform_flags());
@@ -648,14 +648,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Id<Node> {
         self.create_call_expression(
             self.create_arrow_function(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 param.map_or_default(|param| vec![param]),
                 None,
                 None,
                 self.create_block(statements, Some(true)),
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(param_value.map_or_default(|param_value| vec![param_value])),
         )
     }
@@ -666,8 +666,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_export_default(&self, expression: Id<Node /*Expression*/>) -> Id<Node> {
         self.create_export_assignment(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(false),
             expression,
         )
@@ -675,8 +675,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn create_external_module_export(&self, export_name: Id<Node /*Identifier*/>) -> Id<Node> {
         self.create_export_declaration(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             false,
             Some(self.create_named_exports(vec![self.create_export_specifier(
                 false,
@@ -713,13 +713,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             return self.create_call_chain(
                 self.create_property_access_chain(object, None, method_name),
                 None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(arguments_list),
             );
         }
         self.create_call_expression(
             self.create_property_access_expression(object, method_name),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(arguments_list),
         )
     }
@@ -731,7 +731,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Id<Node> {
         let arguments_list = arguments_list.into();
-        self.create_method_call(target, "bind", vec![this_arg].and_extend(arguments_list))
+        self.create_method_call(target, "bind", vec![this_arg].and_extend(arguments_list.ref_(self)))
     }
 
     pub fn create_function_call_call(
@@ -741,7 +741,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Id<Node> {
         let arguments_list = arguments_list.into();
-        self.create_method_call(target, "call", vec![this_arg].and_extend(arguments_list))
+        self.create_method_call(target, "call", vec![this_arg].and_extend(arguments_list.ref_(self)))
     }
 
     pub fn create_function_apply_call(
@@ -924,9 +924,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             && node_is_synthesized(&ReadonlyTextRangeConcrete::from_text_range(
                 &*get_source_map_range(&node.ref_(self), self).ref_(self),
             ))
-            && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(&node.ref_(self))))
-            && !get_synthetic_leading_comments(&node.ref_(self)).is_non_empty()
-            && !get_synthetic_trailing_comments(&node.ref_(self)).is_non_empty()
+            && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(node, self)))
+            && !get_synthetic_leading_comments(node, self).is_non_empty()
+            && !get_synthetic_trailing_comments(node, self).is_non_empty()
     }
 
     pub fn restore_outer_expressions(
@@ -999,14 +999,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             | SyntaxKind::StringLiteral => false,
             SyntaxKind::ArrayLiteralExpression => {
                 let target_ref = target.ref_(self);
-                let elements = &target_ref.as_array_literal_expression().elements;
-                if elements.is_empty() {
+                let elements = target_ref.as_array_literal_expression().elements;
+                if elements.ref_(self).is_empty() {
                     return false;
                 }
                 true
             }
             SyntaxKind::ObjectLiteralExpression => {
-                !target.ref_(self).as_object_literal_expression().properties.is_empty()
+                !target.ref_(self).as_object_literal_expression().properties.ref_(self).is_empty()
             }
             _ => true,
         }
@@ -1036,11 +1036,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             } else {
                 callee.clone()
             };
-        } else if get_emit_flags(&callee.ref_(self)).intersects(EmitFlags::HelperName) {
+        } else if get_emit_flags(callee, self).intersects(EmitFlags::HelperName) {
             this_arg = self.create_void_zero();
             target = self
                 .parenthesizer_rules()
-                .parenthesize_left_side_of_access(callee);
+                .ref_(self).parenthesize_left_side_of_access(callee);
         } else if is_property_access_expression(&callee.ref_(self)) {
             let callee_ref = callee.ref_(self);
             let callee_as_property_access_expression = callee_ref.as_property_access_expression();
@@ -1101,7 +1101,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             this_arg = self.create_void_zero();
             target = self
                 .parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression);
+                .ref_(self).parenthesize_left_side_of_access(expression);
         }
 
         CallBinding { target, this_arg }
@@ -1115,12 +1115,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         self.create_property_access_expression(
             self.create_parenthesized_expression(self.create_object_literal_expression(
                 Some(vec![self.create_set_accessor_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     "value",
                     vec![self.create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
                         Some(param_name),
                         None,
@@ -1168,7 +1168,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 .clone_node(node_name)
                 .set_text_range(Some(&*node_name.ref_(self)), self)
                 .and_set_parent(node_name.ref_(self).maybe_parent(), self);
-            emit_flags |= get_emit_flags(&node_name.ref_(self));
+            emit_flags |= get_emit_flags(node_name, self);
             if allow_source_maps != Some(true) {
                 emit_flags |= EmitFlags::NoSourceMap;
             }
@@ -1402,7 +1402,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         for (index, statement) in source.iter().enumerate().skip(statement_offset) {
             let statement = *statement;
             statement_offset = index;
-            if get_emit_flags(&statement.ref_(self)).intersects(EmitFlags::CustomPrologue)
+            if get_emit_flags(statement, self).intersects(EmitFlags::CustomPrologue)
                 && filter_or_default(statement)
             {
                 target.push(visitor.as_mut().try_map_or_else(
@@ -1425,23 +1425,23 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub fn ensure_use_strict(
         &self,
-        statements: &NodeArray, /*<Statement>*/
-    ) -> Gc<NodeArray /*<Statement>*/> {
-        let found_use_strict = find_use_strict_prologue(statements, self);
+        statements: Id<NodeArray>, /*<Statement>*/
+    ) -> Id<NodeArray /*<Statement>*/> {
+        let found_use_strict = find_use_strict_prologue(&statements.ref_(self), self);
 
         if found_use_strict.is_none() {
             return self
                 .create_node_array(
                     Some(
                         vec![self.create_use_strict_prologue()]
-                            .and_extend(statements.iter().cloned()),
+                            .and_extend(statements.ref_(self).iter().cloned()),
                     ),
                     None,
                 )
-                .set_text_range(Some(statements));
+                .set_text_range(Some(&*statements.ref_(self)), self);
         }
 
-        statements.rc_wrapper()
+        statements
     }
 
     pub fn lift_to_block(&self, nodes: &[Id<Node>]) -> Id<Node /*Statement*/> {
@@ -1479,17 +1479,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let declarations = declarations.unwrap();
 
         let left_standard_prologue_end = self.find_span_end(
-            &*statements,
+            &*statements.ref_(self),
             |&node: &Id<Node>| is_prologue_directive(node, self),
             0,
         );
         let left_hoisted_functions_end = self.find_span_end(
-            &*statements,
-            |node: &Id<Node>| is_hoisted_function(&node.ref_(self)),
+            &*statements.ref_(self),
+            |&node: &Id<Node>| is_hoisted_function(node, self),
             left_standard_prologue_end,
         );
         let left_hoisted_variables_end = self.find_span_end(
-            &*statements,
+            &*statements.ref_(self),
             |&node: &Id<Node>| is_hoisted_variable_statement(node, self),
             left_hoisted_functions_end,
         );
@@ -1501,7 +1501,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let right_hoisted_functions_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_hoisted_function(&node.ref_(self)),
+            |&node: &Id<Node>| is_hoisted_function(node, self),
             right_standard_prologue_end,
         );
         let right_hoisted_variables_end = self.find_span_end(
@@ -1511,7 +1511,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         let right_custom_prologue_end = self.find_span_end(
             declarations,
-            |node: &Id<Node>| is_custom_prologue(&node.ref_(self)),
+            |&node: &Id<Node>| is_custom_prologue(node, self),
             right_hoisted_variables_end,
         );
         Debug_.assert(
@@ -1519,7 +1519,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             Some("Expected declarations to be a valid standard or custom prologues"),
         );
 
-        let mut left = (*statements).to_owned();
+        let mut left = (*statements.ref_(self)).to_owned();
 
         if right_custom_prologue_end > right_hoisted_variables_end {
             left.splice(
@@ -1558,7 +1558,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
                 );
             } else {
                 let mut left_prologues: HashMap<String, bool> = _d();
-                for left_prologue in statements.iter().take(left_standard_prologue_end) {
+                for left_prologue in statements.ref_(self).iter().take(left_standard_prologue_end) {
                     left_prologues.insert(
                         left_prologue
                             .ref_(self).as_expression_statement()
@@ -1585,8 +1585,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
         match statements {
             NodeArrayOrVec::NodeArray(statements) => self
-                .create_node_array(Some(left), Some(statements.has_trailing_comma))
-                .set_text_range(Some(&*statements))
+                .create_node_array(Some(left), Some(statements.ref_(self).has_trailing_comma))
+                .set_text_range(Some(&*statements.ref_(self)), self)
                 .into(),
             NodeArrayOrVec::Vec(statements) => statements.into(),
         }

@@ -314,11 +314,11 @@ impl BigIntLiteral {
 pub struct TemplateExpression {
     _node: BaseNode,
     pub head: Id<Node /*TemplateHead*/>,
-    pub template_spans: Gc<NodeArray>, /*<TemplateSpan>*/
+    pub template_spans: Id<NodeArray>, /*<TemplateSpan>*/
 }
 
 impl TemplateExpression {
-    pub fn new(base_node: BaseNode, head: Id<Node>, template_spans: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, head: Id<Node>, template_spans: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             head,
@@ -384,12 +384,12 @@ impl HasExpressionInterface for ParenthesizedExpression {
 #[ast_type]
 pub struct ArrayLiteralExpression {
     _node: BaseNode,
-    pub elements: Gc<NodeArray>, /*<Expression>*/
+    pub elements: Id<NodeArray>, /*<Expression>*/
     pub(crate) multi_line: Option<bool>,
 }
 
 impl ArrayLiteralExpression {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>, multi_line: Option<bool>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -399,7 +399,7 @@ impl ArrayLiteralExpression {
 }
 
 impl HasElementsInterface for ArrayLiteralExpression {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
@@ -430,12 +430,12 @@ impl HasExpressionInterface for SpreadElement {
 #[ast_type]
 pub struct ObjectLiteralExpression {
     _node: BaseNode,
-    pub properties: Gc<NodeArray>, /*<ObjectLiteralElementLike>*/
+    pub properties: Id<NodeArray>, /*<ObjectLiteralElementLike>*/
     pub multi_line: Option<bool>,
 }
 
 impl ObjectLiteralExpression {
-    pub fn new(base_node: BaseNode, properties: Gc<NodeArray>, multi_line: Option<bool>) -> Self {
+    pub fn new(base_node: BaseNode, properties: Id<NodeArray>, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             properties,
@@ -445,11 +445,11 @@ impl ObjectLiteralExpression {
 }
 
 pub trait HasPropertiesInterface {
-    fn properties(&self) -> Gc<NodeArray>;
+    fn properties(&self) -> Id<NodeArray>;
 }
 
 impl HasPropertiesInterface for ObjectLiteralExpression {
-    fn properties(&self) -> Gc<NodeArray> {
+    fn properties(&self) -> Id<NodeArray> {
         self.properties.clone()
     }
 }
@@ -547,7 +547,7 @@ impl HasQuestionDotTokenInterface for ElementAccessExpression {
 }
 
 pub trait HasArgumentsInterface {
-    fn maybe_arguments(&self) -> Option<Gc<NodeArray>>;
+    fn maybe_arguments(&self) -> Option<Id<NodeArray>>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -556,8 +556,8 @@ pub struct CallExpression {
     _node: BaseNode,
     pub expression: Id<Node /*LeftHandSideExpression*/>,
     pub question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
-    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode>*/>>,
-    pub arguments: Gc<NodeArray>, /*<Expression>*/
+    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    pub arguments: Id<NodeArray>, /*<Expression>*/
 }
 
 impl CallExpression {
@@ -565,8 +565,8 @@ impl CallExpression {
         base_node: BaseNode,
         expression: Id<Node>,
         question_dot_token: Option<Id<Node>>,
-        type_arguments: Option<Gc<NodeArray>>,
-        arguments: Gc<NodeArray>,
+        type_arguments: Option<Id<NodeArray>>,
+        arguments: Id<NodeArray>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -591,13 +591,13 @@ impl HasQuestionDotTokenInterface for CallExpression {
 }
 
 impl HasArgumentsInterface for CallExpression {
-    fn maybe_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_arguments(&self) -> Option<Id<NodeArray>> {
         Some(self.arguments.clone())
     }
 }
 
 impl HasTypeArgumentsInterface for CallExpression {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
@@ -606,7 +606,7 @@ impl HasTypeArgumentsInterface for CallExpression {
 #[ast_type]
 pub struct ExpressionWithTypeArguments {
     _node: BaseNode,
-    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub expression: Id<Node /*LeftHandSideExpression*/>,
 }
 
@@ -614,7 +614,7 @@ impl ExpressionWithTypeArguments {
     pub fn new(
         base_node: BaseNode,
         expression: Id<Node>,
-        type_arguments: Option<Gc<NodeArray>>,
+        type_arguments: Option<Id<NodeArray>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -631,7 +631,7 @@ impl HasExpressionInterface for ExpressionWithTypeArguments {
 }
 
 impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
@@ -641,16 +641,16 @@ impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Id<Node /*LeftHandSideExpression*/>,
-    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode>*/>>,
-    pub arguments: Option<Gc<NodeArray> /*<Expression>*/>,
+    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    pub arguments: Option<Id<NodeArray> /*<Expression>*/>,
 }
 
 impl NewExpression {
     pub fn new(
         base_node: BaseNode,
         expression: Id<Node>,
-        type_arguments: Option<Gc<NodeArray>>,
-        arguments: Option<Gc<NodeArray>>,
+        type_arguments: Option<Id<NodeArray>>,
+        arguments: Option<Id<NodeArray>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -668,13 +668,13 @@ impl HasExpressionInterface for NewExpression {
 }
 
 impl HasArgumentsInterface for NewExpression {
-    fn maybe_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_arguments(&self) -> Option<Id<NodeArray>> {
         self.arguments.clone()
     }
 }
 
 impl HasTypeArgumentsInterface for NewExpression {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
@@ -684,7 +684,7 @@ impl HasTypeArgumentsInterface for NewExpression {
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
     pub tag: Id<Node /*LeftHandSideExpression*/>,
-    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub template: Id<Node /*TemplateLiteral*/>,
     pub(crate) question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
 }
@@ -693,7 +693,7 @@ impl TaggedTemplateExpression {
     pub fn new(
         base_node: BaseNode,
         tag: Id<Node>,
-        type_arguments: Option<Gc<NodeArray>>,
+        type_arguments: Option<Id<NodeArray>>,
         template: Id<Node>,
         question_dot_token: Option<Id<Node>>,
     ) -> Self {
@@ -708,7 +708,7 @@ impl TaggedTemplateExpression {
 }
 
 impl HasTypeArgumentsInterface for TaggedTemplateExpression {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }

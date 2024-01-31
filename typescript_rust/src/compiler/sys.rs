@@ -20,7 +20,7 @@ use crate::{
     is_windows, match_files, process_cwd, read_file_and_strip_leading_byte_order_mark,
     ConvertToTSConfigHost, ExitStatus, FileSystemEntries, ModuleResolutionHost, ParseConfigHost,
     RequireResult, StatLike, Stats, WatchFileKind, WatchOptions,
-    HasArena, AllArenas,
+    HasArena, AllArenas, per_arena,
 };
 
 pub fn generate_djb2_hash(_data: &str) -> String {
@@ -506,31 +506,20 @@ impl ParseConfigHost for SystemConcrete {
     }
 }
 
+// TODO: probably could accomplish what get_sys_concrete() was being used for
+// (in the test harness it looked like) by eg adding
+// .maybe_as_dyn_parse_config_host() method to System
+// (and so doing eg get_sys().maybe_as_dyn_parse_config_host().unwrap())?
 pub fn get_sys(arena: &impl HasArena) -> Id<Box<dyn System>> {
-    thread_local! {
-        static SYS_PER_ARENA: RefCell<HashMap<*const AllArenas, Id<Box<dyn System>>>> = RefCell::new(HashMap::new());
-    }
-
-    SYS_PER_ARENA.with(|sys_per_arena| {
-        let mut sys_per_arena = sys_per_arena.borrow_mut();
-        let arena_ptr: *const AllArenas = arena.arena();
-        *sys_per_arena.entry(arena_ptr).or_insert_with(|| {
-            SystemConcrete::new(
-                env::args().skip(1).collect(),
-                is_file_system_case_sensitive(),
-                arena,
-            )
-        })
-    })
-}
-
-pub fn get_sys_concrete() -> Gc<Box<SystemConcrete>> {
-    // TODO: probably could accomplish what this is used for
-    // (in the test harness it looked like) by eg adding
-    // .maybe_as_dyn_parse_config_host() method to System
-    // (and so doing eg get_sys().maybe_as_dyn_parse_config_host().unwrap())?
-    unimplemented!()
-    // SYS.with(|sys| sys.clone())
+    per_arena!(
+        Box<dyn System>,
+        arena,
+        SystemConcrete::new(
+            env::args().skip(1).collect(),
+            is_file_system_case_sensitive(),
+            arena,
+        )
+    )
 }
 
 /*const*/

@@ -16,13 +16,13 @@ use crate::{
     add_related_info, are_option_gcs_equal, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
-    create_file_diagnostic, every, factory, filter, find, first, flat_map, flatten, for_each,
+    create_file_diagnostic, every, filter, find, first, flat_map, flatten, for_each,
     get_error_span_for_node, get_first_identifier, get_source_file_of_node, id_text,
     is_access_expression, is_binding_pattern, is_call_expression,
     is_function_expression_or_arrow_function, is_function_like_declaration, is_identifier,
     is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element, is_new_expression,
     is_parameter, is_property_access_expression, is_rest_parameter, last, length, map,
-    node_is_present, parse_node_factory, return_ok_default_if_none, set_parent, set_text_range,
+    node_is_present, get_parse_node_factory, return_ok_default_if_none, set_parent, set_text_range,
     set_text_range_pos_end, skip_outer_expressions, some, try_maybe_for_each, try_some,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic, DiagnosticInterface,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
@@ -31,20 +31,21 @@ use crate::{
     RelationComparisonResult, ScriptTarget, Signature, SignatureFlags, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface, UsizeOrNegativeInfinity,
     OptionInArena,
+    get_factory, AllArenas,
 };
 
 impl TypeChecker {
     pub(super) fn maybe_add_missing_await_info(
         &self,
         report_errors: bool,
-        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
+        error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         error_node: Option<Id<Node>>,
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
         if let Some(error_node) = error_node {
-            if report_errors && error_output_container.errors_len() > 0 {
+            if report_errors && error_output_container.ref_(self).errors_len() > 0 {
                 if self
                     .get_awaited_type_of_promise(target, Option::<Id<Node>>::None, None, None)?
                     .is_some()
@@ -62,8 +63,8 @@ impl TypeChecker {
                     )?
                 ) {
                     add_related_info(
-                        &error_output_container.get_error(0).unwrap().ref_(self),
-                        vec![Gc::new(
+                        &error_output_container.ref_(self).get_error(0).unwrap().ref_(self),
+                        vec![self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 error_node,
                                 &Diagnostics::Did_you_forget_to_use_await,
@@ -107,13 +108,12 @@ impl TypeChecker {
         is_spread: Option<bool>,
         tuple_name_source: Option<Id<Node> /*ParameterDeclaration | NamedTupleMember*/>,
     ) -> Id<Node> {
-        let result = parse_node_factory.with(|parse_node_factory_| {
-            parse_node_factory_.create_synthetic_expression(
+        let result =
+            get_parse_node_factory(self).create_synthetic_expression(
                 type_,
                 is_spread,
                 tuple_name_source,
-            )
-        });
+            );
         set_text_range(&*result.ref_(self), Some(&*parent.ref_(self)));
         set_parent(&result.ref_(self), Some(parent));
         result
@@ -133,7 +133,7 @@ impl TypeChecker {
             )];
             if template.ref_(self).kind() == SyntaxKind::TemplateExpression {
                 for_each(
-                    &template.ref_(self).as_template_expression().template_spans,
+                    &*template.ref_(self).as_template_expression().template_spans.ref_(self),
                     |span: &Id<Node>, _| -> Option<()> {
                         args.push(span.ref_(self).as_template_span().expression);
                         None
@@ -152,9 +152,9 @@ impl TypeChecker {
                     .attributes()
                     .ref_(self).as_jsx_attributes()
                     .properties
-                    .is_empty()
+                    .ref_(self).is_empty()
                     || is_jsx_opening_element(&node.ref_(self))
-                        && !node.ref_(self).parent().ref_(self).as_jsx_element().children.is_empty()
+                        && !node.ref_(self).parent().ref_(self).as_jsx_element().children.ref_(self).is_empty()
                 {
                     vec![node.ref_(self).as_jsx_opening_like_element().attributes()]
                 } else {
@@ -165,7 +165,7 @@ impl TypeChecker {
         let args = node
             .ref_(self).as_has_arguments()
             .maybe_arguments()
-            .map_or_else(|| vec![], |arguments| arguments.to_vec());
+            .map_or_else(|| vec![], |arguments| arguments.ref_(self).to_vec());
         let spread_index = self.get_spread_argument_index(&args);
         if let Some(spread_index) = spread_index {
             let mut effective_args = args[0..spread_index].to_owned();
@@ -303,13 +303,13 @@ impl TypeChecker {
     pub(super) fn get_decorator_argument_count(
         &self,
         node: Id<Node>, /*Decorator*/
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> usize {
         match node.ref_(self).parent().ref_(self).kind() {
             SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => 1,
             SyntaxKind::PropertyDeclaration => 2,
             SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
-                if self.language_version == ScriptTarget::ES3 || signature.parameters().len() <= 2 {
+                if self.language_version == ScriptTarget::ES3 || signature.ref_(self).parameters().len() <= 2 {
                     2
                 } else {
                     3
@@ -435,7 +435,7 @@ impl TypeChecker {
     pub(super) fn get_argument_arity_error(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
         args: &[Id<Node /*Expression*/>],
     ) -> io::Result<Id<Diagnostic>> {
         let spread_index = self.get_spread_argument_index(args);
@@ -454,8 +454,8 @@ impl TypeChecker {
         let mut max_below = UsizeOrNegativeInfinity::NegativeInfinity;
         let mut min_above = usize::MAX;
 
-        let mut closest_signature: Option<Gc<Signature>> = None;
-        for sig in signatures {
+        let mut closest_signature: Option<Id<Signature>> = None;
+        for &sig in signatures {
             let min_parameter = self.get_min_argument_count(sig, None)?;
             let max_parameter = self.get_parameter_count(sig)?;
             if min_parameter < min {
@@ -480,7 +480,7 @@ impl TypeChecker {
         }
         let has_rest_parameter = try_some(
             Some(signatures),
-            Some(|signature: &Gc<Signature>| self.has_effective_rest_parameter(signature)),
+            Some(|&signature: &Id<Signature>| self.has_effective_rest_parameter(signature)),
         )?;
         let parameter_range = if has_rest_parameter {
             min.to_string()
@@ -529,17 +529,16 @@ impl TypeChecker {
                     Some(vec![parameter_range, args.len().to_string()]),
                 );
                 let parameter = closest_signature
-                    .as_ref()
-                    .and_then(|closest_signature| closest_signature.declaration)
+                    .and_then(|closest_signature| closest_signature.ref_(self).declaration)
                     .and_then(|closest_signature_declaration| {
                         closest_signature_declaration
                             .ref_(self).as_signature_declaration()
                             .parameters()
-                            .get(
+                            .ref_(self).get(
                                 if closest_signature
                                     .as_ref()
                                     .unwrap()
-                                    .maybe_this_parameter()
+                                    .ref_(self).maybe_this_parameter()
                                     .is_some()
                                 {
                                     args.len() + 1
@@ -573,29 +572,28 @@ impl TypeChecker {
                         },
                         self,
                     );
-                    add_related_info(&diagnostic.ref_(self), vec![Gc::new(parameter_error.into())]);
+                    add_related_info(&diagnostic.ref_(self), vec![self.alloc_diagnostic_related_information(parameter_error.into())]);
                 }
                 diagnostic
             } else {
-                let error_span = factory.with(|factory_| {
-                    factory_.create_node_array(
+                let error_span =
+                    get_factory(self).create_node_array(
                         Some(match max {
                             UsizeOrNegativeInfinity::NegativeInfinity => args.to_owned(),
                             UsizeOrNegativeInfinity::Usize(max) => args[max..].to_owned(),
                         }),
                         None,
-                    )
-                });
-                let pos = first(&error_span).ref_(self).pos();
-                let mut end = last(&error_span).ref_(self).end();
+                    );
+                let pos = first(&error_span.ref_(self)).ref_(self).pos();
+                let mut end = last(&error_span.ref_(self)).ref_(self).end();
                 if end == pos {
                     end += 1;
                 }
-                set_text_range_pos_end(&*error_span, pos, end);
+                set_text_range_pos_end(&*error_span.ref_(self), pos, end);
                 self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
-                        &error_span,
+                        &error_span.ref_(self),
                         error,
                         Some(vec![parameter_range, args.len().to_string()]),
                     )
@@ -608,18 +606,18 @@ impl TypeChecker {
     pub(super) fn get_type_argument_arity_error(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signatures: &[Gc<Signature>],
-        type_arguments: &NodeArray, /*<TypeNode>*/
+        signatures: &[Id<Signature>],
+        type_arguments: Id<NodeArray>, /*<TypeNode>*/
     ) -> Id<Diagnostic> {
-        let arg_count = type_arguments.len();
+        let arg_count = type_arguments.ref_(self).len();
         if signatures.len() == 1 {
             let sig = &signatures[0];
-            let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
-            let max = length(sig.maybe_type_parameters().as_deref());
+            let min = self.get_min_type_argument_count(sig.ref_(self).maybe_type_parameters().as_deref());
+            let max = length(sig.ref_(self).maybe_type_parameters().as_deref());
             return self.alloc_diagnostic(
                 create_diagnostic_for_node_array(
                     &get_source_file_of_node(node, self).ref_(self),
-                    type_arguments,
+                    &type_arguments.ref_(self),
                     &Diagnostics::Expected_0_type_arguments_but_got_1,
                     Some(vec![
                         if min < max {
@@ -636,8 +634,8 @@ impl TypeChecker {
         let mut below_arg_count = UsizeOrNegativeInfinity::NegativeInfinity;
         let mut above_arg_count = usize::MAX;
         for sig in signatures {
-            let min = self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref());
-            let max = length(sig.maybe_type_parameters().as_deref());
+            let min = self.get_min_type_argument_count(sig.ref_(self).maybe_type_parameters().as_deref());
+            let max = length(sig.ref_(self).maybe_type_parameters().as_deref());
             if min > arg_count {
                 above_arg_count = cmp::min(above_arg_count, min);
             } else if max < arg_count {
@@ -654,7 +652,7 @@ impl TypeChecker {
                 return self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
-                        type_arguments,
+                        &type_arguments.ref_(self),
                         &Diagnostics::No_overload_expects_0_type_arguments_but_overloads_do_exist_that_expect_either_1_or_2_type_arguments,
                         Some(vec![
                             arg_count.to_string(),
@@ -668,7 +666,7 @@ impl TypeChecker {
         self.alloc_diagnostic(
             create_diagnostic_for_node_array(
                 &get_source_file_of_node(node, self).ref_(self),
-                type_arguments,
+                &type_arguments.ref_(self),
                 &Diagnostics::Expected_0_type_arguments_but_got_1,
                 Some(vec![
                     match below_arg_count {
@@ -686,18 +684,18 @@ impl TypeChecker {
     pub(super) fn resolve_call(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signatures: &[Gc<Signature>],
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        signatures: &[Id<Signature>],
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
         call_chain_flags: SignatureFlags,
         fallback_error: Option<&'static DiagnosticMessage>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let is_tagged_template = node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression;
         let is_decorator = node.ref_(self).kind() == SyntaxKind::Decorator;
         let is_jsx_opening_or_self_closing_element = is_jsx_opening_like_element(&node.ref_(self));
         let report_errors = candidates_out_array.is_none() && self.produce_diagnostics;
 
-        let mut type_arguments: Option<Gc<NodeArray> /*<TypeNode>*/> = None;
+        let mut type_arguments: Option<Id<NodeArray> /*<TypeNode>*/> = None;
 
         if !is_decorator {
             type_arguments = node.ref_(self).as_has_type_arguments().maybe_type_arguments().clone();
@@ -707,7 +705,7 @@ impl TypeChecker {
                 || node.ref_(self).as_has_expression().expression().ref_(self).kind() != SyntaxKind::SuperKeyword
             {
                 try_maybe_for_each(
-                    type_arguments.as_ref(),
+                    type_arguments.refed(self).as_deref(),
                     |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(type_argument))?;
                         Ok(None)
@@ -734,7 +732,7 @@ impl TypeChecker {
         let args = self.get_effective_call_arguments(node)?;
 
         let is_single_non_generic_candidate =
-            candidates.len() == 1 && candidates[0].maybe_type_parameters().is_none();
+            candidates.len() == 1 && candidates[0].ref_(self).maybe_type_parameters().is_none();
         let mut arg_check_mode = if !is_decorator
             && !is_single_non_generic_candidate
             && try_some(
@@ -746,21 +744,21 @@ impl TypeChecker {
             CheckMode::Normal
         };
 
-        let mut candidates_for_argument_error: Option<Vec<Gc<Signature>>> = None;
-        let mut candidate_for_argument_arity_error: Option<Gc<Signature>> = None;
-        let mut candidate_for_type_argument_error: Option<Gc<Signature>> = None;
-        let mut result: Option<Gc<Signature>> = None;
+        let mut candidates_for_argument_error: Option<Vec<Id<Signature>>> = None;
+        let mut candidate_for_argument_arity_error: Option<Id<Signature>> = None;
+        let mut candidate_for_type_argument_error: Option<Id<Signature>> = None;
+        let mut result: Option<Id<Signature>> = None;
 
         let signature_help_trailing_comma = check_mode.intersects(CheckMode::IsForSignatureHelp)
             && node.ref_(self).kind() == SyntaxKind::CallExpression
-            && node.ref_(self).as_call_expression().arguments.has_trailing_comma;
+            && node.ref_(self).as_call_expression().arguments.ref_(self).has_trailing_comma;
 
         if candidates.len() > 1 {
             result = self.choose_overload(
                 &mut candidates_for_argument_error,
                 &mut candidate_for_argument_arity_error,
                 &mut candidate_for_type_argument_error,
-                type_arguments.as_deref(),
+                type_arguments,
                 node,
                 &args,
                 &mut arg_check_mode,
@@ -775,7 +773,7 @@ impl TypeChecker {
                 &mut candidates_for_argument_error,
                 &mut candidate_for_argument_arity_error,
                 &mut candidate_for_type_argument_error,
-                type_arguments.as_deref(),
+                type_arguments,
                 node,
                 &args,
                 &mut arg_check_mode,
@@ -819,17 +817,17 @@ impl TypeChecker {
                         self.assignable_relation.clone(),
                         CheckMode::Normal,
                         true,
-                        Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
+                        Some(self.alloc_check_type_containing_message_chain(Box::new(ResolveCallContainingMessageChain::new(
                             chain.map(|chain| Rc::new(RefCell::new(chain))),
                         )))),
                     )?;
                     if let Some(diags) = diags.as_ref() {
                         for d in diags {
-                            if let Some(last_declaration) = last.declaration {
+                            if let Some(last_declaration) = last.ref_(self).declaration {
                                 if candidates_for_argument_error_present.len() > 3 {
                                     add_related_info(
                                         &d.ref_(self),
-                                        vec![Gc::new(
+                                        vec![self.alloc_diagnostic_related_information(
                                             create_diagnostic_for_node(
                                                 last_declaration,
                                                 &Diagnostics::The_last_overload_is_declared_here,
@@ -845,11 +843,11 @@ impl TypeChecker {
                                 &mut candidates_for_argument_error,
                                 &mut candidate_for_argument_arity_error,
                                 &mut candidate_for_type_argument_error,
-                                type_arguments.as_deref(),
+                                type_arguments,
                                 node,
                                 &args,
                                 &mut arg_check_mode,
-                                &last,
+                                last,
                                 &d.ref_(self),
                             )?;
                             self.diagnostics().add(d.clone());
@@ -867,7 +865,7 @@ impl TypeChecker {
                     let i: Rc<Cell<usize>> = Rc::new(Cell::new(0));
                     for c in &candidates_for_argument_error_present {
                         let chain = ResolveCallOverloadContainingMessageChain::new(
-                            self.rc_wrapper(),
+                            self.arena_id(),
                             i.clone(),
                             candidates.len(),
                             c.clone(),
@@ -879,7 +877,7 @@ impl TypeChecker {
                             self.assignable_relation.clone(),
                             CheckMode::Normal,
                             true,
-                            Some(Gc::new(Box::new(chain))),
+                            Some(self.alloc_check_type_containing_message_chain(Box::new(chain))),
                         )?;
                         if let Some(diags) = diags {
                             if diags.len() <= min {
@@ -920,7 +918,7 @@ impl TypeChecker {
                         &Diagnostics::No_overload_matches_this_call,
                         None,
                     );
-                    let related: Vec<Gc<DiagnosticRelatedInformation>> =
+                    let related: Vec<Id<DiagnosticRelatedInformation>> =
                         flat_map(Some(&*diags), |d: &Id<Diagnostic>, _| {
                             d.ref_(self).maybe_related_information()
                                 .clone()
@@ -961,11 +959,11 @@ impl TypeChecker {
                         &mut candidates_for_argument_error,
                         &mut candidate_for_argument_arity_error,
                         &mut candidate_for_type_argument_error,
-                        type_arguments.as_deref(),
+                        type_arguments,
                         node,
                         &args,
                         &mut arg_check_mode,
-                        &candidates_for_argument_error_present[0],
+                        candidates_for_argument_error_present[0],
                         &diag.ref_(self),
                     )?;
                     self.diagnostics().add(diag);
@@ -979,27 +977,26 @@ impl TypeChecker {
                     &args,
                 )?);
             } else if let Some(candidate_for_type_argument_error) =
-                candidate_for_type_argument_error.as_ref()
+                candidate_for_type_argument_error
             {
                 self.check_type_arguments(
                     candidate_for_type_argument_error,
-                    node.ref_(self).as_has_type_arguments()
+                    &node.ref_(self).as_has_type_arguments()
                         .maybe_type_arguments()
-                        .as_ref()
-                        .unwrap(),
+                        .unwrap().ref_(self),
                     true,
                     fallback_error,
                 )?;
             } else {
                 let signatures_with_correct_type_argument_arity =
-                    filter(signatures, |s: &Gc<Signature>| {
-                        self.has_correct_type_argument_arity(s, type_arguments.as_deref())
+                    filter(signatures, |&s: &Id<Signature>| {
+                        self.has_correct_type_argument_arity(s, type_arguments)
                     });
                 if signatures_with_correct_type_argument_arity.is_empty() {
                     self.diagnostics().add(self.get_type_argument_arity_error(
                         node,
                         signatures,
-                        type_arguments.as_ref().unwrap(),
+                        type_arguments.unwrap(),
                     ));
                 } else if !is_decorator {
                     self.diagnostics().add(self.get_argument_arity_error(
@@ -1027,14 +1024,14 @@ impl TypeChecker {
 
     pub(super) fn add_implementation_success_elaboration(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
-        type_arguments: Option<&NodeArray>,
+        candidates_for_argument_error: &mut Option<Vec<Id<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Id<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Id<Signature>>,
+        type_arguments: Option<Id<NodeArray>>,
         node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
-        failed: &Signature,
+        failed: Id<Signature>,
         diagnostic: &Diagnostic,
     ) -> io::Result<()> {
         let old_candidates_for_argument_error = candidates_for_argument_error.clone();
@@ -1042,8 +1039,7 @@ impl TypeChecker {
         let old_candidate_for_type_argument_error = candidate_for_type_argument_error.clone();
 
         let failed_signature_declarations = failed
-            .declaration
-            .as_ref()
+            .ref_(self).declaration
             .and_then(|failed_declaration| failed_declaration.ref_(self).maybe_symbol())
             .and_then(|failed_declaration_symbol| {
                 failed_declaration_symbol
@@ -1063,7 +1059,7 @@ impl TypeChecker {
         };
         if let Some(impl_decl) = impl_decl {
             let candidate = self.get_signature_from_declaration_(impl_decl)?;
-            let is_single_non_generic_candidate = candidate.maybe_type_parameters().is_none();
+            let is_single_non_generic_candidate = candidate.ref_(self).maybe_type_parameters().is_none();
             let mut candidates = vec![candidate];
             if self
                 .choose_overload(
@@ -1084,7 +1080,7 @@ impl TypeChecker {
                 add_related_info(
                     diagnostic,
                     vec![
-                        Gc::new(
+                        self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 impl_decl,
                                 &Diagnostics::The_call_would_have_succeeded_against_this_implementation_but_implementation_signatures_of_overloads_are_not_externally_visible,
@@ -1106,27 +1102,27 @@ impl TypeChecker {
 
     pub(super) fn choose_overload(
         &self,
-        candidates_for_argument_error: &mut Option<Vec<Gc<Signature>>>,
-        candidate_for_argument_arity_error: &mut Option<Gc<Signature>>,
-        candidate_for_type_argument_error: &mut Option<Gc<Signature>>,
-        type_arguments: Option<&NodeArray>,
+        candidates_for_argument_error: &mut Option<Vec<Id<Signature>>>,
+        candidate_for_argument_arity_error: &mut Option<Id<Signature>>,
+        candidate_for_type_argument_error: &mut Option<Id<Signature>>,
+        type_arguments: Option<Id<NodeArray>>,
         node: Id<Node>,
         args: &[Id<Node>],
         arg_check_mode: &mut CheckMode,
-        candidates: &mut Vec<Gc<Signature>>,
+        candidates: &mut Vec<Id<Signature>>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         is_single_non_generic_candidate: bool,
         signature_help_trailing_comma: Option<bool>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
         *candidates_for_argument_error = None;
         *candidate_for_argument_arity_error = None;
         *candidate_for_type_argument_error = None;
 
         if is_single_non_generic_candidate {
-            let candidate = &candidates[0];
+            let candidate = candidates[0];
             if some(
-                type_arguments.map(|type_arguments| &**type_arguments),
+                type_arguments.refed(self).as_deref(),
                 Option::<fn(&Id<Node>) -> bool>::None,
             ) || !self.has_correct_arity(
                 node,
@@ -1155,7 +1151,7 @@ impl TypeChecker {
         }
 
         for candidate_index in 0..candidates.len() {
-            let candidate = &candidates[candidate_index];
+            let candidate = candidates[candidate_index];
             if !self.has_correct_type_argument_arity(candidate, type_arguments)
                 || !self.has_correct_arity(
                     node,
@@ -1167,17 +1163,17 @@ impl TypeChecker {
                 continue;
             }
 
-            let mut check_candidate: Gc<Signature>;
-            let mut inference_context: Option<Gc<InferenceContext>> = None;
+            let mut check_candidate: Id<Signature>;
+            let mut inference_context: Option<Id<InferenceContext>> = None;
 
-            if let Some(ref candidate_type_parameters) = candidate.maybe_type_parameters().clone() {
+            if let Some(ref candidate_type_parameters) = candidate.ref_(self).maybe_type_parameters().clone() {
                 let type_argument_types: Option<Vec<Id<Type>>>;
                 if some(
-                    type_arguments.map(|type_arguments| &**type_arguments),
+                    type_arguments.refed(self).as_deref(),
                     Option::<fn(&Id<Node>) -> bool>::None,
                 ) {
                     type_argument_types =
-                        self.check_type_arguments(candidate, type_arguments.unwrap(), false, None)?;
+                        self.check_type_arguments(candidate, &type_arguments.unwrap().ref_(self), false, None)?;
                     if type_argument_types.is_none() {
                         *candidate_for_type_argument_error = Some(candidate.clone());
                         continue;
@@ -1203,7 +1199,7 @@ impl TypeChecker {
                     *arg_check_mode |= if inference_context
                         .as_ref()
                         .unwrap()
-                        .flags()
+                        .ref_(self).flags()
                         .intersects(InferenceFlags::SkippedGenericFunction)
                     {
                         CheckMode::SkipGenericFunctions
@@ -1214,11 +1210,11 @@ impl TypeChecker {
                 check_candidate = self.get_signature_instantiation(
                     candidate.clone(),
                     type_argument_types.as_deref(),
-                    is_in_js_file(candidate.declaration.refed(self).as_deref()),
+                    is_in_js_file(candidate.ref_(self).declaration.refed(self).as_deref()),
                     inference_context
                         .as_ref()
                         .and_then(|inference_context| {
-                            inference_context.maybe_inferred_type_parameters().clone()
+                            inference_context.ref_(self).maybe_inferred_type_parameters().clone()
                         })
                         .as_deref(),
                 )?;
@@ -1226,7 +1222,7 @@ impl TypeChecker {
                     && !self.has_correct_arity(
                         node,
                         args,
-                        &check_candidate,
+                        check_candidate,
                         Some(signature_help_trailing_comma),
                     )?
                 {
@@ -1270,17 +1266,17 @@ impl TypeChecker {
                     check_candidate = self.get_signature_instantiation(
                         candidate.clone(),
                         Some(&type_argument_types),
-                        is_in_js_file(candidate.declaration.refed(self).as_deref()),
+                        is_in_js_file(candidate.ref_(self).declaration.refed(self).as_deref()),
                         /*inferenceContext &&*/
                         inference_context
-                            .maybe_inferred_type_parameters()
+                            .ref_(self).maybe_inferred_type_parameters()
                             .as_deref(),
                     )?;
                     if self.get_non_array_rest_type(candidate)?.is_some()
                         && !self.has_correct_arity(
                             node,
                             args,
-                            &check_candidate,
+                            check_candidate,
                             Some(signature_help_trailing_comma),
                         )?
                     {
@@ -1344,19 +1340,19 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
 
 #[derive(Trace, Finalize)]
 struct ResolveCallOverloadContainingMessageChain {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
     #[unsafe_ignore_trace]
     i: Rc<Cell<usize>>,
     candidates_len: usize,
-    c: Gc<Signature>,
+    c: Id<Signature>,
 }
 
 impl ResolveCallOverloadContainingMessageChain {
     pub fn new(
-        type_checker: Gc<TypeChecker>,
+        type_checker: Id<TypeChecker>,
         i: Rc<Cell<usize>>,
         candidates_len: usize,
-        c: Gc<Signature>,
+        c: Id<Signature>,
     ) -> Self {
         Self {
             type_checker,
@@ -1375,7 +1371,7 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
             Some(vec![
                 (self.i.get() + 1).to_string(),
                 self.candidates_len.to_string(),
-                self.type_checker.signature_to_string_(
+                self.type_checker.ref_(self).signature_to_string_(
                     self.c.clone(),
                     Option::<Id<Node>>::None,
                     None,
@@ -1384,5 +1380,11 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
                 )?,
             ]),
         )))))
+    }
+}
+
+impl HasArena for ResolveCallOverloadContainingMessageChain {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

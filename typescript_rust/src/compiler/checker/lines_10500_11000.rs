@@ -23,6 +23,7 @@ use crate::{
     Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
     SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
     Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
+    append_if_unique_eq,
 };
 
 impl TypeChecker {
@@ -98,7 +99,7 @@ impl TypeChecker {
             .ref_(self)
             .set_flags(symbol.ref_(self).flags() | symbol_flags);
         self.get_symbol_links(member.ref_(self).symbol())
-            .borrow_mut()
+            .ref_mut(self)
             .late_symbol = Some(symbol);
         if symbol.ref_(self).maybe_declarations().is_none() {
             symbol
@@ -136,8 +137,8 @@ impl TypeChecker {
             Some("The member is expected to have a symbol."),
         );
         let links = self.get_node_links(decl);
-        if (*links).borrow().resolved_symbol.is_none() {
-            links.borrow_mut().resolved_symbol = decl.ref_(self).maybe_symbol();
+        if links.ref_(self).resolved_symbol.is_none() {
+            links.ref_mut(self).resolved_symbol = decl.ref_(self).maybe_symbol();
             let decl_name = if is_binary_expression(&decl.ref_(self)) {
                 decl.ref_(self).as_binary_expression().left
             } else {
@@ -222,7 +223,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .name_type = Some(type_);
                 self.add_declaration_to_late_bound_symbol(late_symbol, decl, symbol_flags);
                 if let Some(late_symbol_parent) = late_symbol.ref_(self).maybe_parent() {
@@ -233,11 +234,11 @@ impl TypeChecker {
                 } else {
                     late_symbol.ref_(self).set_parent(Some(parent));
                 }
-                links.borrow_mut().resolved_symbol = Some(late_symbol.clone());
+                links.ref_mut(self).resolved_symbol = Some(late_symbol.clone());
                 return Ok(late_symbol);
             }
         }
-        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        let ret = links.ref_(self).resolved_symbol.clone().unwrap();
         Ok(ret)
     }
 
@@ -245,14 +246,14 @@ impl TypeChecker {
         &self,
         symbol: Id<Symbol>,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Id<SymbolTable>> {
         let links = self.get_symbol_links(symbol);
         if self
-            .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
+            .get_symbol_links_members_or_exports_resolution_field_value(links, resolution_kind)
             .is_none()
         {
             let is_static = resolution_kind == MembersOrExportsResolutionKind::resolved_exports;
-            let early_symbols: Option<Gc<GcCell<SymbolTable>>> = if !is_static {
+            let early_symbols: Option<Id<SymbolTable>> = if !is_static {
                 symbol.ref_(self).maybe_members().clone()
             } else if symbol.ref_(self).flags().intersects(SymbolFlags::Module) {
                 Some(self.get_exports_of_module_worker(symbol)?)
@@ -261,7 +262,7 @@ impl TypeChecker {
             };
 
             self.set_symbol_links_members_or_exports_resolution_field_value(
-                &links,
+                links,
                 resolution_kind,
                 Some(
                     early_symbols
@@ -272,13 +273,12 @@ impl TypeChecker {
 
             let mut late_symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             let early_symbols_ref = early_symbols
-                .as_ref()
-                .map(|early_symbols| (**early_symbols).borrow());
+                .map(|early_symbols| early_symbols.ref_(self));
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for &decl in symbol_declarations {
                     let members = get_members_of_declaration(&decl.ref_(self));
                     if let Some(members) = members {
-                        for &member in &members {
+                        for &member in &*members.ref_(self) {
                             if is_static == has_static_modifier(member, self)
                                 && self.has_late_bindable_name(member)?
                             {
@@ -322,12 +322,12 @@ impl TypeChecker {
                 }
 
                 self.set_symbol_links_members_or_exports_resolution_field_value(
-                    &links,
+                    links,
                     resolution_kind,
                     Some(
                         self.combine_symbol_tables(
                             early_symbols.clone(),
-                            Some(Gc::new(GcCell::new(late_symbols))),
+                            Some(self.alloc_symbol_table(late_symbols)),
                         )?
                         .unwrap_or_else(|| self.empty_symbols()),
                     ),
@@ -335,37 +335,37 @@ impl TypeChecker {
             }
         }
         Ok(self
-            .get_symbol_links_members_or_exports_resolution_field_value(&links, resolution_kind)
+            .get_symbol_links_members_or_exports_resolution_field_value(links, resolution_kind)
             .unwrap())
     }
 
     pub(super) fn get_symbol_links_members_or_exports_resolution_field_value(
         &self,
-        symbol_links: &GcCell<SymbolLinks>,
+        symbol_links: Id<SymbolLinks>,
         resolution_kind: MembersOrExportsResolutionKind,
-    ) -> Option<Gc<GcCell<SymbolTable>>> {
+    ) -> Option<Id<SymbolTable>> {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
-                symbol_links.borrow().resolved_exports.clone()
+                (*symbol_links.ref_(self)).borrow().resolved_exports.clone()
             }
             MembersOrExportsResolutionKind::resolved_members => {
-                symbol_links.borrow().resolved_members.clone()
+                (*symbol_links.ref_(self)).borrow().resolved_members.clone()
             }
         }
     }
 
     pub(super) fn set_symbol_links_members_or_exports_resolution_field_value(
         &self,
-        symbol_links: &GcCell<SymbolLinks>,
+        symbol_links: Id<SymbolLinks>,
         resolution_kind: MembersOrExportsResolutionKind,
-        value: Option<Gc<GcCell<SymbolTable>>>,
+        value: Option<Id<SymbolTable>>,
     ) {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
-                symbol_links.borrow_mut().resolved_exports = value;
+                symbol_links.ref_mut(self).resolved_exports = value;
             }
             MembersOrExportsResolutionKind::resolved_members => {
-                symbol_links.borrow_mut().resolved_members = value;
+                symbol_links.ref_mut(self).resolved_members = value;
             }
         }
     }
@@ -373,7 +373,7 @@ impl TypeChecker {
     pub(super) fn get_members_of_symbol(
         &self,
         symbol: Id<Symbol>,
-    ) -> io::Result<Gc<GcCell<SymbolTable>>> {
+    ) -> io::Result<Id<SymbolTable>> {
         Ok(
             if symbol
                 .ref_(self)
@@ -403,7 +403,7 @@ impl TypeChecker {
         {
             let links = self.get_symbol_links(symbol);
             if {
-                let value = (*links).borrow().late_symbol.is_none();
+                let value = links.ref_(self).late_symbol.is_none();
                 value
             } && try_some(
                 symbol.ref_(self).maybe_declarations().as_deref(),
@@ -421,7 +421,7 @@ impl TypeChecker {
                     self.get_members_of_symbol(parent)?;
                 }
             }
-            let mut links = links.borrow_mut();
+            let mut links = links.ref_mut(self);
             if links.late_symbol.is_none() {
                 links.late_symbol = Some(symbol);
             }
@@ -507,22 +507,22 @@ impl TypeChecker {
         type_arguments: Vec<Id<Type>>,
     ) -> io::Result<()> {
         let mut mapper: Option<Id<TypeMapper>> = None;
-        let mut members: Gc<GcCell<SymbolTable>>;
-        let mut call_signatures: Vec<Gc<Signature>>;
-        let mut construct_signatures: Vec<Gc<Signature>>;
-        let mut index_infos: Vec<Gc<IndexInfo>>;
+        let mut members: Id<SymbolTable>;
+        let mut call_signatures: Vec<Id<Signature>>;
+        let mut construct_signatures: Vec<Id<Signature>>;
+        let mut index_infos: Vec<Id<IndexInfo>>;
         if range_equals(&type_parameters, &type_arguments, 0, type_parameters.len()) {
             members = if let Some(source_symbol) = source.ref_(self).maybe_symbol() {
                 self.get_members_of_symbol(source_symbol)?
             } else {
-                Gc::new(GcCell::new(create_symbol_table(
+                self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     source
                         .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
-                )))
+                ))
             };
             call_signatures = source
                 .ref_(self)
@@ -542,7 +542,7 @@ impl TypeChecker {
         } else {
             let type_parameters_len_is_1 = type_parameters.len() == 1;
             mapper = Some(self.create_type_mapper(type_parameters, Some(type_arguments.clone())));
-            members = Gc::new(GcCell::new(
+            members = self.alloc_symbol_table(
                 self.create_instantiated_symbol_table(
                     source
                         .ref_(self)
@@ -553,7 +553,7 @@ impl TypeChecker {
                     mapper.clone().unwrap(),
                     type_parameters_len_is_1,
                 )?,
-            ));
+            );
             call_signatures = self.instantiate_signatures(
                 &*source
                     .ref_(self)
@@ -578,16 +578,18 @@ impl TypeChecker {
         }
         let base_types = self.get_base_types(source)?;
         if !base_types.is_empty() {
-            if matches!(source.ref_(self).maybe_symbol(), Some(symbol) if Gc::ptr_eq(&members, &self.get_members_of_symbol(symbol)?))
-            {
-                members = Gc::new(GcCell::new(create_symbol_table(
+            if matches!(
+                source.ref_(self).maybe_symbol(),
+                Some(symbol) if members == self.get_members_of_symbol(symbol)?
+            ) {
+                members = self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     source
                         .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
-                )));
+                ));
             }
             self.set_structured_type_members(
                 type_.ref_(self).as_object_type(),
@@ -608,7 +610,7 @@ impl TypeChecker {
                     base_type.clone()
                 };
                 let properties = self.get_properties_of_type(instantiated_base_type)?;
-                self.add_inherited_members(&mut members.borrow_mut(), properties);
+                self.add_inherited_members(&mut members.ref_mut(self), properties);
                 call_signatures = concatenate(
                     call_signatures,
                     self.get_signatures_of_type(instantiated_base_type, SignatureKind::Call)?,
@@ -620,7 +622,7 @@ impl TypeChecker {
                 let inherited_index_infos = if instantiated_base_type != self.any_type() {
                     self.get_index_infos_of_type(instantiated_base_type)?
                 } else {
-                    vec![Gc::new(self.create_index_info(
+                    vec![self.alloc_index_info(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
                         false,
@@ -629,7 +631,7 @@ impl TypeChecker {
                 };
                 let inherited_index_infos_filtered = inherited_index_infos
                     .into_iter()
-                    .filter(|info| self.find_index_info(&index_infos, info.key_type).is_none())
+                    .filter(|info| self.find_index_info(&index_infos, info.ref_(self).key_type).is_none())
                     .collect::<Vec<_>>();
                 index_infos.extend(inherited_index_infos_filtered);
             }
@@ -698,7 +700,7 @@ impl TypeChecker {
         this_parameter: Option<Id<Symbol>>,
         parameters: Vec<Id<Symbol>>,
         resolved_return_type: Option<Id<Type>>,
-        resolved_type_predicate: Option<Gc<TypePredicate>>,
+        resolved_type_predicate: Option<Id<TypePredicate>>,
         min_argument_count: usize,
         flags: SignatureFlags,
     ) -> Signature {
@@ -713,28 +715,28 @@ impl TypeChecker {
         sig
     }
 
-    pub(super) fn clone_signature(&self, sig: &Signature) -> Signature {
+    pub(super) fn clone_signature(&self, sig: Id<Signature>) -> Signature {
         let mut result = self.create_signature(
-            sig.declaration.clone(),
-            sig.maybe_type_parameters().clone(),
-            sig.maybe_this_parameter().clone(),
-            sig.parameters().to_owned(),
+            sig.ref_(self).declaration.clone(),
+            sig.ref_(self).maybe_type_parameters().clone(),
+            sig.ref_(self).maybe_this_parameter().clone(),
+            sig.ref_(self).parameters().to_owned(),
             None,
             None,
-            sig.min_argument_count(),
-            sig.flags & SignatureFlags::PropagatingFlags,
+            sig.ref_(self).min_argument_count(),
+            sig.ref_(self).flags & SignatureFlags::PropagatingFlags,
         );
-        result.target = sig.target.clone();
-        result.mapper = sig.mapper.clone();
-        result.composite_signatures = sig.composite_signatures.clone();
-        result.composite_kind = sig.composite_kind;
+        result.target = sig.ref_(self).target.clone();
+        result.mapper = sig.ref_(self).mapper.clone();
+        result.composite_signatures = sig.ref_(self).composite_signatures.clone();
+        result.composite_kind = sig.ref_(self).composite_kind;
         result
     }
 
     pub(super) fn create_union_signature(
         &self,
-        signature: &Signature,
-        union_signatures: Vec<Gc<Signature>>,
+        signature: Id<Signature>,
+        union_signatures: Vec<Id<Signature>>,
     ) -> Signature {
         let mut result = self.clone_signature(signature);
         result.composite_signatures = Some(union_signatures);
@@ -746,14 +748,14 @@ impl TypeChecker {
 
     pub(super) fn get_optional_call_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         call_chain_flags: SignatureFlags,
-    ) -> Gc<Signature> {
-        if signature.flags & SignatureFlags::CallChainFlags == call_chain_flags {
+    ) -> Id<Signature> {
+        if signature.ref_(self).flags & SignatureFlags::CallChainFlags == call_chain_flags {
             return signature;
         }
-        if signature.maybe_optional_call_signature_cache().is_none() {
-            *signature.maybe_optional_call_signature_cache() =
+        if signature.ref_(self).maybe_optional_call_signature_cache().is_none() {
+            *signature.ref_(self).maybe_optional_call_signature_cache() =
                 Some(SignatureOptionalCallSignatureCache::new());
         }
         let key = if call_chain_flags == SignatureFlags::IsInnerCallChain {
@@ -763,14 +765,14 @@ impl TypeChecker {
         };
         let existing = if key == "inner" {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_ref()
                 .unwrap()
                 .inner
                 .clone()
         } else {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_ref()
                 .unwrap()
                 .outer
@@ -779,16 +781,16 @@ impl TypeChecker {
         if let Some(existing) = existing {
             return existing;
         }
-        let ret = Gc::new(self.create_optional_call_signature(&signature, call_chain_flags));
+        let ret = self.alloc_signature(self.create_optional_call_signature(signature, call_chain_flags));
         if key == "inner" {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_mut()
                 .unwrap()
                 .inner = Some(ret.clone());
         } else {
             signature
-                .maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache()
                 .as_mut()
                 .unwrap()
                 .outer = Some(ret.clone());
@@ -798,7 +800,7 @@ impl TypeChecker {
 
     pub(super) fn create_optional_call_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         call_chain_flags: SignatureFlags,
     ) -> Signature {
         Debug_.assert(
@@ -812,13 +814,13 @@ impl TypeChecker {
 
     pub(super) fn get_expanded_parameters(
         &self,
-        sig: &Signature,
+        sig: Id<Signature>,
         skip_union_expanding: Option<bool>,
     ) -> io::Result<Vec<Vec<Id<Symbol>>>> {
         let skip_union_expanding = skip_union_expanding.unwrap_or(false);
-        if signature_has_rest_parameter(sig) {
-            let rest_index = sig.parameters().len() - 1;
-            let rest_type = self.get_type_of_symbol(sig.parameters()[rest_index])?;
+        if signature_has_rest_parameter(&sig.ref_(self)) {
+            let rest_index = sig.ref_(self).parameters().len() - 1;
+            let rest_type = self.get_type_of_symbol(sig.ref_(self).parameters()[rest_index])?;
             if self.is_tuple_type(rest_type) {
                 return Ok(vec![self.expand_signature_parameters_with_tuple_members(
                     sig, rest_type, rest_index,
@@ -845,12 +847,12 @@ impl TypeChecker {
                 );
             }
         }
-        Ok(vec![sig.parameters().to_owned()])
+        Ok(vec![sig.ref_(self).parameters().to_owned()])
     }
 
     pub(super) fn expand_signature_parameters_with_tuple_members(
         &self,
-        sig: &Signature,
+        sig: Id<Signature>,
         rest_type: Id<Type>, /*TupleTypeReference*/
         rest_index: usize,
     ) -> io::Result<Vec<Id<Symbol>>> {
@@ -883,7 +885,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(if flags.intersects(ElementFlags::Rest) {
                 self.create_array_type(t, None)
             } else {
@@ -892,7 +894,7 @@ impl TypeChecker {
             Ok(symbol)
         })?;
         Ok(concatenate(
-            sig.parameters()[0..rest_index].to_owned(),
+            sig.ref_(self).parameters()[0..rest_index].to_owned(),
             rest_params,
         ))
     }
@@ -900,7 +902,7 @@ impl TypeChecker {
     pub(super) fn get_default_construct_signatures(
         &self,
         class_type: Id<Type>, /*InterfaceType*/
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         let base_constructor_type = self.get_base_constructor_type_of_class(class_type)?;
         let base_signatures =
             self.get_signatures_of_type(base_constructor_type, SignatureKind::Construct)?;
@@ -911,7 +913,7 @@ impl TypeChecker {
             Some(declaration) if has_syntactic_modifier(declaration, ModifierFlags::Abstract, self)
         );
         if base_signatures.is_empty() {
-            return Ok(vec![Gc::new(
+            return Ok(vec![self.alloc_signature(
                 self.create_signature(
                     None,
                     class_type
@@ -936,11 +938,11 @@ impl TypeChecker {
         let is_java_script = is_in_js_file(Some(&base_type_node.ref_(self)));
         let type_arguments = self.type_arguments_from_type_reference_node(base_type_node)?;
         let type_arg_count = length(type_arguments.as_deref());
-        let mut result: Vec<Gc<Signature>> = vec![];
+        let mut result: Vec<Id<Signature>> = vec![];
         for base_sig in base_signatures {
             let min_type_argument_count =
-                self.get_min_type_argument_count(base_sig.maybe_type_parameters().as_deref());
-            let type_param_count = length(base_sig.maybe_type_parameters().as_deref());
+                self.get_min_type_argument_count(base_sig.ref_(self).maybe_type_parameters().as_deref());
+            let type_param_count = length(base_sig.ref_(self).maybe_type_parameters().as_deref());
             if is_java_script
                 || type_arg_count >= min_type_argument_count && type_arg_count <= type_param_count
             {
@@ -949,14 +951,14 @@ impl TypeChecker {
                         base_sig.clone(),
                         self.fill_missing_type_arguments(
                             type_arguments.clone(),
-                            base_sig.maybe_type_parameters().as_deref(),
+                            base_sig.ref_(self).maybe_type_parameters().as_deref(),
                             min_type_argument_count,
                             is_java_script,
                         )?
                         .as_deref(),
                     )?
                 } else {
-                    self.clone_signature(&base_sig)
+                    self.clone_signature(base_sig)
                 };
                 *sig.maybe_type_parameters_mut() = class_type
                     .ref_(self)
@@ -969,7 +971,7 @@ impl TypeChecker {
                 } else {
                     sig.flags & !SignatureFlags::Abstract
                 };
-                result.push(Gc::new(sig));
+                result.push(self.alloc_signature(sig));
             }
         }
         Ok(result)
@@ -977,12 +979,12 @@ impl TypeChecker {
 
     pub(super) fn find_matching_signature(
         &self,
-        signature_list: &[Gc<Signature>],
-        signature: Gc<Signature>,
+        signature_list: &[Id<Signature>],
+        signature: Id<Signature>,
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         for s in signature_list {
             if self.compare_signatures_identical(
                 s.clone(),
@@ -1007,11 +1009,11 @@ impl TypeChecker {
 
     pub(super) fn find_matching_signatures(
         &self,
-        signature_lists: &[Vec<Gc<Signature>>],
-        signature: Gc<Signature>,
+        signature_lists: &[Vec<Id<Signature>>],
+        signature: Id<Signature>,
         list_index: usize,
-    ) -> io::Result<Option<Vec<Gc<Signature>>>> {
-        if signature.maybe_type_parameters().is_some() {
+    ) -> io::Result<Option<Vec<Id<Signature>>>> {
+        if signature.ref_(self).maybe_type_parameters().is_some() {
             if list_index > 0 {
                 return Ok(None);
             }
@@ -1031,7 +1033,7 @@ impl TypeChecker {
             }
             return Ok(Some(vec![signature]));
         }
-        let mut result: Option<Vec<Gc<Signature>>> = None;
+        let mut result: Option<Vec<Id<Signature>>> = None;
         for (i, signature_list) in signature_lists.iter().enumerate() {
             let match_ = return_ok_default_if_none!(if i == list_index {
                 Some(signature.clone())
@@ -1041,16 +1043,16 @@ impl TypeChecker {
             if result.is_none() {
                 result = Some(vec![]);
             }
-            append_if_unique_gc(result.as_mut().unwrap(), &match_);
+            append_if_unique_eq(result.as_mut().unwrap(), &match_);
         }
         Ok(result)
     }
 
     pub(super) fn get_union_signatures(
         &self,
-        signature_lists: &[Vec<Gc<Signature>>],
-    ) -> io::Result<Vec<Gc<Signature>>> {
-        let mut result: Option<Vec<Gc<Signature>>> = None;
+        signature_lists: &[Vec<Id<Signature>>],
+    ) -> io::Result<Vec<Id<Signature>>> {
+        let mut result: Option<Vec<Id<Signature>>> = None;
         let mut index_with_length_over_one: Option<isize> = None;
         for (i, signature_list) in signature_lists.iter().enumerate() {
             if signature_list.is_empty() {
@@ -1063,7 +1065,7 @@ impl TypeChecker {
                     -1
                 });
             }
-            for signature in signature_list {
+            for &signature in signature_list {
                 if match result.as_deref() {
                     None => true,
                     Some(result) => self
@@ -1075,10 +1077,10 @@ impl TypeChecker {
                     if let Some(union_signatures) = union_signatures {
                         let mut s = signature.clone();
                         if union_signatures.len() > 1 {
-                            let mut this_parameter = signature.maybe_this_parameter().clone();
+                            let mut this_parameter = signature.ref_(self).maybe_this_parameter().clone();
                             let first_this_parameter_of_union_signatures =
-                                for_each(&union_signatures, |sig: &Gc<Signature>, _| {
-                                    sig.maybe_this_parameter().clone()
+                                for_each(&union_signatures, |sig: &Id<Signature>, _| {
+                                    sig.ref_(self).maybe_this_parameter().clone()
                                 });
                             if let Some(first_this_parameter_of_union_signatures) =
                                 first_this_parameter_of_union_signatures
@@ -1086,8 +1088,8 @@ impl TypeChecker {
                                 let this_type = self.get_intersection_type(
                                     &try_map_defined(
                                         Some(&union_signatures),
-                                        |sig: &Gc<Signature>, _| {
-                                            sig.maybe_this_parameter().try_map(|this_parameter| {
+                                        |sig: &Id<Signature>, _| {
+                                            sig.ref_(self).maybe_this_parameter().try_map(|this_parameter| {
                                                 self.get_type_of_symbol(this_parameter)
                                             })
                                         },
@@ -1103,7 +1105,7 @@ impl TypeChecker {
                             let s_not_wrapped =
                                 self.create_union_signature(signature, union_signatures);
                             *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
-                            s = Gc::new(s_not_wrapped);
+                            s = self.alloc_signature(s_not_wrapped);
                         }
                         if result.is_none() {
                             result = Some(vec![]);
@@ -1121,20 +1123,20 @@ impl TypeChecker {
             } else {
                 0
             }];
-            let mut results: Option<Vec<Gc<Signature>>> = Some(master_list.clone());
+            let mut results: Option<Vec<Id<Signature>>> = Some(master_list.clone());
             for signatures in signature_lists {
                 if !ptr::eq(signatures, master_list) {
                     let signature = signatures.get(0);
                     Debug_.assert(signature.is_some(), Some("getUnionSignatures bails early on empty signature lists and should not have empty lists on second pass"));
                     let signature = signature.unwrap();
                     results = if matches!(
-                        signature.maybe_type_parameters().as_ref(),
+                        signature.ref_(self).maybe_type_parameters().as_ref(),
                         Some(signature_type_parameters) if try_some(
                             results.as_deref(),
-                            Some(|s: &Gc<Signature>| -> io::Result<bool> {
+                            Some(|s: &Id<Signature>| -> io::Result<bool> {
                                 Ok(
                                     matches!(
-                                        s.maybe_type_parameters().as_ref(),
+                                        s.ref_(self).maybe_type_parameters().as_ref(),
                                         Some(s_type_parameters) if !self.compare_type_parameters_identical(
                                             Some(signature_type_parameters),
                                             Some(s_type_parameters),
@@ -1148,8 +1150,8 @@ impl TypeChecker {
                     } else {
                         try_maybe_map(
                             results.as_ref(),
-                            |sig: &Gc<Signature>, _| -> io::Result<_> {
-                                Ok(Gc::new(self.combine_signatures_of_union_members(
+                            |sig: &Id<Signature>, _| -> io::Result<_> {
+                                Ok(self.alloc_signature(self.combine_signatures_of_union_members(
                                     sig.clone(),
                                     signature.clone(),
                                 )?))

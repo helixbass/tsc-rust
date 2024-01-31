@@ -10,7 +10,7 @@ use super::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
-use crate::set_text_range_node_array;
+use crate::{set_text_range_node_array, HasArena};
 
 mod _NodeArrayDeriveTraceScope {
     use std::slice;
@@ -21,7 +21,6 @@ mod _NodeArrayDeriveTraceScope {
 
     #[derive(Clone, Trace, Finalize)]
     pub struct NodeArray {
-        _rc_wrapper: GcCell<Option<Gc<NodeArray>>>,
         _nodes: Vec<Id<Node>>,
         #[unsafe_ignore_trace]
         pos: Cell<isize>,
@@ -37,7 +36,6 @@ mod _NodeArrayDeriveTraceScope {
     impl std::fmt::Debug for NodeArray {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             f.debug_struct("NodeArray")
-                // .field("_rc_wrapper", &self._rc_wrapper)
                 .field("_nodes", &self._nodes)
                 .field("pos", &self.pos)
                 .field("end", &self.end)
@@ -55,30 +53,20 @@ mod _NodeArrayDeriveTraceScope {
             end: isize,
             has_trailing_comma: bool,
             transform_flags: Option<TransformFlags>,
-        ) -> Gc<Self> {
-            let ret = Gc::new(NodeArray {
+            arena: &impl HasArena,
+        ) -> Id<Self> {
+            arena.alloc_node_array(NodeArray {
                 _nodes: nodes,
-                _rc_wrapper: Default::default(),
                 pos: Cell::new(pos),
                 end: Cell::new(end),
                 has_trailing_comma,
                 transform_flags: Cell::new(transform_flags),
                 is_missing_list: Cell::new(false),
-            });
-            *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
-            ret
-        }
-
-        pub fn rc_wrapper(&self) -> Gc<Self> {
-            self._rc_wrapper.borrow().clone().unwrap()
+            })
         }
 
         pub fn iter(&self) -> NodeArrayIter {
             NodeArrayIter(self._nodes.iter())
-        }
-
-        pub fn owned_iter(&self) -> NodeArrayOwnedIter {
-            self.rc_wrapper().into()
         }
 
         pub fn to_vec(&self) -> Vec<Id<Node>> {
@@ -132,58 +120,29 @@ mod _NodeArrayDeriveTraceScope {
         }
     }
 
-    impl<'node_array> From<&'node_array NodeArray> for &'node_array [Id<Node>] {
-        fn from(node_array: &'node_array NodeArray) -> Self {
+    impl<'a> From<&'a NodeArray> for &'a [Id<Node>] {
+        fn from(node_array: &'a NodeArray) -> Self {
             &node_array._nodes
         }
     }
 
     #[derive(Clone)]
-    pub struct NodeArrayIter<'node_array>(slice::Iter<'node_array, Id<Node>>);
+    pub struct NodeArrayIter<'a>(slice::Iter<'a, Id<Node>>);
 
-    impl<'node_array> Iterator for NodeArrayIter<'node_array> {
-        type Item = &'node_array Id<Node>;
+    impl<'a> Iterator for NodeArrayIter<'a> {
+        type Item = &'a Id<Node>;
 
         fn next(&mut self) -> Option<Self::Item> {
             self.0.next()
         }
     }
 
-    impl<'node_array> IntoIterator for &'node_array NodeArray {
-        type Item = &'node_array Id<Node>;
-        type IntoIter = NodeArrayIter<'node_array>;
+    impl<'a> IntoIterator for &'a NodeArray {
+        type Item = &'a Id<Node>;
+        type IntoIter = NodeArrayIter<'a>;
 
         fn into_iter(self) -> Self::IntoIter {
             self.iter()
-        }
-    }
-
-    #[derive(Clone, Trace, Finalize)]
-    pub struct NodeArrayOwnedIter {
-        node_array: Gc<NodeArray>,
-        index: usize,
-    }
-
-    impl From<Gc<NodeArray>> for NodeArrayOwnedIter {
-        fn from(value: Gc<NodeArray>) -> Self {
-            Self {
-                node_array: value,
-                index: 0,
-            }
-        }
-    }
-
-    impl Iterator for NodeArrayOwnedIter {
-        type Item = Id<Node>;
-
-        fn next(&mut self) -> Option<Self::Item> {
-            if self.index >= self.node_array.len() {
-                None
-            } else {
-                let ret = self.node_array[self.index].clone();
-                self.index += 1;
-                Some(ret)
-            }
         }
     }
 
@@ -198,12 +157,12 @@ mod _NodeArrayDeriveTraceScope {
 pub use _NodeArrayDeriveTraceScope::NodeArray;
 
 pub trait NodeArrayExt {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self;
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>, arena: &impl HasArena) -> Self;
 }
 
-impl NodeArrayExt for Gc<NodeArray> {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>) -> Self {
-        set_text_range_node_array(self, location)
+impl NodeArrayExt for Id<NodeArray> {
+    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>, arena: &impl HasArena) -> Self {
+        set_text_range_node_array(self, location, arena)
     }
 }
 
@@ -211,10 +170,11 @@ mod _NodeArrayOrVecDeriveTraceScope {
     use local_macros::Trace;
 
     use super::*;
+    use crate::InArena;
 
     #[derive(Clone, Debug, Trace, Finalize)]
     pub enum NodeArrayOrVec {
-        NodeArray(Gc<NodeArray>),
+        NodeArray(Id<NodeArray>),
         Vec(Vec<Id<Node>>),
     }
 
@@ -223,8 +183,15 @@ mod _NodeArrayOrVecDeriveTraceScope {
             enum_unwrapped!(self, [NodeArrayOrVec, Vec])
         }
 
-        pub fn as_node_array(self) -> Gc<NodeArray> {
+        pub fn as_node_array(self) -> Id<NodeArray> {
             enum_unwrapped!(self, [NodeArrayOrVec, NodeArray])
+        }
+
+        pub fn ref_<'a>(&'a self, arena: &'a impl HasArena) -> NodeArrayOrVecRef<'a> {
+            match self {
+                Self::NodeArray(value) => value.ref_(arena).into(),
+                Self::Vec(value) => value.into(),
+            }
         }
     }
 }
@@ -233,8 +200,8 @@ pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
 use gc::GcCellRef;
 use id_arena::Id;
 
-impl From<Gc<NodeArray>> for NodeArrayOrVec {
-    fn from(node_array: Gc<NodeArray>) -> Self {
+impl From<Id<NodeArray>> for NodeArrayOrVec {
+    fn from(node_array: Id<NodeArray>) -> Self {
         NodeArrayOrVec::NodeArray(node_array)
     }
 }
@@ -245,34 +212,51 @@ impl From<Vec<Id<Node>>> for NodeArrayOrVec {
     }
 }
 
-impl Deref for NodeArrayOrVec {
+pub enum NodeArrayOrVecRef<'a> {
+    NodeArray(debug_cell::Ref<'a, NodeArray>),
+    Vec(&'a Vec<Id<Node>>),
+}
+
+impl<'a> From<debug_cell::Ref<'a, NodeArray>> for NodeArrayOrVecRef<'a> {
+    fn from(value: debug_cell::Ref<'a, NodeArray>) -> Self {
+        Self::NodeArray(value)
+    }
+}
+
+impl<'a> From<&'a Vec<Id<Node>>> for NodeArrayOrVecRef<'a> {
+    fn from(value: &'a Vec<Id<Node>>) -> Self {
+        Self::Vec(value)
+    }
+}
+
+impl Deref for NodeArrayOrVecRef<'_> {
     type Target = [Id<Node>];
 
     fn deref(&self) -> &Self::Target {
         match self {
-            NodeArrayOrVec::NodeArray(node_array) => node_array.deref(),
-            NodeArrayOrVec::Vec(vec) => vec.deref(),
+            NodeArrayOrVecRef::NodeArray(node_array) => node_array.deref(),
+            NodeArrayOrVecRef::Vec(vec) => vec.deref(),
         }
     }
 }
 
-impl From<&NodeArrayOrVec> for Vec<Id<Node>> {
-    fn from(value: &NodeArrayOrVec) -> Vec<Id<Node>> {
+impl From<&NodeArrayOrVecRef<'_>> for Vec<Id<Node>> {
+    fn from(value: &NodeArrayOrVecRef) -> Vec<Id<Node>> {
         match value {
-            NodeArrayOrVec::NodeArray(value) => value.to_vec(),
-            NodeArrayOrVec::Vec(value) => value.clone(),
+            NodeArrayOrVecRef::NodeArray(value) => value.to_vec(),
+            NodeArrayOrVecRef::Vec(value) => (*value).clone(),
         }
     }
 }
 
-impl IntoIterator for NodeArrayOrVec {
+impl IntoIterator for NodeArrayOrVecRef<'_> {
     type Item = Id<Node>;
     type IntoIter = <Vec<Id<Node>> as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
             Self::NodeArray(value) => value.to_vec().into_iter(),
-            Self::Vec(value) => value.into_iter(),
+            Self::Vec(value) => value.clone().into_iter(),
         }
     }
 }
@@ -280,7 +264,7 @@ impl IntoIterator for NodeArrayOrVec {
 #[derive(Clone, Debug)]
 pub enum RcNodeOrNodeArrayOrVec {
     RcNode(Id<Node>),
-    NodeArray(Gc<NodeArray>),
+    NodeArray(Id<NodeArray>),
     Vec(Vec<Id<Node>>),
 }
 
@@ -290,8 +274,8 @@ impl From<Id<Node>> for RcNodeOrNodeArrayOrVec {
     }
 }
 
-impl From<Gc<NodeArray>> for RcNodeOrNodeArrayOrVec {
-    fn from(value: Gc<NodeArray>) -> Self {
+impl From<Id<NodeArray>> for RcNodeOrNodeArrayOrVec {
+    fn from(value: Id<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
@@ -333,7 +317,7 @@ pub struct Identifier {
     generated_import_reference: GcCell<Option<Id<Node /*ImportSpecifier*/>>>,
     #[unsafe_ignore_trace]
     is_in_jsdoc_namespace: Cell<Option<bool>>,
-    type_arguments: GcCell<Option<Gc<NodeArray> /*<TypeNode | TypeParameterDeclaration>*/>>,
+    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode | TypeParameterDeclaration>*/>>,
     #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
@@ -381,7 +365,7 @@ impl Identifier {
         self.is_in_jsdoc_namespace.set(is_in_jsdoc_namespace);
     }
 
-    pub fn maybe_type_arguments_mut(&self) -> GcCellRefMut<Option<Gc<NodeArray>>> {
+    pub fn maybe_type_arguments_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
         self.type_arguments.borrow_mut()
     }
 }
@@ -408,12 +392,12 @@ impl HasJSDocDotPosInterface for Identifier {
 }
 
 impl HasTypeArgumentsInterface for Identifier {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
 
-pub type ModifiersArray = Gc<NodeArray>; /*<Modifier>*/
+pub type ModifiersArray = Id<NodeArray>; /*<Modifier>*/
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
@@ -683,7 +667,7 @@ pub enum SignatureDeclarationBase {
 pub trait SignatureDeclarationInterface:
     NamedDeclarationInterface + HasTypeInterface + HasTypeParametersInterface
 {
-    fn parameters(&self) -> Gc<NodeArray> /*<ParameterDeclaration>*/;
+    fn parameters(&self) -> Id<NodeArray> /*<ParameterDeclaration>*/;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -693,7 +677,7 @@ pub trait SignatureDeclarationInterface:
 )]
 pub struct BaseSignatureDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
-    parameters: Gc<NodeArray>, /*<ParameterDeclaration>*/
+    parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     type_: Option<Id<Node /*TypeNode*/>>,
     // TODO
     // /* @internal */ typeArguments?: NodeArray<TypeNode>;
@@ -702,7 +686,7 @@ pub struct BaseSignatureDeclaration {
 impl BaseSignatureDeclaration {
     pub fn new(
         generic_named_declaration: BaseGenericNamedDeclaration,
-        parameters: Gc<NodeArray>,
+        parameters: Id<NodeArray>,
         type_: Option<Id<Node>>,
     ) -> Self {
         Self {
@@ -724,7 +708,7 @@ impl HasTypeInterface for BaseSignatureDeclaration {
 }
 
 impl SignatureDeclarationInterface for BaseSignatureDeclaration {
-    fn parameters(&self) -> Gc<NodeArray> {
+    fn parameters(&self) -> Id<NodeArray> {
         self.parameters.clone()
     }
 }

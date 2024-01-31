@@ -44,10 +44,10 @@ impl TransformDeclarations {
             return Ok(None);
         }
         let should_use_resolver_type = node.ref_(self).kind() == SyntaxKind::Parameter
-            && (self.resolver.is_required_initialized_parameter(node)?
+            && (self.resolver.ref_(self).is_required_initialized_parameter(node)?
                 || self
                     .resolver
-                    .is_optional_uninitialized_parameter_property(node)?);
+                    .ref_(self).is_optional_uninitialized_parameter_property(node)?);
         if let Some(type_) = type_ {
             if !should_use_resolver_type {
                 return try_maybe_visit_node(
@@ -69,14 +69,14 @@ impl TransformDeclarations {
             } else {
                 Some(
                     self.factory
-                        .create_keyword_type_node(SyntaxKind::AnyKeyword),
+                        .ref_(self).create_keyword_type_node(SyntaxKind::AnyKeyword),
                 )
             });
         }
         if node.ref_(self).kind() == SyntaxKind::SetAccessor {
             return Ok(Some(
                 self.factory
-                    .create_keyword_type_node(SyntaxKind::AnyKeyword),
+                    .ref_(self).create_keyword_type_node(SyntaxKind::AnyKeyword),
             ));
         }
         self.set_error_name_node(node.ref_(self).as_named_declaration().maybe_name());
@@ -93,7 +93,7 @@ impl TransformDeclarations {
         ) {
             return Ok(Some(self.ensure_type_cleanup(
                 old_diag,
-                self.resolver.create_type_of_declaration(
+                self.resolver.ref_(self).create_type_of_declaration(
                     node,
                     self.enclosing_declaration(),
                     declaration_emit_node_builder_flags(),
@@ -109,7 +109,7 @@ impl TransformDeclarations {
             if node.ref_(self).as_has_initializer().maybe_initializer().is_none() {
                 return Ok(Some(self.ensure_type_cleanup(
                     old_diag,
-                    self.resolver.create_type_of_declaration(
+                    self.resolver.ref_(self).create_type_of_declaration(
                         node,
                         self.enclosing_declaration(),
                         declaration_emit_node_builder_flags(),
@@ -122,7 +122,7 @@ impl TransformDeclarations {
                 self.ensure_type_cleanup(
                     old_diag,
                     self.resolver
-                        .create_type_of_declaration(
+                        .ref_(self).create_type_of_declaration(
                             node,
                             self.enclosing_declaration(),
                             declaration_emit_node_builder_flags(),
@@ -130,7 +130,7 @@ impl TransformDeclarations {
                             None,
                         )?
                         .try_or_else(|| {
-                            self.resolver.create_type_of_expression(
+                            self.resolver.ref_(self).create_type_of_expression(
                                 node.ref_(self).as_has_initializer().maybe_initializer().unwrap(),
                                 self.enclosing_declaration(),
                                 declaration_emit_node_builder_flags(),
@@ -142,7 +142,7 @@ impl TransformDeclarations {
         }
         Ok(Some(self.ensure_type_cleanup(
             old_diag,
-            self.resolver.create_return_type_of_signature_declaration(
+            self.resolver.ref_(self).create_return_type_of_signature_declaration(
                 node,
                 self.enclosing_declaration(),
                 declaration_emit_node_builder_flags(),
@@ -163,7 +163,7 @@ impl TransformDeclarations {
         return_value
             .unwrap_or_else(|| {
                 self.factory
-                    .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                    .ref_(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
             })
     }
 
@@ -179,7 +179,7 @@ impl TransformDeclarations {
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::TypeAliasDeclaration
-            | SyntaxKind::EnumDeclaration => !self.resolver.is_declaration_visible(node),
+            | SyntaxKind::EnumDeclaration => !self.resolver.ref_(self).is_declaration_visible(node),
             SyntaxKind::VariableDeclaration => !self.get_binding_name_visible(node),
             SyntaxKind::ImportEqualsDeclaration
             | SyntaxKind::ImportDeclaration
@@ -236,30 +236,30 @@ impl TransformDeclarations {
             .filter(|elem_name| is_binding_pattern(Some(&elem_name.ref_(self))))
         {
             some(
-                Some(&elem_name.ref_(self).as_has_elements().elements()),
+                Some(&*elem_name.ref_(self).as_has_elements().elements().ref_(self)),
                 Some(|&element: &Id<Node>| self.get_binding_name_visible(element)),
             )
         } else {
-            self.resolver.is_declaration_visible(elem)
+            self.resolver.ref_(self).is_declaration_visible(elem)
         }
     }
 
     pub(super) fn update_params_list(
         &self,
         node: Id<Node>,
-        params: Option<&NodeArray /*<ParameterDeclaration>*/>,
+        params: Option<Id<NodeArray> /*<ParameterDeclaration>*/>,
         modifier_mask: Option<ModifierFlags>,
-    ) -> io::Result<Option<Gc<NodeArray> /*<ParameterDeclaration>*/>> {
+    ) -> io::Result<Option<Id<NodeArray> /*<ParameterDeclaration>*/>> {
         if has_effective_modifier(node, ModifierFlags::Private, self) {
             return Ok(None);
         }
-        let new_params = return_ok_default_if_none!(try_maybe_map(params, |&p: &Id<Node>, _| {
+        let new_params = return_ok_default_if_none!(try_maybe_map(params.refed(self).as_deref(), |&p: &Id<Node>, _| {
             self.ensure_parameter(p, modifier_mask, None)
         })
         .transpose()?);
-        Ok(Some(self.factory.create_node_array(
+        Ok(Some(self.factory.ref_(self).create_node_array(
             Some(new_params),
-            Some(params.unwrap().has_trailing_comma),
+            Some(params.unwrap().ref_(self).has_trailing_comma),
         )))
     }
 
@@ -267,7 +267,7 @@ impl TransformDeclarations {
         &self,
         input: Id<Node>, /*AccessorDeclaration*/
         is_private: bool,
-    ) -> io::Result<Gc<NodeArray>> {
+    ) -> io::Result<Id<NodeArray>> {
         let mut new_params: Vec<Id<Node /*ParameterDeclaration*/>> = Default::default();
         if !is_private {
             let this_parameter = get_this_parameter(input, self);
@@ -282,7 +282,7 @@ impl TransformDeclarations {
                 if let Some(value_parameter) = value_parameter {
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,
-                        &self.resolver.get_all_accessor_declarations(input)?,
+                        &self.resolver.ref_(self).get_all_accessor_declarations(input)?,
                     );
                     new_value_parameter = Some(self.ensure_parameter(
                         value_parameter,
@@ -292,9 +292,9 @@ impl TransformDeclarations {
                 }
             }
             if new_value_parameter.is_none() {
-                new_value_parameter = Some(self.factory.create_parameter_declaration(
-                    Option::<Gc<NodeArray>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                new_value_parameter = Some(self.factory.ref_(self).create_parameter_declaration(
+                    Option::<Id<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     None,
                     Some("value"),
                     None,
@@ -305,14 +305,14 @@ impl TransformDeclarations {
             let new_value_parameter = new_value_parameter.unwrap();
             new_params.push(new_value_parameter);
         }
-        Ok(self.factory.create_node_array(Some(new_params), None))
+        Ok(self.factory.ref_(self).create_node_array(Some(new_params), None))
     }
 
     pub(super) fn ensure_type_params(
         &self,
         node: Id<Node>,
-        params: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
-    ) -> io::Result<Option<Gc<NodeArray>>> {
+        params: Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>,
+    ) -> io::Result<Option<Id<NodeArray>>> {
         Ok(if has_effective_modifier(node, ModifierFlags::Private, self) {
             None
         } else {
@@ -322,6 +322,7 @@ impl TransformDeclarations {
                 Option::<fn(Id<Node>) -> bool>::None,
                 None,
                 None,
+                self,
             )?
         })
     }
@@ -344,13 +345,13 @@ impl TransformDeclarations {
     ) -> io::Result<()> {
         let visibility_result = self
             .resolver
-            .is_entity_name_visible(entity_name, enclosing_declaration)?;
+            .ref_(self).is_entity_name_visible(entity_name, enclosing_declaration)?;
         self.handle_symbol_accessibility_error(
             &visibility_result.into_symbol_accessibility_result(),
         );
         self.record_type_reference_directives_if_necessary(
             self.resolver
-                .get_type_reference_directives_for_entity_name(entity_name)?
+                .ref_(self).get_type_reference_directives_for_entity_name(entity_name)?
                 .as_deref(),
         );
 
@@ -363,7 +364,7 @@ impl TransformDeclarations {
         }
         set_comment_range(
             updated,
-            &get_comment_range(&original.ref_(self)).into_readonly_text_range(),
+            &get_comment_range(original, self).into_readonly_text_range(),
             self,
         )
     }
@@ -385,19 +386,19 @@ impl TransformDeclarations {
             if self.is_bundled_emit() {
                 let new_name = get_external_module_name_from_declaration(
                     &**self.context.ref_(self).get_emit_host().ref_(self),
-                    &**self.resolver,
+                    &**self.resolver.ref_(self),
                     parent,
                     self,
                 )?;
                 if let Some(new_name) = new_name.non_empty() {
                     return Ok(Some(
-                        self.factory.create_string_literal(new_name, None, None),
+                        self.factory.ref_(self).create_string_literal(new_name, None, None),
                     ));
                 }
             } else {
                 let symbol = self
                     .resolver
-                    .get_symbol_of_external_module_specifier(input)?;
+                    .ref_(self).get_symbol_of_external_module_specifier(input)?;
                 if let Some(symbol) = symbol {
                     self.maybe_exported_modules_from_declaration_emit_mut()
                         .get_or_insert_default_()
@@ -412,7 +413,7 @@ impl TransformDeclarations {
         &self,
         decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
-        if !self.resolver.is_declaration_visible(decl) {
+        if !self.resolver.ref_(self).is_declaration_visible(decl) {
             return Ok(None);
         }
         let decl_ref = decl.ref_(self);
@@ -423,13 +424,13 @@ impl TransformDeclarations {
             {
                 let specifier = get_external_module_import_equals_declaration_expression(decl, self);
                 Some(
-                    self.factory.update_import_equals_declaration(
+                    self.factory.ref_(self).update_import_equals_declaration(
                         decl,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         decl.ref_(self).maybe_modifiers().clone(),
                         decl_as_import_equals_declaration.is_type_only,
                         decl_as_import_equals_declaration.name(),
-                        self.factory.update_external_module_reference(
+                        self.factory.ref_(self).update_external_module_reference(
                             decl_as_import_equals_declaration.module_reference,
                             self.rewrite_module_specifier(decl, Some(specifier))?
                                 .unwrap(),
@@ -459,9 +460,9 @@ impl TransformDeclarations {
         let decl_as_import_declaration = decl_ref.as_import_declaration();
         if decl_as_import_declaration.import_clause.is_none() {
             return Ok(Some(
-                self.factory.update_import_declaration(
+                self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
                     decl_as_import_declaration.import_clause,
                     self.rewrite_module_specifier(
@@ -478,15 +479,15 @@ impl TransformDeclarations {
         let decl_import_clause_as_import_clause = decl_import_clause_ref.as_import_clause();
         let visible_default_binding = /*decl.importClause &&*/
             decl_import_clause_as_import_clause.name.clone().filter(|_| {
-                self.resolver.is_declaration_visible(decl_import_clause)
+                self.resolver.ref_(self).is_declaration_visible(decl_import_clause)
             });
         if decl_import_clause_as_import_clause.named_bindings.is_none() {
             return visible_default_binding.try_map(|visible_default_binding| -> io::Result<_> {
-                Ok(self.factory.update_import_declaration(
+                Ok(self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
-                    Some(self.factory.update_import_clause(
+                    Some(self.factory.ref_(self).update_import_clause(
                         decl_import_clause,
                         decl_import_clause_as_import_clause.is_type_only,
                         Some(visible_default_binding),
@@ -507,7 +508,7 @@ impl TransformDeclarations {
         if decl_import_clause_named_bindings.ref_(self).kind() == SyntaxKind::NamespaceImport {
             let named_bindings = if self
                 .resolver
-                .is_declaration_visible(decl_import_clause_named_bindings)
+                .ref_(self).is_declaration_visible(decl_import_clause_named_bindings)
             {
                 Some(decl_import_clause_named_bindings)
             } else {
@@ -516,11 +517,11 @@ impl TransformDeclarations {
             return Ok(
                 if visible_default_binding.is_some() || named_bindings.is_some() {
                     Some(
-                        self.factory.update_import_declaration(
+                        self.factory.ref_(self).update_import_declaration(
                             decl,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             decl.ref_(self).maybe_modifiers().clone(),
-                            Some(self.factory.update_import_clause(
+                            Some(self.factory.ref_(self).update_import_clause(
                                 decl_import_clause,
                                 decl_import_clause_as_import_clause.is_type_only,
                                 visible_default_binding,
@@ -541,12 +542,12 @@ impl TransformDeclarations {
         }
         let binding_list = map_defined(
             Some(
-                &decl_import_clause_named_bindings
+                &*decl_import_clause_named_bindings
                     .ref_(self).as_named_imports()
-                    .elements,
+                    .elements.ref_(self),
             ),
             |&b: &Id<Node>, _| {
-                if self.resolver.is_declaration_visible(b) {
+                if self.resolver.ref_(self).is_declaration_visible(b) {
                     Some(b)
                 } else {
                     None
@@ -557,18 +558,18 @@ impl TransformDeclarations {
         /*bindingList &&*/
         !binding_list.is_empty() || visible_default_binding.is_some() {
             return Ok(Some(
-                self.factory.update_import_declaration(
+                self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
-                    Some(self.factory.update_import_clause(
+                    Some(self.factory.ref_(self).update_import_clause(
                         decl_import_clause,
                         decl_import_clause_as_import_clause.is_type_only,
                         visible_default_binding,
                         if
                         /*bindingList &&*/
                         !binding_list.is_empty() {
-                            Some(self.factory.update_named_imports(
+                            Some(self.factory.ref_(self).update_named_imports(
                                 decl_import_clause_named_bindings,
                                 binding_list,
                             ))
@@ -585,11 +586,11 @@ impl TransformDeclarations {
                 ),
             ));
         }
-        if self.resolver.is_import_required_by_augmentation(decl)? {
+        if self.resolver.ref_(self).is_import_required_by_augmentation(decl)? {
             return Ok(Some(
-                self.factory.update_import_declaration(
+                self.factory.ref_(self).update_import_declaration(
                     decl,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     decl.ref_(self).maybe_modifiers().clone(),
                     None,
                     self.rewrite_module_specifier(
@@ -606,8 +607,8 @@ impl TransformDeclarations {
 
     pub(super) fn transform_and_replace_late_painted_statements(
         &self,
-        statements: &NodeArray, /*<Statement>*/
-    ) -> io::Result<Gc<NodeArray>> /*<Statement>*/ {
+        statements: Id<NodeArray>, /*<Statement>*/
+    ) -> io::Result<Id<NodeArray>> /*<Statement>*/ {
         while length(self.maybe_late_marked_statements().as_deref()) > 0 {
             let i = self.late_marked_statements_mut().remove(0);
             if !is_late_visibility_painted_statement(&i.ref_(self)) {
@@ -639,6 +640,7 @@ impl TransformDeclarations {
             Option::<fn(Id<Node>) -> bool>::None,
             None,
             None,
+            self,
         ))
     }
 
@@ -689,7 +691,7 @@ impl TransformDeclarations {
                 return Ok(None);
             }
             if has_dynamic_name(input, self)
-                && !self.resolver.is_late_bound(
+                && !self.resolver.ref_(self).is_late_bound(
                     get_parse_tree_node(Some(input), Option::<fn(Id<Node>) -> bool>::None, self)
                         .unwrap(),
                 )?
@@ -699,7 +701,7 @@ impl TransformDeclarations {
         }
 
         if is_function_like(Some(&input.ref_(self)))
-            && self.resolver.is_implementation_of_overload(input)? == Some(true)
+            && self.resolver.ref_(self).is_implementation_of_overload(input)? == Some(true)
         {
             return Ok(None);
         }
@@ -741,8 +743,8 @@ impl TransformDeclarations {
                     &old_diag,
                     should_enter_suppress_new_diagnostics_context_context,
                     old_within_object_literal_type,
-                    Some(self.factory.create_property_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                    Some(self.factory.ref_(self).create_property_declaration(
+                        Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         input.ref_(self).as_named_declaration().name(),
                         None,
@@ -802,7 +804,7 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_expression_with_type_arguments(
+                            self.factory.ref_(self).update_expression_with_type_arguments(
                                 node,
                                 node_as_expression_with_type_arguments.expression,
                                 node_as_expression_with_type_arguments
@@ -832,7 +834,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_type_reference_node(
+                        Some(self.factory.ref_(self).update_type_reference_node(
                             node,
                             node_as_type_reference_node.type_name,
                             node_as_type_reference_node.maybe_type_arguments(),
@@ -850,17 +852,16 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_construct_signature(
+                            self.factory.ref_(self).update_construct_signature(
                                 input,
                                 self.ensure_type_params(
                                     input,
                                     input_as_construct_signature_declaration
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_construct_signature_declaration.parameters()),
+                                    Some(input_as_construct_signature_declaration.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -877,12 +878,12 @@ impl TransformDeclarations {
                 SyntaxKind::Constructor => {
                     let input_ref = input.ref_(self);
                     let input_as_constructor_declaration = input_ref.as_constructor_declaration();
-                    let ctor = self.factory.create_constructor_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                    let ctor = self.factory.ref_(self).create_constructor_declaration(
+                        Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         self.update_params_list(
                             input,
-                            Some(&input_as_constructor_declaration.parameters()),
+                            Some(input_as_constructor_declaration.parameters()),
                             Some(ModifierFlags::None),
                         )?,
                         None,
@@ -911,8 +912,8 @@ impl TransformDeclarations {
                             None,
                         );
                     }
-                    let sig = self.factory.create_method_declaration(
-                        Option::<Gc<NodeArray>>::None,
+                    let sig = self.factory.ref_(self).create_method_declaration(
+                        Option::<Id<NodeArray>>::None,
                         self.ensure_modifiers(input),
                         None,
                         input_as_method_declaration.name(),
@@ -920,12 +921,11 @@ impl TransformDeclarations {
                         self.ensure_type_params(
                             input,
                             input_as_method_declaration
-                                .maybe_type_parameters()
-                                .as_deref(),
+                                .maybe_type_parameters(),
                         )?,
                         self.update_params_list(
                             input,
-                            Some(&input_as_method_declaration.parameters()),
+                            Some(input_as_method_declaration.parameters()),
                             None,
                         )?
                         .unwrap(),
@@ -962,7 +962,7 @@ impl TransformDeclarations {
                     }
                     let accessor_type = self.get_type_annotation_from_all_accessor_declarations(
                         input,
-                        &self.resolver.get_all_accessor_declarations(input)?,
+                        &self.resolver.ref_(self).get_all_accessor_declarations(input)?,
                     );
                     self.visit_declaration_subtree_cleanup(
                         input,
@@ -971,9 +971,9 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_get_accessor_declaration(
+                        Some(self.factory.ref_(self).update_get_accessor_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_get_accessor_declaration.name(),
                             self.update_accessor_params_list(
@@ -1006,9 +1006,9 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_set_accessor_declaration(
+                        Some(self.factory.ref_(self).update_set_accessor_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_set_accessor_declaration.name(),
                             self.update_accessor_params_list(
@@ -1040,9 +1040,9 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_property_declaration(
+                        Some(self.factory.ref_(self).update_property_declaration(
                             input,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             self.ensure_modifiers(input),
                             input_as_property_declaration.name(),
                             input_as_property_declaration.maybe_question_token(),
@@ -1076,7 +1076,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_property_signature(
+                        Some(self.factory.ref_(self).update_property_signature(
                             input,
                             self.ensure_modifiers(input),
                             input_as_property_signature.name(),
@@ -1111,18 +1111,18 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_method_signature(
+                            self.factory.ref_(self).update_method_signature(
                                 input,
                                 self.ensure_modifiers(input),
                                 input_as_method_signature.name(),
                                 input_as_method_signature.maybe_question_token(),
                                 self.ensure_type_params(
                                     input,
-                                    input_as_method_signature.maybe_type_parameters().as_deref(),
+                                    input_as_method_signature.maybe_type_parameters(),
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_method_signature.parameters()),
+                                    Some(input_as_method_signature.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1146,17 +1146,16 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_call_signature(
+                            self.factory.ref_(self).update_call_signature(
                                 input,
                                 self.ensure_type_params(
                                     input,
                                     input_as_call_signature_declaration
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_call_signature_declaration.parameters()),
+                                    Some(input_as_call_signature_declaration.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1180,13 +1179,13 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_index_signature(
+                            self.factory.ref_(self).update_index_signature(
                                 input,
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 self.ensure_modifiers(input),
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_index_signature_declaration.parameters()),
+                                    Some(input_as_index_signature_declaration.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1198,7 +1197,7 @@ impl TransformDeclarations {
                                 )?
                                 .unwrap_or_else(|| {
                                     self.factory
-                                        .create_keyword_type_node(SyntaxKind::AnyKeyword)
+                                        .ref_(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
                                 }),
                             ),
                         ),
@@ -1222,7 +1221,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_variable_declaration(
+                        Some(self.factory.ref_(self).update_variable_declaration(
                             input,
                             input_as_variable_declaration.maybe_name(),
                             None,
@@ -1249,7 +1248,7 @@ impl TransformDeclarations {
                             &old_diag,
                             should_enter_suppress_new_diagnostics_context_context,
                             old_within_object_literal_type,
-                            Some(self.factory.update_type_parameter_declaration(
+                            Some(self.factory.ref_(self).update_type_parameter_declaration(
                                 input,
                                 input_as_type_parameter_declaration.name(),
                                 None,
@@ -1311,7 +1310,7 @@ impl TransformDeclarations {
                         &old_diag,
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
-                        Some(self.factory.update_conditional_type_node(
+                        Some(self.factory.ref_(self).update_conditional_type_node(
                             input,
                             check_type,
                             extends_type,
@@ -1331,20 +1330,20 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_function_type_node(
+                            self.factory.ref_(self).update_function_type_node(
                                 input,
                                 try_maybe_visit_nodes(
                                     input_as_function_type_node
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                     Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_function_type_node.parameters()),
+                                    Some(input_as_function_type_node.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1369,21 +1368,21 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_constructor_type_node(
+                            self.factory.ref_(self).update_constructor_type_node(
                                 input,
                                 self.ensure_modifiers(input),
                                 try_maybe_visit_nodes(
                                     input_as_constructor_type_node
-                                        .maybe_type_parameters()
-                                        .as_deref(),
+                                        .maybe_type_parameters(),
                                     Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Option::<fn(Id<Node>) -> bool>::None,
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 self.update_params_list(
                                     input,
-                                    Some(&input_as_constructor_type_node.parameters()),
+                                    Some(input_as_constructor_type_node.parameters()),
                                     None,
                                 )?
                                 .unwrap(),
@@ -1419,9 +1418,9 @@ impl TransformDeclarations {
                         should_enter_suppress_new_diagnostics_context_context,
                         old_within_object_literal_type,
                         Some(
-                            self.factory.update_import_type_node(
+                            self.factory.ref_(self).update_import_type_node(
                                 input,
-                                self.factory.update_literal_type_node(
+                                self.factory.ref_(self).update_literal_type_node(
                                     input_as_import_type_node.argument,
                                     self.rewrite_module_specifier(
                                         input,
@@ -1436,11 +1435,12 @@ impl TransformDeclarations {
                                 ),
                                 input_as_import_type_node.qualifier.clone(),
                                 try_maybe_visit_nodes(
-                                    input_as_import_type_node.maybe_type_arguments().as_deref(),
+                                    input_as_import_type_node.maybe_type_arguments(),
                                     Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
                                     Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
                                     None,
                                     None,
+                                    self,
                                 )?,
                                 Some(input_as_import_type_node.is_type_of()),
                             ),

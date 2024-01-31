@@ -48,7 +48,7 @@ impl TypeChecker {
             }
         } else {
             let elements = name.ref_(self).as_has_elements().elements();
-            for element in &elements {
+            for element in &*elements.ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     return self.check_es_module_marker(element.ref_(self).as_binding_element().name());
                 }
@@ -71,7 +71,7 @@ impl TypeChecker {
             }
         } else {
             let elements = name.ref_(self).as_has_elements().elements();
-            for element in &elements {
+            for element in &*elements.ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.check_grammar_name_in_let_or_const_declarations(
                         element.ref_(self).as_binding_element().name(),
@@ -90,7 +90,7 @@ impl TypeChecker {
         let declaration_list_as_variable_declaration_list = declaration_list_ref.as_variable_declaration_list();
         let declarations = &declaration_list_as_variable_declaration_list.declarations;
         if self.check_grammar_for_disallowed_trailing_comma(
-            Some(&declaration_list_as_variable_declaration_list.declarations),
+            Some(declaration_list_as_variable_declaration_list.declarations),
             None,
         ) {
             return true;
@@ -98,12 +98,12 @@ impl TypeChecker {
 
         if declaration_list_as_variable_declaration_list
             .declarations
-            .is_empty()
+            .ref_(self).is_empty()
         {
             return self.grammar_error_at_pos(
                 declaration_list,
-                declarations.pos(),
-                declarations.end() - declarations.pos(),
+                declarations.ref_(self).pos(),
+                declarations.ref_(self).end() - declarations.ref_(self).pos(),
                 &Diagnostics::Variable_declaration_list_cannot_be_empty,
                 None,
             );
@@ -199,8 +199,8 @@ impl TypeChecker {
     }
 
     pub(super) fn has_parse_diagnostics(&self, source_file: Id<Node> /*SourceFile*/) -> bool {
-        !(*source_file.ref_(self).as_source_file().parse_diagnostics())
-            .borrow()
+        !source_file.ref_(self).as_source_file().parse_diagnostics()
+            .ref_(self)
             .is_empty()
     }
 
@@ -287,8 +287,8 @@ impl TypeChecker {
             // })
             .map(|node_type_parameters| {
                 Box::new(ReadonlyTextRangeConcrete::new(
-                    node_type_parameters.pos(),
-                    node_type_parameters.end(),
+                    node_type_parameters.ref_(self).pos(),
+                    node_type_parameters.ref_(self).end(),
                 )) as Box<dyn ReadonlyTextRange>
             })
             .or_else(|| {
@@ -364,7 +364,7 @@ impl TypeChecker {
                     == SyntaxKind::InKeyword
         } {
             return Ok(self.grammar_error_on_node(
-                node.ref_(self).parent().ref_(self).as_has_members().members()[0],
+                node.ref_(self).parent().ref_(self).as_has_members().members().ref_(self)[0],
                 &Diagnostics::A_mapped_type_may_not_declare_properties_or_methods,
                 None,
             ));
@@ -487,7 +487,7 @@ impl TypeChecker {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> bool {
-        for &decl in &file.ref_(self).as_source_file().statements() {
+        for &decl in &*file.ref_(self).as_source_file().statements().ref_(self) {
             if is_declaration(decl, self) || decl.ref_(self).kind() == SyntaxKind::VariableStatement {
                 if self.check_grammar_top_level_element_for_required_declare_modifier(decl) {
                     return true;
@@ -505,7 +505,7 @@ impl TypeChecker {
     pub(super) fn check_grammar_statement_in_ambient_context(&self, node: Id<Node>) -> bool {
         if node.ref_(self).flags().intersects(NodeFlags::Ambient) {
             let links = self.get_node_links(node);
-            if (*links).borrow().has_reported_statement_in_ambient_context != Some(true)
+            if links.ref_(self).has_reported_statement_in_ambient_context != Some(true)
                 && (is_function_like(node.ref_(self).maybe_parent().refed(self).as_deref()) || is_accessor(&node.ref_(self).parent().ref_(self)))
             {
                 let ret = self.grammar_error_on_first_token(
@@ -513,7 +513,7 @@ impl TypeChecker {
                     &Diagnostics::An_implementation_cannot_be_declared_in_ambient_contexts,
                     None,
                 );
-                links.borrow_mut().has_reported_statement_in_ambient_context = Some(ret);
+                links.ref_mut(self).has_reported_statement_in_ambient_context = Some(ret);
                 return ret;
             }
 
@@ -522,13 +522,13 @@ impl TypeChecker {
                 SyntaxKind::Block | SyntaxKind::ModuleBlock | SyntaxKind::SourceFile
             ) {
                 let links = self.get_node_links(node.ref_(self).parent());
-                if (*links).borrow().has_reported_statement_in_ambient_context != Some(true) {
+                if links.ref_(self).has_reported_statement_in_ambient_context != Some(true) {
                     let ret = self.grammar_error_on_first_token(
                         node,
                         &Diagnostics::Statements_are_not_allowed_in_ambient_contexts,
                         None,
                     );
-                    links.borrow_mut().has_reported_statement_in_ambient_context = Some(ret);
+                    links.ref_mut(self).has_reported_statement_in_ambient_context = Some(ret);
                     return ret;
                 }
             }
@@ -646,7 +646,7 @@ impl TypeChecker {
             let mut ambient_modules_cache = self.ambient_modules_cache.borrow_mut();
             *ambient_modules_cache = Some(vec![]);
             let ambient_modules_cache = ambient_modules_cache.as_mut().unwrap();
-            for (sym, global) in &*(*self.globals).borrow() {
+            for (sym, global) in &*self.globals.ref_(self) {
                 if ambient_module_symbol_regex.is_match(&**sym) {
                     ambient_modules_cache.push(global.clone());
                 }
@@ -687,7 +687,7 @@ impl TypeChecker {
         named_bindings: Id<Node>, /*NamedImportsOrExports*/
     ) -> bool {
         for_each_bool(
-            &named_bindings.ref_(self).as_has_elements().elements(),
+            &*named_bindings.ref_(self).as_has_elements().elements().ref_(self),
             |&specifier: &Id<Node>, _| {
                 if specifier.ref_(self).as_has_is_type_only().is_type_only() {
                     return self.grammar_error_on_first_token(
@@ -727,12 +727,12 @@ impl TypeChecker {
             );
         }
 
-        let node_arguments = &node_as_call_expression.arguments;
+        let node_arguments = node_as_call_expression.arguments;
         if self.module_kind != ModuleKind::ESNext {
             self.check_grammar_for_disallowed_trailing_comma(Some(node_arguments), None);
 
-            if node_arguments.len() > 1 {
-                let assertion_argument = node_arguments[1];
+            if node_arguments.ref_(self).len() > 1 {
+                let assertion_argument = node_arguments.ref_(self)[1];
                 return self.grammar_error_on_node(
                     assertion_argument,
                     &Diagnostics::Dynamic_imports_only_support_a_second_argument_when_the_module_option_is_set_to_esnext,
@@ -741,7 +741,7 @@ impl TypeChecker {
             }
         }
 
-        if node_arguments.is_empty() || node_arguments.len() > 2 {
+        if node_arguments.ref_(self).is_empty() || node_arguments.ref_(self).len() > 2 {
             return self.grammar_error_on_node(
                 node,
                 &Diagnostics::Dynamic_imports_can_only_accept_a_module_specifier_and_an_optional_assertion_as_arguments,
@@ -749,7 +749,7 @@ impl TypeChecker {
             );
         }
 
-        let spread_element = find(node_arguments, |argument: &Id<Node>, _| {
+        let spread_element = find(&node_arguments.ref_(self), |argument: &Id<Node>, _| {
             is_spread_element(&argument.ref_(self))
         }).copied();
         if let Some(spread_element) = spread_element {
@@ -940,10 +940,13 @@ impl TypeChecker {
                     target,
                     source_properties_filtered.into_iter().map(|&p| {
                         let p_clone = p.clone();
-                        let type_checker = self.rc_wrapper();
+                        let type_checker = self.arena_id();
                         (
-                            Box::new(move || type_checker.get_type_of_symbol(p_clone))
-                                as Box<dyn Fn() -> io::Result<Id<Type>>>,
+                            Box::new({
+                                let arena_raw: *const AllArenas = self.arena();
+                                let arena = unsafe { &*arena_raw };
+                                move || type_checker.ref_(arena).get_type_of_symbol(p_clone)
+                            }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                             p.ref_(self).escaped_name().to_owned(),
                         )
                     }),
@@ -962,43 +965,43 @@ impl TypeChecker {
 
 #[derive(Debug, Trace, Finalize)]
 pub(super) struct EmitResolverCreateResolver {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
     file_to_directive: Option<HashMap<String, String>>,
 }
 
 impl HasArena for EmitResolverCreateResolver {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.arena()
+        unimplemented!()
     }
 }
 
 impl EmitResolverCreateResolver {
-    pub(super) fn new(type_checker: Gc<TypeChecker>, arena: &impl HasArena) -> Self {
+    pub(super) fn new(type_checker: Id<TypeChecker>, arena: &impl HasArena) -> Self {
         let resolved_type_reference_directives =
-            type_checker.host.ref_(arena).get_resolved_type_reference_directives();
+            type_checker.ref_(arena).host.ref_(arena).get_resolved_type_reference_directives();
         let mut ret = Self {
             type_checker: type_checker.clone(),
             file_to_directive: Default::default(),
         };
         // if (resolvedTypeReferenceDirectives) {
         ret.file_to_directive = Some(Default::default());
-        (*resolved_type_reference_directives)
-            .borrow()
+        resolved_type_reference_directives
+            .ref_(arena)
             .iter()
             .for_each(|(key, resolved_directive)| {
                 if resolved_directive.is_none() {
                     return;
                 }
                 let resolved_directive = resolved_directive.clone().unwrap();
-                let resolved_directive_resolved_file_name =
-                    resolved_directive.resolved_file_name.as_ref();
+                let resolved_directive_ref = resolved_directive.ref_(arena);
+                let resolved_directive_resolved_file_name = resolved_directive_ref.resolved_file_name.as_ref();
                 if resolved_directive_resolved_file_name.non_empty().is_none() {
                     return;
                 }
                 let resolved_directive_resolved_file_name =
                     resolved_directive_resolved_file_name.unwrap();
                 let file = type_checker
-                    .host
+                    .ref_(arena).host
                     .ref_(arena).get_source_file(resolved_directive_resolved_file_name);
                 if let Some(file) = file {
                     ret.add_referenced_files_to_type_directive(file, key);
@@ -1035,7 +1038,7 @@ impl EmitResolverCreateResolver {
 
         let mut current = symbol;
         loop {
-            let parent = self.type_checker.get_parent_of_symbol(current)?;
+            let parent = self.type_checker.ref_(self).get_parent_of_symbol(current)?;
             if let Some(parent) = parent {
                 current = parent;
             } else {
@@ -1091,7 +1094,7 @@ impl EmitResolverCreateResolver {
             let file_name = &file_reference.file_name;
             let resolved_file =
                 resolve_tripleslash_reference(file_name, &file.ref_(self).as_source_file().file_name());
-            let referenced_file = self.type_checker.host.ref_(self).get_source_file(&resolved_file);
+            let referenced_file = self.type_checker.ref_(self).host.ref_(self).get_source_file(&resolved_file);
             if let Some(referenced_file) = referenced_file {
                 self.add_referenced_files_to_type_directive(referenced_file, key);
             }
@@ -1101,7 +1104,7 @@ impl EmitResolverCreateResolver {
 
 impl EmitResolver for EmitResolverCreateResolver {
     fn has_global_name(&self, name: &str) -> bool {
-        self.type_checker.has_global_name(name)
+        self.type_checker.ref_(self).has_global_name(name)
     }
 
     fn get_referenced_export_container(
@@ -1110,14 +1113,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         prefix_locals: Option<bool>,
     ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
         self.type_checker
-            .get_referenced_export_container(node, prefix_locals)
+            .ref_(self).get_referenced_export_container(node, prefix_locals)
     }
 
     fn get_referenced_import_declaration(
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
-        self.type_checker.get_referenced_import_declaration(node)
+        self.type_checker.ref_(self).get_referenced_import_declaration(node)
     }
 
     fn get_referenced_declaration_with_colliding_name(
@@ -1125,20 +1128,20 @@ impl EmitResolver for EmitResolverCreateResolver {
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         self.type_checker
-            .get_referenced_declaration_with_colliding_name(node)
+            .ref_(self).get_referenced_declaration_with_colliding_name(node)
     }
 
     fn is_declaration_with_colliding_name(
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
-        self.type_checker.is_declaration_with_colliding_name(node)
+        self.type_checker.ref_(self).is_declaration_with_colliding_name(node)
     }
 
     fn is_value_alias_declaration(&self, node_in: Id<Node>) -> io::Result<bool> {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None, self);
         node.try_map_or(false, |node| {
-            self.type_checker.is_value_alias_declaration(node)
+            self.type_checker.ref_(self).is_value_alias_declaration(node)
         })
     }
 
@@ -1150,7 +1153,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None, self);
         node.try_map_or(false, |node| {
             self.type_checker
-                .is_referenced_alias_declaration(node, check_children)
+                .ref_(self).is_referenced_alias_declaration(node, check_children)
         })
     }
 
@@ -1159,24 +1162,24 @@ impl EmitResolver for EmitResolverCreateResolver {
         node: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool> {
         self.type_checker
-            .is_top_level_value_import_equals_with_entity_name(node)
+            .ref_(self).is_top_level_value_import_equals_with_entity_name(node)
     }
 
     fn get_node_check_flags(&self, node_in: Id<Node>) -> NodeCheckFlags {
         let node = get_parse_tree_node(Some(node_in), Option::<fn(Id<Node>) -> bool>::None, self);
         node.map_or(NodeCheckFlags::None, |node| {
-            self.type_checker.get_node_check_flags(node)
+            self.type_checker.ref_(self).get_node_check_flags(node)
         })
     }
 
     fn is_declaration_visible(&self, node: Id<Node> /*Declaration | AnyImportSyntax*/) -> bool {
-        self.type_checker.is_declaration_visible(node)
+        self.type_checker.ref_(self).is_declaration_visible(node)
     }
 
     fn is_late_bound(&self, node: Id<Node> /*Declaration*/) -> io::Result<bool> {
         let node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
         let symbol = node
-            .try_and_then(|node| self.type_checker.get_symbol_of_node(node))?;
+            .try_and_then(|node| self.type_checker.ref_(self).get_symbol_of_node(node))?;
         Ok(matches!(
             symbol,
             Some(symbol) if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
@@ -1189,21 +1192,21 @@ impl EmitResolver for EmitResolverCreateResolver {
         set_visibility: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Node>>>> {
         self.type_checker
-            .collect_linked_aliases(node, set_visibility)
+            .ref_(self).collect_linked_aliases(node, set_visibility)
     }
 
     fn is_implementation_of_overload(
         &self,
         node: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<bool>> {
-        self.type_checker.is_implementation_of_overload(node)
+        self.type_checker.ref_(self).is_implementation_of_overload(node)
     }
 
     fn is_required_initialized_parameter(
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
-        self.type_checker.is_required_initialized_parameter(node)
+        self.type_checker.ref_(self).is_required_initialized_parameter(node)
     }
 
     fn is_optional_uninitialized_parameter_property(
@@ -1211,14 +1214,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
         self.type_checker
-            .is_optional_uninitialized_parameter_property(node)
+            .ref_(self).is_optional_uninitialized_parameter_property(node)
     }
 
     fn is_expando_function_declaration(
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<bool> {
-        self.type_checker.is_expando_function_declaration(node)
+        self.type_checker.ref_(self).is_expando_function_declaration(node)
     }
 
     fn get_properties_of_container_function(
@@ -1227,7 +1230,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     ) -> io::Result<Vec<Id<Symbol>>> {
         Ok(self
             .type_checker
-            .get_properties_of_container_function(node)?
+            .ref_(self).get_properties_of_container_function(node)?
             .collect_vec())
     }
 
@@ -1239,7 +1242,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         tracker: Id<Box<dyn SymbolTracker>>,
         add_undefined: Option<bool>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        self.type_checker.create_type_of_declaration(
+        self.type_checker.ref_(self).create_type_of_declaration(
             declaration,
             enclosing_declaration,
             flags,
@@ -1256,7 +1259,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker
-            .create_return_type_of_signature_declaration(
+            .ref_(self).create_return_type_of_signature_declaration(
                 signature_declaration,
                 enclosing_declaration,
                 flags,
@@ -1272,7 +1275,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.type_checker
-            .create_type_of_expression(expr, enclosing_declaration, flags, tracker)
+            .ref_(self).create_type_of_expression(expr, enclosing_declaration, flags, tracker)
     }
 
     fn create_literal_const_value(
@@ -1280,7 +1283,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
         tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
-        self.type_checker.create_literal_const_value(node, tracker)
+        self.type_checker.ref_(self).create_literal_const_value(node, tracker)
     }
 
     fn is_symbol_accessible(
@@ -1290,7 +1293,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         meaning: Option<SymbolFlags>,
         should_compute_alias_to_mark_visible: bool,
     ) -> io::Result<SymbolAccessibilityResult> {
-        self.type_checker.is_symbol_accessible(
+        self.type_checker.ref_(self).is_symbol_accessible(
             Some(symbol),
             enclosing_declaration,
             meaning.unwrap(),
@@ -1304,7 +1307,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         enclosing_declaration: Id<Node>,
     ) -> io::Result<SymbolVisibilityResult> {
         self.type_checker
-            .is_entity_name_visible(entity_name, enclosing_declaration)
+            .ref_(self).is_entity_name_visible(entity_name, enclosing_declaration)
     }
 
     fn get_constant_value(
@@ -1313,10 +1316,10 @@ impl EmitResolver for EmitResolverCreateResolver {
     ) -> io::Result<Option<StringOrNumber>> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| self.type_checker.can_have_constant_value(node)),
+            Some(|node: Id<Node>| self.type_checker.ref_(self).can_have_constant_value(node)),
             self,
         );
-        node.try_and_then(|node| self.type_checker.get_constant_value(node))
+        node.try_and_then(|node| self.type_checker.ref_(self).get_constant_value(node))
     }
 
     fn get_referenced_value_declaration(
@@ -1324,7 +1327,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         reference: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         self.type_checker
-            .get_referenced_value_declaration(reference)
+            .ref_(self).get_referenced_value_declaration(reference)
     }
 
     fn get_type_reference_serialization_kind(
@@ -1333,14 +1336,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         location: Option<Id<Node>>,
     ) -> io::Result<TypeReferenceSerializationKind> {
         self.type_checker
-            .get_type_reference_serialization_kind(type_name, location)
+            .ref_(self).get_type_reference_serialization_kind(type_name, location)
     }
 
     fn is_optional_parameter(
         &self,
         node: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
-        self.type_checker.is_optional_parameter(node)
+        self.type_checker.ref_(self).is_optional_parameter(node)
     }
 
     fn module_exports_some_value(
@@ -1348,11 +1351,11 @@ impl EmitResolver for EmitResolverCreateResolver {
         module_reference_expression: Id<Node>, /*Expression*/
     ) -> io::Result<bool> {
         self.type_checker
-            .module_exports_some_value(module_reference_expression)
+            .ref_(self).module_exports_some_value(module_reference_expression)
     }
 
     fn is_arguments_local_binding(&self, node: Id<Node> /*Identifier*/) -> io::Result<bool> {
-        self.type_checker.is_arguments_local_binding(node)
+        self.type_checker.ref_(self).is_arguments_local_binding(node)
     }
 
     fn get_external_module_file_from_declaration(
@@ -1366,7 +1369,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         );
         node.try_and_then(|node| {
             self.type_checker
-                .get_external_module_file_from_declaration(node)
+                .ref_(self).get_external_module_file_from_declaration(node)
         })
     }
 
@@ -1378,14 +1381,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         //     return undefined;
         // }
         let mut meaning = SymbolFlags::Type | SymbolFlags::Namespace;
-        if node.ref_(self).kind() == SyntaxKind::Identifier && self.type_checker.is_in_type_query(node)
+        if node.ref_(self).kind() == SyntaxKind::Identifier && self.type_checker.ref_(self).is_in_type_query(node)
             || node.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
                 && !self.is_in_heritage_clause(node)
         {
             meaning = SymbolFlags::Value | SymbolFlags::ExportValue;
         }
 
-        let symbol = self.type_checker.resolve_entity_name(
+        let symbol = self.type_checker.ref_(self).resolve_entity_name(
             node,
             meaning,
             Some(true),
@@ -1393,7 +1396,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             Option::<Id<Node>>::None,
         )?;
         symbol
-            .filter(|&symbol| symbol != self.type_checker.unknown_symbol())
+            .filter(|&symbol| symbol != self.type_checker.ref_(self).unknown_symbol())
             .try_and_then(|symbol| -> io::Result<_> {
                 self.get_type_reference_directives_for_symbol(symbol, Some(meaning))
             })
@@ -1439,11 +1442,11 @@ impl EmitResolver for EmitResolverCreateResolver {
         &self,
         node: Id<Node>, /*VariableDeclaration | PropertyDeclaration | PropertySignature | ParameterDeclaration*/
     ) -> io::Result<bool> {
-        self.type_checker.is_literal_const_declaration(node)
+        self.type_checker.ref_(self).is_literal_const_declaration(node)
     }
 
     fn get_jsx_factory_entity(&self, location: Option<Id<Node>>) -> Option<Id<Node /*EntityName*/>> {
-        self.type_checker.get_jsx_factory_entity(location.unwrap())
+        self.type_checker.ref_(self).get_jsx_factory_entity(location.unwrap())
     }
 
     fn get_jsx_fragment_factory_entity(
@@ -1451,7 +1454,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         location: Option<Id<Node>>,
     ) -> Option<Id<Node /*EntityName*/>> {
         self.type_checker
-            .get_jsx_fragment_factory_entity(location.unwrap())
+            .ref_(self).get_jsx_fragment_factory_entity(location.unwrap())
     }
 
     fn get_all_accessor_declarations(
@@ -1468,7 +1471,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         let other_accessor = get_declaration_of_kind(
             self
                 .type_checker
-                .get_symbol_of_node(accessor)?
+                .ref_(self).get_symbol_of_node(accessor)?
                 .unwrap(),
             other_kind,
             self,
@@ -1507,7 +1510,7 @@ impl EmitResolver for EmitResolverCreateResolver {
         module_name: Id<Node>, /*StringLiteralLike*/
     ) -> io::Result<Option<Id<Symbol>>> {
         self.type_checker
-            .resolve_external_module_name_worker(module_name, module_name, None, None)
+            .ref_(self).resolve_external_module_name_worker(module_name, module_name, None, None)
     }
 
     fn is_binding_captured_by_node(
@@ -1522,7 +1525,7 @@ impl EmitResolver for EmitResolverCreateResolver {
             (Some(parse_node), Some(parse_decl)) if (
                 is_variable_declaration(&parse_decl.ref_(self)) ||
                 is_binding_element(&parse_decl.ref_(self))
-            ) && self.type_checker.is_binding_captured_by_node(parse_node, parse_decl)?
+            ) && self.type_checker.ref_(self).is_binding_captured_by_node(parse_node, parse_decl)?
         ))
     }
 
@@ -1541,13 +1544,13 @@ impl EmitResolver for EmitResolverCreateResolver {
             ),
             Some("Non-sourcefile node passed into getDeclarationsForSourceFile"),
         );
-        let Some(sym) = self.type_checker.get_symbol_of_node(node)? else {
+        let Some(sym) = self.type_checker.ref_(self).get_symbol_of_node(node)? else {
             return Ok(match node.ref_(self).maybe_locals().as_ref() {
                 None => Some(vec![]),
                 Some(node_locals) => self
                     .type_checker
-                    .node_builder()
-                    .symbol_table_to_declaration_statements(
+                    .ref_(self).node_builder()
+                    .ref_(self).symbol_table_to_declaration_statements(
                         node_locals.clone(),
                         Some(node),
                         Some(flags),
@@ -1560,8 +1563,8 @@ impl EmitResolver for EmitResolverCreateResolver {
             None => Some(vec![]),
             Some(sym_exports) => self
                 .type_checker
-                .node_builder()
-                .symbol_table_to_declaration_statements(
+                .ref_(self).node_builder()
+                .ref_(self).symbol_table_to_declaration_statements(
                     sym_exports.clone(),
                     Some(node),
                     Some(flags),
@@ -1582,14 +1585,14 @@ impl EmitResolver for EmitResolverCreateResolver {
         };
         let import_target = return_ok_default_if_none!(self
             .type_checker
-            .get_external_module_file_from_declaration(node)?);
+            .ref_(self).get_external_module_file_from_declaration(node)?);
         if import_target == file {
             return Ok(false);
         }
-        let exports = self.type_checker.get_exports_of_module_(file_symbol)?;
-        for &s in (*exports).borrow().values() {
+        let exports = self.type_checker.ref_(self).get_exports_of_module_(file_symbol)?;
+        for &s in exports.ref_(self).values() {
             if s.ref_(self).maybe_merge_id().is_some() {
-                let merged = self.type_checker.get_merged_symbol(Some(s)).unwrap();
+                let merged = self.type_checker.ref_(self).get_merged_symbol(Some(s)).unwrap();
                 if let Some(merged_declarations) = merged.ref_(self).maybe_declarations().as_ref() {
                     for &d in merged_declarations {
                         let decl_file = get_source_file_of_node(d, self);

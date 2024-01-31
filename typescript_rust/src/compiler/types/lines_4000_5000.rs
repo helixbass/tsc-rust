@@ -12,7 +12,7 @@ use id_arena::Id;
 use local_macros::{enum_unwrapped, symbol_type};
 
 use super::{
-    BaseType, CancellationTokenDebuggable, CompilerOptions, DiagnosticCollection,
+    BaseType, CancellationToken, CompilerOptions, DiagnosticCollection,
     ExportedModulesFromDeclarationEmit, ExternalEmitHelpers, ModuleKind,
     ModuleSpecifierResolutionHost, Node, NodeCheckFlags, NodeId, NodeLinks, ObjectFlags,
     ParsedCommandLine, Path, RawSourceMap, RelationComparisonResult, ScriptTarget, Signature,
@@ -26,6 +26,7 @@ use crate::{
     TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
     TransformNodesTransformationResult,
     Program,
+    HasArena,
 };
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
@@ -33,18 +34,18 @@ pub type RedirectTargetsMap = MultiMap<Path, String>;
 #[derive(Builder, Trace, Finalize)]
 #[builder(setter(into, strip_option))]
 pub struct ResolvedProjectReference {
-    pub command_line: Gc<ParsedCommandLine>,
+    pub command_line: Id<ParsedCommandLine>,
     pub source_file: Id<Node /*SourceFile*/>,
     #[builder(setter(skip))]
-    references: GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
+    references: GcCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
 }
 
 impl ResolvedProjectReference {
-    pub fn maybe_references(&self) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+    pub fn maybe_references(&self) -> GcCellRef<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.references.borrow()
     }
 
-    pub fn set_references(&self, references: Option<Vec<Option<Gc<ResolvedProjectReference>>>>) {
+    pub fn set_references(&self, references: Option<Vec<Option<Id<ResolvedProjectReference>>>>) {
         *self.references.borrow_mut() = references;
     }
 }
@@ -56,13 +57,13 @@ pub enum StructureIsReused {
     Completely,
 }
 
-pub type CustomTransformerFactory = Gc<Box<dyn CustomTransformerFactoryInterface>>;
+pub type CustomTransformerFactory = Id<Box<dyn CustomTransformerFactoryInterface>>;
 
 pub trait CustomTransformerFactoryInterface: Trace + Finalize {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> CustomTransformer;
 }
 
-pub type CustomTransformer = Gc<Box<dyn CustomTransformerInterface>>;
+pub type CustomTransformer = Id<Box<dyn CustomTransformerInterface>>;
 
 pub trait CustomTransformerInterface: Trace + Finalize {
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node /*SourceFile*/>;
@@ -88,10 +89,10 @@ impl From<CustomTransformerFactory> for TransformerFactoryOrCustomTransformerFac
 }
 
 pub struct CustomTransformers {
-    pub before: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
-    pub after: Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub before: Option<Vec<Id<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
+    pub after: Option<Vec<Id<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>>>,
     pub after_declarations:
-        Option<Vec<Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
+        Option<Vec<Id<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>>>,
 }
 
 pub struct EmitTransformers {
@@ -151,7 +152,7 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>>;
     fn get_resolved_type_reference_directives(
         &self,
-    ) -> Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>;
+    ) -> Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 
@@ -170,10 +171,10 @@ pub struct TypeChecker {
     pub(crate) arena: *const AllArenas,
     pub(crate) host: Id<Program /*TypeCheckerHostDebuggable*/>,
     pub(crate) produce_diagnostics: bool,
-    pub(crate) _rc_wrapper: GcCell<Option<Gc<TypeChecker>>>,
+    pub(crate) _arena_id: GcCell<Option<Id<Self>>>,
     #[unsafe_ignore_trace]
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
-    pub(crate) cancellation_token: GcCell<Option<Gc<Box<dyn CancellationTokenDebuggable>>>>,
+    pub(crate) cancellation_token: GcCell<Option<Id<Box<dyn CancellationToken>>>>,
     #[unsafe_ignore_trace]
     pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
     pub(crate) external_helpers_module: GcCell<Option<Id<Symbol>>>,
@@ -195,7 +196,7 @@ pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) inline_level: Cell<usize>,
     pub(crate) current_node: GcCell<Option<Id<Node>>>,
-    pub(crate) empty_symbols: Gc<GcCell<SymbolTable>>,
+    pub(crate) empty_symbols: Id<SymbolTable>,
     pub(crate) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(crate) language_version: ScriptTarget,
@@ -214,10 +215,10 @@ pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) fresh_object_literal_flag: ObjectFlags,
     pub(crate) exact_optional_property_types: Option<bool>,
-    pub(crate) check_binary_expression: GcCell<Option<Gc<CheckBinaryExpression>>>,
-    pub(crate) emit_resolver: GcCell<Option<Gc<Box<dyn EmitResolver>>>>,
-    pub(crate) node_builder: GcCell<Option<Gc<NodeBuilder>>>,
-    pub(crate) globals: Gc<GcCell<SymbolTable>>,
+    pub(crate) check_binary_expression: GcCell<Option<Id<CheckBinaryExpression>>>,
+    pub(crate) emit_resolver: GcCell<Option<Id<Box<dyn EmitResolver>>>>,
+    pub(crate) node_builder: GcCell<Option<Id<NodeBuilder>>>,
+    pub(crate) globals: Id<SymbolTable>,
     pub(crate) undefined_symbol: Option<Id<Symbol>>,
     pub(crate) global_this_symbol: Option<Id<Symbol>>,
     pub(crate) arguments_symbol: Option<Id<Symbol>>,
@@ -302,21 +303,21 @@ pub struct TypeChecker {
     pub(crate) marker_sub_type: Option<Id<Type>>,
     pub(crate) marker_other_type: Option<Id<Type>>,
 
-    pub(crate) no_type_predicate: Option<Gc<TypePredicate>>,
+    pub(crate) no_type_predicate: Option<Id<TypePredicate>>,
 
-    pub(crate) any_signature: Option<Gc<Signature>>,
-    pub(crate) unknown_signature: Option<Gc<Signature>>,
-    pub(crate) resolving_signature: Option<Gc<Signature>>,
-    pub(crate) silent_never_signature: Option<Gc<Signature>>,
+    pub(crate) any_signature: Option<Id<Signature>>,
+    pub(crate) unknown_signature: Option<Id<Signature>>,
+    pub(crate) resolving_signature: Option<Id<Signature>>,
+    pub(crate) silent_never_signature: Option<Id<Signature>>,
 
-    pub(crate) enum_number_index_info: Option<Gc<IndexInfo>>,
+    pub(crate) enum_number_index_info: Option<Id<IndexInfo>>,
 
-    pub(crate) iteration_types_cache: GcCell<HashMap<String, Gc<IterationTypes>>>,
-    pub(crate) no_iteration_types: Gc<IterationTypes>,
+    pub(crate) iteration_types_cache: GcCell<HashMap<String, Id<IterationTypes>>>,
+    pub(crate) no_iteration_types: Id<IterationTypes>,
 
-    pub(crate) any_iteration_types: Option<Gc<IterationTypes>>,
-    pub(crate) any_iteration_types_except_next: Option<Gc<IterationTypes>>,
-    pub(crate) default_iteration_types: Option<Gc<IterationTypes>>,
+    pub(crate) any_iteration_types: Option<Id<IterationTypes>>,
+    pub(crate) any_iteration_types_except_next: Option<Id<IterationTypes>>,
+    pub(crate) default_iteration_types: Option<Id<IterationTypes>>,
 
     #[unsafe_ignore_trace]
     pub(crate) async_iteration_types_resolver: IterationTypesResolver,
@@ -330,7 +331,7 @@ pub struct TypeChecker {
     pub(crate) in_infer_type_for_homomorphic_mapped_type: Cell<bool>,
     pub(crate) ambient_modules_cache: GcCell<Option<Vec<Id<Symbol>>>>,
 
-    pub(crate) pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
+    pub(crate) pattern_ambient_modules: GcCell<Option<Vec<Id<PatternAmbientModule>>>>,
     pub(crate) pattern_ambient_module_augmentations: GcCell<Option<HashMap<String, Id<Symbol>>>>,
 
     pub(crate) global_object_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
@@ -412,8 +413,8 @@ pub struct TypeChecker {
     pub(crate) suggestion_count: Cell<usize>,
     pub(crate) maximum_suggestion_count: usize,
     pub(crate) merged_symbols: GcCell<HashMap<u32, Id<Symbol>>>,
-    pub(crate) symbol_links: GcCell<HashMap<SymbolId, Gc<GcCell<SymbolLinks>>>>,
-    pub(crate) node_links: GcCell<HashMap<NodeId, Gc<GcCell<NodeLinks>>>>,
+    pub(crate) symbol_links: GcCell<HashMap<SymbolId, Id<SymbolLinks>>>,
+    pub(crate) node_links: GcCell<HashMap<NodeId, Id<NodeLinks>>>,
     pub(crate) flow_loop_caches: GcCell<HashMap<usize, Gc<GcCell<HashMap<String, Id<Type>>>>>>,
     pub(crate) flow_loop_nodes: GcCell<HashMap<usize, Id<FlowNode>>>,
     #[unsafe_ignore_trace]
@@ -441,7 +442,7 @@ pub struct TypeChecker {
     pub(crate) _jsx_namespace: GcCell<Option<__String>>,
     pub(crate) _jsx_factory_entity: GcCell<Option<Id<Node /*EntityName*/>>>,
     pub(crate) outofband_variance_marker_handler:
-        GcCell<Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>>>,
+        GcCell<Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -953,13 +954,13 @@ pub trait SymbolInterface {
     fn set_declarations(&self, declarations: Vec<Id<Node>>);
     fn maybe_value_declaration(&self) -> Option<Id<Node>>;
     fn set_value_declaration(&self, node: Id<Node>);
-    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
-    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
-    fn members(&self) -> Gc<GcCell<SymbolTable>>;
-    fn maybe_exports(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>>;
-    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
-    fn exports(&self) -> Gc<GcCell<SymbolTable>>;
-    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
+    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>>;
+    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn members(&self) -> Id<SymbolTable>;
+    fn maybe_exports(&self) -> GcCellRef<Option<Id<SymbolTable>>>;
+    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn exports(&self) -> Id<SymbolTable>;
+    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
@@ -1018,9 +1019,9 @@ pub struct BaseSymbol {
     escaped_name: __String,
     declarations: GcCell<Option<Vec<Id<Node /*Declaration*/>>>>,
     value_declaration: GcCell<Option<Id<Node>>>,
-    members: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
-    exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
-    global_exports: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    members: GcCell<Option<Id<SymbolTable>>>,
+    exports: GcCell<Option<Id<SymbolTable>>>,
+    global_exports: GcCell<Option<Id<SymbolTable>>>,
     #[unsafe_ignore_trace]
     id: Cell<Option<SymbolId>>,
     #[unsafe_ignore_trace]
@@ -1094,31 +1095,31 @@ impl SymbolInterface for BaseSymbol {
         *self.value_declaration.borrow_mut() = Some(node);
     }
 
-    fn maybe_members(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
         self.members.borrow()
     }
 
-    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.members.borrow_mut()
     }
 
-    fn members(&self) -> Gc<GcCell<SymbolTable>> {
+    fn members(&self) -> Id<SymbolTable> {
         self.members.borrow().as_ref().unwrap().clone()
     }
 
-    fn maybe_exports(&self) -> GcCellRef<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_exports(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
         self.exports.borrow()
     }
 
-    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.exports.borrow_mut()
     }
 
-    fn exports(&self) -> Gc<GcCell<SymbolTable>> {
+    fn exports(&self) -> Id<SymbolTable> {
         self.exports.borrow().as_ref().unwrap().clone()
     }
 
-    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.global_exports.borrow_mut()
     }
 
@@ -1223,8 +1224,8 @@ pub struct SymbolLinks {
     pub right_spread: Option<Id<Symbol>>,
     pub synthetic_origin: Option<Id<Symbol>>,
     pub is_discriminant_property: Option<bool>,
-    pub resolved_exports: Option<Gc<GcCell<SymbolTable>>>,
-    pub resolved_members: Option<Gc<GcCell<SymbolTable>>>,
+    pub resolved_exports: Option<Id<SymbolTable>>,
+    pub resolved_members: Option<Id<SymbolTable>>,
     pub exports_checked: Option<bool>,
     pub type_parameters_checked: Option<bool>,
     pub is_declaration_with_colliding_name: Option<bool>,
@@ -1332,7 +1333,7 @@ bitflags! {
 }
 
 pub trait TransientSymbolInterface: SymbolInterface {
-    fn symbol_links(&self) -> Gc<GcCell<SymbolLinks>>;
+    fn symbol_links(&self) -> Id<SymbolLinks>;
     fn check_flags(&self) -> CheckFlags;
     fn set_check_flags(&self, check_flags: CheckFlags);
 }
@@ -1382,23 +1383,23 @@ pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
 #[symbol_type(ancestors = "TransientSymbol")]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,
-    _symbol_links: Gc<GcCell<SymbolLinks>>,
+    _symbol_links: Id<SymbolLinks>,
     #[unsafe_ignore_trace]
     check_flags: Cell<CheckFlags>,
 }
 
 impl BaseTransientSymbol {
-    pub fn new(base_symbol: BaseSymbol, check_flags: CheckFlags) -> Self {
+    pub fn new(base_symbol: BaseSymbol, check_flags: CheckFlags, arena: &impl HasArena) -> Self {
         Self {
             _symbol: base_symbol,
-            _symbol_links: _d(),
+            _symbol_links: arena.alloc_symbol_links(_d()),
             check_flags: Cell::new(check_flags),
         }
     }
 }
 
 impl TransientSymbolInterface for BaseTransientSymbol {
-    fn symbol_links(&self) -> Gc<GcCell<SymbolLinks>> {
+    fn symbol_links(&self) -> Id<SymbolLinks> {
         self._symbol_links.clone()
     }
 

@@ -6,7 +6,7 @@ use id_arena::Id;
 use super::{IterationUse, TypeFacts};
 use crate::{
     add_related_info, concatenate, copy_entries, create_diagnostic_for_node, create_symbol_table,
-    every, factory, filter, get_assigned_expando_initializer, get_assignment_declaration_kind,
+    every, filter, get_assigned_expando_initializer, get_assignment_declaration_kind,
     get_assignment_declaration_property_access_kind, get_combined_modifier_flags,
     get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
     get_effective_modifier_flags, get_effective_type_annotation_node, get_jsdoc_type,
@@ -26,6 +26,7 @@ use crate::{
     SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionReduction,
     index_of_eq, OptionInArena,
+    get_factory,
 };
 
 impl TypeChecker {
@@ -73,7 +74,7 @@ impl TypeChecker {
         }
         Ok(Some(format!(
             "{}",
-            index_of_eq(&parent.ref_(self).as_has_elements().elements(), &node)
+            index_of_eq(&parent.ref_(self).as_has_elements().elements().ref_(self), &node)
         )))
     }
 
@@ -152,7 +153,7 @@ impl TypeChecker {
                     return Ok(Some(self.error_type()));
                 }
                 let mut literal_members: Vec<Id<Node /*PropertyName*/>> = vec![];
-                for element in &pattern.ref_(self).as_object_binding_pattern().elements {
+                for element in &*pattern.ref_(self).as_object_binding_pattern().elements.ref_(self) {
                     let element_ref = element.ref_(self);
                     let element_as_binding_element = element_ref.as_binding_element();
                     if element_as_binding_element.dot_dot_dot_token.is_none() {
@@ -198,7 +199,7 @@ impl TypeChecker {
                 Some(pattern),
             )?;
             let index: usize = index_of_eq(
-                &pattern.ref_(self).as_array_binding_pattern().elements,
+                &pattern.ref_(self).as_array_binding_pattern().elements.ref_(self),
                 &declaration,
             )
             .try_into()
@@ -295,7 +296,7 @@ impl TypeChecker {
     pub(super) fn is_empty_array_literal(&self, node: Id<Node> /*Expression*/) -> bool {
         let expr = skip_parentheses(node, Some(true), self);
         expr.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression
-            && expr.ref_(self).as_array_literal_expression().elements.is_empty()
+            && expr.ref_(self).as_array_literal_expression().elements.ref_(self).is_empty()
     }
 
     pub(super) fn add_optionality(
@@ -436,7 +437,7 @@ impl TypeChecker {
                                 None,
                             );
                             return Ok(Some(self.get_type_of_symbol(
-                                getter_signature.maybe_this_parameter().unwrap(),
+                                getter_signature.ref_(self).maybe_this_parameter().unwrap(),
                             )?));
                         }
                     }
@@ -449,7 +450,7 @@ impl TypeChecker {
                     if is_function_type_node(&type_tag.ref_(self)) {
                         let signature = self.get_signature_from_declaration_(type_tag)?;
                         let pos: usize = index_of_eq(
-                            &func.ref_(self).as_function_like_declaration().parameters(),
+                            &func.ref_(self).as_function_like_declaration().parameters().ref_(self),
                             &declaration,
                         )
                         .try_into()
@@ -460,9 +461,9 @@ impl TypeChecker {
                                 .dot_dot_dot_token
                                 .is_some()
                             {
-                                self.get_rest_type_at_position(&signature, pos)?
+                                self.get_rest_type_at_position(signature, pos)?
                             } else {
-                                self.get_type_at_position(&signature, pos)?
+                                self.get_type_at_position(signature, pos)?
                             },
                         ));
                     }
@@ -528,7 +529,7 @@ impl TypeChecker {
                     .try_map(|type_| self.add_optionality(type_, Some(true), Some(is_optional)));
             } else {
                 let static_blocks = filter(
-                    &declaration.ref_(self).parent().ref_(self).as_class_like_declaration().members(),
+                    &declaration.ref_(self).parent().ref_(self).as_class_like_declaration().members().ref_(self),
                     |member: &Id<Node>| is_class_static_block_declaration(&member.ref_(self)),
                 );
                 let type_ = if !static_blocks.is_empty() {
@@ -566,8 +567,8 @@ impl TypeChecker {
             Some(value_declaration) if is_binary_expression(&value_declaration.ref_(self))
         ) {
             let links = self.get_symbol_links(symbol);
-            if (*links).borrow().is_constructor_declared_property.is_none() {
-                links.borrow_mut().is_constructor_declared_property = Some(false);
+            if links.ref_(self).is_constructor_declared_property.is_none() {
+                links.ref_mut(self).is_constructor_declared_property = Some(false);
                 let is_constructor_declared_property =
                     self.get_declaring_constructor(symbol)?.is_some()
                         && try_maybe_every(
@@ -597,10 +598,10 @@ impl TypeChecker {
                                         .is_none())
                             },
                         )?;
-                links.borrow_mut().is_constructor_declared_property =
+                links.ref_mut(self).is_constructor_declared_property =
                     Some(is_constructor_declared_property);
             }
-            return Ok((*links).borrow().is_constructor_declared_property.unwrap());
+            return Ok(links.ref_(self).is_constructor_declared_property.unwrap());
         }
         Ok(false)
     }
@@ -662,22 +663,18 @@ impl TypeChecker {
             },
         );
         let reference: Id<Node> = if are_all_module_exports {
-            factory.with(|factory_| {
-                factory_.create_property_access_expression(
-                    factory_.create_property_access_expression(
-                        factory_.create_identifier("module"),
-                        factory_.create_identifier("exports"),
-                    ),
-                    access_name,
-                )
-            })
+            get_factory(self).create_property_access_expression(
+                get_factory(self).create_property_access_expression(
+                    get_factory(self).create_identifier("module"),
+                    get_factory(self).create_identifier("exports"),
+                ),
+                access_name,
+            )
         } else {
-            factory.with(|factory_| {
-                factory_.create_property_access_expression(
-                    factory_.create_identifier("exports"),
-                    access_name,
-                )
-            })
+            get_factory(self).create_property_access_expression(
+                get_factory(self).create_identifier("exports"),
+                access_name,
+            )
         };
         if are_all_module_exports {
             set_parent(
@@ -710,24 +707,19 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
-            factory.with(|factory_| {
-                factory_
-                    .create_private_identifier(
-                        (&*symbol.ref_(self).escaped_name())
-                            .split("@")
-                            .nth(1)
-                            .unwrap(),
-                    )
-                    .into()
-            })
+            get_factory(self)
+                .create_private_identifier(
+                    (&*symbol.ref_(self).escaped_name())
+                        .split("@")
+                        .nth(1)
+                        .unwrap(),
+                )
+                .into()
         } else {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
         for &static_block in static_blocks {
-            let reference = factory.with(|factory_| {
-                factory_
-                    .create_property_access_expression(factory_.create_this(), access_name.clone())
-            });
+            let reference = get_factory(self).create_property_access_expression(get_factory(self).create_this(), access_name.clone());
             set_parent(
                 &reference.ref_(self).as_property_access_expression().expression.ref_(self),
                 Some(reference),
@@ -766,22 +758,18 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol_ref = symbol.ref_(self);
         let access_name: StrOrRcNode<'_> = if starts_with(symbol.ref_(self).escaped_name(), "__#") {
-            factory.with(|factory_| {
-                factory_
-                    .create_private_identifier(
-                        (&*symbol.ref_(self).escaped_name())
-                            .split("@")
-                            .nth(1)
-                            .unwrap(),
-                    )
-                    .into()
-            })
+            get_factory(self)
+                .create_private_identifier(
+                    (&*symbol.ref_(self).escaped_name())
+                        .split("@")
+                        .nth(1)
+                        .unwrap(),
+                )
+                .into()
         } else {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
-        let reference = factory.with(|factory_| {
-            factory_.create_property_access_expression(factory_.create_this(), access_name)
-        });
+        let reference = get_factory(self).create_property_access_expression(get_factory(self).create_this(), access_name);
         set_parent(
             &reference.ref_(self).as_property_access_expression().expression.ref_(self),
             Some(reference),
@@ -1016,19 +1004,19 @@ impl TypeChecker {
         }
         let init = return_ok_default_if_none!(init);
         if !is_object_literal_expression(&init.ref_(self))
-            || !init.ref_(self).as_object_literal_expression().properties.is_empty()
+            || !init.ref_(self).as_object_literal_expression().properties.ref_(self).is_empty()
         {
             return Ok(None);
         }
-        let exports = Gc::new(GcCell::new(create_symbol_table(
+        let exports = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        )));
+        ));
         while is_binary_expression(&decl.ref_(self)) || is_property_access_expression(&decl.ref_(self)) {
             let s = self.get_symbol_of_node(decl)?;
             if let Some(s) = s {
-                if let Some(s_exports) = s.ref_(self).maybe_exports().as_deref() {
-                    let s_exports = (*s_exports).borrow();
+                if let Some(s_exports) = s.ref_(self).maybe_exports().as_ref() {
+                    let s_exports = s_exports.ref_(self);
                     if !s_exports.is_empty() {
                         self.merge_symbol_table(exports.clone(), &s_exports, None)?;
                     }
@@ -1042,8 +1030,8 @@ impl TypeChecker {
         }
         let s = self.get_symbol_of_node(decl)?;
         if let Some(s) = s {
-            if let Some(s_exports) = s.ref_(self).maybe_exports().as_deref() {
-                let s_exports = (*s_exports).borrow();
+            if let Some(s_exports) = s.ref_(self).maybe_exports().as_ref() {
+                let s_exports = s_exports.ref_(self);
                 if !s_exports.is_empty() {
                     self.merge_symbol_table(exports.clone(), &s_exports, None)?;
                 }
@@ -1117,7 +1105,7 @@ impl TypeChecker {
                 return self.get_type_of_symbol(resolved_symbol);
             }
             let object_lit_type =
-                self.check_expression_cached(expression.ref_(self).as_call_expression().arguments[2], None)?;
+                self.check_expression_cached(expression.ref_(self).as_call_expression().arguments.ref_(self)[2], None)?;
             let value_type = self.get_type_of_property_of_type_(object_lit_type, "value")?;
             if let Some(value_type) = value_type {
                 return Ok(value_type);
@@ -1133,7 +1121,7 @@ impl TypeChecker {
             if let Some(set_func) = set_func {
                 let set_sig = self.get_single_call_signature(set_func)?;
                 if let Some(set_sig) = set_sig {
-                    return self.get_type_of_first_parameter_of_signature(&set_sig);
+                    return self.get_type_of_first_parameter_of_signature(set_sig);
                 }
             }
             return Ok(self.any_type());
@@ -1160,7 +1148,7 @@ impl TypeChecker {
             let exported_type = self.resolve_structured_type_members(type_)?;
             let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             copy_entries(
-                &*(*exported_type.ref_(self).as_resolved_type().members()).borrow(),
+                &*exported_type.ref_(self).as_resolved_type().members().ref_(self),
                 &mut members,
             );
             let initial_size = members.len();
@@ -1168,13 +1156,13 @@ impl TypeChecker {
                 let resolved_symbol_ref = resolved_symbol.ref_(self);
                 let mut resolved_symbol_exports = resolved_symbol_ref.maybe_exports_mut();
                 if resolved_symbol_exports.is_none() {
-                    *resolved_symbol_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *resolved_symbol_exports = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
             }
-            for (name, &s) in &*(*resolved_symbol.unwrap_or(symbol).ref_(self).exports()).borrow() {
+            for (name, &s) in &*resolved_symbol.unwrap_or(symbol).ref_(self).exports().ref_(self) {
                 let exported_member = members.get(name).cloned();
                 if let Some(exported_member) =
                     exported_member.filter(|&exported_member| exported_member != s)
@@ -1209,13 +1197,13 @@ impl TypeChecker {
                                             &Diagnostics::Duplicate_identifier_0,
                                             Some(vec![unescaped_name.to_owned()]),
                                         ).ref_(self),
-                                        vec![create_diagnostic_for_node(
+                                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                             exported_member_name,
                                             &Diagnostics::_0_was_also_declared_here,
                                             Some(vec![unescaped_name.to_owned()]),
                                             self,
                                         )
-                                        .into()],
+                                        .into())],
                                     );
                                     add_related_info(
                                         &self.error(
@@ -1223,13 +1211,13 @@ impl TypeChecker {
                                             &Diagnostics::Duplicate_identifier_0,
                                             Some(vec![unescaped_name.to_owned()]),
                                         ).ref_(self),
-                                        vec![create_diagnostic_for_node(
+                                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                             s_value_declaration,
                                             &Diagnostics::_0_was_also_declared_here,
                                             Some(vec![unescaped_name.to_owned()]),
                                             self,
                                         )
-                                        .into()],
+                                        .into())],
                                     );
                                 }
                             }
@@ -1246,7 +1234,7 @@ impl TypeChecker {
                             .ref_(self)
                             .as_transient_symbol()
                             .symbol_links()
-                            .borrow_mut()
+                            .ref_mut(self)
                             .type_ = Some(self.get_union_type(
                             &[
                                 self.get_type_of_symbol(s)?,
@@ -1289,7 +1277,7 @@ impl TypeChecker {
                 } else {
                     exported_type.ref_(self).maybe_symbol()
                 },
-                Gc::new(GcCell::new(members)),
+                self.alloc_symbol_table(members),
                 exported_type
                     .ref_(self)
                     .as_resolved_type()

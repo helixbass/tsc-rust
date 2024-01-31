@@ -24,10 +24,10 @@ impl TypeChecker {
     pub(super) fn get_candidate_for_overload_failure(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates: &mut Vec<Gc<Signature>>,
+        candidates: &mut Vec<Id<Signature>>,
         args: &[Id<Node /*Expression*/>],
         has_candidates_out_array: bool,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         Debug_.assert(!candidates.is_empty(), None);
         self.check_node_deferred(node);
         Ok(
@@ -35,7 +35,7 @@ impl TypeChecker {
                 || candidates.len() == 1
                 || candidates
                     .into_iter()
-                    .any(|c| c.maybe_type_parameters().is_some())
+                    .any(|c| c.ref_(self).maybe_type_parameters().is_some())
             {
                 self.pick_longest_candidate_signature(node, candidates, args)?
             } else {
@@ -46,10 +46,10 @@ impl TypeChecker {
 
     pub(super) fn create_union_of_signatures_for_overload_failure(
         &self,
-        candidates: &[Gc<Signature>],
-    ) -> io::Result<Gc<Signature>> {
-        let this_parameters = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
-            c.maybe_this_parameter().clone()
+        candidates: &[Id<Signature>],
+    ) -> io::Result<Id<Signature>> {
+        let this_parameters = map_defined(Some(candidates), |c: &Id<Signature>, _| {
+            c.ref_(self).maybe_this_parameter().clone()
         });
         let mut this_parameter: Option<Id<Symbol>> = None;
         if !this_parameters.is_empty() {
@@ -66,21 +66,21 @@ impl TypeChecker {
         let MinAndMax {
             min: min_argument_count,
             max: max_non_rest_param,
-        } = min_and_max(candidates, |candidate: &Gc<Signature>| {
+        } = min_and_max(candidates, |&candidate: &Id<Signature>| {
             self.get_num_non_rest_parameters(candidate)
         });
         let mut parameters: Vec<Id<Symbol>> = vec![];
         for i in 0..max_non_rest_param {
-            let symbols = map_defined(Some(candidates), |s: &Gc<Signature>, _| {
-                if signature_has_rest_parameter(s) {
-                    if i < s.parameters().len() - 1 {
-                        Some(s.parameters()[i].clone())
+            let symbols = map_defined(Some(candidates), |&s: &Id<Signature>, _| {
+                if signature_has_rest_parameter(&s.ref_(self)) {
+                    if i < s.ref_(self).parameters().len() - 1 {
+                        Some(s.ref_(self).parameters()[i].clone())
                     } else {
-                        Some(last(s.parameters()).clone())
+                        Some(last(s.ref_(self).parameters()).clone())
                     }
                 } else {
-                    if i < s.parameters().len() {
-                        Some(s.parameters()[i].clone())
+                    if i < s.ref_(self).parameters().len() {
+                        Some(s.ref_(self).parameters()[i].clone())
                     } else {
                         None
                     }
@@ -89,14 +89,14 @@ impl TypeChecker {
             Debug_.assert(!symbols.is_empty(), None);
             parameters.push(self.create_combined_symbol_from_types(
                 &symbols,
-                &try_map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
+                &try_map_defined(Some(candidates), |&candidate: &Id<Signature>, _| {
                     self.try_get_type_at_position(candidate, i)
                 })?,
             )?);
         }
-        let rest_parameter_symbols = map_defined(Some(candidates), |c: &Gc<Signature>, _| {
-            if signature_has_rest_parameter(c) {
-                Some(last(c.parameters()).clone())
+        let rest_parameter_symbols = map_defined(Some(candidates), |&c: &Id<Signature>, _| {
+            if signature_has_rest_parameter(&c.ref_(self)) {
+                Some(last(c.ref_(self).parameters()).clone())
             } else {
                 None
             }
@@ -105,7 +105,7 @@ impl TypeChecker {
         if !rest_parameter_symbols.is_empty() {
             let type_ = self.create_array_type(
                 self.get_union_type(
-                    &try_map_defined(Some(candidates), |candidate: &Gc<Signature>, _| {
+                    &try_map_defined(Some(candidates), |&candidate: &Id<Signature>, _| {
                         self.try_get_rest_type_of_signature(candidate)
                     })?,
                     Some(UnionReduction::Subtype),
@@ -122,13 +122,13 @@ impl TypeChecker {
         }
         if candidates
             .into_iter()
-            .any(|candidate: &Gc<Signature>| signature_has_literal_types(candidate))
+            .any(|&candidate: &Id<Signature>| signature_has_literal_types(&candidate.ref_(self)))
         {
             flags |= SignatureFlags::HasLiteralTypes;
         }
-        Ok(Gc::new(
+        Ok(self.alloc_signature(
             self.create_signature(
-                candidates[0].declaration.clone(),
+                candidates[0].ref_(self).declaration.clone(),
                 None,
                 this_parameter,
                 parameters,
@@ -149,9 +149,9 @@ impl TypeChecker {
         ))
     }
 
-    pub(super) fn get_num_non_rest_parameters(&self, signature: &Signature) -> usize {
-        let num_params = signature.parameters().len();
-        if signature_has_rest_parameter(signature) {
+    pub(super) fn get_num_non_rest_parameters(&self, signature: Id<Signature>) -> usize {
+        let num_params = signature.ref_(self).parameters().len();
+        if signature_has_rest_parameter(&signature.ref_(self)) {
             num_params - 1
         } else {
             num_params
@@ -186,9 +186,9 @@ impl TypeChecker {
     pub(super) fn pick_longest_candidate_signature(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates: &mut Vec<Gc<Signature>>,
+        candidates: &mut Vec<Id<Signature>>,
         args: &[Id<Node /*Expression*/>],
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let best_index = self.get_longest_candidate_index(
             candidates,
             match self.apparent_argument_count() {
@@ -197,7 +197,7 @@ impl TypeChecker {
             },
         )?;
         let candidate = &candidates[best_index];
-        let type_parameters = candidate.maybe_type_parameters().clone();
+        let type_parameters = candidate.ref_(self).maybe_type_parameters().clone();
         if type_parameters.is_none() {
             return Ok(candidate.clone());
         }
@@ -209,11 +209,11 @@ impl TypeChecker {
         } else {
             None
         };
-        let instantiated = if let Some(type_argument_nodes) = type_argument_nodes.as_ref() {
-            Gc::new(self.create_signature_instantiation(
+        let instantiated = if let Some(type_argument_nodes) = type_argument_nodes {
+            self.alloc_signature(self.create_signature_instantiation(
                 candidate.clone(),
                 Some(&*self.get_type_arguments_from_nodes(
-                    type_argument_nodes,
+                    &type_argument_nodes.ref_(self),
                     type_parameters,
                     is_in_js_file(Some(&node.ref_(self))),
                 )?),
@@ -256,9 +256,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
         type_parameters: &[Id<Type /*TypeParameter*/>],
-        candidate: Gc<Signature>,
+        candidate: Id<Signature>,
         args: &[Id<Node /*Expression*/>],
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let inference_context = self.create_inference_context(
             type_parameters,
             Some(candidate.clone()),
@@ -276,7 +276,7 @@ impl TypeChecker {
             CheckMode::SkipContextSensitive | CheckMode::SkipGenericFunctions,
             inference_context,
         )?;
-        Ok(Gc::new(self.create_signature_instantiation(
+        Ok(self.alloc_signature(self.create_signature_instantiation(
             candidate,
             Some(&type_argument_types),
         )?))
@@ -284,14 +284,14 @@ impl TypeChecker {
 
     pub(super) fn get_longest_candidate_index(
         &self,
-        candidates: &[Gc<Signature>],
+        candidates: &[Id<Signature>],
         args_count: usize,
     ) -> io::Result<usize> {
         let mut max_params_index: Option<usize> = None;
         let mut max_params: Option<usize> = None;
 
         for i in 0..candidates.len() {
-            let candidate = &candidates[i];
+            let candidate = candidates[i];
             let param_count = self.get_parameter_count(candidate)?;
             if self.has_effective_rest_parameter(candidate)? || param_count >= args_count {
                 return Ok(i);
@@ -311,15 +311,15 @@ impl TypeChecker {
     pub(super) fn resolve_call_expression(
         &self,
         node: Id<Node>, /*CallExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
         if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
             let super_type = self.check_super_expression(node_as_call_expression.expression)?;
             if self.is_type_any(Some(super_type)) {
-                for &arg in &node_as_call_expression.arguments {
+                for &arg in &*node_as_call_expression.arguments.ref_(self) {
                     self.check_expression(arg, None, None)?;
                 }
                 return Ok(self.any_signature());
@@ -333,6 +333,7 @@ impl TypeChecker {
                         base_type_node
                             .ref_(self).as_expression_with_type_arguments()
                             .maybe_type_arguments()
+                            .refed(self)
                             .as_double_deref(),
                         base_type_node,
                     )?;
@@ -419,8 +420,8 @@ impl TypeChecker {
                     )?]),
                 );
             } else {
-                let mut related_information: Option<Gc<DiagnosticRelatedInformation>> = None;
-                if node_as_call_expression.arguments.len() == 1 {
+                let mut related_information: Option<Id<DiagnosticRelatedInformation>> = None;
+                if node_as_call_expression.arguments.ref_(self).len() == 1 {
                     let source_file = get_source_file_of_node(node, self);
                     let source_file_ref = source_file.ref_(self);
                     let text = source_file_ref.as_source_file().text_as_chars();
@@ -436,7 +437,7 @@ impl TypeChecker {
                         .unwrap()
                             - 1,
                     )) {
-                        related_information = Some(Gc::new(
+                        related_information = Some(self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 node_as_call_expression.expression,
                                 &Diagnostics::Are_you_missing_a_semicolon,
@@ -466,8 +467,8 @@ impl TypeChecker {
             return Ok(self.resolving_signature());
         }
         if call_signatures.iter().any(|sig| {
-            is_in_js_file(sig.declaration.refed(self).as_deref())
-                && get_jsdoc_class_tag(sig.declaration.unwrap(), self).is_some()
+            is_in_js_file(sig.ref_(self).declaration.refed(self).as_deref())
+                && get_jsdoc_class_tag(sig.ref_(self).declaration.unwrap(), self).is_some()
         }) {
             self.error(
                 Some(node),
@@ -494,9 +495,9 @@ impl TypeChecker {
 
     pub(super) fn is_generic_function_returning_function(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
     ) -> io::Result<bool> {
-        let signature_type_parameters_is_some = signature.maybe_type_parameters().is_some();
+        let signature_type_parameters_is_some = signature.ref_(self).maybe_type_parameters().is_some();
         Ok(signature_type_parameters_is_some
             && self.is_function_type(self.get_return_type_of_signature(signature)?)?)
     }
@@ -531,17 +532,17 @@ impl TypeChecker {
     pub(super) fn resolve_new_expression(
         &self,
         node: Id<Node>, /*NewExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_new_expression = node_ref.as_new_expression();
         if let Some(node_arguments) = node_as_new_expression.arguments.as_ref() {
             if self.language_version < ScriptTarget::ES5 {
-                let spread_index = self.get_spread_argument_index(node_arguments);
+                let spread_index = self.get_spread_argument_index(&node_arguments.ref_(self));
                 if let Some(spread_index) = spread_index {
                     self.error(
-                        Some(node_arguments[spread_index]),
+                        Some(node_arguments.ref_(self)[spread_index]),
                         &Diagnostics::Spread_operator_in_new_expressions_is_only_available_when_targeting_ECMAScript_5_and_higher,
                         None,
                     );
@@ -574,12 +575,12 @@ impl TypeChecker {
         let construct_signatures =
             self.get_signatures_of_type(expression_type, SignatureKind::Construct)?;
         if !construct_signatures.is_empty() {
-            if !self.is_constructor_accessible(node, &construct_signatures[0])? {
+            if !self.is_constructor_accessible(node, construct_signatures[0])? {
                 return self.resolve_error_call(node);
             }
             if construct_signatures
                 .iter()
-                .any(|signature| signature.flags.intersects(SignatureFlags::Abstract))
+                .any(|signature| signature.ref_(self).flags.intersects(SignatureFlags::Abstract))
             {
                 self.error(
                     Some(node),
@@ -627,7 +628,7 @@ impl TypeChecker {
             )?;
             if !self.no_implicit_any {
                 if matches!(
-                    signature.declaration,
+                    signature.ref_(self).declaration,
                     Some(signature_declaration) if !self.is_js_constructor(Some(signature_declaration))? &&
                         self.get_return_type_of_signature(signature.clone())? != self.void_type()
                 ) {
@@ -638,7 +639,7 @@ impl TypeChecker {
                     );
                 }
                 if matches!(
-                    self.get_this_type_of_signature(&signature)?,
+                    self.get_this_type_of_signature(signature)?,
                     Some(this_type) if this_type == self.void_type()
                 ) {
                     self.error(
@@ -716,15 +717,15 @@ impl TypeChecker {
     pub(super) fn is_constructor_accessible(
         &self,
         node: Id<Node>, /*NewExpression*/
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<bool> {
         if
         /* !signature ||*/
-        signature.declaration.is_none() {
+        signature.ref_(self).declaration.is_none() {
             return Ok(true);
         }
 
-        let declaration = signature.declaration.unwrap();
+        let declaration = signature.ref_(self).declaration.unwrap();
         let modifiers = get_selected_effective_modifier_flags(
             declaration,
             ModifierFlags::NonPublicAccessibilityModifier,
@@ -909,12 +910,11 @@ impl TypeChecker {
                 .ref_(self).parent()
                 .ref_(self).as_call_expression()
                 .arguments
-                .is_empty()
+                .ref_(self).is_empty()
         {
-            let resolved_symbol = (*self.get_node_links(error_target))
-                .borrow()
-                .resolved_symbol
-                .clone();
+            let resolved_symbol = self.get_node_links(error_target)
+                .ref_(self)
+                .resolved_symbol;
             if matches!(
                 resolved_symbol,
                 Some(resolved_symbol) if resolved_symbol.ref_(self).flags().intersects(SymbolFlags::GetAccessor)

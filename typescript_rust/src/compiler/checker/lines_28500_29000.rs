@@ -345,7 +345,7 @@ impl TypeChecker {
         if let Some(prop) = prop {
             let s = self.get_single_call_signature(self.get_type_of_symbol(prop)?)?;
             return Ok(matches!(
-                s.as_ref(),
+                s,
                 Some(s) if self.get_min_argument_count(s, None)? >= 1 &&
                     self.is_type_assignable_to(keyed_type, self.get_type_at_position(s, 0)?)?
             ));
@@ -459,7 +459,7 @@ impl TypeChecker {
         }
 
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Instantiated) {
-            (*self.get_symbol_links(prop))
+            (*self.get_symbol_links(prop).ref_(self))
                 .borrow()
                 .target
                 .clone()
@@ -614,7 +614,7 @@ impl TypeChecker {
             let variable = initializer
                 .ref_(self).as_variable_declaration_list()
                 .declarations
-                .get(0)
+                .ref_(self).get(0)
                 .copied();
             if let Some(variable) = variable.filter(|variable| {
                 !is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
@@ -773,10 +773,9 @@ impl TypeChecker {
         self.check_indexed_access_index_type(
             self.get_flow_type_of_access_expression(
                 node,
-                (*self.get_node_links(node))
-                    .borrow()
-                    .resolved_symbol
-                    .clone(),
+                self.get_node_links(node)
+                    .ref_(self)
+                    .resolved_symbol,
                 indexed_access_type,
                 index_expression,
                 check_mode,
@@ -797,10 +796,10 @@ impl TypeChecker {
     pub(super) fn resolve_untyped_call(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         if self.call_like_expression_may_have_type_arguments(node) {
             try_maybe_for_each(
-                node.ref_(self).as_has_type_arguments().maybe_type_arguments().as_ref(),
+                node.ref_(self).as_has_type_arguments().maybe_type_arguments().refed(self).as_deref(),
                 |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(type_argument))?;
                     Ok(None)
@@ -814,7 +813,7 @@ impl TypeChecker {
             self.check_expression(node.ref_(self).as_jsx_opening_like_element().attributes(), None, None)?;
         } else if node.ref_(self).kind() != SyntaxKind::Decorator {
             try_maybe_for_each(
-                node.ref_(self).as_has_arguments().maybe_arguments().as_deref(),
+                node.ref_(self).as_has_arguments().maybe_arguments().refed(self).as_deref(),
                 |&argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_expression(argument, None, None)?;
                     Ok(None)
@@ -827,15 +826,15 @@ impl TypeChecker {
     pub(super) fn resolve_error_call(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         self.resolve_untyped_call(node)?;
         Ok(self.unknown_signature())
     }
 
     pub(super) fn reorder_candidates(
         &self,
-        signatures: &[Gc<Signature>],
-        result: &mut Vec<Gc<Signature>>,
+        signatures: &[Id<Signature>],
+        result: &mut Vec<Id<Signature>>,
         call_chain_flags: SignatureFlags,
     ) -> io::Result<()> {
         let mut last_parent: Option<Id<Node>> = None;
@@ -845,14 +844,14 @@ impl TypeChecker {
         let mut specialized_index: isize = -1;
         let mut splice_index: usize;
         Debug_.assert(result.is_empty(), None);
-        for signature in signatures {
+        for &signature in signatures {
             let symbol = signature
-                .declaration
+                .ref_(self).declaration
                 .try_and_then(|signature_declaration| {
                     self.get_symbol_of_node(signature_declaration)
                 })?;
             let parent = signature
-                .declaration
+                .ref_(self).declaration
                 .and_then(|signature_declaration| signature_declaration.ref_(self).maybe_parent());
             if match last_symbol {
                 None => true,
@@ -877,7 +876,7 @@ impl TypeChecker {
             }
             last_symbol = symbol.clone();
 
-            if signature_has_literal_types(signature) {
+            if signature_has_literal_types(&signature.ref_(self)) {
                 specialized_index += 1;
                 splice_index = specialized_index.try_into().unwrap();
                 cutoff_index += 1;

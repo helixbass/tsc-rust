@@ -178,6 +178,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn arena_id(&self) -> Id<Node>;
     fn set_arena_id(&self, id: Id<Node>);
     fn alloc(self, arena: &AllArenas) -> Id<Node>;
+    fn base_node(&self) -> &BaseNode;
     fn kind(&self) -> SyntaxKind;
     fn modifier_flags_cache(&self) -> ModifierFlags;
     fn set_modifier_flags_cache(&self, flags: ModifierFlags);
@@ -186,10 +187,10 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn transform_flags(&self) -> TransformFlags;
     fn set_transform_flags(&self, flags: TransformFlags);
     fn add_transform_flags(&self, flags: TransformFlags);
-    fn maybe_decorators(&self) -> Option<Gc<NodeArray>>;
-    fn set_decorators(&self, decorators: Option<Gc<NodeArray>>);
-    fn maybe_modifiers(&self) -> Option<Gc<NodeArray>>;
-    fn set_modifiers(&self, modifiers: Option<Gc<NodeArray>>);
+    fn maybe_decorators(&self) -> Option<Id<NodeArray>>;
+    fn set_decorators(&self, decorators: Option<Id<NodeArray>>);
+    fn maybe_modifiers(&self) -> Option<Id<NodeArray>>;
+    fn set_modifiers(&self, modifiers: Option<Id<NodeArray>>);
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
@@ -203,11 +204,11 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn symbol(&self) -> Id<Symbol>;
     fn set_symbol(&self, symbol: Id<Symbol>);
     fn set_symbol_override(&self, symbol_override: Gc<Box<dyn NodeSymbolOverride>>);
-    fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>>;
-    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>>;
-    fn locals(&self) -> Gc<GcCell<SymbolTable>>;
-    fn locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>, Gc<GcCell<SymbolTable>>>;
-    fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>);
+    fn maybe_locals(&self) -> Option<Id<SymbolTable>>;
+    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn locals(&self) -> Id<SymbolTable>;
+    fn locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>, Id<SymbolTable>>;
+    fn set_locals(&self, locals: Option<Id<SymbolTable>>);
     fn maybe_next_container(&self) -> Option<Id<Node>>;
     fn set_next_container(&self, next_container: Option<Id<Node>>);
     fn maybe_local_symbol(&self) -> Option<Id<Symbol>>;
@@ -215,11 +216,11 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_flow_node(&self) -> GcCellRef<Option<Id<FlowNode>>>;
     fn maybe_flow_node_mut(&self) -> GcCellRefMut<Option<Id<FlowNode>>>;
     fn set_flow_node(&self, emit_node: Option<Id<FlowNode>>);
-    fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>>;
-    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>>;
-    fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>);
+    fn maybe_emit_node(&self) -> Option<Id<EmitNode>>;
+    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Id<EmitNode>>>;
+    fn set_emit_node(&self, emit_node: Option<Id<EmitNode>>);
     fn maybe_contextual_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>>;
+    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Id<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Id<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Option<Vec<Id<Node /*JSDoc*/>>>);
     fn maybe_js_doc_cache(&self) -> Option<GcVec<Id<Node /*JSDocTag*/>>>;
@@ -1719,7 +1720,7 @@ pub struct BaseNode {
     modifier_flags_cache: Cell<ModifierFlags>,
     #[unsafe_ignore_trace]
     transform_flags: Cell<TransformFlags>,
-    pub decorators: GcCell<Option<Gc<NodeArray> /*<Decorator>*/>>,
+    pub decorators: GcCell<Option<Id<NodeArray> /*<Decorator>*/>>,
     pub modifiers: GcCell<Option<ModifiersArray>>,
     #[unsafe_ignore_trace]
     pub id: Cell<Option<NodeId>>,
@@ -1730,12 +1731,12 @@ pub struct BaseNode {
     #[unsafe_ignore_trace]
     pub end: Cell<isize>,
     pub symbol: GcCell<Option<Id<Symbol>>>,
-    pub locals: Gc<GcCell<Option<Gc<GcCell<SymbolTable>>>>>,
+    pub locals: Gc<GcCell<Option<Id<SymbolTable>>>>,
     next_container: GcCell<Option<Id<Node>>>,
     local_symbol: GcCell<Option<Id<Symbol>>>,
-    emit_node: GcCell<Option<Gc<GcCell<EmitNode>>>>,
+    emit_node: GcCell<Option<Id<EmitNode>>>,
     contextual_type: GcCell<Option<Id<Type>>>,
-    inference_context: GcCell<Option<Gc<InferenceContext>>>,
+    inference_context: GcCell<Option<Id<InferenceContext>>>,
     flow_node: GcCell<Option<Id<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Id<Node>>>>,
     js_doc_cache: GcCell<Option<GcVec<Id<Node>>>>,
@@ -1828,6 +1829,10 @@ impl NodeInterface for BaseNode {
         id
     }
 
+    fn base_node(&self) -> &BaseNode {
+        self
+    }
+
     fn kind(&self) -> SyntaxKind {
         self.kind
     }
@@ -1860,19 +1865,19 @@ impl NodeInterface for BaseNode {
         self.transform_flags.set(self.transform_flags.get() | flags);
     }
 
-    fn maybe_decorators(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_decorators(&self) -> Option<Id<NodeArray>> {
         self.decorators.borrow().clone()
     }
 
-    fn set_decorators(&self, decorators: Option<Gc<NodeArray>>) {
+    fn set_decorators(&self, decorators: Option<Id<NodeArray>>) {
         *self.decorators.borrow_mut() = decorators;
     }
 
-    fn maybe_modifiers(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_modifiers(&self) -> Option<Id<NodeArray>> {
         self.modifiers.borrow().clone()
     }
 
-    fn set_modifiers(&self, modifiers: Option<Gc<NodeArray>>) {
+    fn set_modifiers(&self, modifiers: Option<Id<NodeArray>>) {
         *self.modifiers.borrow_mut() = modifiers;
     }
 
@@ -1948,23 +1953,23 @@ impl NodeInterface for BaseNode {
         *self._symbol_override.borrow_mut() = Some(symbol_override);
     }
 
-    fn maybe_locals(&self) -> Option<Gc<GcCell<SymbolTable>>> {
+    fn maybe_locals(&self) -> Option<Id<SymbolTable>> {
         (*self.locals).borrow().clone()
     }
 
-    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.locals.borrow_mut()
     }
 
-    fn locals(&self) -> Gc<GcCell<SymbolTable>> {
+    fn locals(&self) -> Id<SymbolTable> {
         (*self.locals).borrow().clone().unwrap()
     }
 
-    fn locals_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>, Gc<GcCell<SymbolTable>>> {
+    fn locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>, Id<SymbolTable>> {
         GcCellRefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
     }
 
-    fn set_locals(&self, locals: Option<Gc<GcCell<SymbolTable>>>) {
+    fn set_locals(&self, locals: Option<Id<SymbolTable>>) {
         *self.locals.borrow_mut() = locals;
     }
 
@@ -1984,15 +1989,15 @@ impl NodeInterface for BaseNode {
         *self.local_symbol.borrow_mut() = local_symbol;
     }
 
-    fn maybe_emit_node(&self) -> Option<Gc<GcCell<EmitNode>>> {
+    fn maybe_emit_node(&self) -> Option<Id<EmitNode>> {
         self.emit_node.borrow().clone()
     }
 
-    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Gc<GcCell<EmitNode>>>> {
+    fn maybe_emit_node_mut(&self) -> GcCellRefMut<Option<Id<EmitNode>>> {
         self.emit_node.borrow_mut()
     }
 
-    fn set_emit_node(&self, emit_node: Option<Gc<GcCell<EmitNode>>>) {
+    fn set_emit_node(&self, emit_node: Option<Id<EmitNode>>) {
         *self.emit_node.borrow_mut() = emit_node;
     }
 
@@ -2000,7 +2005,7 @@ impl NodeInterface for BaseNode {
         self.contextual_type.borrow_mut()
     }
 
-    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Gc<InferenceContext>>> {
+    fn maybe_inference_context(&self) -> GcCellRefMut<Option<Id<InferenceContext>>> {
         self.inference_context.borrow_mut()
     }
 
@@ -2150,7 +2155,7 @@ impl NodeExt for Id<Node> {
     }
 
     fn set_additional_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self {
-        let existing_emit_flags = get_emit_flags(&self.ref_(arena));
+        let existing_emit_flags = get_emit_flags(self, arena);
         set_emit_flags(self, emit_flags | existing_emit_flags, arena)
     }
 

@@ -24,13 +24,13 @@ impl TransformSystemModule {
         export_self: bool,
     ) /*: Statement[] | undefined*/
     {
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
         let decl_name = decl.ref_(self).as_named_declaration().name();
         if is_binding_pattern(Some(&*decl_name.ref_(self))) {
-            for &element in &decl_name.ref_(self).as_has_elements().elements() {
+            for &element in &*decl_name.ref_(self).as_has_elements().elements().ref_(self) {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element, export_self);
                 }
@@ -42,7 +42,7 @@ impl TransformSystemModule {
                 self.append_export_statement(
                     statements,
                     decl_name,
-                    self.factory.get_local_name(decl, None, None),
+                    self.factory.ref_(self).get_local_name(decl, None, None),
                     None,
                 );
                 exclude_name = Some(id_text(&decl_name_ref));
@@ -60,7 +60,7 @@ impl TransformSystemModule {
         decl: Id<Node>, /*ClassDeclaration | FunctionDeclaration*/
     ) /*: Statement[] | undefined*/
     {
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
@@ -68,14 +68,14 @@ impl TransformSystemModule {
         if has_syntactic_modifier(decl, ModifierFlags::Export, self) {
             let export_name = if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
                 self.factory
-                    .create_string_literal("default".to_owned(), None, None)
+                    .ref_(self).create_string_literal("default".to_owned(), None, None)
             } else {
                 decl.ref_(self).as_named_declaration().name()
             };
             self.append_export_statement(
                 statements,
                 export_name,
-                self.factory.get_local_name(decl, None, None),
+                self.factory.ref_(self).get_local_name(decl, None, None),
                 None,
             );
             exclude_name = Some(get_text_of_identifier_or_literal(&export_name.ref_(self)).into_owned());
@@ -95,13 +95,14 @@ impl TransformSystemModule {
         exclude_name: Option<&str>,
     ) /*: Statement[] | undefined*/
     {
-        if self.module_info().export_equals.is_some() {
+        if self.module_info().ref_(self).export_equals.is_some() {
             return /*statements*/;
         }
 
-        let name = self.factory.get_declaration_name(Some(decl), None, None);
+        let name = self.factory.ref_(self).get_declaration_name(Some(decl), None, None);
         let module_info = self.module_info();
-        let export_specifiers = module_info.export_specifiers.get(id_text(&name.ref_(self)));
+        let module_info_ref = module_info.ref_(self);
+        let export_specifiers = module_info_ref.export_specifiers.get(id_text(&name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
                 let export_specifier_ref = export_specifier.ref_(self);
@@ -147,7 +148,7 @@ impl TransformSystemModule {
     ) -> Id<Node> {
         let statement = self
             .factory
-            .create_expression_statement(self.create_export_expression(name, value))
+            .ref_(self).create_expression_statement(self.create_export_expression(name, value))
             .start_on_new_line(self);
         if allow_comments != Some(true) {
             set_emit_flags(statement, EmitFlags::NoComments, self);
@@ -162,15 +163,15 @@ impl TransformSystemModule {
         value: Id<Node>, /*Expression*/
     ) -> Id<Node> {
         let export_name = if is_identifier(&name.ref_(self)) {
-            self.factory.create_string_literal_from_node(name)
+            self.factory.ref_(self).create_string_literal_from_node(name)
         } else {
             name
         };
-        set_emit_flags(value, get_emit_flags(&value.ref_(self)) | EmitFlags::NoComments, self);
+        set_emit_flags(value, get_emit_flags(value, self) | EmitFlags::NoComments, self);
         self.factory
-            .create_call_expression(
+            .ref_(self).create_call_expression(
                 self.export_function(),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![export_name, value]),
             )
             .set_comment_range(&*value.ref_(self), self)
@@ -212,7 +213,7 @@ impl TransformSystemModule {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node));
 
-        let node = self.factory.update_for_statement(
+        let node = self.factory.ref_(self).update_for_statement(
             node,
             try_maybe_visit_node(
                 node_as_for_statement.initializer,
@@ -265,7 +266,7 @@ impl TransformSystemModule {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node));
 
-        let node = self.factory.update_for_in_statement(
+        let node = self.factory.ref_(self).update_for_in_statement(
             node,
             self.visit_for_initializer(node_as_for_in_statement.initializer)?,
             try_visit_node(
@@ -295,7 +296,7 @@ impl TransformSystemModule {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node));
 
-        let node = self.factory.update_for_of_statement(
+        let node = self.factory.ref_(self).update_for_of_statement(
             node,
             node_as_for_of_statement.await_modifier.clone(),
             self.visit_for_initializer(node_as_for_of_statement.initializer)?,
@@ -330,7 +331,7 @@ impl TransformSystemModule {
     ) -> io::Result<Id<Node /*ForInitializer*/>> {
         Ok(if self.should_hoist_for_initializer(node) {
             let mut expressions: Option<Vec<Id<Node /*Expression*/>>> = _d();
-            for &variable in &node.ref_(self).as_variable_declaration_list().declarations {
+            for &variable in &*node.ref_(self).as_variable_declaration_list().declarations.ref_(self) {
                 expressions
                     .get_or_insert_default_()
                     .push(self.transform_initialized_variable(variable, false)?);
@@ -344,8 +345,8 @@ impl TransformSystemModule {
             }
 
             expressions.map_or_else(
-                || self.factory.create_omitted_expression(),
-                |expressions| self.factory.inline_expressions(&expressions),
+                || self.factory.ref_(self).create_omitted_expression(),
+                |expressions| self.factory.ref_(self).inline_expressions(&expressions),
             )
         } else {
             try_visit_node(
@@ -365,7 +366,7 @@ impl TransformSystemModule {
         let node_as_do_statement = node_ref.as_do_statement();
         Ok(Some(
             self.factory
-                .update_do_statement(
+                .ref_(self).update_do_statement(
                     node,
                     try_visit_iteration_body(
                         node_as_do_statement.statement,
@@ -392,7 +393,7 @@ impl TransformSystemModule {
         let node_as_while_statement = node_ref.as_while_statement();
         Ok(Some(
             self.factory
-                .update_while_statement(
+                .ref_(self).update_while_statement(
                     node,
                     try_visit_node(
                         node_as_while_statement.expression,
@@ -419,14 +420,14 @@ impl TransformSystemModule {
         let node_as_labeled_statement = node_ref.as_labeled_statement();
         Ok(Some(
             self.factory
-                .update_labeled_statement(
+                .ref_(self).update_labeled_statement(
                     node,
                     node_as_labeled_statement.label.clone(),
                     try_visit_node(
                         node_as_labeled_statement.statement,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                         Some(|node| is_statement(node, self)),
-                        Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
+                        Some(|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),
                     )?,
                 )
                 .into(),
@@ -441,7 +442,7 @@ impl TransformSystemModule {
         let node_as_with_statement = node_ref.as_with_statement();
         Ok(Some(
             self.factory
-                .update_with_statement(
+                .ref_(self).update_with_statement(
                     node,
                     try_visit_node(
                         node_as_with_statement.expression,
@@ -453,7 +454,7 @@ impl TransformSystemModule {
                         node_as_with_statement.statement,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                         Some(|node| is_statement(node, self)),
-                        Some(|nodes: &[Id<Node>]| self.factory.lift_to_block(nodes)),
+                        Some(|nodes: &[Id<Node>]| self.factory.ref_(self).lift_to_block(nodes)),
                     )?,
                 )
                 .into(),
@@ -468,7 +469,7 @@ impl TransformSystemModule {
         let node_as_switch_statement = node_ref.as_switch_statement();
         Ok(Some(
             self.factory
-                .update_switch_statement(
+                .ref_(self).update_switch_statement(
                     node,
                     try_visit_node(
                         node_as_switch_statement.expression,
@@ -496,14 +497,15 @@ impl TransformSystemModule {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node));
 
-        let node = self.factory.update_case_block(
+        let node = self.factory.ref_(self).update_case_block(
             node,
             try_visit_nodes(
-                &node_as_case_block.clauses,
+                node_as_case_block.clauses,
                 Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                 Some(|node: Id<Node>| is_case_or_default_clause(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
         );
 
@@ -519,7 +521,7 @@ impl TransformSystemModule {
         let node_as_case_clause = node_ref.as_case_clause();
         Ok(Some(
             self.factory
-                .update_case_clause(
+                .ref_(self).update_case_clause(
                     node,
                     try_visit_node(
                         node_as_case_clause.expression,
@@ -528,11 +530,12 @@ impl TransformSystemModule {
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
                     try_visit_nodes(
-                        &node_as_case_clause.statements,
+                        node_as_case_clause.statements,
                         Some(|node: Id<Node>| self.top_level_nested_visitor(node)),
                         Some(|node| is_statement(node, self)),
                         None,
                         None,
+                        self,
                     )?,
                 )
                 .into(),
@@ -578,7 +581,7 @@ impl TransformSystemModule {
         let saved_enclosing_block_scoped_container = self.maybe_enclosing_block_scoped_container();
         self.set_enclosing_block_scoped_container(Some(node));
 
-        let node = self.factory.update_catch_clause(
+        let node = self.factory.ref_(self).update_catch_clause(
             node,
             node_as_catch_clause.variable_declaration.clone(),
             try_visit_node(

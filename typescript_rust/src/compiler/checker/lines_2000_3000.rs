@@ -77,7 +77,7 @@ impl TypeChecker {
         let type_only_declaration = type_only_declaration.unwrap();
         add_related_info(
             &diagnostic.ref_(self),
-            vec![create_diagnostic_for_node(
+            vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                 type_only_declaration,
                 if type_only_declaration.ref_(self).kind() == SyntaxKind::ExportSpecifier {
                     &Diagnostics::_0_was_exported_here
@@ -87,7 +87,7 @@ impl TypeChecker {
                 Some(vec![unescaped_name.to_owned()]),
                 self,
             )
-            .into()],
+            .into())],
         );
         diagnostic
     }
@@ -173,13 +173,12 @@ impl TypeChecker {
                     if parent == Some(container) {
                         return !(is_jsdoc_template_tag(&decl_parent.ref_(self))
                             && find(
-                                decl_parent
+                                &decl_parent
                                     .ref_(self)
                                     .parent()
                                     .ref_(self).as_jsdoc()
                                     .tags
-                                    .as_deref()
-                                    .unwrap(),
+                                    .unwrap().ref_(self),
                                 |tag: &Id<Node>, _| is_jsdoc_type_alias(&tag.ref_(self)),
                             )
                             .is_some());
@@ -502,7 +501,7 @@ impl TypeChecker {
             },
             self,
         );
-        if matches!(container, Some(container) if container.ref_(self).as_type_literal_node().members.len() == 1)
+        if matches!(container, Some(container) if container.ref_(self).as_type_literal_node().members.ref_(self).len() == 1)
         {
             let type_ = self.get_declared_type_of_symbol(symbol)?;
             return Ok(type_.ref_(self).flags().intersects(TypeFlags::Union)
@@ -662,13 +661,13 @@ impl TypeChecker {
             if let Some(diagnostic_message) = diagnostic_message {
                 add_related_info(
                     &diagnostic_message.ref_(self),
-                    vec![create_diagnostic_for_node(
+                    vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                         declaration,
                         &Diagnostics::_0_is_declared_here,
                         Some(vec![declaration_name]),
                         self,
                     )
-                    .into()],
+                    .into())],
                 );
             }
         }
@@ -780,7 +779,7 @@ impl TypeChecker {
                 common_js_property_access_as_property_access_expression.expression,
                 self,
             );
-            let name = leftmost.ref_(self).as_call_expression().arguments[0];
+            let name = leftmost.ref_(self).as_call_expression().arguments.ref_(self)[0];
             return Ok(
                 if is_identifier(&common_js_property_access_as_property_access_expression.name.ref_(self)) {
                     self.resolve_symbol(
@@ -866,13 +865,13 @@ impl TypeChecker {
                     message,
                     None,
                 ).ref_(self),
-                vec![create_diagnostic_for_node(
+                vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                     type_only_declaration,
                     related_message,
                     Some(vec![name.to_owned()]),
                     self,
                 )
-                .into()],
+                .into())],
             );
         }
 
@@ -887,7 +886,7 @@ impl TypeChecker {
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         let module_symbol_exports = module_symbol.ref_(self).exports();
-        let module_symbol_exports = (*module_symbol_exports).borrow();
+        let module_symbol_exports = module_symbol_exports.ref_(self);
         let export_value = module_symbol_exports.get(InternalSymbolName::ExportEquals);
         let export_symbol = if let Some(&export_value) = export_value {
             self.get_property_of_type(self.get_type_of_symbol(export_value)?, name)?
@@ -1070,7 +1069,7 @@ impl TypeChecker {
                     "esModuleInterop"
                 };
                 let module_symbol_exports = module_symbol.ref_(self).exports();
-                let module_symbol_exports = (*module_symbol_exports).borrow();
+                let module_symbol_exports = module_symbol_exports.ref_(self);
                 let export_equals_symbol = *module_symbol_exports
                     .get(InternalSymbolName::ExportEquals)
                     .unwrap();
@@ -1094,7 +1093,7 @@ impl TypeChecker {
                     add_related_info(
                         &err.ref_(self),
                         vec![
-                            create_diagnostic_for_node(
+                            self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                 export_assignment,
                                 &Diagnostics::This_module_is_declared_with_using_export_and_can_only_be_used_with_a_default_import_when_using_the_0_flag,
                                 Some(
@@ -1103,7 +1102,7 @@ impl TypeChecker {
                                     ]
                                 ),
                                 self,
-                            ).into()
+                            ).into())
                         ]
                     );
                 }
@@ -1142,7 +1141,7 @@ impl TypeChecker {
         let node_as_import_clause = node_ref.as_import_clause();
         if matches!(
             module_symbol.ref_(self).maybe_exports().as_ref(),
-            Some(exports) if (**exports).borrow().contains_key(node.ref_(self).symbol().ref_(self).escaped_name())
+            Some(exports) if exports.ref_(self).contains_key(node.ref_(self).symbol().ref_(self).escaped_name())
         ) {
             self.error(
                 node_as_import_clause.name,
@@ -1170,8 +1169,8 @@ impl TypeChecker {
                     .maybe_exports()
                     .as_ref()
                     .and_then(|exports| {
-                        (**exports)
-                            .borrow()
+                        exports
+                            .ref_(self)
                             .get(InternalSymbolName::ExportStar)
                             .cloned()
                     });
@@ -1188,7 +1187,7 @@ impl TypeChecker {
                                 )?.and_then(|resolved| {
                                     resolved.ref_(self).maybe_exports().as_ref().map(|exports| exports.clone())
                                 }),
-                                Some(exports) if (*exports).borrow().contains_key(InternalSymbolName::Default)
+                                Some(exports) if exports.ref_(self).contains_key(InternalSymbolName::Default)
                             )
                         ))
                     })?.cloned())
@@ -1196,13 +1195,13 @@ impl TypeChecker {
                 if let Some(default_export) = default_export {
                     add_related_info(
                         &diagnostic.ref_(self),
-                        vec![create_diagnostic_for_node(
+                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                             default_export,
                             &Diagnostics::export_Asterisk_does_not_re_export_a_default,
                             None,
                             self,
                         )
-                        .into()],
+                        .into())],
                     );
                 }
             }
@@ -1298,14 +1297,14 @@ impl TypeChecker {
                 .set_value_declaration(value_symbol_value_declaration);
         }
         if let Some(type_symbol_members) = type_symbol.ref_(self).maybe_members().as_ref() {
-            *result.ref_(self).maybe_members_mut() = Some(Gc::new(GcCell::new(
-                (**type_symbol_members).borrow().clone(),
-            )));
+            *result.ref_(self).maybe_members_mut() = Some(self.alloc_symbol_table(
+                type_symbol_members.ref_(self).clone(),
+            ));
         }
         if let Some(value_symbol_exports) = value_symbol.ref_(self).maybe_exports().as_ref() {
-            *result.ref_(self).maybe_exports_mut() = Some(Gc::new(GcCell::new(
-                (**value_symbol_exports).borrow().clone(),
-            )));
+            *result.ref_(self).maybe_exports_mut() = Some(self.alloc_symbol_table(
+                value_symbol_exports.ref_(self).clone(),
+            ));
         }
         result
     }
@@ -1318,8 +1317,8 @@ impl TypeChecker {
         dont_resolve_alias: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         if symbol.ref_(self).flags().intersects(SymbolFlags::Module) {
-            let export_symbol = (*self.get_exports_of_symbol(symbol)?)
-                .borrow()
+            let export_symbol = self.get_exports_of_symbol(symbol)?
+                .ref_(self)
                 .get(&name.ref_(self).as_identifier().escaped_text)
                 .cloned();
             let resolved = self.resolve_symbol(export_symbol, Some(dont_resolve_alias))?;
@@ -1411,10 +1410,9 @@ impl TypeChecker {
             module_symbol
                 .ref_(self)
                 .maybe_exports()
-                .as_ref()
                 .and_then(|exports| {
-                    (**exports)
-                        .borrow()
+                    exports
+                        .ref_(self)
                         .get(InternalSymbolName::ExportEquals)
                         .cloned()
                 })
@@ -1504,19 +1502,19 @@ impl TypeChecker {
                     {
                         add_related_info(
                             &diagnostic.ref_(self),
-                            vec![create_diagnostic_for_node(
+                            vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                 suggestion_value_declaration,
                                 &Diagnostics::_0_is_declared_here,
                                 Some(vec![suggestion_name]),
                                 self,
                             )
-                            .into()],
+                            .into())],
                         );
                     }
                 } else {
                     if matches!(
                         module_symbol.ref_(self).maybe_exports().as_ref(),
-                        Some(exports) if (**exports).borrow().contains_key(InternalSymbolName::Default)
+                        Some(exports) if exports.ref_(self).contains_key(InternalSymbolName::Default)
                     ) {
                         self.error(
                             Some(name),
@@ -1557,10 +1555,9 @@ impl TypeChecker {
                 .and_then(|value_declaration| {
                     value_declaration
                         .ref_(self).maybe_locals()
-                        .as_ref()
                         .and_then(|locals| {
-                            (**locals)
-                                .borrow()
+                            locals
+                                .ref_(self)
                                 .get(&name.ref_(self).as_identifier().escaped_text)
                                 .cloned()
                         })
@@ -1568,9 +1565,9 @@ impl TypeChecker {
         let module_symbol_ref = module_symbol.ref_(self);
         let exports = module_symbol_ref.maybe_exports();
         if let Some(local_symbol) = local_symbol {
-            let exported_equals_symbol = exports.as_ref().and_then(|exports| {
-                (**exports)
-                    .borrow()
+            let exported_equals_symbol = exports.and_then(|exports| {
+                exports
+                    .ref_(self)
                     .get(InternalSymbolName::ExportEquals)
                     .cloned()
             });
@@ -1596,7 +1593,7 @@ impl TypeChecker {
                 let exported_symbol =
                     exports.as_ref().try_and_then(|exports| -> io::Result<_> {
                         Ok(try_find(
-                            &self.symbols_to_array(&(**exports).borrow()),
+                            &self.symbols_to_array(&exports.ref_(self)),
                             |&symbol: &Id<Symbol>, _| -> io::Result<_> {
                                 Ok(self
                                     .get_symbol_if_same_reference(symbol, local_symbol)?
@@ -1634,7 +1631,7 @@ impl TypeChecker {
                     add_related_info(
                         &diagnostic.ref_(self),
                         map(local_symbol_declarations, |&decl: &Id<Node>, index| {
-                            create_diagnostic_for_node(
+                            self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                 decl,
                                 if index == 0 {
                                     &Diagnostics::_0_is_declared_here
@@ -1644,7 +1641,7 @@ impl TypeChecker {
                                 Some(vec![declaration_name.clone()]),
                                 self,
                             )
-                            .into()
+                            .into())
                         }),
                     );
                 }
@@ -1859,8 +1856,8 @@ impl TypeChecker {
             return Ok(alias_like);
         }
         self.check_expression_cached(expression, None)?;
-        Ok((*self.get_node_links(expression))
-            .borrow()
+        Ok(self.get_node_links(expression)
+            .ref_(self)
             .resolved_symbol
             .clone())
     }

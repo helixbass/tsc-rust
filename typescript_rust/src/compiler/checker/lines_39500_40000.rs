@@ -372,7 +372,7 @@ impl TypeChecker {
                         )?;
                         if module_existed.is_some() {
                             try_for_each(
-                                &import_clause_named_bindings.ref_(self).as_named_imports().elements,
+                                &*import_clause_named_bindings.ref_(self).as_named_imports().elements.ref_(self),
                                 |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                                     self.check_import_binding(element)?;
                                     Ok(None)
@@ -501,7 +501,7 @@ impl TypeChecker {
             && matches!(
                 node_as_export_declaration.export_clause,
                 Some(node_export_clause) if is_named_exports(&node_export_clause.ref_(self)) &&
-                    length(Some(&node_export_clause.ref_(self).as_named_exports().elements)) > 0
+                    length(Some(&*node_export_clause.ref_(self).as_named_exports().elements.ref_(self))) > 0
             )
             && self.language_version == ScriptTarget::ES3
         {
@@ -517,7 +517,7 @@ impl TypeChecker {
                 .filter(|node_export_clause| !is_namespace_export(&node_export_clause.ref_(self)))
             {
                 try_for_each(
-                    &node_export_clause.ref_(self).as_named_exports().elements,
+                    &*node_export_clause.ref_(self).as_named_exports().elements.ref_(self),
                     |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_export_specifier(element)?;
                         Ok(None)
@@ -654,8 +654,7 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         try_for_each_import_clause_declaration_bool(import_clause, |declaration| -> io::Result<_> {
             Ok(
-                (*self.get_symbol_links(self.get_symbol_of_node(declaration)?.unwrap()))
-                    .borrow()
+                self.get_symbol_links(self.get_symbol_of_node(declaration)?.unwrap()).ref_(self)
                     .const_enum_referenced
                     == Some(true),
             )
@@ -690,8 +689,7 @@ impl TypeChecker {
                     Some(is_referenced) if is_referenced != SymbolFlags::None
                 )
                 && !self.is_referenced_alias_declaration(statement, Some(false))?
-                && (*self.get_symbol_links(self.get_symbol_of_node(statement)?.unwrap()))
-                    .borrow()
+                && self.get_symbol_links(self.get_symbol_of_node(statement)?.unwrap()).ref_(self)
                     .const_enum_referenced
                     != Some(true)
         })
@@ -701,7 +699,7 @@ impl TypeChecker {
         &self,
         source_file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        for &statement in &source_file.ref_(self).as_source_file().statements() {
+        for &statement in &*source_file.ref_(self).as_source_file().statements().ref_(self) {
             if self.can_convert_import_declaration_to_type_only(statement)?
                 || self.can_convert_import_equals_declaration_to_type_only(statement)?
             {
@@ -943,7 +941,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_exported_members(&self, module_symbol: Id<Symbol>) -> bool {
-        for_each_entry_bool(&*(*module_symbol.ref_(self).exports()).borrow(), |_, id| {
+        for_each_entry_bool(&*module_symbol.ref_(self).exports().ref_(self), |_, id| {
             id != "export="
         })
     }
@@ -954,9 +952,9 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let module_symbol = self.get_symbol_of_node(node)?.unwrap();
         let links = self.get_symbol_links(module_symbol);
-        if (*links).borrow().exports_checked != Some(true) {
-            let export_equals_symbol = (*module_symbol.ref_(self).exports())
-                .borrow()
+        if links.ref_(self).exports_checked != Some(true) {
+            let export_equals_symbol = module_symbol.ref_(self).exports()
+                .ref_(self)
                 .get("export=")
                 .cloned();
             if let Some(export_equals_symbol) = export_equals_symbol {
@@ -978,7 +976,7 @@ impl TypeChecker {
             }
             let exports = self.get_exports_of_module_(module_symbol)?;
             // if (exports) {
-            let exports = (*exports).borrow();
+            let exports = exports.ref_(self);
             for (id, &symbol) in &*exports {
                 let symbol_ref = symbol.ref_(self);
                 let declarations = symbol_ref.maybe_declarations();
@@ -1017,7 +1015,7 @@ impl TypeChecker {
                 }
             }
             // }
-            links.borrow_mut().exports_checked = Some(true);
+            links.ref_mut(self).exports_checked = Some(true);
         }
 
         Ok(())

@@ -21,7 +21,7 @@ use crate::{
     is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node, Debug_,
     GeneratedIdentifierFlags, GetOrInsertDefault, NodeArray, NodeCheckFlags, PrivateIdentifierKind,
     SyntaxKind, VisitResult,
-    InArena,
+    HasArena, InArena,
     CoreTransformationContext,
 };
 
@@ -31,15 +31,15 @@ impl TransformClassFields {
         node: Id<Node>, /*SuperProperty*/
     ) -> Id<Node> {
         if is_property_access_expression(&node.ref_(self)) {
-            self.factory.update_property_access_expression(
+            self.factory.ref_(self).update_property_access_expression(
                 node,
-                self.factory.create_void_zero(),
+                self.factory.ref_(self).create_void_zero(),
                 node.ref_(self).as_property_access_expression().name(),
             )
         } else {
-            self.factory.update_element_access_expression(
+            self.factory.ref_(self).update_element_access_expression(
                 node,
-                self.factory.create_void_zero(),
+                self.factory.ref_(self).create_void_zero(),
                 visit_node(
                     node.ref_(self).as_element_access_expression().argument_expression,
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -67,17 +67,17 @@ impl TransformClassFields {
             let already_transformed = is_assignment_expression(inner_expression, None, self)
                 && is_generated_identifier(&inner_expression.ref_(self).as_binary_expression().left.ref_(self));
             if !already_transformed && !inlinable && should_hoist {
-                let generated_name = self.factory.get_generated_name_for_node(Some(name), None);
+                let generated_name = self.factory.ref_(self).get_generated_name_for_node(Some(name), None);
                 if self
                     .resolver
-                    .get_node_check_flags(name)
+                    .ref_(self).get_node_check_flags(name)
                     .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
                 {
                     self.context.ref_(self).add_block_scoped_variable(generated_name);
                 } else {
                     self.context.ref_(self).hoist_variable_declaration(generated_name);
                 }
-                return Some(self.factory.create_assignment(generated_name, expression));
+                return Some(self.factory.ref_(self).create_assignment(generated_name, expression));
             }
             return (!(inlinable || is_identifier(&inner_expression.ref_(self)))).then_some(expression);
         }
@@ -96,20 +96,22 @@ impl TransformClassFields {
         );
     }
 
-    pub(super) fn get_class_lexical_environment(&self) -> Gc<GcCell<ClassLexicalEnvironment>> {
-        self.maybe_current_class_lexical_environment()
-            .get_or_insert_default_()
-            .clone()
+    pub(super) fn get_class_lexical_environment(&self) -> Id<ClassLexicalEnvironment> {
+        if let Some(current_class_lexical_environment) = self.maybe_current_class_lexical_environment() {
+            return current_class_lexical_environment;
+        }
+        self.set_current_class_lexical_environment(Some(self.alloc_class_lexical_environment(Default::default())));
+        self.maybe_current_class_lexical_environment().unwrap()
     }
 
     pub(super) fn get_private_identifier_environment(
         &self,
-    ) -> Gc<GcCell<PrivateIdentifierEnvironment>> {
+    ) -> Id<PrivateIdentifierEnvironment> {
         let lex = self.get_class_lexical_environment();
         let ret = lex
-            .borrow_mut()
+            .ref_mut(self)
             .private_identifier_environment
-            .get_or_insert_default_()
+            .get_or_insert_with(|| self.alloc_private_identifier_environment(Default::default()))
             .clone();
         ret
     }
@@ -133,17 +135,17 @@ impl TransformClassFields {
         let node_name_as_private_identifier = node_name_ref.as_private_identifier();
         let text = get_text_of_property_name(node_name, self);
         let lex = self.get_class_lexical_environment();
-        let lex = (*lex).borrow();
+        let lex = lex.ref_(self);
         let class_constructor = lex.class_constructor;
 
         let private_env = self.get_private_identifier_environment();
-        let weak_set_name = (*private_env).borrow().weak_set_name.clone();
+        let weak_set_name = private_env.ref_(self).weak_set_name.clone();
 
         let mut assignment_expressions: Vec<Id<Node /*Expression*/>> = _d();
 
         let private_name = &node_name_as_private_identifier.escaped_text;
-        let previous_info = (*private_env)
-            .borrow()
+        let previous_info = private_env
+            .ref_(self)
             .identifiers
             .get(private_name)
             .cloned();
@@ -158,32 +160,32 @@ impl TransformClassFields {
             let class_constructor = class_constructor.unwrap();
             if is_property_declaration(&node.ref_(self)) {
                 let variable_name = self.create_hoisted_variable_for_private_name(&text, node);
-                private_env.borrow_mut().identifiers.insert(
+                private_env.ref_mut(self).identifiers.insert(
                     private_name.clone(),
-                    PrivateIdentifierStaticFieldInfo::new(
+                    self.alloc_private_identifier_info(PrivateIdentifierStaticFieldInfo::new(
                         class_constructor.clone(),
                         is_valid,
                         variable_name,
                     )
-                    .into(),
+                    .into()),
                 );
             } else if is_method_declaration(&node.ref_(self)) {
                 let function_name = self.create_hoisted_variable_for_private_name(&text, node);
-                private_env.borrow_mut().identifiers.insert(
+                private_env.ref_mut(self).identifiers.insert(
                     private_name.clone(),
-                    PrivateIdentifierMethodInfo::new(
+                    self.alloc_private_identifier_info(PrivateIdentifierMethodInfo::new(
                         class_constructor.clone(),
                         true,
                         is_valid,
                         function_name,
                     )
-                    .into(),
+                    .into()),
                 );
             } else if is_get_accessor_declaration(&node.ref_(self)) {
                 let getter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_get"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && previous_info.is_static()
                         && previous_info
@@ -192,27 +194,27 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .getter_name = Some(getter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        PrivateIdentifierAccessorInfo::new(
+                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
                             class_constructor.clone(),
                             true,
                             is_valid,
                             Some(getter_name),
                             None,
                         )
-                        .into(),
+                        .into()),
                     );
                 }
             } else if is_set_accessor_declaration(&node.ref_(self)) {
                 let setter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_set"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && previous_info.is_static()
                         && previous_info
@@ -221,20 +223,20 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .setter_name = Some(setter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        PrivateIdentifierAccessorInfo::new(
+                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
                             class_constructor.clone(),
                             true,
                             is_valid,
                             None,
                             Some(setter_name),
                         )
-                        .into(),
+                        .into()),
                     );
                 }
             } else {
@@ -242,16 +244,16 @@ impl TransformClassFields {
             }
         } else if is_property_declaration(&node.ref_(self)) {
             let weak_map_name = self.create_hoisted_variable_for_private_name(&text, node);
-            private_env.borrow_mut().identifiers.insert(
+            private_env.ref_mut(self).identifiers.insert(
                 private_name.clone(),
-                PrivateIdentifierInstanceFieldInfo::new(weak_map_name.clone(), is_valid).into(),
+                self.alloc_private_identifier_info(PrivateIdentifierInstanceFieldInfo::new(weak_map_name.clone(), is_valid).into()),
             );
 
-            assignment_expressions.push(self.factory.create_assignment(
+            assignment_expressions.push(self.factory.ref_(self).create_assignment(
                 weak_map_name,
-                self.factory.create_new_expression(
-                    self.factory.create_identifier("WeakMap"),
-                    Option::<Gc<NodeArray>>::None,
+                self.factory.ref_(self).create_new_expression(
+                    self.factory.ref_(self).create_identifier("WeakMap"),
+                    Option::<Id<NodeArray>>::None,
                     Some(vec![]),
                 ),
             ));
@@ -262,15 +264,15 @@ impl TransformClassFields {
             );
             let weak_set_name = weak_set_name.as_ref().unwrap();
 
-            private_env.borrow_mut().identifiers.insert(
+            private_env.ref_mut(self).identifiers.insert(
                 private_name.clone(),
-                PrivateIdentifierMethodInfo::new(
+                self.alloc_private_identifier_info(PrivateIdentifierMethodInfo::new(
                     weak_set_name.clone(),
                     false,
                     is_valid,
                     self.create_hoisted_variable_for_private_name(&text, node),
                 )
-                .into(),
+                .into()),
             );
         } else if is_accessor(&node.ref_(self)) {
             Debug_.assert(
@@ -282,8 +284,8 @@ impl TransformClassFields {
             if is_get_accessor(&node.ref_(self)) {
                 let getter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_get"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && !previous_info.is_static()
                         && previous_info
@@ -292,27 +294,27 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .getter_name = Some(getter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        PrivateIdentifierAccessorInfo::new(
+                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
                             weak_set_name.clone(),
                             false,
                             is_valid,
                             Some(getter_name),
                             None,
                         )
-                        .into(),
+                        .into()),
                     );
                 }
             } else {
                 let setter_name =
                     self.create_hoisted_variable_for_private_name(&format!("{text}_set"), node);
-                if let Some(previous_info) = previous_info.as_ref().filter(|previous_info| {
-                    let previous_info = (**previous_info).borrow();
+                if let Some(previous_info) = previous_info.filter(|previous_info| {
+                    let previous_info = previous_info.ref_(self);
                     previous_info.kind() == PrivateIdentifierKind::Accessor
                         && !previous_info.is_static()
                         && previous_info
@@ -321,20 +323,20 @@ impl TransformClassFields {
                             .is_none()
                 }) {
                     previous_info
-                        .borrow_mut()
+                        .ref_mut(self)
                         .as_private_identifier_accessor_info_mut()
                         .setter_name = Some(setter_name);
                 } else {
-                    private_env.borrow_mut().identifiers.insert(
+                    private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        PrivateIdentifierAccessorInfo::new(
+                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
                             weak_set_name.clone(),
                             false,
                             is_valid,
                             None,
                             Some(setter_name),
                         )
-                        .into(),
+                        .into()),
                     );
                 }
             }
@@ -352,21 +354,21 @@ impl TransformClassFields {
         node: Id<Node>, /*PrivateIdentifier | ClassStaticBlockDeclaration*/
     ) -> Id<Node /*Identifier*/> {
         let private_identifier_environment = self.get_private_identifier_environment();
-        let private_identifier_environment = (*private_identifier_environment).borrow();
+        let private_identifier_environment = private_identifier_environment.ref_(self);
         let class_name = &private_identifier_environment.class_name;
         let prefix = if !class_name.is_empty() {
             format!("_{class_name}")
         } else {
             "".to_owned()
         };
-        let identifier = self.factory.create_unique_name(
+        let identifier = self.factory.ref_(self).create_unique_name(
             &format!("{prefix}_{name}"),
             Some(GeneratedIdentifierFlags::Optimistic),
         );
 
         if self
             .resolver
-            .get_node_check_flags(node)
+            .ref_(self).get_node_check_flags(node)
             .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
         {
             self.context.ref_(self).add_block_scoped_variable(identifier);
@@ -391,20 +393,20 @@ impl TransformClassFields {
     pub(super) fn access_private_identifier(
         &self,
         name: Id<Node>, /*PrivateIdentifier*/
-    ) -> Option<Gc<GcCell<PrivateIdentifierInfo>>> {
+    ) -> Option<Id<PrivateIdentifierInfo>> {
         let name_ref = name.ref_(self);
         let name_as_private_identifier = name_ref.as_private_identifier();
         if let Some(current_class_lexical_environment_private_identifier_environment) = self
             .maybe_current_class_lexical_environment()
             .and_then(|current_class_lexical_environment| {
-                (*current_class_lexical_environment)
-                    .borrow()
+                current_class_lexical_environment
+                    .ref_(self)
                     .private_identifier_environment
                     .clone()
             })
         {
             let current_class_lexical_environment_private_identifier_environment =
-                (*current_class_lexical_environment_private_identifier_environment).borrow();
+                current_class_lexical_environment_private_identifier_environment.ref_(self);
             let info = current_class_lexical_environment_private_identifier_environment
                 .identifiers
                 .get(&name_as_private_identifier.escaped_text);
@@ -414,13 +416,12 @@ impl TransformClassFields {
         }
         for env in self.class_lexical_environment_stack().iter().rev() {
             let env = continue_if_none!(env);
-            let info = (**env)
-                .borrow()
+            let info = env
+                .ref_(self)
                 .private_identifier_environment
-                .as_ref()
                 .and_then(|env_private_identifier_environment| {
-                    (**env_private_identifier_environment)
-                        .borrow()
+                    env_private_identifier_environment
+                        .ref_(self)
                         .identifiers
                         .get(&name_as_private_identifier.escaped_text)
                         .cloned()
@@ -438,7 +439,7 @@ impl TransformClassFields {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
-        let parameter = self.factory.get_generated_name_for_node(Some(node), None);
+        let parameter = self.factory.ref_(self).get_generated_name_for_node(Some(node), None);
         let Some(info) = self.access_private_identifier(node_as_property_access_expression.name()) else {
             return visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
         };
@@ -447,14 +448,14 @@ impl TransformClassFields {
             || is_super_property(node, self)
             || !is_simple_copiable_expression(&node_as_property_access_expression.expression.ref_(self))
         {
-            receiver = self.factory.create_temp_variable(
+            receiver = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
                 }),
                 Some(true),
             );
             self.get_pending_expressions()
-                .push(self.factory.create_binary_expression(
+                .push(self.factory.ref_(self).create_binary_expression(
                     receiver.clone(),
                     SyntaxKind::EqualsToken,
                     visit_node(
@@ -465,10 +466,10 @@ impl TransformClassFields {
                     ),
                 ));
         }
-        let ret = self.factory.create_assignment_target_wrapper(
+        let ret = self.factory.ref_(self).create_assignment_target_wrapper(
             parameter,
             self.create_private_identifier_assignment(
-                &(*info).borrow(),
+                &info.ref_(self),
                 receiver,
                 parameter,
                 SyntaxKind::EqualsToken,
@@ -496,7 +497,7 @@ impl TransformClassFields {
                     self.maybe_current_class_lexical_environment()
                 {
                     let current_class_lexical_environment =
-                        (*current_class_lexical_environment).borrow();
+                        current_class_lexical_environment.ref_(self);
                     let class_constructor =
                         current_class_lexical_environment.class_constructor.as_ref();
                     let super_class_reference = current_class_lexical_environment
@@ -516,7 +517,7 @@ impl TransformClassFields {
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ))
                         } else if is_identifier(&target.ref_(self).as_property_access_expression().name().ref_(self)) {
-                            Some(self.factory.create_string_literal_from_node(
+                            Some(self.factory.ref_(self).create_string_literal_from_node(
                                 target.ref_(self).as_property_access_expression().name(),
                             ))
                         } else {
@@ -525,10 +526,10 @@ impl TransformClassFields {
                         if let Some(name) = name {
                             let temp = self
                                 .factory
-                                .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
-                            wrapped = Some(self.factory.create_assignment_target_wrapper(
+                                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+                            wrapped = Some(self.factory.ref_(self).create_assignment_target_wrapper(
                                 temp.clone(),
-                                self.factory.create_reflect_set_call(
+                                self.factory.ref_(self).create_reflect_set_call(
                                     super_class_reference.clone(),
                                     name,
                                     temp,
@@ -544,7 +545,7 @@ impl TransformClassFields {
                     if is_assignment_expression(node, None, self) {
                         let node_ref = node.ref_(self);
                         let node_as_binary_expression = node_ref.as_binary_expression();
-                        self.factory.update_binary_expression(
+                        self.factory.ref_(self).update_binary_expression(
                             node,
                             wrapped,
                             node_as_binary_expression.operator_token.clone(),
@@ -556,7 +557,7 @@ impl TransformClassFields {
                             ),
                         )
                     } else if is_spread_element(&node.ref_(self)) {
-                        self.factory.update_spread_element(node, wrapped)
+                        self.factory.ref_(self).update_spread_element(node, wrapped)
                     } else {
                         wrapped
                     }
@@ -596,7 +597,7 @@ impl TransformClassFields {
                         self.maybe_current_class_lexical_environment()
                     {
                         let current_class_lexical_environment =
-                            (*current_class_lexical_environment).borrow();
+                            current_class_lexical_environment.ref_(self);
                         let class_constructor =
                             current_class_lexical_environment.class_constructor.as_ref();
                         let super_class_reference = current_class_lexical_environment
@@ -617,7 +618,7 @@ impl TransformClassFields {
                                 ))
                             } else if is_identifier(&target.ref_(self).as_property_access_expression().name().ref_(self))
                             {
-                                Some(self.factory.create_string_literal_from_node(
+                                Some(self.factory.ref_(self).create_string_literal_from_node(
                                     target.ref_(self).as_property_access_expression().name(),
                                 ))
                             } else {
@@ -626,10 +627,10 @@ impl TransformClassFields {
                             if let Some(name) = name {
                                 let temp = self
                                     .factory
-                                    .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
-                                wrapped = Some(self.factory.create_assignment_target_wrapper(
+                                    .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+                                wrapped = Some(self.factory.ref_(self).create_assignment_target_wrapper(
                                     temp.clone(),
-                                    self.factory.create_reflect_set_call(
+                                    self.factory.ref_(self).create_reflect_set_call(
                                         super_class_reference.clone(),
                                         name,
                                         temp,
@@ -647,7 +648,7 @@ impl TransformClassFields {
                 let initializer = get_initializer_of_binding_or_assignment_element(node, self);
                 return Some(
                     self.factory
-                        .update_property_assignment(
+                        .ref_(self).update_property_assignment(
                             node,
                             visit_node(
                                 node_as_property_assignment.name(),
@@ -657,7 +658,7 @@ impl TransformClassFields {
                             ),
                             if let Some(wrapped) = wrapped {
                                 if let Some(initializer) = initializer {
-                                    self.factory.create_assignment(
+                                    self.factory.ref_(self).create_assignment(
                                         wrapped,
                                         visit_node(
                                             initializer,
@@ -686,7 +687,7 @@ impl TransformClassFields {
                 let node_as_spread_assignment = node_ref.as_spread_assignment();
                 return Some(
                     self.factory
-                        .update_spread_assignment(
+                        .ref_(self).update_spread_assignment(
                             node,
                             wrapped.unwrap_or_else(|| {
                                 visit_node(

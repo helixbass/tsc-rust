@@ -25,7 +25,7 @@ use crate::{
     sort_and_deduplicate_diagnostics, source_file_may_be_emitted, static_arena, string_contains,
     to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
     type_directive_is_equal_to, zip_to_mode_aware_cache, AllArenas, AsDoubleDeref,
-    CancellationTokenDebuggable, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
+    CancellationToken, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
     Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
     FileReference, FilesByNameValue, GetOrInsertDefault, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeFlags,
@@ -43,7 +43,7 @@ impl Program {
         module_names: &[String],
         containing_file: Id<Node>, /*SourceFile*/
         reused_names: Option<&[String]>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
         if module_names.is_empty() {
             return Ok(vec![]);
         }
@@ -56,7 +56,7 @@ impl Program {
         let redirected_reference = self.get_redirect_reference_for_resolution(containing_file);
         // tracing?.push(tracing.Phase.Program, "resolveModuleNamesWorker", { containingFileName });
         // performance.mark("beforeResolveModule");
-        let result = self.actual_resolve_module_names_worker().call(
+        let result = self.actual_resolve_module_names_worker().ref_(self).call(
             module_names,
             containing_file,
             &containing_file_name,
@@ -73,7 +73,7 @@ impl Program {
         &self,
         type_directive_names: &[String],
         containing_file: impl Into<StringOrRcNode>,
-    ) -> io::Result<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         if type_directive_names.is_empty() {
             return Ok(vec![]);
         }
@@ -96,7 +96,7 @@ impl Program {
         // performance.mark("beforeResolveTypeReference");
         let result = self
             .actual_resolve_type_reference_directive_names_worker()
-            .call(
+            .ref_(self).call(
                 type_directive_names,
                 &containing_file_name,
                 redirected_reference.clone(),
@@ -110,7 +110,7 @@ impl Program {
     pub(super) fn get_redirect_reference_for_resolution(
         &self,
         file: Id<Node>, /*SourceFile*/
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> Option<Id<ResolvedProjectReference>> {
         let file_ref = file.ref_(self);
         let file_as_source_file = file_ref.as_source_file();
         let redirect = self
@@ -131,7 +131,7 @@ impl Program {
             return result_from_dts;
         }
 
-        if !self.host().is_realpath_supported()
+        if !self.host().ref_(self).is_realpath_supported()
             || self.options.ref_(self).preserve_symlinks != Some(true)
             || !string_contains(
                 &file_as_source_file.original_file_name(),
@@ -143,7 +143,7 @@ impl Program {
         let real_declaration_path = self.to_path(
             &self
                 .host()
-                .realpath(&file_as_source_file.original_file_name())
+                .ref_(self).realpath(&file_as_source_file.original_file_name())
                 .unwrap(),
         );
         if &real_declaration_path == &*file_as_source_file.path() {
@@ -158,7 +158,7 @@ impl Program {
     pub(super) fn get_redirect_reference_for_resolution_from_source_of_project(
         &self,
         file_path: &Path,
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> Option<Id<ResolvedProjectReference>> {
         let source = self.get_source_of_project_reference_redirect(file_path);
         if let Some(SourceOfProjectReferenceRedirect::String(source)) = source.as_ref() {
             return self.get_resolved_project_reference_to_redirect(source);
@@ -166,8 +166,8 @@ impl Program {
         if source.is_none() {
             return None;
         }
-        self.for_each_resolved_project_reference(|resolved_ref: Gc<ResolvedProjectReference>| {
-            let resolved_ref_command_line_options_ref = resolved_ref.command_line.options.ref_(self);
+        self.for_each_resolved_project_reference(|resolved_ref: Id<ResolvedProjectReference>| {
+            let resolved_ref_command_line_options_ref = resolved_ref.ref_(self).command_line.ref_(self).options.ref_(self);
             let out = out_file(&resolved_ref_command_line_options_ref)?;
             if out.is_empty() {
                 return None;
@@ -215,7 +215,7 @@ impl Program {
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
         self.host()
-            .has_invalidated_resolution(source_file)
+            .ref_(self).has_invalidated_resolution(source_file)
             .unwrap_or(false)
     }
 
@@ -246,10 +246,10 @@ impl Program {
     }
 
     pub fn use_case_sensitive_file_names(&self) -> bool {
-        CompilerHost::use_case_sensitive_file_names(&**self.host())
+        CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self))
     }
 
-    pub fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
+    pub fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.file_reasons.borrow().clone()
     }
 
@@ -260,7 +260,7 @@ impl Program {
     pub fn get_syntactic_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> Vec<Id<Diagnostic /*DiagnosticWithLocation*/>> {
         self.get_diagnostics_helper(
             source_file,
@@ -274,7 +274,7 @@ impl Program {
     pub fn get_semantic_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         self.try_get_diagnostics_helper(
             source_file,
@@ -288,8 +288,8 @@ impl Program {
     pub fn emit(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         emit_only_dts_files: Option<bool>,
         transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
@@ -318,8 +318,8 @@ impl Program {
     pub(super) fn emit_worker(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         emit_only_dts_files: Option<bool>,
         custom_transformers: Option<&CustomTransformers>,
         force_dts_emit: Option<bool>,
@@ -339,7 +339,7 @@ impl Program {
 
         let emit_resolver = self
             .get_diagnostics_producing_type_checker()?
-            .get_emit_resolver(
+            .ref_(self).get_emit_resolver(
                 if matches!(
                     out_file(&self.options.ref_(self)),
                     Some(out_file) if !out_file.is_empty()
@@ -379,8 +379,8 @@ impl Program {
         })
     }
 
-    pub fn to_path_rc(&self) -> Gc<Box<dyn ToPath>> {
-        Gc::new(Box::new(ProgramToPath::new(self.arena_id())))
+    pub fn to_path_rc(&self) -> Id<Box<dyn ToPath>> {
+        self.alloc_to_path(Box::new(ProgramToPath::new(self.arena_id())))
     }
 
     pub fn get_common_source_directory(&self) -> String {
@@ -419,7 +419,7 @@ impl Program {
         &self,
         module_names: &[String],
         file: Id<Node>, /*SourceFile*/
-    ) -> io::Result<Vec<Option<Gc<ResolvedModuleFull>>>> {
+    ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
         let file_ref = file.ref_(self);
         let file_as_source_file = file_ref.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
@@ -440,7 +440,7 @@ impl Program {
             if let Some(file_resolved_modules) =
                 file_as_source_file.maybe_resolved_modules().as_ref()
             {
-                let mut result: Vec<Option<Gc<ResolvedModuleFull>>> = vec![];
+                let mut result: Vec<Option<Id<ResolvedModuleFull>>> = vec![];
                 let mut i = 0;
                 for module_name in module_names {
                     let resolved_module = file_resolved_modules
@@ -475,17 +475,17 @@ impl Program {
                     if let Some(old_resolved_module) = old_resolved_module.as_ref() {
                         if is_trace_enabled(
                             &self.options.ref_(self),
-                            self.host().as_dyn_module_resolution_host(),
+                            self.host().ref_(self).as_dyn_module_resolution_host(),
                         ) {
                             trace(
-                                self.host().as_dyn_module_resolution_host(),
-                                if old_resolved_module.package_id.is_some() {
+                                self.host().ref_(self).as_dyn_module_resolution_host(),
+                                if old_resolved_module.ref_(self).package_id.is_some() {
                                     &*Diagnostics::Reusing_resolution_of_module_0_from_1_of_old_program_it_was_successfully_resolved_to_2_with_Package_ID_3
                                 } else {
                                     &*Diagnostics::Reusing_resolution_of_module_0_from_1_of_old_program_it_was_successfully_resolved_to_2
                                 },
                                 if let Some(old_resolved_module_package_id) =
-                                    old_resolved_module.package_id.as_ref()
+                                    old_resolved_module.ref_(self).package_id.as_ref()
                                 {
                                     Some(vec![
                                         module_name.clone(),
@@ -493,7 +493,7 @@ impl Program {
                                             &file_as_source_file.original_file_name(),
                                             Some(&self.current_directory()),
                                         ),
-                                        old_resolved_module.resolved_file_name.clone(),
+                                        old_resolved_module.ref_(self).resolved_file_name.clone(),
                                         package_id_to_string(old_resolved_module_package_id),
                                     ])
                                 } else {
@@ -503,7 +503,7 @@ impl Program {
                                             &file_as_source_file.original_file_name(),
                                             Some(&self.current_directory()),
                                         ),
-                                        old_resolved_module.resolved_file_name.clone(),
+                                        old_resolved_module.ref_(self).resolved_file_name.clone(),
                                     ])
                                 },
                             );
@@ -526,9 +526,9 @@ impl Program {
                 module_name,
             ) {
                 resolves_to_ambient_module_in_non_modified_file = true;
-                if is_trace_enabled(&self.options.ref_(self), self.host().as_dyn_module_resolution_host()) {
+                if is_trace_enabled(&self.options.ref_(self), self.host().ref_(self).as_dyn_module_resolution_host()) {
                     trace(
-                        self.host().as_dyn_module_resolution_host(),
+                        self.host().ref_(self).as_dyn_module_resolution_host(),
                         &Diagnostics::Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1,
                         Some(vec![
                             module_name.clone(),
@@ -629,7 +629,7 @@ impl Program {
         let resolved_file = resolution_to_file.as_ref().and_then(|resolution_to_file| {
             self.maybe_old_program()
                 .unwrap()
-                .ref_(self).get_source_file_(&resolution_to_file.resolved_file_name)
+                .ref_(self).get_source_file_(&resolution_to_file.ref_(self).resolved_file_name)
         });
         if resolution_to_file.is_some() && resolved_file.is_some() {
             return false;
@@ -645,9 +645,9 @@ impl Program {
         }
         let unmodified_file = unmodified_file.unwrap();
 
-        if is_trace_enabled(&self.options.ref_(self), self.host().as_dyn_module_resolution_host()) {
+        if is_trace_enabled(&self.options.ref_(self), self.host().ref_(self).as_dyn_module_resolution_host()) {
             trace(
-                self.host().as_dyn_module_resolution_host(),
+                self.host().ref_(self).as_dyn_module_resolution_host(),
                 &Diagnostics::Module_0_was_resolved_as_ambient_module_declared_in_1_since_this_file_was_not_modified,
                 Some(vec![
                     module_name.to_owned(),
@@ -670,12 +670,12 @@ impl Program {
                 .unwrap()
                 .ref_(self).get_resolved_project_references()
                 .as_deref(),
-            |old_resolved_ref: Option<Gc<ResolvedProjectReference>>,
-             parent: Option<&ResolvedProjectReference>,
+            |old_resolved_ref: Option<Id<ResolvedProjectReference>>,
+             parent: Option<Id<ResolvedProjectReference>>,
              index: usize| {
                 let new_ref = parent
                     .map(|parent| {
-                        parent.command_line.project_references.as_ref().unwrap()[index].clone()
+                        parent.ref_(self).command_line.ref_(self).project_references.as_ref().unwrap()[index].clone()
                     })
                     .unwrap_or_else(|| {
                         self.maybe_project_references().as_ref().unwrap()[index].clone()
@@ -685,9 +685,9 @@ impl Program {
                     match new_resolved_ref {
                         None => true,
                         Some(new_resolved_ref) => {
-                            new_resolved_ref.source_file != old_resolved_ref.source_file
-                             || old_resolved_ref.command_line.file_names
-                                != new_resolved_ref.command_line.file_names
+                            new_resolved_ref.ref_(self).source_file != old_resolved_ref.ref_(self).source_file
+                             || old_resolved_ref.ref_(self).command_line.ref_(self).file_names
+                                != new_resolved_ref.ref_(self).command_line.ref_(self).file_names
                         }
                     }
                 } else {
@@ -696,14 +696,14 @@ impl Program {
             },
             Some(
                 |old_project_references: Option<&[Rc<ProjectReference>]>,
-                 parent: Option<&ResolvedProjectReference>| {
+                 parent: Option<Id<ResolvedProjectReference>>| {
                     let new_references = if let Some(parent) = parent {
                         self.get_resolved_project_reference_by_path(
-                            &parent.source_file.ref_(self).as_source_file().path(),
+                            &parent.ref_(self).source_file.ref_(self).as_source_file().path(),
                         )
                         .unwrap()
-                        .command_line
-                        .project_references
+                        .ref_(self).command_line
+                        .ref_(self).project_references
                         .clone()
                     } else {
                         self.maybe_project_references().clone()
@@ -764,7 +764,7 @@ impl Program {
         if old_program
             .ref_(self).get_missing_file_paths()
             .iter()
-            .any(|missing_file_path| self.host().file_exists(missing_file_path))
+            .any(|missing_file_path| self.host().ref_(self).file_exists(missing_file_path))
         {
             return Ok(StructureIsReused::Not);
         }
@@ -781,8 +781,8 @@ impl Program {
         for &old_source_file in &*old_source_files {
             let old_source_file_ref = old_source_file.ref_(self);
             let old_source_file_as_source_file = old_source_file_ref.as_source_file();
-            let Some(mut new_source_file) = (if self.host().is_get_source_file_by_path_supported() {
-                self.host().get_source_file_by_path(
+            let Some(mut new_source_file) = (if self.host().ref_(self).is_get_source_file_by_path_supported() {
+                self.host().ref_(self).get_source_file_by_path(
                     &old_source_file_as_source_file.file_name(),
                     old_source_file_as_source_file
                         .maybe_resolved_path()
@@ -793,7 +793,7 @@ impl Program {
                     Some(self.should_create_new_source_file()),
                 )
             } else {
-                self.host().get_source_file(
+                self.host().ref_(self).get_source_file(
                     &old_source_file_as_source_file.file_name(),
                     get_emit_script_target(&self.options.ref_(self)),
                     None,
@@ -1032,8 +1032,8 @@ impl Program {
                     .maybe_resolved_modules()
                     .as_ref(),
                 Some(old_source_file),
-                |a: &Option<Gc<ResolvedModuleFull>>, b: &Option<Gc<ResolvedModuleFull>>| {
-                    module_resolution_is_equal_to(a.as_ref().unwrap(), b.as_ref().unwrap())
+                |a: &Option<Id<ResolvedModuleFull>>, b: &Option<Id<ResolvedModuleFull>>| {
+                    module_resolution_is_equal_to(&a.unwrap().ref_(self), &b.unwrap().ref_(self))
                 },
                 self,
             );
@@ -1065,9 +1065,9 @@ impl Program {
                     .maybe_resolved_type_reference_directive_names()
                     .as_ref(),
                 Some(old_source_file),
-                |a: &Option<Gc<ResolvedTypeReferenceDirective>>,
-                 b: &Option<Gc<ResolvedTypeReferenceDirective>>| {
-                    type_directive_is_equal_to(a.as_ref().unwrap(), b.as_ref().unwrap())
+                |a: &Option<Id<ResolvedTypeReferenceDirective>>,
+                 b: &Option<Id<ResolvedTypeReferenceDirective>>| {
+                    type_directive_is_equal_to(&a.unwrap().ref_(self), &b.unwrap().ref_(self))
                 },
                 self,
             );
@@ -1093,7 +1093,7 @@ impl Program {
         }
 
         if changes_affecting_program_structure(&old_options.ref_(self), &self.options.ref_(self))
-            || self.host().has_changed_automatic_type_directive_names() == Some(true)
+            || self.host().ref_(self).has_changed_automatic_type_directive_names() == Some(true)
         {
             return Ok(StructureIsReused::SafeModules);
         }
@@ -1157,7 +1157,7 @@ impl Program {
 
     pub(super) fn get_emit_host(
         &self,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
     ) -> Id<Box<dyn EmitHost>> {
         self.alloc_emit_host(Box::new(ProgramEmitHost::new(
             self.arena_id(),
@@ -1167,14 +1167,14 @@ impl Program {
 
     pub(super) fn emit_build_info(
         &self,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<EmitResult> {
         Debug_.assert(out_file(&self.options.ref_(self)).non_empty().is_none(), None);
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeEmit");
         let emit_result = emit_files(
-            not_implemented_resolver(),
+            not_implemented_resolver(self),
             self.get_emit_host(write_file_callback),
             None,
             no_transformers(),
@@ -1192,7 +1192,7 @@ impl Program {
 
     pub fn get_resolved_project_references(
         &self,
-    ) -> GcCellRef<Option<Vec<Option<Gc<ResolvedProjectReference>>>>> {
+    ) -> GcCellRef<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
     }
 
@@ -1211,10 +1211,10 @@ impl Program {
                     .cloned()
                     .flatten()
                     .map(|resolved_project_reference| {
-                        resolved_project_reference.command_line.clone()
+                        resolved_project_reference.ref_(self).command_line.clone()
                     })
             },
-            Gc::new(Box::new(GetPrependNodesReadFileCallback::new(
+            self.alloc_read_file_callback(Box::new(GetPrependNodesReadFileCallback::new(
                 self.arena_id(),
             ))),
             self,
@@ -1232,7 +1232,7 @@ impl Program {
         unimplemented!()
     }
 
-    pub(super) fn get_diagnostics_producing_type_checker(&self) -> io::Result<Gc<TypeChecker>> {
+    pub(super) fn get_diagnostics_producing_type_checker(&self) -> io::Result<Id<TypeChecker>> {
         // self.diagnostics_producing_type_checker
         //     .get_or_insert_with(|| create_type_checker(self, true))
 
@@ -1259,9 +1259,9 @@ impl Program {
         source_file: Option<Id<Node> /*SourceFile*/>,
         mut get_diagnostics: impl FnMut(
             Id<Node>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> Vec<Id<Diagnostic>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> Vec<Id<Diagnostic>> {
         self.try_get_diagnostics_helper(
             source_file,
@@ -1276,9 +1276,9 @@ impl Program {
         source_file: Option<Id<Node> /*SourceFile*/>,
         mut get_diagnostics: impl FnMut(
             Id<Node>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> io::Result<Vec<Id<Diagnostic>>>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         if let Some(source_file) = source_file {
             return get_diagnostics(source_file, cancellation_token);
@@ -1332,7 +1332,7 @@ impl Program {
     pub fn get_declaration_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         let options = self.get_compiler_options();
         Ok(
@@ -1362,7 +1362,7 @@ impl Program {
         source_file: Id<Node>, /*SourceFile*/
         // TODO: getSyntacticDiagnosticsForFile() doesn't actually take this argument, should
         // refactor eg get_diagnostics_helper() to use closures instead?
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> Vec<Id<Diagnostic>> {
         let source_file_ref = source_file.ref_(self);
         let source_file_as_source_file = source_file_ref.as_source_file();
@@ -1374,20 +1374,20 @@ impl Program {
                     .get_or_insert_with(|| self.get_js_syntactic_diagnostics_for_file(source_file));
             return concatenate(
                 source_file_additional_syntactic_diagnostics.clone(),
-                (*source_file.ref_(self).as_source_file().parse_diagnostics())
-                    .borrow()
+                source_file.ref_(self).as_source_file().parse_diagnostics()
+                    .ref_(self)
                     .clone(),
             );
         }
-        (*source_file.ref_(self).as_source_file().parse_diagnostics())
-            .borrow()
+        source_file.ref_(self).as_source_file().parse_diagnostics()
+            .ref_(self)
             .clone()
     }
 
     pub(super) fn get_semantic_diagnostics_for_file(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         Ok(concatenate(
             filter_semantic_diagnostics(
@@ -1420,7 +1420,7 @@ impl ReadFileCallback for GetPrependNodesReadFileCallback {
         } else if self.program.ref_(self).files_by_name().contains_key(&*path) {
             None
         } else {
-            self.program.ref_(self).host().read_file(&path).ok().flatten()
+            self.program.ref_(self).host().ref_(self).read_file(&path).ok().flatten()
         }
     }
 }
@@ -1434,13 +1434,13 @@ impl HasArena for GetPrependNodesReadFileCallback {
 #[derive(Trace, Finalize)]
 pub struct ProgramEmitHost {
     program: Id<Program>,
-    write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+    write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
 }
 
 impl ProgramEmitHost {
     pub fn new(
         program: Id<Program>,
-        write_file_callback: Option<Gc<Box<dyn WriteFileCallback>>>,
+        write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
     ) -> Self {
         Self {
             program,
@@ -1455,7 +1455,7 @@ impl EmitHost for ProgramEmitHost {
     }
 
     fn get_new_line(&self) -> String {
-        self.program.ref_(self).host().get_new_line()
+        self.program.ref_(self).host().ref_(self).get_new_line()
     }
 
     fn get_source_files(&self) -> Vec<Id<Node /*SourceFile*/>> {
@@ -1475,7 +1475,7 @@ impl EmitHost for ProgramEmitHost {
         source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()> {
         if let Some(write_file_callback) = self.write_file_callback.clone() {
-            write_file_callback.call(
+            write_file_callback.ref_(self).call(
                 file_name,
                 data,
                 write_byte_order_mark,
@@ -1483,7 +1483,7 @@ impl EmitHost for ProgramEmitHost {
                 source_files,
             )?;
         } else {
-            self.program.ref_(self).host().write_file(
+            self.program.ref_(self).host().ref_(self).write_file(
                 file_name,
                 data,
                 write_byte_order_mark,
@@ -1499,13 +1499,13 @@ impl EmitHost for ProgramEmitHost {
     }
 
     fn use_case_sensitive_file_names(&self) -> bool {
-        CompilerHost::use_case_sensitive_file_names(&**self.program.ref_(self).host())
+        CompilerHost::use_case_sensitive_file_names(&**self.program.ref_(self).host().ref_(self))
     }
 
-    fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>> {
+    fn get_program_build_info(&self) -> Option<Id<ProgramBuildInfo>> {
         self.program
-            .ref_(self).maybe_get_program_build_info_rc()
-            .and_then(|get_program_build_info| get_program_build_info.call())
+            .ref_(self).maybe_get_program_build_info_id()
+            .and_then(|get_program_build_info| get_program_build_info.ref_(self).call())
     }
 
     fn get_source_file_from_reference(
@@ -1562,7 +1562,7 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory for ProgramEmitHos
 impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
         Some(CompilerHost::use_case_sensitive_file_names(
-            &**self.program.ref_(self).host(),
+            &**self.program.ref_(self).host().ref_(self),
         ))
     }
 
@@ -1575,7 +1575,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
             .ref_(self).is_source_of_project_reference_redirect_(file_name)
     }
 
-    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
         Some(self.program.ref_(self).get_symlink_cache())
     }
 
@@ -1584,7 +1584,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     }
 
     fn read_file(&self, f: &str) -> Option<io::Result<Option<String>>> {
-        Some(self.program.ref_(self).host().read_file(f))
+        Some(self.program.ref_(self).host().ref_(self).read_file(f))
     }
 
     fn file_exists(&self, f: &str) -> bool {
@@ -1595,7 +1595,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
         if contains(self.program.ref_(self).maybe_missing_file_paths().as_deref(), &path) {
             return false;
         }
-        self.program.ref_(self).host().file_exists(f)
+        self.program.ref_(self).host().ref_(self).file_exists(f)
     }
 
     fn get_current_directory(&self) -> String {
@@ -1606,7 +1606,7 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
         self.program.ref_(self).redirect_targets_map()
     }
 
-    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>> {
+    fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
         self.program.ref_(self).get_file_include_reasons()
     }
 
@@ -1627,7 +1627,7 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
     fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<Gc<ResolvedProjectReference>> {
+    ) -> Option<Id<ResolvedProjectReference>> {
         self.program
             .ref_(self).get_resolved_project_reference_to_redirect(file_name)
     }
@@ -1696,7 +1696,7 @@ impl HasArena for EmitHostWriteFileCallback {
 
 #[derive(Clone)]
 pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
-    ResolvedModuleFull(Gc<ResolvedModuleFull>),
+    ResolvedModuleFull(Id<ResolvedModuleFull>),
     PredictedToResolveToAmbientModuleMarker,
 }
 

@@ -534,7 +534,7 @@ pub fn get_parsed_command_line_of_config_file(
     }
     let config_file_text = enum_unwrapped!(config_file_text, [StringOrRcDiagnostic, String]);
 
-    let result = parse_json_text(config_file_name, config_file_text);
+    let result = parse_json_text(config_file_name, config_file_text, arena);
     let cwd = host.get_current_directory()?;
     let result_ref = result.ref_(arena);
     let result_as_source_file = result_ref.as_source_file();
@@ -586,7 +586,7 @@ pub fn parse_config_file_text_to_json(
     json_text: String,
     arena: &impl HasArena,
 ) -> io::Result<ReadConfigFileReturn> {
-    let json_source_file = parse_json_text(file_name, json_text);
+    let json_source_file = parse_json_text(file_name, json_text, arena);
     let json_source_file_parse_diagnostics = json_source_file.ref_(arena).as_source_file().parse_diagnostics();
     let config = convert_config_file_to_object(
         json_source_file,
@@ -595,7 +595,7 @@ pub fn parse_config_file_text_to_json(
         Option::<&JsonConversionNotifierDummy>::None,
         arena,
     )?;
-    let json_source_file_parse_diagnostics = (*json_source_file_parse_diagnostics).borrow();
+    let json_source_file_parse_diagnostics = json_source_file_parse_diagnostics.ref_(arena);
     Ok(ReadConfigFileReturn {
         config,
         error: if !json_source_file_parse_diagnostics.is_empty() {
@@ -614,7 +614,7 @@ pub fn read_json_config_file(
     let text_or_diagnostic = try_read_file(file_name, read_file, arena);
     match text_or_diagnostic {
         StringOrRcDiagnostic::String(text_or_diagnostic) => {
-            parse_json_text(file_name, text_or_diagnostic)
+            parse_json_text(file_name, text_or_diagnostic, arena)
         }
         StringOrRcDiagnostic::RcDiagnostic(text_or_diagnostic) => {
             let base_node = BaseNode::new(
@@ -634,7 +634,7 @@ pub fn read_json_config_file(
             .alloc(arena.arena());
             let source_file = SourceFile::new(
                 base_node,
-                NodeArray::new(vec![], -1, -1, false, None),
+                NodeArray::new(vec![], -1, -1, false, None, arena),
                 end_of_file_token,
                 file_name.to_owned(),
                 "".to_owned(),
@@ -647,7 +647,7 @@ pub fn read_json_config_file(
             .alloc(arena.arena());
             source_file
                 .ref_(arena).as_source_file()
-                .set_parse_diagnostics(Gc::new(GcCell::new(vec![text_or_diagnostic])));
+                .set_parse_diagnostics(arena.alloc_vec_diagnostic(vec![text_or_diagnostic]));
             source_file
         }
     }
@@ -1055,7 +1055,7 @@ impl JsonConversionNotifier for JsonConversionNotifierDummy {
 
 pub(super) fn convert_config_file_to_object(
     source_file: Id<Node>, /*JsonSourceFile*/
-    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+    errors: Id<Vec<Id<Diagnostic>>>,
     report_options_errors: bool,
     options_iterator: Option<&impl JsonConversionNotifier>,
     arena: &impl HasArena,
@@ -1064,7 +1064,7 @@ pub(super) fn convert_config_file_to_object(
     let source_file_as_source_file = source_file_ref.as_source_file();
     let root_expression = source_file_as_source_file
         .statements()
-        .get(0)
+        .ref_(arena).get(0)
         .map(|statement| statement.ref_(arena).as_expression_statement().expression);
     let known_root_options: Option<Id<CommandLineOption>> = if report_options_errors {
         Some(get_tsconfig_root_options_map(arena))
@@ -1074,7 +1074,7 @@ pub(super) fn convert_config_file_to_object(
     if let Some(root_expression) = root_expression
         .filter(|root_expression| root_expression.ref_(arena).kind() != SyntaxKind::ObjectLiteralExpression)
     {
-        errors.borrow_mut().push(arena.alloc_diagnostic(
+        errors.ref_mut(arena).push(arena.alloc_diagnostic(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 root_expression,
@@ -1094,7 +1094,7 @@ pub(super) fn convert_config_file_to_object(
         ));
         if is_array_literal_expression(&root_expression.ref_(arena)) {
             let first_object = find(
-                &root_expression.ref_(arena).as_array_literal_expression().elements,
+                &root_expression.ref_(arena).as_array_literal_expression().elements.ref_(arena),
                 |element, _| is_object_literal_expression(&element.ref_(arena)),
             ).copied();
             if let Some(first_object) = first_object {
@@ -1124,7 +1124,7 @@ pub(super) fn convert_config_file_to_object(
 
 pub fn convert_to_object(
     source_file: Id<Node>, /*JsonSourceFile*/
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     convert_to_object_worker(
@@ -1132,7 +1132,7 @@ pub fn convert_to_object(
         source_file
             .ref_(arena).as_source_file()
             .statements()
-            .get(0)
+            .ref_(arena).get(0)
             .map(|statement| statement.ref_(arena).as_expression_statement().expression),
         errors,
         true,
@@ -1145,7 +1145,7 @@ pub fn convert_to_object(
 pub(crate) fn convert_to_object_worker(
     source_file: Id<Node>, /*JsonSourceFile*/
     root_expression: Option<Id<Node>>,
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,

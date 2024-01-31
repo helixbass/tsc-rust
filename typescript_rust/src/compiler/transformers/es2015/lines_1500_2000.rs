@@ -35,7 +35,7 @@ impl TransformES2015 {
             .intersects(HierarchyFacts::CapturedLexicalThis)
             && node.ref_(self).kind() != SyntaxKind::ArrowFunction
         {
-            self.insert_capture_this_for_node(statements, node, Some(self.factory.create_this()));
+            self.insert_capture_this_for_node(statements, node, Some(self.factory.ref_(self).create_this()));
             return true;
         }
         false
@@ -50,11 +50,11 @@ impl TransformES2015 {
         self.enable_substitutions_for_captured_this();
         let capture_this_statement = self
             .factory
-            .create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
-                self.factory.create_variable_declaration_list(
-                    vec![self.factory.create_variable_declaration(
-                        Some(self.factory.create_unique_name(
+            .ref_(self).create_variable_statement(
+                Option::<Id<NodeArray>>::None,
+                self.factory.ref_(self).create_variable_declaration_list(
+                    vec![self.factory.ref_(self).create_variable_declaration(
+                        Some(self.factory.ref_(self).create_unique_name(
                             "this",
                             Some(
                                 GeneratedIdentifierFlags::Optimistic
@@ -92,39 +92,39 @@ impl TransformES2015 {
                 SyntaxKind::MethodDeclaration
                 | SyntaxKind::GetAccessor
                 | SyntaxKind::SetAccessor => {
-                    new_target = self.factory.create_void_zero();
+                    new_target = self.factory.ref_(self).create_void_zero();
                 }
                 SyntaxKind::Constructor => {
-                    new_target = self.factory.create_property_access_expression(
+                    new_target = self.factory.ref_(self).create_property_access_expression(
                         self.factory
-                            .create_this()
+                            .ref_(self).create_this()
                             .set_emit_flags(EmitFlags::NoSubstitution, self),
                         "constructor",
                     );
                 }
                 SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression => {
-                    new_target = self.factory.create_conditional_expression(
-                        self.factory.create_logical_and(
+                    new_target = self.factory.ref_(self).create_conditional_expression(
+                        self.factory.ref_(self).create_logical_and(
                             self.factory
-                                .create_this()
+                                .ref_(self).create_this()
                                 .set_emit_flags(EmitFlags::NoSubstitution, self),
-                            self.factory.create_binary_expression(
+                            self.factory.ref_(self).create_binary_expression(
                                 self.factory
-                                    .create_this()
+                                    .ref_(self).create_this()
                                     .set_emit_flags(EmitFlags::NoSubstitution, self),
                                 SyntaxKind::InstanceOfKeyword,
-                                self.factory.get_local_name(node, None, None),
+                                self.factory.ref_(self).get_local_name(node, None, None),
                             ),
                         ),
                         None,
-                        self.factory.create_property_access_expression(
+                        self.factory.ref_(self).create_property_access_expression(
                             self.factory
-                                .create_this()
+                                .ref_(self).create_this()
                                 .set_emit_flags(EmitFlags::NoSubstitution, self),
                             "constructor",
                         ),
                         None,
-                        self.factory.create_void_zero(),
+                        self.factory.ref_(self).create_void_zero(),
                     );
                 }
                 _ => Debug_.fail_bad_syntax_kind(&node.ref_(self), None),
@@ -132,11 +132,11 @@ impl TransformES2015 {
 
             let capture_new_target_statement = self
                 .factory
-                .create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
-                    self.factory.create_variable_declaration_list(
-                        vec![self.factory.create_variable_declaration(
-                            Some(self.factory.create_unique_name(
+                .ref_(self).create_variable_statement(
+                    Option::<Id<NodeArray>>::None,
+                    self.factory.ref_(self).create_variable_declaration_list(
+                        vec![self.factory.ref_(self).create_variable_declaration(
+                            Some(self.factory.ref_(self).create_unique_name(
                                 "_newTarget",
                                 Some(
                                     GeneratedIdentifierFlags::Optimistic
@@ -173,7 +173,7 @@ impl TransformES2015 {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
-        for &member in &node_as_class_like_declaration.members() {
+        for &member in &*node_as_class_like_declaration.members().ref_(self) {
             match member.ref_(self).kind() {
                 SyntaxKind::SemicolonClassElement => {
                     statements.push(self.transform_semicolon_class_element_to_statement(member));
@@ -187,7 +187,7 @@ impl TransformES2015 {
                 }
                 SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
                     let accessors = get_all_accessor_declarations(
-                        &node_as_class_like_declaration.members(),
+                        &node_as_class_like_declaration.members().ref_(self),
                         member,
                         self,
                     );
@@ -219,7 +219,7 @@ impl TransformES2015 {
         member: Id<Node>, /*SemicolonClassElement*/
     ) -> Id<Node> {
         self.factory
-            .create_empty_statement()
+            .ref_(self).create_empty_statement()
             .set_text_range(Some(&*member.ref_(self)), self)
     }
 
@@ -231,7 +231,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node>> {
         let member_ref = member.ref_(self);
         let member_as_method_declaration = member_ref.as_method_declaration();
-        let comment_range: ReadonlyTextRangeConcrete = get_comment_range(&member.ref_(self)).into();
+        let comment_range: ReadonlyTextRangeConcrete = get_comment_range(member, self).into();
         let source_map_range = get_source_map_range(&member.ref_(self), self);
         let member_function = self.transform_function_like_to_expression(
             member,
@@ -252,7 +252,7 @@ impl TransformES2015 {
             let name = if is_computed_property_name(&property_name.ref_(self)) {
                 property_name.ref_(self).as_computed_property_name().expression
             } else if is_identifier(&property_name.ref_(self)) {
-                self.factory.create_string_literal(
+                self.factory.ref_(self).create_string_literal(
                     unescape_leading_underscores(&property_name.ref_(self).as_identifier().escaped_text)
                         .to_owned(),
                     None,
@@ -261,10 +261,10 @@ impl TransformES2015 {
             } else {
                 property_name
             };
-            e = self.factory.create_object_define_property_call(
+            e = self.factory.ref_(self).create_object_define_property_call(
                 receiver,
                 name,
-                self.factory.create_property_descriptor(
+                self.factory.ref_(self).create_property_descriptor(
                     PropertyDescriptorAttributesBuilder::default()
                         .value(member_function.clone())
                         .enumerable(false)
@@ -277,20 +277,20 @@ impl TransformES2015 {
             );
         } else {
             let member_name = create_member_access_for_property_name(
-                &self.factory,
+                &self.factory.ref_(self),
                 receiver,
                 property_name,
                 member_as_method_declaration.maybe_name().refed(self).as_deref(),
             );
             e = self
                 .factory
-                .create_assignment(member_name, member_function.clone());
+                .ref_(self).create_assignment(member_name, member_function.clone());
         }
         set_emit_flags(member_function, EmitFlags::NoComments, self);
         set_source_map_range(member_function, Some(source_map_range), self);
         Ok(self
             .factory
-            .create_expression_statement(e)
+            .ref_(self).create_expression_statement(e)
             .set_text_range(Some(&*member.ref_(self)), self)
             .set_original_node(Some(member), self)
             .set_comment_range(&comment_range, self)
@@ -305,7 +305,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Statement*/>> {
         Ok(self
             .factory
-            .create_expression_statement(
+            .ref_(self).create_expression_statement(
                 self.transform_accessors_to_expression(receiver, accessors, container, false)?,
             )
             .set_emit_flags(EmitFlags::NoComments, self)
@@ -324,7 +324,7 @@ impl TransformES2015 {
         let set_accessor = accessors.set_accessor;
         let target = self
             .factory
-            .clone_node(receiver)
+            .ref_(self).clone_node(receiver)
             .set_text_range(Some(&*receiver.ref_(self)), self)
             .and_set_parent(receiver.ref_(self).maybe_parent(), self)
             .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTrailingSourceMap, self)
@@ -350,7 +350,7 @@ impl TransformES2015 {
             );
         }
         let property_name =
-            create_expression_for_property_name(&self.factory, visited_accessor_name)
+            create_expression_for_property_name(&self.factory.ref_(self), visited_accessor_name)
                 .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoLeadingSourceMap, self)
                 .set_source_map_range(
                     first_accessor
@@ -374,9 +374,9 @@ impl TransformES2015 {
                 .set_emit_flags(EmitFlags::NoLeadingComments, self);
             let getter = self
                 .factory
-                .create_property_assignment("get", getter_function)
+                .ref_(self).create_property_assignment("get", getter_function)
                 .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
-                    &get_accessor.ref_(self),
+                    get_accessor, self
                 )), self);
             properties.push(getter);
         }
@@ -393,37 +393,37 @@ impl TransformES2015 {
                 .set_emit_flags(EmitFlags::NoLeadingComments, self);
             let setter = self
                 .factory
-                .create_property_assignment("set", setter_function)
+                .ref_(self).create_property_assignment("set", setter_function)
                 .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
-                    &set_accessor.ref_(self),
+                    set_accessor, self
                 )), self);
             properties.push(setter);
         }
 
-        properties.push(self.factory.create_property_assignment(
+        properties.push(self.factory.ref_(self).create_property_assignment(
             "enumerable",
             if get_accessor.is_some() || set_accessor.is_some() {
-                self.factory.create_false()
+                self.factory.ref_(self).create_false()
             } else {
-                self.factory.create_true()
+                self.factory.ref_(self).create_true()
             },
         ));
         properties.push(
             self.factory
-                .create_property_assignment("configurable", self.factory.create_true()),
+                .ref_(self).create_property_assignment("configurable", self.factory.ref_(self).create_true()),
         );
 
-        let call = self.factory.create_call_expression(
-            self.factory.create_property_access_expression(
-                self.factory.create_identifier("Object"),
+        let call = self.factory.ref_(self).create_call_expression(
+            self.factory.ref_(self).create_property_access_expression(
+                self.factory.ref_(self).create_identifier("Object"),
                 "defineProperty",
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(vec![
                 target,
                 property_name,
                 self.factory
-                    .create_object_literal_expression(Some(properties), Some(true)),
+                    .ref_(self).create_object_literal_expression(Some(properties), Some(true)),
             ]),
         );
         if starts_on_new_line {
@@ -461,13 +461,13 @@ impl TransformES2015 {
         );
         let func = self
             .factory
-            .create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+            .ref_(self).create_function_expression(
+                Option::<Id<NodeArray>>::None,
                 None,
                 Option::<Id<Node>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 try_visit_parameter_list(
-                    Some(&node_as_arrow_function.parameters()),
+                    Some(node_as_arrow_function.parameters()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
@@ -495,7 +495,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_ref = node.ref_(self);
         let node_as_function_expression = node_ref.as_function_expression();
-        let ancestor_facts = if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::AsyncFunctionBody) {
+        let ancestor_facts = if get_emit_flags(node, self).intersects(EmitFlags::AsyncFunctionBody) {
             self.enter_subtree(
                 HierarchyFacts::AsyncFunctionBodyExcludes,
                 HierarchyFacts::AsyncFunctionBodyIncludes,
@@ -510,7 +510,7 @@ impl TransformES2015 {
         self.set_converted_loop_state(None);
 
         let parameters = try_visit_parameter_list(
-            Some(&node_as_function_expression.parameters()),
+            Some(node_as_function_expression.parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -522,7 +522,7 @@ impl TransformES2015 {
             .unwrap_or_default()
             .intersects(HierarchyFacts::NewTarget)
         {
-            Some(self.factory.get_local_name(node, None, None))
+            Some(self.factory.ref_(self).get_local_name(node, None, None))
         } else {
             node_as_function_expression.maybe_name()
         };
@@ -533,12 +533,12 @@ impl TransformES2015 {
             HierarchyFacts::None,
         );
         self.set_converted_loop_state(saved_converted_loop_state);
-        Ok(self.factory.update_function_expression(
+        Ok(self.factory.ref_(self).update_function_expression(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             node_as_function_expression.maybe_asterisk_token(),
             name,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             parameters,
             None,
             body,
@@ -558,7 +558,7 @@ impl TransformES2015 {
             HierarchyFacts::FunctionIncludes,
         );
         let parameters = try_visit_parameter_list(
-            Some(&node_as_function_declaration.parameters()),
+            Some(node_as_function_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -570,7 +570,7 @@ impl TransformES2015 {
             .unwrap_or_default()
             .intersects(HierarchyFacts::NewTarget)
         {
-            Some(self.factory.get_local_name(node, None, None))
+            Some(self.factory.ref_(self).get_local_name(node, None, None))
         } else {
             node_as_function_declaration.maybe_name()
         };
@@ -581,19 +581,20 @@ impl TransformES2015 {
             HierarchyFacts::None,
         );
         self.set_converted_loop_state(saved_converted_loop_state);
-        Ok(self.factory.update_function_declaration(
+        Ok(self.factory.ref_(self).update_function_declaration(
             node,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers().as_deref(),
+                node.ref_(self).maybe_modifiers(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
+                self,
             )?,
             node_as_function_declaration.maybe_asterisk_token(),
             name,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             parameters,
             None,
             Some(body),
@@ -624,7 +625,7 @@ impl TransformES2015 {
                 )
             };
         let parameters = try_visit_parameter_list(
-            Some(&node_as_function_like_declaration.parameters()),
+            Some(node_as_function_like_declaration.parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -641,7 +642,7 @@ impl TransformES2015 {
                 SyntaxKind::FunctionDeclaration | SyntaxKind::FunctionExpression
             )
         {
-            name = Some(self.factory.get_generated_name_for_node(Some(node), None));
+            name = Some(self.factory.ref_(self).get_generated_name_for_node(Some(node), None));
         }
 
         self.exit_subtree(
@@ -652,11 +653,11 @@ impl TransformES2015 {
         self.set_converted_loop_state(saved_converted_loop_state);
         Ok(self
             .factory
-            .create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+            .ref_(self).create_function_expression(
+                Option::<Id<NodeArray>>::None,
                 node_as_function_like_declaration.maybe_asterisk_token(),
                 name,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(parameters),
                 None,
                 body,
@@ -685,20 +686,20 @@ impl TransformES2015 {
         if is_block(&body.ref_(self)) {
             let body_ref = body.ref_(self);
             let body_as_block = body_ref.as_block();
-            statement_offset = Some(self.factory.copy_standard_prologue(
-                &body_as_block.statements,
+            statement_offset = Some(self.factory.ref_(self).copy_standard_prologue(
+                &body_as_block.statements.ref_(self),
                 &mut prologue,
                 Some(false),
             ));
-            statement_offset = self.factory.try_copy_custom_prologue(
-                &body_as_block.statements,
+            statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
+                &body_as_block.statements.ref_(self),
                 &mut prologue,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
-                Some(|node: Id<Node>| is_hoisted_function(&node.ref_(self))),
+                Some(|node: Id<Node>| is_hoisted_function(node, self)),
             )?;
-            statement_offset = self.factory.try_copy_custom_prologue(
-                &body_as_block.statements,
+            statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
+                &body_as_block.statements.ref_(self),
                 &mut prologue,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
@@ -713,25 +714,26 @@ impl TransformES2015 {
         if is_block(&body.ref_(self)) {
             let body_ref = body.ref_(self);
             let body_as_block = body_ref.as_block();
-            statement_offset = self.factory.try_copy_custom_prologue(
-                &body_as_block.statements,
+            statement_offset = self.factory.ref_(self).try_copy_custom_prologue(
+                &body_as_block.statements.ref_(self),
                 &mut statements,
                 statement_offset,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
             )?;
 
-            statements_location = Some((&*body_as_block.statements).into());
+            statements_location = Some((&*body_as_block.statements.ref_(self)).into());
             add_range(
                 &mut statements,
                 try_maybe_visit_nodes(
-                    Some(&body_as_block.statements),
+                    Some(body_as_block.statements),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     statement_offset,
                     None,
+                    self,
                 )?
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
                 None,
                 None,
             );
@@ -765,7 +767,7 @@ impl TransformES2015 {
             )?;
             let return_statement = self
                 .factory
-                .create_return_statement(Some(expression))
+                .ref_(self).create_return_statement(Some(expression))
                 .set_text_range(Some(&*body.ref_(self)), self)
                 .move_synthetic_comments(body, self)
                 .set_emit_flags(
@@ -781,7 +783,7 @@ impl TransformES2015 {
 
         prologue = self
             .factory
-            .merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
+            .ref_(self).merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
             .as_vec_owned();
         prologue = self.insert_capture_new_target_if_needed(prologue, node, false);
         self.insert_capture_this_for_node_if_needed(&mut prologue, node);
@@ -791,16 +793,16 @@ impl TransformES2015 {
         }
 
         statements = concatenate(prologue, statements);
-        if is_block(&body.ref_(self)) && &*statements == &**body.ref_(self).as_block().statements {
+        if is_block(&body.ref_(self)) && &*statements == &**body.ref_(self).as_block().statements.ref_(self) {
             return Ok(body);
         }
 
         let block = self
             .factory
-            .create_block(
+            .ref_(self).create_block(
                 self.factory
-                    .create_node_array(Some(statements), None)
-                    .set_text_range(statements_location.as_ref()),
+                    .ref_(self).create_node_array(Some(statements), None)
+                    .set_text_range(statements_location.as_ref(), self),
                 Some(multi_line),
             )
             .set_text_range(node_as_function_like_declaration.maybe_body().refed(self).as_deref(), self);

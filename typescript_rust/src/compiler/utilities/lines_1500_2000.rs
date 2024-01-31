@@ -82,16 +82,18 @@ pub fn is_this_type_predicate(predicate: &TypePredicate) -> bool {
     predicate.kind == TypePredicateKind::This
 }
 
-pub fn get_property_assignment<'a>(
+pub fn get_property_assignment(
     object_literal: Id<Node>, /*ObjectLiteralExpression*/
-    key: &'a str,
-    key2: Option<&'a str>, arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + Clone + 'a {
+    key: &str,
+    key2: Option<&str>,
+    arena: &impl HasArena,
+) -> Vec<Id<Node /*PropertyAssignment*/>> {
     object_literal
         .ref_(arena).as_object_literal_expression()
         .properties
-        .owned_iter()
-        .filter(move |&property| {
+        .ref_(arena).iter()
+        .copied()
+        .filter(|&property| {
             if property.ref_(arena).kind() == SyntaxKind::PropertyAssignment {
                 let property_name = property.ref_(arena).as_property_assignment().name();
                 let prop_name = get_text_of_property_name(property_name, arena);
@@ -99,6 +101,7 @@ pub fn get_property_assignment<'a>(
             }
             false
         })
+        .collect()
 }
 
 pub fn get_property_array_element_value(
@@ -120,7 +123,7 @@ pub fn get_property_array_element_value(
                         .maybe_initializer()
                         .unwrap()
                         .ref_(arena).as_array_literal_expression()
-                        .elements,
+                        .elements.ref_(arena),
                     |element, _| {
                         is_string_literal(&element.ref_(arena))
                             && &*element.ref_(arena).as_string_literal().text() == element_value
@@ -141,8 +144,8 @@ pub fn get_ts_config_object_literal_expression(
     let ts_config_source_file = ts_config_source_file?;
     let ts_config_source_file_ref = ts_config_source_file.ref_(arena);
     let ts_config_source_file_as_source_file = ts_config_source_file_ref.as_source_file();
-    if !ts_config_source_file_as_source_file.statements().is_empty() {
-        let expression = ts_config_source_file_as_source_file.statements()[0]
+    if !ts_config_source_file_as_source_file.statements().ref_(arena).is_empty() {
+        let expression = ts_config_source_file_as_source_file.statements().ref_(arena)[0]
             .ref_(arena).as_expression_statement()
             .expression;
         return try_cast(expression, |expression| {
@@ -170,7 +173,7 @@ pub fn get_ts_config_prop_array_element_value(
                         .maybe_initializer()
                         .unwrap()
                         .ref_(arena).as_array_literal_expression()
-                        .elements,
+                        .elements.ref_(arena),
                     |element, _| {
                         is_string_literal(&element.ref_(arena))
                             && &*element.ref_(arena).as_string_literal().text() == element_value
@@ -184,20 +187,20 @@ pub fn get_ts_config_prop_array_element_value(
     )
 }
 
-pub fn get_ts_config_prop_array<'a>(
+pub fn get_ts_config_prop_array(
     ts_config_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
-    prop_key: &'a str,
-    arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*PropertyAssignment*/>> + 'a {
+    prop_key: &str,
+    arena: &impl HasArena,
+) -> Vec<Id<Node /*PropertyAssignment*/>> {
     let json_object_literal = get_ts_config_object_literal_expression(ts_config_source_file, arena);
     match json_object_literal {
-        Some(json_object_literal) => Either::Left(get_property_assignment(
+        Some(json_object_literal) => get_property_assignment(
             json_object_literal,
             prop_key,
             None,
             arena,
-        )),
-        None => Either::Right(iter::empty()),
+        ),
+        None => Default::default(),
     }
 }
 
@@ -532,11 +535,11 @@ pub fn node_or_child_is_decorated(
 pub fn child_is_decorated(node: Id<Node>, parent: Option<Id<Node>>, arena: &impl HasArena) -> bool {
     match node.ref_(arena).kind() {
         SyntaxKind::ClassDeclaration => some(
-            Some(&node.ref_(arena).as_class_declaration().members()),
+            Some(&*node.ref_(arena).as_class_declaration().members().ref_(arena)),
             Some(|&m: &Id<Node>| node_or_child_is_decorated(m, Some(node), parent, arena)),
         ),
         SyntaxKind::MethodDeclaration | SyntaxKind::SetAccessor | SyntaxKind::Constructor => some(
-            Some(&node.ref_(arena).as_function_like_declaration().parameters()),
+            Some(&*node.ref_(arena).as_function_like_declaration().parameters().ref_(arena)),
             Some(|&p: &Id<Node>| node_is_decorated(p, Some(node), parent, arena)),
         ),
         _ => false,

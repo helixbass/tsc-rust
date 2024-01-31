@@ -34,9 +34,9 @@ impl TransformES2015 {
         let method_as_method_declaration = method_ref.as_method_declaration();
         let expression = self
             .factory
-            .create_assignment(
+            .ref_(self).create_assignment(
                 create_member_access_for_property_name(
-                    &self.factory,
+                    &self.factory.ref_(self),
                     receiver,
                     try_visit_node(
                         method_as_method_declaration.name(),
@@ -84,10 +84,10 @@ impl TransformES2015 {
         ) {
             let temp = self
                 .factory
-                .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
             let new_variable_declaration = self
                 .factory
-                .create_variable_declaration(Some(temp.clone()), None, None, None)
+                .ref_(self).create_variable_declaration(Some(temp.clone()), None, None, None)
                 .set_text_range(Some(&*node_variable_declaration.ref_(self)), self);
             let vars = try_flatten_destructuring_binding(
                 node_variable_declaration,
@@ -101,12 +101,12 @@ impl TransformES2015 {
             )?;
             let list = self
                 .factory
-                .create_variable_declaration_list(vars, None)
+                .ref_(self).create_variable_declaration_list(vars, None)
                 .set_text_range(Some(&*node_variable_declaration.ref_(self)), self);
             let destructure = self
                 .factory
-                .create_variable_statement(Option::<Gc<NodeArray>>::None, list);
-            updated = self.factory.update_catch_clause(
+                .ref_(self).create_variable_statement(Option::<Id<NodeArray>>::None, list);
+            updated = self.factory.ref_(self).update_catch_clause(
                 node,
                 Some(new_variable_declaration),
                 self.add_statement_to_start_of_block(node_as_catch_clause.block, destructure)?,
@@ -128,15 +128,16 @@ impl TransformES2015 {
         let block_ref = block.ref_(self);
         let block_as_block = block_ref.as_block();
         let transformed_statements = try_visit_nodes(
-            &block_as_block.statements,
+            block_as_block.statements,
             Some(|node: Id<Node>| self.visitor(node)),
             Some(|node| is_statement(node, self)),
             None,
             None,
+            self,
         )?;
-        Ok(self.factory.update_block(
+        Ok(self.factory.ref_(self).update_block(
             block,
-            vec![statement].and_extend(transformed_statements.owned_iter()),
+            vec![statement].and_extend(transformed_statements.ref_(self).iter().copied()),
         ))
     }
 
@@ -160,7 +161,7 @@ impl TransformES2015 {
             .set_additional_emit_flags(EmitFlags::NoLeadingComments, self);
         Ok(self
             .factory
-            .create_property_assignment(node_as_method_declaration.name(), function_expression)
+            .ref_(self).create_property_assignment(node_as_method_declaration.name(), function_expression)
             .set_text_range(Some(&*node.ref_(self)), self))
     }
 
@@ -178,7 +179,7 @@ impl TransformES2015 {
         );
         let updated: Id<Node /*AccessorDeclaration*/>;
         let parameters = try_visit_parameter_list(
-            Some(&node.ref_(self).as_signature_declaration().parameters()),
+            Some(node.ref_(self).as_signature_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -186,7 +187,7 @@ impl TransformES2015 {
         .unwrap();
         let body = self.transform_function_body(node)?;
         if node.ref_(self).kind() == SyntaxKind::GetAccessor {
-            updated = self.factory.update_get_accessor_declaration(
+            updated = self.factory.ref_(self).update_get_accessor_declaration(
                 node,
                 node.ref_(self).maybe_decorators(),
                 node.ref_(self).maybe_modifiers(),
@@ -196,7 +197,7 @@ impl TransformES2015 {
                 Some(body),
             );
         } else {
-            updated = self.factory.update_set_accessor_declaration(
+            updated = self.factory.ref_(self).update_set_accessor_declaration(
                 node,
                 node.ref_(self).maybe_decorators(),
                 node.ref_(self).maybe_modifiers(),
@@ -222,12 +223,12 @@ impl TransformES2015 {
         let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         Ok(self
             .factory
-            .create_property_assignment(
+            .ref_(self).create_property_assignment(
                 node_as_shorthand_property_assignment.name(),
                 self.visit_identifier(
                     self
                         .factory
-                        .clone_node(node_as_shorthand_property_assignment.name()),
+                        .ref_(self).clone_node(node_as_shorthand_property_assignment.name()),
                 )?,
             )
             .set_text_range(Some(&*node.ref_(self)), self))
@@ -257,14 +258,14 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         if some(
-            Some(&node_as_array_literal_expression.elements),
+            Some(&*node_as_array_literal_expression.elements.ref_(self)),
             Some(|element: &Id<Node>| is_spread_element(&element.ref_(self))),
         ) {
             return self.transform_and_spread_elements(
-                &node_as_array_literal_expression.elements,
+                node_as_array_literal_expression.elements,
                 false,
                 node_as_array_literal_expression.multi_line == Some(true),
-                node_as_array_literal_expression.elements.has_trailing_comma,
+                node_as_array_literal_expression.elements.ref_(self).has_trailing_comma,
             );
         }
         try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
@@ -276,7 +277,7 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
-        if get_emit_flags(&node.ref_(self)).intersects(EmitFlags::TypeScriptClassWrapper) {
+        if get_emit_flags(node, self).intersects(EmitFlags::TypeScriptClassWrapper) {
             return self.visit_type_script_class_wrapper(node);
         }
 
@@ -284,7 +285,7 @@ impl TransformES2015 {
         if expression.ref_(self).kind() == SyntaxKind::SuperKeyword
             || is_super_property(expression, self)
             || some(
-                Some(&node_as_call_expression.arguments),
+                Some(&*node_as_call_expression.arguments.ref_(self)),
                 Some(|argument: &Id<Node>| is_spread_element(&argument.ref_(self))),
             )
         {
@@ -296,7 +297,7 @@ impl TransformES2015 {
 
         Ok(Some(
             self.factory
-                .update_call_expression(
+                .ref_(self).update_call_expression(
                     node,
                     try_visit_node(
                         node_as_call_expression.expression,
@@ -304,13 +305,14 @@ impl TransformES2015 {
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                     )?,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     try_visit_nodes(
-                        &node_as_call_expression.arguments,
+                        node_as_call_expression.arguments,
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         None,
                         None,
+                        self,
                     )?,
                 )
                 .into(),
@@ -339,18 +341,19 @@ impl TransformES2015 {
         let saved_converted_loop_state = self.maybe_converted_loop_state();
         self.set_converted_loop_state(None);
         let body_statements = try_visit_nodes(
-            &body_as_block.statements,
+            body_as_block.statements,
             Some(|node: Id<Node>| self.class_wrapper_statement_visitor(node)),
             Some(|node| is_statement(node, self)),
             None,
             None,
+            self,
         )?;
         self.set_converted_loop_state(saved_converted_loop_state);
 
-        let class_statements = filter(&body_statements, |&statement: &Id<Node>| {
+        let class_statements = filter(&body_statements.ref_(self), |&statement: &Id<Node>| {
             self.is_variable_statement_with_initializer(statement)
         });
-        let remaining_statements = filter(&body_statements, |&stmt: &Id<Node>| {
+        let remaining_statements = filter(&body_statements.ref_(self), |&stmt: &Id<Node>| {
             !self.is_variable_statement_with_initializer(stmt)
         });
         let var_statement =
@@ -363,7 +366,7 @@ impl TransformES2015 {
         let variable = var_statement_as_variable_statement
             .declaration_list
             .ref_(self).as_variable_declaration_list()
-            .declarations[0];
+            .declarations.ref_(self)[0];
         let variable_ref = variable.ref_(self);
         let variable_as_variable_declaration = variable_ref.as_variable_declaration();
         let initializer = skip_outer_expressions(
@@ -417,7 +420,7 @@ impl TransformES2015 {
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
         if let Some(alias_assignment) = alias_assignment {
             let extends_call = try_cast(
-                func_statements.get(0).cloned(),
+                func_statements.ref_(self).get(0).cloned(),
                 |node: &Option<Id<Node>>| {
                     node.matches(|node| is_expression_statement(&node.ref_(self)))
                 },
@@ -428,11 +431,11 @@ impl TransformES2015 {
                 class_body_start += 1;
             }
 
-            statements.push(func_statements[class_body_start].clone());
+            statements.push(func_statements.ref_(self)[class_body_start].clone());
             class_body_start += 1;
 
-            statements.push(self.factory.create_expression_statement(
-                self.factory.create_assignment(
+            statements.push(self.factory.ref_(self).create_expression_statement(
+                self.factory.ref_(self).create_assignment(
                     alias_assignment.ref_(self).as_binary_expression().left,
                     cast_present(
                         variable_as_variable_declaration.name(),
@@ -442,13 +445,13 @@ impl TransformES2015 {
             ));
         }
 
-        while !is_return_statement(&element_at(&func_statements, class_body_end).unwrap().ref_(self)) {
+        while !is_return_statement(&element_at(&func_statements.ref_(self), class_body_end).unwrap().ref_(self)) {
             class_body_end -= 1;
         }
 
         add_range(
             &mut statements,
-            Some(&func_statements),
+            Some(&func_statements.ref_(self)),
             Some(isize::try_from(class_body_start).unwrap()),
             Some(class_body_end),
         );
@@ -456,7 +459,7 @@ impl TransformES2015 {
         if class_body_end < -1 {
             add_range(
                 &mut statements,
-                Some(&func_statements),
+                Some(&func_statements.ref_(self)),
                 Some(class_body_end + 1),
                 None,
             );
@@ -468,34 +471,34 @@ impl TransformES2015 {
 
         Ok(Some(
             self.factory
-                .restore_outer_expressions(
+                .ref_(self).restore_outer_expressions(
                     Some(node_as_call_expression.expression),
-                    self.factory.restore_outer_expressions(
+                    self.factory.ref_(self).restore_outer_expressions(
                         variable_as_variable_declaration.maybe_initializer(),
-                        self.factory.restore_outer_expressions(
+                        self.factory.ref_(self).restore_outer_expressions(
                             alias_assignment.map(|alias_assignment| {
                                 alias_assignment.ref_(self).as_binary_expression().right
                             }),
-                            self.factory.update_call_expression(
+                            self.factory.ref_(self).update_call_expression(
                                 call,
-                                self.factory.restore_outer_expressions(
+                                self.factory.ref_(self).restore_outer_expressions(
                                     Some(call_as_call_expression.expression),
-                                    self.factory.update_function_expression(
+                                    self.factory.ref_(self).update_function_expression(
                                         func,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         None,
                                         None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         func_as_function_expression.parameters(),
                                         None,
-                                        self.factory.update_block(
+                                        self.factory.ref_(self).update_block(
                                             func_as_function_expression.maybe_body().unwrap(),
                                             statements,
                                         ),
                                     ),
                                     None,
                                 ),
-                                Option::<Gc<NodeArray>>::None,
+                                Option::<Id<NodeArray>>::None,
                                 call_as_call_expression.arguments.clone(),
                             ),
                             None,
@@ -518,7 +521,7 @@ impl TransformES2015 {
                     .ref_(self).as_variable_statement()
                     .declaration_list
                     .ref_(self).as_variable_declaration_list()
-                    .declarations,
+                    .declarations.ref_(self),
             )
             .ref_(self).as_variable_declaration()
             .maybe_initializer()
@@ -549,7 +552,7 @@ impl TransformES2015 {
                 self,
             ), self)
         {
-            let CallBinding { target, this_arg } = self.factory.create_call_binding(
+            let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
                 node_as_call_expression.expression,
                 |node: Id<Node>| {
                     self.context.ref_(self).hoist_variable_declaration(node);
@@ -566,7 +569,7 @@ impl TransformES2015 {
                 .ref_(self).transform_flags()
                 .intersects(TransformFlags::ContainsRestOrSpread)
             {
-                resulting_call = self.factory.create_function_apply_call(
+                resulting_call = self.factory.ref_(self).create_function_apply_call(
                     try_visit_node(
                         target,
                         Some(|node: Id<Node>| self.call_expression_visitor(node)),
@@ -584,7 +587,7 @@ impl TransformES2015 {
                         )?
                     },
                     self.transform_and_spread_elements(
-                        &node_as_call_expression.arguments,
+                        node_as_call_expression.arguments,
                         true,
                         false,
                         false,
@@ -593,7 +596,7 @@ impl TransformES2015 {
             } else {
                 resulting_call = self
                     .factory
-                    .create_function_call_call(
+                    .ref_(self).create_function_call_call(
                         try_visit_node(
                             target,
                             Some(|node: Id<Node>| self.call_expression_visitor(node)),
@@ -611,11 +614,12 @@ impl TransformES2015 {
                             )?
                         },
                         try_visit_nodes(
-                            &node_as_call_expression.arguments,
+                            node_as_call_expression.arguments,
                             Some(|node: Id<Node>| self.visitor(node)),
                             Some(|node| is_expression(node, self)),
                             None,
                             None,
+                            self,
                         )?,
                     )
                     .set_text_range(Some(&*node.ref_(self)), self)
@@ -624,10 +628,10 @@ impl TransformES2015 {
             if node_as_call_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
                 let initializer = self
                     .factory
-                    .create_logical_or(resulting_call, self.create_actual_this());
+                    .ref_(self).create_logical_or(resulting_call, self.create_actual_this());
                 resulting_call = if assign_to_captured_this {
-                    self.factory.create_assignment(
-                        self.factory.create_unique_name(
+                    self.factory.ref_(self).create_assignment(
+                        self.factory.ref_(self).create_unique_name(
                             "_this",
                             Some(
                                 GeneratedIdentifierFlags::Optimistic
@@ -653,11 +657,11 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_new_expression = node_ref.as_new_expression();
         if some(
-            node_as_new_expression.arguments.as_double_deref(),
+            node_as_new_expression.arguments.refed(self).as_double_deref(),
             Some(|node: &Id<Node>| is_spread_element(&node.ref_(self))),
         ) {
-            let CallBinding { target, this_arg } = self.factory.create_call_binding(
-                self.factory.create_property_access_expression(
+            let CallBinding { target, this_arg } = self.factory.ref_(self).create_call_binding(
+                self.factory.ref_(self).create_property_access_expression(
                     node_as_new_expression.expression.clone(),
                     "bind",
                 ),
@@ -667,8 +671,8 @@ impl TransformES2015 {
                 None,
                 None,
             );
-            return Ok(self.factory.create_new_expression(
-                self.factory.create_function_apply_call(
+            return Ok(self.factory.ref_(self).create_new_expression(
+                self.factory.ref_(self).create_function_apply_call(
                     try_visit_node(
                         target,
                         Some(|node: Id<Node>| self.visitor(node)),
@@ -677,14 +681,14 @@ impl TransformES2015 {
                     )?,
                     this_arg,
                     self.transform_and_spread_elements(
-                        &self.factory.create_node_array(
+                        self.factory.ref_(self).create_node_array(
                             Some(
-                                vec![self.factory.create_void_zero()].and_extend(
+                                vec![self.factory.ref_(self).create_void_zero()].and_extend(
                                     node_as_new_expression
                                         .arguments
                                         .clone()
                                         .unwrap()
-                                        .owned_iter(),
+                                        .ref_(self).iter().copied(),
                                 ),
                             ),
                             None,
@@ -694,7 +698,7 @@ impl TransformES2015 {
                         false,
                     )?,
                 ),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             ));
         }
@@ -703,14 +707,14 @@ impl TransformES2015 {
 
     pub(super) fn transform_and_spread_elements(
         &self,
-        elements: &NodeArray, /*<Expression>*/
+        elements: Id<NodeArray>, /*<Expression>*/
         is_argument_list: bool,
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let num_elements = elements.len();
+        let num_elements = elements.ref_(self).len();
         let segments = flatten(&try_span_map(
-            elements,
+            &elements.ref_(self),
             |node: &Id<Node>, _| -> Rc<dyn PartitionSpread> {
                 if is_spread_element(&node.ref_(self)) {
                     Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.arena_id()))
@@ -741,7 +745,7 @@ impl TransformES2015 {
         let starts_with_spread = segments[0].kind != SpreadSegmentKind::None;
         let mut expression: Id<Node /*Expression*/> = if starts_with_spread {
             self.factory
-                .create_array_literal_expression(Option::<Gc<NodeArray>>::None, None)
+                .ref_(self).create_array_literal_expression(Option::<Id<NodeArray>>::None, None)
         } else {
             segments[0].expression.clone()
         };

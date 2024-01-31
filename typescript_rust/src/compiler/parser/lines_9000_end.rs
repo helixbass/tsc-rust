@@ -23,9 +23,10 @@ use crate::{
 impl IncrementalParserType {
     pub fn create_syntax_cursor(
         &self,
-        source_file: &Node, /*SourceFile*/
+        source_file: Id<Node>, /*SourceFile*/
+        arena: &impl HasArena,
     ) -> IncrementalParserSyntaxCursor {
-        IncrementalParserSyntaxCursor::create(source_file)
+        IncrementalParserSyntaxCursor::create(source_file, arena)
     }
 }
 
@@ -40,8 +41,8 @@ pub enum IncrementalParserSyntaxCursor {
 }
 
 impl IncrementalParserSyntaxCursor {
-    pub fn create(source_file: &Node) -> Self {
-        Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file))
+    pub fn create(source_file: Id<Node>, arena: &impl HasArena) -> Self {
+        Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file, arena))
     }
 }
 
@@ -61,7 +62,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
 #[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
     source_file: Id<Node /*SourceFile*/>,
-    current_array: GcCell<Option<Gc<NodeArray>>>,
+    current_array: GcCell<Option<Id<NodeArray>>>,
     #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
     current: GcCell<Option<Id<Node>>>,
@@ -70,26 +71,27 @@ pub struct IncrementalParserSyntaxCursorCreated {
 }
 
 impl IncrementalParserSyntaxCursorCreated {
-    pub fn new(source_file: &Node) -> Self {
-        let source_file_as_source_file = source_file.as_source_file();
+    pub fn new(source_file: Id<Node>, arena: &impl HasArena) -> Self {
+        let source_file_ref = source_file.ref_(arena);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         let current_array = source_file_as_source_file.statements();
         let current_array_index = 0;
 
-        Debug_.assert(current_array_index < current_array.len(), None);
+        Debug_.assert(current_array_index < current_array.ref_(arena).len(), None);
         Self {
-            source_file: source_file.arena_id(),
+            source_file,
             current_array: GcCell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
-            current: GcCell::new(Some(current_array[current_array_index].clone())),
+            current: GcCell::new(Some(current_array.ref_(arena)[current_array_index].clone())),
             last_queried_position: Default::default(), /*InvalidPosition::Value*/
         }
     }
 
-    fn current_array(&self) -> Gc<NodeArray> {
+    fn current_array(&self) -> Id<NodeArray> {
         self.current_array.borrow().clone().unwrap()
     }
 
-    fn set_current_array(&self, current_array: Option<Gc<NodeArray>>) {
+    fn set_current_array(&self, current_array: Option<Id<NodeArray>>) {
         *self.current_array.borrow_mut() = current_array;
     }
 
@@ -127,7 +129,7 @@ impl IncrementalParserSyntaxCursorCreated {
         for_each_child_bool(
             self.source_file,
             |node: Id<Node>| self.visit_node(position_as_isize, node),
-            Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+            Some(|array: Id<NodeArray>| self.visit_array(position_as_isize, array)),
             self,
         );
     }
@@ -137,7 +139,7 @@ impl IncrementalParserSyntaxCursorCreated {
             for_each_child_bool(
                 node,
                 |node: Id<Node>| self.visit_node(position_as_isize, node),
-                Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+                Some(|array: Id<NodeArray>| self.visit_array(position_as_isize, array)),
                 self,
             );
         }
@@ -145,13 +147,13 @@ impl IncrementalParserSyntaxCursorCreated {
         true
     }
 
-    fn visit_array(&self, position_as_isize: isize, array: &NodeArray) -> bool {
-        if position_as_isize >= array.pos() && position_as_isize < array.end() {
-            for (i, child) in array.iter().enumerate() {
+    fn visit_array(&self, position_as_isize: isize, array: Id<NodeArray>) -> bool {
+        if position_as_isize >= array.ref_(self).pos() && position_as_isize < array.ref_(self).end() {
+            for (i, child) in array.ref_(self).iter().enumerate() {
                 let child = *child;
                 // if (child) {
                 if child.ref_(self).pos() == position_as_isize {
-                    self.set_current_array(Some(array.rc_wrapper()));
+                    self.set_current_array(Some(array));
                     self.set_current_array_index(Some(i));
                     self.set_current(Some(child.clone()));
                     return true;
@@ -160,7 +162,7 @@ impl IncrementalParserSyntaxCursorCreated {
                         for_each_child_bool(
                             child,
                             |node: Id<Node>| self.visit_node(position_as_isize, node),
-                            Some(|array: &NodeArray| self.visit_array(position_as_isize, array)),
+                            Some(|array: Id<NodeArray>| self.visit_array(position_as_isize, array)),
                             self,
                         );
                         return true;
@@ -183,12 +185,12 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCre
         } {
             if let Some(current) = self.maybe_current() {
                 if current.ref_(self).end() == position_as_isize
-                    && self.current_array_index() < (self.current_array().len() - 1)
+                    && self.current_array_index() < (self.current_array().ref_(self).len() - 1)
                 {
                     self.set_current_array_index(Some(self.current_array_index() + 1));
                     self.set_current(
                         self.current_array()
-                            .get(self.current_array_index())
+                            .ref_(self).get(self.current_array_index())
                             .map(Clone::clone),
                     );
                 }

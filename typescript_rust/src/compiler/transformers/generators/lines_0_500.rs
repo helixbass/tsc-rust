@@ -126,7 +126,7 @@ pub(super) enum ExceptionBlockState {
 }
 
 #[derive(Trace, Finalize)]
-pub(super) enum CodeBlock {
+pub enum CodeBlock {
     ExceptionBlock(ExceptionBlock),
     LabeledBlock(LabeledBlock),
     SwitchBlock(SwitchBlock),
@@ -186,21 +186,9 @@ impl From<ExceptionBlock> for CodeBlock {
     }
 }
 
-impl From<ExceptionBlock> for Gc<GcCell<CodeBlock>> {
-    fn from(value: ExceptionBlock) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 impl From<LabeledBlock> for CodeBlock {
     fn from(value: LabeledBlock) -> Self {
         Self::LabeledBlock(value)
-    }
-}
-
-impl From<LabeledBlock> for Gc<GcCell<CodeBlock>> {
-    fn from(value: LabeledBlock) -> Self {
-        Gc::new(GcCell::new(value.into()))
     }
 }
 
@@ -210,33 +198,15 @@ impl From<SwitchBlock> for CodeBlock {
     }
 }
 
-impl From<SwitchBlock> for Gc<GcCell<CodeBlock>> {
-    fn from(value: SwitchBlock) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 impl From<LoopBlock> for CodeBlock {
     fn from(value: LoopBlock) -> Self {
         Self::LoopBlock(value)
     }
 }
 
-impl From<LoopBlock> for Gc<GcCell<CodeBlock>> {
-    fn from(value: LoopBlock) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 impl From<WithBlock> for CodeBlock {
     fn from(value: WithBlock) -> Self {
         Self::WithBlock(value)
-    }
-}
-
-impl From<WithBlock> for Gc<GcCell<CodeBlock>> {
-    fn from(value: WithBlock) -> Self {
-        Gc::new(GcCell::new(value.into()))
     }
 }
 
@@ -383,11 +353,11 @@ pub(super) struct TransformGenerators {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
-    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    pub(super) factory: Id<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
-    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) renamed_catch_variables: GcCell<Option<HashMap<String, bool>>>,
     pub(super) renamed_catch_variable_declarations:
         GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
@@ -395,12 +365,12 @@ pub(super) struct TransformGenerators {
     pub(super) in_generator_function_body: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub(super) in_statement_containing_yield: Cell<Option<bool>>,
-    pub(super) blocks: GcCell<Option<Vec<Gc<GcCell<CodeBlock>>>>>,
+    pub(super) blocks: GcCell<Option<Vec<Id<CodeBlock>>>>,
     #[unsafe_ignore_trace]
     pub(super) block_offsets: RefCell<Option<Vec<usize>>>,
     #[unsafe_ignore_trace]
     pub(super) block_actions: RefCell<Option<Vec<BlockAction>>>,
-    pub(super) block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock>>>>>,
+    pub(super) block_stack: GcCell<Option<Vec<Id<CodeBlock>>>>,
     #[unsafe_ignore_trace]
     pub(super) label_offsets: RefCell<Option<HashMap<Label, Option<usize>>>>,
     pub(super) label_expressions:
@@ -425,9 +395,9 @@ pub(super) struct TransformGenerators {
     pub(super) last_operation_was_completion: Cell<bool>,
     pub(super) clauses: GcCell<Option<Vec<Id<Node /*CaseClause*/>>>>,
     pub(super) statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
-    pub(super) exception_block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>>,
-    pub(super) current_exception_block: GcCell<Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>,
-    pub(super) with_block_stack: GcCell<Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>>,
+    pub(super) exception_block_stack: GcCell<Option<Vec<Id<CodeBlock /*ExceptionBlock*/>>>>,
+    pub(super) current_exception_block: GcCell<Option<Id<CodeBlock /*ExceptionBlock*/>>>,
+    pub(super) with_block_stack: GcCell<Option<Vec<Id<CodeBlock /*WithBlock*/>>>>,
 }
 
 impl TransformGenerators {
@@ -469,7 +439,7 @@ impl TransformGenerators {
             with_block_stack: _d(),
         }));
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(TransformGeneratorsOnSubstituteNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformGeneratorsOnSubstituteNodeOverrider::new(
                 ret,
                 previous_on_substitute_node,
             )))
@@ -535,17 +505,17 @@ impl TransformGenerators {
             .set(in_statement_containing_yield);
     }
 
-    pub(super) fn maybe_blocks(&self) -> GcCellRef<Option<Vec<Gc<GcCell<CodeBlock>>>>> {
+    pub(super) fn maybe_blocks(&self) -> GcCellRef<Option<Vec<Id<CodeBlock>>>> {
         self.blocks.borrow()
     }
 
     pub(super) fn blocks_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<GcCell<CodeBlock>>>>, Vec<Gc<GcCell<CodeBlock>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<CodeBlock>>>, Vec<Id<CodeBlock>>> {
         gc_cell_ref_mut_unwrapped(&self.blocks)
     }
 
-    pub(super) fn set_blocks(&self, blocks: Option<Vec<Gc<GcCell<CodeBlock>>>>) {
+    pub(super) fn set_blocks(&self, blocks: Option<Vec<Id<CodeBlock>>>) {
         *self.blocks.borrow_mut() = blocks;
     }
 
@@ -581,21 +551,21 @@ impl TransformGenerators {
         *self.block_actions.borrow_mut() = block_actions;
     }
 
-    pub(super) fn maybe_block_stack(&self) -> GcCellRef<Option<Vec<Gc<GcCell<CodeBlock>>>>> {
+    pub(super) fn maybe_block_stack(&self) -> GcCellRef<Option<Vec<Id<CodeBlock>>>> {
         self.block_stack.borrow()
     }
 
-    pub(super) fn block_stack(&self) -> GcCellRef<Vec<Gc<GcCell<CodeBlock>>>> {
+    pub(super) fn block_stack(&self) -> GcCellRef<Vec<Id<CodeBlock>>> {
         gc_cell_ref_unwrapped(&self.block_stack)
     }
 
     pub(super) fn block_stack_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<GcCell<CodeBlock>>>>, Vec<Gc<GcCell<CodeBlock>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<CodeBlock>>>, Vec<Id<CodeBlock>>> {
         gc_cell_ref_mut_unwrapped(&self.block_stack)
     }
 
-    pub(super) fn set_block_stack(&self, block_stack: Option<Vec<Gc<GcCell<CodeBlock>>>>) {
+    pub(super) fn set_block_stack(&self, block_stack: Option<Vec<Id<CodeBlock>>>) {
         *self.block_stack.borrow_mut() = block_stack;
     }
 
@@ -793,73 +763,73 @@ impl TransformGenerators {
 
     pub(super) fn maybe_exception_block_stack_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<CodeBlock /*ExceptionBlock*/>>>> {
         self.exception_block_stack.borrow_mut()
     }
 
     pub(super) fn exception_block_stack_mut(
         &self,
     ) -> GcCellRefMut<
-        Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>,
-        Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>,
+        Option<Vec<Id<CodeBlock /*ExceptionBlock*/>>>,
+        Vec<Id<CodeBlock /*ExceptionBlock*/>>,
     > {
         gc_cell_ref_mut_unwrapped(&self.exception_block_stack)
     }
 
     pub(super) fn set_exception_block_stack(
         &self,
-        exception_block_stack: Option<Vec<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>>,
+        exception_block_stack: Option<Vec<Id<CodeBlock /*ExceptionBlock*/>>>,
     ) {
         *self.exception_block_stack.borrow_mut() = exception_block_stack;
     }
 
     pub(super) fn maybe_current_exception_block(
         &self,
-    ) -> Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>> {
+    ) -> Option<Id<CodeBlock /*ExceptionBlock*/>> {
         self.current_exception_block.borrow().clone()
     }
 
-    pub(super) fn current_exception_block(&self) -> Gc<GcCell<CodeBlock /*ExceptionBlock*/>> {
+    pub(super) fn current_exception_block(&self) -> Id<CodeBlock /*ExceptionBlock*/> {
         self.current_exception_block.borrow().clone().unwrap()
     }
 
     pub(super) fn set_current_exception_block(
         &self,
-        current_exception_block: Option<Gc<GcCell<CodeBlock /*ExceptionBlock*/>>>,
+        current_exception_block: Option<Id<CodeBlock /*ExceptionBlock*/>>,
     ) {
         *self.current_exception_block.borrow_mut() = current_exception_block;
     }
 
     pub(super) fn maybe_with_block_stack(
         &self,
-    ) -> GcCellRef<Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>> {
+    ) -> GcCellRef<Option<Vec<Id<CodeBlock /*WithBlock*/>>>> {
         self.with_block_stack.borrow()
     }
 
     pub(super) fn maybe_with_block_stack_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<CodeBlock /*WithBlock*/>>>> {
         self.with_block_stack.borrow_mut()
     }
 
     pub(super) fn with_block_stack_mut(
         &self,
     ) -> GcCellRefMut<
-        Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>,
-        Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>,
+        Option<Vec<Id<CodeBlock /*WithBlock*/>>>,
+        Vec<Id<CodeBlock /*WithBlock*/>>,
     > {
         gc_cell_ref_mut_unwrapped(&self.with_block_stack)
     }
 
     pub(super) fn set_with_block_stack(
         &self,
-        with_block_stack: Option<Vec<Gc<GcCell<CodeBlock /*WithBlock*/>>>>,
+        with_block_stack: Option<Vec<Id<CodeBlock /*WithBlock*/>>>,
     ) {
         *self.with_block_stack.borrow_mut() = with_block_stack;
     }
 
-    pub(super) fn emit_helpers(&self) -> Gc<EmitHelperFactory> {
-        self.context.ref_(self).get_emit_helper_factory()
+    pub(super) fn emit_helpers(&self) -> debug_cell::Ref<'_, EmitHelperFactory> {
+        self.context.ref_(self).get_emit_helper_factory().ref_(self)
     }
 
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
@@ -998,14 +968,14 @@ impl TransformGenerators {
         {
             node = self
                 .factory
-                .create_function_declaration(
-                    Option::<Gc<NodeArray>>::None,
+                .ref_(self).create_function_declaration(
+                    Option::<Id<NodeArray>>::None,
                     node.ref_(self).maybe_modifiers(),
                     None,
                     node.ref_(self).as_function_declaration().maybe_name(),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(&node.ref_(self).as_function_declaration().parameters()),
+                        Some(node.ref_(self).as_function_declaration().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
@@ -1047,13 +1017,13 @@ impl TransformGenerators {
         {
             node = self
                 .factory
-                .create_function_expression(
-                    Option::<Gc<NodeArray>>::None,
+                .ref_(self).create_function_expression(
+                    Option::<Id<NodeArray>>::None,
                     None,
                     node.ref_(self).as_function_expression().maybe_name(),
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     visit_parameter_list(
-                        Some(&node.ref_(self).as_function_expression().parameters()),
+                        Some(node.ref_(self).as_function_expression().parameters()),
                         |node: Id<Node>| self.visitor(node),
                         &*self.context.ref_(self),
                         self,
@@ -1098,13 +1068,13 @@ impl HasArena for TransformGenerators {
 #[derive(Trace, Finalize)]
 struct TransformGeneratorsOnSubstituteNodeOverrider {
     transform_generators: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformGeneratorsOnSubstituteNodeOverrider {
     fn new(
         transform_generators: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_generators,
@@ -1144,7 +1114,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                 let declaration = self
                     .transform_generators()
                     .resolver
-                    .get_referenced_value_declaration(original)?;
+                    .ref_(self).get_referenced_value_declaration(original)?;
                 if let Some(declaration) = declaration {
                     let name = self
                         .transform_generators()
@@ -1155,7 +1125,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                         return Ok(self
                             .transform_generators()
                             .factory
-                            .clone_node(name)
+                            .ref_(self).clone_node(name)
                             .set_text_range(Some(&*name.ref_(self)), self)
                             .and_set_parent(name.ref_(self).maybe_parent(), self)
                             .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
@@ -1175,7 +1145,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node)?;
+            .ref_(self).on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression {
             return self.substitute_expression(node);
         }
@@ -1200,10 +1170,16 @@ impl TransformGeneratorsFactory {
 
 impl TransformerFactoryInterface for TransformGeneratorsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context.clone(),
             TransformGenerators::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformGeneratorsFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

@@ -42,7 +42,7 @@ pub(crate) fn get_extended_config(
     extended_config_path: &str,
     host: &(impl ParseConfigHost + ?Sized),
     resolution_stack: &[&str],
-    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+    errors: Id<Vec<Id<Diagnostic>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<Rc<ParsedTsconfig>>> {
@@ -64,12 +64,12 @@ pub(crate) fn get_extended_config(
         extended_result = Some(read_json_config_file(extended_config_path, |path| {
             host.read_file(path)
         }, arena));
-        if (*extended_result
+        if extended_result
             .unwrap()
             .ref_(arena).as_source_file()
-            .parse_diagnostics())
-        .borrow()
-        .is_empty()
+            .parse_diagnostics()
+            .ref_(arena)
+            .is_empty()
         {
             extended_config = Some(Rc::new(parse_config(
                 None,
@@ -111,13 +111,13 @@ pub(crate) fn get_extended_config(
                 .append(&mut extended_result_extended_source_files.clone());
         }
     }
-    if !(*extended_result_as_source_file.parse_diagnostics())
-        .borrow()
+    if !extended_result_as_source_file.parse_diagnostics()
+        .ref_(arena)
         .is_empty()
     {
-        errors.borrow_mut().append(
-            &mut (*extended_result_as_source_file.parse_diagnostics())
-                .borrow()
+        errors.ref_mut(arena).append(
+            &mut extended_result_as_source_file.parse_diagnostics()
+                .ref_(arena)
                 .clone(),
         );
         return Ok(None);

@@ -19,7 +19,7 @@ struct TransformES2021 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Id<NodeFactory>,
 }
 
 impl TransformES2021 {
@@ -110,7 +110,7 @@ impl TransformES2021 {
             let property_access_target = if property_access_target_simple_copiable {
                 left_expression
             } else {
-                self.factory.create_temp_variable(
+                self.factory.ref_(self).create_temp_variable(
                     Some(|node: Id<Node>| {
                         self.context.ref_(self).hoist_variable_declaration(node);
                     }),
@@ -121,17 +121,17 @@ impl TransformES2021 {
                 left_expression
             } else {
                 self.factory
-                    .create_assignment(property_access_target.clone(), left_expression.clone())
+                    .ref_(self).create_assignment(property_access_target.clone(), left_expression.clone())
             };
 
             if is_property_access_expression(&left.ref_(self)) {
                 let left_ref = left.ref_(self);
                 let left_as_property_access_expression = left_ref.as_property_access_expression();
-                assignment_target = self.factory.create_property_access_expression(
+                assignment_target = self.factory.ref_(self).create_property_access_expression(
                     property_access_target,
                     left_as_property_access_expression.name.clone(),
                 );
-                left = self.factory.create_property_access_expression(
+                left = self.factory.ref_(self).create_property_access_expression(
                     property_access_target_assignment,
                     left_as_property_access_expression.name.clone(),
                 );
@@ -146,7 +146,7 @@ impl TransformES2021 {
                         .argument_expression
                         .clone()
                 } else {
-                    self.factory.create_temp_variable(
+                    self.factory.ref_(self).create_temp_variable(
                         Some(|node: Id<Node>| {
                             self.context.ref_(self).hoist_variable_declaration(node);
                         }),
@@ -154,18 +154,18 @@ impl TransformES2021 {
                     )
                 };
 
-                assignment_target = self.factory.create_element_access_expression(
+                assignment_target = self.factory.ref_(self).create_element_access_expression(
                     property_access_target,
                     element_access_argument.clone(),
                 );
-                left = self.factory.create_element_access_expression(
+                left = self.factory.ref_(self).create_element_access_expression(
                     property_access_target_assignment,
                     if element_access_argument_simple_copiable {
                         left_as_element_access_expression
                             .argument_expression
                             .clone()
                     } else {
-                        self.factory.create_assignment(
+                        self.factory.ref_(self).create_assignment(
                             element_access_argument,
                             left_as_element_access_expression
                                 .argument_expression
@@ -178,11 +178,11 @@ impl TransformES2021 {
 
         Some(
             self.factory
-                .create_binary_expression(
+                .ref_(self).create_binary_expression(
                     left,
                     non_assignment_operator,
-                    self.factory.create_parenthesized_expression(
-                        self.factory.create_assignment(assignment_target, right),
+                    self.factory.ref_(self).create_parenthesized_expression(
+                        self.factory.ref_(self).create_assignment(assignment_target, right),
                     ),
                 )
                 .into(),
@@ -217,7 +217,7 @@ impl TransformES2021Factory {
 
 impl TransformerFactoryInterface for TransformES2021Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context,
             self.alloc_transformer(Box::new(TransformES2021::new(context, &*static_arena()))),
         )

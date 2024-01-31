@@ -62,12 +62,12 @@ impl TypeChecker {
             let symbol = self.get_symbol_of_node(node)?;
             let links = symbol.map(|symbol| self.get_symbol_links(symbol));
             if matches!(
-                links.as_ref(),
-                Some(links) if (**links).borrow().referenced == Some(true)
+                links,
+                Some(links) if (*links.ref_(self)).borrow().referenced == Some(true)
             ) {
                 return Ok(true);
             }
-            let target = (*self.get_symbol_links(symbol.unwrap()))
+            let target = (*self.get_symbol_links(symbol.unwrap()).ref_(self))
                 .borrow()
                 .target
                 .clone();
@@ -87,7 +87,7 @@ impl TypeChecker {
             return try_for_each_child_bool(
                 node,
                 |node| self.is_referenced_alias_declaration(node, check_children),
-                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                 self,
             );
         }
@@ -110,7 +110,7 @@ impl TypeChecker {
             let signatures_of_symbol = self.get_signatures_of_symbol(symbol)?;
             return Ok(signatures_of_symbol.len() > 1
                 || signatures_of_symbol.len() == 1
-                    && signatures_of_symbol[0].declaration != Some(node));
+                    && signatures_of_symbol[0].ref_(self).declaration != Some(node));
         }
         Ok(false)
     }
@@ -168,7 +168,7 @@ impl TypeChecker {
             return Ok(false);
         }
         Ok(for_each_entry_bool(
-            &*(*self.get_exports_of_symbol(symbol)?).borrow(),
+            &*self.get_exports_of_symbol(symbol)?.ref_(self),
             |&p: &Id<Symbol>, _| {
                 p.ref_(self).flags().intersects(SymbolFlags::Value)
                     && matches!(
@@ -204,7 +204,7 @@ impl TypeChecker {
             .get(&node_id)
             .cloned()
             .map_or(NodeCheckFlags::None, |node_links| {
-                (*node_links).borrow().flags
+                node_links.ref_(self).flags
             })
     }
 
@@ -213,8 +213,8 @@ impl TypeChecker {
         node: Id<Node>, /*EnumMember*/
     ) -> io::Result<Option<StringOrNumber>> {
         self.compute_enum_member_values(node.ref_(self).parent())?;
-        let ret = (*self.get_node_links(node))
-            .borrow()
+        let ret = self.get_node_links(node)
+            .ref_(self)
             .enum_member_value
             .clone();
         Ok(ret)
@@ -237,8 +237,8 @@ impl TypeChecker {
             return self.get_enum_member_value(node);
         }
 
-        let symbol = (*self.get_node_links(node))
-            .borrow()
+        let symbol = self.get_node_links(node)
+            .ref_(self)
             .resolved_symbol
             .clone();
         if let Some(symbol) = symbol.filter(|&symbol| {
@@ -417,7 +417,7 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_variable_like_or_accessor(&node.ref_(self))),
             self,
         ) else {
-            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
+            return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let symbol = self.get_symbol_of_node(declaration)?;
         let mut type_ = if let Some(symbol) = symbol.filter(|&symbol| {
@@ -441,7 +441,7 @@ impl TypeChecker {
         if add_undefined == Some(true) {
             type_ = self.get_optional_type_(type_, None)?;
         }
-        self.node_builder().type_to_type_node(
+        self.node_builder().ref_(self).type_to_type_node(
             type_,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
@@ -461,10 +461,10 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_function_like(Some(&node.ref_(self)))),
             self,
         ) else {
-            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
+            return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let signature = self.get_signature_from_declaration_(signature_declaration)?;
-        self.node_builder().type_to_type_node(
+        self.node_builder().ref_(self).type_to_type_node(
             self.get_return_type_of_signature(signature)?,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
@@ -480,10 +480,10 @@ impl TypeChecker {
         tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         let Some(expr) = get_parse_tree_node(Some(expr_in), Some(|node: Id<Node>| is_expression(node, self)), self) else {
-            return Ok(Some(get_factory().create_token(SyntaxKind::AnyKeyword)));
+            return Ok(Some(get_factory(self).create_token(SyntaxKind::AnyKeyword)));
         };
         let type_ = self.get_widened_type(self.get_regular_type_of_expression(expr)?)?;
-        self.node_builder().type_to_type_node(
+        self.node_builder().ref_(self).type_to_type_node(
             type_,
             Some(enclosing_declaration),
             Some(flags | NodeBuilderFlags::MultilineObjectLiterals),
@@ -501,8 +501,8 @@ impl TypeChecker {
         reference: Id<Node>, /*Identifier*/
         start_in_declaration_container: Option<bool>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let resolved_symbol = (*self.get_node_links(reference))
-            .borrow()
+        let resolved_symbol = self.get_node_links(reference)
+            .ref_(self)
             .resolved_symbol
             .clone();
         if resolved_symbol.is_some() {
@@ -574,7 +574,7 @@ impl TypeChecker {
         tracker: Id<Box<dyn SymbolTracker>>,
     ) -> io::Result<Id<Node /*Expression*/>> {
         let enum_result = if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral) {
-            self.node_builder().symbol_to_expression(
+            self.node_builder().ref_(self).symbol_to_expression(
                 type_.ref_(self).symbol(),
                 Some(SymbolFlags::Value),
                 Some(enclosing),
@@ -582,9 +582,9 @@ impl TypeChecker {
                 Some(tracker),
             )?
         } else if type_ == self.true_type() {
-            Some(get_factory().create_true())
+            Some(get_factory(self).create_true())
         } else if type_ == self.false_type() {
-            Some(get_factory().create_false())
+            Some(get_factory(self).create_false())
         } else {
             None
         };
@@ -593,13 +593,13 @@ impl TypeChecker {
         }
         Ok(match &*type_.ref_(self) {
             Type::LiteralType(LiteralType::BigIntLiteralType(type_)) => {
-                get_factory().create_big_int_literal(type_.value.clone())
+                get_factory(self).create_big_int_literal(type_.value.clone())
             }
             Type::LiteralType(LiteralType::NumberLiteralType(type_)) => {
-                get_factory().create_numeric_literal(type_.value.clone(), None)
+                get_factory(self).create_numeric_literal(type_.value.clone(), None)
             }
             Type::LiteralType(LiteralType::StringLiteralType(type_)) => {
-                get_factory().create_string_literal(type_.value.clone(), None, None)
+                get_factory(self).create_string_literal(type_.value.clone(), None, None)
             }
             _ => unreachable!(),
         })
@@ -656,6 +656,7 @@ impl TypeChecker {
                         .as_without_captured_span()
                         .clone(),
                     self.language_version,
+                    self,
                 );
                 *file_as_source_file.maybe_local_jsx_fragment_factory() = ret.clone();
                 return ret;
@@ -669,13 +670,14 @@ impl TypeChecker {
             return parse_isolated_entity_name(
                 compiler_options_jsx_fragment_factory.clone(),
                 self.language_version,
+                self,
             );
         }
         None
     }
 
-    pub(super) fn create_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
-        Gc::new(Box::new(EmitResolverCreateResolver::new(self.rc_wrapper(), self)))
+    pub(super) fn create_resolver(&self) -> Id<Box<dyn EmitResolver>> {
+        self.alloc_emit_resolver(Box::new(EmitResolverCreateResolver::new(self.arena_id(), self)))
     }
 
     pub(super) fn get_external_module_file_from_declaration(
@@ -704,8 +706,8 @@ impl TypeChecker {
     }
 
     pub(super) fn initialize_type_checker(&self) -> io::Result<()> {
-        for file in &*self.host.ref_(self).get_source_files() {
-            bind_source_file(&file.ref_(self), self.compiler_options.clone());
+        for &file in &*self.host.ref_(self).get_source_files() {
+            bind_source_file(file, self.compiler_options.clone(), self);
             // println!("post-binding: {:#?}", file);
         }
 
@@ -719,7 +721,7 @@ impl TypeChecker {
                 continue;
             }
             if !is_external_or_common_js_module(&file.ref_(self)) {
-                let file_global_this_symbol = (*file.ref_(self).locals()).borrow().get("globalThis").cloned();
+                let file_global_this_symbol = file.ref_(self).locals().ref_(self).get("globalThis").cloned();
                 if let Some(ref file_global_this_symbol_declarations) = file_global_this_symbol
                     .and_then(|file_global_this_symbol| {
                         file_global_this_symbol
@@ -743,14 +745,14 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(self.globals_rc(), &(*file.ref_(self).locals()).borrow(), None)?;
+                self.merge_symbol_table(self.globals_id(), &file.ref_(self).locals().ref_(self), None)?;
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations().clone()
             {
                 self.merge_symbol_table(
-                    self.globals_rc(),
-                    &(*file_js_global_augmentations).borrow(),
+                    self.globals_id(),
+                    &file_js_global_augmentations.ref_(self),
                     None,
                 )?;
             }
@@ -786,7 +788,7 @@ impl TypeChecker {
             {
                 let source = file_symbol_global_exports;
                 let mut globals = self.globals_mut();
-                for (id, source_symbol) in &*(*source).borrow() {
+                for (id, source_symbol) in &*source.ref_(self) {
                     if !globals.contains_key(id) {
                         globals.insert(id.clone(), source_symbol.clone());
                     }
@@ -812,16 +814,16 @@ impl TypeChecker {
         );
 
         self.get_symbol_links(self.undefined_symbol())
-            .borrow_mut()
+            .ref_mut(self)
             .type_ = Some(self.undefined_widening_type());
         self.get_symbol_links(self.arguments_symbol())
-            .borrow_mut()
+            .ref_mut(self)
             .type_ = self.get_global_type("IArguments", 0, true)?;
         self.get_symbol_links(self.unknown_symbol())
-            .borrow_mut()
+            .ref_mut(self)
             .type_ = Some(self.error_type());
         self.get_symbol_links(self.global_this_symbol())
-            .borrow_mut()
+            .ref_mut(self)
             .type_ = Some(
             self.alloc_type(
                 self.create_object_type(ObjectFlags::Anonymous, Some(self.global_this_symbol()))
@@ -949,7 +951,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic.ref_(self),
                             vec![
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         second_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
@@ -977,7 +979,7 @@ impl TypeChecker {
                         add_related_info(
                             &diagnostic.ref_(self),
                             vec![
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         first_file,
                                         &Diagnostics::Conflicts_are_in_this_file,
@@ -1017,8 +1019,8 @@ impl TypeChecker {
                         if unchecked_helpers.intersects(helper) {
                             let name = self.get_helper_name(helper);
                             let symbol = self.get_symbol(
-                                &(*helpers_module.ref_(self).maybe_exports().clone().unwrap())
-                                    .borrow(),
+                                &helpers_module.ref_(self).maybe_exports().clone().unwrap()
+                                    .ref_(self),
                                 &escape_leading_underscores(name),
                                 SymbolFlags::Value,
                             )?;
@@ -1038,7 +1040,7 @@ impl TypeChecker {
                                     {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                            Some(|&signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 3)
                                             }),
                                         )? {
@@ -1057,7 +1059,7 @@ impl TypeChecker {
                                     {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                            Some(|&signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 4)
                                             }),
                                         )? {
@@ -1074,7 +1076,7 @@ impl TypeChecker {
                                     } else if helper.intersects(ExternalEmitHelpers::SpreadArray) {
                                         if !try_some(
                                             Some(&*self.get_signatures_of_symbol(Some(symbol))?),
-                                            Some(|signature: &Gc<Signature>| -> io::Result<_> {
+                                            Some(|&signature: &Id<Signature>| -> io::Result<_> {
                                                 Ok(self.get_parameter_count(signature)? > 2)
                                             }),
                                         )? {
@@ -1187,7 +1189,7 @@ impl TypeChecker {
             SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
         ) {
             let accessors = get_all_accessor_declarations(
-                &node.ref_(self).parent().ref_(self).as_class_like_declaration().members(),
+                &node.ref_(self).parent().ref_(self).as_class_like_declaration().members().ref_(self),
                 node,
                 self,
             );
@@ -1216,7 +1218,7 @@ impl TypeChecker {
         let mut last_readonly: Option<Id<Node>> = None;
         let mut last_override: Option<Id<Node>> = None;
         let mut flags = ModifierFlags::None;
-        for &modifier in node.ref_(self).maybe_modifiers().as_ref().unwrap() {
+        for &modifier in &*node.ref_(self).maybe_modifiers().unwrap().ref_(self) {
             if modifier.ref_(self).kind() != SyntaxKind::ReadonlyKeyword {
                 if matches!(
                     node.ref_(self).kind(),

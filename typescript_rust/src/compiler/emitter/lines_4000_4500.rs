@@ -17,7 +17,7 @@ use crate::{
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer, ReadonlyTextRange,
     SourceFileLike, SourceFilePrologueDirective, SourceFilePrologueDirectiveExpression,
     SourceFilePrologueInfo, Symbol, SyntaxKind, TextRange, UnparsedSectionInterface,
-    InArena,
+    HasArena, InArena, OptionInArena,
 };
 
 impl Printer {
@@ -36,7 +36,7 @@ impl Printer {
                 let pos = self.writer().get_text_pos();
                 self.emit(Some(prologue), None)?;
                 if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                    bundle_file_info.borrow_mut().sections.push(Gc::new(
+                    bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
                         BundleFileSection::new_prologue(
                             prologue_as_unparsed_prologue
                                 .maybe_data()
@@ -67,7 +67,7 @@ impl Printer {
     ) -> io::Result<()> {
         Ok(if is_source_file(&source_file_or_bundle.ref_(self)) {
             self.emit_prologue_directives(
-                &source_file_or_bundle.ref_(self).as_source_file().statements(),
+                &source_file_or_bundle.ref_(self).as_source_file().statements().ref_(self),
                 Some(source_file_or_bundle),
                 &mut None,
                 None,
@@ -85,7 +85,7 @@ impl Printer {
             for source_file in &source_file_or_bundle_as_bundle.source_files {
                 let source_file = source_file.unwrap();
                 self.emit_prologue_directives(
-                    &source_file.ref_(self).as_source_file().statements(),
+                    &source_file.ref_(self).as_source_file().statements().ref_(self),
                     Some(source_file),
                     &mut seen_prologue_directives,
                     Some(true),
@@ -109,7 +109,7 @@ impl Printer {
             let mut end = 0;
             let source_file_ref = source_file.ref_(self);
             let source_file_as_source_file = source_file_ref.as_source_file();
-            for &statement in &source_file_as_source_file.statements() {
+            for &statement in &*source_file_as_source_file.statements().ref_(self) {
                 if !is_prologue_directive(statement, self) {
                     break;
                 }
@@ -218,10 +218,10 @@ impl Printer {
     pub(super) fn emit_modifiers(
         &self,
         node: Id<Node>,
-        modifiers: Option<&NodeArray /*<Modifier>*/>,
+        modifiers: Option<Id<NodeArray> /*<Modifier>*/>,
     ) -> io::Result<()> {
         Ok(
-            if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.is_empty()) {
+            if let Some(modifiers) = modifiers.filter(|modifiers| !modifiers.ref_(self).is_empty()) {
                 self.emit_list(
                     Some(node),
                     Some(modifiers),
@@ -251,7 +251,7 @@ impl Printer {
         node: Option<Id<Node> /*Expression*/>,
         equal_comment_start_pos: isize,
         container: Id<Node>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
             self.write_space();
@@ -304,7 +304,7 @@ impl Printer {
     pub(super) fn emit_expression_with_leading_space(
         &self,
         node: Option<Id<Node>>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         Ok(if let Some(node) = node {
             self.write_space();
@@ -325,7 +325,7 @@ impl Printer {
         node: Id<Node>, /*Statement*/
     ) -> io::Result<()> {
         Ok(
-            if is_block(&node.ref_(self)) || get_emit_flags(&parent.ref_(self)).intersects(EmitFlags::SingleLine) {
+            if is_block(&node.ref_(self)) || get_emit_flags(parent, self).intersects(EmitFlags::SingleLine) {
                 self.write_space();
                 self.emit(Some(node), None)?;
             } else {
@@ -344,7 +344,7 @@ impl Printer {
     pub(super) fn emit_decorators(
         &self,
         parent_node: Id<Node>,
-        decorators: Option<&NodeArray /*<Decorator>*/>,
+        decorators: Option<Id<NodeArray> /*<Decorator>*/>,
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
@@ -361,13 +361,13 @@ impl Printer {
     pub(super) fn emit_type_arguments(
         &self,
         parent_node: Id<Node>,
-        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+        type_arguments: Option<Id<NodeArray> /*<TypeNode>*/>,
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
             type_arguments,
             ListFormat::TypeArguments,
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
             None,
@@ -380,7 +380,7 @@ impl Printer {
     pub(super) fn emit_type_parameters(
         &self,
         parent_node: Id<Node>, /*SignatureDeclaration | InterfaceDeclaration | TypeAliasDeclaration | ClassDeclaration | ClassExpression*/
-        type_parameters: Option<&NodeArray /*<TypeParameterDeclaration>*/>,
+        type_parameters: Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>,
     ) -> io::Result<()> {
         if is_function_like(Some(&parent_node.ref_(self))) {
             // TODO
@@ -403,7 +403,7 @@ impl Printer {
     pub(super) fn emit_parameters(
         &self,
         parent_node: Id<Node>,
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
@@ -420,9 +420,9 @@ impl Printer {
     pub(super) fn can_emit_simple_arrow_head(
         &self,
         parent_node: Id<Node>,  /*FunctionTypeNode | ArrowFunction*/
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> bool {
-        let parameter = single_or_undefined(Some(parameters));
+        let parameter = single_or_undefined(Some(&parameters.ref_(self))).copied();
         matches!(
             parameter,
             Some(parameter) if parameter.ref_(self).pos() == parent_node.ref_(self).pos() &&
@@ -433,23 +433,23 @@ impl Printer {
                     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
                     parent_node_as_arrow_function.maybe_type().is_none() &&
                         !some(
-                            parent_node.ref_(self).maybe_decorators().as_double_deref(),
+                            parent_node.ref_(self).maybe_decorators().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parent_node.ref_(self).maybe_modifiers().as_double_deref(),
+                            parent_node.ref_(self).maybe_modifiers().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parent_node_as_arrow_function.maybe_type_parameters().as_double_deref(),
+                            parent_node_as_arrow_function.maybe_type_parameters().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.ref_(self).maybe_decorators().as_double_deref(),
+                            parameter.ref_(self).maybe_decorators().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         !some(
-                            parameter.ref_(self).maybe_modifiers().as_double_deref(),
+                            parameter.ref_(self).maybe_modifiers().refed(self).as_double_deref(),
                             Option::<fn(&Id<Node>) -> bool>::None
                         ) &&
                         parameter_as_parameter_declaration.dot_dot_dot_token.is_none() &&
@@ -464,7 +464,7 @@ impl Printer {
     pub(super) fn emit_parameters_for_arrow(
         &self,
         parent_node: Id<Node>,     /*FunctionTypeNode | ArrowFunction*/
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         Ok(
             if self.can_emit_simple_arrow_head(parent_node, parameters) {
@@ -485,7 +485,7 @@ impl Printer {
     pub(super) fn emit_parameters_for_index_signature(
         &self,
         parent_node: Id<Node>,
-        parameters: &NodeArray, /*<ParameterDeclaration>*/
+        parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     ) -> io::Result<()> {
         self.emit_list(
             Some(parent_node),
@@ -525,9 +525,9 @@ impl Printer {
     pub(super) fn emit_list(
         &self,
         parent_node: Option<Id<Node>>,
-        children: Option<&NodeArray>,
+        children: Option<Id<NodeArray>>,
         format: ListFormat,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) -> io::Result<()> {
@@ -547,9 +547,9 @@ impl Printer {
     pub(super) fn emit_expression_list(
         &self,
         parent_node: Option<Id<Node>>,
-        children: Option<&NodeArray>,
+        children: Option<Id<NodeArray>>,
         format: ListFormat,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) -> io::Result<()> {
@@ -571,19 +571,19 @@ impl Printer {
         emit: fn(
             &Printer,
             Option<Id<Node>>,
-            Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+            Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         ) -> io::Result<()>,
         parent_node: Option<Id<Node>>,
-        children: Option<&NodeArray>,
+        children: Option<Id<NodeArray>>,
         format: ListFormat,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
         start: Option<usize>,
         count: Option<usize>,
     ) -> io::Result<()> {
         let start = start.unwrap_or(0);
         let count = count.unwrap_or_else(|| {
             if let Some(children) = children {
-                children.len() - start
+                children.ref_(self).len() - start
             } else {
                 0
             }
@@ -595,7 +595,7 @@ impl Printer {
 
         let is_empty = match children {
             None => true,
-            Some(children) => start >= children.len(),
+            Some(children) => start >= children.ref_(self).len(),
         } || count == 0;
         if is_empty && format.intersects(ListFormat::OptionalIfEmpty) {
             self.on_before_emit_node_array(children);
@@ -607,7 +607,7 @@ impl Printer {
             self.write_punctuation(get_opening_bracket(format));
             if is_empty {
                 if let Some(children) = children {
-                    self.emit_trailing_comments_of_position(children.pos(), Some(true), None);
+                    self.emit_trailing_comments_of_position(children.ref_(self).pos(), Some(true), None);
                 }
             }
         }
@@ -637,7 +637,7 @@ impl Printer {
                 !format.intersects(ListFormat::NoInterveningComments);
             let mut should_emit_intervening_comments = may_emit_intervening_comments;
             let leading_line_terminator_count =
-                self.get_leading_line_terminator_count(parent_node, children, format);
+                self.get_leading_line_terminator_count(parent_node, &children.ref_(self), format);
             if leading_line_terminator_count > 0 {
                 self.write_line(Some(leading_line_terminator_count));
                 should_emit_intervening_comments = false;
@@ -653,7 +653,7 @@ impl Printer {
             let mut previous_source_file_text_kind: Option<BundleFileSectionKind> = None;
             let mut should_decrease_indent_after_emit = false;
             for i in 0..count {
-                let child = children[start + i];
+                let child = children.ref_(self)[start + i];
 
                 if format.intersects(ListFormat::AsteriskDelimited) {
                     self.write_line(None);
@@ -696,7 +696,7 @@ impl Printer {
                     self.record_bundle_file_internal_section_start(child);
                 if should_emit_intervening_comments {
                     // if (emitTrailingCommentsOfPosition) {
-                    let comment_range = get_comment_range(&child.ref_(self));
+                    let comment_range = get_comment_range(child, self);
                     self.emit_trailing_comments_of_position(comment_range.pos(), None, None);
                     // }
                 } else {
@@ -716,11 +716,11 @@ impl Printer {
 
             let emit_flags = previous_sibling
                 .map_or(EmitFlags::None, |previous_sibling| {
-                    get_emit_flags(&previous_sibling.ref_(self))
+                    get_emit_flags(previous_sibling, self)
                 });
             let skip_trailing_comments =
                 self.comments_disabled() || emit_flags.intersects(EmitFlags::NoTrailingComments);
-            let has_trailing_comma = children.has_trailing_comma
+            let has_trailing_comma = children.ref_(self).has_trailing_comma
                 && format.intersects(ListFormat::AllowTrailingComma)
                 && format.intersects(ListFormat::CommaDelimited);
             if has_trailing_comma {
@@ -748,7 +748,7 @@ impl Printer {
                 {
                     self.emit_leading_comments_of_position(
                         if has_trailing_comma {
-                            let children_end = children.end();
+                            let children_end = children.ref_(self).end();
                             if children_end != 0 {
                                 Some(children_end)
                             } else {
@@ -770,7 +770,7 @@ impl Printer {
 
             let closing_line_terminator_count = self.get_closing_line_terminator_count(
                 parent_node,
-                children.rc_wrapper().into(),
+                (&*children.ref_(self)).into(),
                 format,
             );
             if closing_line_terminator_count != 0 {
@@ -786,7 +786,7 @@ impl Printer {
         Ok(if format.intersects(ListFormat::BracketsMask) {
             if is_empty {
                 if let Some(children) = children {
-                    self.emit_leading_comments_of_position(children.end());
+                    self.emit_leading_comments_of_position(children.ref_(self).end());
                 }
             }
             self.write_punctuation(get_closing_bracket(format));

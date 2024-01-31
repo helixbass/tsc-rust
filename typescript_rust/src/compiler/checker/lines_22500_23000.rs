@@ -23,8 +23,8 @@ impl TypeChecker {
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_symbol.is_none() {
-            links.borrow_mut().resolved_symbol = Some(if !node_is_missing(Some(&node.ref_(self))) {
+        if links.ref_(self).resolved_symbol.is_none() {
+            links.ref_mut(self).resolved_symbol = Some(if !node_is_missing(Some(&node.ref_(self))) {
                 self.resolve_name_(
                     Some(node),
                     &node.ref_(self).as_identifier().escaped_text,
@@ -39,7 +39,7 @@ impl TypeChecker {
                 self.unknown_symbol()
             });
         }
-        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        let ret = links.ref_(self).resolved_symbol.clone().unwrap();
         Ok(ret)
     }
 
@@ -376,19 +376,17 @@ impl TypeChecker {
                     let prop_ref = prop.ref_(self);
                     let prop_as_transient_symbol = prop_ref.as_transient_symbol();
                     let prop_symbol_links = prop_as_transient_symbol.symbol_links();
-                    if (*prop_symbol_links)
-                        .borrow()
+                    if prop_symbol_links.ref_(self)
                         .is_discriminant_property
                         .is_none()
                     {
-                        prop_symbol_links.borrow_mut().is_discriminant_property = Some(
+                        prop_symbol_links.ref_mut(self).is_discriminant_property = Some(
                             prop_as_transient_symbol.check_flags() & CheckFlags::Discriminant
                                 == CheckFlags::Discriminant
                                 && !self.is_generic_type(self.get_type_of_symbol(prop)?)?,
                         );
                     }
-                    return Ok((*prop_symbol_links)
-                        .borrow()
+                    return Ok(prop_symbol_links.ref_(self)
                         .is_discriminant_property
                         .unwrap());
                 }
@@ -580,7 +578,7 @@ impl TypeChecker {
         let key_property_name = self.get_key_property_name(union_type)?;
         let prop_node = key_property_name.as_ref().and_then(|key_property_name| {
             find(
-                &node.ref_(self).as_object_literal_expression().properties,
+                &node.ref_(self).as_object_literal_expression().properties.ref_(self),
                 |p: &Id<Node>, _| {
                     let Some(p_symbol) = p.ref_(self).maybe_symbol() else {
                         return false;
@@ -620,7 +618,7 @@ impl TypeChecker {
         reference: Id<Node>,
     ) -> io::Result<bool> {
         if let Some(expression_arguments) = expression.ref_(self).as_has_arguments().maybe_arguments() {
-            for &argument in &expression_arguments {
+            for &argument in &*expression_arguments.ref_(self) {
                 if self.is_or_contains_matching_reference(reference, argument)? {
                     return Ok(true);
                 }
@@ -722,8 +720,8 @@ impl TypeChecker {
                 .as_resolved_type()
                 .construct_signatures()
                 .is_empty()
-            || (*resolved.ref_(self).as_resolved_type().members())
-                .borrow()
+            || resolved.ref_(self).as_resolved_type().members()
+                .ref_(self)
                 .contains_key("bind")
                 && self.is_type_subtype_of(type_, self.global_function_type())?;
         Ok(ret)
@@ -964,7 +962,7 @@ impl TypeChecker {
             .try_or_else(|| {
                 self.include_undefined_in_index_signature(
                     self.get_applicable_index_info_for_name(type_, &text)?
-                        .map(|applicable_index_info| applicable_index_info.type_.clone()),
+                        .map(|applicable_index_info| applicable_index_info.ref_(self).type_.clone()),
                 )
             })?
             .unwrap_or_else(|| self.error_type()))
@@ -1065,7 +1063,7 @@ impl TypeChecker {
             self.get_assigned_type(node)?,
             node.ref_(self).as_array_literal_expression()
                 .elements
-                .iter()
+                .ref_(self).iter()
                 .position(|&el| el == element)
                 .unwrap(),
         )

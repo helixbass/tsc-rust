@@ -19,7 +19,7 @@ mod rust_helpers;
 
 #[allow(unused_imports)]
 use compiler::{
-    binder::BindBinaryExpressionFlow,
+    binder::{Binder, BindBinaryExpressionFlow},
     checker::{
         DuplicateInfoForFiles, DuplicateInfoForSymbol, IterationTypesResolver, TypeSystemEntity,
         TypeSystemPropertyName,
@@ -64,6 +64,7 @@ use compiler::{
         is_reference_file_location, is_referenced_file, DiagnosticCache,
         ForegroundColorEscapeSequences, ReferenceFileLocation,
         ReferenceFileLocationOrSyntheticReferenceFileLocation, SyntheticReferenceFileLocation,
+        GetSourceFile,
     },
     scanner::{
         compute_line_and_character_of_position, compute_line_of_position,
@@ -119,7 +120,7 @@ use compiler::{
     },
 };
 pub use compiler::{
-    binder::{bind_source_file, get_module_instance_state, ModuleInstanceState},
+    binder::{bind_source_file, get_module_instance_state, ModuleInstanceState, ActiveLabel},
     builder::ProgramBuildInfo,
     builder_public::{
         BuilderProgram, EmitAndSemanticDiagnosticsBuilderProgram, SemanticDiagnosticsBuilderProgram,
@@ -127,6 +128,7 @@ pub use compiler::{
     checker::{
         create_type_checker, get_node_id, get_symbol_id, is_instantiated_module,
         CheckBinaryExpression, DiagnosticMessageOrDiagnosticMessageChain, NodeBuilder,
+        CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, NodeBuilderContext,
     },
     command_line_parser::{
         compiler_options_did_you_mean_diagnostics, convert_compiler_options_from_json,
@@ -203,11 +205,10 @@ pub use compiler::{
         },
         node_converters::{create_node_converters, null_node_converters},
         node_factory::{
-            create_input_files, create_node_factory, create_unparsed_source_file, factory,
-            get_factory, get_synthetic_factory, has_node_array_changed,
+            create_input_files, create_node_factory, create_unparsed_source_file,
+            get_factory, get_factory_id, get_synthetic_factory, has_node_array_changed,
             has_option_node_array_changed, has_option_str_or_node_changed, set_original_node,
-            synthetic_factory, with_factory, with_synthetic_factory,
-            with_synthetic_factory_and_factory, BaseNodeFactorySynthetic, NodeFactoryFlags,
+            BaseNodeFactorySynthetic, NodeFactoryFlags,
             NumberOrRcNode, ReadFileCallback, StrOrRcNode, StringOrNumber,
             StringOrNumberOrBoolOrRcNode, StringOrRcNode, SyntaxKindOrRcNode,
         },
@@ -309,16 +310,17 @@ pub use compiler::{
         get_automatic_type_directive_names, node_module_name_resolver, resolve_module_name,
         resolve_type_reference_directive, GetCanonicalFileName, ModeAwareCache,
         ModuleResolutionCache, NonRelativeModuleNameResolutionCache, PackageJsonInfoCache,
-        TypeReferenceDirectiveResolutionCache,
+        TypeReferenceDirectiveResolutionCache, PerModuleNameCache,
+        PackageJsonInfo,
     },
     module_specifiers,
     parser::{
         create_source_file, for_each_child, for_each_child_bool, for_each_child_recursively,
         for_each_child_recursively_bool, for_each_child_returns, get_parse_node_factory,
-        is_external_module, parse_base_node_factory, parse_isolated_entity_name,
-        parse_jsdoc_type_expression_for_tests, parse_json_text, parse_node_factory,
+        is_external_module, parse_isolated_entity_name,
+        parse_jsdoc_type_expression_for_tests, parse_json_text,
         try_for_each_child, try_for_each_child_bool, try_for_each_child_recursively_bool,
-        update_source_file, with_parse_base_node_factory_and_factory,
+        update_source_file,
         ForEachChildRecursivelyCallbackReturn, IncrementalParser, IncrementalParserSyntaxCursor,
         IncrementalParserSyntaxCursorInterface, IncrementalParserSyntaxCursorReparseTopLevelAwait,
         IncrementalParserType, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression, ParserType,
@@ -351,7 +353,9 @@ pub use compiler::{
         parse_config_host_from_compiler_host_like, resolve_tripleslash_reference,
         ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,
         CompilerHostLikeRcDynCompilerHost, EmitHostWriteFileCallback, FilesByNameValue,
-        FormatDiagnosticsHost, ToPath,
+        FormatDiagnosticsHost, ToPath, GetSymlinkCache, GetResolvedProjectReferences,
+        ForEachResolvedProjectReference, CompilerHostLike, LoadWithModeAwareCacheLoader,
+        LoadWithLocalCacheLoader,
     },
     scanner::{
         compute_line_starts, could_start_trivia, create_scanner, for_each_leading_comment_range,
@@ -367,7 +371,7 @@ pub use compiler::{
         try_get_source_mapping_url, try_parse_raw_source_map, LineInfo, Mapping, MappingsDecoder,
     },
     sys::{
-        generate_djb2_hash, get_sys, get_sys_concrete, Buffer, DirectoryWatcherCallback,
+        generate_djb2_hash, get_sys, Buffer, DirectoryWatcherCallback,
         FileWatcher, FileWatcherCallback, System,
     },
     tracing::{dump_tracing_legend, start_tracing},
@@ -377,7 +381,8 @@ pub use compiler::{
         WrapCustomTransformerFactoryHandleDefault,
     },
     transformers::{
-        class_fields::PrivateIdentifierKind,
+        PrivateIdentifierKind, ClassLexicalEnvironment, ConvertedLoopState, CodeBlock,
+        PrivateIdentifierEnvironment, PrivateIdentifierInfo, PendingDeclaration,
         declarations::{
             diagnostics::{
                 can_produce_diagnostics, create_get_symbol_accessibility_diagnostic_for_node,
@@ -435,7 +440,7 @@ pub use compiler::{
         BigIntLiteralType, BinaryExpression, BindingElement, BindingLikeDeclarationInterface,
         Block, BoolOrRcNode, BreakStatement, BuildInfo, Bundle, BundleFileInfo, BundleFileSection,
         BundleFileSectionInterface, BundleFileSectionKind, CallBinding, CallExpression,
-        CallSignatureDeclaration, CancellationToken, CancellationTokenDebuggable, CaseBlock,
+        CallSignatureDeclaration, CancellationToken, CaseBlock,
         CaseClause, CaseOrDefaultClauseInterface, CatchClause, CharacterCodes, CheckFlags,
         CheckJsDirective, ClassDeclaration, ClassExpression, ClassLikeDeclarationBase,
         ClassLikeDeclarationInterface, ClassStaticBlockDeclaration, CommaListExpression,
@@ -502,7 +507,7 @@ pub use compiler::{
         ModuleSpecifierCache, ModuleSpecifierResolutionHost,
         ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface,
         NamedExports, NamedImports, NamedTupleMember, NamespaceExport, NamespaceExportDeclaration,
-        NamespaceImport, NewExpression, NewLineKind, Node, NodeArray, NodeArrayExt, NodeArrayOrVec,
+        NamespaceImport, NewExpression, NewLineKind, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeArrayOrVecRef,
         NodeBuilderFlags, NodeCheckFlags, NodeConverters, NodeExt, NodeFactory, NodeFlags, NodeId,
         NodeIdOverride, NodeInterface, NodeLinks, NodeLinksSerializedType, NodeSymbolOverride,
         NonNullExpression, NotActuallyInterfaceType, NumberLiteralType, NumericLiteral,
@@ -561,6 +566,7 @@ pub use compiler::{
         VariableStatement, VarianceFlags, VisitResult, VisitResultInterface, VoidExpression,
         WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind, WatchOptions, WatchOptionsBuilder,
         WhileStatement, WithStatement, WriteFileCallback, YieldExpression, __String,
+        SkipTrivia,
     },
     utilities::{
         add_related_info, add_related_info_rc, array_is_homogeneous, attach_file_to_diagnostics,
@@ -813,7 +819,7 @@ pub use compiler::{
         get_matched_include_spec, get_watch_error_summary_diagnostic_message,
         parse_config_file_with_system, perform_incremental_compilation,
         CreateWatchCompilerHostOfConfigFileInput, IncrementalCompilationOptions,
-        ProgramOrBuilderProgram,
+        ProgramOrBuilderProgram, SysFormatDiagnosticsHost,
     },
     watch_public::{
         create_incremental_compiler_host, create_watch_program, CreateProgram, ProgramHost,
@@ -824,14 +830,13 @@ pub use compiler::{
 pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::{
     are_gc_slices_equal, are_option_gcs_equal, are_option_rcs_equal, are_rc_slices_equal,
-    arena::{static_arena, AllArenas, HasArena, InArena, OptionInArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory},
+    arena::{static_arena, AllArenas, HasArena, InArena, OptionInArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ArenaAlloc},
     capitalize,
     cell::{gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped},
     combinators::With,
     debugging::{if_debugging, is_logging, start_debugging, stop_debugging, while_debugging},
     default::_d,
     deref::AsDoubleDeref,
-    hash_map::{GcHashMap, GcHashMapOwnedValues},
     index_of, index_of_eq, index_of_gc, index_of_rc,
     io::io_error_from_name,
     is_option_str_empty, is_same_variant,

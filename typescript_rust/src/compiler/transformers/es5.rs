@@ -20,7 +20,7 @@ struct TransformES5 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Id<NodeFactory>,
     compiler_options: Id<CompilerOptions>,
     no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
 }
@@ -42,7 +42,7 @@ impl TransformES5 {
             Some(JsxEmit::Preserve) | Some(JsxEmit::ReactNative)
         ) {
             context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-                Gc::new(Box::new(TransformES5OnEmitNodeOverrider::new(
+                arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformES5OnEmitNodeOverrider::new(
                     ret,
                     previous_on_emit_node,
                 )))
@@ -53,7 +53,7 @@ impl TransformES5 {
             *downcast_transformer_ref::<TransformES5>(ret, arena_ref).no_substitution.borrow_mut() = Some(Default::default());
         }
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(TransformES5OnSubstituteNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformES5OnSubstituteNodeOverrider::new(
                 ret,
                 previous_on_substitute_node,
             )))
@@ -98,13 +98,13 @@ impl HasArena for TransformES5 {
 #[derive(Trace, Finalize)]
 struct TransformES5OnEmitNodeOverrider {
     transform_es5: Transformer,
-    previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformES5OnEmitNodeOverrider {
     fn new(
         transform_es5: Transformer,
-        previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es5,
@@ -137,7 +137,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformES5OnEmitNodeOverride
         }
 
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback)
+            .ref_(self).on_emit_node(hint, node, emit_callback)
     }
 }
 
@@ -150,13 +150,13 @@ impl HasArena for TransformES5OnEmitNodeOverrider {
 #[derive(Trace, Finalize)]
 struct TransformES5OnSubstituteNodeOverrider {
     transform_es5: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformES5OnSubstituteNodeOverrider {
     fn new(
         transform_es5: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_es5,
@@ -183,7 +183,7 @@ impl TransformES5OnSubstituteNodeOverrider {
             return self
                 .transform_es5()
                 .factory
-                .create_element_access_expression(
+                .ref_(self).create_element_access_expression(
                     node_as_property_access_expression.expression.clone(),
                     literal_name,
                 )
@@ -201,7 +201,7 @@ impl TransformES5OnSubstituteNodeOverrider {
         let literal_name = is_identifier(&node_as_property_assignment.name().ref_(self))
             .then_and(|| self.try_substitute_reserved_name(node_as_property_assignment.name()));
         if let Some(literal_name) = literal_name {
-            return self.transform_es5().factory.update_property_assignment(
+            return self.transform_es5().factory.ref_(self).update_property_assignment(
                 node,
                 literal_name,
                 node_as_property_assignment.initializer.clone(),
@@ -222,7 +222,7 @@ impl TransformES5OnSubstituteNodeOverrider {
             return Some(
                 self.transform_es5()
                     .factory
-                    .create_string_literal_from_node(name)
+                    .ref_(self).create_string_literal_from_node(name)
                     .set_text_range(Some(&*name.ref_(self)), self),
             );
         }
@@ -238,12 +238,12 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES5OnSubstitute
         ) {
             return self
                 .previous_on_substitute_node
-                .on_substitute_node(hint, node);
+                .ref_(self).on_substitute_node(hint, node);
         }
 
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node)?;
+            .ref_(self).on_substitute_node(hint, node)?;
         if is_property_access_expression(&node.ref_(self)) {
             return Ok(self.substitute_property_access_expression(node));
         } else if is_property_assignment(&node.ref_(self)) {
@@ -270,7 +270,13 @@ impl TransformES5Factory {
 
 impl TransformerFactoryInterface for TransformES5Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(context.clone(), TransformES5::new(context, &*static_arena()))
+        chain_bundle(self).ref_(self).call(context.clone(), TransformES5::new(context, &*static_arena()))
+    }
+}
+
+impl HasArena for TransformES5Factory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

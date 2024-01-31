@@ -125,7 +125,7 @@ pub(super) fn parse_config(
     base_path: &str,
     config_file_name: Option<&str>,
     resolution_stack: &[&str],
-    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+    errors: Id<Vec<Id<Diagnostic>>>,
     extended_config_cache: &mut Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
@@ -134,7 +134,7 @@ pub(super) fn parse_config(
         get_normalized_absolute_path(config_file_name.unwrap_or(""), Some(&base_path));
 
     if index_of(resolution_stack, &&*resolved_path, |a, b| a == b) >= 0 {
-        errors.borrow_mut().push(arena.alloc_diagnostic(
+        errors.ref_mut(arena).push(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::Circularity_detected_while_resolving_configuration_Colon_0,
                 Some(vec![[resolution_stack, &*vec![&*resolved_path]]
@@ -155,7 +155,7 @@ pub(super) fn parse_config(
             host,
             &base_path,
             config_file_name,
-            &mut errors.borrow_mut(),
+            &mut errors.ref_mut(arena),
             arena,
         )?
     } else {
@@ -352,7 +352,7 @@ pub(super) fn parse_own_config_of_json_source_file(
     host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     config_file_name: Option<&str>,
-    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+    errors: Id<Vec<Id<Diagnostic>>>,
     arena: &impl HasArena,
 ) -> io::Result<ParsedTsconfig> {
     let mut options = get_default_compiler_options(config_file_name);
@@ -407,7 +407,7 @@ pub(super) fn parse_own_config_of_json_source_file(
         if let Some(json) = json.as_ref() {
             if !matches!(json, serde_json::Value::Object(map) if map.contains_key("compilerOptions"))
             {
-                errors.borrow_mut().push(
+                errors.ref_mut(arena).push(
                     arena.alloc_diagnostic(
                         create_diagnostic_for_node_in_source_file(
                             source_file,
@@ -447,7 +447,7 @@ struct ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost: ParseConfigHost 
     typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
     extended_config_path: &'a RefCell<Option<String>>,
     host: &'a THost,
-    errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+    errors: Id<Vec<Id<Diagnostic>>>,
     source_file: Id<Node>,
     root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
 }
@@ -462,7 +462,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> ParseOwnConfigOfJsonSourceFileOptionsI
         typing_options_type_acquisition: &'a RefCell<Option<TypeAcquisition>>,
         extended_config_path: &'a RefCell<Option<String>>,
         host: &'a THost,
-        errors: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        errors: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
         root_compiler_options: &'a RefCell<Option<Vec<Id<Node>>>>,
     ) -> Self {
@@ -560,7 +560,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
                     },
                     self.host,
                     &new_base,
-                    &mut self.errors.borrow_mut(),
+                    &mut self.errors.ref_mut(self),
                     |message, args| {
                         self.alloc_diagnostic(
                             create_diagnostic_for_node_in_source_file(
@@ -590,7 +590,7 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
         _value_node: Id<Node>, /*Expression*/
     ) {
         if key == "excludes" {
-            self.errors.borrow_mut().push(self.alloc_diagnostic(
+            self.errors.ref_mut(self).push(self.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     self.source_file,
                     key_node,
@@ -665,8 +665,8 @@ pub(super) fn get_extends_config_path(
         None,
         arena,
     )?;
-    if let Some(resolved_resolved_module) = resolved.resolved_module.as_ref() {
-        return Ok(Some(resolved_resolved_module.resolved_file_name.clone()));
+    if let Some(resolved_resolved_module) = resolved.ref_(arena).resolved_module {
+        return Ok(Some(resolved_resolved_module.ref_(arena).resolved_file_name.clone()));
     }
     errors.push(create_diagnostic(
         &Diagnostics::File_0_not_found,

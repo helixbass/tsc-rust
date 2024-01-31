@@ -24,24 +24,24 @@ use crate::{
 impl CheckTypeRelatedTo {
     pub(super) fn index_info_related_to(
         &self,
-        source_info: &IndexInfo,
-        target_info: &IndexInfo,
+        source_info: Id<IndexInfo>,
+        target_info: Id<IndexInfo>,
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let related = self.is_related_to(
-            source_info.type_,
-            target_info.type_,
+            source_info.ref_(self).type_,
+            target_info.ref_(self).type_,
             Some(RecursionFlags::Both),
             Some(report_errors),
             None,
             None,
         )?;
         if related == Ternary::False && report_errors {
-            if source_info.key_type == target_info.key_type {
+            if source_info.ref_(self).key_type == target_info.ref_(self).key_type {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_index_signatures_are_incompatible),
-                    Some(vec![self.type_checker.type_to_string_(
-                        source_info.key_type,
+                    Some(vec![self.type_checker.ref_(self).type_to_string_(
+                        source_info.ref_(self).key_type,
                         Option::<Id<Node>>::None,
                         None,
                         None,
@@ -51,14 +51,14 @@ impl CheckTypeRelatedTo {
                 self.report_error(
                     Cow::Borrowed(&Diagnostics::_0_and_1_index_signatures_are_incompatible),
                     Some(vec![
-                        self.type_checker.type_to_string_(
-                            source_info.key_type,
+                        self.type_checker.ref_(self).type_to_string_(
+                            source_info.ref_(self).key_type,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
-                        self.type_checker.type_to_string_(
-                            target_info.key_type,
+                        self.type_checker.ref_(self).type_to_string_(
+                            target_info.ref_(self).key_type,
                             Option::<Id<Node>>::None,
                             None,
                             None,
@@ -78,30 +78,30 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        if Rc::ptr_eq(&self.relation, &self.type_checker.identity_relation) {
+        if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation) {
             return self.index_signatures_identical_to(source, target);
         }
-        let index_infos = self.type_checker.get_index_infos_of_type(target)?;
+        let index_infos = self.type_checker.ref_(self).get_index_infos_of_type(target)?;
         let target_has_string_index = some(
             Some(&index_infos),
-            Some(|info: &Gc<IndexInfo>| info.key_type == self.type_checker.string_type()),
+            Some(|info: &Id<IndexInfo>| info.ref_(self).key_type == self.type_checker.ref_(self).string_type()),
         );
         let mut result = Ternary::True;
-        for target_info in &index_infos {
+        for &target_info in &index_infos {
             let related = if !source_is_primitive
                 && target_has_string_index
                 && target_info
-                    .type_
+                    .ref_(self).type_
                     .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Any)
             {
                 Ternary::True
-            } else if self.type_checker.is_generic_mapped_type(source)? && target_has_string_index {
+            } else if self.type_checker.ref_(self).is_generic_mapped_type(source)? && target_has_string_index {
                 self.is_related_to(
                     self.type_checker
-                        .get_template_type_from_mapped_type(source)?,
-                    target_info.type_,
+                        .ref_(self).get_template_type_from_mapped_type(source)?,
+                    target_info.ref_(self).type_,
                     Some(RecursionFlags::Both),
                     Some(report_errors),
                     None,
@@ -126,20 +126,20 @@ impl CheckTypeRelatedTo {
     pub(super) fn type_related_to_index_info(
         &self,
         source: Id<Type>,
-        target_info: &IndexInfo,
+        target_info: Id<IndexInfo>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         let source_info = self
             .type_checker
-            .get_applicable_index_info(source, target_info.key_type)?;
-        if let Some(source_info) = source_info.as_ref() {
+            .ref_(self).get_applicable_index_info(source, target_info.ref_(self).key_type)?;
+        if let Some(source_info) = source_info {
             return self.index_info_related_to(source_info, target_info, report_errors);
         }
         if !intersection_state.intersects(IntersectionState::Source)
             && self
                 .type_checker
-                .is_object_type_with_inferable_index(source)?
+                .ref_(self).is_object_type_with_inferable_index(source)?
         {
             return self.members_related_to_index_info(source, target_info, report_errors);
         }
@@ -147,13 +147,13 @@ impl CheckTypeRelatedTo {
             self.report_error(
                 Cow::Borrowed(&Diagnostics::Index_signature_for_type_0_is_missing_in_type_1),
                 Some(vec![
-                    self.type_checker.type_to_string_(
-                        target_info.key_type,
+                    self.type_checker.ref_(self).type_to_string_(
+                        target_info.ref_(self).key_type,
                         Option::<Id<Node>>::None,
                         None,
                         None,
                     )?,
-                    self.type_checker.type_to_string_(
+                    self.type_checker.ref_(self).type_to_string_(
                         source,
                         Option::<Id<Node>>::None,
                         None,
@@ -170,23 +170,23 @@ impl CheckTypeRelatedTo {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<Ternary> {
-        let source_infos = self.type_checker.get_index_infos_of_type(source)?;
-        let target_infos = self.type_checker.get_index_infos_of_type(target)?;
+        let source_infos = self.type_checker.ref_(self).get_index_infos_of_type(source)?;
+        let target_infos = self.type_checker.ref_(self).get_index_infos_of_type(target)?;
         if source_infos.len() != target_infos.len() {
             return Ok(Ternary::False);
         }
         for target_info in &target_infos {
             let source_info = self
                 .type_checker
-                .get_index_info_of_type_(source, target_info.key_type)?;
+                .ref_(self).get_index_info_of_type_(source, target_info.ref_(self).key_type)?;
             if !matches!(
                 source_info.as_ref(),
                 Some(source_info) if self.is_related_to(
-                    source_info.type_,
-                    target_info.type_,
+                    source_info.ref_(self).type_,
+                    target_info.ref_(self).type_,
                     Some(RecursionFlags::Both),
                     None, None, None
-                )? != Ternary::False && source_info.is_readonly == target_info.is_readonly
+                )? != Ternary::False && source_info.ref_(self).is_readonly == target_info.ref_(self).is_readonly
             ) {
                 return Ok(Ternary::False);
             }
@@ -196,13 +196,13 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn constructor_visibilities_are_compatible(
         &self,
-        source_signature: &Signature,
-        target_signature: &Signature,
+        source_signature: Id<Signature>,
+        target_signature: Id<Signature>,
         report_errors: bool,
     ) -> io::Result<bool> {
         let (Some(source_signature_declaration), Some(target_signature_declaration)) = (
-            source_signature.declaration,
-            target_signature.declaration
+            source_signature.ref_(self).declaration,
+            target_signature.ref_(self).declaration
         ) else {
             return Ok(true);
         };
@@ -241,10 +241,10 @@ impl CheckTypeRelatedTo {
                 ),
                 Some(vec![
                     self.type_checker
-                        .visibility_to_string(source_accessibility)
+                        .ref_(self).visibility_to_string(source_accessibility)
                         .to_owned(),
                     self.type_checker
-                        .visibility_to_string(target_accessibility)
+                        .ref_(self).visibility_to_string(target_accessibility)
                         .to_owned(),
                 ]),
             )?;
@@ -513,7 +513,7 @@ impl TypeChecker {
 
     pub(super) fn get_alias_variances(&self, symbol: Id<Symbol>) -> io::Result<Vec<VarianceFlags>> {
         let links = self.get_symbol_links(symbol);
-        let links_type_parameters = (*links).borrow().type_parameters.clone();
+        let links_type_parameters = (*links.ref_(self)).borrow().type_parameters.clone();
         let ret = self.try_get_variances_worker(
             links_type_parameters.as_deref(),
             links.clone(),
@@ -525,7 +525,7 @@ impl TypeChecker {
                     symbol,
                     self.instantiate_types(
                         {
-                            let value = (*links).borrow().type_parameters.clone();
+                            let value = (*links.ref_(self)).borrow().type_parameters.clone();
                             value
                         }
                         .as_deref(),
@@ -582,7 +582,7 @@ impl TypeChecker {
                 let unmeasurable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let unreliable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let old_handler = self.maybe_outofband_variance_marker_handler();
-                self.set_outofband_variance_marker_handler(Some(Gc::new(Box::new(
+                self.set_outofband_variance_marker_handler(Some(self.alloc_outofband_variance_marker_handler(Box::new(
                     GetVariancesWorkerOutofbandVarianceMarkerHandler::new(
                         unmeasurable.clone(),
                         unreliable.clone(),
@@ -790,7 +790,7 @@ impl TypeChecker {
         callback: &mut impl FnMut(Id<Symbol>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Synthetic) {
-            for &t in (*prop.ref_(self).as_transient_symbol().symbol_links())
+            for &t in (*prop.ref_(self).as_transient_symbol().symbol_links().ref_(self))
                 .borrow()
                 .containing_type
                 .unwrap()
@@ -1062,8 +1062,8 @@ impl TypeChecker {
 
     pub(super) fn is_matching_signature(
         &self,
-        source: &Signature,
-        target: &Signature,
+        source: Id<Signature>,
+        target: Id<Signature>,
         partial_match: bool,
     ) -> io::Result<bool> {
         let source_parameter_count = self.get_parameter_count(source)?;
@@ -1086,7 +1086,7 @@ impl TypeChecker {
 }
 
 pub(super) enum GetVariancesCache {
-    SymbolLinks(Gc<GcCell<SymbolLinks>>),
+    SymbolLinks(Id<SymbolLinks>),
     GenericType(Id<Type /*GenericType*/>),
 }
 
@@ -1096,7 +1096,7 @@ impl GetVariancesCache {
         type_checker: &TypeChecker,
     ) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
-            Self::SymbolLinks(symbol_links) => (**symbol_links).borrow().variances.clone(),
+            Self::SymbolLinks(symbol_links) => (*symbol_links.ref_(type_checker)).borrow().variances.clone(),
             Self::GenericType(generic_type) => type_checker
                 .type_(*generic_type)
                 .as_generic_type()
@@ -1105,8 +1105,8 @@ impl GetVariancesCache {
     }
 }
 
-impl From<Gc<GcCell<SymbolLinks>>> for GetVariancesCache {
-    fn from(value: Gc<GcCell<SymbolLinks>>) -> Self {
+impl From<Id<SymbolLinks>> for GetVariancesCache {
+    fn from(value: Id<SymbolLinks>) -> Self {
         Self::SymbolLinks(value)
     }
 }
@@ -1122,7 +1122,7 @@ pub(super) enum RecursionIdentity {
     Node(Id<Node>),
     Symbol(Id<Symbol>),
     Type(Id<Type>),
-    ConditionalRoot(Gc<GcCell<ConditionalRoot>>),
+    ConditionalRoot(Id<ConditionalRoot>),
     None,
 }
 
@@ -1132,7 +1132,7 @@ impl PartialEq for RecursionIdentity {
             (Self::Node(a), Self::Node(b)) => a == b,
             (Self::Symbol(a), Self::Symbol(b)) => a == b,
             (Self::Type(a), Self::Type(b)) => a == b,
-            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => Gc::ptr_eq(a, b),
+            (Self::ConditionalRoot(a), Self::ConditionalRoot(b)) => a == b,
             (Self::None, Self::None) => true,
             _ => false,
         }
@@ -1159,8 +1159,8 @@ impl From<Id<Type>> for RecursionIdentity {
     }
 }
 
-impl From<Gc<GcCell<ConditionalRoot>>> for RecursionIdentity {
-    fn from(value: Gc<GcCell<ConditionalRoot>>) -> Self {
+impl From<Id<ConditionalRoot>> for RecursionIdentity {
+    fn from(value: Id<ConditionalRoot>) -> Self {
         Self::ConditionalRoot(value)
     }
 }

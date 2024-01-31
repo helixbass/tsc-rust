@@ -30,7 +30,7 @@ impl TypeChecker {
             let is_used = try_for_each_child_bool(
                 node.ref_(self).as_binary_expression().right,
                 |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
-                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                 self,
             )?;
             if is_used {
@@ -58,7 +58,7 @@ impl TypeChecker {
         try_for_each_child_bool(
             child,
             |child| self.is_symbol_used_in_binary_expression_chain_visit(tested_symbol, child),
-            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
             self,
         )
     }
@@ -128,7 +128,7 @@ impl TypeChecker {
         if let Some(node_initializer) = node_as_for_statement.initializer {
             if node_initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
                 try_for_each(
-                    &node_initializer.ref_(self).as_variable_declaration_list().declarations,
+                    &*node_initializer.ref_(self).as_variable_declaration_list().declarations.ref_(self),
                     |&declaration: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_variable_declaration(declaration)?;
                         Ok(None)
@@ -253,7 +253,7 @@ impl TypeChecker {
                 .initializer
                 .ref_(self).as_variable_declaration_list()
                 .declarations
-                .get(0)
+                .ref_(self).get(0)
                 .copied();
             if let Some(variable) = variable.filter(|variable| {
                 is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
@@ -332,8 +332,8 @@ impl TypeChecker {
             .unwrap();
         let variable_declaration_list_ref = variable_declaration_list.ref_(self);
         let variable_declaration_list = variable_declaration_list_ref.as_variable_declaration_list();
-        if !variable_declaration_list.declarations.is_empty() {
-            let decl = variable_declaration_list.declarations[0];
+        if !variable_declaration_list.declarations.ref_(self).is_empty() {
+            let decl = variable_declaration_list.declarations.ref_(self)[0];
             self.check_variable_declaration(decl)?;
         }
 
@@ -428,7 +428,7 @@ impl TypeChecker {
                     if let Some(diagnostic) = diagnostic {
                         self.check_type_assignable_to(
                             sent_type,
-                            iteration_types.next_type(),
+                            iteration_types.ref_(self).next_type(),
                             error_node,
                             Some(diagnostic),
                             None,
@@ -442,12 +442,12 @@ impl TypeChecker {
                     self.include_undefined_in_index_signature(
                         iteration_types
                             .as_ref()
-                            .map(|iteration_types| iteration_types.yield_type()),
+                            .map(|iteration_types| iteration_types.ref_(self).yield_type()),
                     )?
                 } else {
                     iteration_types
                         .as_ref()
-                        .map(|iteration_types| iteration_types.yield_type())
+                        .map(|iteration_types| iteration_types.ref_(self).yield_type())
                 });
             }
         }
@@ -664,7 +664,7 @@ impl TypeChecker {
 
         let iteration_types = self.get_iteration_types_of_iterable(input_type, use_, error_node)?;
         Ok(iteration_types.as_ref().map(|iteration_types| {
-            iteration_types.get_by_key(get_iteration_types_key_from_iteration_type_kind(type_kind))
+            iteration_types.ref_(self).get_by_key(get_iteration_types_key_from_iteration_type_kind(type_kind))
         }))
     }
 
@@ -673,7 +673,7 @@ impl TypeChecker {
         yield_type: Option<Id<Type>>,
         return_type: Option<Id<Type>>,
         next_type: Option<Id<Type>>,
-    ) -> Gc<IterationTypes> {
+    ) -> Id<IterationTypes> {
         let yield_type = yield_type.unwrap_or_else(|| self.never_type());
         let return_type = return_type.unwrap_or_else(|| self.never_type());
         let next_type = next_type.unwrap_or_else(|| self.unknown_type());
@@ -703,17 +703,17 @@ impl TypeChecker {
             ]));
             let mut iteration_types_cache = self.iteration_types_cache();
             let iteration_types = iteration_types_cache.entry(id).or_insert_with(|| {
-                Gc::new(IterationTypes::new(yield_type, return_type, next_type))
+                self.alloc_iteration_types(IterationTypes::new(yield_type, return_type, next_type))
             });
             return iteration_types.clone();
         }
-        Gc::new(IterationTypes::new(yield_type, return_type, next_type))
+        self.alloc_iteration_types(IterationTypes::new(yield_type, return_type, next_type))
     }
 
     pub(super) fn combine_iteration_types(
         &self,
-        array: &[Option<Gc<IterationTypes>>],
-    ) -> io::Result<Gc<IterationTypes>> {
+        array: &[Option<Id<IterationTypes>>],
+    ) -> io::Result<Id<IterationTypes>> {
         let mut yield_types: Option<Vec<Id<Type>>> = None;
         let mut return_types: Option<Vec<Id<Type>>> = None;
         let mut next_types: Option<Vec<Id<Type>>> = None;
@@ -722,10 +722,10 @@ impl TypeChecker {
                 continue;
             }
             let iteration_types = iteration_types.clone().unwrap();
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 continue;
             }
-            if Gc::ptr_eq(&iteration_types, &self.any_iteration_types()) {
+            if iteration_types == self.any_iteration_types() {
                 return Ok(self.any_iteration_types());
             }
             if yield_types.is_none() {
@@ -733,21 +733,21 @@ impl TypeChecker {
             }
             append(
                 yield_types.as_mut().unwrap(),
-                Some(iteration_types.yield_type()),
+                Some(iteration_types.ref_(self).yield_type()),
             );
             if return_types.is_none() {
                 return_types = Some(vec![]);
             }
             append(
                 return_types.as_mut().unwrap(),
-                Some(iteration_types.return_type()),
+                Some(iteration_types.ref_(self).return_type()),
             );
             if next_types.is_none() {
                 next_types = Some(vec![]);
             }
             append(
                 next_types.as_mut().unwrap(),
-                Some(iteration_types.next_type()),
+                Some(iteration_types.ref_(self).next_type()),
             );
         }
         if yield_types.is_some() || return_types.is_some() || next_types.is_some() {
@@ -770,7 +770,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
-    ) -> Option<Gc<IterationTypes>> {
+    ) -> Option<Id<IterationTypes>> {
         type_.ref_(self).get_by_iteration_type_cache_key(cache_key)
     }
 
@@ -778,8 +778,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         cache_key: IterationTypeCacheKey,
-        cached_types: Gc<IterationTypes>,
-    ) -> Gc<IterationTypes> {
+        cached_types: Id<IterationTypes>,
+    ) -> Id<IterationTypes> {
         type_
             .ref_(self)
             .set_by_iteration_type_cache_key(cache_key, Some(cached_types.clone()));
@@ -791,7 +791,7 @@ impl TypeChecker {
         type_: Id<Type>,
         use_: IterationUse,
         error_node: Option<Id<Node>>,
-    ) -> io::Result<Option<Gc<IterationTypes>>> {
+    ) -> io::Result<Option<Id<IterationTypes>>> {
         if self.is_type_any(Some(type_)) {
             return Ok(Some(self.any_iteration_types()));
         }
@@ -799,7 +799,7 @@ impl TypeChecker {
         if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             let iteration_types =
                 self.get_iteration_types_of_iterable_worker(type_, use_, error_node)?;
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 if let Some(error_node) = error_node {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -818,22 +818,22 @@ impl TypeChecker {
             IterationTypeCacheKey::IterationTypesOfIterable
         };
         let cached_types = self.get_cached_iteration_types(type_, cache_key);
-        if let Some(cached_types) = cached_types.as_ref() {
-            return Ok(if Gc::ptr_eq(cached_types, &self.no_iteration_types()) {
+        if let Some(cached_types) = cached_types {
+            return Ok(if cached_types == self.no_iteration_types() {
                 None
             } else {
                 Some(cached_types.clone())
             });
         }
 
-        let mut all_iteration_types: Option<Vec<Gc<IterationTypes>>> = None;
+        let mut all_iteration_types: Option<Vec<Id<IterationTypes>>> = None;
         for &constituent in type_.ref_(self).as_union_type().types() {
             let iteration_types = self.get_iteration_types_of_iterable_worker(
                 constituent,
                 use_,
                 error_node,
             )?;
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 if let Some(error_node) = error_node {
                     self.report_type_not_iterable_error(
                         error_node,
@@ -863,7 +863,7 @@ impl TypeChecker {
         };
         self.set_cached_iteration_types(type_, cache_key, iteration_types.clone());
         Ok(
-            if Gc::ptr_eq(&iteration_types, &self.no_iteration_types()) {
+            if iteration_types == self.no_iteration_types() {
                 None
             } else {
                 Some(iteration_types)

@@ -68,15 +68,16 @@ impl TransformES2015 {
         multi_line: bool,
         has_trailing_comma: bool,
     ) -> io::Result<SpreadSegment> {
-        let expression = self.factory.create_array_literal_expression(
+        let expression = self.factory.ref_(self).create_array_literal_expression(
             Some(try_visit_nodes(
-                &self
+                self
                     .factory
-                    .create_node_array(Some(chunk), Some(has_trailing_comma)),
+                    .ref_(self).create_node_array(Some(chunk), Some(has_trailing_comma)),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 None,
                 None,
+                self,
             )?),
             Some(multi_line),
         );
@@ -106,7 +107,7 @@ impl TransformES2015 {
         node: Id<Node>, /*LiteralExpression*/
     ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
-            .create_string_literal(node.ref_(self).as_literal_like_node().text().clone(), None, None)
+            .ref_(self).create_string_literal(node.ref_(self).as_literal_like_node().text().clone(), None, None)
             .set_text_range(Some(&*node.ref_(self)), self)
     }
 
@@ -119,7 +120,7 @@ impl TransformES2015 {
         if node_as_string_literal.has_extended_unicode_escape() == Some(true) {
             return Some(
                 self.factory
-                    .create_string_literal(node_as_string_literal.text().clone(), None, None)
+                    .ref_(self).create_string_literal(node_as_string_literal.text().clone(), None, None)
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );
@@ -139,7 +140,7 @@ impl TransformES2015 {
         {
             return Some(
                 self.factory
-                    .create_numeric_literal(node_as_numeric_literal.text().clone(), None)
+                    .ref_(self).create_numeric_literal(node_as_numeric_literal.text().clone(), None)
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );
@@ -170,7 +171,7 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_ref = node.ref_(self);
         let node_as_template_expression = node_ref.as_template_expression();
-        let mut expression: Id<Node /*Expression*/> = self.factory.create_string_literal(
+        let mut expression: Id<Node /*Expression*/> = self.factory.ref_(self).create_string_literal(
             node_as_template_expression
                 .head
                 .ref_(self).as_template_literal_like_node()
@@ -179,7 +180,7 @@ impl TransformES2015 {
             None,
             None,
         );
-        for span in &node_as_template_expression.template_spans {
+        for span in &*node_as_template_expression.template_spans.ref_(self) {
             let span_ref = span.ref_(self);
             let span_as_template_span = span_ref.as_template_span();
             let mut args = vec![try_visit_node(
@@ -196,7 +197,7 @@ impl TransformES2015 {
                 .is_empty()
             {
                 args.push(
-                    self.factory.create_string_literal(
+                    self.factory.ref_(self).create_string_literal(
                         span_as_template_span
                             .literal
                             .ref_(self).as_template_literal_like_node()
@@ -208,10 +209,10 @@ impl TransformES2015 {
                 );
             }
 
-            expression = self.factory.create_call_expression(
+            expression = self.factory.ref_(self).create_call_expression(
                 self.factory
-                    .create_property_access_expression(expression, "concat"),
-                Option::<Gc<NodeArray>>::None,
+                    .ref_(self).create_property_access_expression(expression, "concat"),
+                Option::<Id<NodeArray>>::None,
                 Some(args),
             );
         }
@@ -229,8 +230,8 @@ impl TransformES2015 {
             .intersects(HierarchyFacts::NonStaticClassElement)
             && !is_expression_of_call
         {
-            self.factory.create_property_access_expression(
-                self.factory.create_unique_name(
+            self.factory.ref_(self).create_property_access_expression(
+                self.factory.ref_(self).create_unique_name(
                     "super",
                     Some(
                         GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
@@ -239,7 +240,7 @@ impl TransformES2015 {
                 "prototype",
             )
         } else {
-            self.factory.create_unique_name(
+            self.factory.ref_(self).create_unique_name(
                 "super",
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             )
@@ -257,7 +258,7 @@ impl TransformES2015 {
             ));
             return Some(
                 self.factory
-                    .create_unique_name(
+                    .ref_(self).create_unique_name(
                         "_newTarget",
                         Some(
                             GeneratedIdentifierFlags::Optimistic
@@ -318,10 +319,10 @@ impl TransformES2015 {
         member: Id<Node>, /*ClassElement*/
     ) -> Id<Node> {
         if is_static(member, self) {
-            self.factory.get_internal_name(node, None, None)
+            self.factory.ref_(self).get_internal_name(node, None, None)
         } else {
-            self.factory.create_property_access_expression(
-                self.factory.get_internal_name(node, None, None),
+            self.factory.ref_(self).create_property_access_expression(
+                self.factory.ref_(self).get_internal_name(node, None, None),
                 "prototype",
             )
         }
@@ -341,7 +342,7 @@ impl TransformES2015 {
 
         if !constructor_as_constructor_declaration
             .parameters()
-            .is_empty()
+            .ref_(self).is_empty()
         {
             return false;
         }
@@ -351,7 +352,7 @@ impl TransformES2015 {
                 .maybe_body()
                 .unwrap()
                 .ref_(self).as_block()
-                .statements,
+                .statements.ref_(self),
         )
         .cloned();
         if statement.is_none_or_matches(|statement| {
@@ -379,7 +380,7 @@ impl TransformES2015 {
         }
 
         let call_argument =
-            single_or_undefined(Some(&statement_expression_as_call_expression.arguments)).cloned();
+            single_or_undefined(Some(&statement_expression_as_call_expression.arguments.ref_(self))).cloned();
         if call_argument.is_none_or_matches(|call_argument| {
             !node_is_synthesized(&*call_argument.ref_(self))
                 || call_argument.ref_(self).kind() != SyntaxKind::SpreadElement

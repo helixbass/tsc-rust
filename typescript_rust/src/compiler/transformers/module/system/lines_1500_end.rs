@@ -14,7 +14,7 @@ use crate::{
     LiteralLikeNodeInterface, MapOrDefault, Matches, NamedDeclarationInterface, Node, NodeArray,
     NodeExt, NodeInterface, ReadonlyTextRange, SyntaxKind, VisitResult, _d, get_original_node_id,
     is_prefix_unary_expression, NonEmpty, OptionTry,
-    InArena,
+    InArena, OptionInArena,
     CoreTransformationContext,
 };
 
@@ -36,7 +36,7 @@ impl TransformSystemModule {
         let node_as_expression_statement = node_ref.as_expression_statement();
         Ok(Some(
             self.factory
-                .update_expression_statement(
+                .ref_(self).update_expression_statement(
                     node,
                     try_visit_node(
                         node_as_expression_statement.expression,
@@ -58,7 +58,7 @@ impl TransformSystemModule {
         let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         Ok(Some(
             self.factory
-                .update_parenthesized_expression(
+                .ref_(self).update_parenthesized_expression(
                     node,
                     try_visit_node(
                         node_as_parenthesized_expression.expression,
@@ -86,7 +86,7 @@ impl TransformSystemModule {
         let node_as_partially_emitted_expression = node_ref.as_partially_emitted_expression();
         Ok(Some(
             self.factory
-                .update_partially_emitted_expression(
+                .ref_(self).update_partially_emitted_expression(
                     node,
                     try_visit_node(
                         node_as_partially_emitted_expression.expression,
@@ -112,15 +112,15 @@ impl TransformSystemModule {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
         let external_module_name = get_external_module_name_literal(
-            &self.factory,
+            &self.factory.ref_(self),
             node,
             self.current_source_file(),
             &**self.host.ref_(self),
-            &**self.resolver,
+            &**self.resolver.ref_(self),
             &self.compiler_options.ref_(self),
         )?;
         let first_argument = try_maybe_visit_node(
-            first_or_undefined(&node_as_call_expression.arguments).cloned(),
+            first_or_undefined(&node_as_call_expression.arguments.ref_(self)).cloned(),
             Some(|node: Id<Node>| self.visitor(node)),
             Option::<fn(Id<Node>) -> bool>::None,
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -134,12 +134,12 @@ impl TransformSystemModule {
                 })
             })
             .or(first_argument);
-        Ok(self.factory.create_call_expression(
-            self.factory.create_property_access_expression(
+        Ok(self.factory.ref_(self).create_call_expression(
+            self.factory.ref_(self).create_property_access_expression(
                 self.context_object(),
-                self.factory.create_identifier("import"),
+                self.factory.ref_(self).create_identifier("import"),
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(argument.map_or_default(|argument| vec![argument])),
         ))
     }
@@ -190,14 +190,14 @@ impl TransformSystemModule {
             )?
         } else if is_object_literal_expression(&node.ref_(self)) {
             try_some(
-                Some(&node.ref_(self).as_object_literal_expression().properties),
+                Some(&*node.ref_(self).as_object_literal_expression().properties.ref_(self)),
                 Some(|&property: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(property)
                 }),
             )?
         } else if is_array_literal_expression(&node.ref_(self)) {
             try_some(
-                Some(&node.ref_(self).as_array_literal_expression().elements),
+                Some(&*node.ref_(self).as_array_literal_expression().elements.ref_(self)),
                 Some(|&element: &Id<Node>| {
                     self.has_exported_reference_in_destructuring_target(element)
                 }),
@@ -211,7 +211,7 @@ impl TransformSystemModule {
                 node.ref_(self).as_property_assignment().maybe_initializer().unwrap(),
             )?
         } else if is_identifier(&node.ref_(self)) {
-            let container = self.resolver.get_referenced_export_container(node, None)?;
+            let container = self.resolver.ref_(self).get_referenced_export_container(node, None)?;
             container.matches(|container| container.ref_(self).kind() == SyntaxKind::SourceFile)
         } else {
             false
@@ -231,7 +231,7 @@ impl TransformSystemModule {
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) && is_identifier(&node_operand.ref_(self))
             && !is_generated_identifier(&node_operand.ref_(self))
-            && !is_local_name(&node_operand.ref_(self))
+            && !is_local_name(node_operand, self)
             && !is_declaration_name_of_enum_or_namespace(node_operand, self)
         {
             let exported_names = self.get_exports(node_operand)?;
@@ -246,13 +246,13 @@ impl TransformSystemModule {
                 if is_prefix_unary_expression(&node.ref_(self)) {
                     expression = self
                         .factory
-                        .update_prefix_unary_expression(node, expression);
+                        .ref_(self).update_prefix_unary_expression(node, expression);
                 } else {
                     expression = self
                         .factory
-                        .update_postfix_unary_expression(node, expression);
+                        .ref_(self).update_postfix_unary_expression(node, expression);
                     if !value_is_discarded {
-                        temp = Some(self.factory.create_temp_variable(
+                        temp = Some(self.factory.ref_(self).create_temp_variable(
                             Some(|node: Id<Node>| {
                                 self.context.ref_(self).hoist_variable_declaration(node);
                             }),
@@ -260,12 +260,12 @@ impl TransformSystemModule {
                         ));
                         expression = self
                             .factory
-                            .create_assignment(temp.clone().unwrap(), expression)
+                            .ref_(self).create_assignment(temp.clone().unwrap(), expression)
                             .set_text_range(Some(&*node.ref_(self)), self);
                     }
                     expression = self
                         .factory
-                        .create_comma(expression, self.factory.clone_node(node_operand))
+                        .ref_(self).create_comma(expression, self.factory.ref_(self).clone_node(node_operand))
                         .set_text_range(Some(&*node.ref_(self)), self);
                 }
 
@@ -279,7 +279,7 @@ impl TransformSystemModule {
                 if let Some(temp) = temp {
                     expression = self
                         .factory
-                        .create_comma(expression, temp)
+                        .ref_(self).create_comma(expression, temp)
                         .set_text_range(Some(&*node.ref_(self)), self);
                 }
 
@@ -311,24 +311,25 @@ impl TransformSystemModule {
         if !is_generated_identifier(&name.ref_(self)) {
             let value_declaration = self
                 .resolver
-                .get_referenced_import_declaration(name)?
-                .try_or_else(|| self.resolver.get_referenced_value_declaration(name))?;
+                .ref_(self).get_referenced_import_declaration(name)?
+                .try_or_else(|| self.resolver.ref_(self).get_referenced_value_declaration(name))?;
 
             if let Some(value_declaration) = value_declaration {
                 let export_container = self
                     .resolver
-                    .get_referenced_export_container(name, Some(false))?;
+                    .ref_(self).get_referenced_export_container(name, Some(false))?;
                 if export_container
                     .matches(|export_container| export_container.ref_(self).kind() == SyntaxKind::SourceFile)
                 {
                     exported_names.get_or_insert_default_().push(
                         self.factory
-                            .get_declaration_name(Some(value_declaration), None, None),
+                            .ref_(self).get_declaration_name(Some(value_declaration), None, None),
                     );
                 }
 
                 if let Some(value) = self
                     .maybe_module_info()
+                    .refed(self)
                     .as_ref()
                     .and_then(|module_info| {
                         module_info

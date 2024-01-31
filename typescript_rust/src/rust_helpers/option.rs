@@ -74,7 +74,6 @@ impl_non_empty_for_option_and_non_option!(Cow<'_, str>);
 impl_non_empty_for_option_and_non_option!(&[TItem], TItem);
 impl_non_empty_for_option_and_non_option!(&Vec<TItem>, TItem);
 impl_non_empty_for_option_and_non_option!(Vec<TItem>, TItem);
-impl_non_empty_for_option_and_non_option!(Gc<NodeArray>);
 
 pub trait GetOrInsertDefault {
     type Unwrapped;

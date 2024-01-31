@@ -66,7 +66,7 @@ impl TypeChecker {
                         .name()
                         .ref_(self).as_array_binding_pattern()
                         .elements
-                        .len()
+                        .ref_(self).len()
             {
                 self.pad_tuple_type(type_, declaration.ref_(self).as_parameter_declaration().name())?
             } else {
@@ -85,9 +85,9 @@ impl TypeChecker {
         let mut element_types = self.get_type_arguments(type_)?;
         let type_target = type_.ref_(self).as_type_reference().target;
         let mut element_flags = type_target.ref_(self).as_tuple_type().element_flags.clone();
-        for i in self.get_type_reference_arity(type_)..pattern_elements.len() {
-            let e = pattern_elements[i];
-            if i < pattern_elements.len() - 1
+        for i in self.get_type_reference_arity(type_)..pattern_elements.ref_(self).len() {
+            let e = pattern_elements.ref_(self)[i];
+            if i < pattern_elements.ref_(self).len() - 1
                 || !(e.ref_(self).kind() == SyntaxKind::BindingElement
                     && e.ref_(self).as_binding_element().dot_dot_dot_token.is_some())
             {
@@ -305,8 +305,7 @@ impl TypeChecker {
                 .clone()
                 .or_else(|| construct_signature.clone());
             if let Some(signature) = signature
-                .as_ref()
-                .filter(|signature| signature.maybe_type_parameters().is_some())
+                .filter(|signature| signature.ref_(self).maybe_type_parameters().is_some())
             {
                 let contextual_type = self.get_apparent_type_of_contextual_type(
                     node,
@@ -324,9 +323,8 @@ impl TypeChecker {
                     )?;
                     if let Some(contextual_signature) =
                         contextual_signature
-                            .as_ref()
                             .filter(|contextual_signature| {
-                                contextual_signature.maybe_type_parameters().is_none()
+                                contextual_signature.ref_(self).maybe_type_parameters().is_none()
                             })
                     {
                         if check_mode.intersects(CheckMode::SkipGenericFunctions) {
@@ -335,24 +333,24 @@ impl TypeChecker {
                         }
                         let context = self.get_inference_context(node).unwrap();
                         let return_type =
-                            context.signature.as_ref().try_map(|context_signature| {
+                            context.ref_(self).signature.try_map(|context_signature| {
                                 self.get_return_type_of_signature(context_signature.clone())
                             })?;
                         let return_signature = return_type.try_and_then(|return_type| {
                             self.get_single_call_or_construct_signature(return_type)
                         })?;
-                        if return_signature.as_ref().matches(|return_signature| {
-                            return_signature.maybe_type_parameters().is_none()
+                        if return_signature.matches(|return_signature| {
+                            return_signature.ref_(self).maybe_type_parameters().is_none()
                                 && !every(
-                                    &context.inferences(),
-                                    |inference: &Gc<InferenceInfo>, _| {
-                                        self.has_inference_candidates(inference)
+                                    &context.ref_(self).inferences(),
+                                    |inference: &Id<InferenceInfo>, _| {
+                                        self.has_inference_candidates(&inference.ref_(self))
                                     },
                                 )
                         }) {
                             let unique_type_parameters = self.get_unique_type_parameters(
-                                &context,
-                                signature.maybe_type_parameters().as_ref().unwrap(),
+                                context,
+                                signature.ref_(self).maybe_type_parameters().as_ref().unwrap(),
                             );
                             let instantiated_signature = self
                                 .get_signature_instantiation_without_filling_in_type_arguments(
@@ -360,11 +358,11 @@ impl TypeChecker {
                                     Some(&unique_type_parameters),
                                 )?;
                             let inferences =
-                                map(&*context.inferences(), |info: &Gc<InferenceInfo>, _| {
-                                    Gc::new(self.create_inference_info(info.type_parameter))
+                                map(&*context.ref_(self).inferences(), |info: &Id<InferenceInfo>, _| {
+                                    self.alloc_inference_info(self.create_inference_info(info.ref_(self).type_parameter))
                                 });
                             self.apply_to_parameter_types(
-                                &instantiated_signature,
+                                instantiated_signature,
                                 contextual_signature,
                                 |source: Id<Type>, target: Id<Type>| {
                                     self.infer_types(
@@ -378,8 +376,8 @@ impl TypeChecker {
                             )?;
                             if some(
                                 Some(&inferences),
-                                Some(|inference: &Gc<InferenceInfo>| {
-                                    self.has_inference_candidates(inference)
+                                Some(|inference: &Id<InferenceInfo>| {
+                                    self.has_inference_candidates(&inference.ref_(self))
                                 }),
                             ) {
                                 self.apply_to_return_types(
@@ -392,15 +390,15 @@ impl TypeChecker {
                                     },
                                 )?;
                                 if !self
-                                    .has_overlapping_inferences(&context.inferences(), &inferences)
+                                    .has_overlapping_inferences(&context.ref_(self).inferences(), &inferences)
                                 {
                                     self.merge_inferences(
-                                        &mut context.inferences_mut(),
+                                        &mut context.ref_(self).inferences_mut(),
                                         &inferences,
                                     );
                                     {
-                                        let mut context_inferred_type_parameters =
-                                            context.maybe_inferred_type_parameters_mut();
+                                        let context_ref = context.ref_(self);
+                                        let mut context_inferred_type_parameters = context_ref.maybe_inferred_type_parameters_mut();
                                         *context_inferred_type_parameters = Some(concatenate(
                                             context_inferred_type_parameters
                                                 .clone()
@@ -418,7 +416,7 @@ impl TypeChecker {
                             self.instantiate_signature_in_context_of(
                                 signature.clone(),
                                 contextual_signature.clone(),
-                                Some(&context),
+                                Some(context),
                                 None,
                             )?,
                         ));
@@ -432,7 +430,7 @@ impl TypeChecker {
     pub(super) fn skipped_generic_function(&self, node: Id<Node>, check_mode: CheckMode) {
         if check_mode.intersects(CheckMode::Inferential) {
             let context = self.get_inference_context(node).unwrap();
-            context.set_flags(context.flags() | InferenceFlags::SkippedGenericFunction);
+            context.ref_(self).set_flags(context.ref_(self).flags() | InferenceFlags::SkippedGenericFunction);
         }
     }
 
@@ -442,11 +440,11 @@ impl TypeChecker {
 
     pub(super) fn has_overlapping_inferences(
         &self,
-        a: &[Gc<InferenceInfo>],
-        b: &[Gc<InferenceInfo>],
+        a: &[Id<InferenceInfo>],
+        b: &[Id<InferenceInfo>],
     ) -> bool {
         for i in 0..a.len() {
-            if self.has_inference_candidates(&a[i]) && self.has_inference_candidates(&b[i]) {
+            if self.has_inference_candidates(&a[i].ref_(self)) && self.has_inference_candidates(&b[i].ref_(self)) {
                 return true;
             }
         }
@@ -455,12 +453,12 @@ impl TypeChecker {
 
     pub(super) fn merge_inferences(
         &self,
-        target: &mut Vec<Gc<InferenceInfo>>,
-        source: &[Gc<InferenceInfo>],
+        target: &mut Vec<Id<InferenceInfo>>,
+        source: &[Id<InferenceInfo>],
     ) {
         for i in 0..target.len() {
-            if !self.has_inference_candidates(&target[i])
-                && self.has_inference_candidates(&source[i])
+            if !self.has_inference_candidates(&target[i].ref_(self))
+                && self.has_inference_candidates(&source[i].ref_(self))
             {
                 target[i] = source[i].clone();
             }
@@ -469,7 +467,7 @@ impl TypeChecker {
 
     pub(super) fn get_unique_type_parameters(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
         type_parameters: &[Id<Type /*TypeParameter*/>],
     ) -> Vec<Id<Type /*TypeParameter*/>> {
         let mut result: Vec<Id<Type /*TypeParameter*/>> = vec![];
@@ -480,14 +478,14 @@ impl TypeChecker {
             let tp_symbol_ref = tp_symbol.ref_(self);
             let name = tp_symbol_ref.escaped_name();
             if self.has_type_parameter_by_name(
-                context.maybe_inferred_type_parameters().as_deref(),
+                context.ref_(self).maybe_inferred_type_parameters().as_deref(),
                 name,
             ) || self.has_type_parameter_by_name(Some(&result), name)
             {
                 let new_name = self.get_unique_type_parameter_name(
                     &concatenate(
                         context
-                            .maybe_inferred_type_parameters()
+                            .ref_(self).maybe_inferred_type_parameters()
                             .clone()
                             .unwrap_or_else(|| vec![]),
                         result.clone(),
@@ -570,7 +568,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let signature = self.get_single_call_signature(func_type)?;
         signature
-            .filter(|signature| signature.maybe_type_parameters().is_none())
+            .filter(|signature| signature.ref_(self).maybe_type_parameters().is_none())
             .try_map(|signature| self.get_return_type_of_signature(signature))
     }
 
@@ -669,14 +667,14 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if let Some(links_context_free_type) = (*links).borrow().context_free_type.clone() {
+        if let Some(links_context_free_type) = links.ref_(self).context_free_type.clone() {
             return Ok(links_context_free_type);
         }
         let save_contextual_type = node.ref_(self).maybe_contextual_type().clone();
         *node.ref_(self).maybe_contextual_type() = Some(self.any_type());
         // try {
         let type_ = self.check_expression(node, Some(CheckMode::SkipContextSensitive), None)?;
-        links.borrow_mut().context_free_type = Some(type_.clone());
+        links.ref_mut(self).context_free_type = Some(type_.clone());
         // }
         // finally {
         *node.ref_(self).maybe_contextual_type() = save_contextual_type;
@@ -797,7 +795,7 @@ impl TypeChecker {
                 SyntaxKind::ClassExpression
                 | SyntaxKind::FunctionExpression
                 | SyntaxKind::ArrowFunction => {
-                    cancellation_token.throw_if_cancellation_requested();
+                    cancellation_token.ref_(self).throw_if_cancellation_requested();
                 }
                 _ => (),
             }
@@ -867,7 +865,7 @@ impl TypeChecker {
             SyntaxKind::PrefixUnaryExpression => self.check_prefix_unary_expression(node)?,
             SyntaxKind::PostfixUnaryExpression => self.check_postfix_unary_expression(node)?,
             SyntaxKind::BinaryExpression => {
-                self.check_binary_expression().call(node, check_mode)?
+                self.check_binary_expression().ref_(self).call(node, check_mode)?
             }
             SyntaxKind::ConditionalExpression => {
                 self.check_conditional_expression(node, check_mode)?

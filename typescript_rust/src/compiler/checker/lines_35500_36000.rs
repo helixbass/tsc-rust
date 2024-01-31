@@ -133,7 +133,7 @@ impl TypeChecker {
 
             let root_name = /*promiseConstructorName &&*/ get_first_identifier(promise_constructor_name, self);
             let colliding_symbol = self.get_symbol(
-                &(*node.ref_(self).locals()).borrow(),
+                &node.ref_(self).locals().ref_(self),
                 &root_name.ref_(self).as_identifier().escaped_text,
                 SymbolFlags::Value,
             )?;
@@ -226,7 +226,7 @@ impl TypeChecker {
             expected_return_type,
             Some(node),
             Some(head_message),
-            Some(Gc::new(Box::new(ResolveCallContainingMessageChain::new(
+            Some(self.alloc_check_type_containing_message_chain(Box::new(ResolveCallContainingMessageChain::new(
                 error_info,
             )))),
             None,
@@ -306,7 +306,7 @@ impl TypeChecker {
         match node.ref_(self).kind() {
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => self
                 .get_entity_name_for_decorator_metadata_from_type_list(
-                    &node.ref_(self).as_union_or_intersection_type_node().types(),
+                    &*node.ref_(self).as_union_or_intersection_type_node().types().ref_(self),
                 ),
 
             SyntaxKind::ConditionalType => {
@@ -374,7 +374,7 @@ impl TypeChecker {
     ) -> Option<Id<Node /*TypeNode*/>> {
         let type_node = get_effective_type_annotation_node(node, self);
         if is_rest_parameter(node, self) {
-            get_rest_parameter_element_type(type_node.refed(self).as_deref())
+            get_rest_parameter_element_type(type_node, self)
         } else {
             type_node
         }
@@ -397,7 +397,7 @@ impl TypeChecker {
             );
         }
 
-        let first_decorator = node_decorators[0];
+        let first_decorator = node_decorators.ref_(self)[0];
         self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Decorate)?;
         if node.ref_(self).kind() == SyntaxKind::Parameter {
             self.check_external_emit_helpers(first_decorator, ExternalEmitHelpers::Param)?;
@@ -410,7 +410,7 @@ impl TypeChecker {
                 SyntaxKind::ClassDeclaration => {
                     let constructor = get_first_constructor_with_body(node, self);
                     if let Some(constructor) = constructor {
-                        for &parameter in &constructor.ref_(self).as_signature_declaration().parameters() {
+                        for &parameter in &*constructor.ref_(self).as_signature_declaration().parameters().ref_(self) {
                             self.mark_decorator_medata_data_type_node_as_referenced(
                                 self.get_parameter_type_node_for_decorator_check(parameter),
                             )?;
@@ -439,7 +439,7 @@ impl TypeChecker {
                     )?;
                 }
                 SyntaxKind::MethodDeclaration => {
-                    for &parameter in &node.ref_(self).as_function_like_declaration().parameters() {
+                    for &parameter in &*node.ref_(self).as_function_like_declaration().parameters().ref_(self) {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
                         )?;
@@ -461,7 +461,7 @@ impl TypeChecker {
                         self.get_parameter_type_node_for_decorator_check(node),
                     )?;
                     let containing_signature = node.ref_(self).parent();
-                    for &parameter in &containing_signature.ref_(self).as_signature_declaration().parameters() {
+                    for &parameter in &*containing_signature.ref_(self).as_signature_declaration().parameters().ref_(self) {
                         self.mark_decorator_medata_data_type_node_as_referenced(
                             self.get_parameter_type_node_for_decorator_check(parameter),
                         )?;
@@ -472,7 +472,7 @@ impl TypeChecker {
         }
 
         try_for_each(
-            node_decorators,
+            &*node_decorators.ref_(self),
             |&decorator: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_decorator(decorator)?;
                 Ok(None)
@@ -535,7 +535,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_jsdoc_template_tag = node_ref.as_jsdoc_template_tag();
         self.check_source_element(node_as_jsdoc_template_tag.constraint)?;
-        for &tp in &node_as_jsdoc_template_tag.type_parameters {
+        for &tp in &*node_as_jsdoc_template_tag.type_parameters.ref_(self) {
             self.check_source_element(Some(tp))?;
         }
 
@@ -568,7 +568,7 @@ impl TypeChecker {
                     i,
                     Some(i) if {
                         let decl_parameters = decl.ref_(self).as_signature_declaration().parameters();
-                        i < decl_parameters.len() && is_binding_pattern(decl_parameters[i].ref_(self).as_parameter_declaration().maybe_name().refed(self).as_deref())
+                        i < decl_parameters.ref_(self).len() && is_binding_pattern(decl_parameters.ref_(self)[i].ref_(self).as_parameter_declaration().maybe_name().refed(self).as_deref())
                     }
                 ) {
                     return Ok(());

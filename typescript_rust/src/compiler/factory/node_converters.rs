@@ -14,27 +14,25 @@ use crate::{
     HasArena, AllArenas, InArena, NodeExt,
 };
 
-pub fn create_node_converters<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
-) -> NodeConvertersConcrete<TBaseNodeFactory> {
+pub fn create_node_converters(
+    factory: Id<NodeFactory>,
+) -> NodeConvertersConcrete {
     NodeConvertersConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
-pub struct NodeConvertersConcrete<TBaseNodeFactory: BaseNodeFactory + 'static + Trace + Finalize> {
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
+pub struct NodeConvertersConcrete {
+    factory: Id<NodeFactory>,
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    NodeConvertersConcrete<TBaseNodeFactory>
+impl NodeConvertersConcrete
 {
-    pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
+    pub fn new(factory: Id<NodeFactory>) -> Self {
         Self { factory }
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    NodeConverters<TBaseNodeFactory> for NodeConvertersConcrete<TBaseNodeFactory>
+impl NodeConverters for NodeConvertersConcrete
 {
     fn convert_to_function_block(
         &self,
@@ -46,11 +44,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
         let return_statement = self
             .factory
-            .create_return_statement_raw(Some(node));
+            .ref_(self).create_return_statement_raw(Some(node));
         let return_statement = return_statement.alloc(self.arena()).set_text_range(Some(&*node.ref_(self)), self);
         let body = self
             .factory
-            .create_block_raw(vec![return_statement], multi_line);
+            .ref_(self).create_block_raw(vec![return_statement], multi_line);
         let body = body.alloc(self.arena()).set_text_range(Some(&*node.ref_(self)), self);
         body
     }
@@ -64,7 +62,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if node_as_function_declaration.maybe_body().is_none() {
             Debug_.fail(Some("Cannot convert a FunctionDeclaration without a body"));
         }
-        let updated = self.factory.create_function_expression(
+        let updated = self.factory.ref_(self).create_function_expression(
             node_as_function_declaration
                 .maybe_modifiers()
                 .as_ref()
@@ -81,7 +79,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         );
         set_original_node(updated, Some(node), self);
         let updated = updated.set_text_range(Some(&*node.ref_(self)), self);
-        if get_starts_on_new_line(&node.ref_(self)) == Some(true) {
+        if get_starts_on_new_line(node, self) == Some(true) {
             set_starts_on_new_line(updated, true, self);
         }
         updated
@@ -102,7 +100,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 );
                 return self
                     .factory
-                    .create_spread_element_raw(element_as_binding_element.name())
+                    .ref_(self).create_spread_element_raw(element_as_binding_element.name())
                     .alloc(self.arena())
                     .set_text_range(Some(&*element.ref_(self)), self)
                     .set_original_node(Some(element), self);
@@ -113,7 +111,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 Some(element_initializer) => {
                     return self
                         .factory
-                        .create_assignment_raw(expression, element_initializer)
+                        .ref_(self).create_assignment_raw(expression, element_initializer)
                         .alloc(self.arena())
                         .set_text_range(Some(&*element.ref_(self)), self)
                         .set_original_node(Some(element), self);
@@ -139,7 +137,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 );
                 return self
                     .factory
-                    .create_spread_assignment_raw(element_as_binding_element.name())
+                    .ref_(self).create_spread_assignment_raw(element_as_binding_element.name())
                     .alloc(self.arena())
                     .set_text_range(Some(&*element.ref_(self)),self)
                     .set_original_node(Some(element), self);
@@ -147,11 +145,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             if let Some(element_property_name) = element_as_binding_element.property_name {
                 let expression =
                     self.convert_to_assignment_element_target(element_as_binding_element.name());
-                return self.factory.create_property_assignment_raw(
+                return self.factory.ref_(self).create_property_assignment_raw(
                     element_property_name.clone(),
                     match element_as_binding_element.maybe_initializer() {
                         Some(initializer) => {
-                            self.factory.create_assignment(expression, initializer)
+                            self.factory.ref_(self).create_assignment(expression, initializer)
                         }
                         None => expression,
                     },
@@ -165,7 +163,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                 None,
             );
-            return self.factory.create_shorthand_property_assignment_raw(
+            return self.factory.ref_(self).create_shorthand_property_assignment_raw(
                 element_as_binding_element.name(),
                 element_as_binding_element.maybe_initializer(),
             )
@@ -200,9 +198,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if is_object_binding_pattern(&node.ref_(self)) {
             let node_ref = node.ref_(self);
             let node_as_object_binding_pattern = node_ref.as_object_binding_pattern();
-            return self.factory.create_object_literal_expression_raw(
+            return self.factory.ref_(self).create_object_literal_expression_raw(
                 Some(map(
-                    &node_as_object_binding_pattern.elements,
+                    &*node_as_object_binding_pattern.elements.ref_(self),
                     |&element, _| self.convert_to_object_assignment_element(element),
                 )),
                 None,
@@ -221,9 +219,9 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         if is_array_binding_pattern(&node.ref_(self)) {
             let node_ref = node.ref_(self);
             let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
-            return self.factory.create_array_literal_expression_raw(
+            return self.factory.ref_(self).create_array_literal_expression_raw(
                 Some(map(
-                    &node_as_array_binding_pattern.elements,
+                    &*node_as_array_binding_pattern.elements.ref_(self),
                     |&element, _| self.convert_to_array_assignment_element(element),
                 )),
                 None,
@@ -246,35 +244,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    HasArena for NodeConvertersConcrete<TBaseNodeFactory>
+impl HasArena for NodeConvertersConcrete
 {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
 
-pub fn null_node_converters<TBaseNodeFactory: BaseNodeFactory>(
-) -> NullNodeConverters<TBaseNodeFactory> {
-    NullNodeConverters::<TBaseNodeFactory>::new()
+pub fn null_node_converters() -> NullNodeConverters {
+    NullNodeConverters::new()
 }
 
 #[derive(Trace, Finalize)]
-pub struct NullNodeConverters<TBaseNodeFactory: BaseNodeFactory> {
-    #[unsafe_ignore_trace]
-    _base_node_factory: PhantomData<TBaseNodeFactory>,
-}
+pub struct NullNodeConverters;
 
-impl<TBaseNodeFactory: BaseNodeFactory> NullNodeConverters<TBaseNodeFactory> {
+impl NullNodeConverters {
     pub fn new() -> Self {
-        Self {
-            _base_node_factory: PhantomData,
-        }
+        Self
     }
 }
 
-impl<TBaseNodeFactory: BaseNodeFactory> NodeConverters<TBaseNodeFactory>
-    for NullNodeConverters<TBaseNodeFactory>
+impl NodeConverters for NullNodeConverters
 {
     fn convert_to_function_block(
         &self,

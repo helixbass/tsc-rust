@@ -33,7 +33,7 @@ impl TypeChecker {
         try_for_each_child(
             node,
             |child: Id<Node>| self.check_source_element(Some(child)),
-            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
             self,
         )?;
 
@@ -87,12 +87,12 @@ impl TypeChecker {
                     != ScriptTarget::ESNext
                     || !self.use_define_for_class_fields)
                     && (some(
-                        Some(&*node.ref_(self).parent().ref_(self).as_class_like_declaration().members()),
+                        Some(&*node.ref_(self).parent().ref_(self).as_class_like_declaration().members().ref_(self)),
                         Some(|&member: &Id<Node>| {
                             self.is_instance_property_with_initializer_or_private_identifier_property(member)
                         }),
                     ) || some(
-                        Some(&*node_as_constructor_declaration.parameters()),
+                        Some(&*node_as_constructor_declaration.parameters().ref_(self)),
                         Some(|&p: &Id<Node>| {
                             has_syntactic_modifier(p, ModifierFlags::ParameterPropertyModifier, self)
                         }),
@@ -103,7 +103,7 @@ impl TypeChecker {
                     let statements = &node_body_ref.as_block().statements;
                     let mut super_call_statement: Option<Id<Node /*ExpressionStatement*/>> = None;
 
-                    for &statement in statements {
+                    for &statement in &*statements.ref_(self) {
                         if statement.ref_(self).kind() == SyntaxKind::ExpressionStatement
                             && is_super_call(statement.ref_(self).as_expression_statement().expression, self)
                         {
@@ -191,7 +191,7 @@ impl TypeChecker {
                             .get_node_check_flags(getter)
                             .intersects(NodeCheckFlags::TypeChecked)
                         {
-                            self.get_node_links(getter).borrow_mut().flags |=
+                            self.get_node_links(getter).ref_mut(self).flags |=
                                 NodeCheckFlags::TypeChecked;
                             let getter_flags = get_effective_modifier_flags(getter, self);
                             let setter_flags = get_effective_modifier_flags(setter, self);
@@ -273,7 +273,7 @@ impl TypeChecker {
         Ok(self
             .fill_missing_type_arguments(
                 try_maybe_map(
-                    node.ref_(self).as_has_type_arguments().maybe_type_arguments().as_ref(),
+                    node.ref_(self).as_has_type_arguments().maybe_type_arguments().refed(self).as_deref(),
                     |&type_argument, _| self.get_type_from_type_node_(type_argument),
                 )
                 .transpose()?,
@@ -310,7 +310,7 @@ impl TypeChecker {
                             .maybe_type_arguments()
                             .as_ref()
                             .unwrap()
-                            .get(i)
+                            .ref_(self).get(i)
                             .copied(),
                         Some(&Diagnostics::Type_0_does_not_satisfy_the_constraint_1),
                         None,
@@ -327,14 +327,14 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         let type_ = self.get_type_from_type_reference(node)?;
         if !self.is_error_type(type_) {
-            let symbol = (*self.get_node_links(node))
-                .borrow()
+            let symbol = self.get_node_links(node)
+                .ref_(self)
                 .resolved_symbol
                 .clone();
             if let Some(symbol) = symbol {
                 return Ok(
                     if symbol.ref_(self).flags().intersects(SymbolFlags::TypeAlias) {
-                        (*self.get_symbol_links(symbol))
+                        (*self.get_symbol_links(symbol).ref_(self))
                             .borrow()
                             .type_parameters
                             .clone()
@@ -369,7 +369,7 @@ impl TypeChecker {
         let node_as_has_type_arguments = node_ref.as_has_type_arguments();
         self.check_grammar_type_arguments(
             node,
-            node_as_has_type_arguments.maybe_type_arguments().as_deref(),
+            node_as_has_type_arguments.maybe_type_arguments(),
         );
         if node.ref_(self).kind() == SyntaxKind::TypeReference {
             if let Some(node_type_name_jsdoc_dot_pos) = node
@@ -390,7 +390,7 @@ impl TypeChecker {
             }
         }
         try_maybe_for_each(
-            node_as_has_type_arguments.maybe_type_arguments().as_ref(),
+            node_as_has_type_arguments.maybe_type_arguments().refed(self).as_deref(),
             |&type_argument, _| -> io::Result<_> {
                 self.check_source_element(Some(type_argument))?;
                 Ok(Option::<()>::None)
@@ -406,8 +406,8 @@ impl TypeChecker {
                     self.check_type_argument_constraints(node, type_parameters)?;
                 }
             }
-            let symbol = (*self.get_node_links(node))
-                .borrow()
+            let symbol = self.get_node_links(node)
+                .ref_(self)
                 .resolved_symbol
                 .clone();
             if let Some(symbol) = symbol {
@@ -464,7 +464,7 @@ impl TypeChecker {
                 .maybe_type_arguments()
                 .as_ref()
                 .unwrap()
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&type_argument| type_argument == node)
                 .unwrap()],
         )?);
@@ -493,7 +493,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeLiteralNode*/
     ) -> io::Result<()> {
         try_for_each(
-            &node.ref_(self).as_type_literal_node().members,
+            &*node.ref_(self).as_type_literal_node().members.ref_(self),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)
@@ -523,10 +523,10 @@ impl TypeChecker {
         let mut seen_optional_element = false;
         let mut seen_rest_element = false;
         let has_named_element = some(
-            Some(&**element_types),
+            Some(&*element_types.ref_(self)),
             Some(|element_type: &Id<Node>| is_named_tuple_member(&element_type.ref_(self))),
         );
-        for &e in element_types {
+        for &e in &*element_types.ref_(self) {
             if e.ref_(self).kind() != SyntaxKind::NamedTupleMember && has_named_element {
                 self.grammar_error_on_node(
                     e,
@@ -590,7 +590,7 @@ impl TypeChecker {
             }
         }
         try_for_each(
-            &node_as_tuple_type_node.elements,
+            &*node_as_tuple_type_node.elements.ref_(self),
             |&element: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(element))?;
                 Ok(None)
@@ -606,7 +606,7 @@ impl TypeChecker {
         node: Id<Node>, /*UnionOrIntersectionTypeNode*/
     ) -> io::Result<()> {
         try_for_each(
-            &node.ref_(self).as_union_or_intersection_type_node().types(),
+            &*node.ref_(self).as_union_or_intersection_type_node().types().ref_(self),
             |&type_, _| -> io::Result<_> {
                 self.check_source_element(Some(type_))?;
                 Ok(Option::<()>::None)
@@ -771,10 +771,10 @@ impl TypeChecker {
             .ref_(self).as_mapped_type_node()
             .members
             .as_ref()
-            .filter(|node_members| !node_members.is_empty())
+            .filter(|node_members| !node_members.ref_(self).is_empty())
         {
             return self.grammar_error_on_node(
-                node_members[0],
+                node_members.ref_(self)[0],
                 &Diagnostics::A_mapped_type_may_not_declare_properties_or_methods,
                 None,
             );
@@ -805,7 +805,7 @@ impl TypeChecker {
         try_for_each_child(
             node,
             |child: Id<Node>| self.check_source_element(Some(child)),
-            Option::<fn(&NodeArray) -> io::Result<()>>::None,
+            Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
             self,
         )?;
 
@@ -838,7 +838,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TemplateLiteralTypeNode*/
     ) -> io::Result<()> {
-        for span in &node.ref_(self).as_template_literal_type_node().template_spans {
+        for span in &*node.ref_(self).as_template_literal_type_node().template_spans.ref_(self) {
             let span_ref = span.ref_(self);
             let span_as_template_literal_type_span = span_ref.as_template_literal_type_span();
             self.check_source_element(Some(span_as_template_literal_type_span.type_))?;
@@ -1076,13 +1076,13 @@ impl TypeChecker {
             && symbol.ref_(self).flags().intersects(SymbolFlags::Function)
         {
             if let Some(declarations) = declarations.as_ref() {
-                let related_diagnostics: Vec<Gc<DiagnosticRelatedInformation>> =
+                let related_diagnostics: Vec<Id<DiagnosticRelatedInformation>> =
                     filter(declarations, |d: &Id<Node>| {
                         d.ref_(self).kind() == SyntaxKind::ClassDeclaration
                     })
                     .iter()
                     .map(|&d| {
-                        Gc::new(
+                        self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 d,
                                 &Diagnostics::Consider_adding_a_declare_modifier_to_this_class,
@@ -1170,12 +1170,12 @@ impl TypeChecker {
                     )? {
                         add_related_info(
                             &self.error(
-                                signature.declaration,
+                                signature.ref_(self).declaration,
                                 &Diagnostics::This_overload_signature_is_not_compatible_with_its_implementation_signature,
                                 None,
                             ).ref_(self),
                             vec![
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         body_declaration,
                                         &Diagnostics::The_implementation_signature_is_declared_here,

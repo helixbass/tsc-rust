@@ -15,11 +15,11 @@ use crate::{
     is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
     is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
     maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, CheckFlags,
-    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, GcHashMap, HasArena,
+    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasArena,
     HasInitializerInterface, InArena, InterfaceTypeInterface, Matches, MemberOverrideStatus,
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeInterface,
+    TransientSymbolInterface, Type, TypeChecker, TypeInterface, AllArenas,
 };
 
 impl TypeChecker {
@@ -48,14 +48,14 @@ impl TypeChecker {
             })?;
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             if has_ambient_modifier(member, self) {
                 continue;
             }
 
             if is_constructor_declaration(&member.ref_(self)) {
                 try_for_each(
-                    &member.ref_(self).as_constructor_declaration().parameters(),
+                    &*member.ref_(self).as_constructor_declaration().parameters().ref_(self),
                     |&param: &Id<Node>, _| -> io::Result<Option<()>> {
                         if is_parameter_property_declaration(param, member, self) {
                             self.check_existing_member_for_override_modifier(
@@ -249,7 +249,7 @@ impl TypeChecker {
         let mut issued_member_error = false;
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
-        for &member in &node_as_class_like_declaration.members() {
+        for &member in &*node_as_class_like_declaration.members().ref_(self) {
             if is_static(member, self) {
                 continue;
             }
@@ -280,9 +280,9 @@ impl TypeChecker {
                                 .unwrap_or_else(|| member.clone()),
                         ),
                         None,
-                        Some(Gc::new(Box::new(
+                        Some(self.alloc_check_type_containing_message_chain(Box::new(
                             IssueMemberSpecificErrorContainingMessageChain::new(
-                                self.rc_wrapper(),
+                                self.arena_id(),
                                 declared_prop.clone(),
                                 type_with_this,
                                 base_with_this,
@@ -320,7 +320,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if !signatures.is_empty() {
-            let declaration = signatures[0].declaration;
+            let declaration = signatures[0].ref_(self).declaration;
             if matches!(
                 declaration,
                 Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private, self)
@@ -405,7 +405,7 @@ impl TypeChecker {
 
     pub(super) fn get_target_symbol(&self, s: Id<Symbol>) -> Id<Symbol> {
         if get_check_flags(&s.ref_(self)).intersects(CheckFlags::Instantiated) {
-            (*s.ref_(self).as_transient_symbol().symbol_links())
+            (*s.ref_(self).as_transient_symbol().symbol_links().ref_(self))
                 .borrow()
                 .target
                 .clone()
@@ -704,7 +704,7 @@ impl TypeChecker {
         type_: Id<Type>, /*InterfaceType*/
         base_types: &[Id<Type /*BaseType*/>],
         properties: TProperties,
-    ) -> io::Result<impl Iterator<Item = Id<Symbol>> + Clone>
+    ) -> io::Result<Vec<Id<Symbol>>>
     where
         TProperties: IntoIterator<Item = TPropertiesItem> + Clone,
         TPropertiesItem: Borrow<Id<Symbol>>,
@@ -712,9 +712,9 @@ impl TypeChecker {
     {
         let properties = properties.into_iter();
         if length(Some(base_types)) == 0 {
-            return Ok(Either::Left(
-                properties.map(|property| property.borrow().clone()),
-            ));
+            return Ok(
+                properties.map(|property| property.borrow().clone()).collect(),
+            );
         }
         let mut seen: HashMap<__String, Id<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
@@ -743,7 +743,7 @@ impl TypeChecker {
             }
         }
 
-        Ok(Either::Right(GcHashMap::from(seen).owned_values()))
+        Ok(seen.into_values().collect())
     }
 
     pub(super) fn check_inherited_properties_are_identical(
@@ -859,7 +859,7 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 struct IssueMemberSpecificErrorContainingMessageChain {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
     declared_prop: Id<Symbol>,
     type_with_this: Id<Type>,
     base_with_this: Id<Type>,
@@ -867,7 +867,7 @@ struct IssueMemberSpecificErrorContainingMessageChain {
 
 impl IssueMemberSpecificErrorContainingMessageChain {
     pub fn new(
-        type_checker: Gc<TypeChecker>,
+        type_checker: Id<TypeChecker>,
         declared_prop: Id<Symbol>,
         type_with_this: Id<Type>,
         base_with_this: Id<Type>,
@@ -888,17 +888,17 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                 None,
                 &Diagnostics::Property_0_in_type_1_is_not_assignable_to_the_same_property_in_base_type_2,
                 Some(vec![
-                    self.type_checker.symbol_to_string_(
+                    self.type_checker.ref_(self).symbol_to_string_(
                         self.declared_prop,
                         Option::<Id<Node>>::None,
                         None, None, None,
                     )?,
-                    self.type_checker.type_to_string_(
+                    self.type_checker.ref_(self).type_to_string_(
                         self.type_with_this,
                         Option::<Id<Node>>::None,
                         None, None,
                     )?,
-                    self.type_checker.type_to_string_(
+                    self.type_checker.ref_(self).type_to_string_(
                         self.base_with_this,
                         Option::<Id<Node>>::None,
                         None, None,
@@ -906,6 +906,12 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
                 ])
             )
         ))))
+    }
+}
+
+impl HasArena for IssueMemberSpecificErrorContainingMessageChain {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

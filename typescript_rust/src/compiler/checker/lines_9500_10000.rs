@@ -20,6 +20,7 @@ use crate::{
     Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
     TypeSystemPropertyName,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -61,8 +62,8 @@ impl TypeChecker {
         mut symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let mut links = self.get_symbol_links(symbol);
-        let original_links = links.clone();
-        if (*links).borrow().type_.is_none() {
+        let original_links = links;
+        if links.ref_(self).type_.is_none() {
             let expando =
                 symbol
                     .ref_(self)
@@ -78,10 +79,10 @@ impl TypeChecker {
                 }
             }
             let type_ = self.get_type_of_func_class_enum_module_worker(symbol)?;
-            original_links.borrow_mut().type_ = Some(type_.clone());
-            links.borrow_mut().type_ = Some(type_);
+            original_links.ref_mut(self).type_ = Some(type_);
+            links.ref_mut(self).type_ = Some(type_);
         }
-        let ret = (*links).borrow().type_.clone().unwrap();
+        let ret = links.ref_(self).type_.unwrap();
         Ok(ret)
     }
 
@@ -121,8 +122,8 @@ impl TypeChecker {
                 }
                 let export_equals = self
                     .get_merged_symbol(
-                        (*symbol.ref_(self).exports())
-                            .borrow()
+                        symbol.ref_(self).exports()
+                            .ref_(self)
                             .get(InternalSymbolName::ExportEquals)
                             .cloned(),
                     )
@@ -171,17 +172,17 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_enum_member(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_type) = (*links).borrow().type_.clone() {
+        if let Some(links_type) = links.ref_(self).type_ {
             return Ok(links_type);
         }
         let ret = self.get_declared_type_of_enum_member(symbol)?;
-        links.borrow_mut().type_ = Some(ret.clone());
+        links.ref_mut(self).type_ = Some(ret.clone());
         Ok(ret)
     }
 
     pub(super) fn get_type_of_alias(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links).borrow().type_.is_none() {
+        if links.ref_(self).type_.is_none() {
             let target_symbol = self.resolve_alias(symbol)?;
             let export_symbol = symbol
                 .ref_(self)
@@ -205,7 +206,7 @@ impl TypeChecker {
                     },
                 )
             })?;
-            links.borrow_mut().type_ = Some(
+            links.ref_mut(self).type_ = Some(
                 if let Some(export_symbol) = export_symbol.filter(|&export_symbol| {
                     matches!(
                         export_symbol.ref_(self).maybe_declarations().as_deref(),
@@ -224,7 +225,7 @@ impl TypeChecker {
                 }
             );
         }
-        let ret = (*links).borrow().type_.clone().unwrap();
+        let ret = links.ref_(self).type_.unwrap();
         Ok(ret)
     }
 
@@ -233,27 +234,27 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links).borrow().type_.is_none() {
+        if links.ref_(self).type_.is_none() {
             if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::Type) {
-                links.borrow_mut().type_ = Some(self.error_type());
+                links.ref_mut(self).type_ = Some(self.error_type());
                 return Ok(self.error_type());
             }
             let mut type_ = self.instantiate_type(
                 self.get_type_of_symbol({
-                    let target = (*links).borrow().target.clone().unwrap();
+                    let target = (*links.ref_(self)).borrow().target.clone().unwrap();
                     target
                 })?,
                 {
-                    let mapper = (*links).borrow().mapper.clone();
+                    let mapper = (*links.ref_(self)).borrow().mapper.clone();
                     mapper
                 },
             )?;
             if !self.pop_type_resolution() {
                 type_ = self.report_circularity_error(symbol)?;
             }
-            links.borrow_mut().type_ = Some(type_);
+            links.ref_mut(self).type_ = Some(type_);
         }
-        let ret = (*links).borrow().type_.clone().unwrap();
+        let ret = links.ref_(self).type_.clone().unwrap();
         Ok(ret)
     }
 
@@ -296,7 +297,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        let mut links = links.borrow_mut();
+        let mut links = links.ref_mut(self);
         if links.type_.is_none() {
             Debug_.assert_is_defined(&links.deferral_parent.as_ref(), None);
             Debug_.assert_is_defined(&links.deferral_constituents.as_ref(), None);
@@ -596,12 +597,12 @@ impl TypeChecker {
                     let outer_type_parameters =
                         self.get_outer_type_parameters(node_present, include_this_types)?;
                     return Ok(
-                        if let Some(node_tags) = node_present.ref_(self).as_jsdoc().tags.as_deref() {
+                        if let Some(node_tags) = node_present.ref_(self).as_jsdoc().tags.refed(self).as_deref() {
                             self.append_type_parameters(
                                 outer_type_parameters,
                                 &flat_map(Some(node_tags), |t: &Id<Node>, _| {
                                     if is_jsdoc_template_tag(&t.ref_(self)) {
-                                        t.ref_(self).as_jsdoc_template_tag().type_parameters.to_vec()
+                                        t.ref_(self).as_jsdoc_template_tag().type_parameters.ref_(self).to_vec()
                                     } else {
                                         vec![]
                                     }
@@ -680,12 +681,12 @@ impl TypeChecker {
     pub(super) fn is_mixin_constructor_type(&self, type_: Id<Type>) -> io::Result<bool> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Construct)?;
         if signatures.len() == 1 {
-            let s = &signatures[0];
-            if s.maybe_type_parameters().is_none()
-                && s.parameters().len() == 1
-                && signature_has_rest_parameter(s)
+            let s = signatures[0];
+            if s.ref_(self).maybe_type_parameters().is_none()
+                && s.ref_(self).parameters().len() == 1
+                && signature_has_rest_parameter(&s.ref_(self))
             {
-                let param_type = self.get_type_of_parameter(s.parameters()[0])?;
+                let param_type = self.get_type_of_parameter(s.ref_(self).parameters()[0])?;
                 return Ok(self.is_type_any(Some(param_type))
                     || matches!(
                         self.get_element_type_of_array_type(param_type)?,
@@ -733,16 +734,16 @@ impl TypeChecker {
         type_: Id<Type>,
         type_argument_nodes: Option<&[Id<Node /*TypeNode*/>]>,
         location: Id<Node>,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         let type_arg_count = length(type_argument_nodes);
         let is_javascript = is_in_js_file(Some(&location.ref_(self)));
         Ok(filter(
             &self.get_signatures_of_type(type_, SignatureKind::Construct)?,
-            |sig: &Gc<Signature>| {
+            |sig: &Id<Signature>| {
                 (is_javascript
                     || type_arg_count
-                        >= self.get_min_type_argument_count(sig.maybe_type_parameters().as_deref()))
-                    && type_arg_count <= length(sig.maybe_type_parameters().as_deref())
+                        >= self.get_min_type_argument_count(sig.ref_(self).maybe_type_parameters().as_deref()))
+                    && type_arg_count <= length(sig.ref_(self).maybe_type_parameters().as_deref())
             },
         ))
     }
@@ -752,7 +753,7 @@ impl TypeChecker {
         type_: Id<Type>,
         type_argument_nodes: Option<&[Id<Node /*TypeNode*/>]>,
         location: Id<Node>,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         let signatures =
             self.get_constructors_for_type_arguments(type_, type_argument_nodes, location)?;
         let type_arguments =
@@ -760,10 +761,10 @@ impl TypeChecker {
                 self.get_type_from_type_node_(type_argument_node)
             })
             .transpose()?;
-        try_map(&signatures, |sig: &Gc<Signature>, _| -> io::Result<_> {
+        try_map(&signatures, |sig: &Id<Signature>, _| -> io::Result<_> {
             Ok(
                 if some(
-                    sig.maybe_type_parameters().as_deref(),
+                    sig.ref_(self).maybe_type_parameters().as_deref(),
                     Option::<fn(&Id<Type>) -> bool>::None,
                 ) {
                     self.get_signature_instantiation(
@@ -901,7 +902,7 @@ impl TypeChecker {
                         add_related_info(
                             &err.ref_(self),
                             vec![
-                                create_diagnostic_for_node(
+                                self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                     base_constructor_type_symbol_declarations[0],
                                     &Diagnostics::Did_you_mean_for_0_to_be_constrained_to_type_new_args_Colon_any_1,
                                     Some(vec![
@@ -909,7 +910,7 @@ impl TypeChecker {
                                         self.type_to_string_(ctor_return, Option::<Id<Node>>::None, None, None)?
                                     ]),
                                     self,
-                                ).into()
+                                ).into())
                             ]
                         );
                     }
@@ -999,7 +1000,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_not_actually_interface_type()
                         .maybe_resolved_base_types() =
-                        Some(Gc::new(vec![self.get_tuple_base_type(type_)?]));
+                        Some(self.alloc_vec_type(vec![self.get_tuple_base_type(type_)?]));
                 } else if type_
                     .ref_(self)
                     .symbol()
@@ -1052,14 +1053,15 @@ impl TypeChecker {
                 .as_not_actually_interface_type()
                 .set_base_types_resolved(Some(true));
         }
-        let ret = Vec::clone(
+        let ret =
             type_
                 .ref_(self)
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_types()
                 .as_ref()
-                .unwrap(),
-        );
+                .unwrap()
+                .ref_(self)
+                .clone();
         Ok(ret)
     }
 
@@ -1115,11 +1117,11 @@ impl TypeChecker {
     pub(super) fn resolve_base_types_of_class(
         &self,
         type_: Id<Type>, /*InterfaceType*/
-    ) -> io::Result<Gc<Vec<Id<Type /*BaseType*/>>>> {
+    ) -> io::Result<Id<Vec<Id<Type /*BaseType*/>>>> {
         *type_
             .ref_(self)
             .as_not_actually_interface_type()
-            .maybe_resolved_base_types() = Some(resolving_empty_array());
+            .maybe_resolved_base_types() = Some(resolving_empty_array(self));
         let base_constructor_type =
             self.get_apparent_type(self.get_base_constructor_type_of_class(type_)?)?;
         if !base_constructor_type
@@ -1127,7 +1129,7 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::Object | TypeFlags::Intersection | TypeFlags::Any)
         {
-            let ret = Gc::new(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1168,7 +1170,7 @@ impl TypeChecker {
                 base_type_node
                     .ref_(self).as_expression_with_type_arguments()
                     .maybe_type_arguments()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
                 base_type_node,
             )?;
             if constructors.is_empty() {
@@ -1181,7 +1183,7 @@ impl TypeChecker {
                     &Diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
                     None,
                 );
-                let ret = Gc::new(vec![]);
+                let ret = self.alloc_vec_type(vec![]);
                 *type_
                     .ref_(self)
                     .as_not_actually_interface_type()
@@ -1192,7 +1194,7 @@ impl TypeChecker {
         }
 
         if self.is_error_type(base_type) {
-            let ret = Gc::new(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1220,7 +1222,7 @@ impl TypeChecker {
                 )
                 .into(),
             ));
-            let ret = Gc::new(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
@@ -1242,28 +1244,25 @@ impl TypeChecker {
                     None,
                 )?]),
             );
-            let ret = Gc::new(vec![]);
+            let ret = self.alloc_vec_type(vec![]);
             *type_
                 .ref_(self)
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_types() = Some(ret.clone());
             return Ok(ret);
         }
-        if Gc::ptr_eq(
-            type_
-                .ref_(self)
-                .as_not_actually_interface_type()
-                .maybe_resolved_base_types()
-                .as_ref()
-                .unwrap(),
-            &resolving_empty_array(),
-        ) {
+        if type_
+            .ref_(self)
+            .as_not_actually_interface_type()
+            .maybe_resolved_base_types()
+            .clone()
+            .unwrap() == resolving_empty_array(self) {
             type_
                 .ref_(self)
                 .as_not_actually_interface_type()
                 .set_members(None);
         }
-        let ret = Gc::new(vec![reduced_base_type]);
+        let ret = self.alloc_vec_type(vec![reduced_base_type]);
         *type_
             .ref_(self)
             .as_not_actually_interface_type()

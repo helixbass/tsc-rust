@@ -31,9 +31,9 @@ impl TypeChecker {
         pattern_with_computed_properties: bool,
         in_destructuring_pattern: bool,
     ) -> io::Result<Id<Type>> {
-        let mut index_infos: Vec<Gc<IndexInfo>> = vec![];
+        let mut index_infos: Vec<Id<IndexInfo>> = vec![];
         if has_computed_string_property {
-            index_infos.push(Gc::new(self.get_object_literal_index_info(
+            index_infos.push(self.alloc_index_info(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -41,7 +41,7 @@ impl TypeChecker {
             )?));
         }
         if has_computed_number_property {
-            index_infos.push(Gc::new(self.get_object_literal_index_info(
+            index_infos.push(self.alloc_index_info(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -49,7 +49,7 @@ impl TypeChecker {
             )?));
         }
         if has_computed_symbol_property {
-            index_infos.push(Gc::new(self.get_object_literal_index_info(
+            index_infos.push(self.alloc_index_info(self.get_object_literal_index_info(
                 node,
                 offset,
                 &properties_array,
@@ -58,7 +58,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             node.ref_(self).maybe_symbol(),
-            Gc::new(GcCell::new(properties_table.clone())),
+            self.alloc_symbol_table(properties_table.clone()),
             vec![],
             vec![],
             index_infos,
@@ -261,10 +261,10 @@ impl TypeChecker {
         } else {
             None
         };
-        let attributes_table = Gc::new(GcCell::new(create_symbol_table(
+        let attributes_table = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        )));
+        ));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
         let mut type_to_intersect: Option<Id<Type>> = None;
@@ -274,7 +274,7 @@ impl TypeChecker {
             self.get_jsx_namespace_at(Some(opening_like_element))?,
         )?;
 
-        for &attribute_decl in &attributes.ref_(self).as_jsx_attributes().properties {
+        for &attribute_decl in &*attributes.ref_(self).as_jsx_attributes().properties.ref_(self) {
             let member = attribute_decl.ref_(self).maybe_symbol();
             if is_jsx_attribute(&attribute_decl.ref_(self)) {
                 let expr_type = self.check_jsx_attribute(attribute_decl, check_mode)?;
@@ -309,11 +309,11 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links();
-                    let mut attribute_symbol_links = attribute_symbol_links.borrow_mut();
+                    let mut attribute_symbol_links = attribute_symbol_links.ref_mut(self);
                     attribute_symbol_links.type_ = Some(expr_type.clone());
                     attribute_symbol_links.target = Some(member.clone());
                 }
-                attributes_table.borrow_mut().insert(
+                attributes_table.ref_mut(self).insert(
                     attribute_symbol.ref_(self).escaped_name().to_owned(),
                     attribute_symbol.clone(),
                 );
@@ -340,7 +340,7 @@ impl TypeChecker {
                     attribute_decl.ref_(self).kind() == SyntaxKind::JsxSpreadAttribute,
                     None,
                 );
-                if !(*attributes_table).borrow().is_empty() {
+                if !attributes_table.ref_(self).is_empty() {
                     spread = self.get_spread_type(
                         spread,
                         self.create_jsx_attributes_type(
@@ -352,7 +352,7 @@ impl TypeChecker {
                         object_flags,
                         false,
                     )?;
-                    *attributes_table.borrow_mut() =
+                    *attributes_table.ref_mut(self) =
                         create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 }
                 let expr_type = self.get_reduced_type(self.check_expression_cached(
@@ -394,7 +394,7 @@ impl TypeChecker {
         }
 
         if !has_spread_any_type {
-            if !(*attributes_table).borrow().is_empty() {
+            if !attributes_table.ref_(self).is_empty() {
                 spread = self.get_spread_type(
                     spread,
                     self.create_jsx_attributes_type(
@@ -418,7 +418,7 @@ impl TypeChecker {
             let parent_ref = parent.ref_(self);
             let parent_as_jsx_element = parent_ref.as_jsx_element();
             parent_as_jsx_element.opening_element == opening_like_element &&
-                !parent_as_jsx_element.children.is_empty()
+                !parent_as_jsx_element.children.ref_(self).is_empty()
         }) {
             let children_types = self.check_jsx_children(parent, check_mode)?;
 
@@ -460,7 +460,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .borrow_mut()
+                        .ref_mut(self)
                         .type_ = Some(if children_types.len() == 1 {
                         children_types[0].clone()
                     } else if matches!(
@@ -484,8 +484,8 @@ impl TypeChecker {
                         )
                     });
                     children_prop_symbol.ref_(self).set_value_declaration(
-                        get_factory().create_property_signature(
-                            Option::<Gc<NodeArray>>::None,
+                        get_factory(self).create_property_signature(
+                            Option::<Id<NodeArray>>::None,
                             unescape_leading_underscores(jsx_children_property_name),
                             None,
                             None,
@@ -514,7 +514,7 @@ impl TypeChecker {
                         spread,
                         self.create_anonymous_type(
                             attributes.ref_(self).maybe_symbol(),
-                            Gc::new(GcCell::new(child_prop_map)),
+                            self.alloc_symbol_table(child_prop_map),
                             vec![],
                             vec![],
                             vec![],
@@ -556,7 +556,7 @@ impl TypeChecker {
         &self,
         object_flags: &mut ObjectFlags,
         attributes: Id<Node>,
-        attributes_table: Gc<GcCell<SymbolTable>>,
+        attributes_table: Id<SymbolTable>,
     ) -> io::Result<Id<Type>> {
         *object_flags |= self.fresh_object_literal_flag;
         let result = self.create_anonymous_type(
@@ -581,7 +581,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Vec<Id<Type>>> {
         let mut children_types: Vec<Id<Type>> = vec![];
-        for &child in &node.ref_(self).as_has_children().children() {
+        for &child in &*node.ref_(self).as_has_children().children().ref_(self) {
             if child.ref_(self).kind() == SyntaxKind::JsxText {
                 if !child.ref_(self).as_jsx_text().contains_only_trivia_white_spaces {
                     children_types.push(self.string_type());
@@ -618,7 +618,7 @@ impl TypeChecker {
                     );
                     add_related_info(
                         &diagnostic.ref_(self),
-                        vec![Gc::new(
+                        vec![self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 spread,
                                 &Diagnostics::This_spread_always_overwrites_this_property,
@@ -650,8 +650,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let namespace = self.get_jsx_namespace_at(location)?;
         let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
-        let type_symbol = exports.as_ref().try_and_then(|exports| {
-            self.get_symbol(&(**exports).borrow(), name, SymbolFlags::Type)
+        let type_symbol = exports.try_and_then(|exports| {
+            self.get_symbol(&exports.ref_(self), name, SymbolFlags::Type)
         })?;
         Ok(if let Some(type_symbol) = type_symbol {
             self.get_declared_type_of_symbol(type_symbol)?
@@ -667,7 +667,7 @@ impl TypeChecker {
         let links = self.get_node_links(node);
         let node_ref = node.ref_(self);
         let node_as_has_tag_name = node_ref.as_has_tag_name();
-        if (*links).borrow().resolved_symbol.is_none() {
+        if links.ref_(self).resolved_symbol.is_none() {
             let intrinsic_elements_type =
                 self.get_jsx_type(&JsxNames::IntrinsicElements, Some(node))?;
             if !self.is_error_type(intrinsic_elements_type) {
@@ -680,16 +680,16 @@ impl TypeChecker {
                     None,
                 )?;
                 if let Some(intrinsic_prop) = intrinsic_prop.as_ref() {
-                    links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicNamedElement;
-                    links.borrow_mut().resolved_symbol = Some(intrinsic_prop.clone());
+                    links.ref_mut(self).jsx_flags |= JsxFlags::IntrinsicNamedElement;
+                    links.ref_mut(self).resolved_symbol = Some(intrinsic_prop.clone());
                     return Ok(intrinsic_prop.clone());
                 }
 
                 let index_signature_type =
                     self.get_index_type_of_type_(intrinsic_elements_type, self.string_type())?;
                 if index_signature_type.is_some() {
-                    links.borrow_mut().jsx_flags |= JsxFlags::IntrinsicIndexedElement;
-                    links.borrow_mut().resolved_symbol =
+                    links.ref_mut(self).jsx_flags |= JsxFlags::IntrinsicIndexedElement;
+                    links.ref_mut(self).resolved_symbol =
                         Some(intrinsic_elements_type.ref_(self).symbol());
                     return Ok(intrinsic_elements_type.ref_(self).symbol());
                 }
@@ -703,7 +703,7 @@ impl TypeChecker {
                     ]),
                 );
                 let ret = self.unknown_symbol();
-                links.borrow_mut().resolved_symbol = Some(ret.clone());
+                links.ref_mut(self).resolved_symbol = Some(ret.clone());
                 return Ok(ret);
             } else {
                 if self.no_implicit_any {
@@ -716,11 +716,11 @@ impl TypeChecker {
                     );
                 }
                 let ret = self.unknown_symbol();
-                links.borrow_mut().resolved_symbol = Some(ret.clone());
+                links.ref_mut(self).resolved_symbol = Some(ret.clone());
                 return Ok(ret);
             }
         }
-        let ret = (*links).borrow().resolved_symbol.clone().unwrap();
+        let ret = links.ref_(self).resolved_symbol.clone().unwrap();
         Ok(ret)
     }
 
@@ -732,17 +732,16 @@ impl TypeChecker {
             .and_then(|location| maybe_get_source_file_of_node(Some(location), self));
         let links = file.map(|file| self.get_node_links(file));
         if matches!(
-            links.as_ref(),
+            links,
             Some(links) if matches!(
-                (**links).borrow().jsx_implicit_import_container,
+                links.ref_(self).jsx_implicit_import_container,
                 Some(None)
             )
         ) {
             return Ok(None);
         }
         if let Some(Some(links_jsx_implicit_import_container)) = links
-            .as_ref()
-            .and_then(|links| (**links).borrow().jsx_implicit_import_container.clone())
+            .and_then(|links| links.ref_(self).jsx_implicit_import_container.clone())
         {
             return Ok(Some(links_jsx_implicit_import_container));
         }
@@ -775,8 +774,8 @@ impl TypeChecker {
                     .unwrap())
             },
         )?;
-        if let Some(links) = links.as_ref() {
-            links.borrow_mut().jsx_implicit_import_container = Some(result.clone());
+        if let Some(links) = links {
+            links.ref_mut(self).jsx_implicit_import_container = Some(result.clone());
         }
         Ok(result)
     }
@@ -788,14 +787,12 @@ impl TypeChecker {
         let links = location
             .map(|location| self.get_node_links(location));
         if let Some(Some(links_jsx_namespace)) = links
-            .as_ref()
-            .and_then(|links| (**links).borrow().jsx_namespace.clone())
+            .and_then(|links| links.ref_(self).jsx_namespace.clone())
         {
             return Ok(Some(links_jsx_namespace));
         }
         if match links
-            .as_ref()
-            .and_then(|links| (**links).borrow().jsx_namespace.clone())
+            .and_then(|links| links.ref_(self).jsx_namespace.clone())
         {
             None => true,
             Some(None) => false,
@@ -823,11 +820,11 @@ impl TypeChecker {
             if let Some(resolved_namespace) = resolved_namespace {
                 let candidate = self.resolve_symbol(
                     self.get_symbol(
-                        &(*self.get_exports_of_symbol(
+                        &self.get_exports_of_symbol(
                             self.resolve_symbol(Some(resolved_namespace), None)?
                                 .unwrap(),
-                        )?)
-                        .borrow(),
+                        )?
+                        .ref_(self),
                         &JsxNames::JSX,
                         SymbolFlags::Namespace,
                     )?,
@@ -836,14 +833,14 @@ impl TypeChecker {
                 if let Some(candidate) =
                     candidate.filter(|&candidate| candidate != self.unknown_symbol())
                 {
-                    if let Some(links) = links.as_ref() {
-                        links.borrow_mut().jsx_namespace = Some(Some(candidate.clone()));
+                    if let Some(links) = links {
+                        links.ref_mut(self).jsx_namespace = Some(Some(candidate.clone()));
                     }
                     return Ok(Some(candidate.clone()));
                 }
             }
-            if let Some(links) = links.as_ref() {
-                links.borrow_mut().jsx_namespace = Some(None);
+            if let Some(links) = links {
+                links.ref_mut(self).jsx_namespace = Some(None);
             }
         }
         let s = self.resolve_symbol(

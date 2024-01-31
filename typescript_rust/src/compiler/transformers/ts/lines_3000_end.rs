@@ -33,7 +33,7 @@ impl TransformTypeScript {
     }
 
     pub(super) fn expression_to_statement(&self, expression: Id<Node /*Expression*/>) -> Id<Node> {
-        self.factory.create_expression_statement(expression)
+        self.factory.ref_(self).create_expression_statement(expression)
     }
 
     pub(super) fn add_export_member_assignment(
@@ -43,14 +43,14 @@ impl TransformTypeScript {
     ) {
         let expression = self
             .factory
-            .create_assignment(
-                self.factory.get_external_module_or_namespace_export_name(
+            .ref_(self).create_assignment(
+                self.factory.ref_(self).get_external_module_or_namespace_export_name(
                     self.maybe_current_namespace_container_name(),
                     node,
                     Some(false),
                     Some(true),
                 ),
-                self.factory.get_local_name(node, None, None),
+                self.factory.ref_(self).get_local_name(node, None, None),
             )
             .set_source_map_range(Some(
                 self.alloc_source_map_range((&create_range(
@@ -64,7 +64,7 @@ impl TransformTypeScript {
 
         let statement = self
             .factory
-            .create_expression_statement(expression)
+            .ref_(self).create_expression_statement(expression)
             .set_source_map_range(Some(self.alloc_source_map_range((&create_range(-1, Some(node.ref_(self).end()))).into())), self);
         statements.push(statement);
     }
@@ -76,8 +76,8 @@ impl TransformTypeScript {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Id<Node> {
         self.factory
-            .create_expression_statement(self.factory.create_assignment(
-                self.factory.get_namespace_member_name(
+            .ref_(self).create_expression_statement(self.factory.ref_(self).create_assignment(
+                self.factory.ref_(self).get_namespace_member_name(
                     self.current_namespace_container_name(),
                     export_name,
                     Some(false),
@@ -95,7 +95,7 @@ impl TransformTypeScript {
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     ) -> Id<Node> {
         self.factory
-            .create_assignment(
+            .ref_(self).create_assignment(
                 self.get_namespace_member_name_with_source_maps_and_without_comments(export_name),
                 export_value,
             )
@@ -106,7 +106,7 @@ impl TransformTypeScript {
         &self,
         name: Id<Node>, /*Identifier*/
     ) -> Id<Node> {
-        self.factory.get_namespace_member_name(
+        self.factory.ref_(self).get_namespace_member_name(
             self.current_namespace_container_name(),
             name,
             Some(false),
@@ -119,7 +119,7 @@ impl TransformTypeScript {
         node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> Id<Node> {
         self.factory
-            .get_generated_name_for_node(Some(node), None)
+            .ref_(self).get_generated_name_for_node(Some(node), None)
             .set_source_map_range(
                 node.ref_(self).as_named_declaration()
                     .maybe_name()
@@ -133,7 +133,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> Id<Node> {
-        self.factory.get_generated_name_for_node(Some(node), None)
+        self.factory.ref_(self).get_generated_name_for_node(Some(node), None)
     }
 
     pub(super) fn get_class_alias_if_needed(
@@ -142,11 +142,11 @@ impl TransformTypeScript {
     ) -> Option<Id<Node>> {
         if self
             .resolver
-            .get_node_check_flags(node)
+            .ref_(self).get_node_check_flags(node)
             .intersects(NodeCheckFlags::ClassWithConstructorReference)
         {
             self.enable_substitution_for_class_aliases();
-            let class_alias = self.factory.create_unique_name(
+            let class_alias = self.factory.ref_(self).create_unique_name(
                 &node.ref_(self).as_class_declaration()
                     .maybe_name()
                     .map_or_else(|| "default".into(), |node_name| Cow::from(id_text(&node_name.ref_(self)).to_owned())),
@@ -164,8 +164,8 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> Id<Node> {
-        self.factory.create_property_access_expression(
-            self.factory.get_declaration_name(Some(node), None, None),
+        self.factory.ref_(self).create_property_access_expression(
+            self.factory.ref_(self).get_declaration_name(Some(node), None, None),
             "prototype",
         )
     }
@@ -176,7 +176,7 @@ impl TransformTypeScript {
         member: Id<Node>, /*ClassElement*/
     ) -> Id<Node> {
         if is_static(member, self) {
-            self.factory.get_declaration_name(Some(node), None, None)
+            self.factory.ref_(self).get_declaration_name(Some(node), None, None)
         } else {
             self.get_class_prototype(node)
         }
@@ -230,9 +230,9 @@ impl TransformTypeScript {
     pub(super) fn should_emit_alias_declaration(&self, node: Id<Node>) -> io::Result<bool> {
         Ok(
             if self.compiler_options.ref_(self).preserve_value_imports == Some(true) {
-                self.resolver.is_value_alias_declaration(node)?
+                self.resolver.ref_(self).is_value_alias_declaration(node)?
             } else {
-                self.resolver.is_referenced_alias_declaration(node, None)?
+                self.resolver.ref_(self).is_referenced_alias_declaration(node, None)?
             },
         )
     }

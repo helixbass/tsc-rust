@@ -21,6 +21,7 @@ use crate::{
     NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
     HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
+    OptionInArena,
 };
 
 bitflags! {
@@ -249,7 +250,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
 }
 
 #[derive(Trace, Finalize)]
-pub(super) enum PrivateIdentifierInfo {
+pub enum PrivateIdentifierInfo {
     PrivateIdentifierMethodInfo(PrivateIdentifierMethodInfo),
     PrivateIdentifierInstanceFieldInfo(PrivateIdentifierInstanceFieldInfo),
     PrivateIdentifierStaticFieldInfo(PrivateIdentifierStaticFieldInfo),
@@ -325,21 +326,9 @@ impl From<PrivateIdentifierMethodInfo> for PrivateIdentifierInfo {
     }
 }
 
-impl From<PrivateIdentifierMethodInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierMethodInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 impl From<PrivateIdentifierInstanceFieldInfo> for PrivateIdentifierInfo {
     fn from(value: PrivateIdentifierInstanceFieldInfo) -> Self {
         Self::PrivateIdentifierInstanceFieldInfo(value)
-    }
-}
-
-impl From<PrivateIdentifierInstanceFieldInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierInstanceFieldInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
     }
 }
 
@@ -349,38 +338,26 @@ impl From<PrivateIdentifierStaticFieldInfo> for PrivateIdentifierInfo {
     }
 }
 
-impl From<PrivateIdentifierStaticFieldInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierStaticFieldInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 impl From<PrivateIdentifierAccessorInfo> for PrivateIdentifierInfo {
     fn from(value: PrivateIdentifierAccessorInfo) -> Self {
         Self::PrivateIdentifierAccessorInfo(value)
     }
 }
 
-impl From<PrivateIdentifierAccessorInfo> for Gc<GcCell<PrivateIdentifierInfo>> {
-    fn from(value: PrivateIdentifierAccessorInfo) -> Self {
-        Gc::new(GcCell::new(value.into()))
-    }
-}
-
 #[derive(Default, Trace, Finalize)]
-pub(super) struct PrivateIdentifierEnvironment {
+pub struct PrivateIdentifierEnvironment {
     pub class_name: String,
     pub weak_set_name: Option<Id<Node /*Identifier*/>>,
-    pub identifiers: UnderscoreEscapedMap<Gc<GcCell<PrivateIdentifierInfo>>>,
+    pub identifiers: UnderscoreEscapedMap<Id<PrivateIdentifierInfo>>,
 }
 
 #[derive(Default, Trace, Finalize)]
-pub(super) struct ClassLexicalEnvironment {
+pub struct ClassLexicalEnvironment {
     #[unsafe_ignore_trace]
     pub facts: ClassFacts,
     pub class_constructor: Option<Id<Node /*Identifier*/>>,
     pub super_class_reference: Option<Id<Node /*Identifier*/>>,
-    pub private_identifier_environment: Option<Gc<GcCell<PrivateIdentifierEnvironment>>>,
+    pub private_identifier_environment: Option<Id<PrivateIdentifierEnvironment>>,
 }
 
 bitflags! {
@@ -399,8 +376,8 @@ pub(super) struct TransformClassFields {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
-    pub(super) factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    pub(super) resolver: Gc<Box<dyn EmitResolver>>,
+    pub(super) factory: Id<NodeFactory>,
+    pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
@@ -414,13 +391,13 @@ pub(super) struct TransformClassFields {
     pub(super) pending_expressions: GcCell<Option<Vec<Id<Node /*Expression*/>>>>,
     pub(super) pending_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
     pub(super) class_lexical_environment_stack:
-        GcCell<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>>,
+        GcCell<Vec<Option<Id<ClassLexicalEnvironment>>>>,
     pub(super) class_lexical_environment_map:
-        GcCell<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>>,
+        GcCell<HashMap<NodeId, Id<ClassLexicalEnvironment>>>,
     pub(super) current_class_lexical_environment:
-        GcCell<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
+        GcCell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_computed_property_name_class_lexical_environment:
-        GcCell<Option<Gc<GcCell<ClassLexicalEnvironment>>>>,
+        GcCell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_static_property_declaration_or_static_block:
         GcCell<Option<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
 }
@@ -459,13 +436,13 @@ impl TransformClassFields {
             current_static_property_declaration_or_static_block: Default::default(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
                 TransformClassFieldsOnSubstituteNodeOverrider::new(
                     ret,
                     previous_on_substitute_node,
@@ -560,44 +537,44 @@ impl TransformClassFields {
 
     pub(super) fn class_lexical_environment_stack(
         &self,
-    ) -> GcCellRef<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>> {
+    ) -> GcCellRef<Vec<Option<Id<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_stack.borrow()
     }
 
     pub(super) fn class_lexical_environment_stack_mut(
         &self,
-    ) -> GcCellRefMut<Vec<Option<Gc<GcCell<ClassLexicalEnvironment>>>>> {
+    ) -> GcCellRefMut<Vec<Option<Id<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_stack.borrow_mut()
     }
 
     pub(super) fn class_lexical_environment_map(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>> {
+    ) -> GcCellRef<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
         self.class_lexical_environment_map.borrow()
     }
 
     pub(super) fn class_lexical_environment_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Gc<GcCell<ClassLexicalEnvironment>>>> {
+    ) -> GcCellRefMut<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
         self.class_lexical_environment_map.borrow_mut()
     }
 
     pub(super) fn maybe_current_class_lexical_environment(
         &self,
-    ) -> Option<Gc<GcCell<ClassLexicalEnvironment>>> {
+    ) -> Option<Id<ClassLexicalEnvironment>> {
         self.current_class_lexical_environment.borrow().clone()
     }
 
     pub(super) fn set_current_class_lexical_environment(
         &self,
-        current_class_lexical_environment: Option<Gc<GcCell<ClassLexicalEnvironment>>>,
+        current_class_lexical_environment: Option<Id<ClassLexicalEnvironment>>,
     ) {
         *self.current_class_lexical_environment.borrow_mut() = current_class_lexical_environment;
     }
 
     pub(super) fn maybe_current_computed_property_name_class_lexical_environment(
         &self,
-    ) -> Option<Gc<GcCell<ClassLexicalEnvironment>>> {
+    ) -> Option<Id<ClassLexicalEnvironment>> {
         self.current_computed_property_name_class_lexical_environment
             .borrow()
             .clone()
@@ -606,7 +583,7 @@ impl TransformClassFields {
     pub(super) fn set_current_computed_property_name_class_lexical_environment(
         &self,
         current_computed_property_name_class_lexical_environment: Option<
-            Gc<GcCell<ClassLexicalEnvironment>>,
+            Id<ClassLexicalEnvironment>,
         >,
     ) {
         *self
@@ -785,7 +762,7 @@ impl TransformClassFields {
         }
         Some(
             self.factory
-                .create_identifier("")
+                .ref_(self).create_identifier("")
                 .set_original_node(Some(node), self)
                 .into(),
         )
@@ -818,8 +795,8 @@ impl TransformClassFields {
             return Some(
                 self.context
                     .ref_(self).get_emit_helper_factory()
-                    .create_class_private_field_in_helper(
-                        (*info).borrow().brand_check_identifier(),
+                    .ref_(self).create_class_private_field_in_helper(
+                        info.ref_(self).brand_check_identifier(),
                         receiver,
                     )
                     .set_original_node(Some(node), self)
@@ -876,9 +853,9 @@ impl TransformClassFields {
             let mut expressions = self.pending_expressions().clone();
             expressions.push(name_as_computed_property_name.expression.clone());
             self.set_pending_expressions(Some(_d()));
-            node = self.factory.update_computed_property_name(
+            node = self.factory.ref_(self).update_computed_property_name(
                 node,
-                self.factory.inline_expressions(&expressions),
+                self.factory.ref_(self).inline_expressions(&expressions),
             );
         }
         Some(node.into())
@@ -891,7 +868,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         Debug_.assert(
-            !node.ref_(self).maybe_decorators().as_double_deref().is_non_empty(),
+            !node.ref_(self).maybe_decorators().refed(self).as_double_deref().is_non_empty(),
             None,
         );
 
@@ -916,24 +893,24 @@ impl TransformClassFields {
             Some("Undeclared private name for property declaration."),
         );
         let info = info.unwrap();
-        if !(*info).borrow().is_valid() {
+        if !info.ref_(self).is_valid() {
             return Some(node.into());
         }
 
         let function_name = self.get_hoisted_function_name(node);
         if let Some(function_name) = function_name {
             self.get_pending_expressions().push(
-                self.factory.create_assignment(
+                self.factory.ref_(self).create_assignment(
                     function_name.clone(),
-                    self.factory.create_function_expression(
-                        maybe_filter(node.ref_(self).maybe_modifiers().as_double_deref(), |m: &Id<Node>| {
+                    self.factory.ref_(self).create_function_expression(
+                        maybe_filter(node.ref_(self).maybe_modifiers().refed(self).as_double_deref(), |m: &Id<Node>| {
                             !is_static_modifier(&m.ref_(self))
                         }),
                         node_as_function_like_declaration.maybe_asterisk_token(),
                         Some(function_name),
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         visit_parameter_list(
-                            Some(&node_as_function_like_declaration.parameters()),
+                            Some(node_as_function_like_declaration.parameters()),
                             |node: Id<Node>| self.class_element_visitor(node),
                             &*self.context.ref_(self),
                             self,
@@ -968,7 +945,7 @@ impl TransformClassFields {
             Some("Undeclared private name for property declaration."),
         );
         let info = info.unwrap();
-        let info = (*info).borrow();
+        let info = info.ref_(self);
 
         if info.kind() == PrivateIdentifierKind::Method {
             return Some(info.as_private_identifier_method_info().method_name.clone());
@@ -998,7 +975,7 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_property_declaration = node_ref.as_property_declaration();
         Debug_.assert(
-            !node.ref_(self).maybe_decorators().as_double_deref().is_non_empty(),
+            !node.ref_(self).maybe_decorators().refed(self).as_double_deref().is_non_empty(),
             None,
         );
 
@@ -1006,15 +983,16 @@ impl TransformClassFields {
             if !self.should_transform_private_elements_or_class_static_blocks {
                 return Some(
                     self.factory
-                        .update_property_declaration(
+                        .ref_(self).update_property_declaration(
                             node,
-                            Option::<Gc<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             maybe_visit_nodes(
-                                node.ref_(self).maybe_modifiers().as_deref(),
+                                node.ref_(self).maybe_modifiers(),
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                                 None,
                                 None,
+                                self,
                             ),
                             node_as_property_declaration.name(),
                             None,
@@ -1031,7 +1009,7 @@ impl TransformClassFields {
                 Some("Undeclared private name for property declaration."),
             );
             let info = info.unwrap();
-            if !(*info).borrow().is_valid() {
+            if !info.ref_(self).is_valid() {
                 return Some(node.into());
             }
         }
@@ -1077,7 +1055,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Accessor => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_get_helper(
+                .ref_(self).create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1088,7 +1066,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Method => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_get_helper(
+                .ref_(self).create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1097,7 +1075,7 @@ impl TransformClassFields {
             PrivateIdentifierKind::Field => self
                 .context
                 .ref_(self).get_emit_helper_factory()
-                .create_class_private_field_get_helper(
+                .ref_(self).create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1122,7 +1100,7 @@ impl TransformClassFields {
             if let Some(private_identifier_info) = private_identifier_info {
                 return Some(
                     self.create_private_identifier_access(
-                        &(*private_identifier_info).borrow(),
+                        &private_identifier_info.ref_(self),
                         node_as_property_access_expression.expression,
                     )
                     .set_original_node(Some(node), self)
@@ -1141,8 +1119,7 @@ impl TransformClassFields {
             if let Some(current_class_lexical_environment) =
                 self.maybe_current_class_lexical_environment()
             {
-                let current_class_lexical_environment =
-                    (*current_class_lexical_environment).borrow();
+                let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
                 let class_constructor =
                     current_class_lexical_environment.class_constructor.as_ref();
                 let super_class_reference = current_class_lexical_environment
@@ -1156,9 +1133,9 @@ impl TransformClassFields {
                     if let Some(super_class_reference) = super_class_reference {
                         return Some(
                             self.factory
-                                .create_reflect_get_call(
+                                .ref_(self).create_reflect_get_call(
                                     super_class_reference.clone(),
-                                    self.factory.create_string_literal_from_node(
+                                    self.factory.ref_(self).create_string_literal_from_node(
                                         node_as_property_access_expression.name(),
                                     ),
                                     Some(class_constructor.clone()),
@@ -1198,13 +1175,13 @@ impl HasArena for TransformClassFields {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsOnEmitNodeOverrider {
     transform_class_fields: Transformer,
-    previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformClassFieldsOnEmitNodeOverrider {
     fn new(
         transform_class_fields: Transformer,
-        previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_class_fields,
@@ -1245,7 +1222,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                         class_lexical_environment.clone(),
                     ));
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1262,7 +1239,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             | SyntaxKind::Constructor => 'arm: {
                 if node.ref_(self).kind() == SyntaxKind::FunctionExpression
                     && (is_arrow_function(&original.ref_(self))
-                        || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::AsyncFunctionBody))
+                        || get_emit_flags(node, self).intersects(EmitFlags::AsyncFunctionBody))
                 {
                     break 'arm;
                 }
@@ -1278,7 +1255,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1306,7 +1283,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1330,7 +1307,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1342,7 +1319,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             _ => (),
         }
         self.previous_on_emit_node
-            .on_emit_node(hint, node, emit_callback)?;
+            .ref_(self).on_emit_node(hint, node, emit_callback)?;
 
         Ok(())
     }
@@ -1357,13 +1334,13 @@ impl HasArena for TransformClassFieldsOnEmitNodeOverrider {
 #[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsOnSubstituteNodeOverrider {
     transform_class_fields: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn new(
         transform_class_fields: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_class_fields,
@@ -1400,8 +1377,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                 .transform_class_fields()
                 .maybe_current_class_lexical_environment()
             {
-                let current_class_lexical_environment =
-                    (*current_class_lexical_environment).borrow();
+                let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
                 let facts = current_class_lexical_environment.facts;
                 let class_constructor =
                     current_class_lexical_environment.class_constructor;
@@ -1409,15 +1385,15 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                     return self
                         .transform_class_fields()
                         .factory
-                        .create_parenthesized_expression(
-                            self.transform_class_fields().factory.create_void_zero(),
+                        .ref_(self).create_parenthesized_expression(
+                            self.transform_class_fields().factory.ref_(self).create_void_zero(),
                         );
                 }
                 if let Some(class_constructor) = class_constructor {
                     return self
                         .transform_class_fields()
                         .factory
-                        .clone_node(class_constructor)
+                        .ref_(self).clone_node(class_constructor)
                         .set_original_node(Some(node), self)
                         .set_text_range(Some(&*node.ref_(self)), self);
                 }
@@ -1448,13 +1424,13 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
             if self
                 .transform_class_fields()
                 .resolver
-                .get_node_check_flags(node)
+                .ref_(self).get_node_check_flags(node)
                 .intersects(NodeCheckFlags::ConstructorReferenceInClass)
             {
                 let declaration = self
                     .transform_class_fields()
                     .resolver
-                    .get_referenced_value_declaration(node)?;
+                    .ref_(self).get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
                     let class_alias = self
                         .transform_class_fields()
@@ -1465,7 +1441,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                         return Ok(Some(
                             self.transform_class_fields()
                                 .factory
-                                .clone_node(class_alias)
+                                .ref_(self).clone_node(class_alias)
                                 .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
                                 .set_comment_range(&*node.ref_(self), self),
                         ));
@@ -1484,7 +1460,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .on_substitute_node(hint, node)?;
+            .ref_(self).on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression {
             return self.substitute_expression(node);
         }
@@ -1510,10 +1486,16 @@ impl TransformClassFieldsFactory {
 
 impl TransformerFactoryInterface for TransformClassFieldsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context.clone(),
             TransformClassFields::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformClassFieldsFactory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

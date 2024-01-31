@@ -34,7 +34,7 @@ impl TypeChecker {
         let jsx_element_attrib_prop_interface_sym =
             jsx_namespace.try_and_then(|jsx_namespace| {
                 self.get_symbol(
-                    &(**jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap()).borrow(),
+                    &jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap().ref_(self),
                     name_of_attrib_prop_container,
                     SymbolFlags::Type,
                 )
@@ -97,7 +97,7 @@ impl TypeChecker {
         }
         let jsx_namespace = jsx_namespace.unwrap();
         let ret = self.get_symbol(
-            &(**jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap()).borrow(),
+            &jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap().ref_(self),
             &JsxNames::LibraryManagedAttributes,
             SymbolFlags::Type,
         )?;
@@ -128,7 +128,7 @@ impl TypeChecker {
         &self,
         element_type: Id<Type>,
         caller: Id<Node>, /*JsxOpeningLikeElement*/
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         if element_type
             .ref_(self)
             .flags()
@@ -235,7 +235,7 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
+                    Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element,
                     )))),
                     None,
@@ -256,7 +256,7 @@ impl TypeChecker {
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
+                    Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
                         opening_like_element,
                     )))),
                     None,
@@ -290,7 +290,7 @@ impl TypeChecker {
                 Some(Cow::Borrowed(
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),
-                Some(Gc::new(Box::new(GenerateInitialErrorChain::new(
+                Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
                     opening_like_element,
                 )))),
                 None,
@@ -311,22 +311,22 @@ impl TypeChecker {
             None,
         );
         let links = self.get_node_links(node);
-        if (*links)
-            .borrow()
+        if links
+            .ref_(self)
             .resolved_jsx_element_attributes_type
             .is_none()
         {
             let symbol = self.get_intrinsic_tag_symbol(node)?;
-            if (*links)
-                .borrow()
+            if links
+                .ref_(self)
                 .jsx_flags
                 .intersects(JsxFlags::IntrinsicNamedElement)
             {
                 let ret = self.get_type_of_symbol(symbol)?; /*|| errorType*/
-                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                links.ref_mut(self).resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
-            } else if (*links)
-                .borrow()
+            } else if links
+                .ref_(self)
                 .jsx_flags
                 .intersects(JsxFlags::IntrinsicIndexedElement)
             {
@@ -336,16 +336,16 @@ impl TypeChecker {
                         self.string_type(),
                     )?
                     .unwrap_or_else(|| self.error_type());
-                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                links.ref_mut(self).resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
             } else {
                 let ret = self.error_type();
-                links.borrow_mut().resolved_jsx_element_attributes_type = Some(ret.clone());
+                links.ref_mut(self).resolved_jsx_element_attributes_type = Some(ret.clone());
                 return Ok(ret);
             }
         }
-        let ret = (*links)
-            .borrow()
+        let ret = links
+            .ref_(self)
             .resolved_jsx_element_attributes_type
             .clone()
             .unwrap();

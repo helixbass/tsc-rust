@@ -66,7 +66,7 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.borrow_mut();
+        let mut result_links = result_links.ref_mut(self);
         result_links.type_ = Some(if is_setonly_accessor {
             self.undefined_type()
         } else {
@@ -75,22 +75,22 @@ impl TypeChecker {
         if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
             result.ref_(self).set_declarations(prop_declarations);
         }
-        result_links.name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
+        result_links.name_type = (*self.get_symbol_links(prop).ref_(self)).borrow().name_type.clone();
         result_links.synthetic_origin = Some(prop);
         Ok(result)
     }
 
     pub(super) fn get_index_info_with_readonly(
         &self,
-        info: &Gc<IndexInfo>,
+        info: Id<IndexInfo>,
         readonly: bool,
-    ) -> Gc<IndexInfo> {
-        if info.is_readonly != readonly {
-            Gc::new(self.create_index_info(
-                info.key_type.clone(),
-                info.type_.clone(),
+    ) -> Id<IndexInfo> {
+        if info.ref_(self).is_readonly != readonly {
+            self.alloc_index_info(self.create_index_info(
+                info.ref_(self).key_type.clone(),
+                info.ref_(self).type_.clone(),
                 readonly,
-                info.declaration.clone(),
+                info.ref_(self).declaration.clone(),
             ))
         } else {
             info.clone()
@@ -328,12 +328,12 @@ impl TypeChecker {
             return Ok(self.null_type());
         }
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
-            links.borrow_mut().resolved_type = Some(self.get_regular_type_of_literal_type(
+        if links.ref_(self).resolved_type.is_none() {
+            links.ref_mut(self).resolved_type = Some(self.get_regular_type_of_literal_type(
                 self.check_expression(node_as_literal_type_node.literal, None, None)?,
             ));
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -361,11 +361,11 @@ impl TypeChecker {
         if is_valid_es_symbol_declaration(node, self) {
             let symbol = self.get_symbol_of_node(node)?.unwrap();
             let links = self.get_symbol_links(symbol);
-            if (*links).borrow().unique_es_symbol_type.is_none() {
-                links.borrow_mut().unique_es_symbol_type =
+            if links.ref_(self).unique_es_symbol_type.is_none() {
+                links.ref_mut(self).unique_es_symbol_type =
                     Some(self.create_unique_es_symbol_type(symbol));
             }
-            return Ok((*links).borrow().unique_es_symbol_type.clone().unwrap());
+            return Ok(links.ref_(self).unique_es_symbol_type.clone().unwrap());
         }
         Ok(self.es_symbol_type())
     }
@@ -463,10 +463,10 @@ impl TypeChecker {
         node: Id<Node>, /*ThisExpression | ThisTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
-            links.borrow_mut().resolved_type = Some(self.get_this_type(node)?);
+        if links.ref_(self).resolved_type.is_none() {
+            links.ref_mut(self).resolved_type = Some(self.get_this_type(node)?);
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -494,8 +494,8 @@ impl TypeChecker {
             SyntaxKind::TupleType => {
                 let node_ref = node.ref_(self);
                 let node_as_tuple_type_node = node_ref.as_tuple_type_node();
-                if node_as_tuple_type_node.elements.len() == 1 {
-                    let node = node_as_tuple_type_node.elements[0];
+                if node_as_tuple_type_node.elements.ref_(self).len() == 1 {
+                    let node = node_as_tuple_type_node.elements.ref_(self)[0];
                     if node.ref_(self).kind() == SyntaxKind::RestType
                         || node.ref_(self).kind() == SyntaxKind::NamedTupleMember
                             && node.ref_(self).as_named_tuple_member().dot_dot_dot_token.is_some()
@@ -519,10 +519,10 @@ impl TypeChecker {
         node: Id<Node>, /*NamedTupleMember*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_named_tuple_member = node_ref.as_named_tuple_member();
-            links.borrow_mut().resolved_type =
+            links.ref_mut(self).resolved_type =
                 Some(if node_as_named_tuple_member.dot_dot_dot_token.is_some() {
                     self.get_type_from_rest_type_node(node)?
                 } else {
@@ -533,7 +533,7 @@ impl TypeChecker {
                     )?
                 });
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -726,15 +726,15 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signatures(
         &self,
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
         mapper: Id<TypeMapper>,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         Ok(self
-            .try_instantiate_list(
+            .try_instantiate_list_non_gc(
                 Some(signatures),
                 Some(mapper),
-                |signature: &Gc<Signature>, mapper| {
-                    Ok(Gc::new(self.instantiate_signature(
+                |signature: &Id<Signature>, mapper| {
+                    Ok(self.alloc_signature(self.instantiate_signature(
                         signature.clone(),
                         mapper.unwrap(),
                         None,
@@ -746,14 +746,14 @@ impl TypeChecker {
 
     pub(super) fn instantiate_index_infos(
         &self,
-        index_infos: &[Gc<IndexInfo>],
+        index_infos: &[Id<IndexInfo>],
         mapper: Id<TypeMapper>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         Ok(self
-            .try_instantiate_list(
+            .try_instantiate_list_non_gc(
                 Some(index_infos),
                 Some(mapper.clone()),
-                |index_info: &Gc<IndexInfo>, mapper| {
+                |&index_info: &Id<IndexInfo>, mapper| {
                     self.instantiate_index_info(index_info, mapper.unwrap())
                 },
             )?
@@ -870,10 +870,10 @@ impl TypeChecker {
 
     pub(super) fn create_backreference_mapper(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
         index: usize,
     ) -> Id<TypeMapper> {
-        self.make_function_type_mapper(BackreferenceMapperCallback::new(context, index))
+        self.make_function_type_mapper(BackreferenceMapperCallback::new(&context.ref_(self), index))
     }
 
     pub(super) fn combine_type_mappers(
@@ -971,26 +971,26 @@ impl TypeChecker {
 
     pub(super) fn instantiate_type_predicate(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<TypePredicate> {
         Ok(self.create_type_predicate(
-            predicate.kind,
-            predicate.parameter_name.clone(),
-            predicate.parameter_index,
-            self.maybe_instantiate_type(predicate.type_, Some(mapper))?,
+            predicate.ref_(self).kind,
+            predicate.ref_(self).parameter_name.clone(),
+            predicate.ref_(self).parameter_index,
+            self.maybe_instantiate_type(predicate.ref_(self).type_, Some(mapper))?,
         ))
     }
 
     pub(super) fn instantiate_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         mut mapper: Id<TypeMapper>,
         erase_type_parameters: Option<bool>,
     ) -> io::Result<Signature> {
         let erase_type_parameters = erase_type_parameters.unwrap_or(false);
         let mut fresh_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>> = None;
-        if let Some(signature_type_parameters) = signature.maybe_type_parameters().clone() {
+        if let Some(signature_type_parameters) = signature.ref_(self).maybe_type_parameters().clone() {
             if !erase_type_parameters {
                 fresh_type_parameters =
                     Some(map(&signature_type_parameters, |&type_parameter, _| {
@@ -1009,21 +1009,21 @@ impl TypeChecker {
             }
         }
         let mut result = self.create_signature(
-            signature.declaration.clone(),
+            signature.ref_(self).declaration.clone(),
             fresh_type_parameters,
-            signature.maybe_this_parameter().try_map(|this_parameter| {
+            signature.ref_(self).maybe_this_parameter().try_map(|this_parameter| {
                 self.instantiate_symbol(this_parameter, mapper.clone())
             })?,
             self.try_instantiate_list_non_gc(
-                Some(signature.parameters()),
+                Some(signature.ref_(self).parameters()),
                 Some(mapper.clone()),
                 |&parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),
             )?
             .unwrap(),
             None,
             None,
-            signature.min_argument_count(),
-            signature.flags & SignatureFlags::PropagatingFlags,
+            signature.ref_(self).min_argument_count(),
+            signature.ref_(self).flags & SignatureFlags::PropagatingFlags,
         );
         result.target = Some(signature);
         result.mapper = Some(mapper);
@@ -1037,7 +1037,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_symbol_links(symbol);
         {
-            let links = (*links).borrow();
+            let links_ref = links.ref_(self);
+            let links = (*links_ref).borrow();
             if let Some(type_) = links.type_ {
                 if !self.could_contain_type_variables(type_)? {
                     return Ok(symbol);
@@ -1045,7 +1046,8 @@ impl TypeChecker {
             }
         }
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
-            let links = (*links).borrow();
+            let links_ref = links.ref_(self);
+            let links = (*links_ref).borrow();
             symbol = links.target.clone().unwrap();
             mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
         }
@@ -1066,13 +1068,13 @@ impl TypeChecker {
         }
         result.set_parent(symbol.ref_(self).maybe_parent());
         let result_links = result.symbol_links();
-        let mut result_links = result_links.borrow_mut();
+        let mut result_links = result_links.ref_mut(self);
         result_links.target = Some(symbol.clone());
         result_links.mapper = Some(mapper);
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             result.set_value_declaration(symbol_value_declaration);
         }
-        if let Some(links_name_type) = (*links).borrow().name_type.clone() {
+        if let Some(links_name_type) = (*links.ref_(self)).borrow().name_type.clone() {
             result_links.name_type = Some(links_name_type);
         }
         Ok(self.alloc_symbol(result.into()))
@@ -1114,7 +1116,7 @@ impl TypeChecker {
             .object_flags()
             .intersects(ObjectFlags::Reference)
         {
-            (*links).borrow().resolved_type.clone().unwrap()
+            links.ref_(self).resolved_type.clone().unwrap()
         } else if type_
             .ref_(self)
             .as_object_type()
@@ -1125,7 +1127,7 @@ impl TypeChecker {
         } else {
             type_
         };
-        let mut type_parameters = (*links).borrow().outer_type_parameters.clone();
+        let mut type_parameters = links.ref_(self).outer_type_parameters.clone();
         if type_parameters.is_none() {
             let mut outer_type_parameters =
                 self.get_outer_type_parameters(declaration, Some(true))?;
@@ -1185,7 +1187,7 @@ impl TypeChecker {
             } else {
                 type_parameters
             };
-            links.borrow_mut().outer_type_parameters = type_parameters.clone();
+            links.ref_mut(self).outer_type_parameters = type_parameters.clone();
         }
         let type_parameters = type_parameters.unwrap();
         if !type_parameters.is_empty() {
@@ -1309,7 +1311,7 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 struct BackreferenceMapperCallback {
-    context_inferences: Vec<Gc<InferenceInfo>>,
+    context_inferences: Vec<Id<InferenceInfo>>,
     index: usize,
 }
 
@@ -1326,7 +1328,7 @@ impl TypeMapperCallback for BackreferenceMapperCallback {
     fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
             if matches!(
-                find_index(&self.context_inferences, |info: &Gc<InferenceInfo>, _| info.type_parameter == t, None),
+                find_index(&self.context_inferences, |info: &Id<InferenceInfo>, _| info.ref_(checker).type_parameter == t, None),
                 Some(found_index) if found_index >= self.index
             ) {
                 checker.unknown_type()

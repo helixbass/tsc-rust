@@ -28,12 +28,12 @@ pub trait ModuleResolutionHost {
     fn file_exists_non_overridden(&self, file_name: &str) -> bool;
     fn set_overriding_file_exists(
         &self,
-        overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn set_overriding_read_file(
         &self,
-        overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn read_file_non_overridden(&self, file_name: &str) -> io::Result<Option<String>>;
     fn trace(&self, _s: &str) {}
@@ -47,7 +47,7 @@ pub trait ModuleResolutionHost {
     }
     fn set_overriding_directory_exists(
         &self,
-        overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn realpath(&self, _path: &str) -> Option<String> {
         None
@@ -58,7 +58,7 @@ pub trait ModuleResolutionHost {
     fn is_realpath_supported(&self) -> bool;
     fn set_overriding_realpath(
         &self,
-        overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn get_current_directory(&self) -> Option<io::Result<String>> {
         None
@@ -72,7 +72,7 @@ pub trait ModuleResolutionHost {
     }
     fn set_overriding_get_directories(
         &self,
-        overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn use_case_sensitive_file_names(&self) -> Option<bool> {
         None
@@ -92,7 +92,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_file_exists(
         &self,
-        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -103,7 +103,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_directory_exists(
         &self,
-        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -114,7 +114,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_realpath(
         &self,
-        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -125,7 +125,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_get_directories(
         &self,
-        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -140,7 +140,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
 
     fn set_overriding_read_file(
         &self,
-        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -282,14 +282,14 @@ impl AsRef<str> for Extension {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct ResolvedModuleWithFailedLookupLocations {
-    pub resolved_module: Option<Gc<ResolvedModuleFull>>,
+    pub resolved_module: Option<Id<ResolvedModuleFull>>,
     #[unsafe_ignore_trace]
     failed_lookup_locations: RefCell<Vec<String>>,
 }
 
 impl ResolvedModuleWithFailedLookupLocations {
     pub fn new(
-        resolved_module: Option<Gc<ResolvedModuleFull>>,
+        resolved_module: Option<Id<ResolvedModuleFull>>,
         failed_lookup_locations: Vec<String>,
     ) -> Self {
         Self {
@@ -319,7 +319,7 @@ pub struct ResolvedTypeReferenceDirective {
 
 #[derive(Trace, Finalize)]
 pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
-    pub resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
+    pub resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
     pub failed_lookup_locations: Vec<String>,
 }
 
@@ -343,7 +343,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         None
     }
     fn is_get_source_file_by_path_supported(&self) -> bool;
-    fn get_cancellation_token(&self) -> Option<Gc<Box<dyn CancellationToken>>> {
+    fn get_cancellation_token(&self) -> Option<Id<Box<dyn CancellationToken>>> {
         None
     }
     fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String>;
@@ -369,7 +369,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn is_write_file_supported(&self) -> bool;
     fn set_overriding_write_file(
         &self,
-        overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
     fn get_current_directory(&self) -> io::Result<String>;
     fn get_canonical_file_name(&self, file_name: &str) -> String;
@@ -392,14 +392,14 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         _module_names: &[String],
         _containing_file: &str,
         _reused_names: Option<&[String]>,
-        _redirected_reference: Option<&ResolvedProjectReference>,
+        _redirected_reference: Option<Id<ResolvedProjectReference>>,
         _options: &CompilerOptions,
         _containing_source_file: Option<Id<Node> /*SourceFile*/>,
-    ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+    ) -> Option<Vec<Option<Id<ResolvedModuleFull>>>> {
         None
     }
     fn is_resolve_module_names_supported(&self) -> bool;
-    fn get_module_resolution_cache(&self) -> Option<Gc<ModuleResolutionCache>> {
+    fn get_module_resolution_cache(&self) -> Option<Id<ModuleResolutionCache>> {
         None
     }
     fn is_resolve_type_reference_directives_supported(&self) -> bool;
@@ -407,9 +407,9 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
         &self,
         _type_reference_directive_names: &[String],
         _containing_file: &str,
-        _redirected_reference: Option<&ResolvedProjectReference>,
+        _redirected_reference: Option<Id<ResolvedProjectReference>>,
         _options: &CompilerOptions,
-    ) -> Option<Vec<Option<Gc<ResolvedTypeReferenceDirective>>>> {
+    ) -> Option<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         None
     }
     fn get_environment_variable(&self, _name: &str) -> Option<String> {
@@ -426,7 +426,7 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn on_release_parsed_command_line(
         &self,
         _config_file_name: &str,
-        _old_resolved_ref: Option<ResolvedProjectReference>,
+        _old_resolved_ref: Option<Id<ResolvedProjectReference>>,
         _option_options: &CompilerOptions,
     ) {
     }
@@ -457,9 +457,9 @@ pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
     fn is_create_directory_supported(&self) -> bool;
     fn set_overriding_create_directory(
         &self,
-        overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     );
-    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
         None
     }
 
@@ -557,11 +557,11 @@ pub struct SourceMapRange {
     pos: Cell<isize>,
     #[unsafe_ignore_trace]
     end: Cell<isize>,
-    pub source: Option<Gc<SourceMapSource>>,
+    pub source: Option<Id<SourceMapSource>>,
 }
 
 impl SourceMapRange {
-    pub fn new(pos: isize, end: isize, source: Option<Gc<SourceMapSource>>) -> Self {
+    pub fn new(pos: isize, end: isize, source: Option<Id<SourceMapSource>>) -> Self {
         Self {
             pos: Cell::new(pos),
             end: Cell::new(end),
@@ -640,7 +640,7 @@ impl<'a> SourceMapSourceRef<'a> {
         }
     }
 
-    pub fn skip_trivia(&self) -> Option<Gc<Box<dyn SkipTrivia>>> {
+    pub fn skip_trivia(&self) -> Option<Id<Box<dyn SkipTrivia>>> {
         match self {
             Self::SourceFile(_) => None,
             Self::SourceMapSourceConcrete(value) => value.skip_trivia.clone(),
@@ -715,7 +715,7 @@ pub struct SourceMapSourceConcrete {
     text_as_chars: RefCell<SourceTextAsChars>,
     #[unsafe_ignore_trace]
     line_map: RefCell<Option<Vec<usize>>>,
-    pub skip_trivia: Option<Gc<Box<dyn SkipTrivia>>>,
+    pub skip_trivia: Option<Id<Box<dyn SkipTrivia>>>,
 }
 
 impl SourceMapSourceConcrete {
@@ -724,7 +724,7 @@ impl SourceMapSourceConcrete {
         text: String,
         text_as_chars: SourceTextAsChars,
         line_map: Option<Vec<usize>>,
-        skip_trivia: Option<Gc<Box<dyn SkipTrivia>>>,
+        skip_trivia: Option<Id<Box<dyn SkipTrivia>>>,
     ) -> Self {
         Self {
             file_name,
@@ -826,7 +826,7 @@ mod _EmitHelperTextDeriveTraceScope {
     #[derive(Clone, Trace, Finalize)]
     pub enum EmitHelperText {
         String(String),
-        Callback(Gc<Box<dyn EmitHelperTextCallback>>),
+        Callback(Id<Box<dyn EmitHelperTextCallback>>),
     }
 }
 pub use _EmitHelperTextDeriveTraceScope::EmitHelperText;
@@ -848,8 +848,8 @@ impl From<String> for EmitHelperText {
     }
 }
 
-impl From<Gc<Box<dyn EmitHelperTextCallback>>> for EmitHelperText {
-    fn from(value: Gc<Box<dyn EmitHelperTextCallback>>) -> Self {
+impl From<Id<Box<dyn EmitHelperTextCallback>>> for EmitHelperText {
+    fn from(value: Id<Box<dyn EmitHelperTextCallback>>) -> Self {
         Self::Callback(value)
     }
 }
@@ -1103,7 +1103,7 @@ pub trait SourceFileMayBeEmittedHost {
     fn get_resolved_project_reference_to_redirect(
         &self,
         file_name: &str,
-    ) -> Option<Gc<ResolvedProjectReference>>;
+    ) -> Option<Id<ResolvedProjectReference>>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
 }
 
@@ -1137,7 +1137,7 @@ pub trait EmitHost:
         on_error: Option<&mut dyn FnMut(&str)>,
         source_files: Option<&[Id<Node /*SourceFile*/>]>,
     ) -> io::Result<()>; // WriteFileCallback
-    fn get_program_build_info(&self) -> Option<Gc<ProgramBuildInfo>>;
+    fn get_program_build_info(&self) -> Option<Id<ProgramBuildInfo>>;
     fn get_source_file_from_reference(
         &self,
         referencing_file: Id<Node>, /*SourceFile | UnparsedSource*/

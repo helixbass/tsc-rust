@@ -8,6 +8,7 @@ use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
     CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars,
     SyntaxKind, Type,
+    HasArena, InArena, per_arena,
 };
 
 bitflags! {
@@ -99,32 +100,24 @@ impl BaseNodeFactory for ParseBaseNodeFactory {
     }
 }
 
-thread_local! {
-    pub static parse_base_node_factory: Gc<ParseBaseNodeFactory> = Gc::new(ParseBaseNodeFactory::new());
+pub fn get_parse_base_node_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory>> {
+    per_arena!(
+        Box<dyn BaseNodeFactory>,
+        arena,
+        arena.alloc_base_node_factory(Box::new(ParseBaseNodeFactory::new()))
+    )
 }
 
-pub fn get_parse_base_node_factory() -> Gc<ParseBaseNodeFactory> {
-    parse_base_node_factory.with(|parse_base_node_factory_| parse_base_node_factory_.clone())
-}
-
-thread_local! {
-    pub static parse_node_factory: Gc<NodeFactory<ParseBaseNodeFactory>> = create_node_factory::<ParseBaseNodeFactory>(
-        NodeFactoryFlags::NoParenthesizerRules,
-        get_parse_base_node_factory(),
-    );
-}
-
-pub fn get_parse_node_factory() -> Gc<NodeFactory<ParseBaseNodeFactory>> {
-    parse_node_factory.with(|parse_node_factory_| parse_node_factory_.clone())
-}
-
-pub fn with_parse_base_node_factory_and_factory<TReturn>(
-    callback: impl FnOnce(&ParseBaseNodeFactory, &Gc<NodeFactory<ParseBaseNodeFactory>>) -> TReturn,
-) -> TReturn {
-    parse_base_node_factory.with(|parse_base_node_factory_| {
-        parse_node_factory
-            .with(|parse_node_factory_| callback(&**parse_base_node_factory_, parse_node_factory_))
-    })
+pub fn get_parse_node_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
+    per_arena!(
+        NodeFactory,
+        arena,
+        create_node_factory(
+            NodeFactoryFlags::NoParenthesizerRules,
+            get_parse_base_node_factory(arena),
+            arena,
+        )
+    ).ref_(arena)
 }
 
 pub(super) fn visit_node(cb_node: &mut impl FnMut(Id<Node>), node: Option<Id<Node>>) {
@@ -164,8 +157,9 @@ pub(super) fn try_visit_node_returns<
 
 pub(super) fn visit_nodes(
     cb_node: &mut impl FnMut(Id<Node>),
-    cb_nodes: Option<&mut impl FnMut(&NodeArray)>,
-    nodes: Option<&NodeArray>,
+    cb_nodes: Option<&mut impl FnMut(Id<NodeArray>)>,
+    nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -173,7 +167,7 @@ pub(super) fn visit_nodes(
                 cb_nodes(nodes);
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     cb_node(node);
                 }
             }
@@ -183,8 +177,9 @@ pub(super) fn visit_nodes(
 
 pub(super) fn try_visit_nodes<TError>(
     cb_node: &mut impl FnMut(Id<Node>) -> Result<(), TError>,
-    cb_nodes: Option<&mut impl FnMut(&NodeArray) -> Result<(), TError>>,
-    nodes: Option<&NodeArray>,
+    cb_nodes: Option<&mut impl FnMut(Id<NodeArray>) -> Result<(), TError>>,
+    nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) -> Result<(), TError> {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -192,7 +187,7 @@ pub(super) fn try_visit_nodes<TError>(
                 cb_nodes(nodes)?;
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     cb_node(node)?;
                 }
             }
@@ -204,8 +199,9 @@ pub(super) fn try_visit_nodes<TError>(
 
 pub(super) fn visit_nodes_returns<TReturn>(
     cb_node: &mut impl FnMut(Id<Node>) -> Option<TReturn>,
-    cb_nodes: Option<&mut impl FnMut(&NodeArray) -> Option<TReturn>>,
-    nodes: Option<&NodeArray>,
+    cb_nodes: Option<&mut impl FnMut(Id<NodeArray>) -> Option<TReturn>>,
+    nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -213,7 +209,7 @@ pub(super) fn visit_nodes_returns<TReturn>(
                 return cb_nodes(nodes);
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     let result = cb_node(node);
                     if result.is_some() {
                         return result;
@@ -227,8 +223,9 @@ pub(super) fn visit_nodes_returns<TReturn>(
 
 pub(super) fn try_visit_nodes_returns<TReturn, TError>(
     cb_node: &mut impl FnMut(Id<Node>) -> Result<Option<TReturn>, TError>,
-    cb_nodes: Option<&mut impl FnMut(&NodeArray) -> Result<Option<TReturn>, TError>>,
-    nodes: Option<&NodeArray>,
+    cb_nodes: Option<&mut impl FnMut(Id<NodeArray>) -> Result<Option<TReturn>, TError>>,
+    nodes: Option<Id<NodeArray>>,
+    arena: &impl HasArena,
 ) -> Result<Option<TReturn>, TError> {
     if let Some(nodes) = nodes {
         match cb_nodes {
@@ -236,7 +233,7 @@ pub(super) fn try_visit_nodes_returns<TReturn, TError>(
                 return cb_nodes(nodes);
             }
             None => {
-                for &node in nodes.iter() {
+                for &node in nodes.ref_(arena).iter() {
                     let result = cb_node(node)?;
                     if result.is_some() {
                         return Ok(result);

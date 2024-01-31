@@ -7,7 +7,7 @@ use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
     try_for_each, try_maybe_for_each, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, __String, are_option_gcs_equal, cast_present, declaration_name_to_string,
-    escape_leading_underscores, factory, for_each, get_declaration_of_kind,
+    escape_leading_underscores, for_each, get_declaration_of_kind,
     get_effective_modifier_flags, get_enclosing_block_scope_container, get_factory,
     get_interface_base_type_nodes, get_name_of_declaration, get_text_of_identifier_or_literal,
     get_text_of_property_name, has_abstract_modifier, is_ambient_module, is_binding_pattern,
@@ -36,7 +36,7 @@ impl TypeChecker {
             return Ok(());
         }
         let constructor = self.find_constructor_declaration(node);
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             if get_effective_modifier_flags(member, self).intersects(ModifierFlags::Ambient) {
                 continue;
             }
@@ -93,12 +93,11 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         for static_block in static_blocks {
             if static_block.ref_(self).pos() >= start_pos && static_block.ref_(self).pos() <= end_pos {
-                let reference: Id<Node> = factory.with(|factory_| {
-                    factory_.create_property_access_expression(
-                        factory_.create_this(),
+                let reference: Id<Node> =
+                    get_factory(self).create_property_access_expression(
+                        get_factory(self).create_this(),
                         prop_name,
-                    )
-                });
+                    );
                 set_parent(
                     &reference.ref_(self).as_property_access_expression().expression.ref_(self),
                     Some(reference),
@@ -130,8 +129,8 @@ impl TypeChecker {
         prop_type: Id<Type>,
         constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<bool> {
-        let reference = get_factory().create_property_access_expression(
-            get_factory().create_this(),
+        let reference = get_factory(self).create_property_access_expression(
+            get_factory(self).create_this(),
             prop_name,
         );
         set_parent(
@@ -166,7 +165,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_interface_declaration
                 .maybe_type_parameters()
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
         )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
@@ -211,7 +210,7 @@ impl TypeChecker {
             self.check_object_type_for_duplicate_declarations(node);
         }
         try_maybe_for_each(
-            get_interface_base_type_nodes(node, self).as_ref(),
+            get_interface_base_type_nodes(node, self).refed(self).as_deref(),
             |&heritage_element: &Id<Node>, _| -> io::Result<Option<()>> {
                 let heritage_element_ref = heritage_element.ref_(self);
                 let heritage_element_as_expression_with_type_arguments = heritage_element_ref.as_expression_with_type_arguments();
@@ -233,7 +232,7 @@ impl TypeChecker {
         )?;
 
         try_for_each(
-            &node_as_interface_declaration.members,
+            &*node_as_interface_declaration.members.ref_(self),
             |&member, _| -> io::Result<_> {
                 self.check_source_element(Some(member))?;
                 Ok(Option::<()>::None)
@@ -263,7 +262,7 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
-                .as_double_deref(),
+                .refed(self).as_double_deref(),
         )?;
         if node_as_type_alias_declaration.type_.ref_(self).kind() == SyntaxKind::IntrinsicKeyword {
             if !intrinsic_type_kinds.contains_key(
@@ -274,7 +273,7 @@ impl TypeChecker {
             ) || length(
                 node_as_type_alias_declaration
                     .maybe_type_parameters()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
             ) != 1
             {
                 self.error(
@@ -296,16 +295,16 @@ impl TypeChecker {
         node: Id<Node>, /*EnumDeclaration*/
     ) -> io::Result<()> {
         let node_links = self.get_node_links(node);
-        if !(*node_links)
-            .borrow()
+        if !node_links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::EnumValuesComputed)
         {
-            node_links.borrow_mut().flags |= NodeCheckFlags::EnumValuesComputed;
+            node_links.ref_mut(self).flags |= NodeCheckFlags::EnumValuesComputed;
             let mut auto_value: Option<Number> = Some(Number::new(0.0));
-            for &member in &node.ref_(self).as_enum_declaration().members {
+            for &member in &*node.ref_(self).as_enum_declaration().members.ref_(self) {
                 let value = self.compute_member_value(member, auto_value)?;
-                self.get_node_links(member).borrow_mut().enum_member_value = value.clone();
+                self.get_node_links(member).ref_mut(self).enum_member_value = value.clone();
                 auto_value = if let Some(StringOrNumber::Number(value)) = value.as_ref() {
                     Some(*value + Number::new(1.0))
                 } else {
@@ -601,8 +600,8 @@ impl TypeChecker {
         enum_symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<StringOrNumber>> {
-        let member_symbol = (*enum_symbol.ref_(self).maybe_exports().clone().unwrap())
-            .borrow()
+        let member_symbol = enum_symbol.ref_(self).maybe_exports().clone().unwrap()
+            .ref_(self)
             .get(name)
             .cloned();
         if let Some(member_symbol) = member_symbol {
@@ -659,7 +658,7 @@ impl TypeChecker {
         let node_as_enum_declaration = node_ref.as_enum_declaration();
         self.check_collisions_for_declaration_name(node, node_as_enum_declaration.maybe_name());
         self.check_exports_on_merged_declarations(node)?;
-        for &member in &node_as_enum_declaration.members {
+        for &member in &*node_as_enum_declaration.members.ref_(self) {
             self.check_enum_member(member);
         }
 
@@ -700,11 +699,11 @@ impl TypeChecker {
 
                     let declaration_ref = declaration.ref_(self);
                     let enum_declaration = declaration_ref.as_enum_declaration();
-                    if enum_declaration.members.is_empty() {
+                    if enum_declaration.members.ref_(self).is_empty() {
                         return None;
                     }
 
-                    let first_enum_member = enum_declaration.members[0];
+                    let first_enum_member = enum_declaration.members.ref_(self)[0];
                     let first_enum_member_ref = first_enum_member.ref_(self);
                     let first_enum_member_as_enum_member = first_enum_member_ref.as_enum_member();
                     if first_enum_member_as_enum_member.initializer.is_none() {
@@ -859,7 +858,7 @@ impl TypeChecker {
                         merged_class
                     )
                 ) {
-                    self.get_node_links(node).borrow_mut().flags |=
+                    self.get_node_links(node).ref_mut(self).flags |=
                         NodeCheckFlags::LexicalModuleMergesWithClass;
                 }
             }
@@ -875,7 +874,7 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Transient);
                     if check_body {
                         if let Some(node_body) = node_as_module_declaration.body {
-                            for &statement in &node_body.ref_(self).as_module_block().statements {
+                            for &statement in &*node_body.ref_(self).as_module_block().statements.ref_(self) {
                                 self.check_module_augmentation_element(
                                     statement,
                                     is_global_augmentation,
@@ -934,11 +933,11 @@ impl TypeChecker {
     ) -> io::Result<()> {
         match node.ref_(self).kind() {
             SyntaxKind::VariableStatement => {
-                for &decl in &node
+                for &decl in &*node
                     .ref_(self).as_variable_statement()
                     .declaration_list
                     .ref_(self).as_variable_declaration_list()
-                    .declarations
+                    .declarations.ref_(self)
                 {
                     self.check_module_augmentation_element(decl, is_global_augmentation)?;
                 }
@@ -960,7 +959,7 @@ impl TypeChecker {
             SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
                 let name = node.ref_(self).as_named_declaration().maybe_name();
                 if is_binding_pattern(name.refed(self).as_deref()) {
-                    for &el in &name.unwrap().ref_(self).as_has_elements().elements() {
+                    for &el in &*name.unwrap().ref_(self).as_has_elements().elements().ref_(self) {
                         self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }
                 }

@@ -25,7 +25,7 @@ use crate::{
     is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
     object_allocator, parse_pseudo_big_int, return_ok_default_if_none, return_ok_none_if_none,
     skip_type_checking, sum, unescape_leading_underscores, AllArenas, BaseInterfaceType,
-    CancellationTokenDebuggable, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
+    CancellationToken, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
     Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
     ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface,
@@ -282,7 +282,7 @@ pub(crate) enum TypeSystemEntity {
     Node(Id<Node>),
     Symbol(Id<Symbol>),
     Type(Id<Type>),
-    Signature(Gc<Signature>),
+    Signature(Id<Signature>),
 }
 
 impl TypeSystemEntity {
@@ -307,9 +307,9 @@ impl TypeSystemEntity {
         }
     }
 
-    pub fn as_signature(&self) -> &Signature {
+    pub fn as_signature(&self) -> Id<Signature> {
         match self {
-            Self::Signature(signature) => &*signature,
+            Self::Signature(signature) => *signature,
             _ => panic!("Expected signature"),
         }
     }
@@ -321,7 +321,7 @@ impl PartialEq for TypeSystemEntity {
             (Self::Node(a), Self::Node(b)) => a == b,
             (Self::Symbol(a), Self::Symbol(b)) => a == b,
             (Self::Type(a), Self::Type(b)) => a == b,
-            (Self::Signature(a), Self::Signature(b)) => Gc::ptr_eq(a, b),
+            (Self::Signature(a), Self::Signature(b)) => a == b,
             _ => false,
         }
     }
@@ -347,8 +347,8 @@ impl From<Id<Type>> for TypeSystemEntity {
     }
 }
 
-impl From<Gc<Signature>> for TypeSystemEntity {
-    fn from(value: Gc<Signature>) -> Self {
+impl From<Id<Signature>> for TypeSystemEntity {
+    fn from(value: Id<Signature>) -> Self {
         Self::Signature(value)
     }
 }
@@ -526,14 +526,14 @@ pub fn create_type_checker(
     arena: *const AllArenas,
     host: Id<Program /*TypeCheckerHostDebuggable*/>,
     produce_diagnostics: bool,
-) -> io::Result<Gc<TypeChecker>> {
+) -> io::Result<Id<TypeChecker>> {
     let arena_ref = unsafe { &*arena };
     let compiler_options = host.ref_(arena_ref).get_compiler_options();
     let mut type_checker = TypeChecker {
         arena,
         host,
         produce_diagnostics,
-        _rc_wrapper: Default::default(),
+        _arena_id: Default::default(),
         _packages_map: Default::default(),
         cancellation_token: Default::default(),
         requested_external_emit_helpers: Cell::new(ExternalEmitHelpers::None),
@@ -552,7 +552,7 @@ pub fn create_type_checker(
         inline_level: Default::default(),
         current_node: Default::default(),
 
-        empty_symbols: Gc::new(GcCell::new(create_symbol_table(arena_ref, Option::<&[Id<Symbol>]>::None))),
+        empty_symbols: arena_ref.alloc_symbol_table(create_symbol_table(arena_ref, Option::<&[Id<Symbol>]>::None)),
 
         compiler_options: compiler_options.clone(),
         language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
@@ -587,7 +587,7 @@ pub fn create_type_checker(
         emit_resolver: Default::default(),
         node_builder: Default::default(),
 
-        globals: Gc::new(GcCell::new(create_symbol_table(unsafe { &*arena }, Option::<&[Id<Symbol>]>::None))),
+        globals: arena_ref.alloc_symbol_table(create_symbol_table(unsafe { &*arena }, Option::<&[Id<Symbol>]>::None)),
         undefined_symbol: Default::default(),
         global_this_symbol: Default::default(),
 
@@ -683,7 +683,7 @@ pub fn create_type_checker(
         enum_number_index_info: Default::default(),
 
         iteration_types_cache: Default::default(),
-        no_iteration_types: Gc::new(IterationTypes::new_no_iteration_types()),
+        no_iteration_types: arena_ref.alloc_iteration_types(IterationTypes::new_no_iteration_types()),
 
         any_iteration_types: Default::default(),
         any_iteration_types_except_next: Default::default(),
@@ -868,7 +868,7 @@ pub fn create_type_checker(
     {
         let global_this_symbol_ref = type_checker.symbol(global_this_symbol);
         let mut global_this_symbol_exports = global_this_symbol_ref.maybe_exports_mut();
-        *global_this_symbol_exports = Some(type_checker.globals_rc());
+        *global_this_symbol_exports = Some(type_checker.globals_id());
     }
     type_checker
         .symbol(global_this_symbol)
@@ -1278,9 +1278,9 @@ pub fn create_type_checker(
         InternalSymbolName::Type.to_owned(),
         None,
     );
-    *empty_type_literal_symbol.maybe_members_mut() = Some(Gc::new(GcCell::new(
+    *empty_type_literal_symbol.maybe_members_mut() = Some(type_checker.alloc_symbol_table(
         create_symbol_table(type_checker.arena(), Option::<&[Id<Symbol>]>::None),
-    )));
+    ));
     type_checker.empty_type_literal_symbol =
         Some(type_checker.alloc_symbol(empty_type_literal_symbol.into()));
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
@@ -1361,14 +1361,14 @@ pub fn create_type_checker(
         ),
     );
 
-    type_checker.no_type_predicate = Some(Gc::new(type_checker.create_type_predicate(
+    type_checker.no_type_predicate = Some(arena_ref.alloc_type_predicate(type_checker.create_type_predicate(
         TypePredicateKind::Identifier,
         Some("<<unresolved>>".to_owned()),
         Some(0),
         Some(type_checker.any_type()),
     )));
 
-    type_checker.any_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.any_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1378,7 +1378,7 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.unknown_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.unknown_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1388,7 +1388,7 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.resolving_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.resolving_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1398,7 +1398,7 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.silent_never_signature = Some(Gc::new(type_checker.create_signature(
+    type_checker.silent_never_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1409,7 +1409,7 @@ pub fn create_type_checker(
         SignatureFlags::None,
     )));
 
-    type_checker.enum_number_index_info = Some(Gc::new(type_checker.create_index_info(
+    type_checker.enum_number_index_info = Some(arena_ref.alloc_index_info(type_checker.create_index_info(
         type_checker.number_type(),
         type_checker.string_type(),
         true,
@@ -1458,18 +1458,18 @@ pub fn create_type_checker(
     );
     *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
 
-    let rc_wrapped = Gc::new(type_checker);
-    rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
+    let ret = arena_ref.alloc_type_checker(type_checker);
+    ret.ref_(arena_ref).set_arena_id(ret.clone());
 
-    *rc_wrapped.node_builder.borrow_mut() = Some(rc_wrapped.create_node_builder());
+    *ret.ref_(arena_ref).node_builder.borrow_mut() = Some(ret.ref_(arena_ref).create_node_builder());
 
-    rc_wrapped.initialize_type_checker()?;
+    ret.ref_(arena_ref).initialize_type_checker()?;
 
-    *rc_wrapped.check_binary_expression.borrow_mut() =
-        Some(Gc::new(rc_wrapped.create_check_binary_expression()));
-    *rc_wrapped.emit_resolver.borrow_mut() = Some(rc_wrapped.create_resolver());
+    *ret.ref_(arena_ref).check_binary_expression.borrow_mut() =
+        Some(ret.ref_(arena_ref).alloc_check_binary_expression(ret.ref_(arena_ref).create_check_binary_expression()));
+    *ret.ref_(arena_ref).emit_resolver.borrow_mut() = Some(ret.ref_(arena_ref).create_resolver());
 
-    Ok(rc_wrapped)
+    Ok(ret)
 }
 
 #[derive(Default, Trace, Finalize)]
@@ -1541,12 +1541,12 @@ pub(crate) struct DuplicateInfoForFiles {
 }
 
 impl TypeChecker {
-    pub fn rc_wrapper(&self) -> Gc<TypeChecker> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
-    fn set_rc_wrapper(&self, wrapper: Gc<TypeChecker>) {
-        *self._rc_wrapper.borrow_mut() = Some(wrapper);
+    fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     pub(super) fn get_packages_map(&self) -> Ref<HashMap<String, bool>> {
@@ -1566,10 +1566,10 @@ impl TypeChecker {
 
                 sf_resolved_modules.as_ref().unwrap().for_each(|r, _, _| {
                     if let Some(r) = r.as_ref() {
-                        if let Some(r_package_id) = r.package_id.as_ref() {
+                        if let Some(r_package_id) = r.ref_(self).package_id.as_ref() {
                             map.insert(
                                 r_package_id.name.clone(),
-                                matches!(r.extension, Some(Extension::Dts))
+                                matches!(r.ref_(self).extension, Some(Extension::Dts))
                                     || matches!(map.get(&r_package_id.name), Some(true)),
                             );
                         }
@@ -1584,13 +1584,13 @@ impl TypeChecker {
 
     pub(super) fn maybe_cancellation_token(
         &self,
-    ) -> Option<Gc<Box<dyn CancellationTokenDebuggable>>> {
+    ) -> Option<Id<Box<dyn CancellationToken>>> {
         self.cancellation_token.borrow().clone()
     }
 
     pub(super) fn set_cancellation_token(
         &self,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) {
         *self.cancellation_token.borrow_mut() = cancellation_token;
     }
@@ -1676,7 +1676,7 @@ impl TypeChecker {
         *self.current_node.borrow_mut() = current_node;
     }
 
-    pub(super) fn empty_symbols(&self) -> Gc<GcCell<SymbolTable>> {
+    pub(super) fn empty_symbols(&self) -> Id<SymbolTable> {
         self.empty_symbols.clone()
     }
 
@@ -1684,28 +1684,28 @@ impl TypeChecker {
         vec![VarianceFlags::Covariant]
     }
 
-    pub(super) fn emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+    pub(super) fn emit_resolver(&self) -> Id<Box<dyn EmitResolver>> {
         self.emit_resolver.borrow().clone().unwrap()
     }
 
-    pub(super) fn check_binary_expression(&self) -> Gc<CheckBinaryExpression> {
+    pub(super) fn check_binary_expression(&self) -> Id<CheckBinaryExpression> {
         self.check_binary_expression.borrow().clone().unwrap()
     }
 
-    pub(super) fn node_builder(&self) -> Gc<NodeBuilder> {
+    pub(super) fn node_builder(&self) -> Id<NodeBuilder> {
         self.node_builder.borrow().clone().unwrap()
     }
 
-    pub(super) fn globals(&self) -> GcCellRef<SymbolTable> {
-        (*self.globals).borrow()
+    pub(super) fn globals(&self) -> debug_cell::Ref<SymbolTable> {
+        self.globals.ref_(self)
     }
 
-    pub(super) fn globals_mut(&self) -> GcCellRefMut<SymbolTable> {
-        self.globals.borrow_mut()
+    pub(super) fn globals_mut(&self) -> debug_cell::RefMut<SymbolTable> {
+        self.globals.ref_mut(self)
     }
 
-    pub(super) fn globals_rc(&self) -> Gc<GcCell<SymbolTable>> {
-        self.globals.clone()
+    pub(super) fn globals_id(&self) -> Id<SymbolTable> {
+        self.globals
     }
 
     pub(super) fn undefined_symbol(&self) -> Id<Symbol> {
@@ -1850,7 +1850,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         kind: IndexKind,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         self.get_index_info_of_type_(
             type_,
             if kind == IndexKind::String {
@@ -1890,7 +1890,7 @@ impl TypeChecker {
 
     pub fn get_parameter_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         parameter_index: usize,
     ) -> io::Result<Id<Type>> {
         self.get_type_at_position(signature, parameter_index)
@@ -1912,18 +1912,18 @@ impl TypeChecker {
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
         self.node_builder()
-            .type_to_type_node(type_, enclosing_declaration, flags, tracker)
+            .ref_(self).type_to_type_node(type_, enclosing_declaration, flags, tracker)
     }
 
     pub fn index_info_to_index_signature_declaration(
         &self,
-        index_info: &IndexInfo,
+        index_info: Id<IndexInfo>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*IndexSignatureDeclaration*/>>> {
         self.node_builder()
-            .index_info_to_index_signature_declaration(
+            .ref_(self).index_info_to_index_signature_declaration(
                 index_info,
                 enclosing_declaration,
                 flags,
@@ -1933,14 +1933,14 @@ impl TypeChecker {
 
     pub fn signature_to_signature_declaration(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         kind: SyntaxKind,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
     {
-        self.node_builder().signature_to_signature_declaration(
+        self.node_builder().ref_(self).signature_to_signature_declaration(
             signature,
             kind,
             enclosing_declaration,
@@ -1956,7 +1956,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*EntityName*/>>> {
-        self.node_builder().symbol_to_entity_name(
+        self.node_builder().ref_(self).symbol_to_entity_name(
             symbol,
             Some(meaning),
             enclosing_declaration,
@@ -1972,7 +1972,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*Expression*/>>> {
-        self.node_builder().symbol_to_expression(
+        self.node_builder().ref_(self).symbol_to_expression(
             symbol,
             Some(meaning),
             enclosing_declaration,
@@ -1986,8 +1986,8 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
-    ) -> io::Result<Option<Gc<NodeArray> /*<TypeParameterDeclaration>*/>> {
-        self.node_builder().symbol_to_type_parameter_declarations(
+    ) -> io::Result<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>> {
+        self.node_builder().ref_(self).symbol_to_type_parameter_declarations(
             symbol,
             enclosing_declaration,
             flags,
@@ -2001,7 +2001,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
-        self.node_builder().symbol_to_parameter_declaration(
+        self.node_builder().ref_(self).symbol_to_parameter_declaration(
             symbol,
             enclosing_declaration,
             flags,
@@ -2015,7 +2015,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
-        self.node_builder().type_parameter_to_declaration(
+        self.node_builder().ref_(self).type_parameter_to_declaration(
             parameter,
             enclosing_declaration,
             flags,
@@ -2047,7 +2047,7 @@ impl TypeChecker {
     pub fn get_index_infos_at_location(
         &self,
         node_in: Id<Node>,
-    ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
+    ) -> io::Result<Option<Vec<Id<IndexInfo>>>> {
         let node = return_ok_default_if_none!(get_parse_tree_node(
             Some(node_in),
             Option::<fn(Id<Node>) -> bool>::None,
@@ -2127,7 +2127,7 @@ impl TypeChecker {
 
     pub fn signature_to_string(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -2173,7 +2173,7 @@ impl TypeChecker {
 
     pub fn type_predicate_to_string(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
     ) -> io::Result<String> {
@@ -2187,7 +2187,7 @@ impl TypeChecker {
 
     pub fn write_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         kind: Option<SignatureKind>,
@@ -2236,7 +2236,7 @@ impl TypeChecker {
 
     pub fn write_type_predicate(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Id<Box<dyn EmitTextWriter>>>,
@@ -2261,10 +2261,10 @@ impl TypeChecker {
         ));
         let containing_call =
             find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(&node.ref_(self)), self);
-        let containing_call_resolved_signature: Option<Gc<Signature>> =
+        let containing_call_resolved_signature: Option<Id<Signature>> =
             containing_call.and_then(|containing_call| {
-                (*self.get_node_links(containing_call))
-                    .borrow()
+                self.get_node_links(containing_call)
+                    .ref_(self)
                     .resolved_signature
                     .clone()
             });
@@ -2275,13 +2275,13 @@ impl TypeChecker {
                 while {
                     let to_mark_skip_present = to_mark_skip.unwrap();
                     self.get_node_links(to_mark_skip_present)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .skip_direct_inference = Some(true);
                     to_mark_skip = to_mark_skip_present.ref_(self).maybe_parent();
                     matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
-                    .borrow_mut()
+                    .ref_mut(self)
                     .resolved_signature = None;
             }
         }
@@ -2293,13 +2293,13 @@ impl TypeChecker {
                 while {
                     let to_mark_skip_present = to_mark_skip.unwrap();
                     self.get_node_links(to_mark_skip_present)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .skip_direct_inference = None;
                     to_mark_skip = to_mark_skip_present.ref_(self).maybe_parent();
                     matches!(to_mark_skip, Some(to_mark_skip) if to_mark_skip != containing_call)
                 } {}
                 self.get_node_links(containing_call)
-                    .borrow_mut()
+                    .ref_mut(self)
                     .resolved_signature = containing_call_resolved_signature;
             }
         }
@@ -2348,9 +2348,9 @@ impl TypeChecker {
     pub fn get_resolved_signature(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         argument_count: Option<usize>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2362,9 +2362,9 @@ impl TypeChecker {
     pub fn get_resolved_signature_for_signature_help(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         argument_count: Option<usize>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_resolved_signature_worker(
             node,
             candidates_out_array,
@@ -2423,7 +2423,7 @@ impl TypeChecker {
     pub fn get_signature_from_declaration(
         &self,
         declaration_in: Id<Node>, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let declaration = return_ok_none_if_none!(get_parse_tree_node(
             Some(declaration_in),
             Some(|node: Id<Node>| is_function_like(Some(&node.ref_(self)))),
@@ -2680,7 +2680,7 @@ impl TypeChecker {
     pub fn get_suggestion_diagnostics(
         &self,
         file_in: Id<Node>, /*SourceFile*/
-        ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ct: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))), self)
             .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
@@ -2695,8 +2695,8 @@ impl TypeChecker {
 
         self.check_source_file(file)?;
         Debug_.assert(
-            (*self.get_node_links(file))
-                .borrow()
+            self.get_node_links(file)
+                .ref_(self)
                 .flags
                 .intersects(NodeCheckFlags::TypeChecked),
             None,
@@ -2733,10 +2733,10 @@ impl TypeChecker {
         Ok(diagnostics.unwrap_or_else(|| vec![]))
     }
 
-    pub fn run_with_cancellation_token<TReturn, TCallback: FnMut(&TypeChecker) -> TReturn>(
+    pub fn run_with_cancellation_token<TReturn>(
         &self,
-        token: Gc<Box<dyn CancellationTokenDebuggable>>,
-        mut callback: TCallback,
+        token: Id<Box<dyn CancellationToken>>,
+        mut callback: impl FnMut(&TypeChecker) -> TReturn,
     ) -> TReturn {
         self.set_cancellation_token(Some(token));
         let ret = callback(self);
@@ -2747,10 +2747,10 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_worker(
         &self,
         node_in: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         argument_count: Option<usize>,
         check_mode: CheckMode,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let node = get_parse_tree_node(
             Some(node_in),
             Some(|node: Id<Node>| is_call_like_expression(&node.ref_(self))),
@@ -3044,49 +3044,49 @@ impl TypeChecker {
         self.marker_other_type.as_ref().unwrap().clone()
     }
 
-    pub(super) fn no_type_predicate(&self) -> Gc<TypePredicate> {
+    pub(super) fn no_type_predicate(&self) -> Id<TypePredicate> {
         self.no_type_predicate.as_ref().unwrap().clone()
     }
 
-    pub(super) fn any_signature(&self) -> Gc<Signature> {
+    pub(super) fn any_signature(&self) -> Id<Signature> {
         self.any_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unknown_signature(&self) -> Gc<Signature> {
+    pub(super) fn unknown_signature(&self) -> Id<Signature> {
         self.unknown_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn resolving_signature(&self) -> Gc<Signature> {
+    pub(super) fn resolving_signature(&self) -> Id<Signature> {
         self.resolving_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn silent_never_signature(&self) -> Gc<Signature> {
+    pub(super) fn silent_never_signature(&self) -> Id<Signature> {
         self.silent_never_signature.as_ref().unwrap().clone()
     }
 
-    pub(super) fn enum_number_index_info(&self) -> Gc<IndexInfo> {
+    pub(super) fn enum_number_index_info(&self) -> Id<IndexInfo> {
         self.enum_number_index_info.as_ref().unwrap().clone()
     }
 
     pub(super) fn iteration_types_cache(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Gc<IterationTypes>>> {
+    ) -> GcCellRefMut<HashMap<String, Id<IterationTypes>>> {
         self.iteration_types_cache.borrow_mut()
     }
 
-    pub(super) fn no_iteration_types(&self) -> Gc<IterationTypes> {
+    pub(super) fn no_iteration_types(&self) -> Id<IterationTypes> {
         self.no_iteration_types.clone()
     }
 
-    pub(super) fn any_iteration_types(&self) -> Gc<IterationTypes> {
+    pub(super) fn any_iteration_types(&self) -> Id<IterationTypes> {
         self.any_iteration_types.clone().unwrap()
     }
 
-    pub(super) fn any_iteration_types_except_next(&self) -> Gc<IterationTypes> {
+    pub(super) fn any_iteration_types_except_next(&self) -> Id<IterationTypes> {
         self.any_iteration_types_except_next.clone().unwrap()
     }
 
-    pub(super) fn default_iteration_types(&self) -> Gc<IterationTypes> {
+    pub(super) fn default_iteration_types(&self) -> Id<IterationTypes> {
         self.default_iteration_types.clone().unwrap()
     }
 
@@ -3114,7 +3114,7 @@ impl TypeChecker {
 
     pub(super) fn maybe_pattern_ambient_modules(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<PatternAmbientModule>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<PatternAmbientModule>>>> {
         self.pattern_ambient_modules.borrow_mut()
     }
 
@@ -3446,7 +3446,7 @@ impl TypeChecker {
         self.merged_symbols.borrow_mut()
     }
 
-    pub(super) fn node_links(&self) -> GcCellRefMut<HashMap<NodeId, Gc<GcCell<NodeLinks>>>> {
+    pub(super) fn node_links(&self) -> GcCellRefMut<HashMap<NodeId, Id<NodeLinks>>> {
         self.node_links.borrow_mut()
     }
 
@@ -3522,13 +3522,13 @@ impl TypeChecker {
 
     pub(super) fn maybe_outofband_variance_marker_handler(
         &self,
-    ) -> Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>> {
+    ) -> Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>> {
         self.outofband_variance_marker_handler.borrow().clone()
     }
 
     pub(super) fn set_outofband_variance_marker_handler(
         &self,
-        outofband_variance_marker_handler: Option<Gc<Box<dyn OutofbandVarianceMarkerHandler>>>,
+        outofband_variance_marker_handler: Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>,
     ) {
         *self.outofband_variance_marker_handler.borrow_mut() = outofband_variance_marker_handler;
     }

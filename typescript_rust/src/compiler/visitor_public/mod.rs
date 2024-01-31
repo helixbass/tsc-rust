@@ -4,7 +4,7 @@ use gc::Gc;
 use id_arena::Id;
 
 use crate::{
-    is_block, is_statement, set_text_range_pos_end, single_or_undefined, with_factory, Debug_,
+    is_block, is_statement, set_text_range_pos_end, single_or_undefined, Debug_,
     HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayExt, NodeExt, NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange,
     SingleNodeOrVecNode, TransformationContext, VisitResult, VisitResultInterface,
@@ -88,31 +88,33 @@ pub fn try_maybe_visit_node(
 
 #[inline(always)]
 pub fn visit_nodes(
-    nodes: &NodeArray,
+    nodes: Id<NodeArray>,
     visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
-) -> Gc<NodeArray> {
-    maybe_visit_nodes(Some(nodes), visitor, test, start, count).unwrap()
+    arena: &impl HasArena,
+) -> Id<NodeArray> {
+    maybe_visit_nodes(Some(nodes), visitor, test, start, count, arena).unwrap()
 }
 
 pub fn maybe_visit_nodes(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: Option<impl FnMut(Id<Node>) -> VisitResult>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
-) -> Option<Gc<NodeArray>> {
+    arena: &impl HasArena,
+) -> Option<Id<NodeArray>> {
     let nodes = nodes?;
     if visitor.is_none() {
-        return Some(nodes.rc_wrapper());
+        return Some(nodes);
     }
     let mut visitor = visitor.unwrap();
 
     let mut updated: Option<Vec<Id<Node>>> = Default::default();
 
-    let length = nodes.len();
+    let length = nodes.ref_(arena).len();
     let start = start.unwrap_or(0); /*start < 0*/
 
     let count = if count.is_none() || count.unwrap() > length - start {
@@ -126,11 +128,11 @@ pub fn maybe_visit_nodes(
     let mut end: isize = -1;
     if start > 0 || count < length {
         updated = Some(vec![]);
-        has_trailing_comma = Some(nodes.has_trailing_comma && start + count == length);
+        has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma && start + count == length);
     }
 
     for i in 0..count {
-        let node = nodes.get(i + start).copied();
+        let node = nodes.ref_(arena).get(i + start).copied();
         let visited = node.and_then(|node| visitor(node));
         if updated.is_some()
             || match visited.as_ref() {
@@ -142,10 +144,10 @@ pub fn maybe_visit_nodes(
             }
         {
             if updated.is_none() {
-                updated = Some(nodes[0..i].to_owned());
-                has_trailing_comma = Some(nodes.has_trailing_comma);
-                pos = nodes.pos();
-                end = nodes.end();
+                updated = Some(nodes.ref_(arena)[0..i].to_owned());
+                has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma);
+                pos = nodes.ref_(arena).pos();
+                end = nodes.ref_(arena).end();
             }
             if let Some(visited) = visited {
                 match &visited {
@@ -175,44 +177,44 @@ pub fn maybe_visit_nodes(
 
     if let Some(updated) = updated {
         let updated_array =
-            with_factory(|factory_| factory_.create_node_array(Some(updated), has_trailing_comma));
-        set_text_range_pos_end(&*updated_array, pos, end);
+            get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
+        set_text_range_pos_end(&*updated_array.ref_(arena), pos, end);
         return Some(updated_array);
     }
 
-    Some(nodes.rc_wrapper())
+    Some(nodes)
 }
 
 #[inline(always)]
 pub fn try_visit_nodes(
-    nodes: &NodeArray,
+    nodes: Id<NodeArray>,
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
-) -> io::Result<Gc<NodeArray>> {
-    Ok(try_maybe_visit_nodes(Some(nodes), visitor, test, start, count)?.unwrap())
+    arena: &impl HasArena,
+) -> io::Result<Id<NodeArray>> {
+    Ok(try_maybe_visit_nodes(Some(nodes), visitor, test, start, count, arena)?.unwrap())
 }
 
 pub fn try_maybe_visit_nodes(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: Option<impl FnMut(Id<Node>) -> io::Result<VisitResult>>,
     test: Option<impl Fn(Id<Node>) -> bool>,
     start: Option<usize>,
     count: Option<usize>,
-) -> io::Result<Option<Gc<NodeArray>>> {
-    if nodes.is_none() {
+    arena: &impl HasArena,
+) -> io::Result<Option<Id<NodeArray>>> {
+    let Some(nodes) = nodes else {
         return Ok(None);
-    }
-    let nodes = nodes.unwrap();
-    if visitor.is_none() {
-        return Ok(Some(nodes.rc_wrapper()));
-    }
-    let mut visitor = visitor.unwrap();
+    };
+    let Some(mut visitor) = visitor else {
+        return Ok(Some(nodes));
+    };
 
     let mut updated: Option<Vec<Id<Node>>> = Default::default();
 
-    let length = nodes.len();
+    let length = nodes.ref_(arena).len();
     let start = start.unwrap_or(0); /*start < 0*/
 
     let count = if count.is_none() || count.unwrap() > length - start {
@@ -226,11 +228,11 @@ pub fn try_maybe_visit_nodes(
     let mut end: isize = -1;
     if start > 0 || count < length {
         updated = Some(vec![]);
-        has_trailing_comma = Some(nodes.has_trailing_comma && start + count == length);
+        has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma && start + count == length);
     }
 
     for i in 0..count {
-        let node = nodes.get(i + start).copied();
+        let node = nodes.ref_(arena).get(i + start).copied();
         let visited = node.try_and_then(|node| visitor(node))?;
         if updated.is_some()
             || match visited.as_ref() {
@@ -242,10 +244,10 @@ pub fn try_maybe_visit_nodes(
             }
         {
             if updated.is_none() {
-                updated = Some(nodes[0..i].to_owned());
-                has_trailing_comma = Some(nodes.has_trailing_comma);
-                pos = nodes.pos();
-                end = nodes.end();
+                updated = Some(nodes.ref_(arena)[0..i].to_owned());
+                has_trailing_comma = Some(nodes.ref_(arena).has_trailing_comma);
+                pos = nodes.ref_(arena).pos();
+                end = nodes.ref_(arena).end();
             }
             if let Some(visited) = visited {
                 match &visited {
@@ -275,31 +277,31 @@ pub fn try_maybe_visit_nodes(
 
     if let Some(updated) = updated {
         let updated_array =
-            with_factory(|factory_| factory_.create_node_array(Some(updated), has_trailing_comma));
-        set_text_range_pos_end(&*updated_array, pos, end);
+            get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
+        set_text_range_pos_end(&*updated_array.ref_(arena), pos, end);
         return Ok(Some(updated_array));
     }
 
-    Ok(Some(nodes.rc_wrapper()))
+    Ok(Some(nodes))
 }
 
 pub fn visit_lexical_environment(
-    statements: &NodeArray, /*<Statement>*/
+    statements: Id<NodeArray>, /*<Statement>*/
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     start: Option<usize>,
     ensure_use_strict: Option<bool>,
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> Option<Gc<NodeArray>>,
+        ) -> Option<Id<NodeArray>>,
     >,
     arena: &impl HasArena,
-) -> Gc<NodeArray> {
+) -> Id<NodeArray> {
     // try_visit_lexical_environment_full(
     //     statements,
     //     |node: Id<Node>| Ok(visitor(node)),
@@ -327,12 +329,12 @@ pub fn visit_lexical_environment(
     // .unwrap()
     context.start_lexical_environment();
     let mut nodes_visitor_or_default =
-        |nodes: Option<&NodeArray>,
+        |nodes: Option<Id<NodeArray>>,
          visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
          test: Option<&dyn Fn(Id<Node>) -> bool>,
          start: Option<usize>,
          count: Option<usize>|
-         -> Option<Gc<NodeArray>> {
+         -> Option<Id<NodeArray>> {
             if let Some(nodes_visitor) = nodes_visitor.as_mut() {
                 nodes_visitor(nodes, visitor, test, start, count)
             } else {
@@ -342,6 +344,7 @@ pub fn visit_lexical_environment(
                     test.map(|test| |node: Id<Node>| test(node)),
                     start,
                     count,
+                    arena,
                 )
             }
         };
@@ -354,19 +357,19 @@ pub fn visit_lexical_environment(
     )
     .unwrap();
     if ensure_use_strict == Some(true) {
-        statements = context.factory().ensure_use_strict(&statements);
+        statements = context.factory().ref_(arena).ensure_use_strict(statements);
     }
-    get_factory()
+    get_factory(arena)
         .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
         .as_node_array()
 }
 
 pub fn try_visit_lexical_environment(
-    statements: &NodeArray, /*<Statement>*/
+    statements: Id<NodeArray>, /*<Statement>*/
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> io::Result<Gc<NodeArray>> {
+) -> io::Result<Id<NodeArray>> {
     try_visit_lexical_environment_full(
         statements,
         visitor,
@@ -375,42 +378,42 @@ pub fn try_visit_lexical_environment(
         None,
         Option::<
             fn(
-                Option<&NodeArray>,
+                Option<Id<NodeArray>>,
                 Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
                 Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> io::Result<Option<Gc<NodeArray>>>,
+            ) -> io::Result<Option<Id<NodeArray>>>,
         >::None,
         arena,
     )
 }
 
 pub fn try_visit_lexical_environment_full(
-    statements: &NodeArray, /*<Statement>*/
+    statements: Id<NodeArray>, /*<Statement>*/
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     start: Option<usize>,
     ensure_use_strict: Option<bool>,
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> io::Result<Option<Gc<NodeArray>>>,
+        ) -> io::Result<Option<Id<NodeArray>>>,
     >,
     arena: &impl HasArena,
-) -> io::Result<Gc<NodeArray>> {
+) -> io::Result<Id<NodeArray>> {
     context.start_lexical_environment();
     let mut nodes_visitor_or_default =
-        |nodes: Option<&NodeArray>,
+        |nodes: Option<Id<NodeArray>>,
          visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
          test: Option<&dyn Fn(Id<Node>) -> bool>,
          start: Option<usize>,
          count: Option<usize>|
-         -> io::Result<Option<Gc<NodeArray>>> {
+         -> io::Result<Option<Id<NodeArray>>> {
             if let Some(nodes_visitor) = nodes_visitor.as_mut() {
                 nodes_visitor(nodes, visitor, test, start, count)
             } else {
@@ -420,6 +423,7 @@ pub fn try_visit_lexical_environment_full(
                     test.map(|test| |node: Id<Node>| test(node)),
                     start,
                     count,
+                    arena,
                 )
             }
         };
@@ -432,57 +436,57 @@ pub fn try_visit_lexical_environment_full(
     )?
     .unwrap();
     if ensure_use_strict == Some(true) {
-        statements = context.factory().ensure_use_strict(&statements);
+        statements = context.factory().ref_(arena).ensure_use_strict(statements);
     }
-    Ok(get_factory()
+    Ok(get_factory(arena)
         .merge_lexical_environment(statements, context.end_lexical_environment().as_deref())
         .as_node_array())
 }
 
 pub fn visit_parameter_list(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> Option<Gc<NodeArray>> {
+) -> Option<Id<NodeArray>> {
     visit_parameter_list_full(
         nodes,
         visitor,
         context,
         Option::<
             fn(
-                Option<&NodeArray>,
+                Option<Id<NodeArray>>,
                 Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                 Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> Option<Gc<NodeArray>>,
+            ) -> Option<Id<NodeArray>>,
         >::None,
         arena,
     )
 }
 
 pub fn visit_parameter_list_full(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     mut visitor: impl FnMut(Id<Node>) -> VisitResult,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> Option<Gc<NodeArray>>,
+        ) -> Option<Id<NodeArray>>,
     >,
     arena: &impl HasArena,
-) -> Option<Gc<NodeArray>> {
-    let mut nodes_visitor = |nodes: Option<&NodeArray>,
+) -> Option<Id<NodeArray>> {
+    let mut nodes_visitor = |nodes: Option<Id<NodeArray>>,
                              visitor: Option<&mut dyn FnMut(Id<Node>) -> VisitResult>,
                              test: Option<&dyn Fn(Id<Node>) -> bool>,
                              start: Option<usize>,
                              count: Option<usize>|
-     -> Option<Gc<NodeArray>> {
+     -> Option<Id<NodeArray>> {
         if let Some(nodes_visitor) = nodes_visitor.as_mut() {
             nodes_visitor(nodes, visitor, test, start, count)
         } else {
@@ -492,10 +496,11 @@ pub fn visit_parameter_list_full(
                 test.map(|test| |node: Id<Node>| test(node)),
                 start,
                 count,
+                arena,
             )
         }
     };
-    let mut updated: Option<Gc<NodeArray /*<ParameterDeclaration>*/>> = _d();
+    let mut updated: Option<Id<NodeArray /*<ParameterDeclaration>*/>> = _d();
     context.start_lexical_environment();
     if let Some(nodes) = nodes {
         context.set_lexical_environment_flags(LexicalEnvironmentFlags::InParameters, true);
@@ -513,7 +518,7 @@ pub fn visit_parameter_list_full(
             && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
-                updated.as_ref().unwrap(),
+                updated.unwrap(),
                 context,
                 arena,
             ));
@@ -525,50 +530,50 @@ pub fn visit_parameter_list_full(
 }
 
 pub fn try_visit_parameter_list(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> io::Result<Option<Gc<NodeArray>>> {
+) -> io::Result<Option<Id<NodeArray>>> {
     try_visit_parameter_list_full(
         nodes,
         visitor,
         context,
         Option::<
             fn(
-                Option<&NodeArray>,
+                Option<Id<NodeArray>>,
                 Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
                 Option<&dyn Fn(Id<Node>) -> bool>,
                 Option<usize>,
                 Option<usize>,
-            ) -> io::Result<Option<Gc<NodeArray>>>,
+            ) -> io::Result<Option<Id<NodeArray>>>,
         >::None,
         arena,
     )
 }
 
 pub fn try_visit_parameter_list_full(
-    nodes: Option<&NodeArray>,
+    nodes: Option<Id<NodeArray>>,
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
     context: &(impl TransformationContext + ?Sized),
     mut nodes_visitor: Option<
         impl FnMut(
-            Option<&NodeArray>,
+            Option<Id<NodeArray>>,
             Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
             Option<&dyn Fn(Id<Node>) -> bool>,
             Option<usize>,
             Option<usize>,
-        ) -> io::Result<Option<Gc<NodeArray>>>,
+        ) -> io::Result<Option<Id<NodeArray>>>,
     >,
     arena: &impl HasArena,
-) -> io::Result<Option<Gc<NodeArray>>> {
+) -> io::Result<Option<Id<NodeArray>>> {
     let mut nodes_visitor =
-        |nodes: Option<&NodeArray>,
+        |nodes: Option<Id<NodeArray>>,
          visitor: Option<&mut dyn FnMut(Id<Node>) -> io::Result<VisitResult>>,
          test: Option<&dyn Fn(Id<Node>) -> bool>,
          start: Option<usize>,
          count: Option<usize>|
-         -> io::Result<Option<Gc<NodeArray>>> {
+         -> io::Result<Option<Id<NodeArray>>> {
             if let Some(nodes_visitor) = nodes_visitor.as_mut() {
                 nodes_visitor(nodes, visitor, test, start, count)
             } else {
@@ -578,10 +583,11 @@ pub fn try_visit_parameter_list_full(
                     test.map(|test| |node: Id<Node>| test(node)),
                     start,
                     count,
+                    arena,
                 )
             }
         };
-    let mut updated: Option<Gc<NodeArray /*<ParameterDeclaration>*/>> = _d();
+    let mut updated: Option<Id<NodeArray /*<ParameterDeclaration>*/>> = _d();
     context.start_lexical_environment();
     if let Some(nodes) = nodes {
         context.set_lexical_environment_flags(LexicalEnvironmentFlags::InParameters, true);
@@ -599,7 +605,7 @@ pub fn try_visit_parameter_list_full(
             && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
-                updated.as_ref().unwrap(),
+                updated.unwrap(),
                 context,
                 arena,
             ));
@@ -611,27 +617,27 @@ pub fn try_visit_parameter_list_full(
 }
 
 fn add_default_value_assignments_if_needed(
-    parameters: &NodeArray, /*<ParameterDeclaration>*/
+    parameters: Id<NodeArray>, /*<ParameterDeclaration>*/
     context: &(impl TransformationContext + ?Sized),
     arena: &impl HasArena,
-) -> Gc<NodeArray /*<ParameterDeclaration>*/> {
+) -> Id<NodeArray /*<ParameterDeclaration>*/> {
     let mut result: Option<Vec<Id<Node /*ParameterDeclaration*/>>> = _d();
-    for (i, parameter) in parameters.iter().enumerate() {
+    for (i, parameter) in parameters.ref_(arena).iter().enumerate() {
         let parameter = *parameter;
         let updated = add_default_value_assignment_if_needed(parameter, context, arena);
         if result.is_some() || updated != parameter {
             result
-                .get_or_insert_with(|| parameters[..i].to_owned())
+                .get_or_insert_with(|| parameters.ref_(arena)[..i].to_owned())
                 .push(updated);
         }
     }
-    result.map_or_else(
-        || parameters.rc_wrapper(),
+    result.map_or(
+        parameters,
         |result| {
             context
                 .factory()
-                .create_node_array(Some(result), Some(parameters.has_trailing_comma))
-                .set_text_range(Some(parameters))
+                .ref_(arena).create_node_array(Some(result), Some(parameters.ref_(arena).has_trailing_comma))
+                .set_text_range(Some(&*parameters.ref_(arena)), arena)
         },
     )
 }
@@ -673,32 +679,32 @@ fn add_default_value_assignment_for_binding_pattern(
     let parameter_ref = parameter.ref_(arena);
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
-    context.add_initialization_statement(factory.create_variable_statement(
-        Option::<Gc<NodeArray>>::None,
-        factory.create_variable_declaration_list(
+    context.add_initialization_statement(factory.ref_(arena).create_variable_statement(
+        Option::<Id<NodeArray>>::None,
+        factory.ref_(arena).create_variable_declaration_list(
             vec![
-                    factory.create_variable_declaration(
+                    factory.ref_(arena).create_variable_declaration(
                         parameter_as_parameter_declaration.maybe_name(),
                         None,
                         parameter_as_parameter_declaration.maybe_type(),
                         Some(
                             parameter_as_parameter_declaration.maybe_initializer().map_or_else(
-                                || factory.get_generated_name_for_node(
+                                || factory.ref_(arena).get_generated_name_for_node(
                                     Some(parameter),
                                     None,
                                 ),
-                                |parameter_initializer| factory.create_conditional_expression(
-                                    factory.create_strict_equality(
-                                        factory.get_generated_name_for_node(
+                                |parameter_initializer| factory.ref_(arena).create_conditional_expression(
+                                    factory.ref_(arena).create_strict_equality(
+                                        factory.ref_(arena).get_generated_name_for_node(
                                             Some(parameter),
                                             None,
                                         ),
-                                        factory.create_void_zero()
+                                        factory.ref_(arena).create_void_zero()
                                     ),
                                     None,
                                     parameter_initializer,
                                     None,
-                                    factory.get_generated_name_for_node(
+                                    factory.ref_(arena).get_generated_name_for_node(
                                         Some(parameter),
                                         None,
                                     ),
@@ -710,12 +716,12 @@ fn add_default_value_assignment_for_binding_pattern(
             None,
         ),
     ));
-    factory.update_parameter_declaration(
+    factory.ref_(arena).update_parameter_declaration(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
         parameter.ref_(arena).maybe_modifiers(),
         parameter_as_parameter_declaration.dot_dot_dot_token,
-        Some(factory.get_generated_name_for_node(Some(parameter), None)),
+        Some(factory.ref_(arena).get_generated_name_for_node(Some(parameter), None)),
         parameter_as_parameter_declaration.question_token,
         parameter_as_parameter_declaration.maybe_type(),
         None,
@@ -733,19 +739,19 @@ fn add_default_value_assignment_for_initializer(
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
     context.add_initialization_statement(
-        factory.create_if_statement(
-            factory.create_type_check(factory.clone_node(name), "undefined"),
+        factory.ref_(arena).create_if_statement(
+            factory.ref_(arena).create_type_check(factory.ref_(arena).clone_node(name), "undefined"),
             factory
-                .create_block(
-                    vec![factory.create_expression_statement(
+                .ref_(arena).create_block(
+                    vec![factory.ref_(arena).create_expression_statement(
                         factory
-                            .create_assignment(
+                            .ref_(arena).create_assignment(
                                 factory
-                                    .clone_node(name)
+                                    .ref_(arena).clone_node(name)
                                     .set_emit_flags(EmitFlags::NoSourceMap, arena),
                                 initializer.set_emit_flags(
                                     EmitFlags::NoSourceMap
-                                        | get_emit_flags(&initializer.ref_(arena))
+                                        | get_emit_flags(initializer, arena)
                                         | EmitFlags::NoComments,
                                     arena,
                                 ),
@@ -766,7 +772,7 @@ fn add_default_value_assignment_for_initializer(
             None,
         ),
     );
-    factory.update_parameter_declaration(
+    factory.ref_(arena).update_parameter_declaration(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
         parameter.ref_(arena).maybe_modifiers(),
@@ -835,17 +841,17 @@ pub fn visit_function_body_full(
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
-            return Some(context.factory().create_block(declarations, None));
+            return Some(context.factory().ref_(arena).create_block(declarations, None));
         }
         let updated = updated.unwrap();
         let block = context
             .factory()
-            .converters()
+            .ref_(arena).converters()
             .convert_to_function_block(updated, None);
-        let statements = get_factory()
+        let statements = get_factory(arena)
             .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
             .as_node_array();
-        return Some(context.factory().update_block(block, statements));
+        return Some(context.factory().ref_(arena).update_block(block, statements));
     }
     updated
 }
@@ -908,17 +914,17 @@ pub fn try_visit_function_body_full(
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
-            return Ok(Some(context.factory().create_block(declarations, None)));
+            return Ok(Some(context.factory().ref_(arena).create_block(declarations, None)));
         }
         let updated = updated.unwrap();
         let block = context
             .factory()
-            .converters()
+            .ref_(arena).converters()
             .convert_to_function_block(updated, None);
-        let statements = get_factory()
+        let statements = get_factory(arena)
             .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
             .as_node_array();
-        return Ok(Some(context.factory().update_block(block, statements)));
+        return Ok(Some(context.factory().ref_(arena).update_block(block, statements)));
     }
     Ok(updated)
 }
@@ -943,18 +949,18 @@ pub fn try_visit_iteration_body(
         body,
         Some(visitor),
         Some(|node: Id<Node>| is_statement(node, arena)),
-        Some(|nodes: &[Id<Node>]| context.factory().lift_to_block(nodes)),
+        Some(|nodes: &[Id<Node>]| context.factory().ref_(arena).lift_to_block(nodes)),
     )?;
     let declarations = context.end_block_scope();
     if let Some(mut declarations) = declarations.non_empty()
     /*some(declarations)*/
     {
         if is_block(&updated.ref_(arena)) {
-            declarations.extend(updated.ref_(arena).as_block().statements.iter().cloned());
-            return Ok(context.factory().update_block(updated, declarations));
+            declarations.extend(updated.ref_(arena).as_block().statements.ref_(arena).iter().cloned());
+            return Ok(context.factory().ref_(arena).update_block(updated, declarations));
         }
         declarations.push(updated);
-        return Ok(context.factory().create_block(declarations, None));
+        return Ok(context.factory().ref_(arena).create_block(declarations, None));
     }
     Ok(updated)
 }

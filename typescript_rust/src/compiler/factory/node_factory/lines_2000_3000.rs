@@ -29,10 +29,10 @@ use crate::{
     TemplateExpression, TemplateLiteralLikeNode, TemplateLiteralTypeNode, ThisTypeNode, TokenFlags,
     TransformFlags, TypeAssertion, TypeOfExpression, TypeOperatorNode, VoidExpression,
     YieldExpression,
-    InArena,
+    InArena, OptionInArena,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+impl NodeFactory {
     #[generate_node_factory_method_wrapper]
     pub fn create_infer_type_node_raw(
         &self,
@@ -85,7 +85,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let template_spans = template_spans.into();
         if node_as_template_literal_type_node.head != head
             || has_node_array_changed(
-                &node_as_template_literal_type_node.template_spans,
+                node_as_template_literal_type_node.template_spans,
                 &template_spans,
             )
         {
@@ -114,7 +114,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             qualifier,
             type_arguments.and_then(|type_arguments| {
                 self.parenthesizer_rules()
-                    .parenthesize_type_arguments(Some(type_arguments.into()))
+                    .ref_(self).parenthesize_type_arguments(Some(type_arguments.into()))
             }),
             is_type_of,
         );
@@ -137,7 +137,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if node_as_import_type_node.argument != argument
             || node_as_import_type_node.qualifier != qualifier
             || has_option_node_array_changed(
-                node_as_import_type_node.maybe_type_arguments().as_deref(),
+                node_as_import_type_node.maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
             || node_as_import_type_node.is_type_of() != is_type_of
@@ -195,7 +195,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node,
             operator,
             self.parenthesizer_rules()
-                .parenthesize_member_of_element_type(type_),
+                .ref_(self).parenthesize_member_of_element_type(type_),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -228,7 +228,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = IndexedAccessTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_member_of_element_type(object_type),
+                .ref_(self).parenthesize_member_of_element_type(object_type),
             index_type,
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -287,7 +287,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         name_type: Option<Id<Node /*TypeNode*/>>,
         question_token: Option<Id<Node /*QuestionToken | PlusToken | MinusToken*/>>,
         type_: Option<Id<Node /*TypeNode*/>>,
-        members: Option<Gc<NodeArray /*<TypeElement>*/>>,
+        members: Option<Id<NodeArray /*<TypeElement>*/>>,
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_mapped_type_node = node_ref.as_mapped_type_node();
@@ -295,7 +295,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             || node_as_mapped_type_node.name_type != name_type
             || node_as_mapped_type_node.question_token != question_token
             || node_as_mapped_type_node.type_ != type_
-            || !are_option_gcs_equal(node_as_mapped_type_node.members.as_ref(), members.as_ref())
+            || node_as_mapped_type_node.members != members
         {
             self.update(
                 self.create_mapped_type_node(
@@ -346,7 +346,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::ObjectBindingPattern);
         let node = ObjectBindingPattern::new(node, self.create_node_array(Some(elements), None));
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.elements))
+            propagate_children_flags(Some(&node.elements.ref_(self)))
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsBindingPattern,
         );
@@ -369,7 +369,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_ref = node.ref_(self);
         let node_as_object_binding_pattern = node_ref.as_object_binding_pattern();
         let elements = elements.into();
-        if has_node_array_changed(&node_as_object_binding_pattern.elements, &elements) {
+        if has_node_array_changed(node_as_object_binding_pattern.elements, &elements) {
             self.update(self.create_object_binding_pattern(elements), node)
         } else {
             node
@@ -384,7 +384,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(SyntaxKind::ArrayBindingPattern);
         let node = ArrayBindingPattern::new(node, self.create_node_array(Some(elements), None));
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.elements))
+            propagate_children_flags(Some(&node.elements.ref_(self)))
                 | TransformFlags::ContainsES2015
                 | TransformFlags::ContainsBindingPattern,
         );
@@ -399,7 +399,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_ref = node.ref_(self);
         let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
         let elements = elements.into();
-        if has_node_array_changed(&node_as_array_binding_pattern.elements, &elements) {
+        if has_node_array_changed(node_as_array_binding_pattern.elements, &elements) {
             self.update(self.create_array_binding_pattern(elements), node)
         } else {
             node
@@ -416,12 +416,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> BindingElement {
         let node = self.create_base_binding_like_declaration(
             SyntaxKind::BindingElement,
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(name),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         let dot_dot_dot_token_is_some = dot_dot_dot_token.is_some();
@@ -480,7 +480,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_expression(SyntaxKind::ArrayLiteralExpression);
         let elements = elements.map(|elements| elements.into());
         let elements_vec = elements.clone().map(|elements| match elements {
-            NodeArrayOrVec::NodeArray(node_array) => node_array.to_vec(),
+            NodeArrayOrVec::NodeArray(node_array) => node_array.ref_(self).to_vec(),
             NodeArrayOrVec::Vec(elements) => elements,
         });
         let last_element = elements_vec
@@ -499,10 +499,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = ArrayLiteralExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expressions_of_comma_delimited_list(elements_array.into()),
+                .ref_(self).parenthesize_expressions_of_comma_delimited_list(elements_array.into()),
             multi_line,
         );
-        node.add_transform_flags(propagate_children_flags(Some(&node.elements)));
+        node.add_transform_flags(propagate_children_flags(Some(&node.elements.ref_(self))));
         node
     }
 
@@ -514,7 +514,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_ref = node.ref_(self);
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
         let elements = elements.into();
-        if has_node_array_changed(&node_as_array_literal_expression.elements, &elements) {
+        if has_node_array_changed(node_as_array_literal_expression.elements, &elements) {
             self.update(
                 self.create_array_literal_expression(
                     Some(elements),
@@ -539,7 +539,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             self.create_node_array(properties, None),
             multi_line,
         );
-        node.add_transform_flags(propagate_children_flags(Some(&node.properties)));
+        node.add_transform_flags(propagate_children_flags(Some(&node.properties.ref_(self))));
         node
     }
 
@@ -551,7 +551,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         let properties = properties.into();
-        if has_node_array_changed(&node_as_object_literal_expression.properties, &properties) {
+        if has_node_array_changed(node_as_object_literal_expression.properties, &properties) {
             self.update(
                 self.create_object_literal_expression(
                     Some(properties),
@@ -574,7 +574,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = PropertyAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             None,
             self.as_name(Some(name)).unwrap(),
         );
@@ -636,7 +636,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = PropertyAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             question_dot_token,
             self.as_name(Some(name)).unwrap(),
         );
@@ -689,7 +689,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = ElementAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             None,
             self.as_expression(index),
         );
@@ -745,7 +745,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = ElementAccessExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             question_dot_token,
             self.as_expression(index),
         );
@@ -799,18 +799,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = CallExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             None,
             self.as_node_array(type_arguments),
             self.parenthesizer_rules()
-                .parenthesize_expressions_of_comma_delimited_list(
+                .ref_(self).parenthesize_expressions_of_comma_delimited_list(
                     self.create_node_array(arguments_array, None).into(),
                 ),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
-                | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_children_flags(Some(&node.arguments)),
+                | propagate_children_flags(node.maybe_type_arguments().refed(self).as_deref())
+                | propagate_children_flags(Some(&node.arguments.ref_(self))),
         );
         if node.maybe_type_arguments().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -845,10 +845,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let arguments_array = arguments_array.into();
         if node_as_call_expression.expression != expression
             || has_option_node_array_changed(
-                node_as_call_expression.maybe_type_arguments().as_deref(),
+                node_as_call_expression.maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
+            || has_node_array_changed(node_as_call_expression.arguments, &arguments_array)
         {
             self.update(
                 self.create_call_expression(expression, type_arguments, Some(arguments_array)),
@@ -878,19 +878,19 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = CallExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(expression),
+                .ref_(self).parenthesize_left_side_of_access(expression),
             question_dot_token,
             self.as_node_array(type_arguments),
             self.parenthesizer_rules()
-                .parenthesize_expressions_of_comma_delimited_list(
+                .ref_(self).parenthesize_expressions_of_comma_delimited_list(
                     self.create_node_array(arguments_array, None).into(),
                 ),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
                 | propagate_child_flags(node.question_dot_token.clone(), self)
-                | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_children_flags(Some(&node.arguments))
+                | propagate_children_flags(node.maybe_type_arguments().refed(self).as_deref())
+                | propagate_children_flags(Some(&node.arguments.ref_(self)))
                 | TransformFlags::ContainsES2020,
         );
         if node.maybe_type_arguments().is_some() {
@@ -925,10 +925,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if node_as_call_expression.expression != expression
             || node_as_call_expression.question_dot_token != question_dot_token
             || has_option_node_array_changed(
-                node_as_call_expression.maybe_type_arguments().as_deref(),
+                node_as_call_expression.maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
-            || has_node_array_changed(&node_as_call_expression.arguments, &arguments_array)
+            || has_node_array_changed(node_as_call_expression.arguments, &arguments_array)
         {
             self.update(
                 self.create_call_chain(
@@ -961,17 +961,17 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = NewExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_of_new(expression),
+                .ref_(self).parenthesize_expression_of_new(expression),
             self.as_node_array(type_arguments),
             arguments_array.map(|arguments_array| {
                 self.parenthesizer_rules()
-                    .parenthesize_expressions_of_comma_delimited_list(arguments_array.into())
+                    .ref_(self).parenthesize_expressions_of_comma_delimited_list(arguments_array.into())
             }),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
-                | propagate_children_flags(node.maybe_type_arguments().as_deref())
-                | propagate_children_flags(node.arguments.as_deref())
+                | propagate_children_flags(node.maybe_type_arguments().refed(self).as_deref())
+                | propagate_children_flags(node.arguments.refed(self).as_deref())
                 | TransformFlags::ContainsES2020,
         );
         if node.maybe_type_arguments().is_some() {
@@ -999,11 +999,11 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let arguments_array = arguments_array.map(Into::into);
         if node_as_new_expression.expression != expression
             || has_option_node_array_changed(
-                node_as_new_expression.maybe_type_arguments().as_deref(),
+                node_as_new_expression.maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
             || has_option_node_array_changed(
-                node_as_new_expression.arguments.as_deref(),
+                node_as_new_expression.arguments,
                 arguments_array.as_ref(),
             )
         {
@@ -1027,14 +1027,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = TaggedTemplateExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_access(tag),
+                .ref_(self).parenthesize_left_side_of_access(tag),
             self.as_node_array(type_arguments),
             template,
             None,
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.tag), self)
-                | propagate_children_flags(node.maybe_type_arguments().as_deref())
+                | propagate_children_flags(node.maybe_type_arguments().refed(self).as_deref())
                 | propagate_child_flags(Some(node.template), self)
                 | TransformFlags::ContainsES2015,
         );
@@ -1060,8 +1060,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if node_as_tagged_template_expression.tag != tag
             || has_option_node_array_changed(
                 node_as_tagged_template_expression
-                    .maybe_type_arguments()
-                    .as_deref(),
+                    .maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
             || node_as_tagged_template_expression.template != template
@@ -1085,7 +1084,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = TypeAssertion::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
             type_,
         );
         node.add_transform_flags(
@@ -1151,7 +1150,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> FunctionExpression {
         let mut node = self.create_base_function_like_declaration(
             SyntaxKind::FunctionExpression,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             name,
             type_parameters,
@@ -1165,7 +1164,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
         }
-        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
             .intersects(ModifierFlags::Async)
         {
             if node.maybe_asterisk_token().is_some() {
@@ -1196,15 +1195,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let type_parameters = type_parameters.map(Into::into);
         let parameters = parameters.into();
         if node_as_function_expression.maybe_name() != name
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_function_expression.maybe_asterisk_token() != asterisk_token
             || has_option_node_array_changed(
                 node_as_function_expression
-                    .maybe_type_parameters()
-                    .as_deref(),
+                    .maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
-            || has_node_array_changed(&node_as_function_expression.parameters(), &parameters)
+            || has_node_array_changed(node_as_function_expression.parameters(), &parameters)
             || node_as_function_expression.maybe_type() != type_
             || node_as_function_expression.maybe_body().unwrap() != body
         {
@@ -1237,7 +1235,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> ArrowFunction {
         let node = self.create_base_function_like_declaration(
             SyntaxKind::ArrowFunction,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             modifiers,
             Option::<Id<Node>>::None,
             type_parameters,
@@ -1245,7 +1243,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             type_,
             Some(
                 self.parenthesizer_rules()
-                    .parenthesize_concise_body_of_arrow_function(body),
+                    .ref_(self).parenthesize_concise_body_of_arrow_function(body),
             ),
         );
         let node = ArrowFunction::new(
@@ -1257,7 +1255,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             propagate_child_flags(Some(node.equals_greater_than_token), self)
                 | TransformFlags::ContainsES2015,
         );
-        if modifiers_to_flags(node.maybe_modifiers().as_double_deref(), self)
+        if modifiers_to_flags(node.maybe_modifiers().refed(self).as_double_deref(), self)
             .intersects(ModifierFlags::Async)
         {
             node.add_transform_flags(
@@ -1282,12 +1280,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let modifiers = modifiers.map(Into::into);
         let type_parameters = type_parameters.map(Into::into);
         let parameters = parameters.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || has_option_node_array_changed(
-                node_as_arrow_function.maybe_type_parameters().as_deref(),
+                node_as_arrow_function.maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
-            || has_node_array_changed(&node_as_arrow_function.parameters(), &parameters)
+            || has_node_array_changed(node_as_arrow_function.parameters(), &parameters)
             || node_as_arrow_function.maybe_type() != type_
             || node_as_arrow_function.equals_greater_than_token != equals_greater_than_token
             || node_as_arrow_function.maybe_body().unwrap() != body
@@ -1317,7 +1315,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = DeleteExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -1346,7 +1344,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = TypeOfExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -1375,7 +1373,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = VoidExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -1404,7 +1402,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = AwaitExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(expression),
+                .ref_(self).parenthesize_operand_of_prefix_unary(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
@@ -1440,7 +1438,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node,
             operator,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_prefix_unary(operand),
+                .ref_(self).parenthesize_operand_of_prefix_unary(operand),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.operand), self));
         if matches!(
@@ -1448,7 +1446,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
         ) && is_identifier(&node.operand.ref_(self))
             && !is_generated_identifier(&node.operand.ref_(self))
-            && !is_local_name(&node.operand.ref_(self))
+            && !is_local_name(node.operand, self)
         {
             node.add_transform_flags(TransformFlags::ContainsUpdateExpressionForIdentifier);
         }
@@ -1485,13 +1483,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = PostfixUnaryExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_operand_of_postfix_unary(operand),
+                .ref_(self).parenthesize_operand_of_postfix_unary(operand),
             operator,
         );
         node.add_transform_flags(propagate_child_flags(Some(node.operand), self));
         if is_identifier(&node.operand.ref_(self))
             && !is_generated_identifier(&node.operand.ref_(self))
-            && !is_local_name(&node.operand.ref_(self))
+            && !is_local_name(node.operand, self)
         {
             node.add_transform_flags(TransformFlags::ContainsUpdateExpressionForIdentifier);
         }
@@ -1531,10 +1529,10 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = BinaryExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_left_side_of_binary(operator_kind, left),
+                .ref_(self).parenthesize_left_side_of_binary(operator_kind, left),
             operator_token,
             self.parenthesizer_rules()
-                .parenthesize_right_side_of_binary(operator_kind, Some(left), right),
+                .ref_(self).parenthesize_right_side_of_binary(operator_kind, Some(left), right),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.left), self)
@@ -1602,7 +1600,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             .ref_(self).transform_flags()
             .intersects(TransformFlags::ContainsES2018)
         {
-            for element in get_elements_of_binding_or_assignment_pattern(&node.ref_(self)) {
+            for element in get_elements_of_binding_or_assignment_pattern(node, self) {
                 let target = get_target_of_binding_or_assignment_element(element, self);
                 if let Some(target) = target.filter(|target| is_assignment_pattern(&target.ref_(self))) {
                     if target
@@ -1639,13 +1637,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = ConditionalExpression::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_condition_of_conditional_expression(condition),
+                .ref_(self).parenthesize_condition_of_conditional_expression(condition),
             question_token.unwrap_or_else(|| self.create_token(SyntaxKind::QuestionToken)),
             self.parenthesizer_rules()
-                .parenthesize_branch_of_conditional_expression(when_true),
+                .ref_(self).parenthesize_branch_of_conditional_expression(when_true),
             colon_token.unwrap_or_else(|| self.create_token(SyntaxKind::ColonToken)),
             self.parenthesizer_rules()
-                .parenthesize_branch_of_conditional_expression(when_false),
+                .ref_(self).parenthesize_branch_of_conditional_expression(when_false),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.condition), self)
@@ -1703,7 +1701,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.head), self)
-                | propagate_children_flags(Some(&node.template_spans))
+                | propagate_children_flags(Some(&node.template_spans.ref_(self)))
                 | TransformFlags::ContainsES2015,
         );
         node
@@ -1719,7 +1717,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node_as_template_expression = node_ref.as_template_expression();
         let template_spans = template_spans.into();
         if node_as_template_expression.head != head
-            || has_node_array_changed(&node_as_template_expression.template_spans, &template_spans)
+            || has_node_array_changed(node_as_template_expression.template_spans, &template_spans)
         {
             self.update(self.create_template_expression(head, template_spans), node)
         } else {
@@ -1873,7 +1871,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             node,
             expression.map(|expression| {
                 self.parenthesizer_rules()
-                    .parenthesize_expression_for_disallowed_comma(expression)
+                    .ref_(self).parenthesize_expression_for_disallowed_comma(expression)
             }),
             asterisk_token,
         );
@@ -1913,7 +1911,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = SpreadElement::new(
             node,
             self.parenthesizer_rules()
-                .parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
@@ -1995,18 +1993,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let type_parameters = type_parameters.map(Into::into);
         let heritage_clauses = heritage_clauses.map(Into::into);
         let members = members.into();
-        if has_option_node_array_changed(node.ref_(self).maybe_decorators().as_deref(), decorators.as_ref())
-            || has_option_node_array_changed(node.ref_(self).maybe_modifiers().as_deref(), modifiers.as_ref())
+        if has_option_node_array_changed(node.ref_(self).maybe_decorators(), decorators.as_ref())
+            || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_class_expression.maybe_name() != name
             || has_option_node_array_changed(
-                node_as_class_expression.maybe_type_parameters().as_deref(),
+                node_as_class_expression.maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || has_option_node_array_changed(
-                node_as_class_expression.maybe_heritage_clauses().as_deref(),
+                node_as_class_expression.maybe_heritage_clauses(),
                 heritage_clauses.as_ref(),
             )
-            || has_node_array_changed(&node_as_class_expression.members(), &members)
+            || has_node_array_changed(node_as_class_expression.members(), &members)
         {
             self.update(
                 self.create_class_expression(

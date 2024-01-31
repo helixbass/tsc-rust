@@ -18,7 +18,7 @@ use crate::{
     is_ambient_module, is_bindable_object_define_property_call, is_binding_pattern,
     is_call_expression, is_computed_property_name, is_external_module_augmentation,
     is_identifier_text, is_internal_module_import_equals_declaration, is_left_hand_side_expression,
-    is_source_file, map, maybe_get_source_file_of_node, parse_node_factory, push_if_unique_gc,
+    is_source_file, map, maybe_get_source_file_of_node, get_parse_node_factory, push_if_unique_gc,
     return_ok_default_if_none, return_ok_none_if_none, set_parent, set_text_range, starts_with,
     symbol_name, try_add_to_set, try_map, try_maybe_for_each, try_using_single_line_string_writer,
     walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter, HasArena,
@@ -34,7 +34,7 @@ use crate::{
 impl TypeChecker {
     pub fn type_predicate_to_string_(
         &self,
-        type_predicate: &TypePredicate,
+        type_predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<TypeFormatFlags>,
         writer: Option<Id<Box<dyn EmitTextWriter>>>,
@@ -62,30 +62,30 @@ impl TypeChecker {
 
     pub(super) fn type_predicate_to_string_worker(
         &self,
-        type_predicate: &TypePredicate,
+        type_predicate: Id<TypePredicate>,
         enclosing_declaration: Option<Id<Node>>,
         flags: TypeFormatFlags,
         writer: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
-        let predicate = get_factory().create_type_predicate_node(
+        let predicate = get_factory(self).create_type_predicate_node(
             if matches!(
-                type_predicate.kind,
+                type_predicate.ref_(self).kind,
                 TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
             ) {
-                Some(get_factory().create_token(SyntaxKind::AssertsKeyword))
+                Some(get_factory(self).create_token(SyntaxKind::AssertsKeyword))
             } else {
                 None
             },
             if matches!(
-                type_predicate.kind,
+                type_predicate.ref_(self).kind,
                 TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
             ) {
-                get_factory().create_identifier(type_predicate.parameter_name.as_ref().unwrap())
+                get_factory(self).create_identifier(type_predicate.ref_(self).parameter_name.as_ref().unwrap())
             } else {
-                get_factory().create_this_type_node()
+                get_factory(self).create_this_type_node()
             },
-            type_predicate.type_.try_and_then(|type_| {
-                self.node_builder().type_to_type_node(
+            type_predicate.ref_(self).type_.try_and_then(|type_| {
+                self.node_builder().ref_(self).type_to_type_node(
                     type_,
                     enclosing_declaration,
                     Some(
@@ -103,12 +103,13 @@ impl TypeChecker {
                 .build()
                 .unwrap(),
             None,
+            self,
         );
         let source_file = enclosing_declaration
             .and_then(|enclosing_declaration| {
                 maybe_get_source_file_of_node(Some(enclosing_declaration), self)
             });
-        printer.write_node(
+        printer.ref_(self).write_node(
             EmitHint::Unspecified,
             predicate,
             source_file,
@@ -215,7 +216,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         context: Option<&NodeBuilderContext>,
     ) -> Option<String> {
-        let name_type = (*self.get_symbol_links(symbol))
+        let name_type = (*self.get_symbol_links(symbol).ref_(self))
             .borrow()
             .name_type
             .clone()?;
@@ -310,7 +311,7 @@ impl TypeChecker {
                             && !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
                         {
                             let name_type =
-                                (*self.get_symbol_links(symbol)).borrow().name_type.clone();
+                                (*self.get_symbol_links(symbol).ref_(self)).borrow().name_type.clone();
                             if matches!(name_type, Some(name_type) if name_type.ref_(self).flags().intersects(TypeFlags::StringOrNumberLiteral))
                             {
                                 let result =
@@ -369,10 +370,10 @@ impl TypeChecker {
     pub(super) fn is_declaration_visible(&self, node: Id<Node>) -> bool {
         // if (node) {
         let links = self.get_node_links(node);
-        if (*links).borrow().is_visible.is_none() {
-            links.borrow_mut().is_visible = Some(self.determine_if_declaration_is_visible(node));
+        if links.ref_(self).is_visible.is_none() {
+            links.ref_mut(self).is_visible = Some(self.determine_if_declaration_is_visible(node));
         }
-        let ret = (*links).borrow().is_visible.unwrap();
+        let ret = links.ref_(self).is_visible.unwrap();
         ret
         // }
 
@@ -407,7 +408,7 @@ impl TypeChecker {
                         .name()
                         .ref_(self).as_has_elements()
                         .elements()
-                        .is_empty()
+                        .ref_(self).is_empty()
                 {
                     return false;
                 }
@@ -525,7 +526,7 @@ impl TypeChecker {
                 .get_any_import_syntax(declaration)
                 .unwrap_or(declaration);
             if set_visibility {
-                self.get_node_links(declaration).borrow_mut().is_visible = Some(true);
+                self.get_node_links(declaration).ref_mut(self).is_visible = Some(true);
             } else {
                 let mut result = result.borrow_mut();
                 if result.is_none() {
@@ -619,16 +620,15 @@ impl TypeChecker {
         property_name: TypeSystemPropertyName,
     ) -> bool {
         match property_name {
-            TypeSystemPropertyName::Type => (*self.get_symbol_links(target.as_symbol()))
+            TypeSystemPropertyName::Type => (*self.get_symbol_links(target.as_symbol()).ref_(self))
                 .borrow()
                 .type_
                 .is_some(),
-            TypeSystemPropertyName::EnumTagType => (*self.get_node_links(target.as_node()))
-                .borrow()
+            TypeSystemPropertyName::EnumTagType => self.get_node_links(target.as_node())
+                .ref_(self)
                 .resolved_enum_type
                 .is_some(),
-            TypeSystemPropertyName::DeclaredType => (*self.get_symbol_links(target.as_symbol()))
-                .borrow()
+            TypeSystemPropertyName::DeclaredType => self.get_symbol_links(target.as_symbol()).ref_(self)
                 .declared_type
                 .is_some(),
             TypeSystemPropertyName::ResolvedBaseConstructorType => target
@@ -638,7 +638,7 @@ impl TypeChecker {
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
             TypeSystemPropertyName::ResolvedReturnType => {
-                target.as_signature().maybe_resolved_return_type().is_some()
+                target.as_signature().ref_(self).maybe_resolved_return_type().is_some()
             }
             TypeSystemPropertyName::ImmediateBaseConstraint => target
                 .as_type()
@@ -727,7 +727,7 @@ impl TypeChecker {
             .try_or_else(|| -> io::Result<_> {
                 Ok(self
                     .get_applicable_index_info_for_name(type_, name)?
-                    .map(|index_info| index_info.type_.clone()))
+                    .map(|index_info| index_info.ref_(self).type_))
             })?
             .unwrap_or_else(|| self.unknown_type()))
     }
@@ -751,7 +751,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol = self.get_symbol_of_node(node)?;
         symbol
-            .and_then(|symbol| (*self.get_symbol_links(symbol)).borrow().type_.clone())
+            .and_then(|symbol| (*self.get_symbol_links(symbol).ref_(self)).borrow().type_.clone())
             .try_or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 
@@ -831,7 +831,7 @@ impl TypeChecker {
         }
         let result = self.create_anonymous_type(
             symbol,
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             self.get_index_infos_of_type(source)?,
@@ -905,21 +905,16 @@ impl TypeChecker {
             |parent_access_flow_node| -> io::Result<_> {
                 let prop_name =
                     return_ok_default_if_none!(self.get_destructuring_property_name(node)?);
-                let literal = parse_node_factory.with(|parse_node_factory_| {
-                    parse_node_factory_.create_string_literal(prop_name, None, None)
-                });
+                let literal = get_parse_node_factory(self).create_string_literal(prop_name, None, None);
                 set_text_range(&*literal.ref_(self), Some(&*node.ref_(self)));
                 let lhs_expr = if is_left_hand_side_expression(parent_access, self) {
                     parent_access
                 } else {
-                    parse_node_factory.with(|parse_node_factory_| {
-                        parse_node_factory_.create_parenthesized_expression(parent_access.clone())
-                    })
+                    get_parse_node_factory(self).create_parenthesized_expression(parent_access.clone())
                 };
-                let result = parse_node_factory.with(|parse_node_factory_| {
-                    parse_node_factory_
-                        .create_element_access_expression(lhs_expr.clone(), literal.clone())
-                });
+                let result =
+                    get_parse_node_factory(self)
+                        .create_element_access_expression(lhs_expr.clone(), literal.clone());
                 set_text_range(&*result.ref_(self), Some(&*node.ref_(self)));
                 set_parent(&literal.ref_(self), Some(result));
                 set_parent(&result.ref_(self), Some(node));

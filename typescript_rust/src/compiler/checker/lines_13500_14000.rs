@@ -13,6 +13,7 @@ use crate::{
     InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, Type,
     TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -34,14 +35,14 @@ impl TypeChecker {
         node: Id<Node>, /*TypeReferenceNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             if is_const_type_reference(node, self) && is_assertion_expression(&node.ref_(self).parent().ref_(self)) {
-                links.borrow_mut().resolved_symbol = Some(self.unknown_symbol());
+                links.ref_mut(self).resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.check_expression_cached(
                     node.ref_(self).parent().ref_(self).as_has_expression().expression(),
                     None,
                 )?;
-                links.borrow_mut().resolved_type = Some(ret.clone());
+                links.ref_mut(self).resolved_type = Some(ret.clone());
                 return Ok(ret);
             }
             let mut symbol: Option<Id<Symbol>> = None;
@@ -68,12 +69,12 @@ impl TypeChecker {
                 type_ = Some(self.get_type_reference_type(node, symbol.unwrap())?);
             }
             {
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 links.resolved_symbol = symbol;
                 links.resolved_type = type_;
             }
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -82,7 +83,7 @@ impl TypeChecker {
         node: Id<Node>, /*NodeWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         try_maybe_map(
-            node.ref_(self).as_has_type_arguments().maybe_type_arguments().as_ref(),
+            node.ref_(self).as_has_type_arguments().maybe_type_arguments().refed(self).as_deref(),
             |&type_argument, _| self.get_type_from_type_node_(type_argument),
         )
         .transpose()
@@ -93,7 +94,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeQueryNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let node_ref = node.ref_(self);
             let node_as_type_query_node = node_ref.as_type_query_node();
             let type_ = if is_this_identifier(Some(&node_as_type_query_node.expr_name.ref_(self))) {
@@ -101,10 +102,10 @@ impl TypeChecker {
             } else {
                 self.check_expression(node_as_type_query_node.expr_name, None, None)?
             };
-            links.borrow_mut().resolved_type =
+            links.ref_mut(self).resolved_type =
                 Some(self.get_regular_type_of_literal_type(self.get_widened_type(type_)?));
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -229,7 +230,7 @@ impl TypeChecker {
         if let Some(symbol) = symbol {
             self.get_declared_type_of_symbol(symbol)?;
             if length(
-                (*self.get_symbol_links(symbol))
+                (*self.get_symbol_links(symbol).ref_(self))
                     .borrow()
                     .type_parameters
                     .as_deref(),
@@ -361,13 +362,13 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(import_meta_type);
 
-            let members = Gc::new(GcCell::new(create_symbol_table(
+            let members = self.alloc_symbol_table(create_symbol_table(
                 self.arena(),
                 Some(&vec![meta_property_symbol]),
-            )));
+            ));
             *symbol.ref_(self).maybe_members_mut() = Some(members.clone());
 
             *self.maybe_deferred_global_import_meta_expression_type() =
@@ -813,20 +814,21 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_tuple_type_node = node_ref.as_tuple_type_node();
         let element_flags = map(
-            &node_as_tuple_type_node.elements,
+            &*node_as_tuple_type_node.elements.ref_(self),
             |&element: &Id<Node>, _| self.get_tuple_element_flags(element),
         );
         let missing_name = some(
-            Some(&node_as_tuple_type_node.elements),
+            Some(&*node_as_tuple_type_node.elements.ref_(self)),
             Some(|e: &Id<Node>| e.ref_(self).kind() != SyntaxKind::NamedTupleMember),
         );
+        let node_elements_ref = node_as_tuple_type_node.elements.ref_(self);
         self.get_tuple_target_type(
             &element_flags,
             readonly,
             if missing_name {
                 None
             } else {
-                Some(&node_as_tuple_type_node.elements)
+                Some(&node_elements_ref)
             },
         )
     }
@@ -842,7 +844,7 @@ impl TypeChecker {
                     self.may_resolve_type_alias(node.ref_(self).as_array_type_node().element_type)?
                 } else if node.ref_(self).kind() == SyntaxKind::TupleType {
                     try_some(
-                        Some(&node.ref_(self).as_tuple_type_node().elements),
+                        Some(&*node.ref_(self).as_tuple_type_node().elements.ref_(self)),
                         Some(|&element: &Id<Node>| self.may_resolve_type_alias(element)),
                     )?
                 } else {
@@ -850,7 +852,7 @@ impl TypeChecker {
                         || try_some(
                             node.ref_(self).as_type_reference_node()
                                 .maybe_type_arguments()
-                                .as_double_deref(),
+                                .refed(self).as_double_deref(),
                             Some(|&type_argument: &Id<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
@@ -914,7 +916,7 @@ impl TypeChecker {
                     )?
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => try_some(
-                Some(&node.ref_(self).as_union_or_intersection_type_node().types()),
+                Some(&*node.ref_(self).as_union_or_intersection_type_node().types().ref_(self)),
                 Some(|&type_: &Id<Node>| self.may_resolve_type_alias(type_)),
             )?,
             SyntaxKind::IndexedAccessType => {
@@ -940,13 +942,13 @@ impl TypeChecker {
         node: Id<Node>, /*ArrayTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let target = self.get_array_or_tuple_target_type(node)?;
             if target == self.empty_generic_type() {
-                links.borrow_mut().resolved_type = Some(self.empty_object_type());
+                links.ref_mut(self).resolved_type = Some(self.empty_object_type());
             } else if !(node.ref_(self).kind() == SyntaxKind::TupleType
                 && some(
-                    Some(&*node.ref_(self).as_tuple_type_node().elements),
+                    Some(&*node.ref_(self).as_tuple_type_node().elements.ref_(self)),
                     Some(|&e: &Id<Node>| {
                         self.get_tuple_element_flags(e)
                             .intersects(ElementFlags::Variadic)
@@ -954,9 +956,9 @@ impl TypeChecker {
                 ))
                 && self.is_deferred_type_reference_node(node, None)?
             {
-                links.borrow_mut().resolved_type = Some(
+                links.ref_mut(self).resolved_type = Some(
                     if node.ref_(self).kind() == SyntaxKind::TupleType
-                        && node.ref_(self).as_tuple_type_node().elements.is_empty()
+                        && node.ref_(self).as_tuple_type_node().elements.ref_(self).is_empty()
                     {
                         target
                     } else {
@@ -974,15 +976,15 @@ impl TypeChecker {
                     vec![self.get_type_from_type_node_(node.ref_(self).as_array_type_node().element_type)?]
                 } else {
                     try_map(
-                        &node.ref_(self).as_tuple_type_node().elements,
+                        &*node.ref_(self).as_tuple_type_node().elements.ref_(self),
                         |&element: &Id<Node>, _| self.get_type_from_type_node_(element),
                     )?
                 };
-                links.borrow_mut().resolved_type =
+                links.ref_mut(self).resolved_type =
                     Some(self.create_normalized_type_reference(target, Some(element_types))?);
             }
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -1118,7 +1120,7 @@ impl TypeChecker {
                         .into(),
                     );
                     let property_links = property.ref_(self).as_transient_symbol().symbol_links();
-                    let mut property_links = property_links.borrow_mut();
+                    let mut property_links = property_links.ref_mut(self);
                     property_links.tuple_label_declaration =
                         named_member_declarations.and_then(|named_member_declarations| {
                             named_member_declarations.get(i).map(Clone::clone)
@@ -1138,7 +1140,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(self.number_type());
         } else {
             let mut literal_types = vec![];
@@ -1149,7 +1151,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(self.get_union_type(
                 &literal_types,
                 None,

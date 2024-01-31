@@ -192,7 +192,7 @@ impl TypeChecker {
                     Some(init) if is_object_literal_expression(&init.ref_(self))
                 ) && matches!(
                     symbol.and_then(|symbol| symbol.ref_(self).maybe_exports().clone()),
-                    Some(symbol_exports) if !(*symbol_exports).borrow().is_empty()
+                    Some(symbol_exports) if !symbol_exports.ref_(self).is_empty()
                 )
             }
             _ => false,
@@ -387,11 +387,11 @@ impl TypeChecker {
         })?;
         let signature_yield_type = iteration_types
             .as_ref()
-            .map(|iteration_types| iteration_types.yield_type())
+            .map(|iteration_types| iteration_types.ref_(self).yield_type())
             .unwrap_or_else(|| self.any_type());
         let signature_next_type = iteration_types
             .as_ref()
-            .map(|iteration_types| iteration_types.next_type())
+            .map(|iteration_types| iteration_types.ref_(self).next_type())
             .unwrap_or_else(|| self.any_type());
         let resolved_signature_next_type = if is_async {
             self.get_awaited_type_(signature_next_type, Option::<Id<Node>>::None, None, None)?
@@ -517,7 +517,7 @@ impl TypeChecker {
         // TODO: try and avoid String cloning here? 
         let mut texts = vec![node_as_template_expression.head.ref_(self).as_literal_like_node().text().clone()];
         let mut types = vec![];
-        for span in node_as_template_expression.template_spans.iter() {
+        for span in node_as_template_expression.template_spans.ref_(self).iter() {
             let span_ref = span.ref_(self);
             let span = span_ref.as_template_span();
             let type_ = self.check_expression(span.expression, None, None)?;
@@ -587,7 +587,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Expression*/
         contextual_type: Id<Type>,
-        inference_context: Option<Gc<InferenceContext>>,
+        inference_context: Option<Id<InferenceContext>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
         let context = self.get_context_node(node);
@@ -632,7 +632,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        let links_resolved_type_is_none = (*links).borrow().resolved_type.is_none();
+        let links_resolved_type_is_none = links.ref_(self).resolved_type.is_none();
         if links_resolved_type_is_none {
             if let Some(check_mode) = check_mode {
                 if check_mode != CheckMode::Normal {
@@ -643,11 +643,11 @@ impl TypeChecker {
             let save_flow_type_cache = self.maybe_flow_type_cache().take();
             self.set_flow_loop_start(self.flow_loop_count());
             let resolved_type = self.check_expression(node, check_mode, None)?;
-            links.borrow_mut().resolved_type = Some(resolved_type);
+            links.ref_mut(self).resolved_type = Some(resolved_type);
             *self.maybe_flow_type_cache() = save_flow_type_cache;
             self.set_flow_loop_start(save_flow_loop_start);
         }
-        let resolved_type = (*links).borrow().resolved_type.clone().unwrap();
+        let resolved_type = links.ref_(self).resolved_type.clone().unwrap();
         Ok(resolved_type)
     }
 }

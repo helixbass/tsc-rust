@@ -26,11 +26,11 @@ impl TypeChecker {
         right_is_this: Option<bool>,
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
-        let properties = &node_ref.as_object_literal_expression().properties;
-        if self.strict_null_checks && properties.is_empty() {
+        let properties = node_ref.as_object_literal_expression().properties;
+        if self.strict_null_checks && properties.ref_(self).is_empty() {
             return self.check_non_null_type(source_type, node);
         }
-        for i in 0..properties.len() {
+        for i in 0..properties.ref_(self).len() {
             self.check_object_literal_destructuring_property_assignment(
                 node,
                 source_type,
@@ -47,13 +47,13 @@ impl TypeChecker {
         node: Id<Node>, /*ObjectLiteralExpression*/
         object_literal_type: Id<Type>,
         property_index: usize,
-        all_properties: Option<&NodeArray /*<ObjectLiteralElementLike>*/>,
+        all_properties: Option<Id<NodeArray> /*<ObjectLiteralElementLike>*/>,
         right_is_this: Option<bool>,
     ) -> io::Result<Option<Id<Type>>> {
         let right_is_this = right_is_this.unwrap_or(false);
         let node_ref = node.ref_(self);
-        let properties = &node_ref.as_object_literal_expression().properties;
-        let property = properties[property_index];
+        let properties = node_ref.as_object_literal_expression().properties;
+        let property = properties.ref_(self)[property_index];
         Ok(match property.ref_(self).kind() {
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment => {
                 let name = property.ref_(self).as_named_declaration().name();
@@ -94,7 +94,7 @@ impl TypeChecker {
                 )?)
             }
             SyntaxKind::SpreadAssignment => {
-                if property_index < properties.len() - 1 {
+                if property_index < properties.ref_(self).len() - 1 {
                     self.error(
                         Some(property),
                         &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
@@ -107,7 +107,7 @@ impl TypeChecker {
                     }
                     let mut non_rest_names: Vec<Id<Node /*PropertyName*/>> = vec![];
                     if let Some(all_properties) = all_properties {
-                        for other_property in all_properties {
+                        for other_property in &*all_properties.ref_(self) {
                             if !is_spread_assignment(&other_property.ref_(self)) {
                                 non_rest_names.push(other_property.ref_(self).as_named_declaration().name());
                             }
@@ -167,9 +167,9 @@ impl TypeChecker {
         } else {
             Some(possibly_out_of_bounds_type.clone())
         };
-        for i in 0..elements.len() {
+        for i in 0..elements.ref_(self).len() {
             let mut type_ = possibly_out_of_bounds_type.clone();
-            if node_as_array_literal_expression.elements[i].ref_(self).kind() == SyntaxKind::SpreadElement {
+            if node_as_array_literal_expression.elements.ref_(self)[i].ref_(self).kind() == SyntaxKind::SpreadElement {
                 in_bounds_type = Some(in_bounds_type.try_unwrap_or_else(|| {
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
@@ -201,8 +201,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node_ref = node.ref_(self);
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
-        let elements = &node_as_array_literal_expression.elements;
-        let element = elements[element_index];
+        let elements = node_as_array_literal_expression.elements;
+        let element = elements.ref_(self)[element_index];
         if element.ref_(self).kind() != SyntaxKind::OmittedExpression {
             if element.ref_(self).kind() != SyntaxKind::SpreadElement {
                 let index_type = self.get_number_literal_type(Number::new(element_index as f64));
@@ -245,7 +245,7 @@ impl TypeChecker {
                     None,
                 )?));
             }
-            if element_index < elements.len() - 1 {
+            if element_index < elements.ref_(self).len() - 1 {
                 self.error(
                     Some(element),
                     &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
@@ -264,7 +264,7 @@ impl TypeChecker {
                     );
                 } else {
                     self.check_grammar_for_disallowed_trailing_comma(
-                        Some(&node_as_array_literal_expression.elements),
+                        Some(node_as_array_literal_expression.elements),
                         Some(&Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma)
                     );
                     let type_ = if self
@@ -334,7 +334,7 @@ impl TypeChecker {
         if target.ref_(self).kind() == SyntaxKind::BinaryExpression
             && target.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::EqualsToken
         {
-            self.check_binary_expression().call(target, check_mode)?;
+            self.check_binary_expression().ref_(self).call(target, check_mode)?;
             target = target.ref_(self).as_binary_expression().left;
         }
         if target.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
@@ -449,7 +449,7 @@ impl TypeChecker {
 
     pub(super) fn create_check_binary_expression(&self) -> CheckBinaryExpression {
         let trampoline = create_binary_expression_trampoline(
-            CheckBinaryExpressionStateMachine::new(self.rc_wrapper()),
+            CheckBinaryExpressionStateMachine::new(self.arena_id()),
         );
         CheckBinaryExpression::new(trampoline)
     }
@@ -934,8 +934,8 @@ impl TypeChecker {
                     let sf_as_source_file = sf_ref.as_source_file();
                     let source_text = sf_as_source_file.text_as_chars();
                     let start = skip_trivia(&source_text, left.ref_(self).pos(), None, None, None);
-                    let is_in_diag_2657 = (*sf_as_source_file.parse_diagnostics())
-                        .borrow()
+                    let is_in_diag_2657 = sf_as_source_file.parse_diagnostics()
+                        .ref_(self)
                         .iter()
                         .any(|diag| {
                             if diag.ref_(self).code()
@@ -997,11 +997,11 @@ pub struct WorkArea {
 
 #[derive(Debug, Trace, Finalize)]
 pub struct CheckBinaryExpressionStateMachine {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
 }
 
 impl CheckBinaryExpressionStateMachine {
-    pub fn new(type_checker: Gc<TypeChecker>) -> Self {
+    pub fn new(type_checker: Id<TypeChecker>) -> Self {
         Self { type_checker }
     }
 
@@ -1015,7 +1015,7 @@ impl CheckBinaryExpressionStateMachine {
         }
         let type_ = self
             .type_checker
-            .check_expression(node, (*state).borrow().check_mode, None)?;
+            .ref_(self).check_expression(node, (*state).borrow().check_mode, None)?;
         self.set_last_result(&mut state.borrow_mut(), Some(type_));
         Ok(None)
     }
@@ -1090,7 +1090,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 state.skip = true;
                 self.set_last_result(
                     &mut state,
-                    Some(self.type_checker.check_expression(
+                    Some(self.type_checker.ref_(self).check_expression(
                         node_as_binary_expression.right,
                         check_mode,
                         None,
@@ -1101,7 +1101,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         }
 
         self.type_checker
-            .check_grammar_nullish_coalesce_with_logical_expression(node);
+            .ref_(self).check_grammar_nullish_coalesce_with_logical_expression(node);
 
         let operator = node_as_binary_expression.operator_token.ref_(self).kind();
         if operator == SyntaxKind::EqualsToken
@@ -1115,9 +1115,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 state.skip = true;
                 self.set_last_result(
                     &mut state,
-                    Some(self.type_checker.check_destructuring_assignment(
+                    Some(self.type_checker.ref_(self).check_destructuring_assignment(
                         node_as_binary_expression.left,
-                        self.type_checker.check_expression(
+                        self.type_checker.ref_(self).check_expression(
                             node_as_binary_expression.right,
                             check_mode,
                             None,
@@ -1169,7 +1169,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 if operator == SyntaxKind::AmpersandAmpersandToken {
                     let parent = walk_up_parenthesized_expressions(node.ref_(self).parent(), self).unwrap();
                     self.type_checker
-                        .check_testing_known_truthy_callable_or_awaitable_type(
+                        .ref_(self).check_testing_known_truthy_callable_or_awaitable_type(
                             node_as_binary_expression.left,
                             left_type,
                             if is_if_statement(&parent.ref_(self)) {
@@ -1180,7 +1180,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         )?;
                 }
                 self.type_checker
-                    .check_truthiness_of_type(left_type, node_as_binary_expression.left);
+                    .ref_(self).check_truthiness_of_type(left_type, node_as_binary_expression.left);
             }
         }
 
@@ -1218,7 +1218,7 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
             let node_ref = node.ref_(self);
             let node_as_binary_expression = node_ref.as_binary_expression();
-            result = Some(self.type_checker.check_binary_like_expression_worker(
+            result = Some(self.type_checker.ref_(self).check_binary_like_expression_worker(
                 node_as_binary_expression.left,
                 node_as_binary_expression.operator_token,
                 node_as_binary_expression.right,
@@ -1267,6 +1267,6 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
 impl HasArena for CheckBinaryExpressionStateMachine {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.arena()
+        unimplemented!()
     }
 }

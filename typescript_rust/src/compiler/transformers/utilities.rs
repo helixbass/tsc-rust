@@ -16,8 +16,8 @@ use crate::{
     is_private_identifier, is_property_declaration, is_statement, is_static,
     is_string_literal_like, is_super_call, return_default_if_none, try_visit_node,
     FunctionLikeDeclarationInterface, HasInitializerInterface, InternalSymbolName, Matches,
-    ModifierFlags, MultiMap, HasArena,
-    InArena,
+    ModifierFlags, MultiMap,
+    HasArena, InArena, per_arena,
     TransformNodesTransformationResult,
 };
 
@@ -76,7 +76,7 @@ fn contains_default_reference(node: Option<Id<Node /*NamedImportBindings*/>>, ar
     }
     node.ref_(arena).as_named_imports()
         .elements
-        .iter()
+        .ref_(arena).iter()
         .any(|&element| is_named_default_reference(element, arena))
 }
 
@@ -90,11 +90,12 @@ fn is_named_default_reference(e: Id<Node> /*ImportSpecifier*/, arena: &impl HasA
         })
 }
 
-pub fn chain_bundle() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
-    thread_local! {
-        static CHAIN_BUNDLE: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(ChainBundle));
-    }
-    CHAIN_BUNDLE.with(|chain_bundle| chain_bundle.clone())
+pub fn chain_bundle(arena: &impl HasArena) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+    per_arena!(
+        Box<dyn WrapCustomTransformerFactoryHandleDefault>,
+        arena,
+        arena.alloc_wrap_custom_transformer_factory_handle_default(Box::new(ChainBundle))
+    )
 }
 
 pub fn get_export_needs_import_star_helper(node: Id<Node> /*ExportDeclaration*/, arena: &impl HasArena) -> bool {
@@ -117,14 +118,14 @@ pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/,
     let bindings_ref = bindings.ref_(arena);
     let bindings_as_named_imports = bindings_ref.as_named_imports();
     let mut default_ref_count = 0;
-    for &binding in &bindings_as_named_imports.elements {
+    for &binding in &*bindings_as_named_imports.elements.ref_(arena) {
         if is_named_default_reference(binding, arena) {
             default_ref_count += 1;
         }
     }
 
-    default_ref_count > 0 && default_ref_count != bindings_as_named_imports.elements.len()
-        || (bindings_as_named_imports.elements.len() - default_ref_count) != 0
+    default_ref_count > 0 && default_ref_count != bindings_as_named_imports.elements.ref_(arena).len()
+        || (bindings_as_named_imports.elements.ref_(arena).len() - default_ref_count) != 0
             && is_default_import(node, arena)
 }
 
@@ -168,7 +169,7 @@ pub fn collect_external_module_info(
     let mut has_import_star = false;
     let mut has_import_default = false;
 
-    for &node in &source_file_as_source_file.statements() {
+    for &node in &*source_file_as_source_file.statements().ref_(arena) {
         match node.ref_(arena).kind() {
             SyntaxKind::ImportDeclaration => {
                 external_imports.push(node.clone());
@@ -246,11 +247,11 @@ pub fn collect_external_module_info(
             }
             SyntaxKind::VariableStatement => {
                 if has_syntactic_modifier(node, ModifierFlags::Export, arena) {
-                    for &decl in &node
+                    for &decl in &*node
                         .ref_(arena).as_variable_statement()
                         .declaration_list
                         .ref_(arena).as_variable_declaration_list()
-                        .declarations
+                        .declarations.ref_(arena)
                     {
                         collect_exported_variable_info(
                             decl,
@@ -268,7 +269,7 @@ pub fn collect_external_module_info(
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
-                                .push(context.factory().get_declaration_name(
+                                .push(context.factory().ref_(arena).get_declaration_name(
                                     Some(node),
                                     None,
                                     None,
@@ -295,7 +296,7 @@ pub fn collect_external_module_info(
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
-                                .push(context.factory().get_declaration_name(
+                                .push(context.factory().ref_(arena).get_declaration_name(
                                     Some(node),
                                     None,
                                     None,
@@ -322,8 +323,8 @@ pub fn collect_external_module_info(
     }
 
     let external_helpers_import_declaration = create_external_helpers_import_declaration_if_needed(
-        &context.factory(),
-        &context.get_emit_helper_factory(),
+        &context.factory().ref_(arena),
+        &context.get_emit_helper_factory().ref_(arena),
         source_file,
         compiler_options,
         Some(has_export_stars_to_export_values),
@@ -357,12 +358,12 @@ fn add_exported_names_for_export_declaration(
 ) -> io::Result<()> {
     let node_ref = node.ref_(arena);
     let node_as_export_declaration = node_ref.as_export_declaration();
-    for &specifier in &cast(
+    for &specifier in &*cast(
         node_as_export_declaration.export_clause,
         |node: &Id<Node>| is_named_exports(&node.ref_(arena)),
     )
     .ref_(arena).as_named_exports()
-    .elements
+    .elements.ref_(arena)
     {
         let specifier_ref = specifier.ref_(arena);
         let specifier_as_export_specifier = specifier_ref.as_export_specifier();
@@ -410,7 +411,7 @@ fn collect_exported_variable_info(
 ) {
     let decl_name = decl.ref_(arena).as_named_declaration().name();
     if is_binding_pattern(Some(&*decl_name.ref_(arena))) {
-        for &element in &decl_name.ref_(arena).as_has_elements().elements() {
+        for &element in &*decl_name.ref_(arena).as_has_elements().elements().ref_(arena) {
             if !is_omitted_expression(&element.ref_(arena)) {
                 collect_exported_variable_info(element, unique_exports, exported_names, arena);
             }
@@ -467,7 +468,7 @@ pub fn get_non_assignment_operator_for_compound_assignment(
 }
 
 pub fn add_prologue_directives_and_initial_super_call(
-    factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    factory: &NodeFactory,
     ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
     mut visitor: impl FnMut(Id<Node>) -> VisitResult, arena: &impl HasArena,
@@ -479,7 +480,7 @@ pub fn add_prologue_directives_and_initial_super_call(
 }
 
 pub fn try_add_prologue_directives_and_initial_super_call(
-    factory: &NodeFactory<impl 'static + BaseNodeFactory + Trace + Finalize>,
+    factory: &NodeFactory,
     ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
     mut visitor: impl FnMut(Id<Node>) -> io::Result<VisitResult>,
@@ -489,26 +490,26 @@ pub fn try_add_prologue_directives_and_initial_super_call(
     let ctor_as_constructor_declaration = ctor_ref.as_constructor_declaration();
     if let Some(ctor_body) = ctor_as_constructor_declaration.maybe_body() {
         let ctor_body_ref = ctor_body.ref_(arena);
-        let statements = &ctor_body_ref.as_block().statements;
+        let statements = ctor_body_ref.as_block().statements;
         let index = factory.try_copy_prologue(
-            statements,
+            &statements.ref_(arena),
             result,
             Some(false),
             Some(|node: Id<Node>| visitor(node)),
         )?;
-        if index == statements.len() {
+        if index == statements.ref_(arena).len() {
             return Ok(index);
         }
 
         let super_index = statements
-            .iter()
+            .ref_(arena).iter()
             .skip(index)
             .position(|s| {
                 is_expression_statement(&s.ref_(arena)) && is_super_call(s.ref_(arena).as_expression_statement().expression, arena)
             })
             .map(|found| found + index);
         if let Some(super_index) = super_index {
-            for &statement in statements.iter().skip(index).take(super_index - index + 1) {
+            for &statement in statements.ref_(arena).iter().skip(index).take(super_index - index + 1) {
                 result.push(try_visit_node(
                     statement,
                     Some(|node: Id<Node>| visitor(node)),
@@ -533,7 +534,7 @@ pub fn get_properties(
 ) -> Vec<Id<Node /*PropertyDeclaration*/>> {
     node.ref_(arena).as_class_like_declaration()
         .members()
-        .iter()
+        .ref_(arena).iter()
         .filter(|&&m| is_initialized_or_static_property(m, require_initializer, is_static, arena))
         .cloned()
         .collect()
@@ -550,7 +551,7 @@ pub fn get_static_properties_and_class_static_block(
 ) -> Vec<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
     node.ref_(arena).as_class_like_declaration()
         .members()
-        .iter()
+        .ref_(arena).iter()
         .filter(|&&member| is_static_property_declaration_or_class_static_block_declaration(member, arena))
         .cloned()
         .collect()

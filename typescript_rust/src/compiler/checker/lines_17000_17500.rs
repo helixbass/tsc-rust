@@ -35,7 +35,7 @@ impl TypeChecker {
         error_node: Option<Id<Node>>,
         expr: Option<Id<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> io::Result<bool> {
         self.check_type_related_to_and_optionally_elaborate(
             source,
@@ -57,8 +57,8 @@ impl TypeChecker {
         error_node: Option<Id<Node>>,
         expr: Option<Id<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         if self.is_type_related_to(source, target, relation.clone())? {
             return Ok(true);
@@ -103,8 +103,8 @@ impl TypeChecker {
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         if node.is_none() || self.is_or_has_generic_conditional(target) {
             return Ok(false);
@@ -211,8 +211,8 @@ impl TypeChecker {
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         let call_signatures = self.get_signatures_of_type(source, SignatureKind::Call)?;
         let construct_signatures = self.get_signatures_of_type(source, SignatureKind::Construct)?;
@@ -222,7 +222,7 @@ impl TypeChecker {
         {
             if try_some(
                 Some(&signatures),
-                Some(|s: &Gc<Signature>| -> io::Result<_> {
+                Some(|s: &Id<Signature>| -> io::Result<_> {
                     let return_type = self.get_return_type_of_signature(s.clone())?;
                     Ok(!return_type
                         .ref_(self)
@@ -240,7 +240,7 @@ impl TypeChecker {
                 }),
             )? {
                 let result_obj = error_output_container.unwrap_or_else(|| {
-                    Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+                    self.alloc_check_type_error_output_container(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
                 });
                 self.check_type_assignable_to(
                     source,
@@ -250,10 +250,10 @@ impl TypeChecker {
                     containing_message_chain.clone(),
                     Some(result_obj.clone()),
                 )?;
-                let diagnostic = result_obj.get_error(result_obj.errors_len() - 1).unwrap();
+                let diagnostic = result_obj.ref_(self).get_error(result_obj.ref_(self).errors_len() - 1).unwrap();
                 add_related_info(
                     &diagnostic.ref_(self),
-                    vec![create_diagnostic_for_node(
+                    vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                         node,
                         if
                         /*signatures === constructSignatures*/
@@ -265,7 +265,7 @@ impl TypeChecker {
                         None,
                         self,
                     )
-                    .into()],
+                    .into())],
                 );
                 return Ok(true);
             }
@@ -279,8 +279,8 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         let node_ref = node.ref_(self);
         let node_as_arrow_function = node_ref.as_arrow_function();
@@ -288,7 +288,7 @@ impl TypeChecker {
             return Ok(false);
         }
         if some(
-            Some(&node_as_arrow_function.parameters()),
+            Some(&*node_as_arrow_function.parameters().ref_(self)),
             Some(|parameter: &Id<Node>| has_type(&parameter.ref_(self))),
         ) {
             return Ok(false);
@@ -305,7 +305,7 @@ impl TypeChecker {
         let return_expression = node_as_arrow_function.maybe_body().unwrap();
         let source_return = self.get_return_type_of_signature(source_sig)?;
         let target_return = self.get_union_type(
-            &try_map(&target_signatures, |signature: &Gc<Signature>, _| {
+            &try_map(&target_signatures, |signature: &Id<Signature>, _| {
                 self.get_return_type_of_signature(signature.clone())
             })?,
             None,
@@ -335,7 +335,7 @@ impl TypeChecker {
                 return Ok(elaborated);
             }
             let result_obj = error_output_container.unwrap_or_else(|| {
-                Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+                self.alloc_check_type_error_output_container(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
             });
             self.check_type_related_to(
                 source_return,
@@ -346,7 +346,7 @@ impl TypeChecker {
                 containing_message_chain,
                 Some(result_obj.clone()),
             )?;
-            if result_obj.errors_len() > 0 {
+            if result_obj.ref_(self).errors_len() > 0 {
                 if let Some(target_symbol) = target.ref_(self).maybe_symbol() {
                     let target_symbol_ref = target_symbol.ref_(self);
                     let target_symbol_declarations = target_symbol_ref.maybe_declarations();
@@ -355,14 +355,14 @@ impl TypeChecker {
                         .filter(|target_symbol_declarations| !target_symbol_declarations.is_empty())
                     {
                         add_related_info(
-                            &result_obj.get_error(result_obj.errors_len() - 1).unwrap().ref_(self),
+                            &result_obj.ref_(self).get_error(result_obj.ref_(self).errors_len() - 1).unwrap().ref_(self),
                             vec![
-                                create_diagnostic_for_node(
+                                self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                     target_symbol_declarations[0],
                                     &Diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
                                     None,
                                     self,
-                                ).into()
+                                ).into())
                             ]
                         );
                     }
@@ -382,14 +382,14 @@ impl TypeChecker {
                     )?
                 {
                     add_related_info(
-                        &result_obj.get_error(result_obj.errors_len() - 1).unwrap().ref_(self),
-                        vec![create_diagnostic_for_node(
+                        &result_obj.ref_(self).get_error(result_obj.ref_(self).errors_len() - 1).unwrap().ref_(self),
+                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                             node,
                             &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
                             None,
                             self,
                         )
-                        .into()],
+                        .into())],
                     );
                 }
                 return Ok(true);
@@ -457,8 +457,8 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         let mut reported_error = false;
         for status in iterator {
@@ -511,9 +511,9 @@ impl TypeChecker {
                 };
                 reported_error = true;
                 if !elaborated {
-                    let result_obj_default: Gc<Box<dyn CheckTypeErrorOutputContainer>> =
-                        Gc::new(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)));
-                    let result_obj: Gc<Box<dyn CheckTypeErrorOutputContainer>> =
+                    let result_obj_default: Id<Box<dyn CheckTypeErrorOutputContainer>> =
+                        self.alloc_check_type_error_output_container(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+                    let result_obj: Id<Box<dyn CheckTypeErrorOutputContainer>> =
                         error_output_container.clone().unwrap_or(result_obj_default);
                     let specific_source = if let Some(next) = next {
                         self.check_expression_for_mutable_location_with_contextual_type(
@@ -549,7 +549,7 @@ impl TypeChecker {
                             self,
                         ).into());
                         self.diagnostics().add(diag.clone());
-                        result_obj.set_errors(vec![diag]);
+                        result_obj.ref_(self).set_errors(vec![diag]);
                     } else {
                         let target_is_optional = matches!(
                             prop_name.as_ref(),
@@ -594,9 +594,9 @@ impl TypeChecker {
                             )?;
                         }
                     }
-                    if result_obj.errors_len() > 0 {
+                    if result_obj.ref_(self).errors_len() > 0 {
                         let reported_diag =
-                            result_obj.get_error(result_obj.errors_len() - 1).unwrap();
+                            result_obj.ref_(self).get_error(result_obj.ref_(self).errors_len() - 1).unwrap();
                         let property_name = if self.is_type_usable_as_property_name(name_type) {
                             Some(self.get_property_name_from_type(name_type))
                         } else {
@@ -611,7 +611,7 @@ impl TypeChecker {
                             let index_info = self.get_applicable_index_info(target, name_type)?;
                             if let Some(index_info) = index_info.as_ref() {
                                 if let Some(index_info_declaration) =
-                                    index_info.declaration.filter(|&declaration| {
+                                    index_info.ref_(self).declaration.filter(|&declaration| {
                                         !get_source_file_of_node(declaration, self)
                                             .ref_(self).as_source_file()
                                             .has_no_default_lib()
@@ -621,12 +621,12 @@ impl TypeChecker {
                                     add_related_info(
                                         &reported_diag.ref_(self),
                                         vec![
-                                            create_diagnostic_for_node(
+                                            self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                                 index_info_declaration,
                                                 &Diagnostics::The_expected_type_comes_from_this_index_signature,
                                                 None,
                                                 self,
-                                            ).into()
+                                            ).into())
                                         ]
                                     );
                                 }
@@ -670,7 +670,7 @@ impl TypeChecker {
                                 add_related_info(
                                     &reported_diag.ref_(self),
                                     vec![
-                                        create_diagnostic_for_node(
+                                        self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                             target_node,
                                             &Diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
                                             Some(vec![
@@ -692,7 +692,7 @@ impl TypeChecker {
                                                 )?
                                             ]),
                                             self,
-                                        ).into()
+                                        ).into())
                                     ]
                                 );
                             }
@@ -710,12 +710,12 @@ impl TypeChecker {
     ) -> Vec<ElaborationIteratorItem> {
         let node_ref = node.ref_(self);
         let node_as_jsx_attributes = node_ref.as_jsx_attributes();
-        if length(Some(&node_as_jsx_attributes.properties)) == 0 {
+        if length(Some(&*node_as_jsx_attributes.properties.ref_(self))) == 0 {
             return vec![];
         }
         node_as_jsx_attributes
             .properties
-            .iter()
+            .ref_(self).iter()
             .flat_map(|prop| {
                 if is_jsx_spread_attribute(&prop.ref_(self))
                     || self.is_hyphenated_jsx_name(&id_text(&prop.ref_(self).as_jsx_attribute().name.ref_(self)))
@@ -741,12 +741,12 @@ impl TypeChecker {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_ref = node.ref_(self);
         let node_as_jsx_element = node_ref.as_jsx_element();
-        if length(Some(&node_as_jsx_element.children)) == 0 {
+        if length(Some(&*node_as_jsx_element.children.ref_(self))) == 0 {
             return Ok(vec![]);
         }
         let mut member_offset = 0;
         try_flat_map(
-            Some(&node_as_jsx_element.children),
+            Some(&*node_as_jsx_element.children.ref_(self)),
             |&child, i| -> io::Result<_> {
                 let name_type =
                     self.get_number_literal_type(Number::new((i - member_offset) as f64));
@@ -814,8 +814,8 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         let mut result = self.elaborate_elementwise(
             self.generate_jsx_attributes(node),
@@ -844,7 +844,7 @@ impl TypeChecker {
                 None,
             )?;
             let valid_children =
-                get_semantic_jsx_children(&containing_element.ref_(self).as_jsx_element().children, self);
+                get_semantic_jsx_children(&containing_element.ref_(self).as_jsx_element().children.ref_(self), self);
             if length(Some(&valid_children)) == 0 {
                 return Ok(result);
             }
@@ -954,8 +954,8 @@ impl TypeChecker {
                         ])
                     );
                     if let Some(error_output_container) = error_output_container.as_ref() {
-                        if matches!(error_output_container.skip_logging(), Some(true)) {
-                            error_output_container.push_error(diag);
+                        if matches!(error_output_container.ref_(self).skip_logging(), Some(true)) {
+                            error_output_container.ref_(self).push_error(diag);
                         }
                     }
                 }
@@ -1003,8 +1003,8 @@ impl TypeChecker {
                         ])
                     );
                     if let Some(error_output_container) = error_output_container.as_ref() {
-                        if matches!(error_output_container.skip_logging(), Some(true)) {
-                            error_output_container.push_error(diag);
+                        if matches!(error_output_container.ref_(self).skip_logging(), Some(true)) {
+                            error_output_container.ref_(self).push_error(diag);
                         }
                     }
                 }
@@ -1020,12 +1020,12 @@ impl TypeChecker {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_ref = node.ref_(self);
         let node_as_array_literal_expression = node_ref.as_array_literal_expression();
-        let len = length(Some(&node_as_array_literal_expression.elements));
+        let len = length(Some(&*node_as_array_literal_expression.elements.ref_(self)));
         let mut ret = vec![];
         if len == 0 {
             return Ok(ret);
         }
-        for (i, elem) in node_as_array_literal_expression.elements.iter().enumerate() {
+        for (i, elem) in node_as_array_literal_expression.elements.ref_(self).iter().enumerate() {
             if self.is_tuple_like_type(target)?
                 && self
                     .get_property_of_type_(target, &i.to_string(), None)?
@@ -1053,8 +1053,8 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         if target.ref_(self).flags().intersects(TypeFlags::Primitive) {
             return Ok(false);
@@ -1094,11 +1094,11 @@ impl TypeChecker {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        if length(Some(&node_as_object_literal_expression.properties)) == 0 {
+        if length(Some(&node_as_object_literal_expression.properties.ref_(self))) == 0 {
             return Ok(vec![]);
         }
         try_flat_map(
-            Some(&node_as_object_literal_expression.properties),
+            Some(&*node_as_object_literal_expression.properties.ref_(self)),
             |&prop: &Id<Node>, _| -> io::Result<_> {
                 if is_spread_assignment(&prop.ref_(self)) {
                     return Ok(vec![]);
@@ -1154,8 +1154,8 @@ impl TypeChecker {
         source: Id<Type>,
         target: Id<Type>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         if target.ref_(self).flags().intersects(TypeFlags::Primitive) {
             return Ok(false);
@@ -1176,7 +1176,7 @@ impl TypeChecker {
         target: Id<Type>,
         error_node: Id<Node>,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> io::Result<bool> {
         self.check_type_related_to(
             source,
@@ -1191,8 +1191,8 @@ impl TypeChecker {
 
     pub(super) fn is_signature_assignable_to(
         &self,
-        source: Gc<Signature>,
-        target: Gc<Signature>,
+        source: Id<Signature>,
+        target: Id<Signature>,
         ignore_return_types: bool,
     ) -> io::Result<bool> {
         Ok(self.compare_signatures_related(
@@ -1206,41 +1206,41 @@ impl TypeChecker {
             false,
             &mut None,
             Option::<&fn(Id<Type>, Id<Type>) -> io::Result<()>>::None,
-            Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
-                self.rc_wrapper(),
+            self.alloc_type_comparer(Box::new(TypeComparerCompareTypesAssignable::new(
+                self.arena_id(),
             ))),
             None,
         )? != Ternary::False)
     }
 
-    pub(super) fn is_any_signature(&self, s: Gc<Signature>) -> io::Result<bool> {
-        let s_type_parameters_is_none = s.maybe_type_parameters().is_none();
+    pub(super) fn is_any_signature(&self, s: Id<Signature>) -> io::Result<bool> {
+        let s_type_parameters_is_none = s.ref_(self).maybe_type_parameters().is_none();
         Ok(s_type_parameters_is_none
-            && match *s.maybe_this_parameter() {
+            && match *s.ref_(self).maybe_this_parameter() {
                 None => true,
                 Some(s_this_parameter) => {
                     self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)?))
                 }
             }
-            && s.parameters().len() == 1
-            && signature_has_rest_parameter(&s)
-            && (self.get_type_of_parameter(s.parameters()[0])? == self.any_array_type()
-                || self.is_type_any(Some(self.get_type_of_parameter(s.parameters()[0])?)))
+            && s.ref_(self).parameters().len() == 1
+            && signature_has_rest_parameter(&s.ref_(self))
+            && (self.get_type_of_parameter(s.ref_(self).parameters()[0])? == self.any_array_type()
+                || self.is_type_any(Some(self.get_type_of_parameter(s.ref_(self).parameters()[0])?)))
             && self.is_type_any(Some(self.get_return_type_of_signature(s)?)))
     }
 
     pub(super) fn compare_signatures_related(
         &self,
-        mut source: Gc<Signature>,
-        mut target: Gc<Signature>,
+        mut source: Id<Signature>,
+        mut target: Id<Signature>,
         check_mode: SignatureCheckMode,
         report_errors: bool,
         error_reporter: &mut Option<ErrorReporter>,
         incompatible_error_reporter: Option<&impl Fn(Id<Type>, Id<Type>) -> io::Result<()>>,
-        compare_types: Gc<Box<dyn TypeComparer>>,
+        compare_types: Id<Box<dyn TypeComparer>>,
         report_unreliable_markers: Option<Id<TypeMapper>>,
     ) -> io::Result<Ternary> {
-        if Gc::ptr_eq(&source, &target) {
+        if source == target {
             return Ok(Ternary::True);
         }
 
@@ -1248,22 +1248,22 @@ impl TypeChecker {
             return Ok(Ternary::True);
         }
 
-        let target_count = self.get_parameter_count(&target)?;
-        let source_has_more_parameters = !self.has_effective_rest_parameter(&target)?
+        let target_count = self.get_parameter_count(target)?;
+        let source_has_more_parameters = !self.has_effective_rest_parameter(target)?
             && if check_mode.intersects(SignatureCheckMode::StrictArity) {
-                self.has_effective_rest_parameter(&source)?
-                    || self.get_parameter_count(&source)? > target_count
+                self.has_effective_rest_parameter(source)?
+                    || self.get_parameter_count(source)? > target_count
             } else {
-                self.get_min_argument_count(&source, None)? > target_count
+                self.get_min_argument_count(source, None)? > target_count
             };
         if source_has_more_parameters {
             return Ok(Ternary::False);
         }
 
         if matches!(
-            source.maybe_type_parameters().as_ref(),
+            source.ref_(self).maybe_type_parameters().as_ref(),
             Some(source_type_parameters) if !matches!(
-                target.maybe_type_parameters().as_ref(),
+                target.ref_(self).maybe_type_parameters().as_ref(),
                 Some(target_type_parameters) if source_type_parameters == target_type_parameters
             )
         ) {
@@ -1276,9 +1276,9 @@ impl TypeChecker {
             )?;
         }
 
-        let source_count = self.get_parameter_count(&source)?;
-        let source_rest_type = self.get_non_array_rest_type(&source)?;
-        let target_rest_type = self.get_non_array_rest_type(&target)?;
+        let source_count = self.get_parameter_count(source)?;
+        let source_rest_type = self.get_non_array_rest_type(source)?;
+        let target_rest_type = self.get_non_array_rest_type(target)?;
         if source_rest_type.is_some() || target_rest_type.is_some() {
             self.instantiate_type(
                 source_rest_type
@@ -1292,7 +1292,7 @@ impl TypeChecker {
             return Ok(Ternary::False);
         }
 
-        let kind = target.declaration.as_ref().map_or_else(
+        let kind = target.ref_(self).declaration.as_ref().map_or_else(
             || SyntaxKind::Unknown,
             |target_declaration| target_declaration.ref_(self).kind(),
         );
@@ -1306,17 +1306,17 @@ impl TypeChecker {
             );
         let mut result = Ternary::True;
 
-        let source_this_type = self.get_this_type_of_signature(&source)?;
+        let source_this_type = self.get_this_type_of_signature(source)?;
         if let Some(source_this_type) =
             source_this_type.filter(|&source_this_type| source_this_type != self.void_type())
         {
-            let target_this_type = self.get_this_type_of_signature(&target)?;
+            let target_this_type = self.get_this_type_of_signature(target)?;
             if let Some(target_this_type) = target_this_type {
                 let related = if !strict_variance {
                     let mut related =
-                        compare_types.call(source_this_type, target_this_type, Some(false))?;
+                        compare_types.ref_(self).call(source_this_type, target_this_type, Some(false))?;
                     if related == Ternary::False {
-                        related = compare_types.call(
+                        related = compare_types.ref_(self).call(
                             target_this_type,
                             source_this_type,
                             Some(report_errors),
@@ -1324,7 +1324,7 @@ impl TypeChecker {
                     }
                     related
                 } else {
-                    compare_types.call(target_this_type, source_this_type, Some(report_errors))?
+                    compare_types.ref_(self).call(target_this_type, source_this_type, Some(report_errors))?
                 };
                 if related == Ternary::False {
                     if report_errors {
@@ -1357,17 +1357,17 @@ impl TypeChecker {
                 rest_index,
                 Some(rest_index) if i == rest_index
             ) {
-                Some(self.get_rest_type_at_position(&source, i)?)
+                Some(self.get_rest_type_at_position(source, i)?)
             } else {
-                self.try_get_type_at_position(&source, i)?
+                self.try_get_type_at_position(source, i)?
             };
             let target_type = if matches!(
                 rest_index,
                 Some(rest_index) if i == rest_index
             ) {
-                Some(self.get_rest_type_at_position(&target, i)?)
+                Some(self.get_rest_type_at_position(target, i)?)
             } else {
-                self.try_get_type_at_position(&target, i)?
+                self.try_get_type_at_position(target, i)?
             };
             if let Some(source_type) = source_type {
                 if let Some(target_type) = target_type {
@@ -1382,7 +1382,7 @@ impl TypeChecker {
                         self.get_single_call_signature(self.get_non_nullable_type(target_type)?)?
                     };
                     let callbacks = matches!(
-                        (source_sig.as_ref(), target_sig.as_ref()),
+                        (source_sig, target_sig),
                         (Some(source_sig), Some(target_sig)) if
                             self.get_type_predicate_of_signature(source_sig)?.is_none() &&
                             self.get_type_predicate_of_signature(target_sig)?.is_none() &&
@@ -1409,9 +1409,9 @@ impl TypeChecker {
                         if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance
                         {
                             let mut related =
-                                compare_types.call(source_type, target_type, Some(false))?;
+                                compare_types.ref_(self).call(source_type, target_type, Some(false))?;
                             if related == Ternary::False {
-                                related = compare_types.call(
+                                related = compare_types.ref_(self).call(
                                     target_type,
                                     source_type,
                                     Some(report_errors),
@@ -1419,14 +1419,14 @@ impl TypeChecker {
                             }
                             related
                         } else {
-                            compare_types.call(target_type, source_type, Some(report_errors))?
+                            compare_types.ref_(self).call(target_type, source_type, Some(report_errors))?
                         }
                     };
                     if related != Ternary::False
                         && check_mode.intersects(SignatureCheckMode::StrictArity)
-                        && i >= self.get_min_argument_count(&source, None)?
-                        && i < self.get_min_argument_count(&target, None)?
-                        && compare_types.call(source_type, target_type, Some(false))?
+                        && i >= self.get_min_argument_count(source, None)?
+                        && i < self.get_min_argument_count(target, None)?
+                        && compare_types.ref_(self).call(source_type, target_type, Some(false))?
                             != Ternary::False
                     {
                         related = Ternary::False;
@@ -1439,11 +1439,11 @@ impl TypeChecker {
                                 ),
                                 Some(vec![
                                     unescape_leading_underscores(
-                                        &*self.get_parameter_name_at_position(&source, i, None)?,
+                                        &*self.get_parameter_name_at_position(source, i, None)?,
                                     )
                                     .to_owned(),
                                     unescape_leading_underscores(
-                                        &*self.get_parameter_name_at_position(&target, i, None)?,
+                                        &*self.get_parameter_name_at_position(target, i, None)?,
                                     )
                                     .to_owned(),
                                 ]),
@@ -1461,7 +1461,7 @@ impl TypeChecker {
                 self.any_type()
             } else if let Some(target_declaration) =
                 target
-                    .declaration
+                    .ref_(self).declaration
                     .try_filter(|&target_declaration| {
                         self.is_js_constructor(Some(target_declaration))
                     })?
@@ -1480,7 +1480,7 @@ impl TypeChecker {
                 self.any_type()
             } else if let Some(source_declaration) =
                 source
-                    .declaration
+                    .ref_(self).declaration
                     .try_filter(|&source_declaration| {
                         self.is_js_constructor(Some(source_declaration))
                     })?
@@ -1493,20 +1493,20 @@ impl TypeChecker {
                 self.get_return_type_of_signature(source.clone())?
             };
 
-            let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
-            if let Some(target_type_predicate) = target_type_predicate.as_ref() {
-                let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
-                if let Some(source_type_predicate) = source_type_predicate.as_ref() {
+            let target_type_predicate = self.get_type_predicate_of_signature(target)?;
+            if let Some(target_type_predicate) = target_type_predicate {
+                let source_type_predicate = self.get_type_predicate_of_signature(source)?;
+                if let Some(source_type_predicate) = source_type_predicate {
                     result &= self.compare_type_predicate_related_to(
                         source_type_predicate,
                         target_type_predicate,
                         report_errors,
                         error_reporter,
                         &mut |s: Id<Type>, t: Id<Type>, report_errors: Option<bool>| {
-                            compare_types.call(s, t, report_errors)
+                            compare_types.ref_(self).call(s, t, report_errors)
                         },
                     )?;
-                } else if is_identifier_type_predicate(target_type_predicate) {
+                } else if is_identifier_type_predicate(&target_type_predicate.ref_(self)) {
                     if report_errors {
                         (error_reporter.as_mut().unwrap())(
                             Cow::Borrowed(&Diagnostics::Signature_0_must_be_a_type_predicate),
@@ -1524,9 +1524,9 @@ impl TypeChecker {
             } else {
                 result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
                     let mut val =
-                        compare_types.call(target_return_type, source_return_type, Some(false))?;
+                        compare_types.ref_(self).call(target_return_type, source_return_type, Some(false))?;
                     if val == Ternary::False {
-                        val = compare_types.call(
+                        val = compare_types.ref_(self).call(
                             source_return_type,
                             target_return_type,
                             Some(report_errors),
@@ -1534,7 +1534,7 @@ impl TypeChecker {
                     }
                     val
                 } else {
-                    compare_types.call(
+                    compare_types.ref_(self).call(
                         source_return_type,
                         target_return_type,
                         Some(report_errors),
@@ -1563,11 +1563,11 @@ pub(super) struct ElaborationIteratorItem {
 pub(super) type ErrorReporter<'a> =
     &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>) -> io::Result<()>;
 
-pub(super) trait CheckTypeContainingMessageChain: Trace + Finalize {
+pub trait CheckTypeContainingMessageChain: Trace + Finalize {
     fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>>;
 }
 
-pub(super) trait CheckTypeErrorOutputContainer: Trace + Finalize {
+pub trait CheckTypeErrorOutputContainer: Trace + Finalize {
     fn push_error(&self, error: Id<Diagnostic>);
     fn set_errors(&self, errors: Vec<Id<Diagnostic>>);
     fn get_error(&self, index: usize) -> Option<Id<Diagnostic>>;

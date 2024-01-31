@@ -20,15 +20,16 @@ use crate::{
     ParenthesizerRules, Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray,
     SourceMapSource, SymlinkCache, SyntaxKind, TempFlags, TextRange,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+    HasArena, InArena,
 };
 
 #[derive(Trace, Finalize)]
 pub struct Printer {
     #[unsafe_ignore_trace]
     pub arena: *const AllArenas,
-    pub _rc_wrapper: GcCell<Option<Gc<Printer>>>,
+    pub _arena_id: GcCell<Option<Id<Printer>>>,
     pub printer_options: PrinterOptions,
-    pub handlers: Gc<Box<dyn PrintHandlers>>,
+    pub handlers: Id<Box<dyn PrintHandlers>>,
     pub extended_diagnostics: bool,
     pub new_line: String,
     #[unsafe_ignore_trace]
@@ -61,8 +62,8 @@ pub struct Printer {
     pub write: Cell<fn(&Printer, &str)>,
     #[unsafe_ignore_trace]
     pub is_own_file_emit: Cell<bool>,
-    pub bundle_file_info: GcCell<Option<Gc<GcCell<BundleFileInfo>>>>,
-    pub relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
+    pub bundle_file_info: GcCell<Option<Id<BundleFileInfo>>>,
+    pub relative_to_build_info: Option<Id<Box<dyn RelativeToBuildInfo>>>,
     pub record_internal_section: Option<bool>,
     #[unsafe_ignore_trace]
     pub source_file_text_pos: Cell<usize>,
@@ -71,11 +72,11 @@ pub struct Printer {
 
     #[unsafe_ignore_trace]
     pub source_maps_disabled: Cell<bool>,
-    pub source_map_generator: GcCell<Option<Gc<Box<dyn SourceMapGenerator>>>>,
-    pub source_map_source: GcCell<Option<Gc<SourceMapSource>>>,
+    pub source_map_generator: GcCell<Option<Id<Box<dyn SourceMapGenerator>>>>,
+    pub source_map_source: GcCell<Option<Id<SourceMapSource>>>,
     #[unsafe_ignore_trace]
     pub source_map_source_index: Cell<isize>,
-    pub most_recently_added_source_map_source: GcCell<Option<Gc<SourceMapSource>>>,
+    pub most_recently_added_source_map_source: GcCell<Option<Id<SourceMapSource>>>,
     #[unsafe_ignore_trace]
     pub most_recently_added_source_map_source_index: Cell<isize>,
     #[unsafe_ignore_trace]
@@ -93,9 +94,9 @@ pub struct Printer {
     #[unsafe_ignore_trace]
     pub comments_disabled: Cell<bool>,
     pub last_substitution: GcCell<Option<Id<Node>>>,
-    pub current_parenthesizer_rule: GcCell<Option<Gc<Box<dyn CurrentParenthesizerRule>>>>,
-    pub parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
-    pub emit_binary_expression: GcCell<Option<Gc<EmitBinaryExpression>>>,
+    pub current_parenthesizer_rule: GcCell<Option<Id<Box<dyn CurrentParenthesizerRule>>>>,
+    pub parenthesizer: Id<Box<dyn ParenthesizerRules>>,
+    pub emit_binary_expression: GcCell<Option<Id<EmitBinaryExpression>>>,
 }
 
 pub trait CurrentParenthesizerRule: Trace + Finalize {
@@ -355,16 +356,22 @@ impl BundleFileSectionInterface for BundleFileReference {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub struct BundleFilePrepend {
-    #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
-    pub texts: Vec<Gc<BundleFileSection /*BundleFileTextLike*/>>,
+    pub texts: Vec<Id<BundleFileSection /*BundleFileTextLike*/>>,
 }
 
 impl BundleFilePrepend {
     pub fn data(&self) -> &String {
         self.maybe_data().unwrap()
+    }
+
+    pub fn serializable(&self, arena: &impl HasArena) -> BundleFilePrependSerializable {
+        BundleFilePrependSerializable {
+            _bundle_file_section_base: self._bundle_file_section_base.clone(),
+            texts: self.texts.iter().map(|text| text.ref_(arena).serializable(arena)).collect(),
+        }
     }
 }
 
@@ -394,6 +401,13 @@ impl BundleFileSectionInterface for BundleFilePrepend {
     fn maybe_data(&self) -> Option<&String> {
         self._bundle_file_section_base.maybe_data()
     }
+}
+
+#[derive(Serialize)]
+pub struct BundleFilePrependSerializable {
+    #[serde(flatten)]
+    _bundle_file_section_base: BundleFileSectionBase,
+    pub texts: Vec<BundleFileSectionSerializable /*BundleFileTextLike*/>,
 }
 
 #[derive(Clone, Debug, Serialize, Trace, Finalize)]
@@ -430,8 +444,7 @@ impl BundleFileSectionInterface for BundleFileTextLike {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
-#[serde(untagged)]
+#[derive(Clone, Debug, Trace, Finalize)]
 pub enum BundleFileSection {
     BundleFilePrologue(BundleFilePrologue),
     BundleFileEmitHelpers(BundleFileEmitHelpers),
@@ -488,7 +501,7 @@ impl BundleFileSection {
 
     pub fn new_prepend(
         data: String,
-        texts: Vec<Gc<BundleFileSection>>,
+        texts: Vec<Id<BundleFileSection>>,
         pos: isize,
         end: isize,
     ) -> Self {
@@ -512,6 +525,17 @@ impl BundleFileSection {
         Self::BundleFileTextLike(BundleFileTextLike {
             _bundle_file_section_base: BundleFileSectionBase::new(pos, end, kind, data),
         })
+    }
+
+    pub fn serializable(&self, arena: &impl HasArena) -> BundleFileSectionSerializable {
+        match self {
+            Self::BundleFilePrologue(value) => BundleFileSectionSerializable::BundleFilePrologue(value.clone()),
+            Self::BundleFileEmitHelpers(value) => BundleFileSectionSerializable::BundleFileEmitHelpers(value.clone()),
+            Self::BundleFileHasNoDefaultLib(value) => BundleFileSectionSerializable::BundleFileHasNoDefaultLib(value.clone()),
+            Self::BundleFileReference(value) => BundleFileSectionSerializable::BundleFileReference(value.clone()),
+            Self::BundleFilePrepend(value) => BundleFileSectionSerializable::BundleFilePrepend(value.serializable(arena)),
+            Self::BundleFileTextLike(value) => BundleFileSectionSerializable::BundleFileTextLike(value.clone()),
+        }
     }
 }
 
@@ -585,52 +609,107 @@ impl BundleFileSectionInterface for BundleFileSection {
     }
 }
 
-#[derive(Serialize, Trace, Finalize)]
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum BundleFileSectionSerializable {
+    BundleFilePrologue(BundleFilePrologue),
+    BundleFileEmitHelpers(BundleFileEmitHelpers),
+    BundleFileHasNoDefaultLib(BundleFileHasNoDefaultLib),
+    BundleFileReference(BundleFileReference),
+    BundleFilePrepend(BundleFilePrependSerializable),
+    BundleFileTextLike(BundleFileTextLike),
+}
+
+#[derive(Clone, Serialize, Trace, Finalize)]
 pub struct SourceFilePrologueDirectiveExpression {
     pub pos: isize,
     pub end: isize,
     pub text: String,
 }
 
-#[derive(Serialize, Trace, Finalize)]
+#[derive(Clone, Serialize, Trace, Finalize)]
 pub struct SourceFilePrologueDirective {
     pub pos: isize,
     pub end: isize,
     pub expression: SourceFilePrologueDirectiveExpression,
 }
 
-#[derive(Serialize, Trace, Finalize)]
+#[derive(Clone, Serialize, Trace, Finalize)]
 pub struct SourceFilePrologueInfo {
     pub file: usize,
     pub text: String,
     pub directives: Vec<SourceFilePrologueDirective>,
 }
 
-#[derive(Default, Serialize, Trace, Finalize)]
+#[derive(Clone, Default, Serialize, Trace, Finalize)]
 pub struct SourceFileInfo {
     pub helpers: Option<Vec<String>>,
     pub prologues: Option<Vec<SourceFilePrologueInfo>>,
 }
 
-#[derive(Serialize, Trace, Finalize)]
+#[derive(Trace, Finalize)]
 pub struct BundleFileInfo {
-    pub sections: Vec<Gc<BundleFileSection>>,
+    pub sections: Vec<Id<BundleFileSection>>,
     pub sources: Option<SourceFileInfo>,
 }
 
-#[derive(Serialize, Trace, Finalize)]
+impl BundleFileInfo {
+    pub fn serializable(&self, arena: &impl HasArena) -> BundleFileInfoSerializable {
+        BundleFileInfoSerializable {
+            sections: self.sections.iter().map(|section| section.ref_(arena).serializable(arena)).collect(),
+            sources: self.sources.clone(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct BundleFileInfoSerializable {
+    pub sections: Vec<BundleFileSectionSerializable>,
+    pub sources: Option<SourceFileInfo>,
+}
+
+#[derive(Clone, Trace, Finalize)]
 pub struct BundleBuildInfo {
-    pub js: Option<Gc<GcCell<BundleFileInfo>>>,
-    pub dts: Option<BundleFileInfo>,
+    pub js: Option<Id<BundleFileInfo>>,
+    pub dts: Option<Id<BundleFileInfo>>,
     pub common_source_directory: String,
     pub source_files: Vec<String>,
 }
 
-#[derive(Serialize, Trace, Finalize)]
+impl BundleBuildInfo {
+    pub fn serializable(&self, arena: &impl HasArena) -> BundleBuildInfoSerializable {
+        BundleBuildInfoSerializable {
+            js: self.js.map(|js| js.ref_(arena).serializable(arena)),
+            dts: self.dts.map(|dts| dts.ref_(arena).serializable(arena)),
+            common_source_directory: self.common_source_directory.clone(),
+            source_files: self.source_files.clone(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct BundleBuildInfoSerializable {
+    pub js: Option<BundleFileInfoSerializable>,
+    pub dts: Option<BundleFileInfoSerializable>,
+    pub common_source_directory: String,
+    pub source_files: Vec<String>,
+}
+
+#[derive(Trace, Finalize)]
 pub struct BuildInfo {
-    pub bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
-    pub program: Option<Gc<ProgramBuildInfo>>,
+    pub bundle: Option<Id<BundleBuildInfo>>,
+    pub program: Option<Id<ProgramBuildInfo>>,
     pub version: String,
+}
+
+impl BuildInfo {
+    pub fn serializable(&self, arena: &impl HasArena) -> BuildInfoSerializable {
+        BuildInfoSerializable {
+            bundle: self.bundle.map(|bundle| bundle.ref_(arena).serializable(arena)),
+            program: self.program.map(|program| program.ref_(arena).clone()),
+            version: self.version.clone(),
+        }
+    }
 }
 
 impl std::fmt::Debug for BuildInfo {
@@ -641,6 +720,13 @@ impl std::fmt::Debug for BuildInfo {
             .field("version", &self.version)
             .finish()
     }
+}
+
+#[derive(Serialize)]
+pub struct BuildInfoSerializable {
+    pub bundle: Option<BundleBuildInfoSerializable>,
+    pub program: Option<ProgramBuildInfo>,
+    pub version: String,
 }
 
 pub trait PrintHandlers: Trace + Finalize {
@@ -684,8 +770,8 @@ pub trait PrintHandlers: Trace + Finalize {
     fn on_set_source_file(&self, _node: Id<Node> /*SourceFile*/) {}
     fn on_before_emit_node(&self, _node: Option<Id<Node>>) {}
     fn on_after_emit_node(&self, _node: Option<Id<Node>>) {}
-    fn on_before_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
-    fn on_after_emit_node_array(&self, _nodes: Option<&NodeArray>) {}
+    fn on_before_emit_node_array(&self, _nodes: Option<Id<NodeArray>>) {}
+    fn on_after_emit_node_array(&self, _nodes: Option<Id<NodeArray>>) {}
     fn on_before_emit_token(&self, _node: Option<Id<Node>>) {}
     fn on_after_emit_token(&self, _node: Option<Id<Node>>) {}
 }
@@ -718,7 +804,7 @@ mod _PrinterOptionsDeriveTraceScope {
         pub(crate) strip_internal: Option<bool>,
         pub(crate) preserve_source_newlines: Option<bool>,
         pub(crate) terminate_unterminated_literals: Option<bool>,
-        pub(crate) relative_to_build_info: Option<Gc<Box<dyn RelativeToBuildInfo>>>,
+        pub(crate) relative_to_build_info: Option<Id<Box<dyn RelativeToBuildInfo>>>,
     }
 }
 pub use _PrinterOptionsDeriveTraceScope::{PrinterOptions, PrinterOptionsBuilder};
@@ -802,7 +888,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn realpath(&self, _path: &str) -> Option<String> {
         None
     }
-    fn get_symlink_cache(&self) -> Option<Gc<SymlinkCache>> {
+    fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
         None
     }
     fn get_module_specifier_cache(&self) -> Option<Rc<dyn ModuleSpecifierCache>> {
@@ -823,7 +909,7 @@ pub trait ModuleSpecifierResolutionHost {
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>>;
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String>;
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool;
-    fn get_file_include_reasons(&self) -> Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>>;
+    fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>>;
 }
 
 #[derive(Clone)]

@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use gc::{Gc, GcCell};
 use id_arena::Id;
 
-use super::{init_flow_node, BinderType, ContainerFlags};
+use super::{init_flow_node, Binder, ContainerFlags};
 use crate::{
     contains_gc, create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
     get_immediately_invoked_function_expression, get_name_of_declaration, has_syntactic_modifier,
@@ -20,7 +20,7 @@ use crate::{
     contains,
 };
 
-impl BinderType {
+impl Binder {
     pub(super) fn declare_module_member(
         &self,
         node: Id<Node>, /*Declaration*/
@@ -36,7 +36,7 @@ impl BinderType {
                     && has_export_modifier
             {
                 self.declare_symbol(
-                    &mut self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                    &mut self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
                     Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
@@ -46,7 +46,7 @@ impl BinderType {
                 )
             } else {
                 self.declare_symbol(
-                    &mut self.container().ref_(self).locals().borrow_mut(),
+                    &mut self.container().ref_(self).locals().ref_mut(self),
                     None,
                     node,
                     symbol_flags,
@@ -71,7 +71,7 @@ impl BinderType {
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
-                        &mut self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                        &mut self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
                         Some(self.container().ref_(self).symbol()),
                         node,
                         symbol_flags,
@@ -86,7 +86,7 @@ impl BinderType {
                     SymbolFlags::None
                 };
                 let local = self.declare_symbol(
-                    &mut self.container().ref_(self).locals().borrow_mut(),
+                    &mut self.container().ref_(self).locals().ref_mut(self),
                     Option::<Id<Symbol>>::None,
                     node,
                     export_kind,
@@ -95,7 +95,7 @@ impl BinderType {
                     None,
                 );
                 local.ref_(self).set_export_symbol(Some(self.declare_symbol(
-                    &mut self.container().ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                    &mut self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
                     Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
@@ -107,7 +107,7 @@ impl BinderType {
                 local
             } else {
                 self.declare_symbol(
-                    &mut self.container().ref_(self).locals().borrow_mut(),
+                    &mut self.container().ref_(self).locals().ref_mut(self),
                     Option::<Id<Symbol>>::None,
                     node,
                     symbol_flags,
@@ -164,10 +164,10 @@ impl BinderType {
             self.set_block_scope_container(Some(node));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
-                    .ref_(self).set_locals(Some(Gc::new(GcCell::new(create_symbol_table(
+                    .ref_(self).set_locals(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    )))));
+                    ))));
             }
             self.add_to_container_chain(self.container());
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {
@@ -352,7 +352,7 @@ impl BinderType {
         for_each_child(
             node,
             |node| self.bind(Some(node)),
-            Some(|nodes: &NodeArray| self.bind_each(Some(nodes))),
+            Some(|nodes: Id<NodeArray>| self.bind_each(Some(&nodes.ref_(self)))),
             self,
         );
     }
@@ -400,7 +400,7 @@ impl BinderType {
                     self.bind_destructuring_assignment_flow(node);
                     return;
                 }
-                self.bind_binary_expression_flow().call(node)
+                self.bind_binary_expression_flow().ref_(self).call(node)
             }
             SyntaxKind::DeleteExpression => self.bind_delete_expression_flow(node),
             SyntaxKind::ConditionalExpression => self.bind_conditional_expression_flow(node),
@@ -416,11 +416,11 @@ impl BinderType {
             SyntaxKind::SourceFile => {
                 let node_ref = node.ref_(self);
                 let node_as_source_file = node_ref.as_source_file();
-                self.bind_each_functions_first(Some(&node_as_source_file.statements()));
+                self.bind_each_functions_first(Some(&node_as_source_file.statements().ref_(self)));
                 self.bind(Some(node_as_source_file.end_of_file_token()));
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
-                self.bind_each_functions_first(Some(&node.ref_(self).as_has_statements().statements()));
+                self.bind_each_functions_first(Some(&node.ref_(self).as_has_statements().statements().ref_(self)));
             }
             SyntaxKind::BindingElement => self.bind_binding_element_flow(node),
             SyntaxKind::ObjectLiteralExpression
@@ -496,7 +496,7 @@ impl BinderType {
         let expr_ref = expr.ref_(self);
         let expr_as_call_expression = expr_ref.as_call_expression();
         // if (expr.arguments) {
-        for &argument in &expr_as_call_expression.arguments {
+        for &argument in &*expr_as_call_expression.arguments.ref_(self) {
             if self.contains_narrowable_reference(argument) {
                 return true;
             }

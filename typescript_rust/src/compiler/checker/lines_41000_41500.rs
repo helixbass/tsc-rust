@@ -29,7 +29,7 @@ impl TypeChecker {
     pub(super) fn get_index_infos_at_location_(
         &self,
         node: Id<Node>,
-    ) -> io::Result<Option<Vec<Gc<IndexInfo>>>> {
+    ) -> io::Result<Option<Vec<Id<IndexInfo>>>> {
         if is_identifier(&node.ref_(self))
             && is_property_access_expression(&node.ref_(self).parent().ref_(self))
             && node.ref_(self).parent().ref_(self).as_property_access_expression().name == node
@@ -48,8 +48,8 @@ impl TypeChecker {
                 |&t: &Id<Type>, _| {
                     try_filter(
                         &*self.get_index_infos_of_type(t)?,
-                        |info: &Gc<IndexInfo>| {
-                            self.is_applicable_index_type(key_type, info.key_type)
+                        |info: &Id<IndexInfo>| {
+                            self.is_applicable_index_type(key_type, info.ref_(self).key_type)
                         },
                     )
                 },
@@ -260,7 +260,7 @@ impl TypeChecker {
                 .get_type_of_assignment_pattern_(node)?
                 .unwrap_or_else(|| self.error_type());
             let property_index = index_of_node(
-                &node.ref_(self).as_object_literal_expression().properties,
+                &node.ref_(self).as_object_literal_expression().properties.ref_(self),
                 expr.ref_(self).parent(),
                 self,
             );
@@ -291,7 +291,7 @@ impl TypeChecker {
                 let ret = node
                     .ref_(self).as_array_literal_expression()
                     .elements
-                    .iter()
+                    .ref_(self).iter()
                     .position(|&element| element == expr)
                     .unwrap();
                 ret
@@ -421,7 +421,7 @@ impl TypeChecker {
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
-                    (*self.get_symbol_links(symbol))
+                    (*self.get_symbol_links(symbol).ref_(self))
                         .borrow()
                         .containing_type
                         .unwrap()
@@ -436,7 +436,8 @@ impl TypeChecker {
         } else if symbol.ref_(self).flags().intersects(SymbolFlags::Transient) {
             let (left_spread, right_spread, synthetic_origin) = {
                 let symbol_links = symbol.ref_(self).as_transient_symbol().symbol_links();
-                let symbol_links = (*symbol_links).borrow();
+                let symbol_links_ref = symbol_links.ref_(self);
+                let symbol_links = (*symbol_links_ref).borrow();
                 (
                     symbol_links.left_spread.clone(),
                     symbol_links.right_spread.clone(),
@@ -458,7 +459,7 @@ impl TypeChecker {
         let mut target: Option<Id<Symbol>> = None;
         let mut next = Some(symbol);
         while {
-            next = (*self.get_symbol_links(next.unwrap()))
+            next = (*self.get_symbol_links(next.unwrap()).ref_(self))
                 .borrow()
                 .target
                 .clone();
@@ -518,20 +519,20 @@ impl TypeChecker {
             .unwrap();
 
         let symbol_links = self.get_symbol_links(module_symbol);
-        if (*symbol_links).borrow().exports_some_value.is_none() {
-            symbol_links.borrow_mut().exports_some_value = Some(if has_export_assignment {
+        if symbol_links.ref_(self).exports_some_value.is_none() {
+            symbol_links.ref_mut(self).exports_some_value = Some(if has_export_assignment {
                 module_symbol
                     .ref_(self)
                     .flags()
                     .intersects(SymbolFlags::Value)
             } else {
                 try_for_each_entry_bool(
-                    &*(*self.get_exports_of_module_(module_symbol)?).borrow(),
+                    &*self.get_exports_of_module_(module_symbol)?.ref_(self),
                     |&s: &Id<Symbol>, _| self.is_value(s),
                 )?
             });
         }
-        let ret = (*symbol_links).borrow().exports_some_value.unwrap();
+        let ret = (*symbol_links.ref_(self)).borrow().exports_some_value.unwrap();
         Ok(ret)
     }
 
@@ -674,7 +675,7 @@ impl TypeChecker {
                 .filter(|symbol_value_declaration| !is_source_file(&symbol_value_declaration.ref_(self)))
             {
                 let links = self.get_symbol_links(symbol);
-                if (*links)
+                if (*links.ref_(self))
                     .borrow()
                     .is_declaration_with_colliding_name
                     .is_none()
@@ -697,31 +698,31 @@ impl TypeChecker {
                             )?
                             .is_some()
                         {
-                            links.borrow_mut().is_declaration_with_colliding_name = Some(true);
-                        } else if (*node_links)
-                            .borrow()
+                            links.ref_mut(self).is_declaration_with_colliding_name = Some(true);
+                        } else if node_links
+                            .ref_(self)
                             .flags
                             .intersects(NodeCheckFlags::CapturedBlockScopedBinding)
                         {
-                            let is_declared_in_loop = (*node_links)
-                                .borrow()
+                            let is_declared_in_loop = node_links
+                                .ref_(self)
                                 .flags
                                 .intersects(NodeCheckFlags::BlockScopedBindingInLoop);
                             let in_loop_initializer = is_iteration_statement(container, false, self);
                             let in_loop_body_block = container.ref_(self).kind() == SyntaxKind::Block
                                 && is_iteration_statement(container.ref_(self).parent(), false, self);
 
-                            links.borrow_mut().is_declaration_with_colliding_name = Some(
+                            links.ref_mut(self).is_declaration_with_colliding_name = Some(
                                 !is_block_scoped_container_top_level(&container.ref_(self))
                                     && (!is_declared_in_loop
                                         || !in_loop_initializer && !in_loop_body_block),
                             );
                         } else {
-                            links.borrow_mut().is_declaration_with_colliding_name = Some(false);
+                            links.ref_mut(self).is_declaration_with_colliding_name = Some(false);
                         }
                     }
                 }
-                return Ok((*links).borrow().is_declaration_with_colliding_name == Some(true));
+                return Ok(links.ref_(self).is_declaration_with_colliding_name == Some(true));
             }
         }
         Ok(false)
@@ -785,7 +786,7 @@ impl TypeChecker {
                     export_clause,
                     Some(export_clause) if is_namespace_export(&export_clause.ref_(self)) ||
                         try_some(
-                            Some(&*export_clause.ref_(self).as_named_exports().elements),
+                            Some(&*export_clause.ref_(self).as_named_exports().elements.ref_(self)),
                             Some(|&element: &Id<Node>| self.is_value_alias_declaration(element))
                         )?
                 )

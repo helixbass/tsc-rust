@@ -34,7 +34,7 @@ impl<TValue> From<TValue> for ForEachChildRecursivelyCallbackReturn<TValue> {
 pub fn for_each_child_recursively<TValue>(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>>,
     arena: &impl HasArena,
 ) -> Option<TValue> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node, arena);
@@ -48,7 +48,7 @@ pub fn for_each_child_recursively<TValue>(
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, parent);
+                    let res = cb_nodes(current, parent);
                     if let Some(res) = res {
                         match res {
                             ForEachChildRecursivelyCallbackReturn::Skip => {
@@ -60,7 +60,7 @@ pub fn for_each_child_recursively<TValue>(
                         }
                     }
                 }
-                for &current_child in current.to_vec().iter().rev() {
+                for &current_child in current.ref_(arena).to_vec().iter().rev() {
                     queue.push(current_child.into());
                     parents.push(parent);
                 }
@@ -92,14 +92,14 @@ pub fn for_each_child_recursively<TValue>(
 pub fn for_each_child_recursively_bool(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> bool,
-    cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> bool>,
+    cb_nodes: Option<impl FnMut(Id<NodeArray>, Id<Node>) -> bool>,
     arena: &impl HasArena,
 ) -> bool {
     try_for_each_child_recursively_bool(
         root_node,
         |a: Id<Node>, b: Id<Node>| -> Result<_, ()> { Ok(cb_node(a, b)) },
         cb_nodes.map(|mut cb_nodes| {
-            move |a: &NodeArray, b: Id<Node>| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
+            move |a: Id<NodeArray>, b: Id<Node>| -> Result<_, ()> { Ok(cb_nodes(a, b)) }
         }),
         arena,
     )
@@ -109,7 +109,7 @@ pub fn for_each_child_recursively_bool(
 pub fn try_for_each_child_recursively_bool<TError>(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Result<bool, TError>,
-    mut cb_nodes: Option<impl FnMut(&NodeArray, Id<Node>) -> Result<bool, TError>>,
+    mut cb_nodes: Option<impl FnMut(Id<NodeArray>, Id<Node>) -> Result<bool, TError>>,
     arena: &impl HasArena,
 ) -> Result<bool, TError> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node, arena);
@@ -123,12 +123,12 @@ pub fn try_for_each_child_recursively_bool<TError>(
         match current {
             RcNodeOrNodeArray::NodeArray(current) => {
                 if let Some(cb_nodes) = cb_nodes.as_mut() {
-                    let res = cb_nodes(&current, parent)?;
+                    let res = cb_nodes(current, parent)?;
                     if res {
                         return Ok(true);
                     }
                 }
-                for &current_child in current.to_vec().iter().rev() {
+                for &current_child in current.ref_(arena).to_vec().iter().rev() {
                     queue.push(current_child.into());
                     parents.push(parent);
                 }
@@ -152,7 +152,7 @@ pub fn try_for_each_child_recursively_bool<TError>(
 
 enum RcNodeOrNodeArray {
     RcNode(Id<Node>),
-    NodeArray(Gc<NodeArray>),
+    NodeArray(Id<NodeArray>),
 }
 
 impl From<Id<Node>> for RcNodeOrNodeArray {
@@ -161,8 +161,8 @@ impl From<Id<Node>> for RcNodeOrNodeArray {
     }
 }
 
-impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
-    fn from(value: Gc<NodeArray>) -> Self {
+impl From<Id<NodeArray>> for RcNodeOrNodeArray {
+    fn from(value: Id<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
@@ -174,10 +174,10 @@ fn gather_possible_children(node: Id<Node>, arena: &impl HasArena) -> Vec<RcNode
         |child| {
             children.borrow_mut().insert(0, child.into());
         },
-        Some(|node_array: &NodeArray| {
+        Some(|node_array: Id<NodeArray>| {
             children
                 .borrow_mut()
-                .insert(0, node_array.rc_wrapper().into());
+                .insert(0, node_array.into());
         }),
         arena,
     );
@@ -190,6 +190,7 @@ pub fn create_source_file(
     language_version: ScriptTarget,
     set_parent_nodes: Option<bool>,
     script_kind: Option<ScriptKind>,
+    arena: &impl HasArena,
 ) -> io::Result<Id<Node /*SourceFile*/>> {
     let set_parent_nodes = set_parent_nodes.unwrap_or(false);
     // tracing?.push(tracing.Phase.Parse, "createSourceFile", { path: fileName }, /*separateBeginAndEnd*/ true);
@@ -198,7 +199,7 @@ pub fn create_source_file(
 
     // perfLogger.logStartParseSourceFile(fileName);
     if language_version == ScriptTarget::JSON {
-        result = Parser().parse_source_file(
+        result = Parser(arena).parse_source_file(
             file_name,
             source_text,
             language_version,
@@ -207,7 +208,7 @@ pub fn create_source_file(
             Some(ScriptKind::JSON),
         )?;
     } else {
-        result = Parser().parse_source_file(
+        result = Parser(arena).parse_source_file(
             file_name,
             source_text,
             language_version,
@@ -227,12 +228,13 @@ pub fn create_source_file(
 pub fn parse_isolated_entity_name(
     text: String,
     language_version: ScriptTarget,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*EntityName*/>> {
-    Parser().parse_isolated_entity_name(text, language_version)
+    Parser(arena).parse_isolated_entity_name(text, language_version)
 }
 
-pub fn parse_json_text(file_name: &str, source_text: String) -> Id<Node /*JsonSourceFile*/> {
-    Parser().parse_json_text(file_name, source_text, None, None, None)
+pub fn parse_json_text(file_name: &str, source_text: String, arena: &impl HasArena) -> Id<Node /*JsonSourceFile*/> {
+    Parser(arena).parse_json_text(file_name, source_text, None, None, None)
 }
 
 pub fn is_external_module(file: &Node /*SourceFile*/) -> bool {
@@ -266,12 +268,13 @@ pub(crate) fn parse_isolated_jsdoc_comment(
     content: String,
     start: Option<usize>,
     length: Option<usize>,
+    arena: &impl HasArena,
 ) -> Option<ParsedIsolatedJSDocComment> {
-    let result = Parser().JSDocParser_parse_isolated_jsdoc_comment(content, start, length);
+    let result = Parser(arena).JSDocParser_parse_isolated_jsdoc_comment(content, start, length);
     if let Some(result) = result.as_ref()
     /*&& result.jsDoc*/
     {
-        Parser().fixup_parent_references(result.js_doc);
+        Parser(arena).fixup_parent_references(result.js_doc);
     }
 
     result
@@ -281,8 +284,9 @@ pub fn parse_jsdoc_type_expression_for_tests(
     content: String,
     start: Option<usize>,
     length: Option<usize>,
+    arena: &impl HasArena,
 ) -> Option<ParsedJSDocTypeExpression> {
-    Parser().JSDocParser_parse_jsdoc_type_expression_for_tests(content, start, length)
+    Parser(arena).JSDocParser_parse_jsdoc_type_expression_for_tests(content, start, length)
 }
 
 #[allow(non_snake_case)]
@@ -302,7 +306,7 @@ pub struct ParserType {
     pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
     #[unsafe_ignore_trace]
     pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
-    pub(super) factory: GcCell<Option<Gc<NodeFactory<ParserType>>>>,
+    pub(super) factory: GcCell<Option<Id<NodeFactory>>>,
     #[unsafe_ignore_trace]
     pub(super) file_name: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
@@ -347,8 +351,8 @@ pub struct ParserType {
 }
 
 impl ParserType {
-    pub(super) fn new() -> Gc<Self> {
-        let ret = Gc::new(ParserType {
+    pub(super) fn new(arena: &impl HasArena) -> Id<Self> {
+        let ret = arena.alloc_parser(ParserType {
             scanner: RefCell::new(create_scanner(
                 ScriptTarget::Latest,
                 true,
@@ -388,16 +392,20 @@ impl ParserType {
             parse_error_before_next_finished_node: Default::default(),
             has_deprecated_tag: Default::default(),
         });
-        *ret.factory.borrow_mut() = Some(create_node_factory(
+        *ret.ref_(arena).factory.borrow_mut() = Some(create_node_factory(
             NodeFactoryFlags::NoParenthesizerRules
                 | NodeFactoryFlags::NoNodeConverters
                 | NodeFactoryFlags::NoOriginalNode,
-            ret.clone(),
+            // TODO: restore this to be being the parser itself
+            // (as the implementor of BaseNodeFactory)?
+            // ret.clone(),
+            super::get_parse_base_node_factory(arena),
+            arena,
         ));
         ret
     }
 
-    pub(super) fn factory(&self) -> GcCellRef<Gc<NodeFactory<ParserType>>> {
+    pub(super) fn factory(&self) -> GcCellRef<Id<NodeFactory>> {
         gc_cell_ref_unwrapped(&self.factory)
     }
 
@@ -716,7 +724,7 @@ impl ParserType {
                 result,
                 result_as_source_file
                     .statements()
-                    .get(0)
+                    .ref_(self).get(0)
                     .map(|statement| statement.ref_(self).as_expression_statement().expression),
                 result_as_source_file.parse_diagnostics(),
                 false,
@@ -787,7 +795,7 @@ impl ParserType {
 
         self.next_token();
         let pos = self.get_node_pos();
-        let statements: Gc<NodeArray>;
+        let statements: Id<NodeArray>;
         let end_of_file_token: Id<Node>;
         if self.token() == SyntaxKind::EndOfFileToken {
             statements = self.create_node_array(vec![], pos, Some(pos), None);
@@ -844,14 +852,14 @@ impl ParserType {
                 Some(expressions) if expressions.len() > 1 => self
                     .finish_node(
                         self.factory()
-                            .create_array_literal_expression_raw(Some(expressions), None),
+                            .ref_(self).create_array_literal_expression_raw(Some(expressions), None),
                         pos,
                         None,
                     )
                     .alloc(self.arena()),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
-            let statement = self.factory().create_expression_statement_raw(expression);
+            let statement = self.factory().ref_(self).create_expression_statement_raw(expression);
             let statement = self.finish_node(statement, pos, None);
             statements = self.create_node_array(vec![statement.alloc(self.arena())], pos, None, None);
             end_of_file_token = self
@@ -882,9 +890,9 @@ impl ParserType {
         source_file_as_source_file.set_node_count(self.node_count());
         source_file_as_source_file.set_identifier_count(self.identifier_count());
         source_file_as_source_file.set_identifiers(self.identifiers_rc());
-        source_file_as_source_file.set_parse_diagnostics(Gc::new(GcCell::new(
+        source_file_as_source_file.set_parse_diagnostics(self.alloc_vec_diagnostic(
             attach_file_to_diagnostics(&*self.parse_diagnostics(), &source_file.ref_(self), self),
-        )));
+        ));
         {
             let maybe_js_doc_diagnostics = self.maybe_js_doc_diagnostics();
             if let Some(js_doc_diagnostics) = &*maybe_js_doc_diagnostics {

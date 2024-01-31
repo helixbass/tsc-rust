@@ -141,12 +141,12 @@ impl AssertEntry {
 #[ast_type]
 pub struct AssertClause {
     _node: BaseNode,
-    pub elements: Gc<NodeArray /*<AssertEntry>*/>,
+    pub elements: Id<NodeArray /*<AssertEntry>*/>,
     pub multi_line: Option<bool>,
 }
 
 impl AssertClause {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>, multi_line: Option<bool>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>, multi_line: Option<bool>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -156,7 +156,7 @@ impl AssertClause {
 }
 
 impl HasElementsInterface for AssertClause {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
@@ -275,11 +275,11 @@ impl HasModuleSpecifierInterface for ExportDeclaration {
 #[ast_type]
 pub struct NamedImports {
     _node: BaseNode,
-    pub elements: Gc<NodeArray>, /*<ImportSpecifier>*/
+    pub elements: Id<NodeArray>, /*<ImportSpecifier>*/
 }
 
 impl NamedImports {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -288,7 +288,7 @@ impl NamedImports {
 }
 
 impl HasElementsInterface for NamedImports {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
@@ -297,11 +297,11 @@ impl HasElementsInterface for NamedImports {
 #[ast_type]
 pub struct NamedExports {
     _node: BaseNode,
-    pub elements: Gc<NodeArray>, /*<ExportSpecifier>*/
+    pub elements: Id<NodeArray>, /*<ExportSpecifier>*/
 }
 
 impl NamedExports {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -310,7 +310,7 @@ impl NamedExports {
 }
 
 impl HasElementsInterface for NamedExports {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
@@ -717,7 +717,7 @@ impl JSDocFunctionType {
 #[ast_type]
 pub struct JSDoc {
     _node: BaseNode,
-    pub tags: Option<Gc<NodeArray> /*<JSDocTag>*/>,
+    pub tags: Option<Id<NodeArray> /*<JSDocTag>*/>,
     pub comment: Option<StringOrNodeArray /*<JSDocComment>*/>,
 }
 
@@ -725,7 +725,7 @@ impl JSDoc {
     pub fn new(
         base_node: BaseNode,
         comment: Option<StringOrNodeArray>,
-        tags: Option<Gc<NodeArray>>,
+        tags: Option<Id<NodeArray>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -853,7 +853,7 @@ mod _StringOrNodeArrayDeriveTraceScope {
     #[derive(Clone, Debug, Trace, Finalize)]
     pub enum StringOrNodeArray {
         String(String),
-        NodeArray(Gc<NodeArray>),
+        NodeArray(Id<NodeArray>),
     }
 }
 pub use _StringOrNodeArrayDeriveTraceScope::StringOrNodeArray;
@@ -865,8 +865,8 @@ impl From<String> for StringOrNodeArray {
     }
 }
 
-impl From<Gc<NodeArray>> for StringOrNodeArray {
-    fn from(value: Gc<NodeArray>) -> Self {
+impl From<Id<NodeArray>> for StringOrNodeArray {
+    fn from(value: Id<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }
@@ -991,15 +991,15 @@ impl JSDocTypeLikeTagInterface for BaseJSDocTypeLikeTag {
 pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub constraint: Option<Id<Node /*JSDocTypeExpression*/>>,
-    pub type_parameters: Gc<NodeArray>, /*<TypeParameterDeclaration>*/
-    type_parameters_for_has_type_parameters_interface: GcCell<Option<Gc<NodeArray>>>, /*<TypeParameterDeclaration>*/
+    pub type_parameters: Id<NodeArray>, /*<TypeParameterDeclaration>*/
+    type_parameters_for_has_type_parameters_interface: GcCell<Option<Id<NodeArray>>>, /*<TypeParameterDeclaration>*/
 }
 
 impl JSDocTemplateTag {
     pub fn new(
         base_jsdoc_tag: BaseJSDocTag,
         constraint: Option<Id<Node>>,
-        type_parameters: Gc<NodeArray>,
+        type_parameters: Id<NodeArray>,
     ) -> Self {
         Self {
             _base_jsdoc_tag: base_jsdoc_tag,
@@ -1011,13 +1011,13 @@ impl JSDocTemplateTag {
 }
 
 impl HasTypeParametersInterface for JSDocTemplateTag {
-    fn maybe_type_parameters(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_parameters(&self) -> Option<Id<NodeArray>> {
         self.type_parameters_for_has_type_parameters_interface
             .borrow()
             .clone()
     }
 
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Gc<NodeArray>>> {
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
         self.type_parameters_for_has_type_parameters_interface
             .borrow_mut()
     }
@@ -1159,16 +1159,16 @@ impl JSDocTypeLikeTagInterface for JSDocCallbackTag {
 #[ast_type]
 pub struct JSDocSignature {
     _node: BaseNode,
-    type_parameters: GcCell<Option<Gc<NodeArray> /*<JSDocTemplateTag>*/>>,
-    pub parameters: Gc<NodeArray>, /*<JSDocParameterTag>*/
+    type_parameters: GcCell<Option<Id<NodeArray> /*<JSDocTemplateTag>*/>>,
+    pub parameters: Id<NodeArray>, /*<JSDocParameterTag>*/
     pub type_: Option<Id<Node /*JSDocReturnTag*/>>,
 }
 
 impl JSDocSignature {
     pub fn new(
         base_node: BaseNode,
-        type_parameters: Option<Gc<NodeArray>>,
-        parameters: Gc<NodeArray>,
+        type_parameters: Option<Id<NodeArray>>,
+        parameters: Id<NodeArray>,
         type_: Option<Id<Node>>,
     ) -> Self {
         Self {
@@ -1181,7 +1181,7 @@ impl JSDocSignature {
 }
 
 impl SignatureDeclarationInterface for JSDocSignature {
-    fn parameters(&self) -> Gc<NodeArray> {
+    fn parameters(&self) -> Id<NodeArray> {
         self.parameters.clone()
     }
 }
@@ -1211,11 +1211,11 @@ impl HasTypeInterface for JSDocSignature {
 }
 
 impl HasTypeParametersInterface for JSDocSignature {
-    fn maybe_type_parameters(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_parameters(&self) -> Option<Id<NodeArray>> {
         self.type_parameters.borrow().clone()
     }
 
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Gc<NodeArray>>> {
+    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
         self.type_parameters.borrow_mut()
     }
 }
@@ -1276,14 +1276,14 @@ impl JSDocTypeLikeTagInterface for JSDocPropertyLikeTag {
 #[ast_type]
 pub struct JSDocTypeLiteral {
     _node: BaseNode,
-    pub js_doc_property_tags: Option<Gc<NodeArray /*<JSDocPropertyLikeTag>*/>>,
+    pub js_doc_property_tags: Option<Id<NodeArray /*<JSDocPropertyLikeTag>*/>>,
     pub is_array_type: bool,
 }
 
 impl JSDocTypeLiteral {
     pub fn new(
         base_node: BaseNode,
-        js_doc_property_tags: Option<Gc<NodeArray>>,
+        js_doc_property_tags: Option<Id<NodeArray>>,
         is_array_type: bool,
     ) -> Self {
         Self {

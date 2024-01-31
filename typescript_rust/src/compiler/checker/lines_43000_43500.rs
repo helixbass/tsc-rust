@@ -33,15 +33,14 @@ impl TypeChecker {
         self.check_grammar_type_arguments(
             node,
             node.ref_(self).as_has_type_arguments()
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         );
         let mut seen: HashMap<__String, bool> = HashMap::new();
 
-        for attr in &node_as_jsx_opening_like_element
+        for attr in &*node_as_jsx_opening_like_element
             .attributes()
             .ref_(self).as_jsx_attributes()
-            .properties
+            .properties.ref_(self)
         {
             if attr.ref_(self).kind() == SyntaxKind::JsxSpreadAttribute {
                 continue;
@@ -205,7 +204,7 @@ impl TypeChecker {
                                         .intersects(FunctionFlags::Async),
                                     Some("Enclosing function should never be an async function."),
                                 );
-                                let related_info: Gc<DiagnosticRelatedInformation> = Gc::new(
+                                let related_info: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         func,
                                         &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
@@ -263,11 +262,11 @@ impl TypeChecker {
                 let variable_list_ref = variable_list.ref_(self);
                 let declarations = &variable_list_ref.as_variable_declaration_list().declarations;
 
-                if declarations.is_empty() {
+                if declarations.ref_(self).is_empty() {
                     return false;
                 }
 
-                if declarations.len() > 1 {
+                if declarations.ref_(self).len() > 1 {
                     let diagnostic = if for_in_or_of_statement.ref_(self).kind() == SyntaxKind::ForInStatement
                     {
                         &*Diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement
@@ -275,12 +274,12 @@ impl TypeChecker {
                         &*Diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement
                     };
                     return self.grammar_error_on_first_token(
-                        variable_list.ref_(self).as_variable_declaration_list().declarations[1],
+                        variable_list.ref_(self).as_variable_declaration_list().declarations.ref_(self)[1],
                         diagnostic,
                         None,
                     );
                 }
-                let first_declaration = declarations[0];
+                let first_declaration = declarations.ref_(self)[0];
 
                 if first_declaration
                     .ref_(self).as_has_initializer()
@@ -448,7 +447,7 @@ impl TypeChecker {
         accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> bool {
         self.get_accessor_this_parameter(accessor).is_some()
-            || accessor.ref_(self).as_function_like_declaration().parameters().len()
+            || accessor.ref_(self).as_function_like_declaration().parameters().ref_(self).len()
                 == if accessor.ref_(self).kind() == SyntaxKind::GetAccessor {
                     0
                 } else {
@@ -460,7 +459,7 @@ impl TypeChecker {
         &self,
         accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
-        if accessor.ref_(self).as_function_like_declaration().parameters().len()
+        if accessor.ref_(self).as_function_like_declaration().parameters().ref_(self).len()
             == if accessor.ref_(self).kind() == SyntaxKind::GetAccessor {
                 1
             } else {
@@ -592,7 +591,7 @@ impl TypeChecker {
                 if matches!(
                     node_as_method_declaration.maybe_modifiers().as_ref(),
                     Some(node_modifiers) if !(
-                        node_modifiers.len() == 1 && first(&*node_modifiers).ref_(self).kind() == SyntaxKind::AsyncKeyword
+                        node_modifiers.ref_(self).len() == 1 && first(&*node_modifiers.ref_(self)).ref_(self).kind() == SyntaxKind::AsyncKeyword
                     )
                 ) {
                     return Ok(self.grammar_error_on_first_token(
@@ -754,7 +753,7 @@ impl TypeChecker {
         if node_as_binding_element.dot_dot_dot_token.is_some() {
             let node_parent = node.ref_(self).parent();
             let elements = node_parent.ref_(self).as_has_elements().elements();
-            if node != *last(&*elements) {
+            if node != *last(&*elements.ref_(self)) {
                 return self.grammar_error_on_node(
                     node,
                     &Diagnostics::A_rest_element_must_be_last_in_a_destructuring_pattern,
@@ -762,7 +761,7 @@ impl TypeChecker {
                 );
             }
             self.check_grammar_for_disallowed_trailing_comma(
-                Some(&elements),
+                Some(elements),
                 Some(
                     &Diagnostics::A_rest_parameter_or_binding_pattern_may_not_have_a_trailing_comma,
                 ),

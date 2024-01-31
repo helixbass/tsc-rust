@@ -15,25 +15,20 @@ use crate::{
     InArena, NodeExt,
 };
 
-pub fn create_parenthesizer_rules<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
-) -> ParenthesizerRulesConcrete<TBaseNodeFactory> {
+pub fn create_parenthesizer_rules(
+    factory: Id<NodeFactory>,
+) -> ParenthesizerRulesConcrete {
     ParenthesizerRulesConcrete::new(factory)
 }
 
 #[derive(Trace, Finalize)]
-pub struct ParenthesizerRulesConcrete<
-    TBaseNodeFactory: BaseNodeFactory + 'static + Trace + Finalize,
-> {
-    factory: Gc<NodeFactory<TBaseNodeFactory>>,
+pub struct ParenthesizerRulesConcrete {
+    factory: Id<NodeFactory>,
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    ParenthesizerRulesConcrete<TBaseNodeFactory>
+impl ParenthesizerRulesConcrete
 {
-    pub fn new(factory: Gc<NodeFactory<TBaseNodeFactory>>) -> Self {
+    pub fn new(factory: Id<NodeFactory>) -> Self {
         Self { factory }
     }
 
@@ -177,7 +172,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             left_operand,
         ) {
             self.factory
-                .create_parenthesized_expression(operand)
+                .ref_(self).create_parenthesized_expression(operand)
         } else {
             operand
         }
@@ -195,15 +190,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 .maybe_type_parameters()
                 .is_some()
         {
-            self.factory.create_parenthesized_type(node)
+            self.factory.ref_(self).create_parenthesized_type(node)
         } else {
             node
         }
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    ParenthesizerRules<TBaseNodeFactory> for ParenthesizerRulesConcrete<TBaseNodeFactory>
+impl ParenthesizerRules for ParenthesizerRulesConcrete
 {
     fn parenthesize_left_side_of_binary(
         &self,
@@ -225,7 +219,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     fn parenthesize_expression_of_computed_property_name(&self, expression: Id<Node>) -> Id<Node> {
         if is_comma_sequence(expression, self) {
             self.factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
         } else {
             expression
         }
@@ -244,7 +238,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         {
             return self
                 .factory
-                .create_parenthesized_expression(condition);
+                .ref_(self).create_parenthesized_expression(condition);
         }
         condition
     }
@@ -253,7 +247,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         let emitted_expression = skip_partially_emitted_expressions(branch, self);
         if is_comma_sequence(emitted_expression, self) {
             self.factory
-                .create_parenthesized_expression(branch)
+                .ref_(self).create_parenthesized_expression(branch)
         } else {
             branch
         }
@@ -272,7 +266,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         }
         if needs_parens {
             self.factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
         } else {
             expression
         }
@@ -284,13 +278,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             SyntaxKind::CallExpression => {
                 return self
                     .factory
-                    .create_parenthesized_expression(expression);
+                    .ref_(self).create_parenthesized_expression(expression);
             }
 
             SyntaxKind::NewExpression => {
                 return if leftmost_expr.ref_(self).as_new_expression().arguments.is_none() {
                     self.factory
-                        .create_parenthesized_expression(expression)
+                        .ref_(self).create_parenthesized_expression(expression)
                 } else {
                     expression
                 };
@@ -312,7 +306,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
 
         self
             .factory
-            .create_parenthesized_expression(expression)
+            .ref_(self).create_parenthesized_expression(expression)
             .set_text_range(Some(&*expression.ref_(self)), self)
     }
 
@@ -322,7 +316,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         } else {
             self
                 .factory
-                .create_parenthesized_expression(operand)
+                .ref_(self).create_parenthesized_expression(operand)
                 .set_text_range(Some(&*operand.ref_(self)), self)
         }
     }
@@ -333,7 +327,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         } else {
             self
                 .factory
-                .create_parenthesized_expression(operand)
+                .ref_(self).create_parenthesized_expression(operand)
                 .set_text_range(Some(&*operand.ref_(self)), self)
         }
     }
@@ -341,14 +335,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         elements: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
-        let result = same_map(&elements, |&element, _| {
+    ) -> Id<NodeArray> {
+        let result = same_map(&elements.ref_(self), |&element, _| {
             self.parenthesize_expression_for_disallowed_comma(element)
         });
-        let node_array = self.factory.create_node_array(
+        let node_array = self.factory.ref_(self).create_node_array(
             Some(result),
             match &elements {
-                NodeArrayOrVec::NodeArray(elements) => Some(elements.has_trailing_comma),
+                NodeArrayOrVec::NodeArray(elements) => Some(elements.ref_(self).has_trailing_comma),
                 NodeArrayOrVec::Vec(_) => None,
             },
         );
@@ -361,7 +355,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         // );
         match elements {
             NodeArrayOrVec::NodeArray(elements) => {
-                set_text_range(&*node_array, Some(&*elements));
+                set_text_range(&*node_array.ref_(self), Some(&*elements.ref_(self)));
             }
             NodeArrayOrVec::Vec(_) => (),
         }
@@ -378,7 +372,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         } else {
             self
                 .factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
                 .set_text_range(Some(&*expression.ref_(self)), self)
         }
     }
@@ -394,18 +388,18 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
                 kind,
                 SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
             ) {
-                let updated = self.factory.update_call_expression(
+                let updated = self.factory.ref_(self).update_call_expression(
                     emitted_expression,
                     set_text_range_id_node(
                         self.factory
-                            .create_parenthesized_expression(callee),
+                            .ref_(self).create_parenthesized_expression(callee),
                         Some(&*callee.ref_(self)),
                         self,
                     ),
                     emitted_expression_as_call_expression.maybe_type_arguments(),
                     emitted_expression_as_call_expression.arguments.clone(),
                 );
-                return self.factory.restore_outer_expressions(
+                return self.factory.ref_(self).restore_outer_expressions(
                     Some(expression),
                     updated,
                     Some(OuterExpressionKinds::PartiallyEmittedExpressions),
@@ -420,7 +414,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         ) {
             return self
                 .factory
-                .create_parenthesized_expression(expression)
+                .ref_(self).create_parenthesized_expression(expression)
                 .set_text_range(Some(&*expression.ref_(self)), self);
         }
 
@@ -435,7 +429,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         {
             return self
                 .factory
-                .create_parenthesized_expression(body)
+                .ref_(self).create_parenthesized_expression(body)
                 .set_text_range(Some(&*body.ref_(self)), self);
         }
 
@@ -445,7 +439,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     fn parenthesize_member_of_conditional_type(&self, member: Id<Node>) -> Id<Node> {
         if member.ref_(self).kind() == SyntaxKind::ConditionalType {
             self.factory
-                .create_parenthesized_type(member)
+                .ref_(self).create_parenthesized_type(member)
         } else {
             member
         }
@@ -458,7 +452,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
             | SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType => self
                 .factory
-                .create_parenthesized_type(member),
+                .ref_(self).create_parenthesized_type(member),
             _ => self.parenthesize_member_of_conditional_type(member),
         }
     }
@@ -467,7 +461,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
         match member.ref_(self).kind() {
             SyntaxKind::TypeQuery | SyntaxKind::TypeOperator | SyntaxKind::InferType => self
                 .factory
-                .create_parenthesized_type(member),
+                .ref_(self).create_parenthesized_type(member),
             _ => self.parenthesize_member_of_element_type(member),
         }
     }
@@ -475,12 +469,12 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         members: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let members = match members {
-            NodeArrayOrVec::NodeArray(members) => members.to_vec(),
+            NodeArrayOrVec::NodeArray(members) => members.ref_(self).to_vec(),
             NodeArrayOrVec::Vec(members) => members,
         };
-        self.factory.create_node_array(
+        self.factory.ref_(self).create_node_array(
             Some(same_map(&members, |&member, _| {
                 self.parenthesize_member_of_element_type(member)
             })),
@@ -491,13 +485,13 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     fn parenthesize_type_arguments(
         &self,
         type_arguments: Option<NodeArrayOrVec>,
-    ) -> Option<Gc<NodeArray>> {
+    ) -> Option<Id<NodeArray>> {
         if some(
-            type_arguments.as_deref(),
+            type_arguments.as_ref().map(|type_arguments| type_arguments.ref_(self)).as_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
-            return Some(self.factory.create_node_array(
-                maybe_same_map(type_arguments.as_deref(), |&type_arguments, index| {
+            return Some(self.factory.ref_(self).create_node_array(
+                maybe_same_map(type_arguments.as_ref().map(|type_arguments| type_arguments.ref_(self)).as_deref(), |&type_arguments, index| {
                     self.parenthesize_ordinal_type_argument(type_arguments, index)
                 }),
                 None,
@@ -507,35 +501,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>
-    HasArena for ParenthesizerRulesConcrete<TBaseNodeFactory>
+impl HasArena for ParenthesizerRulesConcrete
 {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
 
-pub fn null_parenthesizer_rules<TBaseNodeFactory: BaseNodeFactory>(
-) -> NullParenthesizerRules<TBaseNodeFactory> {
-    NullParenthesizerRules::<TBaseNodeFactory>::new()
+pub fn null_parenthesizer_rules() -> NullParenthesizerRules {
+    NullParenthesizerRules::new()
 }
 
 #[derive(Trace, Finalize)]
-pub struct NullParenthesizerRules<TBaseNodeFactory: BaseNodeFactory> {
-    #[unsafe_ignore_trace]
-    _base_node_factory: PhantomData<TBaseNodeFactory>,
-}
+pub struct NullParenthesizerRules;
 
-impl<TBaseNodeFactory: BaseNodeFactory> NullParenthesizerRules<TBaseNodeFactory> {
+impl NullParenthesizerRules {
     pub fn new() -> Self {
-        Self {
-            _base_node_factory: PhantomData,
-        }
+        Self
     }
 }
 
-impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
-    for NullParenthesizerRules<TBaseNodeFactory>
+impl ParenthesizerRules for NullParenthesizerRules
 {
     fn parenthesize_left_side_of_binary(&self, _: SyntaxKind, left_side: Id<Node>) -> Id<Node> {
         left_side
@@ -585,7 +571,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         elements: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         match elements {
             NodeArrayOrVec::NodeArray(elements) => elements,
             NodeArrayOrVec::Vec(_) => {
@@ -621,7 +607,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         members: NodeArrayOrVec,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         match members {
             NodeArrayOrVec::NodeArray(members) => members,
             NodeArrayOrVec::Vec(_) => {
@@ -633,7 +619,7 @@ impl<TBaseNodeFactory: BaseNodeFactory> ParenthesizerRules<TBaseNodeFactory>
     fn parenthesize_type_arguments(
         &self,
         type_parameters: Option<NodeArrayOrVec>,
-    ) -> Option<Gc<NodeArray>> {
+    ) -> Option<Id<NodeArray>> {
         type_parameters.map(|type_parameters| match type_parameters {
             NodeArrayOrVec::NodeArray(type_parameters) => type_parameters,
             NodeArrayOrVec::Vec(_) => {

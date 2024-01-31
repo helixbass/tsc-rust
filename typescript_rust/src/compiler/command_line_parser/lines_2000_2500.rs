@@ -44,7 +44,7 @@ pub(super) fn is_root_option_map(
 
 pub(super) fn convert_object_literal_expression_to_json(
     return_value: bool,
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     known_root_options: Option<&CommandLineOption>,
@@ -59,9 +59,9 @@ pub(super) fn convert_object_literal_expression_to_json(
     } else {
         None
     };
-    for &element in &node.ref_(arena).as_object_literal_expression().properties {
+    for &element in &*node.ref_(arena).as_object_literal_expression().properties.ref_(arena) {
         if element.ref_(arena).kind() != SyntaxKind::PropertyAssignment {
-            errors.borrow_mut().push(arena.alloc_diagnostic(
+            errors.ref_mut(arena).push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element,
@@ -79,7 +79,7 @@ pub(super) fn convert_object_literal_expression_to_json(
         if let Some(element_as_property_assignment_question_token) =
             element_as_property_assignment.question_token
         {
-            errors.borrow_mut().push(arena.alloc_diagnostic(
+            errors.ref_mut(arena).push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element_as_property_assignment_question_token,
@@ -91,7 +91,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             ));
         }
         if !is_double_quoted_string(source_file, element_as_property_assignment.name(), arena) {
-            errors.borrow_mut().push(arena.alloc_diagnostic(
+            errors.ref_mut(arena).push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     element_as_property_assignment.name(),
@@ -121,7 +121,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             if let Some(extra_key_diagnostics) = extra_key_diagnostics {
                 if option.is_none() {
                     if known_options.is_some() {
-                        errors.borrow_mut().push(create_unknown_option_error(
+                        errors.ref_mut(arena).push(create_unknown_option_error(
                             key_text,
                             extra_key_diagnostics,
                             |message, args| {
@@ -139,7 +139,7 @@ pub(super) fn convert_object_literal_expression_to_json(
                             None,
                         ))
                     } else {
-                        errors.borrow_mut().push(arena.alloc_diagnostic(
+                        errors.ref_mut(arena).push(arena.alloc_diagnostic(
                             create_diagnostic_for_node_in_source_file(
                                 source_file,
                                 element_as_property_assignment.name(),
@@ -209,17 +209,17 @@ pub(super) fn convert_object_literal_expression_to_json(
 }
 
 pub(super) fn convert_array_literal_expression_to_json(
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
     known_root_options: Option<&CommandLineOption>,
-    elements: &NodeArray, /*<Expression>*/
+    elements: Id<NodeArray>, /*<Expression>*/
     element_option: Option<&CommandLineOption>,
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     if !return_value {
-        elements.iter().try_for_each(|&element| -> io::Result<_> {
+        elements.ref_(arena).iter().try_for_each(|&element| -> io::Result<_> {
             convert_property_value_to_json(
                 errors.clone(),
                 source_file,
@@ -238,7 +238,7 @@ pub(super) fn convert_array_literal_expression_to_json(
 
     Ok(Some(serde_json::Value::Array({
         let mut results: Vec<serde_json::Value> = Default::default();
-        for &element in elements {
+        for &element in &*elements.ref_(arena) {
             if let Some(result) = convert_property_value_to_json(
                 errors.clone(),
                 source_file,
@@ -257,7 +257,7 @@ pub(super) fn convert_array_literal_expression_to_json(
 }
 
 pub(super) fn convert_property_value_to_json(
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     source_file: Id<Node>, /*JsonSourceFile*/
     json_conversion_notifier: Option<&impl JsonConversionNotifier>,
     return_value: bool,
@@ -337,7 +337,7 @@ pub(super) fn convert_property_value_to_json(
 
         SyntaxKind::StringLiteral => {
             if !is_double_quoted_string(source_file, value_expression, arena) {
-                errors.borrow_mut().push(arena.alloc_diagnostic(
+                errors.ref_mut(arena).push(arena.alloc_diagnostic(
                     create_diagnostic_for_node_in_source_file(
                         source_file,
                         value_expression,
@@ -370,7 +370,7 @@ pub(super) fn convert_property_value_to_json(
                 if let CommandLineOptionType::Map(custom_option_type) = custom_option.type_() {
                     if !custom_option_type.contains_key(&&*text.to_lowercase()) {
                         errors
-                            .borrow_mut()
+                            .ref_mut(arena)
                             .push(create_diagnostic_for_invalid_custom_type(
                                 custom_option,
                                 |message, args| {
@@ -568,7 +568,7 @@ pub(super) fn convert_property_value_to_json(
                     json_conversion_notifier,
                     return_value,
                     known_root_options,
-                    &value_expression.ref_(arena).as_array_literal_expression().elements,
+                    value_expression.ref_(arena).as_array_literal_expression().elements,
                     option.and_then(|option| match option {
                         CommandLineOption::CommandLineOptionOfListType(option) => {
                             Some(&*option.element)
@@ -595,7 +595,7 @@ pub(super) fn convert_property_value_to_json(
             arena,
         );
     } else {
-        errors.borrow_mut().push(arena.alloc_diagnostic(
+        errors.ref_mut(arena).push(arena.alloc_diagnostic(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,
@@ -613,7 +613,7 @@ pub(super) fn convert_property_value_to_json(
 pub(super) fn validate_value(
     invalid_reported: Option<bool>,
     option: Option<&CommandLineOption>,
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     source_file: Id<Node>,      /*JsonSourceFile*/
     value_expression: Id<Node>, /*Expression*/
     value: Option<serde_json::Value>,
@@ -624,7 +624,7 @@ pub(super) fn validate_value(
             .and_then(|option| option.maybe_extra_validation())
             .and_then(|extra_validation| extra_validation(value.as_ref()));
         if let Some((diagnostic_message, args)) = diagnostic {
-            errors.borrow_mut().push(arena.alloc_diagnostic(
+            errors.ref_mut(arena).push(arena.alloc_diagnostic(
                 create_diagnostic_for_node_in_source_file(
                     source_file,
                     value_expression,
@@ -641,7 +641,7 @@ pub(super) fn validate_value(
 }
 
 pub(super) fn report_invalid_option_value(
-    errors: Gc<GcCell<Push<Id<Diagnostic>>>>,
+    errors: Id<Push<Id<Diagnostic>>>,
     invalid_reported: &mut Option<bool>,
     source_file: Id<Node>,      /*JsonSourceFile*/
     value_expression: Id<Node>, /*Expression*/
@@ -650,7 +650,7 @@ pub(super) fn report_invalid_option_value(
     arena: &impl HasArena,
 ) {
     if matches!(is_error, Some(true)) {
-        errors.borrow_mut().push(arena.alloc_diagnostic(
+        errors.ref_mut(arena).push(arena.alloc_diagnostic(
             create_diagnostic_for_node_in_source_file(
                 source_file,
                 value_expression,

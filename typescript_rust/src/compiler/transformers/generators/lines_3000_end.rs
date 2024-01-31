@@ -2,7 +2,10 @@ use gc::Gc;
 use id_arena::Id;
 
 use super::{Instruction, Label, TransformGenerators};
-use crate::{EmitFlags, Node, NodeExt, ReadonlyTextRange};
+use crate::{
+    EmitFlags, Node, NodeExt, ReadonlyTextRange,
+    InArena,
+};
 
 impl TransformGenerators {
     pub(super) fn write_throw(
@@ -14,7 +17,7 @@ impl TransformGenerators {
         self.set_last_operation_was_completion(true);
         self.write_statement(
             self.factory
-                .create_throw_statement(expression)
+                .ref_(self).create_throw_statement(expression)
                 .set_text_range(operation_location, self),
         );
     }
@@ -28,7 +31,7 @@ impl TransformGenerators {
         self.set_last_operation_was_completion(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
                     Some(if let Some(expression) = expression {
                         vec![self.create_instruction(Instruction::Return), expression]
                     } else {
@@ -49,7 +52,7 @@ impl TransformGenerators {
         self.set_last_operation_was_abrupt(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
                     Some(vec![
                         self.create_instruction(Instruction::Break),
                         self.create_label(Some(label)),
@@ -69,11 +72,11 @@ impl TransformGenerators {
     ) {
         self.write_statement(
             self.factory
-                .create_if_statement(
+                .ref_(self).create_if_statement(
                     condition,
                     self.factory
-                        .create_return_statement(Some(
-                            self.factory.create_array_literal_expression(
+                        .ref_(self).create_return_statement(Some(
+                            self.factory.ref_(self).create_array_literal_expression(
                                 Some(vec![
                                     self.create_instruction(Instruction::Break),
                                     self.create_label(Some(label)),
@@ -97,11 +100,11 @@ impl TransformGenerators {
     ) {
         self.write_statement(
             self.factory
-                .create_if_statement(
-                    self.factory.create_logical_not(condition),
+                .ref_(self).create_if_statement(
+                    self.factory.ref_(self).create_logical_not(condition),
                     self.factory
-                        .create_return_statement(Some(
-                            self.factory.create_array_literal_expression(
+                        .ref_(self).create_return_statement(Some(
+                            self.factory.ref_(self).create_array_literal_expression(
                                 Some(vec![
                                     self.create_instruction(Instruction::Break),
                                     self.create_label(Some(label)),
@@ -125,7 +128,7 @@ impl TransformGenerators {
         self.set_last_operation_was_abrupt(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
                     // expression ?
                     Some(vec![
                         self.create_instruction(Instruction::Yield),
@@ -147,7 +150,7 @@ impl TransformGenerators {
         self.set_last_operation_was_abrupt(true);
         self.write_statement(
             self.factory
-                .create_return_statement(Some(self.factory.create_array_literal_expression(
+                .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
                     Some(vec![
                         self.create_instruction(Instruction::YieldStar),
                         expression,
@@ -161,8 +164,8 @@ impl TransformGenerators {
 
     pub(super) fn write_end_finally(&self) {
         self.set_last_operation_was_abrupt(true);
-        self.write_statement(self.factory.create_return_statement(Some(
-            self.factory.create_array_literal_expression(
+        self.write_statement(self.factory.ref_(self).create_return_statement(Some(
+            self.factory.ref_(self).create_array_literal_expression(
                 Some(vec![self.create_instruction(Instruction::Endfinally)]),
                 None,
             ),

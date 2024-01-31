@@ -44,13 +44,15 @@ use crate::{
     SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
     SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
     TokenFlags, Type, UnderscoreEscapedMap, OptionInArena,
+    per_arena,
 };
 
-thread_local! {
-    static resolving_empty_array_: Gc<Vec<Id<Type>>> = Gc::new(vec![]);
-}
-pub fn resolving_empty_array() -> Gc<Vec<Id<Type>>> {
-    resolving_empty_array_.with(|resolving_empty_array| resolving_empty_array.clone())
+pub fn resolving_empty_array(arena: &impl HasArena) -> Id<Vec<Id<Type>>> {
+    per_arena!(
+        Vec<Id<Type>>,
+        arena,
+        arena.alloc_vec_type(Default::default())
+    )
 }
 
 pub const external_helpers_module_name_text: &str = "tslib";
@@ -105,7 +107,7 @@ pub fn is_transient_symbol(symbol: &Symbol) -> bool {
 }
 
 // lazy_static! {
-//     static ref string_writer: Gc<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
+//     static ref string_writer: Id<Box<dyn EmitTextWriter>> = create_single_line_string_writer();
 // }
 
 fn string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
@@ -610,7 +612,7 @@ pub fn get_resolved_module(
     source_file: Option<&Node>, /*SourceFile*/
     module_name_text: &str,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
-) -> Option<Gc<ResolvedModuleFull>> {
+) -> Option<Id<ResolvedModuleFull>> {
     if let Some(source_file) = source_file {
         if let Some(source_file_resolved_modules) = source_file
             .as_source_file()
@@ -628,7 +630,7 @@ pub fn get_resolved_module(
 pub fn set_resolved_module(
     source_file: &Node, /*SourceFile*/
     module_name_text: &str,
-    resolved_module: Option<Gc<ResolvedModuleFull>>,
+    resolved_module: Option<Id<ResolvedModuleFull>>,
     mode: Option<ModuleKind /*ModuleKind.CommonJS | ModuleKind.ESNext*/>,
 ) {
     let mut source_file_resolved_modules = source_file.as_source_file().maybe_resolved_modules();
@@ -645,7 +647,7 @@ pub fn set_resolved_module(
 pub fn set_resolved_type_reference_directive(
     source_file: &Node, /*SourceFile*/
     type_reference_directive_name: &str,
-    resolved_type_reference_directive: Option<Gc<ResolvedTypeReferenceDirective>>,
+    resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
 ) {
     let mut source_file_resolved_type_reference_directive_names = source_file
         .as_source_file()
@@ -770,7 +772,7 @@ fn aggregate_child_data(node: Id<Node>, arena: &impl HasArena) {
                 || for_each_child_bool(
                     node,
                     |child| contains_parse_error(child, arena),
-                    Option::<fn(&NodeArray) -> bool>::None,
+                    Option::<fn(Id<NodeArray>) -> bool>::None,
                     arena,
                 );
 
@@ -930,7 +932,7 @@ fn insert_statement_after_prologue(
 }
 
 fn is_any_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_prologue_directive(node, arena) || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::CustomPrologue)
+    is_prologue_directive(node, arena) || get_emit_flags(node, arena).intersects(EmitFlags::CustomPrologue)
 }
 
 pub fn insert_statements_after_standard_prologue(
@@ -1108,7 +1110,7 @@ pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<I
             .unwrap_or_else(|| get_source_file_of_node(node, arena))
             .ref_(arena).as_source_file()
             .text_as_chars(),
-        node.ref_(arena).maybe_decorators().as_ref().unwrap().end(),
+        node.ref_(arena).maybe_decorators().as_ref().unwrap().ref_(arena).end(),
         None,
         None,
         None,
@@ -1224,9 +1226,9 @@ pub fn index_of_node(node_array: &[Id<Node>], node: Id<Node>, arena: &impl HasAr
     )
 }
 
-pub fn get_emit_flags(node: &Node) -> EmitFlags {
-    node.maybe_emit_node()
-        .and_then(|emit_node| (*emit_node).borrow().flags)
+pub fn get_emit_flags(node: Id<Node>, arena: &impl HasArena) -> EmitFlags {
+    node.ref_(arena).maybe_emit_node()
+        .and_then(|emit_node| emit_node.ref_(arena).flags)
         .unwrap_or(EmitFlags::None)
 }
 
@@ -1440,7 +1442,7 @@ pub fn get_literal_text(
             let escape_text = if flags.intersects(GetLiteralTextFlags::JsxAttributeEscape) {
                 escape_jsx_attribute_string
             } else if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
-                || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::NoAsciiEscaping)
+                || get_emit_flags(node, arena).intersects(EmitFlags::NoAsciiEscaping)
             {
                 escape_string
             } else {
@@ -1468,7 +1470,7 @@ pub fn get_literal_text(
         }
         Node::TemplateLiteralLikeNode(node_as_template_literal_like_node) => {
             let escape_text = if flags.intersects(GetLiteralTextFlags::NeverAsciiEscape)
-                || get_emit_flags(&node.ref_(arena)).intersects(EmitFlags::NoAsciiEscaping)
+                || get_emit_flags(node, arena).intersects(EmitFlags::NoAsciiEscaping)
             {
                 escape_string
             } else {
@@ -1677,7 +1679,7 @@ pub fn is_effective_strict_mode_source_file(
     if get_strict_option_value(compiler_options, "alwaysStrict") {
         return true;
     }
-    if starts_with_use_strict(&node_as_source_file.statements(), arena) {
+    if starts_with_use_strict(&node_as_source_file.statements().ref_(arena), arena) {
         return true;
     }
     if is_external_module(&node.ref_(arena)) || compiler_options.isolated_modules.unwrap_or(false) {
@@ -1816,12 +1818,12 @@ pub fn declaration_name_to_string(name: Option<Id<Node>>, arena: &impl HasArena)
     }
 }
 
-pub fn get_name_from_index_info(info: &IndexInfo, arena: &impl HasArena) -> Option<Cow<'static, str>> {
-    info.declaration.as_ref().map(|info_declaration| {
+pub fn get_name_from_index_info(info: Id<IndexInfo>, arena: &impl HasArena) -> Option<Cow<'static, str>> {
+    info.ref_(arena).declaration.map(|info_declaration| {
         declaration_name_to_string(
             info_declaration
                 .ref_(arena).as_index_signature_declaration()
-                .parameters()[0]
+                .parameters().ref_(arena)[0]
                 .ref_(arena).as_parameter_declaration()
                 .maybe_name(),
             arena,

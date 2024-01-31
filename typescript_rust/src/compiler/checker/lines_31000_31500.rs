@@ -67,23 +67,23 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
         let node_as_call_expression = node_ref.as_call_expression();
-        if !self.check_grammar_arguments(Some(&node_as_call_expression.arguments)) {
+        if !self.check_grammar_arguments(Some(node_as_call_expression.arguments)) {
             self.check_grammar_import_call_expression(node);
         }
 
-        if node_as_call_expression.arguments.is_empty() {
+        if node_as_call_expression.arguments.ref_(self).is_empty() {
             return self.create_promise_return_type(node, self.any_type());
         }
 
-        let specifier = node_as_call_expression.arguments[0];
+        let specifier = node_as_call_expression.arguments.ref_(self)[0];
         let specifier_type = self.check_expression_cached(specifier, None)?;
-        let options_type = if node_as_call_expression.arguments.len() > 1 {
-            Some(self.check_expression_cached(node_as_call_expression.arguments[1], None)?)
+        let options_type = if node_as_call_expression.arguments.ref_(self).len() > 1 {
+            Some(self.check_expression_cached(node_as_call_expression.arguments.ref_(self)[1], None)?)
         } else {
             None
         };
-        for i in 2..node_as_call_expression.arguments.len() {
-            self.check_expression_cached(node_as_call_expression.arguments[i], None)?;
+        for i in 2..node_as_call_expression.arguments.ref_(self).len() {
+            self.check_expression_cached(node_as_call_expression.arguments.ref_(self)[i], None)?;
         }
 
         if specifier_type
@@ -114,7 +114,7 @@ impl TypeChecker {
                 self.check_type_assignable_to(
                     options_type,
                     self.get_nullable_type(import_call_options_type, TypeFlags::Undefined)?,
-                    Some(node_as_call_expression.arguments[1]),
+                    Some(node_as_call_expression.arguments.ref_(self)[1]),
                     None,
                     None,
                     None,
@@ -167,14 +167,14 @@ impl TypeChecker {
         new_symbol.ref_(self).set_parent(Some(original_symbol));
         {
             let new_symbol_links = new_symbol.ref_(self).as_transient_symbol().symbol_links();
-            let mut new_symbol_links = new_symbol_links.borrow_mut();
+            let mut new_symbol_links = new_symbol_links.ref_mut(self);
             new_symbol_links.name_type = Some(self.get_string_literal_type("default"));
             new_symbol_links.target = self.resolve_symbol(Some(symbol), None)?;
         }
         member_table.insert(InternalSymbolName::Default.to_owned(), new_symbol);
         self.create_anonymous_type(
             anonymous_symbol,
-            Gc::new(GcCell::new(member_table)),
+            self.alloc_symbol_table(member_table),
             vec![],
             vec![],
             vec![],
@@ -253,7 +253,7 @@ impl TypeChecker {
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .borrow_mut()
+                        .ref_mut(self)
                         .type_ = Some(default_containing_object.clone());
                     *synth_type.ref_(self).maybe_synthetic_type() =
                         Some(if self.is_valid_spread_type(type_)? {
@@ -351,8 +351,7 @@ impl TypeChecker {
             self.check_grammar_type_arguments(
                 node,
                 node_as_tagged_template_expression
-                    .maybe_type_arguments()
-                    .as_deref(),
+                    .maybe_type_arguments(),
             );
         }
         if self.language_version < ScriptTarget::ES2015 {
@@ -632,24 +631,24 @@ impl TypeChecker {
 
     pub(super) fn get_parameter_name_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
         override_rest_type: Option<Id<Type>>,
     ) -> io::Result<__String> {
-        let param_count = signature.parameters().len()
-            - if signature_has_rest_parameter(signature) {
+        let param_count = signature.ref_(self).parameters().len()
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
             };
         if pos < param_count {
-            return Ok(signature.parameters()[pos]
+            return Ok(signature.ref_(self).parameters()[pos]
                 .ref_(self)
                 .escaped_name()
                 .to_owned());
         }
         let rest_parameter = signature
-            .parameters()
+            .ref_(self).parameters()
             .get(param_count)
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
@@ -673,17 +672,17 @@ impl TypeChecker {
 
     pub fn get_parameter_identifier_name_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<(__String, bool)>> {
-        let param_count = signature.parameters().len()
-            - if signature_has_rest_parameter(signature) {
+        let param_count = signature.ref_(self).parameters().len()
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
             };
         if pos < param_count {
-            let param = signature.parameters()[pos];
+            let param = signature.ref_(self).parameters()[pos];
             return Ok(
                 if self.is_parameter_declaration_with_identifier_name(param) {
                     Some((param.ref_(self).escaped_name().to_owned(), false))
@@ -694,7 +693,7 @@ impl TypeChecker {
         }
 
         let rest_parameter = signature
-            .parameters()
+            .ref_(self).parameters()
             .get(param_count)
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
@@ -755,23 +754,23 @@ impl TypeChecker {
 
     pub(super) fn get_nameable_declaration_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<Id<Node>>> {
-        let param_count = signature.parameters().len()
-            - if signature_has_rest_parameter(signature) {
+        let param_count = signature.ref_(self).parameters().len()
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
             };
         if pos < param_count {
-            let decl = signature.parameters()[pos]
+            let decl = signature.ref_(self).parameters()[pos]
                 .ref_(self)
                 .maybe_value_declaration();
             return Ok(decl.filter(|&decl| self.is_valid_declaration_for_tuple_label(decl)));
         }
         let rest_parameter = signature
-            .parameters()
+            .ref_(self).parameters()
             .get(param_count)
             .cloned()
             .unwrap_or_else(|| self.unknown_symbol());
@@ -796,7 +795,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Id<Type>> {
         Ok(self
@@ -806,22 +805,22 @@ impl TypeChecker {
 
     pub(super) fn try_get_type_at_position(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         pos: usize,
     ) -> io::Result<Option<Id<Type>>> {
-        let param_count = signature.parameters().len()
-            - if signature_has_rest_parameter(signature) {
+        let param_count = signature.ref_(self).parameters().len()
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
             };
         if pos < param_count {
             return Ok(Some(
-                self.get_type_of_parameter(signature.parameters()[pos])?,
+                self.get_type_of_parameter(signature.ref_(self).parameters()[pos])?,
             ));
         }
-        if signature_has_rest_parameter(signature) {
-            let rest_type = self.get_type_of_symbol(signature.parameters()[param_count])?;
+        if signature_has_rest_parameter(&signature.ref_(self)) {
+            let rest_type = self.get_type_of_symbol(signature.ref_(self).parameters()[param_count])?;
             let index = pos - param_count;
             if !self.is_tuple_type(rest_type) || {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
@@ -843,7 +842,7 @@ impl TypeChecker {
 
     pub(super) fn get_rest_type_at_position(
         &self,
-        source: &Signature,
+        source: Id<Signature>,
         pos: usize,
     ) -> io::Result<Id<Type>> {
         let parameter_count = self.get_parameter_count(source)?;
@@ -900,10 +899,10 @@ impl TypeChecker {
         )
     }
 
-    pub(super) fn get_parameter_count(&self, signature: &Signature) -> io::Result<usize> {
-        let length = signature.parameters().len();
-        if signature_has_rest_parameter(signature) {
-            let rest_type = self.get_type_of_symbol(signature.parameters()[length - 1])?;
+    pub(super) fn get_parameter_count(&self, signature: Id<Signature>) -> io::Result<usize> {
+        let length = signature.ref_(self).parameters().len();
+        if signature_has_rest_parameter(&signature.ref_(self)) {
+            let rest_type = self.get_type_of_symbol(signature.ref_(self).parameters()[length - 1])?;
             if self.is_tuple_type(rest_type) {
                 let rest_type_target = rest_type.ref_(self).as_type_reference_interface().target();
                 return Ok(
@@ -921,7 +920,7 @@ impl TypeChecker {
 
     pub(super) fn get_min_argument_count(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         flags: Option<MinArgumentCountFlags>,
     ) -> io::Result<usize> {
         let strong_arity_for_untyped_js = match flags {
@@ -932,11 +931,11 @@ impl TypeChecker {
             None => false,
             Some(flags) => flags.intersects(MinArgumentCountFlags::VoidIsNonOptional),
         };
-        if void_is_non_optional || signature.maybe_resolved_min_argument_count().is_none() {
+        if void_is_non_optional || signature.ref_(self).maybe_resolved_min_argument_count().is_none() {
             let mut min_argument_count = None;
-            if signature_has_rest_parameter(signature) {
+            if signature_has_rest_parameter(&signature.ref_(self)) {
                 let rest_type = self
-                    .get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
+                    .get_type_of_symbol(signature.ref_(self).parameters()[signature.ref_(self).parameters().len() - 1])?;
                 if self.is_tuple_type(rest_type) {
                     let rest_type_target =
                         rest_type.ref_(self).as_type_reference_interface().target();
@@ -949,19 +948,19 @@ impl TypeChecker {
                         .unwrap_or(rest_type_target.ref_(self).as_tuple_type().fixed_length);
                     if required_count > 0 {
                         min_argument_count =
-                            Some(signature.parameters().len() - 1 + required_count);
+                            Some(signature.ref_(self).parameters().len() - 1 + required_count);
                     }
                 }
             }
             if min_argument_count.is_none() {
                 if !strong_arity_for_untyped_js
                     && signature
-                        .flags
+                        .ref_(self).flags
                         .intersects(SignatureFlags::IsUntypedSignatureInJSFile)
                 {
                     return Ok(0);
                 }
-                min_argument_count = Some(signature.min_argument_count());
+                min_argument_count = Some(signature.ref_(self).min_argument_count());
             }
             let mut min_argument_count = min_argument_count.unwrap();
             if void_is_non_optional {
@@ -992,15 +991,15 @@ impl TypeChecker {
                     i -= 1;
                 }
             }
-            signature.set_resolved_min_argument_count(min_argument_count);
+            signature.ref_(self).set_resolved_min_argument_count(min_argument_count);
         }
-        Ok(signature.resolved_min_argument_count())
+        Ok(signature.ref_(self).resolved_min_argument_count())
     }
 
-    pub(super) fn has_effective_rest_parameter(&self, signature: &Signature) -> io::Result<bool> {
-        if signature_has_rest_parameter(signature) {
+    pub(super) fn has_effective_rest_parameter(&self, signature: Id<Signature>) -> io::Result<bool> {
+        if signature_has_rest_parameter(&signature.ref_(self)) {
             let rest_type =
-                self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
+                self.get_type_of_symbol(signature.ref_(self).parameters()[signature.ref_(self).parameters().len() - 1])?;
             return Ok(!self.is_tuple_type(rest_type)
                 || rest_type
                     .ref_(self)
@@ -1015,11 +1014,11 @@ impl TypeChecker {
 
     pub(super) fn get_effective_rest_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
-        if signature_has_rest_parameter(signature) {
+        if signature_has_rest_parameter(&signature.ref_(self)) {
             let rest_type =
-                self.get_type_of_symbol(signature.parameters()[signature.parameters().len() - 1])?;
+                self.get_type_of_symbol(signature.ref_(self).parameters()[signature.ref_(self).parameters().len() - 1])?;
             if !self.is_tuple_type(rest_type) {
                 return Ok(Some(rest_type));
             }
@@ -1037,7 +1036,7 @@ impl TypeChecker {
 
     pub(super) fn get_non_array_rest_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Option<Id<Type>>> {
         let rest_type = self.get_effective_rest_type(signature)?;
         rest_type.try_filter(|&rest_type| -> io::Result<_> {
@@ -1053,7 +1052,7 @@ impl TypeChecker {
 
     pub(super) fn get_type_of_first_parameter_of_signature(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<Id<Type>> {
         self.get_type_of_first_parameter_of_signature_with_fallback(signature, self.never_type())
     }

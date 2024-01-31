@@ -1,5 +1,5 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::{Cell, Ref, RefCell, RefMut},
     cmp,
     collections::HashMap,
@@ -39,7 +39,7 @@ use crate::{
 
 pub fn create_compiler_diagnostic_from_message_chain(
     chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
 ) -> BaseDiagnostic {
     BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
@@ -180,8 +180,8 @@ fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic, arena: &impl Ha
                 return compared;
             }
             let compared_maybe = for_each(d1_related_information, |d1i, index| {
-                let d2i = &d2_related_information[index];
-                let compared = compare_diagnostics(&**d1i, &**d2i, arena);
+                let d2i = d2_related_information[index];
+                let compared = compare_diagnostics(&*d1i.ref_(arena), &*d2i.ref_(arena), arena);
                 match compared {
                     Comparison::EqualTo => None,
                     compared => Some(compared),
@@ -850,7 +850,7 @@ pub struct SymlinkedDirectory {
 #[derive(Trace, Finalize)]
 pub struct SymlinkCache {
     cwd: String,
-    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     #[unsafe_ignore_trace]
     symlinked_files: RefCell<Option<HashMap<Path, String>>>,
     #[unsafe_ignore_trace]
@@ -868,7 +868,7 @@ impl fmt::Debug for SymlinkCache {
 }
 
 impl SymlinkCache {
-    pub fn new(cwd: &str, get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>) -> Self {
+    pub fn new(cwd: &str, get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>) -> Self {
         Self {
             cwd: cwd.to_owned(),
             get_canonical_file_name,
@@ -915,7 +915,7 @@ impl SymlinkCache {
 
     pub fn set_symlinked_directory(&self, symlink: &str, real: Option<SymlinkedDirectory>) {
         let mut symlink_path = to_path(symlink, Some(&self.cwd), |file_name| {
-            self.get_canonical_file_name.call(file_name)
+            self.get_canonical_file_name.ref_(self).call(file_name)
         });
         if !contains_ignored_path(&symlink_path) {
             symlink_path = ensure_trailing_directory_separator(&symlink_path).into();
@@ -945,12 +945,12 @@ impl SymlinkCache {
     pub fn set_symlinked_directory_from_symlinked_file(&self, symlink: &str, real: &str) {
         self.set_symlinked_file(
             &to_path(symlink, Some(&self.cwd), |file_name| {
-                self.get_canonical_file_name.call(file_name)
+                self.get_canonical_file_name.ref_(self).call(file_name)
             }),
             real,
         );
         let guessed = guess_directory_symlink(real, symlink, &self.cwd, |file_name| {
-            self.get_canonical_file_name.call(file_name)
+            self.get_canonical_file_name.ref_(self).call(file_name)
         });
         if let Some((common_resolved, common_original)) = guessed {
             if !common_resolved.is_empty() && !common_original.is_empty() {
@@ -959,7 +959,7 @@ impl SymlinkCache {
                     Some(SymlinkedDirectory {
                         real: common_resolved.clone(),
                         real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
-                            self.get_canonical_file_name.call(file_name)
+                            self.get_canonical_file_name.ref_(self).call(file_name)
                         }),
                     }),
                 );
@@ -971,7 +971,7 @@ impl SymlinkCache {
         &self,
         files: &[Id<Node /*SourceFile*/>],
         type_reference_directives: Option<
-            &HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>,
+            &HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>,
         >,
     ) {
         Debug_.assert(!self.has_processed_resolutions(), None);
@@ -1004,22 +1004,22 @@ impl SymlinkCache {
             return;
         }
         let resolution = resolution.unwrap();
-        if resolution.maybe_original_path().is_none()
-            || resolution.maybe_resolved_file_name().is_none()
+        if resolution.maybe_original_path(self).is_none()
+            || resolution.maybe_resolved_file_name(self).is_none()
         {
             return;
         }
-        let resolved_file_name = resolution.maybe_resolved_file_name().unwrap();
-        let original_path = resolution.maybe_original_path().unwrap();
+        let ref resolved_file_name = resolution.maybe_resolved_file_name(self).unwrap();
+        let ref original_path = resolution.maybe_original_path(self).unwrap();
         self.set_symlinked_file(
             &to_path(original_path, Some(&self.cwd), |file_name| {
-                self.get_canonical_file_name.call(file_name)
+                self.get_canonical_file_name.ref_(self).call(file_name)
             }),
             resolved_file_name,
         );
         let guessed =
             guess_directory_symlink(resolved_file_name, original_path, &self.cwd, |file_name| {
-                self.get_canonical_file_name.call(file_name)
+                self.get_canonical_file_name.ref_(self).call(file_name)
             });
         if let Some((common_resolved, common_original)) = guessed {
             if !common_resolved.is_empty() && !common_original.is_empty() {
@@ -1028,7 +1028,7 @@ impl SymlinkCache {
                     Some(SymlinkedDirectory {
                         real: common_resolved.clone(),
                         real_path: to_path(&common_resolved, Some(&self.cwd), |file_name| {
-                            self.get_canonical_file_name.call(file_name)
+                            self.get_canonical_file_name.ref_(self).call(file_name)
                         }),
                     }),
                 );
@@ -1044,43 +1044,43 @@ impl HasArena for SymlinkCache {
 }
 
 enum ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    ResolvedModuleFull(Gc<ResolvedModuleFull>),
-    ResolvedTypeReferenceDirective(Gc<ResolvedTypeReferenceDirective>),
+    ResolvedModuleFull(Id<ResolvedModuleFull>),
+    ResolvedTypeReferenceDirective(Id<ResolvedTypeReferenceDirective>),
 }
 
 impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    pub fn maybe_original_path(&self) -> Option<&String> {
+    pub fn maybe_original_path(&self, arena: &impl HasArena) -> Option<String> {
         match self {
-            Self::ResolvedModuleFull(value) => value.original_path.as_ref(),
-            Self::ResolvedTypeReferenceDirective(value) => value.original_path.as_ref(),
+            Self::ResolvedModuleFull(value) => value.ref_(arena).original_path.clone(),
+            Self::ResolvedTypeReferenceDirective(value) => value.ref_(arena).original_path.clone(),
         }
     }
 
-    pub fn maybe_resolved_file_name(&self) -> Option<&String> {
+    pub fn maybe_resolved_file_name(&self, arena: &impl HasArena) -> Option<String> {
         match self {
-            Self::ResolvedModuleFull(value) => Some(&value.resolved_file_name),
-            Self::ResolvedTypeReferenceDirective(value) => value.resolved_file_name.as_ref(),
+            Self::ResolvedModuleFull(value) => Some(value.ref_(arena).resolved_file_name.clone()),
+            Self::ResolvedTypeReferenceDirective(value) => value.ref_(arena).resolved_file_name.clone(),
         }
     }
 }
 
-impl From<Gc<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceDirective {
-    fn from(value: Gc<ResolvedModuleFull>) -> Self {
+impl From<Id<ResolvedModuleFull>> for ResolvedModuleFullOrResolvedTypeReferenceDirective {
+    fn from(value: Id<ResolvedModuleFull>) -> Self {
         Self::ResolvedModuleFull(value)
     }
 }
 
-impl From<Gc<ResolvedTypeReferenceDirective>>
+impl From<Id<ResolvedTypeReferenceDirective>>
     for ResolvedModuleFullOrResolvedTypeReferenceDirective
 {
-    fn from(value: Gc<ResolvedTypeReferenceDirective>) -> Self {
+    fn from(value: Id<ResolvedTypeReferenceDirective>) -> Self {
         Self::ResolvedTypeReferenceDirective(value)
     }
 }
 
 pub fn create_symlink_cache(
     cwd: &str,
-    get_canonical_file_name: Gc<Box<dyn GetCanonicalFileName>>,
+    get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
 ) -> SymlinkCache {
     SymlinkCache::new(cwd, get_canonical_file_name)
 }
@@ -2008,7 +2008,7 @@ pub fn match_pattern_or_exact(
         }
     }
 
-    find_best_pattern_match(&patterns, |pattern: &Rc<Pattern>| &**pattern, candidate)
+    find_best_pattern_match(&patterns, |pattern: &Rc<Pattern>| pattern.clone(), candidate)
         .map(|value| StringOrPattern::Pattern(value.clone()))
 }
 
@@ -2032,7 +2032,7 @@ pub fn slice_after_eq<'a, TItem: PartialEq>(
 
 pub fn add_related_info(
     diagnostic: &Diagnostic,
-    related_information: Vec<Gc<DiagnosticRelatedInformation>>,
+    related_information: Vec<Id<DiagnosticRelatedInformation>>,
 ) {
     if related_information.is_empty() {
         return /*diagnostic*/;
@@ -2051,7 +2051,7 @@ pub fn add_related_info(
 
 pub fn add_related_info_rc(
     diagnostic: Id<Diagnostic>,
-    related_information: Vec<Gc<DiagnosticRelatedInformation>>,
+    related_information: Vec<Id<DiagnosticRelatedInformation>>,
     arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     add_related_info(&diagnostic.ref_(arena), related_information);

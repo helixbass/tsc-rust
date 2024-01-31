@@ -42,7 +42,7 @@ impl TypeChecker {
             && try_for_each_child_recursively_bool(
                 expression,
                 |n, _| self.is_matching_reference(this_property, n),
-                Option::<fn(&NodeArray, Id<Node>) -> io::Result<bool>>::None,
+                Option::<fn(Id<NodeArray>, Id<Node>) -> io::Result<bool>>::None,
                 self,
             )?)
     }
@@ -134,11 +134,11 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
         let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-        let mut string_index_info: Option<Gc<IndexInfo>> = None;
+        let mut string_index_info: Option<Id<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         try_for_each(
-            &pattern.ref_(self).as_object_binding_pattern().elements,
+            &*pattern.ref_(self).as_object_binding_pattern().elements.ref_(self),
             |&e: &Id<Node>, _| -> io::Result<_> {
                 let e_ref = e.ref_(self);
                 let e_as_binding_element = e_ref.as_binding_element();
@@ -147,7 +147,7 @@ impl TypeChecker {
                     .as_ref()
                     .map_or_else(|| e_as_binding_element.name(), Clone::clone);
                 if e_as_binding_element.dot_dot_dot_token.is_some() {
-                    string_index_info = Some(Gc::new(self.create_index_info(
+                    string_index_info = Some(self.alloc_index_info(self.create_index_info(
                         self.string_type(),
                         self.any_type(),
                         false,
@@ -173,7 +173,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .type_ = Some(self.get_type_from_binding_element(
                     e,
                     Some(include_pattern_in_type),
@@ -183,7 +183,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .binding_element = Some(e.clone());
                 members.insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
                 Ok(Option::<()>::None)
@@ -191,7 +191,7 @@ impl TypeChecker {
         )?;
         let result = self.create_anonymous_type(
             Option::<Id<Symbol>>::None,
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             if let Some(string_index_info) = string_index_info {
@@ -220,8 +220,8 @@ impl TypeChecker {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
-        let ref elements = pattern.ref_(self).as_has_elements().elements();
-        let last_element = last_or_undefined(&**elements).copied();
+        let elements = pattern.ref_(self).as_has_elements().elements();
+        let last_element = last_or_undefined(&elements.ref_(self)).copied();
         let rest_element = last_element.filter(|last_element| {
             last_element.ref_(self).kind() == SyntaxKind::BindingElement
                 && last_element
@@ -229,14 +229,14 @@ impl TypeChecker {
                     .dot_dot_dot_token
                     .is_some()
         });
-        if elements.is_empty() || elements.len() == 1 && rest_element.is_some() {
+        if elements.ref_(self).is_empty() || elements.ref_(self).len() == 1 && rest_element.is_some() {
             return Ok(if self.language_version >= ScriptTarget::ES2015 {
                 self.create_iterable_type(self.any_type())?
             } else {
                 self.any_array_type()
             });
         }
-        let element_types = try_map(elements, |&e: &Id<Node>, _| -> io::Result<_> {
+        let element_types = try_map(&*elements.ref_(self), |&e: &Id<Node>, _| -> io::Result<_> {
             Ok(if is_omitted_expression(&e.ref_(self)) {
                 self.any_type()
             } else {
@@ -248,17 +248,17 @@ impl TypeChecker {
             })
         })?;
         let min_length: usize = (find_last_index_returns_isize(
-            &**elements,
+            &elements.ref_(self),
             |&e: &Id<Node>, _| {
                 !(rest_element == Some(e)
                     || is_omitted_expression(&e.ref_(self))
                     || self.has_default_value(e))
             },
-            Some(elements.len() - 1),
+            Some(elements.ref_(self).len() - 1),
         ) + 1)
             .try_into()
             .unwrap();
-        let element_flags = map(elements, |&e: &Id<Node>, i| {
+        let element_flags = map(&*elements.ref_(self), |&e: &Id<Node>, i| {
             if rest_element == Some(e) {
                 ElementFlags::Rest
             } else if i >= min_length {
@@ -400,15 +400,16 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        let links_type_is_none = { (*links).borrow().type_.is_none() };
+        let links_type_is_none = { (*links.ref_(self)).borrow().type_.is_none() };
         if links_type_is_none {
             let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol)?;
-            let mut links = links.borrow_mut();
+            let mut links = links.ref_mut(self);
             if links.type_.is_none() {
                 links.type_ = Some(type_);
             }
         }
-        let links = (*links).borrow();
+        let links_ref = links.ref_(self);
+        let links = (*links_ref).borrow();
         Ok(links.type_.clone().unwrap())
     }
 
@@ -447,7 +448,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .target = Some(file_symbol.clone());
                 if let Some(file_symbol_value_declaration) =
                     file_symbol.ref_(self).maybe_value_declaration()
@@ -457,20 +458,20 @@ impl TypeChecker {
                         .set_value_declaration(file_symbol_value_declaration);
                 }
                 if let Some(file_symbol_members) = file_symbol.ref_(self).maybe_members().as_ref() {
-                    *result.ref_(self).maybe_members_mut() = Some(Gc::new(GcCell::new(
-                        (**file_symbol_members).borrow().clone(),
-                    )));
+                    *result.ref_(self).maybe_members_mut() = Some(self.alloc_symbol_table(
+                        file_symbol_members.ref_(self).clone(),
+                    ));
                 }
                 if let Some(file_symbol_exports) = file_symbol.ref_(self).maybe_exports().as_ref() {
-                    *result.ref_(self).maybe_exports_mut() = Some(Gc::new(GcCell::new(
-                        (**file_symbol_exports).borrow().clone(),
-                    )));
+                    *result.ref_(self).maybe_exports_mut() = Some(self.alloc_symbol_table(
+                        file_symbol_exports.ref_(self).clone(),
+                    ));
                 }
                 let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);
                 return self.create_anonymous_type(
                     Some(symbol),
-                    Gc::new(GcCell::new(members)),
+                    self.alloc_symbol_table(members),
                     vec![],
                     vec![],
                     vec![],
@@ -499,13 +500,13 @@ impl TypeChecker {
         if is_source_file(&declaration.ref_(self)) && is_json_source_file(&declaration.ref_(self)) {
             let declaration_ref = declaration.ref_(self);
             let declaration_as_source_file = declaration_ref.as_source_file();
-            if declaration_as_source_file.statements().is_empty() {
+            if declaration_as_source_file.statements().ref_(self).is_empty() {
                 return Ok(self.empty_object_type());
             }
             return self.get_widened_type(
                 self.get_widened_literal_type(
                     self.check_expression(
-                        declaration_as_source_file.statements()[0]
+                        declaration_as_source_file.statements().ref_(self)[0]
                             .ref_(self).as_expression_statement()
                             .expression,
                         None,
@@ -686,12 +687,12 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        self.get_this_type_of_signature(&*self.get_signature_from_declaration_(declaration)?)
+        self.get_this_type_of_signature(self.get_signature_from_declaration_(declaration)?)
     }
 
     pub(super) fn get_type_of_accessors(&self, symbol: Id<Symbol>) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_type) = (*links).borrow().type_.clone() {
+        if let Some(links_type) = links.ref_(self).type_ {
             return Ok(links_type);
         }
         let ret = self
@@ -699,7 +700,7 @@ impl TypeChecker {
             .unwrap_or_else(|| {
                 Debug_.fail(Some("Read type of accessor must always produce a type"))
             });
-        links.borrow_mut().type_ = Some(ret.clone());
+        links.ref_mut(self).type_ = Some(ret.clone());
         Ok(ret)
     }
 
@@ -708,11 +709,11 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         let links = self.get_symbol_links(symbol);
-        if let Some(links_write_type) = (*links).borrow().write_type.clone() {
+        if let Some(links_write_type) = links.ref_(self).write_type {
             return Ok(Some(links_write_type));
         }
         let ret = self.get_type_of_accessors_worker(symbol, Some(true))?;
-        links.borrow_mut().write_type = ret.clone();
+        links.ref_mut(self).write_type = ret;
         Ok(ret)
     }
 
@@ -823,7 +824,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
-            return self.instantiate_type(type_, (*links).borrow().mapper.clone());
+            return self.instantiate_type(type_, (*links.ref_(self)).borrow().mapper.clone());
         }
 
         Ok(type_)

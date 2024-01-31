@@ -18,7 +18,7 @@ struct TransformES2019 {
     _arena: *const AllArenas,
     _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
+    factory: Id<NodeFactory>,
 }
 
 impl TransformES2019 {
@@ -64,13 +64,13 @@ impl TransformES2019 {
         let node_ref = node.ref_(self);
         let node_as_catch_clause = node_ref.as_catch_clause();
         if node_as_catch_clause.variable_declaration.is_none() {
-            return self.factory.update_catch_clause(
+            return self.factory.ref_(self).update_catch_clause(
                 node,
                 Some(
-                    self.factory.create_variable_declaration(
+                    self.factory.ref_(self).create_variable_declaration(
                         Some(
                             self.factory
-                                .create_temp_variable(Option::<fn(Id<Node>)>::None, None),
+                                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None),
                         ),
                         None,
                         None,
@@ -116,10 +116,16 @@ impl TransformES2019Factory {
 
 impl TransformerFactoryInterface for TransformES2019Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context.clone(),
             TransformES2019::new(context, &*static_arena()),
         )
+    }
+}
+
+impl HasArena for TransformES2019Factory {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 

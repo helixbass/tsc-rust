@@ -10,7 +10,7 @@ use crate::{
     Debug_, Node, ReadonlyTextRange, _d, get_original_node_id, id_text, is_generated_identifier,
     last_or_undefined, GetOrInsertDefault, NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty,
     Number, SyntaxKind,
-    InArena,
+    HasArena, InArena,
     CoreTransformationContext, TransformationContext,
 };
 
@@ -38,7 +38,7 @@ impl TransformGenerators {
         );
     }
 
-    pub(super) fn begin_block(&self, block: Gc<GcCell<CodeBlock>>) -> usize {
+    pub(super) fn begin_block(&self, block: Id<CodeBlock>) -> usize {
         if self.maybe_blocks().is_none() {
             self.set_blocks(Some(_d()));
             self.set_block_actions(Some(_d()));
@@ -58,7 +58,7 @@ impl TransformGenerators {
         index
     }
 
-    pub(super) fn end_block(&self) -> Gc<GcCell<CodeBlock>> {
+    pub(super) fn end_block(&self) -> Id<CodeBlock> {
         let block = self.peek_block();
         if block.is_none() {
             Debug_.fail(Some("beginBlock was never called."));
@@ -77,25 +77,25 @@ impl TransformGenerators {
         block
     }
 
-    pub(super) fn peek_block(&self) -> Option<Gc<GcCell<CodeBlock>>> {
+    pub(super) fn peek_block(&self) -> Option<Id<CodeBlock>> {
         last_or_undefined(&self.block_stack()).cloned()
     }
 
     pub(super) fn peek_block_kind(&self) -> Option<CodeBlockKind> {
-        self.peek_block().map(|block| (*block).borrow().kind())
+        self.peek_block().map(|block| block.ref_(self).kind())
     }
 
     pub(super) fn begin_with_block(&self, expression: Id<Node /*Identifier*/>) {
         let start_label = self.define_label();
         let end_label = self.define_label();
         self.mark_label(start_label);
-        self.begin_block(WithBlock::new(expression, start_label, end_label).into());
+        self.begin_block(self.alloc_code_block(WithBlock::new(expression, start_label, end_label).into()));
     }
 
     pub(super) fn end_with_block(&self) {
         Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::With), None);
         let block = self.end_block();
-        self.mark_label((*block).borrow().as_with_block().end_label);
+        self.mark_label(block.ref_(self).as_with_block().end_label);
     }
 
     pub(super) fn begin_exception_block(&self) -> Label {
@@ -103,7 +103,7 @@ impl TransformGenerators {
         let end_label = self.define_label();
         self.mark_label(start_label);
         self.begin_block(
-            ExceptionBlock::new(
+            self.alloc_code_block(ExceptionBlock::new(
                 ExceptionBlockState::Try,
                 start_label,
                 None,
@@ -111,7 +111,7 @@ impl TransformGenerators {
                 None,
                 end_label,
             )
-            .into(),
+            .into()),
         );
         self.emit_nop();
         end_label
@@ -147,7 +147,7 @@ impl TransformGenerators {
         }
 
         let exception = self.peek_block().unwrap();
-        let mut exception = exception.borrow_mut();
+        let mut exception = exception.ref_mut(self);
         Debug_.assert(
             exception.as_exception_block().state < ExceptionBlockState::Catch,
             None,
@@ -164,10 +164,10 @@ impl TransformGenerators {
 
         self.emit_assignment(
             name,
-            self.factory.create_call_expression(
+            self.factory.ref_(self).create_call_expression(
                 self.factory
-                    .create_property_access_expression(self.state(), "sent"),
-                Option::<Gc<NodeArray>>::None,
+                    .ref_(self).create_property_access_expression(self.state(), "sent"),
+                Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             ),
             Option::<&Node>::None,
@@ -182,7 +182,7 @@ impl TransformGenerators {
         );
 
         let exception = self.peek_block().unwrap();
-        let mut exception = exception.borrow_mut();
+        let mut exception = exception.ref_mut(self);
         Debug_.assert(
             exception.as_exception_block().state < ExceptionBlockState::Finally,
             None,
@@ -203,7 +203,7 @@ impl TransformGenerators {
             None,
         );
         let exception = self.end_block();
-        let mut exception = exception.borrow_mut();
+        let mut exception = exception.ref_mut(self);
         let state = exception.as_exception_block().state;
         if state < ExceptionBlockState::Finally {
             self.emit_break(
@@ -220,19 +220,19 @@ impl TransformGenerators {
     }
 
     pub(super) fn begin_script_loop_block(&self) {
-        self.begin_block(LoopBlock::new(-1, true, -1).into());
+        self.begin_block(self.alloc_code_block(LoopBlock::new(-1, true, -1).into()));
     }
 
     pub(super) fn begin_loop_block(&self, continue_label: Label) -> Label {
         let break_label = self.define_label();
-        self.begin_block(LoopBlock::new(continue_label, false, break_label).into());
+        self.begin_block(self.alloc_code_block(LoopBlock::new(continue_label, false, break_label).into()));
         break_label
     }
 
     pub(super) fn end_loop_block(&self) {
         Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::Loop), None);
         let block = self.end_block();
-        let block = (*block).borrow();
+        let block = block.ref_(self);
         let block_as_switch_block = block.as_switch_block();
         let break_label = block_as_switch_block.break_label;
         if !block_as_switch_block.is_script {
@@ -241,19 +241,19 @@ impl TransformGenerators {
     }
 
     pub(super) fn begin_script_switch_block(&self) {
-        self.begin_block(SwitchBlock::new(true, -1).into());
+        self.begin_block(self.alloc_code_block(SwitchBlock::new(true, -1).into()));
     }
 
     pub(super) fn begin_switch_block(&self) -> Label {
         let break_label = self.define_label();
-        self.begin_block(SwitchBlock::new(false, break_label).into());
+        self.begin_block(self.alloc_code_block(SwitchBlock::new(false, break_label).into()));
         break_label
     }
 
     pub(super) fn end_switch_block(&self) {
         Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::Switch), None);
         let block = self.end_block();
-        let block = (*block).borrow();
+        let block = block.ref_(self);
         let block_as_switch_block = block.as_switch_block();
         let break_label = block_as_switch_block.break_label;
         if !block_as_switch_block.is_script {
@@ -262,18 +262,18 @@ impl TransformGenerators {
     }
 
     pub(super) fn begin_script_labeled_block(&self, label_text: String) {
-        self.begin_block(LabeledBlock::new(label_text, true, -1).into());
+        self.begin_block(self.alloc_code_block(LabeledBlock::new(label_text, true, -1).into()));
     }
 
     pub(super) fn begin_labeled_block(&self, label_text: String) {
         let break_label = self.define_label();
-        self.begin_block(LabeledBlock::new(label_text, false, break_label).into());
+        self.begin_block(self.alloc_code_block(LabeledBlock::new(label_text, false, break_label).into()));
     }
 
     pub(super) fn end_labeled_block(&self) {
         Debug_.assert(self.peek_block_kind() == Some(CodeBlockKind::Labeled), None);
         let block = self.end_block();
-        let block = (*block).borrow();
+        let block = block.ref_(self);
         let block_as_labeled_block = block.as_labeled_block();
         if !block_as_labeled_block.is_script {
             self.mark_label(block_as_labeled_block.break_label);
@@ -300,7 +300,7 @@ impl TransformGenerators {
         let mut j = start;
         loop {
             let containing_block = self.block_stack()[j].clone();
-            let containing_block = (*containing_block).borrow();
+            let containing_block = containing_block.ref_(self);
             if self.supports_labeled_break_or_continue(&containing_block) {
                 if containing_block.as_labeled_block().label_text == label_text {
                     return true;
@@ -323,7 +323,7 @@ impl TransformGenerators {
                 let mut i = block_stack.len() - 1;
                 loop {
                     let block = block_stack[i].clone();
-                    let block = (*block).borrow();
+                    let block = block.ref_(self);
                     #[allow(clippy::if_same_then_else)]
                     if self.supports_labeled_break_or_continue(&block)
                         && block.as_labeled_block().label_text == label_text
@@ -343,7 +343,7 @@ impl TransformGenerators {
                 let mut i = block_stack.len() - 1;
                 loop {
                     let block = block_stack[i].clone();
-                    let block = (*block).borrow();
+                    let block = block.ref_(self);
                     if self.supports_unlabeled_break(&block) {
                         return block.break_label();
                     }
@@ -363,7 +363,7 @@ impl TransformGenerators {
                 let mut i = block_stack.len() - 1;
                 loop {
                     let block = block_stack[i].clone();
-                    let block = (*block).borrow();
+                    let block = block.ref_(self);
                     if self.supports_unlabeled_continue(&block)
                         && self.has_immediate_containing_labeled_block(label_text, i - 1)
                     {
@@ -378,7 +378,7 @@ impl TransformGenerators {
                 let mut i = block_stack.len() - 1;
                 loop {
                     let block = block_stack[i].clone();
-                    let block = (*block).borrow();
+                    let block = block.ref_(self);
                     if self.supports_unlabeled_continue(&block) {
                         return block.as_loop_block().continue_label;
                     }
@@ -397,7 +397,7 @@ impl TransformGenerators {
             let mut label_expressions = self.maybe_label_expressions_mut();
             let label_expressions = label_expressions.get_or_insert_default_();
 
-            let expression = self.factory.create_numeric_literal(Number::new(-1.0), None);
+            let expression = self.factory.ref_(self).create_numeric_literal(Number::new(-1.0), None);
             label_expressions
                 .entry(label)
                 .or_default()
@@ -406,7 +406,7 @@ impl TransformGenerators {
             return expression;
         }
 
-        self.factory.create_omitted_expression()
+        self.factory.ref_(self).create_omitted_expression()
     }
 
     pub(super) fn create_instruction(
@@ -414,7 +414,7 @@ impl TransformGenerators {
         instruction: Instruction,
     ) -> Id<Node /*NumericLiteral*/> {
         self.factory
-            .create_numeric_literal(Number::new(instruction as u8 as f64), None)
+            .ref_(self).create_numeric_literal(Number::new(instruction as u8 as f64), None)
             .add_synthetic_trailing_comment(
                 SyntaxKind::MultiLineCommentTrivia,
                 get_instruction_name(instruction).unwrap(),
@@ -430,7 +430,7 @@ impl TransformGenerators {
     ) -> Id<Node /*ReturnStatement*/> {
         Debug_.assert_less_than(0, label, Some("Invalid label"));
         self.factory
-            .create_return_statement(Some(self.factory.create_array_literal_expression(
+            .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
                 Some(vec![
                     self.create_instruction(Instruction::Break),
                     self.create_label(Some(label)),
@@ -446,7 +446,7 @@ impl TransformGenerators {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Id<Node /*ReturnStatement*/> {
         self.factory
-            .create_return_statement(Some(self.factory.create_array_literal_expression(
+            .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
                 Some(if let Some(expression) = expression {
                     vec![self.create_instruction(Instruction::Return), expression]
                 } else {
@@ -462,10 +462,10 @@ impl TransformGenerators {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
-            .create_call_expression(
+            .ref_(self).create_call_expression(
                 self.factory
-                    .create_property_access_expression(self.state(), "sent"),
-                Option::<Gc<NodeArray>>::None,
+                    .ref_(self).create_property_access_expression(self.state(), "sent"),
+                Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             )
             .set_text_range(location, self)

@@ -184,7 +184,7 @@ impl TypeChecker {
                     };
                     if let Some(index_info) = index_info {
                         check_flags |= CheckFlags::WritePartial
-                            | if index_info.is_readonly {
+                            | if index_info.ref_(self).is_readonly {
                                 CheckFlags::Readonly
                             } else {
                                 CheckFlags::None
@@ -198,7 +198,7 @@ impl TypeChecker {
                                 self.get_rest_type_of_tuple_type(type_)?
                                     .unwrap_or_else(|| self.undefined_type())
                             } else {
-                                index_info.type_.clone()
+                                index_info.ref_(self).type_.clone()
                             }),
                         );
                     } else if self.is_object_literal_type(type_)
@@ -234,7 +234,7 @@ impl TypeChecker {
                     self.create_symbol_with_type(
                         single_prop,
                         single_prop.ref_(self).maybe_as_transient_symbol().and_then(
-                            |single_prop| (*single_prop.symbol_links()).borrow().type_.clone(),
+                            |single_prop| (*single_prop.symbol_links().ref_(self)).borrow().type_.clone(),
                         ),
                     );
                 clone.ref_(self).set_parent(
@@ -245,12 +245,12 @@ impl TypeChecker {
                         .and_then(|symbol| symbol.ref_(self).maybe_parent()),
                 );
                 let clone_symbol_links = clone.ref_(self).as_transient_symbol().symbol_links();
-                let mut clone_symbol_links = clone_symbol_links.borrow_mut();
+                let mut clone_symbol_links = clone_symbol_links.ref_mut(self);
                 clone_symbol_links.containing_type = Some(containing_type);
                 clone_symbol_links.mapper = single_prop
                     .ref_(self)
                     .maybe_as_transient_symbol()
-                    .and_then(|single_prop| (*single_prop.symbol_links()).borrow().mapper.clone());
+                    .and_then(|single_prop| (*single_prop.symbol_links().ref_(self)).borrow().mapper.clone());
                 return Ok(Some(clone));
             } else {
                 return Ok(Some(single_prop));
@@ -292,7 +292,7 @@ impl TypeChecker {
             let type_ = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(type_.clone());
-                name_type = (*self.get_symbol_links(prop)).borrow().name_type.clone();
+                name_type = (*self.get_symbol_links(prop).ref_(self)).borrow().name_type.clone();
             } else if type_ != first_type.unwrap() {
                 check_flags |= CheckFlags::HasNonUniformType;
             }
@@ -314,7 +314,7 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.borrow_mut();
+        let mut result_links = result_links.ref_mut(self);
         result_links.containing_type = Some(containing_type);
         if !has_non_uniform_value_declaration {
             if let Some(first_value_declaration) = first_value_declaration {
@@ -598,8 +598,8 @@ impl TypeChecker {
         let type_ = self.get_reduced_apparent_type(type_)?;
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let symbol = (*resolved.ref_(self).as_resolved_type().members())
-                .borrow()
+            let symbol = resolved.ref_(self).as_resolved_type().members()
+                .ref_(self)
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
@@ -655,7 +655,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         kind: SignatureKind,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         if type_
             .ref_(self)
             .flags()
@@ -683,33 +683,33 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         kind: SignatureKind,
-    ) -> io::Result<Vec<Gc<Signature>>> {
+    ) -> io::Result<Vec<Id<Signature>>> {
         self.get_signatures_of_structured_type(self.get_reduced_apparent_type(type_)?, kind)
     }
 
     pub(super) fn find_index_info(
         &self,
-        index_infos: &[Gc<IndexInfo>],
+        index_infos: &[Id<IndexInfo>],
         key_type: Id<Type>,
-    ) -> Option<Gc<IndexInfo>> {
-        find(index_infos, |info: &Gc<IndexInfo>, _| {
-            info.key_type == key_type
+    ) -> Option<Id<IndexInfo>> {
+        find(index_infos, |info: &Id<IndexInfo>, _| {
+            info.ref_(self).key_type == key_type
         })
         .map(Clone::clone)
     }
 
     pub(super) fn find_applicable_index_info(
         &self,
-        index_infos: &[Gc<IndexInfo>],
+        index_infos: &[Id<IndexInfo>],
         key_type: Id<Type>,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
-        let mut string_index_info: Option<Gc<IndexInfo>> = None;
-        let mut applicable_info: Option<Gc<IndexInfo>> = None;
-        let mut applicable_infos: Option<Vec<Gc<IndexInfo>>> = None;
+    ) -> io::Result<Option<Id<IndexInfo>>> {
+        let mut string_index_info: Option<Id<IndexInfo>> = None;
+        let mut applicable_info: Option<Id<IndexInfo>> = None;
+        let mut applicable_infos: Option<Vec<Id<IndexInfo>>> = None;
         for info in index_infos {
-            if info.key_type == self.string_type() {
+            if info.ref_(self).key_type == self.string_type() {
                 string_index_info = Some(info.clone());
-            } else if self.is_applicable_index_type(key_type, info.key_type)? {
+            } else if self.is_applicable_index_type(key_type, info.ref_(self).key_type)? {
                 if applicable_info.is_none() {
                     applicable_info = Some(info.clone());
                 } else {
@@ -721,18 +721,18 @@ impl TypeChecker {
             }
         }
         Ok(if let Some(applicable_infos) = applicable_infos {
-            Some(Gc::new(self.create_index_info(
+            Some(self.alloc_index_info(self.create_index_info(
                 self.unknown_type(),
                 self.get_intersection_type(
-                    &map(&applicable_infos, |info: &Gc<IndexInfo>, _| {
-                        info.type_.clone()
+                    &map(&applicable_infos, |info: &Id<IndexInfo>, _| {
+                        info.ref_(self).type_.clone()
                     }),
                     Option::<Id<Symbol>>::None,
                     None,
                 )?,
                 reduce_left(
                     &applicable_infos,
-                    |is_readonly, info: &Gc<IndexInfo>, _| is_readonly && info.is_readonly,
+                    |is_readonly, info: &Id<IndexInfo>, _| is_readonly && info.ref_(self).is_readonly,
                     true,
                     None,
                     None,
@@ -769,7 +769,7 @@ impl TypeChecker {
     pub(super) fn get_index_infos_of_structured_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         if type_
             .ref_(self)
             .flags()
@@ -784,7 +784,7 @@ impl TypeChecker {
     pub(super) fn get_index_infos_of_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         self.get_index_infos_of_structured_type(self.get_reduced_apparent_type(type_)?)
     }
 
@@ -792,7 +792,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         key_type: Id<Type>,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         Ok(self.find_index_info(&self.get_index_infos_of_type(type_)?, key_type))
     }
 
@@ -803,17 +803,17 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         Ok(self
             .get_index_info_of_type_(type_, key_type)?
-            .map(|index_info| index_info.type_.clone()))
+            .map(|index_info| index_info.ref_(self).type_.clone()))
     }
 
     pub(super) fn get_applicable_index_infos(
         &self,
         type_: Id<Type>,
         key_type: Id<Type>,
-    ) -> io::Result<Vec<Gc<IndexInfo>>> {
+    ) -> io::Result<Vec<Id<IndexInfo>>> {
         try_filter(
             &self.get_index_infos_of_type(type_)?,
-            |info: &Gc<IndexInfo>| self.is_applicable_index_type(key_type, info.key_type),
+            |info: &Id<IndexInfo>| self.is_applicable_index_type(key_type, info.ref_(self).key_type),
         )
     }
 
@@ -821,7 +821,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         key_type: Id<Type>,
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         self.find_applicable_index_info(&*self.get_index_infos_of_type(type_)?, key_type)
     }
 
@@ -829,7 +829,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>,
         name: &str, /*__String*/
-    ) -> io::Result<Option<Gc<IndexInfo>>> {
+    ) -> io::Result<Option<Id<IndexInfo>>> {
         self.get_applicable_index_info(
             type_,
             if self.is_late_bound_name(name) {
@@ -921,14 +921,14 @@ impl TypeChecker {
         if node_as_parameter_declaration.maybe_initializer().is_some() {
             let signature = self.get_signature_from_declaration_(node.ref_(self).parent())?;
             let parameter_index = index_of_eq(
-                &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters(),
+                &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
                 &node,
             );
             Debug_.assert(parameter_index >= 0, None);
             let parameter_index: usize = parameter_index.try_into().unwrap();
             return Ok(parameter_index
                 >= self.get_min_argument_count(
-                    &signature,
+                    signature,
                     Some(
                         MinArgumentCountFlags::StrongArityForUntypedJS
                             | MinArgumentCountFlags::VoidIsNonOptional,
@@ -940,12 +940,12 @@ impl TypeChecker {
             return Ok(node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()
                 && index_of_eq(
-                    &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters(),
+                    &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
                     &node,
                 ) >= iife
                     .ref_(self).as_call_expression()
                     .arguments
-                    .len()
+                    .ref_(self).len()
                     .try_into()
                     .unwrap());
         }

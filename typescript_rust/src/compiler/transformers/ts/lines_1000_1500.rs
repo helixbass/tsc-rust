@@ -45,7 +45,7 @@ impl TransformTypeScript {
             second_accessor,
             set_accessor,
             ..
-        } = get_all_accessor_declarations(&node.ref_(self).as_class_like_declaration().members(), accessor, self);
+        } = get_all_accessor_declarations(&node.ref_(self).as_class_like_declaration().members().ref_(self), accessor, self);
         let first_accessor_with_decorators = if first_accessor.ref_(self).maybe_decorators().is_some() {
             Some(first_accessor)
         } else if second_accessor
@@ -116,7 +116,7 @@ impl TransformTypeScript {
         add_range(
             &mut decorator_expressions,
             try_maybe_map(
-                all_decorators.decorators.as_deref(),
+                all_decorators.decorators.as_ref().map(|decorators| decorators.ref_(self)).as_deref(),
                 |&decorator: &Id<Node>, _| self.transform_decorator(decorator),
             )
             .transpose()?
@@ -134,7 +134,7 @@ impl TransformTypeScript {
                         Some(all_decorators_parameters),
                         |parameter: &Option<NodeArrayOrVec>, index| -> io::Result<_> {
                             Ok(self
-                                .transform_decorators_of_parameter(parameter.as_deref(), index)?
+                                .transform_decorators_of_parameter(parameter.as_ref().map(|parameter| parameter.ref_(self)).as_deref(), index)?
                                 .unwrap_or_default())
                         },
                     )
@@ -197,9 +197,9 @@ impl TransformTypeScript {
         let member_name = self.get_expression_for_property_name(member, true);
         let descriptor = if self.language_version > ScriptTarget::ES3 {
             if member.ref_(self).kind() == SyntaxKind::PropertyDeclaration {
-                Some(self.factory.create_void_zero())
+                Some(self.factory.ref_(self).create_void_zero())
             } else {
-                Some(self.factory.create_null())
+                Some(self.factory.ref_(self).create_null())
             }
         } else {
             None
@@ -214,7 +214,7 @@ impl TransformTypeScript {
                     descriptor,
                 )
                 .set_text_range(Some(
-                    &move_range_past_decorators(&member.ref_(self)).into_readonly_text_range(),
+                    &move_range_past_decorators(member, self).into_readonly_text_range(),
                 ), self)
                 .set_emit_flags(EmitFlags::NoComments, self),
         ))
@@ -229,7 +229,7 @@ impl TransformTypeScript {
         if let Some(expression) = expression {
             statements.push(
                 self.factory
-                    .create_expression_statement(expression)
+                    .ref_(self).create_expression_statement(expression)
                     .set_original_node(Some(node), self),
             );
         }
@@ -253,9 +253,9 @@ impl TransformTypeScript {
 
         let local_name = if self.language_version <= ScriptTarget::ES2015 {
             self.factory
-                .get_internal_name(node, Some(false), Some(true))
+                .ref_(self).get_internal_name(node, Some(false), Some(true))
         } else {
-            self.factory.get_local_name(node, Some(false), Some(true))
+            self.factory.ref_(self).get_local_name(node, Some(false), Some(true))
         };
         let decorate = self.emit_helpers().create_decorate_helper(
             decorator_expressions,
@@ -265,18 +265,18 @@ impl TransformTypeScript {
         );
         Ok(Some(
             self.factory
-                .create_assignment(
+                .ref_(self).create_assignment(
                     local_name,
                     class_alias.map_or_else(
                         || decorate.clone(),
                         |class_alias| {
                             self.factory
-                                .create_assignment(class_alias, decorate.clone())
+                                .ref_(self).create_assignment(class_alias, decorate.clone())
                         },
                     ),
                 )
                 .set_emit_flags(EmitFlags::NoComments, self)
-                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(&node.ref_(self))).into())), self),
+                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_decorators(node, self)).into())), self),
         ))
     }
 
@@ -369,16 +369,16 @@ impl TransformTypeScript {
                 Default::default();
             if self.should_add_type_metadata(node) {
                 properties.get_or_insert_default_().push(
-                    self.factory.create_property_assignment(
+                    self.factory.ref_(self).create_property_assignment(
                         "type",
-                        self.factory.create_arrow_function(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                        self.factory.ref_(self).create_arrow_function(
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             vec![],
                             None,
                             Some(
                                 self.factory
-                                    .create_token(SyntaxKind::EqualsGreaterThanToken),
+                                    .ref_(self).create_token(SyntaxKind::EqualsGreaterThanToken),
                             ),
                             self.serialize_type_of_node(node)?,
                         ),
@@ -387,16 +387,16 @@ impl TransformTypeScript {
             }
             if self.should_add_param_types_metadata(node) {
                 properties.get_or_insert_default_().push(
-                    self.factory.create_property_assignment(
+                    self.factory.ref_(self).create_property_assignment(
                         "paramTypes",
-                        self.factory.create_arrow_function(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                        self.factory.ref_(self).create_arrow_function(
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             vec![],
                             None,
                             Some(
                                 self.factory
-                                    .create_token(SyntaxKind::EqualsGreaterThanToken),
+                                    .ref_(self).create_token(SyntaxKind::EqualsGreaterThanToken),
                             ),
                             self.serialize_parameter_types_of_node(node, container)?,
                         ),
@@ -405,16 +405,16 @@ impl TransformTypeScript {
             }
             if self.should_add_return_type_metadata(node) {
                 properties.get_or_insert_default_().push(
-                    self.factory.create_property_assignment(
+                    self.factory.ref_(self).create_property_assignment(
                         "returnType",
-                        self.factory.create_arrow_function(
-                            Option::<Gc<NodeArray>>::None,
-                            Option::<Gc<NodeArray>>::None,
+                        self.factory.ref_(self).create_arrow_function(
+                            Option::<Id<NodeArray>>::None,
+                            Option::<Id<NodeArray>>::None,
                             vec![],
                             None,
                             Some(
                                 self.factory
-                                    .create_token(SyntaxKind::EqualsGreaterThanToken),
+                                    .ref_(self).create_token(SyntaxKind::EqualsGreaterThanToken),
                             ),
                             self.serialize_return_type_of_node(node)?,
                         ),
@@ -426,7 +426,7 @@ impl TransformTypeScript {
                     self.emit_helpers().create_metadata_helper(
                         "design:typeinfo",
                         self.factory
-                            .create_object_literal_expression(Some(properties), Some(true)),
+                            .ref_(self).create_object_literal_expression(Some(properties), Some(true)),
                     ),
                 );
             }
@@ -472,7 +472,7 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*AccessorDeclaration*/
     ) -> io::Result<Option<Id<Node>>> {
-        let accessors = self.resolver.get_all_accessor_declarations(node)?;
+        let accessors = self.resolver.ref_(self).get_all_accessor_declarations(node)?;
         Ok(accessors
             .set_accessor
             .and_then(|accessors_set_accessor| {
@@ -500,8 +500,8 @@ impl TransformTypeScript {
             }
             SyntaxKind::ClassDeclaration
             | SyntaxKind::ClassExpression
-            | SyntaxKind::MethodDeclaration => self.factory.create_identifier("Function"),
-            _ => self.factory.create_void_zero(),
+            | SyntaxKind::MethodDeclaration => self.factory.ref_(self).create_identifier("Function"),
+            _ => self.factory.ref_(self).create_void_zero(),
         })
     }
 
@@ -524,7 +524,7 @@ impl TransformTypeScript {
         if let Some(value_declaration) = value_declaration {
             let parameters =
                 self.get_parameters_of_decorated_declaration(value_declaration, container);
-            for (i, parameter) in parameters.iter().enumerate() {
+            for (i, parameter) in parameters.ref_(self).iter().enumerate() {
                 let parameter = *parameter;
                 let parameter_ref = parameter.ref_(self);
                 let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
@@ -543,7 +543,8 @@ impl TransformTypeScript {
                     .is_some()
                 {
                     expressions.push(self.serialize_type_node(get_rest_parameter_element_type(
-                        parameter_as_parameter_declaration.maybe_type().refed(self).as_deref(),
+                        parameter_as_parameter_declaration.maybe_type(),
+                        self,
                     ))?);
                 } else {
                     expressions.push(self.serialize_type_of_node(parameter)?);
@@ -553,19 +554,19 @@ impl TransformTypeScript {
 
         Ok(self
             .factory
-            .create_array_literal_expression(Some(expressions), None))
+            .ref_(self).create_array_literal_expression(Some(expressions), None))
     }
 
     pub(super) fn get_parameters_of_decorated_declaration(
         &self,
         node: Id<Node>,      /*SignatureDeclaration*/
         container: Id<Node>, /*ClassLikeDeclaration*/
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         if
         /*container &&*/
         node.ref_(self).kind() == SyntaxKind::GetAccessor {
             let AllAccessorDeclarations { set_accessor, .. } = get_all_accessor_declarations(
-                &container.ref_(self).as_class_like_declaration().members(),
+                &container.ref_(self).as_class_like_declaration().members().ref_(self),
                 node,
                 self,
             );
@@ -583,10 +584,10 @@ impl TransformTypeScript {
         if is_function_like(Some(&node.ref_(self))) && node.ref_(self).as_has_type().maybe_type().is_some() {
             return self.serialize_type_node(node.ref_(self).as_has_type().maybe_type());
         } else if is_async_function(node, self) {
-            return Ok(self.factory.create_identifier("Promise"));
+            return Ok(self.factory.ref_(self).create_identifier("Promise"));
         }
 
-        Ok(self.factory.create_void_zero())
+        Ok(self.factory.ref_(self).create_void_zero())
     }
 
     pub(super) fn serialize_type_node(
@@ -594,12 +595,12 @@ impl TransformTypeScript {
         node: Option<Id<Node /*TypeNode*/>>,
     ) -> io::Result<Id<Node /*SerializedTypeNode*/>> {
         let Some(node) = node else {
-            return Ok(self.factory.create_identifier("Object"));
+            return Ok(self.factory.ref_(self).create_identifier("Object"));
         };
 
         match node.ref_(self).kind() {
             SyntaxKind::VoidKeyword | SyntaxKind::UndefinedKeyword | SyntaxKind::NeverKeyword => {
-                return Ok(self.factory.create_void_zero());
+                return Ok(self.factory.ref_(self).create_void_zero());
             }
 
             SyntaxKind::ParenthesizedType => {
@@ -607,49 +608,49 @@ impl TransformTypeScript {
             }
 
             SyntaxKind::FunctionType | SyntaxKind::ConstructorType => {
-                return Ok(self.factory.create_identifier("Function"));
+                return Ok(self.factory.ref_(self).create_identifier("Function"));
             }
 
             SyntaxKind::ArrayType | SyntaxKind::TupleType => {
-                return Ok(self.factory.create_identifier("Array"));
+                return Ok(self.factory.ref_(self).create_identifier("Array"));
             }
 
             SyntaxKind::TypePredicate | SyntaxKind::BooleanKeyword => {
-                return Ok(self.factory.create_identifier("Boolean"));
+                return Ok(self.factory.ref_(self).create_identifier("Boolean"));
             }
 
             SyntaxKind::StringKeyword => {
-                return Ok(self.factory.create_identifier("String"));
+                return Ok(self.factory.ref_(self).create_identifier("String"));
             }
 
             SyntaxKind::ObjectKeyword => {
-                return Ok(self.factory.create_identifier("Object"));
+                return Ok(self.factory.ref_(self).create_identifier("Object"));
             }
 
             SyntaxKind::LiteralType => {
                 return Ok(match node.ref_(self).as_literal_type_node().literal.ref_(self).kind() {
                     SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
-                        self.factory.create_identifier("String")
+                        self.factory.ref_(self).create_identifier("String")
                     }
 
                     SyntaxKind::PrefixUnaryExpression | SyntaxKind::NumericLiteral => {
-                        self.factory.create_identifier("Number")
+                        self.factory.ref_(self).create_identifier("Number")
                     }
 
                     SyntaxKind::BigIntLiteral => self.get_global_big_int_name_with_fallback(),
 
                     SyntaxKind::TrueKeyword | SyntaxKind::FalseKeyword => {
-                        self.factory.create_identifier("Boolean")
+                        self.factory.ref_(self).create_identifier("Boolean")
                     }
 
-                    SyntaxKind::NullKeyword => self.factory.create_void_zero(),
+                    SyntaxKind::NullKeyword => self.factory.ref_(self).create_void_zero(),
 
                     _ => Debug_.fail_bad_syntax_kind(&node.ref_(self).as_literal_type_node().literal.ref_(self), None),
                 })
             }
 
             SyntaxKind::NumberKeyword => {
-                return Ok(self.factory.create_identifier("Number"));
+                return Ok(self.factory.ref_(self).create_identifier("Number"));
             }
 
             SyntaxKind::BigIntKeyword => {
@@ -660,7 +661,7 @@ impl TransformTypeScript {
                 return Ok(if self.language_version < ScriptTarget::ES2015 {
                     self.get_global_symbol_name_with_fallback()
                 } else {
-                    self.factory.create_identifier("Symbol")
+                    self.factory.ref_(self).create_identifier("Symbol")
                 });
             }
 
@@ -670,7 +671,7 @@ impl TransformTypeScript {
 
             SyntaxKind::IntersectionType | SyntaxKind::UnionType => {
                 return self
-                    .serialize_type_list(&node.ref_(self).as_union_or_intersection_type_node().types());
+                    .serialize_type_list(&node.ref_(self).as_union_or_intersection_type_node().types().ref_(self));
             }
 
             SyntaxKind::ConditionalType => {
@@ -713,6 +714,6 @@ impl TransformTypeScript {
             _ => (),
         }
 
-        Ok(self.factory.create_identifier("Object"))
+        Ok(self.factory.ref_(self).create_identifier("Object"))
     }
 }

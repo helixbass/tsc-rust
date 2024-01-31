@@ -14,7 +14,7 @@ use crate::{
     compute_common_source_directory_of_filenames, create_diagnostic_collection,
     create_get_canonical_file_name, create_source_map_generator, create_text_writer,
     directory_separator_str, encode_uri, ensure_path_is_non_module_name,
-    ensure_trailing_directory_separator, factory, file_extension_is, file_extension_is_one_of,
+    ensure_trailing_directory_separator, file_extension_is, file_extension_is_one_of,
     filter, get_are_declaration_maps_enabled, get_base_file_name,
     get_declaration_emit_extension_for_path, get_declaration_emit_output_file_path,
     get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
@@ -40,6 +40,8 @@ use crate::{
     SymbolVisibilityResult, SyntaxKind, TextRange, TransformNodesTransformationResult,
     TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
     InArena, OptionInArena, SymbolTracker,
+    get_factory_id,
+    per_arena,
 };
 
 lazy_static! {
@@ -121,7 +123,7 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
     {
         let prepends = host.get_prepend_nodes();
         if !source_files.is_empty() || !prepends.is_empty() {
-            let bundle: Id<Node> = get_factory().create_bundle(
+            let bundle: Id<Node> = get_factory(arena).create_bundle(
                 source_files.into_iter().map(Option::Some).collect(),
                 Some(prepends),
             );
@@ -517,7 +519,7 @@ pub(crate) fn get_common_source_directory_of_config(
 }
 
 pub(crate) fn emit_files(
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     host: Id<Box<dyn EmitHost>>,
     target_source_file: Option<Id<Node> /*SourceFile*/>,
     EmitTransformers {
@@ -549,7 +551,7 @@ pub(crate) fn emit_files(
     let new_line = get_new_line_character(compiler_options.ref_(arena).new_line, Some(|| host.ref_(arena).get_new_line()), arena);
     let writer = create_text_writer(&new_line, arena);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
-    let mut bundle_build_info: Option<Gc<GcCell<BundleBuildInfo>>> = None;
+    let mut bundle_build_info: Option<Id<BundleBuildInfo>> = None;
     let mut emit_skipped = false;
     let mut exported_modules_from_declaration_emit: Option<ExportedModulesFromDeclarationEmit> =
         None;
@@ -606,7 +608,7 @@ pub(crate) fn emit_files(
 
 fn emit_source_file_or_bundle(
     host: Id<Box<dyn EmitHost>>,
-    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle_build_info: &mut Option<Id<BundleBuildInfo>>,
     emitted_files_list: &mut Option<Vec<String>>,
     emit_only_dts_files: Option<bool>,
     emit_skipped: &mut bool,
@@ -614,7 +616,7 @@ fn emit_source_file_or_bundle(
     emitter_diagnostics: &mut DiagnosticCollection,
     compiler_options: Id<CompilerOptions>,
     force_dts_emit: Option<bool>,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     declaration_transformers: &[TransformerFactory],
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
     writer: Id<Box<dyn EmitTextWriter>>,
@@ -641,7 +643,7 @@ fn emit_source_file_or_bundle(
                 build_info_path,
                 Some(&ScriptReferenceHost::get_current_directory(&**host.ref_(arena))),
             )));
-            *bundle_build_info = Some(Gc::new(GcCell::new(BundleBuildInfo {
+            *bundle_build_info = Some(arena.alloc_bundle_build_info(BundleBuildInfo {
                 common_source_directory: relative_to_build_info(
                     build_info_directory.as_ref().unwrap(),
                     &**host.ref_(arena),
@@ -665,7 +667,7 @@ fn emit_source_file_or_bundle(
                     .collect(),
                 js: Default::default(),
                 dts: Default::default(),
-            })));
+            }));
         }
     }
     // tracing?.push(tracing.Phase.Emit, "emitJsFileOrBundle", { jsFilePath });
@@ -684,7 +686,7 @@ fn emit_source_file_or_bundle(
         source_file_or_bundle,
         js_file_path,
         source_map_file_path,
-        Gc::new(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
+        arena.alloc_relative_to_build_info(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
             build_info_directory.clone(),
             host.clone(),
         ))),
@@ -710,7 +712,7 @@ fn emit_source_file_or_bundle(
         source_file_or_bundle,
         declaration_file_path,
         declaration_map_path,
-        Gc::new(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
+        arena.alloc_relative_to_build_info(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
             build_info_directory.clone(),
             host.clone(),
         ))),
@@ -810,7 +812,7 @@ fn emit_build_info(
     emit_skipped: &mut bool,
     host: Id<Box<dyn EmitHost>>,
     emitter_diagnostics: &mut DiagnosticCollection,
-    bundle: Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle: Option<Id<BundleBuildInfo>>,
     build_info_path: Option<&str>,
     arena: &impl HasArena,
 ) -> io::Result<()> {
@@ -831,7 +833,7 @@ fn emit_build_info(
             bundle: bundle.clone(),
             program: program.clone(),
             version: version.to_owned(),
-        }),
+        }, arena),
         false,
         None,
         arena,
@@ -845,9 +847,9 @@ fn emit_js_file_or_bundle(
     host: Id<Box<dyn EmitHost>>,
     compiler_options: Id<CompilerOptions>,
     emit_skipped: &mut bool,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     script_transformers: &[TransformerFactory],
-    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle_build_info: &mut Option<Id<BundleBuildInfo>>,
     writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
@@ -855,7 +857,7 @@ fn emit_js_file_or_bundle(
     source_file_or_bundle: Option<Id<Node> /*SourceFile | Bundle*/>,
     js_file_path: Option<&str>,
     source_map_file_path: Option<&str>,
-    relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+    relative_to_build_info: Id<Box<dyn RelativeToBuildInfo>>,
     arena: &impl HasArena,
 ) -> io::Result<()> {
     if source_file_or_bundle.is_none()
@@ -874,8 +876,7 @@ fn emit_js_file_or_bundle(
     let transform = transform_nodes(
         Some(resolver.clone()),
         Some(host.clone()),
-        get_factory(),
-        get_synthetic_factory(),
+        get_factory_id(arena),
         compiler_options.clone(),
         &[source_file_or_bundle],
         script_transformers,
@@ -900,10 +901,11 @@ fn emit_js_file_or_bundle(
 
     let printer = create_printer(
         printer_options,
-        Some(Gc::new(Box::new(EmitJsFileOrBundlePrintHandlers::new(
+        Some(arena.alloc_print_handlers(Box::new(EmitJsFileOrBundlePrintHandlers::new(
             resolver.clone(),
             transform.clone(),
         )))),
+        arena,
     );
 
     Debug_.assert(
@@ -920,14 +922,14 @@ fn emit_js_file_or_bundle(
         js_file_path,
         source_map_file_path,
         transform.ref_(arena).transformed()[0],
-        &printer,
+        printer,
         &(&*compiler_options.ref_(arena)).into(),
-        &*printer,
+        arena,
     )?;
 
     transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
-        bundle_build_info.borrow_mut().js = printer.maybe_bundle_file_info().clone();
+        bundle_build_info.ref_mut(arena).js = printer.ref_(arena).maybe_bundle_file_info().clone();
     }
 
     Ok(())
@@ -935,13 +937,13 @@ fn emit_js_file_or_bundle(
 
 #[derive(Trace, Finalize)]
 struct EmitJsFileOrBundlePrintHandlers {
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     transform: Id<TransformNodesTransformationResult>,
 }
 
 impl EmitJsFileOrBundlePrintHandlers {
     fn new(
-        resolver: Gc<Box<dyn EmitResolver>>,
+        resolver: Id<Box<dyn EmitResolver>>,
         transform: Id<TransformNodesTransformationResult>,
     ) -> Self {
         Self {
@@ -953,7 +955,7 @@ impl EmitJsFileOrBundlePrintHandlers {
 
 impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
     fn has_global_name(&self, name: &str) -> Option<bool> {
-        Some(self.resolver.has_global_name(name))
+        Some(self.resolver.ref_(self).has_global_name(name))
     }
 
     fn is_on_emit_node_supported(&self) -> bool {
@@ -996,19 +998,19 @@ fn emit_declaration_file_or_bundle(
     compiler_options: Id<CompilerOptions>,
     emit_skipped: &mut bool,
     force_dts_emit: Option<bool>,
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     host: Id<Box<dyn EmitHost>>,
     declaration_transformers: &[TransformerFactory],
     emitter_diagnostics: &mut DiagnosticCollection,
     exported_modules_from_declaration_emit: &mut Option<ExportedModulesFromDeclarationEmit>,
-    bundle_build_info: &mut Option<Gc<GcCell<BundleBuildInfo>>>,
+    bundle_build_info: &mut Option<Id<BundleBuildInfo>>,
     writer: Id<Box<dyn EmitTextWriter>>,
     source_map_data_list: &mut Option<Vec<SourceMapEmitResult>>,
     new_line: &str,
     source_file_or_bundle: Option<Id<Node> /*SourceFile | Bundle*/>,
     declaration_file_path: Option<&str>,
     declaration_map_path: Option<&str>,
-    relative_to_build_info: Gc<Box<dyn RelativeToBuildInfo>>,
+    relative_to_build_info: Id<Box<dyn RelativeToBuildInfo>>,
     arena: &impl HasArena,
 ) -> io::Result<()> {
     if source_file_or_bundle.is_none() {
@@ -1042,7 +1044,7 @@ fn emit_declaration_file_or_bundle(
         })
     };
     let input_list_or_bundle = if out_file(&compiler_options.ref_(arena)).is_non_empty() {
-        vec![get_factory().create_bundle(
+        vec![get_factory(arena).create_bundle(
             files_for_emit.iter().cloned().map(Option::Some).collect(),
             if !is_source_file(&source_file_or_bundle.ref_(arena)) {
                 Some(source_file_or_bundle.ref_(arena).as_bundle().prepends.clone())
@@ -1057,7 +1059,7 @@ fn emit_declaration_file_or_bundle(
         files_for_emit
             .iter()
             .try_for_each(|&file_for_emit| -> io::Result<_> {
-                collect_linked_aliases(&**resolver, file_for_emit, arena)?;
+                collect_linked_aliases(&**resolver.ref_(arena), file_for_emit, arena)?;
 
                 Ok(())
             })?;
@@ -1065,8 +1067,7 @@ fn emit_declaration_file_or_bundle(
     let declaration_transform = transform_nodes(
         Some(resolver.clone()),
         Some(host.clone()),
-        get_factory(),
-        get_synthetic_factory(),
+        get_factory_id(arena),
         compiler_options.clone(),
         &input_list_or_bundle,
         declaration_transformers,
@@ -1098,12 +1099,13 @@ fn emit_declaration_file_or_bundle(
 
     let declaration_printer = create_printer(
         printer_options,
-        Some(Gc::new(Box::new(
+        Some(arena.alloc_print_handlers(Box::new(
             EmitDeclarationFileOrBundlePrintHandlers::new(
                 resolver.clone(),
                 declaration_transform.clone(),
             ),
         ))),
+        arena,
     );
     let decl_blocked = declaration_transform.ref_(arena).diagnostics().is_non_empty()
         || host.ref_(arena).is_emit_blocked(declaration_file_path)
@@ -1124,7 +1126,7 @@ fn emit_declaration_file_or_bundle(
             declaration_file_path,
             declaration_map_path,
             declaration_transform.ref_(arena).transformed()[0],
-            &declaration_printer,
+            declaration_printer,
             &SourceMapOptions {
                 source_map: if force_dts_emit != Some(true) {
                     compiler_options.ref_(arena).declaration_map
@@ -1151,7 +1153,7 @@ fn emit_declaration_file_or_bundle(
     }
     declaration_transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
-        bundle_build_info.borrow_mut().js = declaration_printer.maybe_bundle_file_info().clone();
+        bundle_build_info.ref_mut(arena).js = declaration_printer.ref_(arena).maybe_bundle_file_info().clone();
     }
 
     Ok(())
@@ -1159,13 +1161,13 @@ fn emit_declaration_file_or_bundle(
 
 #[derive(Trace, Finalize)]
 struct EmitDeclarationFileOrBundlePrintHandlers {
-    resolver: Gc<Box<dyn EmitResolver>>,
+    resolver: Id<Box<dyn EmitResolver>>,
     declaration_transform: Id<TransformNodesTransformationResult>,
 }
 
 impl EmitDeclarationFileOrBundlePrintHandlers {
     fn new(
-        resolver: Gc<Box<dyn EmitResolver>>,
+        resolver: Id<Box<dyn EmitResolver>>,
         declaration_transform: Id<TransformNodesTransformationResult>,
     ) -> Self {
         Self {
@@ -1177,7 +1179,7 @@ impl EmitDeclarationFileOrBundlePrintHandlers {
 
 impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
     fn has_global_name(&self, name: &str) -> Option<bool> {
-        Some(self.resolver.has_global_name(name))
+        Some(self.resolver.ref_(self).has_global_name(name))
     }
 
     fn is_on_emit_node_supported(&self) -> bool {
@@ -1240,7 +1242,7 @@ fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>, arena: &i
     try_for_each_child(
         node,
         |node: Id<Node>| collect_linked_aliases(resolver, node, arena),
-        Option::<fn(&NodeArray) -> io::Result<()>>::None,
+        Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
         arena,
     )?;
 
@@ -1257,7 +1259,7 @@ fn print_source_file_or_bundle(
     js_file_path: &str,
     source_map_file_path: Option<&str>,
     source_file_or_bundle: Id<Node>, /*SourceFile | Bundle*/
-    printer: &Printer,
+    printer: Id<Printer>,
     map_options: &SourceMapOptions,
     arena: &impl HasArena,
 ) -> io::Result<()> {
@@ -1283,7 +1285,7 @@ fn print_source_file_or_bundle(
         vec![source_file.clone().unwrap()]
     };
 
-    let mut source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>> = None;
+    let mut source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>> = None;
     if should_emit_source_maps(map_options, &source_file_or_bundle.ref_(arena)) {
         source_map_generator = Some(create_source_map_generator(
             host.clone(),
@@ -1291,13 +1293,14 @@ fn print_source_file_or_bundle(
             get_source_root(map_options),
             get_source_map_directory(&**host.ref_(arena), map_options, js_file_path, source_file.refed(arena).as_deref()),
             &map_options.into(),
+            arena,
         ));
     }
 
     if let Some(bundle) = bundle {
-        printer.write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
+        printer.ref_(arena).write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
     } else {
-        printer.write_file(
+        printer.ref_(arena).write_file(
             source_file.unwrap(),
             writer.clone(),
             source_map_generator.clone(),
@@ -1307,15 +1310,15 @@ fn print_source_file_or_bundle(
     if let Some(source_map_generator) = source_map_generator {
         if let Some(source_map_data_list) = source_map_data_list.as_mut() {
             source_map_data_list.push(SourceMapEmitResult {
-                input_source_file_names: source_map_generator.get_sources(),
-                source_map: source_map_generator.to_json(),
+                input_source_file_names: source_map_generator.ref_(arena).get_sources(),
+                source_map: source_map_generator.ref_(arena).to_json(),
             });
         }
 
         let source_mapping_url = get_source_mapping_url(
             &**host.ref_(arena),
             map_options,
-            &**source_map_generator,
+            source_map_generator,
             js_file_path,
             source_map_file_path,
             source_file.refed(arena).as_deref(),
@@ -1330,7 +1333,7 @@ fn print_source_file_or_bundle(
         }
 
         if let Some(source_map_file_path) = source_map_file_path.non_empty() {
-            let source_map = source_map_generator.to_string();
+            let source_map = source_map_generator.ref_(arena).to_string();
             write_file(
                 &EmitHostWriteFileCallback::new(host.clone()),
                 emitter_diagnostics,
@@ -1436,14 +1439,14 @@ fn get_source_map_directory(
 fn get_source_mapping_url(
     host: &dyn EmitHost,
     map_options: &SourceMapOptions,
-    source_map_generator: &dyn SourceMapGenerator,
+    source_map_generator: Id<Box<dyn SourceMapGenerator>>,
     file_path: &str,
     source_map_file_path: Option<&str>,
     source_file: Option<&Node /*SourceFile*/>,
     arena: &impl HasArena,
 ) -> String {
     if map_options.inline_source_map == Some(true) {
-        let source_map_text = source_map_generator.to_string();
+        let source_map_text = source_map_generator.ref_(arena).to_string();
         let base_64_source_map_text = base64_encode(
             Some(|str_: &str| get_sys(arena).ref_(arena).base64_encode(str_)),
             &source_map_text,
@@ -1484,20 +1487,20 @@ fn get_source_mapping_url(
     encode_uri(&source_map_file)
 }
 
-pub(crate) fn get_build_info_text(build_info: &BuildInfo) -> String {
-    serde_json::to_string(build_info).unwrap()
+pub(crate) fn get_build_info_text(build_info: &BuildInfo, arena: &impl HasArena) -> String {
+    serde_json::to_string(&build_info.serializable(arena)).unwrap()
 }
 
-pub(crate) fn get_build_info(_build_info_text: &str) -> Gc<BuildInfo> {
+pub(crate) fn get_build_info(_build_info_text: &str) -> Id<BuildInfo> {
     unimplemented!()
 }
 
-thread_local! {
-    static not_implemented_resolver_: Gc<Box<dyn EmitResolver>> = Gc::new(Box::new(NotImplementedResolver));
-}
-
-pub(crate) fn not_implemented_resolver() -> Gc<Box<dyn EmitResolver>> {
-    not_implemented_resolver_.with(|not_implemented_resolver| not_implemented_resolver.clone())
+pub(crate) fn not_implemented_resolver(arena: &impl HasArena) -> Id<Box<dyn EmitResolver>> {
+    per_arena!(
+        Box<dyn EmitResolver>,
+        arena,
+        arena.alloc_emit_resolver(Box::new(NotImplementedResolver))
+    )
 }
 
 #[derive(Trace, Finalize)]
@@ -1817,14 +1820,15 @@ impl PipelinePhase {
 
 pub fn create_printer(
     printer_options: PrinterOptions,
-    handlers: Option<Gc<Box<dyn PrintHandlers>>>,
-) -> Gc<Printer> {
-    let handlers = handlers.unwrap_or_else(|| Gc::new(Box::new(DummyPrintHandlers)));
-    let printer = Gc::new(Printer::new(&*static_arena(), printer_options, handlers));
-    *printer._rc_wrapper.borrow_mut() = Some(printer.clone());
-    printer.reset();
-    *printer.emit_binary_expression.borrow_mut() =
-        Some(Gc::new(printer.create_emit_binary_expression()));
+    handlers: Option<Id<Box<dyn PrintHandlers>>>,
+    arena: &impl HasArena,
+) -> Id<Printer> {
+    let handlers = handlers.unwrap_or_else(|| arena.alloc_print_handlers(Box::new(DummyPrintHandlers)));
+    let printer = arena.alloc_printer(Printer::new(&*static_arena(), printer_options, handlers));
+    *printer.ref_(arena)._arena_id.borrow_mut() = Some(printer.clone());
+    printer.ref_(arena).reset();
+    *printer.ref_(arena).emit_binary_expression.borrow_mut() =
+        Some(arena.alloc_emit_binary_expression(printer.ref_(arena).create_emit_binary_expression()));
     printer
 }
 
@@ -1845,7 +1849,7 @@ impl Printer {
     pub fn new(
         arena: *const AllArenas,
         printer_options: PrinterOptions,
-        handlers: Gc<Box<dyn PrintHandlers>>,
+        handlers: Id<Box<dyn PrintHandlers>>,
     ) -> Self {
         let arena_ref = unsafe { &*arena };
         let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
@@ -1857,10 +1861,10 @@ impl Printer {
         );
         let preserve_source_newlines = printer_options.preserve_source_newlines;
         let bundle_file_info = if printer_options.write_bundle_file_info == Some(true) {
-            Some(Gc::new(GcCell::new(BundleFileInfo {
+            Some(arena_ref.alloc_bundle_file_info(BundleFileInfo {
                 sections: vec![],
                 sources: None,
-            })))
+            }))
         } else {
             None
         };
@@ -1872,7 +1876,7 @@ impl Printer {
         let record_internal_section = printer_options.record_internal_section;
         Self {
             arena,
-            _rc_wrapper: Default::default(),
+            _arena_id: Default::default(),
             printer_options,
             handlers,
             extended_diagnostics,
@@ -1916,7 +1920,7 @@ impl Printer {
             last_substitution: Default::default(),
             current_parenthesizer_rule: Default::default(),
             // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
-            parenthesizer: factory.with(|factory_| factory_.parenthesizer()),
+            parenthesizer: get_factory(arena_ref).parenthesizer(),
             emit_binary_expression: Default::default(),
         }
     }
@@ -1925,8 +1929,8 @@ impl Printer {
         self.arena().symbol(symbol)
     }
 
-    pub(super) fn rc_wrapper(&self) -> Gc<Printer> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub(super) fn arena_id(&self) -> Id<Printer> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node>> {
@@ -2054,7 +2058,7 @@ impl Printer {
     }
 
     pub(super) fn has_global_name(&self, name: &str) -> Option<bool> {
-        self.handlers.has_global_name(name)
+        self.handlers.ref_(self).has_global_name(name)
     }
 
     pub(super) fn on_emit_node(
@@ -2063,19 +2067,19 @@ impl Printer {
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        Ok(if self.handlers.is_on_emit_node_supported() {
-            self.handlers.on_emit_node(hint, node, emit_callback)?
+        Ok(if self.handlers.ref_(self).is_on_emit_node_supported() {
+            self.handlers.ref_(self).on_emit_node(hint, node, emit_callback)?
         } else {
             no_emit_notification(hint, node, emit_callback)?
         })
     }
 
     pub(super) fn is_on_emit_node_no_emit_notification(&self) -> bool {
-        !self.handlers.is_on_emit_node_supported()
+        !self.handlers.ref_(self).is_on_emit_node_supported()
     }
 
     pub(super) fn is_emit_notification_enabled(&self, node: Id<Node>) -> Option<bool> {
-        self.handlers.is_emit_notification_enabled(node)
+        self.handlers.ref_(self).is_emit_notification_enabled(node)
     }
 
     pub(super) fn substitute_node(
@@ -2083,39 +2087,39 @@ impl Printer {
         hint: EmitHint,
         node: Id<Node>,
     ) -> io::Result<Option<Id<Node>>> {
-        Ok(Some(if self.handlers.is_substitute_node_supported() {
-            self.handlers.substitute_node(hint, node)?.unwrap()
+        Ok(Some(if self.handlers.ref_(self).is_substitute_node_supported() {
+            self.handlers.ref_(self).substitute_node(hint, node)?.unwrap()
         } else {
             no_emit_substitution(hint, node)
         }))
     }
 
     pub(super) fn is_substitute_node_no_emit_substitution(&self) -> bool {
-        !self.handlers.is_substitute_node_supported()
+        !self.handlers.ref_(self).is_substitute_node_supported()
     }
 
     pub(super) fn on_before_emit_node(&self, node: Option<Id<Node>>) {
-        self.handlers.on_before_emit_node(node)
+        self.handlers.ref_(self).on_before_emit_node(node)
     }
 
     pub(super) fn on_after_emit_node(&self, node: Option<Id<Node>>) {
-        self.handlers.on_after_emit_node(node)
+        self.handlers.ref_(self).on_after_emit_node(node)
     }
 
-    pub(super) fn on_before_emit_node_array(&self, nodes: Option<&NodeArray>) {
-        self.handlers.on_before_emit_node_array(nodes)
+    pub(super) fn on_before_emit_node_array(&self, nodes: Option<Id<NodeArray>>) {
+        self.handlers.ref_(self).on_before_emit_node_array(nodes)
     }
 
-    pub(super) fn on_after_emit_node_array(&self, nodes: Option<&NodeArray>) {
-        self.handlers.on_after_emit_node_array(nodes)
+    pub(super) fn on_after_emit_node_array(&self, nodes: Option<Id<NodeArray>>) {
+        self.handlers.ref_(self).on_after_emit_node_array(nodes)
     }
 
     pub(super) fn on_before_emit_token(&self, node: Option<Id<Node>>) {
-        self.handlers.on_before_emit_token(node)
+        self.handlers.ref_(self).on_before_emit_token(node)
     }
 
     pub(super) fn on_after_emit_token(&self, node: Option<Id<Node>>) {
-        self.handlers.on_after_emit_token(node)
+        self.handlers.ref_(self).on_after_emit_token(node)
     }
 
     pub(super) fn write(&self, text: &str) {
@@ -2130,16 +2134,16 @@ impl Printer {
         self.is_own_file_emit.set(is_own_file_emit);
     }
 
-    pub(super) fn maybe_bundle_file_info(&self) -> Option<Gc<GcCell<BundleFileInfo>>> {
+    pub(super) fn maybe_bundle_file_info(&self) -> Option<Id<BundleFileInfo>> {
         self.bundle_file_info.borrow().clone()
     }
 
-    pub(super) fn bundle_file_info(&self) -> Gc<GcCell<BundleFileInfo>> {
+    pub(super) fn bundle_file_info(&self) -> Id<BundleFileInfo> {
         self.bundle_file_info.borrow().clone().unwrap()
     }
 
     pub(super) fn relative_to_build_info(&self, value: &str) -> String {
-        self.relative_to_build_info.clone().unwrap().call(value)
+        self.relative_to_build_info.clone().unwrap().ref_(self).call(value)
     }
 
     pub(super) fn source_file_text_pos(&self) -> usize {
@@ -2160,7 +2164,7 @@ impl Printer {
 
     pub(super) fn set_source_map_generator(
         &self,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) {
         *self.source_map_generator.borrow_mut() = source_map_generator;
     }
@@ -2173,23 +2177,23 @@ impl Printer {
         self.source_maps_disabled.set(source_maps_disabled);
     }
 
-    pub(super) fn source_map_generator(&self) -> Gc<Box<dyn SourceMapGenerator>> {
+    pub(super) fn source_map_generator(&self) -> Id<Box<dyn SourceMapGenerator>> {
         self.source_map_generator.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_source_map_generator(&self) -> Option<Gc<Box<dyn SourceMapGenerator>>> {
+    pub(super) fn maybe_source_map_generator(&self) -> Option<Id<Box<dyn SourceMapGenerator>>> {
         self.source_map_generator.borrow().clone()
     }
 
-    pub(super) fn maybe_source_map_source(&self) -> Option<Gc<SourceMapSource>> {
+    pub(super) fn maybe_source_map_source(&self) -> Option<Id<SourceMapSource>> {
         self.source_map_source.borrow().clone()
     }
 
-    pub(super) fn source_map_source(&self) -> Gc<SourceMapSource> {
+    pub(super) fn source_map_source(&self) -> Id<SourceMapSource> {
         self.source_map_source.borrow().clone().unwrap()
     }
 
-    pub(super) fn set_source_map_source_(&self, source_map_source: Option<Gc<SourceMapSource>>) {
+    pub(super) fn set_source_map_source_(&self, source_map_source: Option<Id<SourceMapSource>>) {
         *self.source_map_source.borrow_mut() = source_map_source;
     }
 
@@ -2203,13 +2207,13 @@ impl Printer {
 
     pub(super) fn maybe_most_recently_added_source_map_source(
         &self,
-    ) -> Option<Gc<SourceMapSource>> {
+    ) -> Option<Id<SourceMapSource>> {
         self.most_recently_added_source_map_source.borrow().clone()
     }
 
     pub(super) fn set_most_recently_added_source_map_source(
         &self,
-        most_recently_added_source_map_source: Option<Gc<SourceMapSource>>,
+        most_recently_added_source_map_source: Option<Id<SourceMapSource>>,
     ) {
         *self.most_recently_added_source_map_source.borrow_mut() =
             most_recently_added_source_map_source;
@@ -2323,20 +2327,20 @@ impl Printer {
 
     pub(super) fn maybe_current_parenthesizer_rule(
         &self,
-    ) -> Option<Gc<Box<dyn CurrentParenthesizerRule>>> {
+    ) -> Option<Id<Box<dyn CurrentParenthesizerRule>>> {
         self.current_parenthesizer_rule.borrow().clone()
     }
 
     pub(super) fn set_current_parenthesizer_rule(
         &self,
-        current_parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        current_parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) {
         *self.current_parenthesizer_rule.borrow_mut() = current_parenthesizer_rule;
     }
 
     pub(super) fn parenthesizer(
         &self,
-    ) -> Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>> {
+    ) -> Id<Box<dyn ParenthesizerRules>> {
         self.parenthesizer.clone()
     }
 
@@ -2348,13 +2352,13 @@ impl Printer {
         // unimplemented!()
     }
 
-    pub(super) fn emit_binary_expression_rc(&self) -> Gc<EmitBinaryExpression> {
+    pub(super) fn emit_binary_expression_id(&self) -> Id<EmitBinaryExpression> {
         self.emit_binary_expression.borrow().clone().unwrap()
     }
 
     pub(super) fn emit_binary_expression(&self, node: Id<Node> /*BinaryExpression*/) {
-        self.emit_binary_expression_rc()
-            .call(node)
+        self.emit_binary_expression_id()
+            .ref_(self).call(node)
             .expect("Don't _think_ this is actually fallible?")
     }
 
@@ -2395,7 +2399,7 @@ impl Printer {
     pub fn print_list(
         &self,
         format: ListFormat,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         source_file: Id<Node>, /*SourceFile*/
     ) -> io::Result<String> {
         self.write_list(format, nodes, Some(source_file), self.begin_print())?;
@@ -2439,7 +2443,7 @@ impl Printer {
     pub fn write_list(
         &self,
         format: ListFormat,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         source_file: Option<Id<Node> /*SourceFile*/>,
         output: Id<Box<dyn EmitTextWriter>>,
     ) -> io::Result<()> {
@@ -2475,14 +2479,14 @@ impl Printer {
         kind: BundleFileSectionKind, /*BundleFileTextLikeKind*/
     ) {
         let bundle_file_info = self.bundle_file_info();
-        let mut bundle_file_info = bundle_file_info.borrow_mut();
+        let mut bundle_file_info = bundle_file_info.ref_mut(self);
         let last = last_or_undefined(&bundle_file_info.sections);
-        if let Some(last) = last.filter(|last| last.kind() == kind) {
-            last.set_end(end);
+        if let Some(last) = last.filter(|last| last.ref_(self).kind() == kind) {
+            last.ref_(self).set_end(end);
         } else {
             bundle_file_info
                 .sections
-                .push(Gc::new(BundleFileSection::new_text_like(
+                .push(self.alloc_bundle_file_section(BundleFileSection::new_text_like(
                     kind, None, pos, end,
                 )));
         }

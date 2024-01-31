@@ -911,17 +911,17 @@ impl TypeChecker {
 
     pub(super) fn get_union_or_intersection_type_predicate(
         &self,
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
         kind: Option<TypeFlags>,
     ) -> io::Result<Option<TypePredicate>> {
-        let mut first: Option<Gc<TypePredicate>> = None;
+        let mut first: Option<Id<TypePredicate>> = None;
         let mut types: Vec<Id<Type>> = vec![];
-        for sig in signatures {
+        for &sig in signatures {
             let pred = self.get_type_predicate_of_signature(sig)?;
             if match pred.as_ref() {
                 None => true,
                 Some(pred) => matches!(
-                    pred.kind,
+                    pred.ref_(self).kind,
                     TypePredicateKind::AssertsThis | TypePredicateKind::AssertsIdentifier
                 ),
             } {
@@ -933,27 +933,27 @@ impl TypeChecker {
             }
             let pred = pred.unwrap();
 
-            if let Some(first) = first.as_ref() {
-                if !self.type_predicate_kinds_match(first, &pred) {
+            if let Some(first) = first {
+                if !self.type_predicate_kinds_match(first, pred) {
                     return Ok(None);
                 }
             } else {
                 first = Some(pred.clone());
             }
-            types.push(pred.type_.clone().unwrap());
+            types.push(pred.ref_(self).type_.clone().unwrap());
         }
         let first = return_ok_default_if_none!(first);
         let composite_type = self.get_union_or_intersection_type(&types, kind, None)?;
         Ok(Some(self.create_type_predicate(
-            first.kind,
-            first.parameter_name.clone(),
-            first.parameter_index,
+            first.ref_(self).kind,
+            first.ref_(self).parameter_name.clone(),
+            first.ref_(self).parameter_index,
             Some(composite_type),
         )))
     }
 
-    pub(super) fn type_predicate_kinds_match(&self, a: &TypePredicate, b: &TypePredicate) -> bool {
-        a.kind == b.kind && a.parameter_index == b.parameter_index
+    pub(super) fn type_predicate_kinds_match(&self, a: Id<TypePredicate>, b: Id<TypePredicate>) -> bool {
+        a.ref_(self).kind == b.ref_(self).kind && a.ref_(self).parameter_index == b.ref_(self).parameter_index
     }
 
     pub(super) fn get_union_type_from_sorted_list(
@@ -1044,11 +1044,11 @@ impl TypeChecker {
         node: Id<Node>, /*UnionTypeNode*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            links.borrow_mut().resolved_type = Some(
+            links.ref_mut(self).resolved_type = Some(
                 self.get_union_type(
-                    &try_map(&node.ref_(self).as_union_type_node().types, |&type_: &Id<Node>, _| {
+                    &try_map(&*node.ref_(self).as_union_type_node().types.ref_(self), |&type_: &Id<Node>, _| {
                         self.get_type_from_type_node_(type_)
                     })?,
                     Some(UnionReduction::Literal),
@@ -1059,7 +1059,7 @@ impl TypeChecker {
                 )?,
             );
         }
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 

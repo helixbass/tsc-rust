@@ -34,8 +34,8 @@ impl TransformES2015 {
         let mut prologue: Vec<Id<Node /*Statement*/>> = Default::default();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.ref_(self).start_lexical_environment();
-        let statement_offset = self.factory.try_copy_prologue(
-            &node_as_source_file.statements(),
+        let statement_offset = self.factory.ref_(self).try_copy_prologue(
+            &node_as_source_file.statements().ref_(self),
             &mut prologue,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
@@ -43,21 +43,22 @@ impl TransformES2015 {
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
-                &node_as_source_file.statements(),
+                node_as_source_file.statements(),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 Some(statement_offset),
                 None,
-            )?),
+                self,
+            )?.ref_(self)),
             None,
             None,
         );
         if let Some(tagged_template_string_declarations) =
             self.maybe_tagged_template_string_declarations().as_ref()
         {
-            statements.push(self.factory.create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
-                self.factory.create_variable_declaration_list(
+            statements.push(self.factory.ref_(self).create_variable_statement(
+                Option::<Id<NodeArray>>::None,
+                self.factory.ref_(self).create_variable_declaration_list(
                     tagged_template_string_declarations.clone(),
                     None,
                 ),
@@ -65,15 +66,15 @@ impl TransformES2015 {
         }
         prologue = self
             .factory
-            .merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
+            .ref_(self).merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
             .as_vec_owned();
         self.insert_capture_this_for_node_if_needed(&mut prologue, node);
         self.exit_subtree(ancestor_facts, HierarchyFacts::None, HierarchyFacts::None);
-        Ok(self.factory.update_source_file(
+        Ok(self.factory.ref_(self).update_source_file(
             node,
             self.factory
-                .create_node_array(Some(concatenate(prologue, statements)), None)
-                .set_text_range(Some(&*node_as_source_file.statements())),
+                .ref_(self).create_node_array(Some(concatenate(prologue, statements)), None)
+                .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
             None,
             None,
             None,
@@ -87,12 +88,12 @@ impl TransformES2015 {
         node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<Id<Node /*SwitchStatement*/>> {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
-            let saved_allowed_non_labeled_jumps = (*converted_loop_state)
-                .borrow()
+            let saved_allowed_non_labeled_jumps = converted_loop_state
+                .ref_(self)
                 .allowed_non_labeled_jumps
                 .clone();
             {
-                let mut converted_loop_state = converted_loop_state.borrow_mut();
+                let mut converted_loop_state = converted_loop_state.ref_mut(self);
                 converted_loop_state.allowed_non_labeled_jumps = Some(
                     converted_loop_state
                         .allowed_non_labeled_jumps
@@ -102,7 +103,7 @@ impl TransformES2015 {
             }
             let result =
                 try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?;
-            converted_loop_state.borrow_mut().allowed_non_labeled_jumps =
+            converted_loop_state.ref_mut(self).allowed_non_labeled_jumps =
                 saved_allowed_non_labeled_jumps;
             return Ok(result);
         }
@@ -125,7 +126,7 @@ impl TransformES2015 {
 
     pub(super) fn return_captured_this(&self, node: Id<Node>) -> Id<Node /*ReturnStatement*/> {
         self.factory
-            .create_return_statement(Some(self.factory.create_unique_name(
+            .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_unique_name(
                 "_this",
                 Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
             )))
@@ -138,21 +139,21 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Statement*/>> {
         if let Some(converted_loop_state) = self.maybe_converted_loop_state() {
             {
-                let mut converted_loop_state = converted_loop_state.borrow_mut();
+                let mut converted_loop_state = converted_loop_state.ref_mut(self);
                 converted_loop_state.non_local_jumps =
                     Some(converted_loop_state.non_local_jumps.unwrap_or_default() | Jump::Return);
             }
             if self.is_return_void_statement_in_constructor_with_captured_super(node) {
                 node = self.return_captured_this(node);
             }
-            return Ok(self.factory.create_return_statement(Some(
-                self.factory.create_object_literal_expression(
-                    Some(vec![self.factory.create_property_assignment(
-                        self.factory.create_identifier("value"),
+            return Ok(self.factory.ref_(self).create_return_statement(Some(
+                self.factory.ref_(self).create_object_literal_expression(
+                    Some(vec![self.factory.ref_(self).create_property_assignment(
+                        self.factory.ref_(self).create_identifier("value"),
                         node.ref_(self).as_return_statement()
                             .expression
                             .try_map_or_else(
-                                || Ok(self.factory.create_void_zero()),
+                                || Ok(self.factory.ref_(self).create_void_zero()),
                                 |node_expression| {
                                     try_visit_node(
                                         node_expression,
@@ -194,15 +195,15 @@ impl TransformES2015 {
                 .intersects(HierarchyFacts::ArrowFunction)
             {
                 self.converted_loop_state()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .contains_lexical_this = Some(true);
                 return node;
             }
             return self
                 .converted_loop_state()
-                .borrow_mut()
+                .ref_mut(self)
                 .this_name
-                .get_or_insert_with(|| self.factory.create_unique_name("this", None))
+                .get_or_insert_with(|| self.factory.ref_(self).create_unique_name("this", None))
                 .clone();
         }
         node
@@ -227,12 +228,12 @@ impl TransformES2015 {
         if self.maybe_converted_loop_state().is_none() {
             return Ok(node);
         }
-        if self.resolver.is_arguments_local_binding(node)? {
+        if self.resolver.ref_(self).is_arguments_local_binding(node)? {
             return Ok(self
                 .converted_loop_state()
-                .borrow_mut()
+                .ref_mut(self)
                 .arguments_name
-                .get_or_insert_with(|| self.factory.create_unique_name("arguments", None))
+                .get_or_insert_with(|| self.factory.ref_(self).create_unique_name("arguments", None))
                 .clone());
         }
         Ok(node)
@@ -251,13 +252,13 @@ impl TransformES2015 {
                 Jump::Continue
             };
             let can_use_break_or_continue = matches!(
-                (node_as_has_label.maybe_label().as_ref(), (*self.converted_loop_state()).borrow().labels.as_ref()),
+                (node_as_has_label.maybe_label().as_ref(), self.converted_loop_state().ref_(self).labels.as_ref()),
                 (Some(node_label), Some(converted_loop_state_labels)) if converted_loop_state_labels.get(
                     id_text(&node_label.ref_(self))
                 ).copied() == Some(true)
             ) || node_as_has_label.maybe_label().is_none()
-                && (*self.converted_loop_state())
-                    .borrow()
+                && self.converted_loop_state()
+                    .ref_(self)
                     .allowed_non_labeled_jumps
                     .unwrap_or_default()
                     .intersects(jump);
@@ -270,14 +271,14 @@ impl TransformES2015 {
                         if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                             *self
                                 .converted_loop_state()
-                                .borrow_mut()
+                                .ref_mut(self)
                                 .non_local_jumps
                                 .get_or_insert_default_() |= Jump::Break;
                             label_marker = "break".to_owned();
                         } else {
                             *self
                                 .converted_loop_state()
-                                .borrow_mut()
+                                .ref_mut(self)
                                 .non_local_jumps
                                 .get_or_insert_default_() |= Jump::Continue;
                             label_marker = "continue".to_owned();
@@ -287,7 +288,7 @@ impl TransformES2015 {
                         if node.ref_(self).kind() == SyntaxKind::BreakStatement {
                             label_marker = format!("break-{}", label.ref_(self).as_identifier().escaped_text);
                             self.set_labeled_jump(
-                                &mut self.converted_loop_state().borrow_mut(),
+                                &mut self.converted_loop_state().ref_mut(self),
                                 true,
                                 id_text(&label.ref_(self)).to_owned(),
                                 label_marker.clone(),
@@ -296,7 +297,7 @@ impl TransformES2015 {
                             label_marker =
                                 format!("continue-{}", label.ref_(self).as_identifier().escaped_text);
                             self.set_labeled_jump(
-                                &mut self.converted_loop_state().borrow_mut(),
+                                &mut self.converted_loop_state().ref_mut(self),
                                 false,
                                 id_text(&label.ref_(self)).to_owned(),
                                 label_marker.clone(),
@@ -305,14 +306,14 @@ impl TransformES2015 {
                     }
                 }
                 let mut return_expression =
-                    self.factory.create_string_literal(label_marker, None, None);
-                if !(*self.converted_loop_state())
-                    .borrow()
+                    self.factory.ref_(self).create_string_literal(label_marker, None, None);
+                if !self.converted_loop_state()
+                    .ref_(self)
                     .loop_out_parameters
                     .is_empty()
                 {
                     let converted_loop_state = self.converted_loop_state();
-                    let converted_loop_state = (*converted_loop_state).borrow();
+                    let converted_loop_state = converted_loop_state.ref_(self);
                     let out_params = &converted_loop_state.loop_out_parameters;
                     let mut expr: Option<Id<Node>> = None;
                     for (i, out_param) in out_params.iter().enumerate() {
@@ -321,14 +322,14 @@ impl TransformES2015 {
                         if i == 0 {
                             expr = Some(copy_expr);
                         } else {
-                            expr = Some(self.factory.create_binary_expression(
+                            expr = Some(self.factory.ref_(self).create_binary_expression(
                                 expr.unwrap(),
                                 SyntaxKind::CommaToken,
                                 copy_expr,
                             ));
                         }
                     }
-                    return_expression = self.factory.create_binary_expression(
+                    return_expression = self.factory.ref_(self).create_binary_expression(
                         expr.unwrap(),
                         SyntaxKind::CommaToken,
                         return_expression,
@@ -336,7 +337,7 @@ impl TransformES2015 {
                 }
                 return Ok(self
                     .factory
-                    .create_return_statement(Some(return_expression)));
+                    .ref_(self).create_return_statement(Some(return_expression)));
             }
         }
         try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
@@ -348,8 +349,8 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> /*<Statement>*/ {
         let variable = self
             .factory
-            .create_variable_declaration(
-                Some(self.factory.get_local_name(node, Some(true), None)),
+            .ref_(self).create_variable_declaration(
+                Some(self.factory.ref_(self).get_local_name(node, Some(true), None)),
                 None,
                 None,
                 Some(self.transform_class_like_declaration_to_expression(node)?),
@@ -359,10 +360,10 @@ impl TransformES2015 {
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let statement = self
             .factory
-            .create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+            .ref_(self).create_variable_statement(
+                Option::<Id<NodeArray>>::None,
                 self.factory
-                    .create_variable_declaration_list(vec![variable], None),
+                    .ref_(self).create_variable_declaration_list(vec![variable], None),
             )
             .set_original_node(Some(node), self)
             .set_text_range(Some(&*node.ref_(self)), self)
@@ -372,20 +373,20 @@ impl TransformES2015 {
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             let export_statement = if has_syntactic_modifier(node, ModifierFlags::Default, self) {
                 self.factory
-                    .create_export_default(self.factory.get_local_name(node, None, None))
+                    .ref_(self).create_export_default(self.factory.ref_(self).get_local_name(node, None, None))
             } else {
                 self.factory
-                    .create_external_module_export(self.factory.get_local_name(node, None, None))
+                    .ref_(self).create_external_module_export(self.factory.ref_(self).get_local_name(node, None, None))
             }
             .set_original_node(Some(statement), self);
             statements.push(export_statement);
         }
 
-        let emit_flags = get_emit_flags(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
         if !emit_flags.intersects(EmitFlags::HasEndOfDeclarationMarker) {
             statements.push(
                 self.factory
-                    .create_end_of_declaration_marker(node),
+                    .ref_(self).create_end_of_declaration_marker(node),
             );
             set_emit_flags(
                 statement,
@@ -417,17 +418,17 @@ impl TransformES2015 {
         let extends_clause_element = get_class_extends_heritage_element(node, self);
         let class_function = self
             .factory
-            .create_function_expression(
-                Option::<Gc<NodeArray>>::None,
+            .ref_(self).create_function_expression(
+                Option::<Id<NodeArray>>::None,
                 None,
                 Option::<Id<Node>>::None,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(extends_clause_element.as_ref().map_or_default(|_| {
-                    vec![self.factory.create_parameter_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                    vec![self.factory.ref_(self).create_parameter_declaration(
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         None,
-                        Some(self.factory.create_unique_name(
+                        Some(self.factory.ref_(self).create_unique_name(
                             "_super",
                             Some(
                                 GeneratedIdentifierFlags::Optimistic
@@ -443,19 +444,19 @@ impl TransformES2015 {
                 self.transform_class_body(node, extends_clause_element)?,
             )
             .set_emit_flags(
-                (get_emit_flags(&node.ref_(self)) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
+                (get_emit_flags(node, self) & EmitFlags::Indented) | EmitFlags::ReuseTempVariableScope,
                 self,
             );
 
         let inner = self
             .factory
-            .create_partially_emitted_expression(class_function, None)
+            .ref_(self).create_partially_emitted_expression(class_function, None)
             .set_text_range_end(node.ref_(self).end(), self)
             .set_emit_flags(EmitFlags::NoComments, self);
 
         let outer = self
             .factory
-            .create_partially_emitted_expression(inner, None)
+            .ref_(self).create_partially_emitted_expression(inner, None)
             .set_text_range_end(skip_trivia(
                 &self.current_text(),
                 node.ref_(self).pos(),
@@ -467,9 +468,9 @@ impl TransformES2015 {
 
         Ok(self
             .factory
-            .create_parenthesized_expression(self.factory.create_call_expression(
+            .ref_(self).create_parenthesized_expression(self.factory.ref_(self).create_call_expression(
                 outer,
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 Some(extends_clause_element.as_ref().try_map_or_default(
                     |extends_clause_element| -> io::Result<_> {
                         Ok(vec![try_visit_node(
@@ -494,9 +495,9 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        let name = self.factory.get_internal_name(node, None, None);
+        let name = self.factory.ref_(self).get_internal_name(node, None, None);
         let constructor_like_name = if is_identifier_a_non_contextual_keyword(&name.ref_(self)) {
-            self.factory.get_generated_name_for_node(Some(name), None)
+            self.factory.ref_(self).get_generated_name_for_node(Some(name), None)
         } else {
             name
         };
@@ -513,7 +514,7 @@ impl TransformES2015 {
         let closing_brace_location = create_token_range(
             skip_trivia(
                 &self.current_text(),
-                node_as_class_like_declaration.members().end(),
+                node_as_class_like_declaration.members().ref_(self).end(),
                 None,
                 None,
                 None,
@@ -523,13 +524,13 @@ impl TransformES2015 {
 
         let outer = self
             .factory
-            .create_partially_emitted_expression(constructor_like_name, None)
+            .ref_(self).create_partially_emitted_expression(constructor_like_name, None)
             .set_text_range_end(closing_brace_location.end(), self)
             .set_emit_flags(EmitFlags::NoComments, self);
 
         let statement = self
             .factory
-            .create_return_statement(Some(outer))
+            .ref_(self).create_return_statement(Some(outer))
             .set_text_range_pos(closing_brace_location.pos(), self)
             .set_emit_flags(EmitFlags::NoComments | EmitFlags::NoTokenSourceMaps, self);
         statements.push(statement);
@@ -542,10 +543,10 @@ impl TransformES2015 {
 
         Ok(self
             .factory
-            .create_block(
+            .ref_(self).create_block(
                 self.factory
-                    .create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*node_as_class_like_declaration.members())),
+                    .ref_(self).create_node_array(Some(statements), None)
+                    .set_text_range(Some(&*node_as_class_like_declaration.members().ref_(self)), self),
                 Some(true),
             )
             .set_emit_flags(EmitFlags::NoComments, self))
@@ -560,9 +561,9 @@ impl TransformES2015 {
         if let Some(extends_clause_element) = extends_clause_element {
             statements.push(
                 self.factory
-                    .create_expression_statement(
+                    .ref_(self).create_expression_statement(
                         self.emit_helpers().create_extends_helper(
-                            self.factory.get_internal_name(node, None, None),
+                            self.factory.ref_(self).get_internal_name(node, None, None),
                         ),
                     )
                     .set_text_range(Some(&*extends_clause_element.ref_(self)), self),
@@ -590,12 +591,12 @@ impl TransformES2015 {
         );
         let constructor_function = self
             .factory
-            .create_function_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+            .ref_(self).create_function_declaration(
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some(name),
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 self.transform_constructor_parameters(
                     constructor,
                     has_synthesized_super,
@@ -632,8 +633,7 @@ impl TransformES2015 {
         Ok(try_visit_parameter_list(
             constructor
                 .filter(|_| !has_synthesized_super)
-                .map(|constructor| constructor.ref_(self).as_constructor_declaration().parameters())
-                .as_deref(),
+                .map(|constructor| constructor.ref_(self).as_constructor_declaration().parameters()),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
@@ -650,7 +650,7 @@ impl TransformES2015 {
         self.context.ref_(self).resume_lexical_environment();
         statements = self
             .factory
-            .merge_lexical_environment(
+            .ref_(self).merge_lexical_environment(
                 statements,
                 self.context.ref_(self).end_lexical_environment().as_deref(),
             )
@@ -659,17 +659,17 @@ impl TransformES2015 {
         if is_derived_class {
             statements.push(
                 self.factory
-                    .create_return_statement(Some(self.create_default_super_call_or_this())),
+                    .ref_(self).create_return_statement(Some(self.create_default_super_call_or_this())),
             );
         }
 
         let statements_array = self
             .factory
-            .create_node_array(Some(statements), None)
-            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members()));
+            .ref_(self).create_node_array(Some(statements), None)
+            .set_text_range(Some(&*node.ref_(self).as_class_like_declaration().members().ref_(self)), self);
 
         self.factory
-            .create_block(statements_array, Some(true))
+            .ref_(self).create_block(statements_array, Some(true))
             .set_text_range(Some(&*node.ref_(self)), self)
             .set_emit_flags(EmitFlags::NoComments, self)
     }
@@ -710,8 +710,8 @@ impl TransformES2015 {
 
         let mut statement_offset = 0;
         if !has_synthesized_super {
-            statement_offset = self.factory.copy_standard_prologue(
-                &constructor_body_as_block.statements,
+            statement_offset = self.factory.ref_(self).copy_standard_prologue(
+                &constructor_body_as_block.statements.ref_(self),
                 &mut prologue,
                 Some(false),
             );
@@ -721,8 +721,8 @@ impl TransformES2015 {
         if !has_synthesized_super {
             statement_offset = self
                 .factory
-                .try_copy_custom_prologue(
-                    &constructor_body_as_block.statements,
+                .ref_(self).try_copy_custom_prologue(
+                    &constructor_body_as_block.statements.ref_(self),
                     &mut statements,
                     Some(statement_offset),
                     Some(|node: Id<Node>| self.visitor(node)),
@@ -734,9 +734,9 @@ impl TransformES2015 {
         let mut super_call_expression: Option<Id<Node /*Expression*/>> = None;
         if has_synthesized_super {
             super_call_expression = Some(self.create_default_super_call_or_this());
-        } else if is_derived_class && statement_offset < constructor_body_as_block.statements.len()
+        } else if is_derived_class && statement_offset < constructor_body_as_block.statements.ref_(self).len()
         {
-            let first_statement = &constructor_body_as_block.statements[statement_offset];
+            let first_statement = &constructor_body_as_block.statements.ref_(self)[statement_offset];
             if is_expression_statement(&first_statement.ref_(self))
                 && is_super_call(first_statement.ref_(self).as_expression_statement().expression, self)
             {
@@ -757,25 +757,26 @@ impl TransformES2015 {
         add_range(
             &mut statements,
             Some(&try_visit_nodes(
-                &constructor_body_as_block.statements,
+                constructor_body_as_block.statements,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_statement(node, self)),
                 None,
                 None,
-            )?),
+                self,
+            )?.ref_(self)),
             None,
             None,
         );
 
         prologue = self
             .factory
-            .merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
+            .ref_(self).merge_lexical_environment(prologue, self.context.ref_(self).end_lexical_environment().as_deref())
             .as_vec_owned();
         prologue = self.insert_capture_new_target_if_needed(prologue, constructor, false);
 
         if is_derived_class {
             if let Some(super_call_expression) = super_call_expression.clone().filter(|_| {
-                statement_offset == constructor_body_as_block.statements.len()
+                statement_offset == constructor_body_as_block.statements.ref_(self).len()
                     && !constructor_body
                         .ref_(self).transform_flags()
                         .intersects(TransformFlags::ContainsLexicalThis)
@@ -790,9 +791,9 @@ impl TransformES2015 {
                 );
                 let return_statement = self
                     .factory
-                    .create_return_statement(Some(super_call_expression.clone()))
+                    .ref_(self).create_return_statement(Some(super_call_expression.clone()))
                     .set_comment_range(&ReadonlyTextRangeConcrete::from(get_comment_range(
-                        &super_call.ref_(self),
+                        super_call, self
                     )), self);
                 set_emit_flags(super_call, EmitFlags::NoComments, self);
                 statements.push(return_statement);
@@ -804,8 +805,8 @@ impl TransformES2015 {
                 );
 
                 if !self.is_sufficiently_covered_by_return_statements(constructor_body) {
-                    statements.push(self.factory.create_return_statement(Some(
-                        self.factory.create_unique_name(
+                    statements.push(self.factory.ref_(self).create_return_statement(Some(
+                        self.factory.ref_(self).create_unique_name(
                             "this",
                             Some(
                                 GeneratedIdentifierFlags::Optimistic
@@ -821,10 +822,10 @@ impl TransformES2015 {
 
         Ok(self
             .factory
-            .create_block(
+            .ref_(self).create_block(
                 self.factory
-                    .create_node_array(Some(concatenate(prologue, statements)), None)
-                    .set_text_range(Some(&*constructor_body_as_block.statements)),
+                    .ref_(self).create_node_array(Some(concatenate(prologue, statements)), None)
+                    .set_text_range(Some(&*constructor_body_as_block.statements.ref_(self)), self),
                 Some(true),
             )
             .set_text_range(Some(&*constructor_body.ref_(self)), self))

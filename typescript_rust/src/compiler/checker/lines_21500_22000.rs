@@ -33,7 +33,7 @@ impl TypeChecker {
             None,
         )?;
         let template_type = self.get_template_type_from_mapped_type(target)?;
-        let inference = Gc::new(self.create_inference_info(type_parameter));
+        let inference = self.alloc_inference_info(self.create_inference_info(type_parameter));
         self.infer_types(
             &vec![inference.clone()],
             source_type,
@@ -42,7 +42,7 @@ impl TypeChecker {
             None,
         )?;
         Ok(self
-            .get_type_from_inference(&inference)?
+            .get_type_from_inference(&inference.ref_(self))?
             .unwrap_or_else(|| self.unknown_type()))
     }
 
@@ -177,7 +177,7 @@ impl TypeChecker {
     }
 
     pub(super) fn has_skip_direct_inference_flag(&self, node: Id<Node>) -> bool {
-        (*self.get_node_links(node)).borrow().skip_direct_inference == Some(true)
+        self.get_node_links(node).ref_(self).skip_direct_inference == Some(true)
     }
 
     pub(super) fn is_from_inference_blocked_source(&self, type_: Id<Type>) -> bool {
@@ -544,7 +544,7 @@ impl TypeChecker {
 
     pub(super) fn infer_types(
         &self,
-        inferences: &[Gc<InferenceInfo>],
+        inferences: &[Id<InferenceInfo>],
         original_source: Id<Type>,
         original_target: Id<Type>,
         priority: Option<InferencePriority>,
@@ -553,7 +553,7 @@ impl TypeChecker {
         let priority = priority.unwrap_or(InferencePriority::None);
         let contravariant = contravariant.unwrap_or(false);
         InferTypes::new(
-            self.rc_wrapper(),
+            self.arena_id(),
             inferences.to_owned(),
             original_target,
             priority,
@@ -567,8 +567,8 @@ impl TypeChecker {
 
 #[derive(Trace, Finalize)]
 pub(super) struct InferTypes {
-    pub type_checker: Gc<TypeChecker>,
-    pub inferences: Vec<Gc<InferenceInfo>>,
+    pub type_checker: Id<TypeChecker>,
+    pub inferences: Vec<Id<InferenceInfo>>,
     pub original_target: Id<Type>,
     #[unsafe_ignore_trace]
     priority: Cell<InferencePriority>,
@@ -591,14 +591,14 @@ pub(super) struct InferTypes {
 
 impl HasArena for InferTypes {
     fn arena(&self) -> &AllArenas {
-        self.type_checker.arena()
+        unimplemented!()
     }
 }
 
 impl InferTypes {
     pub(super) fn new(
-        type_checker: Gc<TypeChecker>,
-        inferences: Vec<Gc<InferenceInfo>>,
+        type_checker: Id<TypeChecker>,
+        inferences: Vec<Id<InferenceInfo>>,
         original_target: Id<Type>,
         priority: InferencePriority,
         contravariant: bool,
@@ -693,10 +693,10 @@ impl InferTypes {
         mut source: Id<Type>,
         mut target: Id<Type>,
     ) -> io::Result<()> {
-        if !self.type_checker.could_contain_type_variables(target)? {
+        if !self.type_checker.ref_(self).could_contain_type_variables(target)? {
             return Ok(());
         }
-        if source == self.type_checker.wildcard_type() {
+        if source == self.type_checker.ref_(self).wildcard_type() {
             let save_propagation_type = self.maybe_propagation_type().clone();
             *self.maybe_propagation_type() = Some(source);
             self.infer_from_types(target, target)?;
@@ -727,7 +727,7 @@ impl InferTypes {
                     }
                     .as_ref()
                     .unwrap(),
-                    &*self.type_checker.get_alias_variances(source_alias_symbol)?,
+                    &*self.type_checker.ref_(self).get_alias_variances(source_alias_symbol)?,
                 )?;
                 return Ok(());
             }
@@ -762,17 +762,17 @@ impl InferTypes {
                     .ref_(self)
                     .as_union_or_intersection_type_interface()
                     .types(),
-                |s: Id<Type>, t: Id<Type>| self.type_checker.is_type_or_base_identical_to(s, t),
+                |s: Id<Type>, t: Id<Type>| self.type_checker.ref_(self).is_type_or_base_identical_to(s, t),
             )?;
             let (sources, targets) = self.infer_from_matching_types(
                 &temp_sources,
                 &temp_targets,
-                |s: Id<Type>, t: Id<Type>| Ok(self.type_checker.is_type_closely_matched_by(s, t)),
+                |s: Id<Type>, t: Id<Type>| Ok(self.type_checker.ref_(self).is_type_closely_matched_by(s, t)),
             )?;
             if targets.is_empty() {
                 return Ok(());
             }
-            target = self.type_checker.get_union_type(
+            target = self.type_checker.ref_(self).get_union_type(
                 &targets,
                 None,
                 Option::<Id<Symbol>>::None,
@@ -783,7 +783,7 @@ impl InferTypes {
                 self.infer_with_priority(source, target, InferencePriority::NakedTypeVariable)?;
                 return Ok(());
             }
-            source = self.type_checker.get_union_type(
+            source = self.type_checker.ref_(self).get_union_type(
                 &sources,
                 None,
                 Option::<Id<Symbol>>::None,
@@ -803,12 +803,12 @@ impl InferTypes {
                 ),
                 Some(|&t: &Id<Type>| -> io::Result<_> {
                     Ok(self.get_inference_info_for_type(t).is_some()
-                        || (self.type_checker.is_generic_mapped_type(t)?
+                        || (self.type_checker.ref_(self).is_generic_mapped_type(t)?
                             && self
                                 .get_inference_info_for_type(
                                     self.type_checker
-                                        .get_homomorphic_type_variable(t)?
-                                        .unwrap_or_else(|| self.type_checker.never_type()),
+                                        .ref_(self).get_homomorphic_type_variable(t)?
+                                        .unwrap_or_else(|| self.type_checker.ref_(self).never_type()),
                                 )
                                 .is_some()))
                 }),
@@ -833,17 +833,17 @@ impl InferTypes {
                         .ref_(self)
                         .as_union_or_intersection_type_interface()
                         .types(),
-                    |s: Id<Type>, t: Id<Type>| self.type_checker.is_type_identical_to(s, t),
+                    |s: Id<Type>, t: Id<Type>| self.type_checker.ref_(self).is_type_identical_to(s, t),
                 )?;
                 if sources.is_empty() || targets.is_empty() {
                     return Ok(());
                 }
-                source = self.type_checker.get_intersection_type(
+                source = self.type_checker.ref_(self).get_intersection_type(
                     &sources,
                     Option::<Id<Symbol>>::None,
                     None,
                 )?;
-                target = self.type_checker.get_intersection_type(
+                target = self.type_checker.ref_(self).get_intersection_type(
                     &targets,
                     Option::<Id<Symbol>>::None,
                     None,
@@ -854,7 +854,7 @@ impl InferTypes {
             .flags()
             .intersects(TypeFlags::IndexedAccess | TypeFlags::Substitution)
         {
-            target = self.type_checker.get_actual_type_variable(target)?;
+            target = self.type_checker.ref_(self).get_actual_type_variable(target)?;
         }
         if target
             .ref_(self)
@@ -862,55 +862,55 @@ impl InferTypes {
             .intersects(TypeFlags::TypeVariable)
         {
             if get_object_flags(&source.ref_(self)).intersects(ObjectFlags::NonInferrableType)
-                || source == self.type_checker.non_inferrable_any_type()
-                || source == self.type_checker.silent_never_type()
+                || source == self.type_checker.ref_(self).non_inferrable_any_type()
+                || source == self.type_checker.ref_(self).silent_never_type()
                 || self.priority().intersects(InferencePriority::ReturnType)
-                    && (source == self.type_checker.auto_type()
-                        || source == self.type_checker.auto_array_type())
-                || self.type_checker.is_from_inference_blocked_source(source)
+                    && (source == self.type_checker.ref_(self).auto_type()
+                        || source == self.type_checker.ref_(self).auto_array_type())
+                || self.type_checker.ref_(self).is_from_inference_blocked_source(source)
             {
                 return Ok(());
             }
             let inference = self.get_inference_info_for_type(target);
-            if let Some(inference) = inference.as_ref() {
-                if !inference.is_fixed() {
-                    if match inference.maybe_priority() {
+            if let Some(inference) = inference {
+                if !inference.ref_(self).is_fixed() {
+                    if match inference.ref_(self).maybe_priority() {
                         None => true,
                         Some(inference_priority) => self.priority() < inference_priority,
                     } {
-                        *inference.maybe_candidates_mut() = None;
-                        *inference.maybe_contra_candidates_mut() = None;
-                        inference.set_top_level(true);
-                        inference.set_priority(Some(self.priority()));
+                        *inference.ref_(self).maybe_candidates_mut() = None;
+                        *inference.ref_(self).maybe_contra_candidates_mut() = None;
+                        inference.ref_(self).set_top_level(true);
+                        inference.ref_(self).set_priority(Some(self.priority()));
                     }
-                    if Some(self.priority()) == inference.maybe_priority() {
+                    if Some(self.priority()) == inference.ref_(self).maybe_priority() {
                         let candidate = self
                             .maybe_propagation_type()
                             .clone()
                             .unwrap_or_else(|| source.clone());
                         if self.contravariant() && !self.bivariant() {
-                            if !contains(inference.maybe_contra_candidates().as_deref(), &candidate)
+                            if !contains(inference.ref_(self).maybe_contra_candidates().as_deref(), &candidate)
                             {
-                                if inference.maybe_contra_candidates().is_none() {
-                                    *inference.maybe_contra_candidates_mut() = Some(vec![]);
+                                if inference.ref_(self).maybe_contra_candidates().is_none() {
+                                    *inference.ref_(self).maybe_contra_candidates_mut() = Some(vec![]);
                                 }
                                 inference
-                                    .maybe_contra_candidates_mut()
+                                    .ref_(self).maybe_contra_candidates_mut()
                                     .as_mut()
                                     .unwrap()
                                     .push(candidate);
-                                self.type_checker.clear_cached_inferences(&self.inferences);
+                                self.type_checker.ref_(self).clear_cached_inferences(&self.inferences);
                             }
-                        } else if !contains(inference.maybe_candidates().as_deref(), &candidate) {
-                            if inference.maybe_candidates().is_none() {
-                                *inference.maybe_candidates_mut() = Some(vec![]);
+                        } else if !contains(inference.ref_(self).maybe_candidates().as_deref(), &candidate) {
+                            if inference.ref_(self).maybe_candidates().is_none() {
+                                *inference.ref_(self).maybe_candidates_mut() = Some(vec![]);
                             }
                             inference
-                                .maybe_candidates_mut()
+                                .ref_(self).maybe_candidates_mut()
                                 .as_mut()
                                 .unwrap()
                                 .push(candidate);
-                            self.type_checker.clear_cached_inferences(&self.inferences);
+                            self.type_checker.ref_(self).clear_cached_inferences(&self.inferences);
                         }
                     }
                     if !self.priority().intersects(InferencePriority::ReturnType)
@@ -918,19 +918,19 @@ impl InferTypes {
                             .ref_(self)
                             .flags()
                             .intersects(TypeFlags::TypeParameter)
-                        && inference.top_level()
+                        && inference.ref_(self).top_level()
                         && !self
                             .type_checker
-                            .is_type_parameter_at_top_level(self.original_target, target)?
+                            .ref_(self).is_type_parameter_at_top_level(self.original_target, target)?
                     {
-                        inference.set_top_level(false);
-                        self.type_checker.clear_cached_inferences(&self.inferences);
+                        inference.ref_(self).set_top_level(false);
+                        self.type_checker.ref_(self).clear_cached_inferences(&self.inferences);
                     }
                 }
                 self.set_inference_priority(cmp::min(self.inference_priority(), self.priority()));
                 return Ok(());
             } else {
-                let simplified = self.type_checker.get_simplified_type(target, false)?;
+                let simplified = self.type_checker.ref_(self).get_simplified_type(target, false)?;
                 if simplified != target {
                     self.try_invoke_once(
                         source,
@@ -942,7 +942,7 @@ impl InferTypes {
                     .flags()
                     .intersects(TypeFlags::IndexedAccess)
                 {
-                    let index_type = self.type_checker.get_simplified_type(
+                    let index_type = self.type_checker.ref_(self).get_simplified_type(
                         target.ref_(self).as_indexed_access_type().index_type,
                         false,
                     )?;
@@ -951,8 +951,8 @@ impl InferTypes {
                         .flags()
                         .intersects(TypeFlags::Instantiable)
                     {
-                        let simplified = self.type_checker.distribute_index_over_object_type(
-                            self.type_checker.get_simplified_type(
+                        let simplified = self.type_checker.ref_(self).distribute_index_over_object_type(
+                            self.type_checker.ref_(self).get_simplified_type(
                                 target.ref_(self).as_indexed_access_type().object_type,
                                 false,
                             )?,
@@ -979,8 +979,8 @@ impl InferTypes {
             && {
                 (source.ref_(self).as_type_reference_interface().target()
                     == target.ref_(self).as_type_reference_interface().target()
-                    || self.type_checker.is_array_type(source)
-                        && self.type_checker.is_array_type(target))
+                    || self.type_checker.ref_(self).is_array_type(source)
+                        && self.type_checker.ref_(self).is_array_type(target))
                     && !(source
                         .ref_(self)
                         .as_type_reference_interface()
@@ -994,11 +994,11 @@ impl InferTypes {
             }
         {
             self.infer_from_type_arguments(
-                &*self.type_checker.get_type_arguments(source)?,
-                &*self.type_checker.get_type_arguments(target)?,
+                &*self.type_checker.ref_(self).get_type_arguments(source)?,
+                &*self.type_checker.ref_(self).get_type_arguments(target)?,
                 &self
                     .type_checker
-                    .get_variances(source.ref_(self).as_type_reference_interface().target()),
+                    .ref_(self).get_variances(source.ref_(self).as_type_reference_interface().target()),
             )?;
         } else if source.ref_(self).flags().intersects(TypeFlags::Index)
             && target.ref_(self).flags().intersects(TypeFlags::Index)
@@ -1009,13 +1009,13 @@ impl InferTypes {
                 target.ref_(self).as_index_type().type_,
             )?;
             self.set_contravariant(!self.contravariant());
-        } else if (self.type_checker.is_literal_type(source)
+        } else if (self.type_checker.ref_(self).is_literal_type(source)
             || source.ref_(self).flags().intersects(TypeFlags::String))
             && target.ref_(self).flags().intersects(TypeFlags::Index)
         {
             let empty = self
                 .type_checker
-                .create_empty_object_type_from_string_literal(source)?;
+                .ref_(self).create_empty_object_type_from_string_literal(source)?;
             self.set_contravariant(!self.contravariant());
             self.infer_with_priority(
                 empty,
@@ -1098,14 +1098,14 @@ impl InferTypes {
         {
             self.infer_to_template_literal_type(source, target)?;
         } else {
-            source = self.type_checker.get_reduced_type(source)?;
+            source = self.type_checker.ref_(self).get_reduced_type(source)?;
             if !(self.priority().intersects(InferencePriority::NoConstraints)
                 && source
                     .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Intersection | TypeFlags::Instantiable))
             {
-                let apparent_source = self.type_checker.get_apparent_type(source)?;
+                let apparent_source = self.type_checker.ref_(self).get_apparent_type(source)?;
                 if apparent_source != source
                     && self.allow_complex_constraint_inference()
                     && !apparent_source
@@ -1182,8 +1182,8 @@ impl InferTypes {
         let save_inference_priority = self.inference_priority();
         self.set_inference_priority(InferencePriority::MaxValue);
         let save_expanding_flags = self.expanding_flags();
-        let source_identity = self.type_checker.get_recursion_identity(source);
-        let target_identity = self.type_checker.get_recursion_identity(target);
+        let source_identity = self.type_checker.ref_(self).get_recursion_identity(source);
+        let target_identity = self.type_checker.ref_(self).get_recursion_identity(target);
         if contains(self.maybe_source_stack().as_deref(), &source_identity) {
             self.set_expanding_flags(self.expanding_flags() | ExpandingFlags::Source);
         }
@@ -1287,7 +1287,7 @@ impl InferTypes {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
-        if self.type_checker.strict_function_types
+        if self.type_checker.ref_(self).strict_function_types
             || self.priority().intersects(InferencePriority::AlwaysStrict)
         {
             self.set_contravariant(!self.contravariant());

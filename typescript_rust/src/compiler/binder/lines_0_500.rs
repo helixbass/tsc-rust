@@ -39,8 +39,8 @@ pub enum ModuleInstanceState {
 }
 
 #[derive(Debug, Trace, Finalize)]
-pub(super) struct ActiveLabel {
-    pub next: Option<Gc<ActiveLabel>>,
+pub struct ActiveLabel {
+    pub next: Option<Id<ActiveLabel>>,
     pub name: __String,
     break_target: Id<FlowNode /*FlowLabel*/>,
     continue_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
@@ -50,7 +50,7 @@ pub(super) struct ActiveLabel {
 
 impl ActiveLabel {
     pub fn new(
-        next: Option<Gc<ActiveLabel>>,
+        next: Option<Id<ActiveLabel>>,
         name: __String,
         break_target: Id<FlowNode>,
         continue_target: Option<Id<FlowNode>>,
@@ -65,7 +65,7 @@ impl ActiveLabel {
         }
     }
 
-    pub fn next(&self) -> Option<Gc<ActiveLabel>> {
+    pub fn next(&self) -> Option<Id<ActiveLabel>> {
         self.next.clone()
     }
 
@@ -161,11 +161,11 @@ pub(super) fn get_module_instance_state_worker(
                 )
             {
                 let mut state = ModuleInstanceState::NonInstantiated;
-                for &specifier in &export_declaration
+                for &specifier in &*export_declaration
                     .export_clause
                     .unwrap()
                     .ref_(arena).as_named_exports()
-                    .elements
+                    .elements.ref_(arena)
                 {
                     let specifier_state =
                         get_module_instance_state_for_alias_target(specifier, visited.clone(), arena);
@@ -197,7 +197,7 @@ pub(super) fn get_module_instance_state_worker(
                         } // _ => Debug_.assert_never(child_state)
                     }
                 },
-                Option::<fn(&NodeArray) -> Option<()>>::None,
+                Option::<fn(Id<NodeArray>) -> Option<()>>::None,
                 arena,
             );
             return state;
@@ -233,7 +233,7 @@ pub(super) fn get_module_instance_state_for_alias_target(
         if is_block(&p_present.ref_(arena)) || is_module_block(&p_present.ref_(arena)) || is_source_file(&p_present.ref_(arena)) {
             let statements = p_present.ref_(arena).as_has_statements().statements();
             let mut found: Option<ModuleInstanceState> = None;
-            for &statement in &statements {
+            for &statement in &*statements.ref_(arena) {
                 if node_has_name(statement, name, arena) {
                     if statement.ref_(arena).maybe_parent().is_none() {
                         set_parent(&statement.ref_(arena), Some(p_present));
@@ -288,8 +288,9 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: &Node /*SourceFile*/, options: Id<CompilerOptions>) {
-    let file_as_source_file = file.as_source_file();
+pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptions>, arena: &impl HasArena) {
+    let file_ref = file.ref_(arena);
+    let file_as_source_file = file_ref.as_source_file();
     if is_logging {
         println!("binding: {}", file_as_source_file.file_name());
     }
@@ -297,7 +298,7 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Id<CompilerOptions>
     // performance.mark("beforeBind");
     // perfLogger.logStartBindFile("" + file.fileName);
     // binder.call(file, options);
-    create_binder(&*static_arena()).call(file.arena_id(), options);
+    create_binder(&*static_arena()).ref_(arena).call(file, options);
     // perfLogger.logStopBindFile();
     // performance.mark("afterBind");
     // performance.measure("Bind", "beforeBind", "afterBind");
@@ -306,10 +307,10 @@ pub fn bind_source_file(file: &Node /*SourceFile*/, options: Id<CompilerOptions>
 
 #[allow(non_snake_case)]
 #[derive(Trace, Finalize)]
-pub struct BinderType {
+pub struct Binder {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
-    pub(super) _rc_wrapper: GcCell<Option<Gc<BinderType>>>,
+    pub(super) _arena_id: GcCell<Option<Id<Self>>>,
     pub(super) file: GcCell<Option<Id</*SourceFile*/ Node>>>,
     pub(super) options: GcCell<Option<Id<CompilerOptions>>>,
     #[unsafe_ignore_trace]
@@ -332,7 +333,7 @@ pub struct BinderType {
     pub(super) current_false_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
     pub(super) current_exception_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
     pub(super) pre_switch_case_flow: GcCell<Option<Id<FlowNode>>>,
-    pub(super) active_label_list: GcCell<Option<Gc<ActiveLabel>>>,
+    pub(super) active_label_list: GcCell<Option<Id<ActiveLabel>>>,
     #[unsafe_ignore_trace]
     pub(super) has_explicit_return: Cell<Option<bool>>,
 
@@ -355,14 +356,14 @@ pub struct BinderType {
 
     pub(super) unreachable_flow: GcCell<Id<FlowNode>>,
     pub(super) reported_unreachable_flow: GcCell<Id<FlowNode>>,
-    pub(super) bind_binary_expression_flow: GcCell<Option<Gc<BindBinaryExpressionFlow>>>,
+    pub(super) bind_binary_expression_flow: GcCell<Option<Id<BindBinaryExpressionFlow>>>,
 }
 
-pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
+pub(super) fn create_binder(arena: *const AllArenas) -> Id<Binder> {
     let arena_ref = unsafe { &*arena };
-    let wrapped = Gc::new(BinderType {
+    let ret = arena_ref.alloc_binder(Binder {
         arena,
-        _rc_wrapper: Default::default(),
+        _arena_id: Default::default(),
         file: Default::default(),
         options: Default::default(),
         language_version: Default::default(),
@@ -396,19 +397,22 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Gc<BinderType> {
         )),
         bind_binary_expression_flow: Default::default(),
     });
-    *wrapped._rc_wrapper.borrow_mut() = Some(wrapped.clone());
-    *wrapped.bind_binary_expression_flow.borrow_mut() =
-        Some(Gc::new(wrapped.create_bind_binary_expression_flow()));
-    wrapped
+    *ret.ref_(arena_ref).bind_binary_expression_flow.borrow_mut() =
+        Some(arena_ref.alloc_bind_binary_expression_flow(ret.ref_(arena_ref).create_bind_binary_expression_flow()));
+    ret
 }
 
-impl BinderType {
+impl Binder {
     pub(super) fn call(&self, f: Id<Node>, opts: Id<CompilerOptions>) {
         self.bind_source_file(f, opts);
     }
 
-    pub(super) fn rc_wrapper(&self) -> Gc<Self> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub(super) fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
+    }
+
+    pub fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     pub(super) fn file(&self) -> Id<Node> {
@@ -607,15 +611,15 @@ impl BinderType {
         *self.pre_switch_case_flow.borrow_mut() = pre_switch_case_flow;
     }
 
-    pub(super) fn active_label_list(&self) -> Gc<ActiveLabel> {
+    pub(super) fn active_label_list(&self) -> Id<ActiveLabel> {
         self.active_label_list.borrow().clone().unwrap()
     }
 
-    pub(super) fn maybe_active_label_list(&self) -> Option<Gc<ActiveLabel>> {
+    pub(super) fn maybe_active_label_list(&self) -> Option<Id<ActiveLabel>> {
         self.active_label_list.borrow().clone()
     }
 
-    pub(super) fn set_active_label_list(&self, active_label_list: Option<Gc<ActiveLabel>>) {
+    pub(super) fn set_active_label_list(&self, active_label_list: Option<Id<ActiveLabel>>) {
         *self.active_label_list.borrow_mut() = active_label_list;
     }
 
@@ -692,7 +696,7 @@ impl BinderType {
         self.reported_unreachable_flow.borrow().clone()
     }
 
-    pub(super) fn bind_binary_expression_flow(&self) -> Gc<BindBinaryExpressionFlow> {
+    pub(super) fn bind_binary_expression_flow(&self) -> Id<BindBinaryExpressionFlow> {
         self.bind_binary_expression_flow.borrow().clone().unwrap()
     }
 
@@ -808,10 +812,10 @@ impl BinderType {
             let symbol_ref = symbol.ref_(self);
             let mut exports = symbol_ref.maybe_exports_mut();
             if exports.is_none() {
-                *exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                *exports = Some(self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     Option::<&[Id<Symbol>]>::None,
-                ))));
+                )));
             }
         }
 
@@ -824,10 +828,10 @@ impl BinderType {
             let symbol_ref = symbol.ref_(self);
             let mut members = symbol_ref.maybe_members_mut();
             if members.is_none() {
-                *members = Some(Gc::new(GcCell::new(create_symbol_table(
+                *members = Some(self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     Option::<&[Id<Symbol>]>::None,
-                ))));
+                )));
             }
         }
 
@@ -954,7 +958,7 @@ impl BinderType {
                 );
                 let function_type = node.ref_(self).parent();
                 let index = index_of_eq(
-                    &function_type.ref_(self).as_jsdoc_function_type().parameters(),
+                    &function_type.ref_(self).as_jsdoc_function_type().parameters().ref_(self),
                     &node,
                 );
                 Some(format!("arg{}", index).into())
@@ -1114,7 +1118,7 @@ impl BinderType {
                                 }
                             }
 
-                            let mut related_information: Vec<Gc<DiagnosticRelatedInformation>> =
+                            let mut related_information: Vec<Id<DiagnosticRelatedInformation>> =
                                 vec![];
                             if is_type_alias_declaration(&node.ref_(self))
                                 && node_is_missing(Some(&node.ref_(self).as_type_alias_declaration().type_.ref_(self)))
@@ -1123,7 +1127,7 @@ impl BinderType {
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
                                 )
                             {
-                                related_information.push(Gc::new(
+                                related_information.push(self.alloc_diagnostic_related_information(
                                     self.create_diagnostic_for_node(
                                         node,
                                         &Diagnostics::Did_you_mean_0,
@@ -1167,18 +1171,18 @@ impl BinderType {
                                         if multiple_default_exports {
                                             add_related_info(
                                                 &diag.ref_(self),
-                                                vec![Gc::new(
-                                                self.create_diagnostic_for_node(
-                                                    declaration_name,
-                                                    if index == 0 {
-                                                        &Diagnostics::Another_export_default_is_here
-                                                    } else {
-                                                        &Diagnostics::and_here
-                                                    },
-                                                    None,
-                                                )
-                                                .into(),
-                                            )],
+                                                vec![self.alloc_diagnostic_related_information(
+                                                    self.create_diagnostic_for_node(
+                                                        declaration_name,
+                                                        if index == 0 {
+                                                            &Diagnostics::Another_export_default_is_here
+                                                        } else {
+                                                            &Diagnostics::and_here
+                                                        },
+                                                        None,
+                                                    )
+                                                    .into(),
+                                                )],
                                             );
                                             diag
                                         } else {
@@ -1186,7 +1190,7 @@ impl BinderType {
                                         },
                                     );
                                     if multiple_default_exports {
-                                        related_information.push(Gc::new(
+                                        related_information.push(self.alloc_diagnostic_related_information(
                                             self.create_diagnostic_for_node(
                                                 decl,
                                                 &Diagnostics::The_first_export_default_is_here,
@@ -1245,7 +1249,7 @@ impl BinderType {
     }
 }
 
-impl HasArena for BinderType {
+impl HasArena for Binder {
     fn arena(&self) -> &AllArenas {
         unsafe { &*self.arena }
     }

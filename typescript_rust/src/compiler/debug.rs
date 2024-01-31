@@ -253,7 +253,7 @@ impl DebugType {
         unimplemented!()
     }
 
-    pub fn attach_node_array_debug_info(&self, _array: &NodeArray) {
+    pub fn attach_node_array_debug_info(&self, _array: Id<NodeArray>) {
         // TODO: implement this?
     }
 

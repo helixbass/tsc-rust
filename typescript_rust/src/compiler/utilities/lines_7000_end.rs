@@ -265,7 +265,7 @@ pub fn set_parent_recursive(root_node: Option<Id<Node>>, incremental: bool, aren
                 bind_parent_to_child(incremental, child, parent, arena)
             }
         },
-        Option::<fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
+        Option::<fn(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>>::None,
         arena,
     );
 }
@@ -301,7 +301,7 @@ fn bind_jsdoc(
                     bind_parent_to_child_ignoring_jsdoc(incremental, &child.ref_(arena), parent)
                 },
                 Option::<
-                    fn(&NodeArray, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
+                    fn(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
                 >::None,
                 arena,
             );
@@ -349,7 +349,7 @@ pub fn expression_result_is_unused(mut node: Id<Node> /*Expression*/, arena: &im
             return true;
         }
         if is_comma_list_expression(&parent.ref_(arena)) {
-            if node != *last(&parent.ref_(arena).as_comma_list_expression().elements) {
+            if node != *last(&parent.ref_(arena).as_comma_list_expression().elements.ref_(arena)) {
                 return true;
             }
             node = parent;
@@ -375,7 +375,7 @@ pub fn contains_ignored_path(path: &str) -> bool {
     )
 }
 
-pub fn get_containing_node_array(_node: Id<Node>) -> Option<Gc<NodeArray>> {
+pub fn get_containing_node_array(_node: Id<Node>) -> Option<Id<NodeArray>> {
     unimplemented!()
 }
 
@@ -387,17 +387,17 @@ pub fn has_context_sensitive_parameters(node: Id<Node> /*FunctionLikeDeclaration
         .is_none()
     {
         if some(
-            Some(&**node_as_function_like_declaration.parameters()),
+            Some(&*node_as_function_like_declaration.parameters().ref_(arena)),
             Some(|&p: &Id<Node>| get_effective_type_annotation_node(p, arena).is_none()),
         ) {
             return true;
         }
         if node_ref.kind() != SyntaxKind::ArrowFunction {
             let node_parameters = node_as_function_like_declaration.parameters();
-            let parameter = first_or_undefined(&node_parameters);
+            let parameter = first_or_undefined(&node_parameters.ref_(arena)).copied();
             if !matches!(
                 parameter,
-                Some(&parameter) if parameter_is_this_keyword(parameter, arena)
+                Some(parameter) if parameter_is_this_keyword(parameter, arena)
             ) {
                 return true;
             }

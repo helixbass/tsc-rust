@@ -29,12 +29,12 @@ use crate::{
     HasArena, ModuleKind, InArena,
 };
 
-pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_empty_exports(
+    factory: &NodeFactory,
 ) -> Id<Node> {
     factory.create_export_declaration(
-        Option::<Gc<NodeArray>>::None,
-        Option::<Gc<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
+        Option::<Id<NodeArray>>::None,
         false,
         Some(factory.create_named_exports(vec![])),
         None,
@@ -42,10 +42,8 @@ pub fn create_empty_exports<TBaseNodeFactory: 'static + BaseNodeFactory + Trace 
     )
 }
 
-pub fn create_member_access_for_property_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_member_access_for_property_name(
+    factory: &NodeFactory,
     target: Id<Node>,      /*Expression*/
     member_name: Id<Node>, /*PropertyName*/
     location: Option<&impl ReadonlyTextRange>,
@@ -69,7 +67,7 @@ pub fn create_member_access_for_property_name<
         }
         .set_text_range(Some(&*member_name.ref_(factory)), factory);
         let emit_node = get_or_create_emit_node(expression, factory);
-        let mut emit_node = emit_node.borrow_mut();
+        let mut emit_node = emit_node.ref_mut(factory);
         emit_node.flags = Some(emit_node.flags.unwrap_or_default() | EmitFlags::NoNestedSourceMaps);
         expression
     }
@@ -78,21 +76,20 @@ pub fn create_member_access_for_property_name<
 fn create_react_namespace(
     react_namespace: Option<&str>,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
+    arena: &impl HasArena,
 ) -> Id<Node> {
-    let factory = get_parse_node_factory();
+    let factory = get_parse_node_factory(arena);
     factory
         .create_identifier(react_namespace.non_empty().unwrap_or("React"))
         .and_set_parent(get_parse_tree_node(
             Some(parent),
             Option::<fn(Id<Node>) -> bool>::None,
-            &*factory,
-        ), &*factory)
+            arena,
+        ), arena)
 }
 
-fn create_jsx_factory_expression_from_entity_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_jsx_factory_expression_from_entity_name(
+    factory: &NodeFactory,
     jsx_factory: Id<Node>, /*EntityName*/
     parent: Id<Node>,      /*JsxOpeningLikeElement | JsxOpeningFragment*/
 ) -> Id<Node /*Expression*/> {
@@ -107,14 +104,12 @@ fn create_jsx_factory_expression_from_entity_name<
         let right = factory.create_identifier(id_text(&jsx_factory_as_qualified_name.right.ref_(factory)));
         factory.create_property_access_expression(left, right)
     } else {
-        create_react_namespace(Some(id_text(&jsx_factory.ref_(factory))), parent)
+        create_react_namespace(Some(id_text(&jsx_factory.ref_(factory))), parent, factory)
     }
 }
 
-pub fn create_jsx_factory_expression<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_jsx_factory_expression(
+    factory: &NodeFactory,
     jsx_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: Option<&str>,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
@@ -122,7 +117,7 @@ pub fn create_jsx_factory_expression<
     jsx_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
-                create_react_namespace(react_namespace, parent),
+                create_react_namespace(react_namespace, parent, factory),
                 "createElement",
             )
         },
@@ -132,10 +127,8 @@ pub fn create_jsx_factory_expression<
     )
 }
 
-pub fn create_jsx_fragment_factory_expression<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_jsx_fragment_factory_expression(
+    factory: &NodeFactory,
     jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: &str,
     parent: Id<Node>, /*JsxOpeningLikeElement | JsxOpeningFragment*/
@@ -143,7 +136,7 @@ pub fn create_jsx_fragment_factory_expression<
     jsx_fragment_factory_entity.map_or_else(
         || {
             factory.create_property_access_expression(
-                create_react_namespace(Some(react_namespace), parent),
+                create_react_namespace(Some(react_namespace), parent, factory),
                 "Fragment",
             )
         },
@@ -157,10 +150,8 @@ pub fn create_jsx_fragment_factory_expression<
     )
 }
 
-pub fn create_expression_for_jsx_element<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_jsx_element(
+    factory: &NodeFactory,
     callee: Id<Node>,   /*Expression*/
     tag_name: Id<Node>, /*Expression*/
     props: Option<Id<Node /*Expression*/>>,
@@ -190,16 +181,14 @@ pub fn create_expression_for_jsx_element<
     factory
         .create_call_expression(
             callee,
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(arguments_list),
         )
         .set_text_range(Some(location), factory)
 }
 
-pub fn create_expression_for_jsx_fragment<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_jsx_fragment(
+    factory: &NodeFactory,
     jsx_factory_entity: Option<Id<Node /*EntityName*/>>,
     jsx_fragment_factory_entity: Option<Id<Node /*EntityName*/>>,
     react_namespace: &str,
@@ -236,21 +225,19 @@ pub fn create_expression_for_jsx_fragment<
                 Some(react_namespace),
                 parent_element,
             ),
-            Option::<Gc<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             Some(arguments_list),
         )
         .set_text_range(Some(location), factory)
 }
 
-pub fn create_for_of_binding_statement<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_for_of_binding_statement(
+    factory: &NodeFactory,
     node: Id<Node>,        /*ForInitializer*/
     bound_value: Id<Node>, /*Expression*/
 ) -> Id<Node /*Statement*/> {
     if is_variable_declaration_list(&node.ref_(factory)) {
-        let first_declaration = *first(&node.ref_(factory).as_variable_declaration_list().declarations);
+        let first_declaration = *first(&node.ref_(factory).as_variable_declaration_list().declarations.ref_(factory));
         let updated_declaration = factory.update_variable_declaration(
             first_declaration,
             first_declaration.ref_(factory).as_variable_declaration().maybe_name(),
@@ -260,7 +247,7 @@ pub fn create_for_of_binding_statement<
         );
         factory
             .create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 factory.update_variable_declaration_list(node, vec![updated_declaration]),
             )
             .set_text_range(Some(&*node.ref_(factory)), factory)
@@ -274,10 +261,8 @@ pub fn create_for_of_binding_statement<
     }
 }
 
-pub fn create_expression_from_entity_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_from_entity_name(
+    factory: &NodeFactory,
     node: Id<Node>, /*EntityName | Expression*/
 ) -> Id<Node /*Expression*/> {
     if is_qualified_name(&node.ref_(factory)) {
@@ -299,10 +284,8 @@ pub fn create_expression_from_entity_name<
     }
 }
 
-pub fn create_expression_for_property_name<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_property_name(
+    factory: &NodeFactory,
     member_name: Id<Node>, /*Exclude<PropertyName, PrivateIdentifier>*/
 ) -> Id<Node /*Expression*/> {
     if is_identifier(&member_name.ref_(factory)) {
@@ -327,11 +310,9 @@ pub fn create_expression_for_property_name<
     }
 }
 
-fn create_expression_for_accessor_declaration<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
-    properties: &NodeArray, /*<Declaration>*/
+fn create_expression_for_accessor_declaration(
+    factory: &NodeFactory,
+    properties: Id<NodeArray>, /*<Declaration>*/
     property: Id<Node>, /*AccessorDeclaration & { readonly name: Exclude<PropertyName, PrivateIdentifier> }*/
     receiver: Id<Node>, /*Expression*/
     multi_line: bool,
@@ -341,7 +322,7 @@ fn create_expression_for_accessor_declaration<
         get_accessor,
         set_accessor,
         ..
-    } = get_all_accessor_declarations(properties, property, factory);
+    } = get_all_accessor_declarations(&properties.ref_(factory), property, factory);
     if property == first_accessor {
         return Some(
             factory
@@ -364,7 +345,7 @@ fn create_expression_for_accessor_declaration<
                                         get_accessor_ref.maybe_modifiers(),
                                         None,
                                         Option::<Id<Node>>::None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         Some(get_accessor_as_get_accessor_declaration.parameters()),
                                         None,
                                         get_accessor_as_get_accessor_declaration
@@ -383,7 +364,7 @@ fn create_expression_for_accessor_declaration<
                                         set_accessor_ref.maybe_modifiers(),
                                         None,
                                         Option::<Id<Node>>::None,
-                                        Option::<Gc<NodeArray>>::None,
+                                        Option::<Id<NodeArray>>::None,
                                         Some(set_accessor_as_set_accessor_declaration.parameters()),
                                         None,
                                         set_accessor_as_set_accessor_declaration
@@ -405,10 +386,8 @@ fn create_expression_for_accessor_declaration<
     None
 }
 
-fn create_expression_for_property_assignment<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_expression_for_property_assignment(
+    factory: &NodeFactory,
     property: Id<Node>, /*PropertyAssignment*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
@@ -428,10 +407,8 @@ fn create_expression_for_property_assignment<
         .set_original_node(Some(property), factory)
 }
 
-fn create_expression_for_shorthand_property_assignment<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_expression_for_shorthand_property_assignment(
+    factory: &NodeFactory,
     property: Id<Node>, /*ShorthandPropertyAssignment*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
@@ -451,10 +428,8 @@ fn create_expression_for_shorthand_property_assignment<
         .set_original_node(Some(property), factory)
 }
 
-fn create_expression_for_method_declaration<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn create_expression_for_method_declaration(
+    factory: &NodeFactory,
     method: Id<Node>,   /*MethodDeclaration*/
     receiver: Id<Node>, /*Expression*/
 ) -> Id<Node> {
@@ -473,7 +448,7 @@ fn create_expression_for_method_declaration<
                     method.ref_(factory).maybe_modifiers(),
                     method_as_method_declaration.maybe_asterisk_token(),
                     Option::<Id<Node>>::None,
-                    Option::<Gc<NodeArray>>::None,
+                    Option::<Id<NodeArray>>::None,
                     Some(method_as_method_declaration.parameters()),
                     None,
                     method_as_method_declaration.maybe_body().unwrap(),
@@ -485,10 +460,8 @@ fn create_expression_for_method_declaration<
         .set_original_node(Some(method), factory)
 }
 
-pub fn create_expression_for_object_literal_element_like<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_expression_for_object_literal_element_like(
+    factory: &NodeFactory,
     node: Id<Node>,     /*ObjectLiteralExpression*/
     property: Id<Node>, /*ObjectLiteralElementLike*/
     receiver: Id<Node>, /*Expression*/
@@ -509,7 +482,7 @@ pub fn create_expression_for_object_literal_element_like<
         SyntaxKind::GetAccessor | SyntaxKind::SetAccessor => {
             create_expression_for_accessor_declaration(
                 factory,
-                &node_as_object_literal_expression.properties,
+                node_as_object_literal_expression.properties,
                 property,
                 receiver,
                 node_as_object_literal_expression.multi_line == Some(true),
@@ -528,10 +501,8 @@ pub fn create_expression_for_object_literal_element_like<
     }
 }
 
-pub fn expand_pre_or_postfix_increment_or_decrement_expression<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn expand_pre_or_postfix_increment_or_decrement_expression(
+    factory: &NodeFactory,
     node: Id<Node>,       /*PrefixUnaryExpression | PostfixUnaryExpression*/
     expression: Id<Node>, /*Expression*/
     record_temp_variable: impl FnMut(Id<Node> /*Expression*/),
@@ -576,16 +547,16 @@ pub fn expand_pre_or_postfix_increment_or_decrement_expression<
     expression
 }
 
-pub fn is_internal_name(node: &Node /*Identifier*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::InternalName)
+pub fn is_internal_name(node: Id<Node /*Identifier*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::InternalName)
 }
 
-pub fn is_local_name(node: &Node /*Identifier*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::LocalName)
+pub fn is_local_name(node: Id<Node /*Identifier*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::LocalName)
 }
 
-pub fn is_export_name(node: &Node /*Identifier*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::ExportName)
+pub fn is_export_name(node: Id<Node /*Identifier*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::ExportName)
 }
 
 fn is_use_strict_prologue(node: Id<Node> /*ExpressionStatement*/, arena: &impl HasArena) -> bool {
@@ -682,7 +653,7 @@ pub fn get_external_helpers_module_name(node: Id<Node> /*SourceFile*/, arena: &i
         arena,
     )?;
     let emit_node = parse_node.ref_(arena).maybe_emit_node()?;
-    let ret = (*emit_node).borrow().external_helpers_module_name.clone();
+    let ret = emit_node.ref_(arena).external_helpers_module_name.clone();
     ret
 }
 
@@ -696,17 +667,15 @@ pub fn has_recorded_external_helpers(source_file: Id<Node> /*SourceFile*/, arena
     matches!(
         emit_node,
         Some(emit_node) if {
-            let emit_node = (*emit_node).borrow();
+            let emit_node = emit_node.ref_(arena);
             emit_node.external_helpers_module_name.is_some() ||
                 emit_node.external_helpers == Some(true)
         }
     )
 }
 
-pub fn create_external_helpers_import_declaration_if_needed<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    node_factory: &NodeFactory<TBaseNodeFactory>,
+pub fn create_external_helpers_import_declaration_if_needed(
+    node_factory: &NodeFactory,
     helper_factory: &EmitHelperFactory,
     source_file: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
@@ -724,7 +693,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
         if module_kind >= ModuleKind::ES2015 && module_kind <= ModuleKind::ESNext
             || source_file_as_source_file.maybe_implied_node_format() == Some(ModuleKind::ESNext)
         {
-            let helpers = get_emit_helpers(&source_file.ref_(node_factory));
+            let helpers = get_emit_helpers(source_file, node_factory);
             if let Some(helpers) = helpers {
                 let mut helper_names: Vec<String> = _d();
                 for helper in helpers {
@@ -769,7 +738,7 @@ pub fn create_external_helpers_import_declaration_if_needed<
                     )
                     .unwrap();
                     let emit_node = get_or_create_emit_node(parse_node, node_factory);
-                    emit_node.borrow_mut().external_helpers = Some(true);
+                    emit_node.ref_mut(node_factory).external_helpers = Some(true);
                 }
             }
         } else {
@@ -789,8 +758,8 @@ pub fn create_external_helpers_import_declaration_if_needed<
             return Some(
                 node_factory
                     .create_import_declaration(
-                        Option::<Gc<NodeArray>>::None,
-                        Option::<Gc<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
+                        Option::<Id<NodeArray>>::None,
                         Some(node_factory.create_import_clause(false, None, Some(named_bindings))),
                         node_factory.create_string_literal(
                             external_helpers_module_name_text.to_owned(),
@@ -806,10 +775,8 @@ pub fn create_external_helpers_import_declaration_if_needed<
     None
 }
 
-pub fn get_or_create_external_helpers_module_name_if_needed<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn get_or_create_external_helpers_module_name_if_needed(
+    factory: &NodeFactory,
     node: Id<Node>, /*SourceFile*/
     compiler_options: &CompilerOptions,
     has_export_stars_to_export_values: Option<bool>,
@@ -833,7 +800,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
             && (module_kind < ModuleKind::ES2015
                 || node_as_source_file.maybe_implied_node_format() == Some(ModuleKind::CommonJS));
         if !create {
-            let helpers = get_emit_helpers(&node.ref_(factory));
+            let helpers = get_emit_helpers(node, factory);
             if let Some(helpers) = helpers {
                 for helper in helpers {
                     if !helper.ref_(factory).scoped() {
@@ -854,7 +821,7 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
             let emit_node = get_or_create_emit_node(parse_node, factory);
             return Some(
                 emit_node
-                    .borrow_mut()
+                    .ref_mut(factory)
                     .external_helpers_module_name
                     .get_or_insert_with(|| {
                         factory.create_unique_name(external_helpers_module_name_text, None)
@@ -866,10 +833,8 @@ pub fn get_or_create_external_helpers_module_name_if_needed<
     None
 }
 
-pub fn get_local_name_for_external_import<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn get_local_name_for_external_import(
+    factory: &NodeFactory,
     node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration*/
     source_file: Id<Node>, /*SourceFile*/
 ) -> Option<Id<Node /*Identifier*/>> {
@@ -901,10 +866,8 @@ pub fn get_local_name_for_external_import<
     None
 }
 
-pub fn get_external_module_name_literal<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn get_external_module_name_literal(
+    factory: &NodeFactory,
     import_node: Id<Node>, /*ImportDeclaration | ExportDeclaration | ImportEqualsDeclaration | ImportCall*/
     source_file: Id<Node>, /*SourceFile*/
     host: &dyn EmitHost,
@@ -929,8 +892,8 @@ pub fn get_external_module_name_literal<
     Ok(None)
 }
 
-fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
-    factory: &NodeFactory<TBaseNodeFactory>,
+fn try_rename_external_module(
+    factory: &NodeFactory,
     module_name: Id<Node>, /*LiteralExpression*/
     source_file: Id<Node>, /*SourceFile*/
 ) -> Option<Id<Node>> {
@@ -948,10 +911,8 @@ fn try_rename_external_module<TBaseNodeFactory: 'static + BaseNodeFactory + Trac
         .map(|rename| factory.create_string_literal(rename, None, None))
 }
 
-pub fn try_get_module_name_from_file<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
-    factory: &NodeFactory<TBaseNodeFactory>,
+pub fn try_get_module_name_from_file(
+    factory: &NodeFactory,
     file: Option<Id<Node /*SourceFile*/>>,
     host: &dyn EmitHost,
     options: &CompilerOptions,
@@ -972,12 +933,10 @@ pub fn try_get_module_name_from_file<
     None
 }
 
-fn try_get_module_name_from_declaration<
-    TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize,
->(
+fn try_get_module_name_from_declaration(
     declaration: Id<Node>, /*ImportEqualsDeclaration | ImportDeclaration | ExportDeclaration | ImportCall*/
     host: &dyn EmitHost,
-    factory: &NodeFactory<TBaseNodeFactory>,
+    factory: &NodeFactory,
     resolver: &dyn EmitResolver,
     compiler_options: &CompilerOptions,
 ) -> io::Result<Option<Id<Node>>> {
@@ -1078,14 +1037,15 @@ pub fn get_target_of_binding_or_assignment_element(
 }
 
 pub fn get_elements_of_binding_or_assignment_pattern(
-    name: &Node, /*BindingOrAssignmentPattern*/
-) -> impl Iterator<Item = Id<Node /*BindingOrAssignmentElement*/>> {
-    match name.kind() {
+    name: Id<Node /*BindingOrAssignmentPattern*/>,
+    arena: &impl HasArena,
+) -> Vec<Id<Node /*BindingOrAssignmentElement*/>> {
+    match name.ref_(arena).kind() {
         SyntaxKind::ObjectBindingPattern
         | SyntaxKind::ArrayBindingPattern
-        | SyntaxKind::ArrayLiteralExpression => name.as_has_elements().elements().owned_iter(),
+        | SyntaxKind::ArrayLiteralExpression => name.ref_(arena).as_has_elements().elements().ref_(arena).to_vec(),
         SyntaxKind::ObjectLiteralExpression => {
-            name.as_object_literal_expression().properties.owned_iter()
+            name.ref_(arena).as_object_literal_expression().properties.ref_(arena).to_vec()
         }
         _ => panic!("Unexpected kind"),
     }

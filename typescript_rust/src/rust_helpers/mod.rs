@@ -12,7 +12,6 @@ pub mod combinators;
 pub mod debugging;
 pub mod default;
 pub mod deref;
-pub mod hash_map;
 pub mod io;
 pub mod iterator;
 pub mod number;

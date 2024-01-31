@@ -164,11 +164,11 @@ impl VariableDeclaration {
 #[ast_type]
 pub struct VariableDeclarationList {
     _node: BaseNode,
-    pub declarations: Gc<NodeArray /*<VariableDeclaration>*/>,
+    pub declarations: Id<NodeArray /*<VariableDeclaration>*/>,
 }
 
 impl VariableDeclarationList {
-    pub fn new(base_node: BaseNode, declarations: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, declarations: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             declarations,
@@ -238,7 +238,7 @@ impl From<BaseNode> for KeywordTypeNode {
 #[ast_type]
 pub struct ImportTypeNode {
     _node: BaseNode,
-    type_arguments: GcCell<Option<Gc<NodeArray /*<TypeNode>*/>>>,
+    type_arguments: GcCell<Option<Id<NodeArray /*<TypeNode>*/>>>,
     #[unsafe_ignore_trace]
     is_type_of: Cell<bool>,
     pub argument: Id<Node /*<TypeNode>*/>,
@@ -250,7 +250,7 @@ impl ImportTypeNode {
         base_node: BaseNode,
         argument: Id<Node>,
         qualifier: Option<Id<Node>>,
-        type_arguments: Option<Gc<NodeArray>>,
+        type_arguments: Option<Id<NodeArray>>,
         is_type_of: bool,
     ) -> Self {
         Self {
@@ -272,7 +272,7 @@ impl ImportTypeNode {
 }
 
 impl HasTypeArgumentsInterface for ImportTypeNode {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
@@ -325,7 +325,7 @@ pub trait HasTypeArgumentsInterface {
     // TODO: changed this from Option<&NodeArray> to Ref<Option<NodeArray>> (and changed everything
     // except Identifier to have an unnecessary RefCell wrapper) because Identifier needs to mutate
     // its type_arguments, don't know if there's "a better way"?
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>>;
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -333,14 +333,14 @@ pub trait HasTypeArgumentsInterface {
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Id<Node /*EntityName*/>,
-    type_arguments: GcCell<Option<Gc<NodeArray /*<TypeNode>*/>>>,
+    type_arguments: GcCell<Option<Id<NodeArray /*<TypeNode>*/>>>,
 }
 
 impl TypeReferenceNode {
     pub fn new(
         base_node: BaseNode,
         type_name: Id<Node>,
-        type_arguments: Option<Gc<NodeArray>>,
+        type_arguments: Option<Id<NodeArray>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -351,7 +351,7 @@ impl TypeReferenceNode {
 }
 
 impl HasTypeArgumentsInterface for TypeReferenceNode {
-    fn maybe_type_arguments(&self) -> Option<Gc<NodeArray>> {
+    fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
         self.type_arguments.borrow().clone()
     }
 }
@@ -408,18 +408,18 @@ impl TypeQueryNode {
 }
 
 pub trait HasMembersInterface {
-    fn members(&self) -> Gc<NodeArray>;
+    fn members(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct TypeLiteralNode {
     _node: BaseNode,
-    pub members: Gc<NodeArray>, /*<TypeElement>*/
+    pub members: Id<NodeArray>, /*<TypeElement>*/
 }
 
 impl TypeLiteralNode {
-    pub fn new(base_node: BaseNode, members: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, members: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             members,
@@ -428,7 +428,7 @@ impl TypeLiteralNode {
 }
 
 impl HasMembersInterface for TypeLiteralNode {
-    fn members(&self) -> Gc<NodeArray> {
+    fn members(&self) -> Id<NodeArray> {
         self.members.clone()
     }
 }
@@ -453,11 +453,11 @@ impl ArrayTypeNode {
 #[ast_type]
 pub struct TupleTypeNode {
     _node: BaseNode,
-    pub elements: Gc<NodeArray /*<TypeNode | NamedTupleMember>*/>,
+    pub elements: Id<NodeArray /*<TypeNode | NamedTupleMember>*/>,
 }
 
 impl TupleTypeNode {
-    pub fn new(base_node: BaseNode, elements: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, elements: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             elements,
@@ -466,7 +466,7 @@ impl TupleTypeNode {
 }
 
 impl HasElementsInterface for TupleTypeNode {
-    fn elements(&self) -> Gc<NodeArray> {
+    fn elements(&self) -> Id<NodeArray> {
         self.elements.clone()
     }
 }
@@ -574,18 +574,18 @@ impl HasTypeInterface for RestTypeNode {
 }
 
 pub trait UnionOrIntersectionTypeNodeInterface {
-    fn types(&self) -> Gc<NodeArray>;
+    fn types(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug, Trace, Finalize)]
 #[ast_type]
 pub struct UnionTypeNode {
     _node: BaseNode,
-    pub types: Gc<NodeArray /*<TypeNode>*/>,
+    pub types: Id<NodeArray /*<TypeNode>*/>,
 }
 
 impl UnionTypeNode {
-    pub fn new(base_node: BaseNode, types: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, types: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             types,
@@ -594,7 +594,7 @@ impl UnionTypeNode {
 }
 
 impl UnionOrIntersectionTypeNodeInterface for UnionTypeNode {
-    fn types(&self) -> Gc<NodeArray> {
+    fn types(&self) -> Id<NodeArray> {
         self.types.clone()
     }
 }
@@ -603,11 +603,11 @@ impl UnionOrIntersectionTypeNodeInterface for UnionTypeNode {
 #[ast_type]
 pub struct IntersectionTypeNode {
     _node: BaseNode,
-    pub types: Gc<NodeArray /*<TypeNode>*/>,
+    pub types: Id<NodeArray /*<TypeNode>*/>,
 }
 
 impl IntersectionTypeNode {
-    pub fn new(base_node: BaseNode, types: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, types: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             types,
@@ -616,7 +616,7 @@ impl IntersectionTypeNode {
 }
 
 impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
-    fn types(&self) -> Gc<NodeArray> {
+    fn types(&self) -> Id<NodeArray> {
         self.types.clone()
     }
 }
@@ -747,7 +747,7 @@ pub struct MappedTypeNode {
     pub name_type: Option<Id<Node /*TypeNode*/>>,
     pub question_token: Option<Id<Node /*QuestionToken | PlusToken | MinusToken*/>>,
     pub type_: Option<Id<Node /*TypeNode*/>>,
-    pub members: Option<Gc<NodeArray /*<TypeElement>*/>>,
+    pub members: Option<Id<NodeArray /*<TypeElement>*/>>,
 }
 
 impl MappedTypeNode {
@@ -758,7 +758,7 @@ impl MappedTypeNode {
         name_type: Option<Id<Node>>,
         question_token: Option<Id<Node>>,
         type_: Option<Id<Node>>,
-        members: Option<Gc<NodeArray>>,
+        members: Option<Id<NodeArray>>,
     ) -> Self {
         Self {
             _node: base_node,
@@ -828,11 +828,11 @@ impl StringLiteral {
 pub struct TemplateLiteralTypeNode {
     pub _node: BaseNode,
     pub head: Id<Node /*TemplateHead*/>,
-    pub template_spans: Gc<NodeArray /*<TemplateLiteralTypeSpan>*/>,
+    pub template_spans: Id<NodeArray /*<TemplateLiteralTypeSpan>*/>,
 }
 
 impl TemplateLiteralTypeNode {
-    pub fn new(base_node: BaseNode, head: Id<Node>, template_spans: Gc<NodeArray>) -> Self {
+    pub fn new(base_node: BaseNode, head: Id<Node>, template_spans: Id<NodeArray>) -> Self {
         Self {
             _node: base_node,
             head,

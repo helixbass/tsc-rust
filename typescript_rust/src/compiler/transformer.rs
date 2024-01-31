@@ -25,7 +25,8 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     TransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
-    HasArena, AllArenas, InArena, static_arena,
+    HasArena, AllArenas, InArena, static_arena, per_arena,
+    BaseNodeFactory, get_factory_id,
 };
 
 fn get_module_transformer(module_kind: ModuleKind, arena: &impl HasArena) -> TransformerFactory {
@@ -205,9 +206,9 @@ impl WrapCustomTransformer {
 impl TransformerInterface for WrapCustomTransformer {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(if is_bundle(&node.ref_(self)) {
-            self.transformer.transform_bundle(node)
+            self.transformer.ref_(self).transform_bundle(node)
         } else {
-            self.transformer.transform_source_file(node)
+            self.transformer.ref_(self).transform_source_file(node)
         })
     }
 
@@ -231,8 +232,8 @@ pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
 }
 
 fn wrap_custom_transformer_factory(
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
-    handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
+    handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<SourceFile | Bundle>*/ {
     arena.alloc_transformer_factory(Box::new(WrapCustomTransformerFactory::new(
@@ -243,14 +244,14 @@ fn wrap_custom_transformer_factory(
 
 #[derive(Trace, Finalize)]
 pub struct WrapCustomTransformerFactory {
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
-    handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
+    handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
 }
 
 impl WrapCustomTransformerFactory {
     pub fn new(
-        transformer: Gc<TransformerFactoryOrCustomTransformerFactory>,
-        handle_default: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+        transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
+        handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
     ) -> Self {
         Self {
             transformer,
@@ -261,13 +262,13 @@ impl WrapCustomTransformerFactory {
 
 impl TransformerFactoryInterface for WrapCustomTransformerFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        match &*self.transformer {
+        match &*self.transformer.ref_(self) {
             TransformerFactoryOrCustomTransformerFactory::TransformerFactory(transformer) => {
                 let custom_transformer = transformer.ref_(self).call(context.clone());
-                self.handle_default.call(context, custom_transformer)
+                self.handle_default.ref_(self).call(context, custom_transformer)
             }
             TransformerFactoryOrCustomTransformerFactory::CustomTransformerFactory(transformer) => {
-                let custom_transformer = transformer.call(context);
+                let custom_transformer = transformer.ref_(self).call(context);
                 wrap_custom_transformer(custom_transformer, self)
             }
         }
@@ -281,17 +282,17 @@ impl HasArena for WrapCustomTransformerFactory {
 }
 
 fn wrap_script_transformer_factory(
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, chain_bundle(), arena)
+    wrap_custom_transformer_factory(transformer, chain_bundle(arena), arena)
 }
 
 fn wrap_declaration_transformer_factory(
-    transformer: Gc<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
+    transformer: Id<TransformerFactoryOrCustomTransformerFactory /*<Bundle | SourceFile>*/>,
     arena: &impl HasArena,
 ) -> TransformerFactory /*<Bundle | SourceFile>*/ {
-    wrap_custom_transformer_factory(transformer, passthrough_transformer(), arena)
+    wrap_custom_transformer_factory(transformer, passthrough_transformer(arena), arena)
 }
 
 #[derive(Trace, Finalize)]
@@ -307,11 +308,12 @@ impl WrapCustomTransformerFactoryHandleDefault for PassthroughTransformer {
     }
 }
 
-fn passthrough_transformer() -> Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
-    thread_local! {
-        static PASSTHROUGH_TRANSFORMER: Gc<Box<dyn WrapCustomTransformerFactoryHandleDefault>> = Gc::new(Box::new(PassthroughTransformer));
-    }
-    PASSTHROUGH_TRANSFORMER.with(|passthrough_transformer| passthrough_transformer.clone())
+fn passthrough_transformer(arena: &impl HasArena) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+    per_arena!(
+        Box<dyn WrapCustomTransformerFactoryHandleDefault>,
+        arena,
+        arena.alloc_wrap_custom_transformer_factory_handle_default(Box::new(PassthroughTransformer))
+    )
 }
 
 pub fn no_emit_substitution(_hint: EmitHint, node: Id<Node>) -> Id<Node> {
@@ -327,19 +329,17 @@ pub fn no_emit_notification(
 }
 
 pub fn transform_nodes(
-    resolver: Option<Gc<Box<dyn EmitResolver>>>,
+    resolver: Option<Id<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    base_factory: Gc<BaseNodeFactorySynthetic>,
+    factory: Id<NodeFactory>,
     options: Id<CompilerOptions>,
     nodes: &[Id<Node>],
     transformers: &[TransformerFactory],
     allow_dts_files: bool,
     arena: &impl HasArena,
-    // TODO: would presumably have to do some further Gc-dyn-casting shenanigans in order to return
-    // this type, but looks like there aren't any other TransformationResult implementers so maybe
-    // returning the concrete type is fine?
-    // ) -> Gc<Box<dyn TransformationResult>> {
+    // TODO: would presumably have to do some further dyn-casting shenanigans in order to return
+    // TransformationResult, but looks like there aren't any other TransformationResult
+    // implementers so maybe returning the concrete type is fine?
 ) -> io::Result<Id<TransformNodesTransformationResult>> {
     let transformation_result = TransformNodesTransformationResult::new(
         vec![],
@@ -357,7 +357,6 @@ pub fn transform_nodes(
         resolver,
         host,
         factory,
-        base_factory,
         &*static_arena(),
     );
     transformation_result.ref_(arena).call()?;
@@ -371,13 +370,13 @@ pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Self>>>,
     on_emit_node_outermost_override_or_original_method:
-        GcCell<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
+        GcCell<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     on_emit_node_previous_override_or_original_method:
-        GcCell<Option<Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>>>,
+        GcCell<Option<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>>,
     on_substitute_node_outermost_override_or_original_method:
-        GcCell<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
+        GcCell<Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
     on_substitute_node_previous_override_or_original_method:
-        GcCell<Option<Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>>,
+        GcCell<Option<Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>>,
     transformed: GcCell<Vec<Id<Node>>>,
     #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
@@ -411,11 +410,10 @@ pub struct TransformNodesTransformationResult {
     transformers_with_context: GcCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
     options: Id<CompilerOptions>,
-    resolver: Option<Gc<Box<dyn EmitResolver>>>,
+    resolver: Option<Id<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
-    created_emit_helper_factory: GcCell<Option<Gc<EmitHelperFactory>>>,
-    factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    base_factory: Gc<BaseNodeFactorySynthetic>,
+    created_emit_helper_factory: GcCell<Option<Id<EmitHelperFactory>>>,
+    factory: Id<NodeFactory>,
 }
 
 impl TransformNodesTransformationResult {
@@ -432,21 +430,20 @@ impl TransformNodesTransformationResult {
         transformers: Vec<TransformerFactory>,
         allow_dts_files: bool,
         options: Id<CompilerOptions>,
-        resolver: Option<Gc<Box<dyn EmitResolver>>>,
+        resolver: Option<Id<Box<dyn EmitResolver>>>,
         host: Option<Id<Box<dyn EmitHost>>>,
-        factory: Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-        base_factory: Gc<BaseNodeFactorySynthetic>,
+        factory: Id<NodeFactory>,
         arena: *const AllArenas,
     ) -> Id<Self> {
         let arena_ref = unsafe { &*arena };
         let ret = arena_ref.alloc_transform_nodes_transformation_result(Self {
             _arena: arena,
             _arena_id: _d(),
-            on_emit_node_outermost_override_or_original_method: GcCell::new(Gc::new(Box::new(
+            on_emit_node_outermost_override_or_original_method: GcCell::new(arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
                 NoEmitNotificationTransformationContextOnEmitNodeOverrider,
             ))),
             on_emit_node_previous_override_or_original_method: _d(),
-            on_substitute_node_outermost_override_or_original_method: GcCell::new(Gc::new(
+            on_substitute_node_outermost_override_or_original_method: GcCell::new(arena_ref.alloc_transformation_context_on_substitute_node_overrider(
                 Box::new(NoEmitNotificationTransformationContextOnSubstituteNodeOverrider),
             )),
             on_substitute_node_previous_override_or_original_method: _d(),
@@ -484,7 +481,6 @@ impl TransformNodesTransformationResult {
             host,
             created_emit_helper_factory: Default::default(),
             factory,
-            base_factory,
         });
         ret.ref_(arena_ref).set_arena_id(ret);
         ret
@@ -682,7 +678,7 @@ impl TransformNodesTransformationResult {
         self.block_scope_stack_offset.set(block_scope_stack_offset)
     }
 
-    fn created_emit_helper_factory(&self) -> GcCellRefMut<Option<Gc<EmitHelperFactory>>> {
+    fn created_emit_helper_factory(&self) -> GcCellRefMut<Option<Id<EmitHelperFactory>>> {
         self.created_emit_helper_factory.borrow_mut()
     }
 
@@ -744,13 +740,9 @@ impl TransformNodesTransformationResult {
     }
 }
 
-impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTransformationResult {
-    fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
+impl CoreTransformationContext for TransformNodesTransformationResult {
+    fn factory(&self) -> Id<NodeFactory> {
         self.factory.clone()
-    }
-
-    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
-        self.base_factory.clone()
     }
 
     fn get_compiler_options(&self) -> Id<CompilerOptions> {
@@ -867,9 +859,9 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             if let Some(lexical_environment_variable_declarations) =
                 lexical_environment_variable_declarations.as_ref()
             {
-                let statement = self.factory.create_variable_statement(
-                    Option::<Gc<NodeArray>>::None,
-                    self.factory.create_variable_declaration_list(
+                let statement = self.factory.ref_(self).create_variable_statement(
+                    Option::<Id<NodeArray>>::None,
+                    self.factory.ref_(self).create_variable_declaration_list(
                         lexical_environment_variable_declarations.clone(),
                         None,
                     ),
@@ -950,7 +942,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
         );
         let decl = set_emit_flags(
             self.factory()
-                .create_variable_declaration(Some(name), None, None, None),
+                .ref_(self).create_variable_declaration(Some(name), None, None, None),
             EmitFlags::NoNestedSourceMaps,
             self,
         );
@@ -1002,13 +994,13 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
             self.maybe_block_scoped_variable_declarations().as_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
-            Some(vec![self.factory().create_variable_statement(
-                Option::<Gc<NodeArray>>::None,
-                self.factory().create_variable_declaration_list(
+            Some(vec![self.factory().ref_(self).create_variable_statement(
+                Option::<Id<NodeArray>>::None,
+                self.factory().ref_(self).create_variable_declaration_list(
                     self.block_scoped_variable_declarations()
                         .iter()
                         .map(|identifier| {
-                            self.factory().create_variable_declaration(
+                            self.factory().ref_(self).create_variable_declaration(
                                 Some(identifier.clone()),
                                 None,
                                 None,
@@ -1067,7 +1059,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformNodesTrans
 }
 
 impl TransformationContext for TransformNodesTransformationResult {
-    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+    fn get_emit_resolver(&self) -> Id<Box<dyn EmitResolver>> {
         self.resolver.clone().unwrap()
     }
 
@@ -1075,14 +1067,14 @@ impl TransformationContext for TransformNodesTransformationResult {
         self.host.clone().unwrap()
     }
 
-    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory> {
+    fn get_emit_helper_factory(&self) -> Id<EmitHelperFactory> {
         /*memoize(*/
         let mut created_emit_helper_factory = self.created_emit_helper_factory();
         if created_emit_helper_factory.is_none() {
-            *created_emit_helper_factory = Some(Gc::new(create_emit_helper_factory(
+            *created_emit_helper_factory = Some(create_emit_helper_factory(
                 self.arena_id(),
                 self,
-            )));
+            ));
         }
         created_emit_helper_factory.clone().unwrap()
     }
@@ -1142,21 +1134,21 @@ impl TransformationContext for TransformNodesTransformationResult {
         matches!(
             self.enabled_syntax_kind_features().get(&node.ref_(self).kind()),
             Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::Substitution)
-        ) && !get_emit_flags(&node.ref_(self)).intersects(EmitFlags::NoSubstitution)
+        ) && !get_emit_flags(node, self).intersects(EmitFlags::NoSubstitution)
     }
 
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         self.on_substitute_node_outermost_override_or_original_method
             .borrow()
-            .on_substitute_node(hint, node)
+            .ref_(self).on_substitute_node(hint, node)
     }
 
     fn override_on_substitute_node(
         &self,
         overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
         )
-            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) {
         let mut on_substitute_node_outermost_override_or_original_method = self
             .on_substitute_node_outermost_override_or_original_method
@@ -1172,7 +1164,7 @@ impl TransformationContext for TransformNodesTransformationResult {
 
     fn pop_overridden_on_substitute_node(
         &self,
-    ) -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+    ) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
         let previous = self.on_substitute_node_previous_override_or_original_method.borrow().clone().expect("Should only call .pop_overridden_on_substitute_node() when there's currently an override");
         let current = self
             .on_substitute_node_outermost_override_or_original_method
@@ -1200,7 +1192,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         matches!(
             self.enabled_syntax_kind_features().get(&node.ref_(self).kind()),
             Some(syntax_kind_feature_flags) if syntax_kind_feature_flags.intersects(SyntaxKindFeatureFlags::EmitNotifications)
-        ) || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::AdviseOnEmitNode)
+        ) || get_emit_flags(node, self).intersects(EmitFlags::AdviseOnEmitNode)
     }
 
     fn on_emit_node(
@@ -1211,14 +1203,14 @@ impl TransformationContext for TransformNodesTransformationResult {
     ) -> io::Result<()> {
         self.on_emit_node_outermost_override_or_original_method
             .borrow()
-            .on_emit_node(hint, node, emit_callback)
+            .ref_(self).on_emit_node(hint, node, emit_callback)
     }
 
     fn override_on_emit_node(
         &self,
         overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
         let mut on_emit_node_outermost_override_or_original_method = self
             .on_emit_node_outermost_override_or_original_method
@@ -1231,7 +1223,7 @@ impl TransformationContext for TransformNodesTransformationResult {
             .borrow_mut() = Some(previous_on_emit_node);
     }
 
-    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+    fn pop_overridden_on_emit_node(&self) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
         let previous = self.on_emit_node_previous_override_or_original_method.borrow().clone().expect("Should only call .pop_overridden_on_emit_node() when there's currently an override");
         let current = self
             .on_emit_node_outermost_override_or_original_method
@@ -1367,13 +1359,9 @@ impl TransformationContextNull {
     }
 }
 
-impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationContextNull {
-    fn factory(&self) -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
-        get_factory()
-    }
-
-    fn base_factory(&self) -> Gc<BaseNodeFactorySynthetic> {
-        get_synthetic_factory()
+impl CoreTransformationContext for TransformationContextNull {
+    fn factory(&self) -> Id<NodeFactory> {
+        get_factory_id(self)
     }
 
     fn get_compiler_options(&self) -> Id<CompilerOptions> {
@@ -1412,7 +1400,7 @@ impl CoreTransformationContext<BaseNodeFactorySynthetic> for TransformationConte
 }
 
 impl TransformationContext for TransformationContextNull {
-    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>> {
+    fn get_emit_resolver(&self) -> Id<Box<dyn EmitResolver>> {
         not_implemented()
     }
 
@@ -1420,7 +1408,7 @@ impl TransformationContext for TransformationContextNull {
         not_implemented()
     }
 
-    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory> {
+    fn get_emit_helper_factory(&self) -> Id<EmitHelperFactory> {
         not_implemented()
     }
 
@@ -1443,16 +1431,16 @@ impl TransformationContext for TransformationContextNull {
     fn override_on_substitute_node(
         &self,
         _overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
         )
-            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) {
         unreachable!("maybe?")
     }
 
     fn pop_overridden_on_substitute_node(
         &self,
-    ) -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
+    ) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
         unreachable!("maybe?")
     }
 
@@ -1474,14 +1462,14 @@ impl TransformationContext for TransformationContextNull {
     fn override_on_emit_node(
         &self,
         _overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
         )
-            -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
         unreachable!("maybe?")
     }
 
-    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>> {
+    fn pop_overridden_on_emit_node(&self) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
         unreachable!("maybe?")
     }
 

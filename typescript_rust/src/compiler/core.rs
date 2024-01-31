@@ -17,6 +17,7 @@ use regex::{Captures, Regex};
 use crate::{
     __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec, OptionTry,
     PeekableExt, SortedArray, SourceTextAsChars,
+    HasArena,
 };
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
@@ -512,10 +513,11 @@ pub fn flat_map_to_mutable<
 pub fn same_flat_map_id_node(
     array: NodeArrayOrVec,
     mut mapfn: impl FnMut(Id<Node>, usize) -> SingleOrVec<Id<Node>>,
+    arena: &impl HasArena,
 ) -> NodeArrayOrVec {
     let mut result: Option<Vec<Id<Node>>> = Default::default();
     // if (array) {
-    for (i, item) in array.iter().enumerate() {
+    for (i, item) in array.ref_(arena).iter().enumerate() {
         let item = *item;
         let mapped = mapfn(item, i);
         if result.is_some()
@@ -524,7 +526,7 @@ pub fn same_flat_map_id_node(
                 SingleOrVec::Vec(_) => true,
             }
         {
-            let result = result.get_or_insert_with(|| array[..i].to_owned());
+            let result = result.get_or_insert_with(|| array.ref_(arena)[..i].to_owned());
             match mapped {
                 SingleOrVec::Vec(mapped) => {
                     add_range(result, Some(&mapped), None, None);
@@ -2220,16 +2222,16 @@ pub fn matched_text(pattern: &Pattern, candidate: &str) -> String {
     candidate[pattern.prefix.len()..candidate.len() - pattern.suffix.len()].to_owned()
 }
 
-pub fn find_best_pattern_match<'array, TItem, TGetPattern: Fn(&TItem) -> &Pattern>(
-    values: &'array [TItem],
-    get_pattern: TGetPattern,
+pub fn find_best_pattern_match<'a, TItem>(
+    values: &'a [TItem],
+    get_pattern: impl Fn(&TItem) -> Rc<Pattern>,
     candidate: &str,
-) -> Option<&'array TItem> {
+) -> Option<&'a TItem> {
     let mut matched_value: Option<&TItem> = None;
     let mut longest_match_prefix_length: isize = -1;
 
     for v in values {
-        let pattern = get_pattern(v);
+        let pattern = &get_pattern(v);
         let pattern_prefix_len_as_isize: isize = pattern.prefix.len().try_into().unwrap();
         if is_pattern_match(pattern, candidate)
             && pattern_prefix_len_as_isize > longest_match_prefix_length

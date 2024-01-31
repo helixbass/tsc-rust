@@ -16,7 +16,7 @@ use crate::{
     is_external_module_name_relative, is_import_call, is_literal_import_type_node,
     is_module_declaration, is_require_call, is_source_file_js, is_string_literal,
     is_string_literal_like, normalize_path, set_parent, set_parent_recursive, skip_type_checking,
-    sort_and_deduplicate_diagnostics, starts_with, token_to_string, CancellationTokenDebuggable,
+    sort_and_deduplicate_diagnostics, starts_with, token_to_string, CancellationToken,
     CommentDirective, CommentDirectivesMap, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, DiagnosticWithLocation, Diagnostics, EmitFlags,
     FileIncludeReason, FileReference, ForEachChildRecursivelyCallbackReturn, GetOrInsertDefault,
@@ -30,7 +30,7 @@ impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         self.try_get_and_cache_diagnostics(
             Some(source_file),
@@ -48,7 +48,7 @@ impl Program {
     pub(super) fn get_bind_and_check_diagnostics_for_file_no_cache(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         // self.run_with_cancellation_token(|| {
         if skip_type_checking(&source_file.ref_(self), &self.options.ref_(self), |file_name: &str| {
@@ -84,7 +84,7 @@ impl Program {
             vec![]
         };
         let check_diagnostics = if include_bind_and_check_diagnostics {
-            type_checker.get_diagnostics(Some(source_file), cancellation_token)?
+            type_checker.ref_(self).get_diagnostics(Some(source_file), cancellation_token)?
         } else {
             vec![]
         };
@@ -229,8 +229,8 @@ impl Program {
         source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Id<Diagnostic /*DiagnosticWithLocation*/>> {
         self.run_with_cancellation_token(|| {
-            let diagnostics: Gc<GcCell<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>> =
-                Default::default();
+            let diagnostics: Id<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> =
+                self.alloc_vec_diagnostic(Default::default());
             self.get_js_syntactic_diagnostics_for_file_walk(
                 diagnostics.clone(),
                 source_file,
@@ -252,7 +252,7 @@ impl Program {
                 },
                 {
                     let diagnostics = diagnostics.clone();
-                    Some(move |nodes: &NodeArray, parent: Id<Node>| {
+                    Some(move |nodes: Id<NodeArray>, parent: Id<Node>| {
                         self.get_js_syntactic_diagnostics_for_file_walk_array(
                             diagnostics.clone(),
                             source_file,
@@ -264,14 +264,14 @@ impl Program {
                 self,
             );
 
-            let ret = (*diagnostics).borrow().clone();
+            let ret = diagnostics.ref_(self).clone();
             ret
         })
     }
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_walk(
         &self,
-        diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        diagnostics: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
         node: Id<Node>,
         parent: Id<Node>,
@@ -281,7 +281,7 @@ impl Program {
             | SyntaxKind::PropertyDeclaration
             | SyntaxKind::MethodDeclaration => {
                 if parent.ref_(self).as_has_question_token().maybe_question_token() == Some(node) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -293,7 +293,7 @@ impl Program {
                     return Some(ForEachChildRecursivelyCallbackReturn::Skip);
                 }
                 if parent.ref_(self).as_has_type().maybe_type() == Some(node) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -314,7 +314,7 @@ impl Program {
             | SyntaxKind::ArrowFunction
             | SyntaxKind::VariableDeclaration => {
                 if parent.ref_(self).as_has_type().maybe_type() == Some(node) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -332,7 +332,7 @@ impl Program {
         match node.ref_(self).kind() {
             SyntaxKind::ImportClause => {
                 if node.ref_(self).as_import_clause().is_type_only {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             parent,
@@ -346,7 +346,7 @@ impl Program {
             }
             SyntaxKind::ExportDeclaration => {
                 if node.ref_(self).as_export_declaration().is_type_only {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -359,7 +359,7 @@ impl Program {
                 }
             }
             SyntaxKind::ImportEqualsDeclaration => {
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -372,7 +372,7 @@ impl Program {
             }
             SyntaxKind::ExportAssignment => {
                 if node.ref_(self).as_export_assignment().is_export_equals == Some(true) {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -388,7 +388,7 @@ impl Program {
                 let node_ref = node.ref_(self);
                 let heritage_clause = node_ref.as_heritage_clause();
                 if heritage_clause.token == SyntaxKind::ImplementsKeyword {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             node,
@@ -404,7 +404,7 @@ impl Program {
                 let interface_keyword = token_to_string(SyntaxKind::InterfaceKeyword);
                 Debug_.assert_is_defined(&interface_keyword, None);
                 let interface_keyword = interface_keyword.unwrap();
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -423,7 +423,7 @@ impl Program {
                 };
                 Debug_.assert_is_defined(&module_keyword, None);
                 let module_keyword = module_keyword.unwrap();
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -435,7 +435,7 @@ impl Program {
                 return Some(ForEachChildRecursivelyCallbackReturn::Skip);
             }
             SyntaxKind::TypeAliasDeclaration => {
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -449,7 +449,7 @@ impl Program {
             SyntaxKind::EnumDeclaration => {
                 let enum_keyword =
                     Debug_.check_defined(token_to_string(SyntaxKind::EnumKeyword), None);
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -461,7 +461,7 @@ impl Program {
                 return Some(ForEachChildRecursivelyCallbackReturn::Skip);
             }
             SyntaxKind::NonNullExpression => {
-                diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                     self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                         source_file,
                         node,
@@ -473,7 +473,7 @@ impl Program {
                 return Some(ForEachChildRecursivelyCallbackReturn::Skip);
             }
             SyntaxKind::AsExpression => {
-                diagnostics.borrow_mut().push(
+                diagnostics.ref_mut(self).push(
                     self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                         node.ref_(self).as_as_expression().type_,
@@ -493,17 +493,15 @@ impl Program {
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_walk_array(
         &self,
-        diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        diagnostics: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         parent: Id<Node>,
     ) -> Option<ForEachChildRecursivelyCallbackReturn<()>> {
-        if matches!(
-            parent.ref_(self).maybe_decorators().as_deref(),
-            Some(parent_decorators) if ptr::eq(parent_decorators, nodes)
-        ) && self.options.ref_(self).experimental_decorators != Some(true)
+        if parent.ref_(self).maybe_decorators() == Some(nodes)
+            && self.options.ref_(self).experimental_decorators != Some(true)
         {
-            diagnostics.borrow_mut().push(
+            diagnostics.ref_mut(self).push(
                 self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                     source_file,
                     parent,
@@ -523,11 +521,8 @@ impl Program {
             | SyntaxKind::FunctionExpression
             | SyntaxKind::FunctionDeclaration
             | SyntaxKind::ArrowFunction => {
-                if matches!(
-                    parent.ref_(self).as_has_type_parameters().maybe_type_parameters().as_deref(),
-                    Some(parent_type_parameters) if ptr::eq(nodes, parent_type_parameters)
-                ) {
-                    diagnostics.borrow_mut().push(
+                if parent.ref_(self).as_has_type_parameters().maybe_type_parameters() == Some(nodes) {
+                    diagnostics.ref_mut(self).push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
                             nodes,
@@ -540,8 +535,7 @@ impl Program {
 
                 if let Some(parent_modifiers) = parent
                     .ref_(self).maybe_modifiers()
-                    .as_deref()
-                    .filter(|parent_modifiers| ptr::eq(nodes, *parent_modifiers))
+                    .filter(|&parent_modifiers| nodes == parent_modifiers)
                 {
                     self.get_js_syntactic_diagnostics_for_file_check_modifiers(
                         diagnostics.clone(),
@@ -555,8 +549,7 @@ impl Program {
             SyntaxKind::VariableStatement => {
                 if let Some(parent_modifiers) = parent
                     .ref_(self).maybe_modifiers()
-                    .as_deref()
-                    .filter(|parent_modifiers| ptr::eq(nodes, *parent_modifiers))
+                    .filter(|&parent_modifiers| nodes == parent_modifiers)
                 {
                     self.get_js_syntactic_diagnostics_for_file_check_modifiers(
                         diagnostics.clone(),
@@ -568,13 +561,10 @@ impl Program {
                 }
             }
             SyntaxKind::PropertyDeclaration => {
-                if matches!(
-                    parent.ref_(self).maybe_modifiers().as_deref(),
-                    Some(parent_modifiers) if ptr::eq(nodes, parent_modifiers)
-                ) {
-                    for &modifier in nodes {
+                if parent.ref_(self).maybe_modifiers() == Some(nodes) {
+                    for &modifier in &*nodes.ref_(self) {
                         if modifier.ref_(self).kind() != SyntaxKind::StaticKeyword {
-                            diagnostics.borrow_mut().push(
+                            diagnostics.ref_mut(self).push(
                                 self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                                     source_file,
                                     modifier,
@@ -588,11 +578,8 @@ impl Program {
                 }
             }
             SyntaxKind::Parameter => {
-                if matches!(
-                    parent.ref_(self).maybe_modifiers().as_deref(),
-                    Some(parent_modifiers) if ptr::eq(nodes, parent_modifiers)
-                ) {
-                    diagnostics.borrow_mut().push(
+                if parent.ref_(self).maybe_modifiers() == Some(nodes) {
+                    diagnostics.ref_mut(self).push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
                             nodes,
@@ -609,11 +596,8 @@ impl Program {
             | SyntaxKind::JsxSelfClosingElement
             | SyntaxKind::JsxOpeningElement
             | SyntaxKind::TaggedTemplateExpression => {
-                if matches!(
-                    parent.ref_(self).as_has_type_arguments().maybe_type_arguments().as_deref(),
-                    Some(parent_type_arguments) if ptr::eq(nodes, parent_type_arguments)
-                ) {
-                    diagnostics.borrow_mut().push(
+                if parent.ref_(self).as_has_type_arguments().maybe_type_arguments() == Some(nodes) {
+                    diagnostics.ref_mut(self).push(
                         self.alloc_diagnostic(self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
                             source_file,
                             nodes,
@@ -631,19 +615,19 @@ impl Program {
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_check_modifiers(
         &self,
-        diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>,
+        diagnostics: Id<Vec<Id<Diagnostic>>>,
         source_file: Id<Node>,
-        modifiers: &NodeArray, /*<Modifier>*/
+        modifiers: Id<NodeArray>, /*<Modifier>*/
         is_const_valid: bool,
     ) {
-        for &modifier in modifiers {
+        for &modifier in &*modifiers.ref_(self) {
             match modifier.ref_(self).kind() {
                 SyntaxKind::ConstKeyword => {
                     if is_const_valid {
                         continue;
                     }
 
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             modifier,
@@ -660,7 +644,7 @@ impl Program {
                 | SyntaxKind::DeclareKeyword
                 | SyntaxKind::AbstractKeyword
                 | SyntaxKind::OverrideKeyword => {
-                    diagnostics.borrow_mut().push(self.alloc_diagnostic(
+                    diagnostics.ref_mut(self).push(self.alloc_diagnostic(
                         self.get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
                             source_file,
                             modifier,
@@ -681,12 +665,12 @@ impl Program {
     pub(super) fn get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node_array(
         &self,
         source_file: Id<Node>,
-        nodes: &NodeArray,
+        nodes: Id<NodeArray>,
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) -> DiagnosticWithLocation {
-        let start = nodes.pos();
-        create_file_diagnostic(source_file, start, nodes.end() - start, message, args)
+        let start = nodes.ref_(self).pos();
+        create_file_diagnostic(source_file, start, nodes.ref_(self).end() - start, message, args)
     }
 
     pub(super) fn get_js_syntactic_diagnostics_for_file_create_diagnostic_for_node(
@@ -702,7 +686,7 @@ impl Program {
     pub(super) fn get_declaration_diagnostics_worker(
         &self,
         source_file: Option<Id<Node>>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         self.try_get_and_cache_diagnostics(
             source_file,
@@ -717,12 +701,12 @@ impl Program {
     pub(super) fn get_declaration_diagnostics_for_file_no_cache(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         self.run_with_cancellation_token(|| -> io::Result<_> {
             let resolver = self
                 .get_diagnostics_producing_type_checker()?
-                .get_emit_resolver(source_file, cancellation_token)?;
+                .ref_(self).get_emit_resolver(source_file, cancellation_token)?;
             Ok(get_declaration_diagnostics(
                 // TODO: should this be eg Some(NoOpWriteFileCallback::new()) instead?
                 self.get_emit_host(None),
@@ -738,11 +722,11 @@ impl Program {
     pub(super) fn get_and_cache_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         cache: &mut DiagnosticCache,
         mut get_diagnostics: impl FnMut(
             Option<Id<Node>>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> Vec<Id<Diagnostic>>,
     ) -> Vec<Id<Diagnostic>> {
         self.try_get_and_cache_diagnostics(source_file, cancellation_token, cache, |a, b| {
@@ -754,11 +738,11 @@ impl Program {
     pub(super) fn try_get_and_cache_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
         cache: &mut DiagnosticCache,
         mut get_diagnostics: impl FnMut(
             Option<Id<Node>>, /*SourceFile*/
-            Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+            Option<Id<Box<dyn CancellationToken>>>,
         ) -> io::Result<Vec<Id<Diagnostic>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         let cached_result = if let Some(source_file) = source_file {
@@ -789,7 +773,7 @@ impl Program {
     pub fn get_declaration_diagnostics_for_file(
         &self,
         source_file: Id<Node>, /*SourceFile*/
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
         Ok(if source_file.ref_(self).as_source_file().is_declaration_file() {
             vec![]
@@ -800,7 +784,7 @@ impl Program {
 
     pub fn get_options_diagnostics(
         &self,
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> SortedArray<Id<Diagnostic>> {
         sort_and_deduplicate_diagnostics(&concatenate(
             self.program_diagnostics().get_global_diagnostics(),
@@ -817,9 +801,9 @@ impl Program {
             .program_diagnostics()
             .get_diagnostics(Some(&**options_config_file.ref_(self).as_source_file().file_name()));
         self.for_each_resolved_project_reference(
-            |resolved_ref: Gc<ResolvedProjectReference>| -> Option<()> {
+            |resolved_ref: Id<ResolvedProjectReference>| -> Option<()> {
                 diagnostics.append(&mut self.program_diagnostics().get_diagnostics(Some(
-                    &**resolved_ref.source_file.ref_(self).as_source_file().file_name(),
+                    &**resolved_ref.ref_(self).source_file.ref_(self).as_source_file().file_name(),
                 )));
                 None
             },
@@ -829,13 +813,13 @@ impl Program {
 
     pub fn get_global_diagnostics(
         &self,
-        _cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<SortedArray<Id<Diagnostic>>> {
         Ok(if !self.root_names().is_empty() {
             sort_and_deduplicate_diagnostics(
                 &self
                     .get_diagnostics_producing_type_checker()?
-                    .get_global_diagnostics(),
+                    .ref_(self).get_global_diagnostics(),
                 self,
             )
         } else {
@@ -891,10 +875,10 @@ impl Program {
         file: Id<Node>, /*SourceFile*/
     ) -> Id<Node> {
         let external_helpers_module_reference =
-            get_factory().create_string_literal(text.to_owned(), None, None);
-        let import_decl = get_factory().create_import_declaration(
-            Option::<Gc<NodeArray>>::None,
-            Option::<Gc<NodeArray>>::None,
+            get_factory(self).create_string_literal(text.to_owned(), None, None);
+        let import_decl = get_factory(self).create_import_declaration(
+            Option::<Id<NodeArray>>::None,
+            Option::<Id<NodeArray>>::None,
             None,
             external_helpers_module_reference.clone(),
             None,
@@ -946,7 +930,7 @@ impl Program {
             }
         }
 
-        for &node in &file_as_source_file.statements() {
+        for &node in &*file_as_source_file.statements().ref_(self) {
             self.collect_module_references(
                 &mut imports,
                 file,
@@ -1032,7 +1016,7 @@ impl Program {
                     }
                     let body = node.ref_(self).as_module_declaration().body;
                     if let Some(body) = body {
-                        for &statement in &body.ref_(self).as_module_block().statements {
+                        for &statement in &*body.ref_(self).as_module_block().statements.ref_(self) {
                             self.collect_module_references(
                                 imports,
                                 file,
@@ -1067,17 +1051,17 @@ impl Program {
             );
             if is_java_script_file && is_require_call(node, true, self) {
                 set_parent_recursive(Some(node), false, self);
-                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.get(0).cloned()
+                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.ref_(self).get(0).cloned()
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }
             } else if is_import_call(node, self) && {
                 let node_ref = node.ref_(self);
                 let node_arguments = &node_ref.as_call_expression().arguments;
-                node_arguments.len() >= 1 && is_string_literal_like(&node_arguments[0].ref_(self))
+                node_arguments.ref_(self).len() >= 1 && is_string_literal_like(&node_arguments.ref_(self)[0].ref_(self))
             } {
                 set_parent_recursive(Some(node), false, self);
-                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.get(0).cloned()
+                if let Some(node_arguments_0) = node.ref_(self).as_call_expression().arguments.ref_(self).get(0).cloned()
                 {
                     append(imports.get_or_insert_default_(), Some(node_arguments_0));
                 }

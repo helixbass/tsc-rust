@@ -45,7 +45,7 @@ impl TypeChecker {
                 pattern
                     .ref_(self).as_array_binding_pattern()
                     .elements
-                    .iter()
+                    .ref_(self).iter()
                     .position(|&element| element == node)
                     .unwrap(),
             )?
@@ -60,10 +60,9 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
-        let ret = (*links)
-            .borrow()
+        let ret = links
+            .ref_(self)
             .resolved_type
-            .clone()
             .try_unwrap_or_else(|| self.get_type_of_expression(node))?;
         Ok(ret)
     }
@@ -178,19 +177,19 @@ impl TypeChecker {
         switch_statement: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<Vec<Id<Type>>> {
         let links = self.get_node_links(switch_statement);
-        if (*links).borrow().switch_types.is_none() {
+        if links.ref_(self).switch_types.is_none() {
             let mut switch_types = vec![];
-            for &clause in &switch_statement
+            for &clause in &*switch_statement
                 .ref_(self).as_switch_statement()
                 .case_block
                 .ref_(self).as_case_block()
-                .clauses
+                .clauses.ref_(self)
             {
                 switch_types.push(self.get_type_of_switch_clause(clause)?);
             }
-            links.borrow_mut().switch_types = Some(switch_types);
+            links.ref_mut(self).switch_types = Some(switch_types);
         }
-        let ret = (*links).borrow().switch_types.clone().unwrap();
+        let ret = links.ref_(self).switch_types.clone().unwrap();
         Ok(ret)
     }
 
@@ -200,11 +199,11 @@ impl TypeChecker {
         retain_default: bool,
     ) -> Vec<Option<String>> {
         let mut witnesses: Vec<Option<String>> = vec![];
-        for clause in &switch_statement
+        for clause in &*switch_statement
             .ref_(self).as_switch_statement()
             .case_block
             .ref_(self).as_case_block()
-            .clauses
+            .clauses.ref_(self)
         {
             if clause.ref_(self).kind() == SyntaxKind::CaseClause {
                 let clause_ref = clause.ref_(self);
@@ -885,7 +884,7 @@ impl TypeChecker {
             .intersects(SymbolFlags::Variable | SymbolFlags::Property)
         {
             if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Mapped) {
-                let origin = (*symbol.ref_(self).as_mapped_symbol().symbol_links())
+                let origin = (*symbol.ref_(self).as_mapped_symbol().symbol_links().ref_(self))
                     .borrow()
                     .synthetic_origin
                     .clone();
@@ -926,7 +925,7 @@ impl TypeChecker {
                 if let Some(diagnostic) = diagnostic {
                     add_related_info(
                         diagnostic,
-                        vec![Gc::new(
+                        vec![self.alloc_diagnostic_related_information(
                             create_diagnostic_for_node(
                                 declaration,
                                 &Diagnostics::_0_needs_an_explicit_type_annotation,
@@ -1026,9 +1025,9 @@ impl TypeChecker {
     pub(super) fn get_effects_signature(
         &self,
         node: Id<Node>, /*CallExpression*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let links = self.get_node_links(node);
-        let mut signature = (*links).borrow().effects_signature.clone();
+        let mut signature = links.ref_(self).effects_signature.clone();
         if signature.is_none() {
             let mut func_type: Option<Id<Type>> = None;
             let node_ref = node.ref_(self);
@@ -1057,11 +1056,11 @@ impl TypeChecker {
                 SignatureKind::Call,
             )?;
             let candidate =
-                if signatures.len() == 1 && signatures[0].maybe_type_parameters().is_none() {
+                if signatures.len() == 1 && signatures[0].ref_(self).maybe_type_parameters().is_none() {
                     Some(signatures[0].clone())
                 } else if try_some(
                     Some(&signatures),
-                    Some(|signature: &Gc<Signature>| {
+                    Some(|&signature: &Id<Signature>| {
                         self.has_type_predicate_or_never_return_type(signature)
                     }),
                 )? {
@@ -1070,7 +1069,7 @@ impl TypeChecker {
                     None
                 };
             signature = Some(
-                if let Some(candidate) = candidate.try_filter(|candidate| {
+                if let Some(candidate) = candidate.try_filter(|&candidate| {
                     self.has_type_predicate_or_never_return_type(candidate)
                 })? {
                     candidate
@@ -1078,10 +1077,10 @@ impl TypeChecker {
                     self.unknown_signature()
                 },
             );
-            links.borrow_mut().effects_signature = signature.clone();
+            links.ref_mut(self).effects_signature = signature.clone();
         }
         let signature = signature.unwrap();
-        Ok(if Gc::ptr_eq(&signature, &self.unknown_signature()) {
+        Ok(if signature == self.unknown_signature() {
             None
         } else {
             Some(signature)
@@ -1090,11 +1089,11 @@ impl TypeChecker {
 
     pub(super) fn has_type_predicate_or_never_return_type(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<bool> {
         Ok(self.get_type_predicate_of_signature(signature)?.is_some()
             || matches!(
-                signature.declaration,
+                signature.ref_(self).declaration,
                 Some(signature_declaration) if self.get_return_type_from_annotation(
                     signature_declaration
                 )?.unwrap_or_else(|| self.unknown_type()).ref_(self).flags().intersects(TypeFlags::Never)
@@ -1103,17 +1102,17 @@ impl TypeChecker {
 
     pub(super) fn get_type_predicate_argument(
         &self,
-        predicate: &TypePredicate,
+        predicate: Id<TypePredicate>,
         call_expression: Id<Node>, /*CallExpression*/
     ) -> Option<Id<Node>> {
         let call_expression_ref = call_expression.ref_(self);
         let call_expression_as_call_expression = call_expression_ref.as_call_expression();
         if matches!(
-            predicate.kind,
+            predicate.ref_(self).kind,
             TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
         ) {
             return Some(
-                call_expression_as_call_expression.arguments[predicate.parameter_index.unwrap()]
+                call_expression_as_call_expression.arguments.ref_(self)[predicate.ref_(self).parameter_index.unwrap()]
                     .clone(),
             );
         }
@@ -1141,7 +1140,7 @@ impl TypeChecker {
             block
                 .ref_(self).as_has_statements()
                 .statements()
-                .pos()
+                .ref_(self).pos()
                 .try_into()
                 .unwrap(),
         );
@@ -1213,15 +1212,15 @@ impl TypeChecker {
                 let flow_ref = flow.ref_(self);
                 let flow_as_flow_call = flow_ref.as_flow_call();
                 let signature = self.get_effects_signature(flow_as_flow_call.node)?;
-                if let Some(signature) = signature.as_ref() {
+                if let Some(signature) = signature {
                     let predicate = self.get_type_predicate_of_signature(signature)?;
                     if let Some(predicate) = predicate.as_ref().filter(|predicate| {
-                        predicate.kind == TypePredicateKind::AssertsIdentifier
-                            && predicate.type_.is_none()
+                        predicate.ref_(self).kind == TypePredicateKind::AssertsIdentifier
+                            && predicate.ref_(self).type_.is_none()
                     }) {
                         let predicate_argument =
                             flow_as_flow_call.node.ref_(self).as_call_expression().arguments
-                                [predicate.parameter_index.unwrap()];
+                                .ref_(self)[predicate.ref_(self).parameter_index.unwrap()];
                         if
                         /*predicateArgument &&*/
                         self.is_false_expression(predicate_argument) {

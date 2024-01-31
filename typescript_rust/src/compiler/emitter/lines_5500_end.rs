@@ -345,7 +345,7 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_before_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
         let source_map_range = get_source_map_range(&node.ref_(self), self);
 
         if is_unparsed_source(&node.ref_(self)) {
@@ -360,7 +360,7 @@ impl Printer {
             {
                 let node_parent_ref = node_parent.ref_(self);
                 let node_parent_as_unparsed_source = node_parent_ref.as_unparsed_source();
-                source_map_generator.append_source_map(
+                source_map_generator.ref_(self).append_source_map(
                     self.writer().get_line(),
                     self.writer().get_column(),
                     &parsed,
@@ -392,7 +392,7 @@ impl Printer {
                         .ref_(self).source
                         .clone()
                         .unwrap_or_else(|| self.source_map_source()),
-                    self.skip_source_trivia(&source, source_map_range.ref_(self).pos()),
+                    self.skip_source_trivia(source, source_map_range.ref_(self).pos()),
                 );
             }
             if emit_flags.intersects(EmitFlags::NoNestedSourceMaps) {
@@ -402,7 +402,7 @@ impl Printer {
     }
 
     pub(super) fn emit_source_maps_after_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
         let source_map_range = get_source_map_range(&node.ref_(self), self);
 
         if !is_unparsed_source(&node.ref_(self)) {
@@ -424,13 +424,14 @@ impl Printer {
         }
     }
 
-    pub(super) fn skip_source_trivia(&self, source: &SourceMapSource, pos: isize) -> isize {
+    pub(super) fn skip_source_trivia(&self, source: Id<SourceMapSource>, pos: isize) -> isize {
         let source = source.ref_(self);
-        if let Some(source_skip_trivia) = source.skip_trivia() {
-            source_skip_trivia.call(pos)
+        let ret = if let Some(source_skip_trivia) = source.ref_(self).skip_trivia() {
+            source_skip_trivia.ref_(self).call(pos)
         } else {
-            skip_trivia(&source.text_as_chars(), pos, None, None, None)
-        }
+            skip_trivia(&source.ref_(self).text_as_chars(), pos, None, None, None)
+        };
+        ret
     }
 
     pub(super) fn emit_token_with_source_map<TWriter: FnMut(&str)>(
@@ -452,12 +453,11 @@ impl Printer {
 
         let emit_node = node.and_then(|node| node.ref_(self).maybe_emit_node());
         let emit_flags = emit_node
-            .as_ref()
-            .and_then(|emit_node| (**emit_node).borrow().flags)
+            .and_then(|emit_node| emit_node.ref_(self).flags)
             .unwrap_or(EmitFlags::None);
-        let range = emit_node.as_ref().and_then(|emit_node| {
-            (**emit_node)
-                .borrow()
+        let range = emit_node.and_then(|emit_node| {
+            emit_node
+                .ref_(self)
                 .token_source_map_ranges
                 .as_ref()
                 .and_then(|emit_node_token_source_map_ranges| {
@@ -473,7 +473,7 @@ impl Printer {
             .unwrap_or_else(|| self.source_map_source());
 
         token_pos = self.skip_source_trivia(
-            &source,
+            source,
             range.as_ref().map_or(token_pos, |range| range.ref_(self).pos()),
         );
         if !emit_flags.intersects(EmitFlags::NoTokenLeadingSourceMaps) && token_pos >= 0 {
@@ -495,7 +495,7 @@ impl Printer {
     pub(super) fn emit_pos(&self, pos: isize) {
         if self.source_maps_disabled()
             || position_is_synthesized(pos)
-            || self.is_json_source_map_source(&self.source_map_source())
+            || self.is_json_source_map_source(self.source_map_source())
         {
             return;
         }
@@ -503,8 +503,8 @@ impl Printer {
         let LineAndCharacter {
             line: source_line,
             character: source_character,
-        } = get_line_and_character_of_position(&self.source_map_source().ref_(self), pos.try_into().unwrap());
-        self.source_map_generator().add_mapping(
+        } = get_line_and_character_of_position(&self.source_map_source().ref_(self).ref_(self), pos.try_into().unwrap());
+        self.source_map_generator().ref_(self).add_mapping(
             self.writer().get_line(),
             self.writer().get_column(),
             self.source_map_source_index().try_into().unwrap(),
@@ -514,14 +514,8 @@ impl Printer {
         );
     }
 
-    pub(super) fn emit_source_pos(&self, source: Gc<SourceMapSource>, pos: isize) {
-        if !matches!(
-            self.maybe_source_map_source(),
-            Some(source_map_source) if Gc::ptr_eq(
-                &source,
-                &source_map_source
-            )
-        ) {
+    pub(super) fn emit_source_pos(&self, source: Id<SourceMapSource>, pos: isize) {
+        if self.maybe_source_map_source() != Some(source) {
             let saved_source_map_source = self.maybe_source_map_source();
             let saved_source_map_source_index = self.source_map_source_index();
             self.set_source_map_source(source);
@@ -535,39 +529,33 @@ impl Printer {
         }
     }
 
-    pub(super) fn set_source_map_source(&self, source: Gc<SourceMapSource>) {
+    pub(super) fn set_source_map_source(&self, source: Id<SourceMapSource>) {
         if self.source_maps_disabled() {
             return;
         }
 
         self.set_source_map_source_(Some(source.clone()));
 
-        if matches!(
-            self.maybe_most_recently_added_source_map_source().as_ref(),
-            Some(most_recently_added_source_map_source) if Gc::ptr_eq(
-                &source,
-                most_recently_added_source_map_source
-            )
-        ) {
+        if self.maybe_most_recently_added_source_map_source() == Some(source) {
             self.set_source_map_source_index(self.most_recently_added_source_map_source_index());
             return;
         }
 
-        if self.is_json_source_map_source(&source) {
+        if self.is_json_source_map_source(source) {
             return;
         }
 
         self.set_source_map_source_index(
             self.source_map_generator()
-                .add_source(&source.ref_(self).file_name())
+                .ref_(self).add_source(&source.ref_(self).ref_(self).file_name())
                 .try_into()
                 .unwrap(),
         );
         if self.printer_options.inline_sources == Some(true) {
-            self.source_map_generator().set_source_content(
+            self.source_map_generator().ref_(self).set_source_content(
                 // TODO: should this just be a usize?
                 self.source_map_source_index().try_into().unwrap(),
-                Some(source.ref_(self).text().clone()),
+                Some(source.ref_(self).ref_(self).text().clone()),
             );
         }
 
@@ -575,13 +563,13 @@ impl Printer {
         self.set_most_recently_added_source_map_source_index(self.source_map_source_index());
     }
 
-    pub(super) fn reset_source_map_source(&self, source: Gc<SourceMapSource>, source_index: isize) {
+    pub(super) fn reset_source_map_source(&self, source: Id<SourceMapSource>, source_index: isize) {
         self.set_source_map_source_(Some(source));
         self.set_source_map_source_index(source_index);
     }
 
-    pub(super) fn is_json_source_map_source(&self, source_file: &SourceMapSource) -> bool {
-        file_extension_is(&source_file.ref_(self).file_name(), Extension::Json.to_str())
+    pub(super) fn is_json_source_map_source(&self, source_file: Id<SourceMapSource>) -> bool {
+        file_extension_is(&source_file.ref_(self).ref_(self).file_name(), Extension::Json.to_str())
     }
 }
 

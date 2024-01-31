@@ -252,14 +252,12 @@ impl TypeChecker {
             let prop = symbol
                 .ref_(self)
                 .maybe_members()
-                .as_ref()
-                .and_then(|symbol_members| (**symbol_members).borrow().get(&name).cloned())
+                .and_then(|symbol_members| symbol_members.ref_(self).get(&name).cloned())
                 .or_else(|| {
                     symbol
                         .ref_(self)
                         .maybe_exports()
-                        .as_ref()
-                        .and_then(|symbol_exports| (**symbol_exports).borrow().get(&name).cloned())
+                        .and_then(|symbol_exports| symbol_exports.ref_(self).get(&name).cloned())
                 });
             if prop.is_some() {
                 return prop;
@@ -321,14 +319,14 @@ impl TypeChecker {
         }
 
         let links = self.get_node_links(priv_id);
-        if (*links).borrow().resolved_symbol.is_none() {
-            links.borrow_mut().resolved_symbol = self
+        if links.ref_(self).resolved_symbol.is_none() {
+            links.ref_mut(self).resolved_symbol = self
                 .lookup_symbol_for_private_identifier_declaration(
                     &priv_id.ref_(self).as_private_identifier().escaped_text,
                     priv_id,
                 );
         }
-        let ret = (*links).borrow().resolved_symbol.clone();
+        let ret = links.ref_(self).resolved_symbol.clone();
         ret
     }
 
@@ -408,7 +406,7 @@ impl TypeChecker {
                     add_related_info(
                         &diagnostic.ref_(self),
                         vec![
-                            Gc::new(
+                            self.alloc_diagnostic_related_information(
                                 create_diagnostic_for_node(
                                     lexical_value_decl,
                                     &Diagnostics::The_shadowing_declaration_of_0_is_defined_here,
@@ -418,7 +416,7 @@ impl TypeChecker {
                                     self,
                                 ).into()
                             ),
-                            Gc::new(
+                            self.alloc_diagnostic_related_information(
                                 create_diagnostic_for_node(
                                     type_value_decl,
                                     &Diagnostics::The_declaration_of_0_that_you_probably_intended_to_use_is_defined_here,
@@ -468,10 +466,9 @@ impl TypeChecker {
         right: Id<Node>, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let parent_symbol = (*self.get_node_links(left))
-            .borrow()
-            .resolved_symbol
-            .clone();
+        let parent_symbol = self.get_node_links(left)
+            .ref_(self)
+            .resolved_symbol;
         let assignment_kind = get_assignment_target_kind(node, self);
         let apparent_type = self.get_apparent_type(
             if assignment_kind != AssignmentKind::None || self.is_method_access_for_call(node) {
@@ -630,11 +627,11 @@ impl TypeChecker {
                             .maybe_exports()
                             .clone()
                             .unwrap();
-                        if (*global_this_symbol_exports)
-                            .borrow()
+                        if global_this_symbol_exports
+                            .ref_(self)
                             .contains_key(right.ref_(self).as_member_name().escaped_text())
-                            && (*global_this_symbol_exports)
-                                .borrow()
+                            && global_this_symbol_exports
+                                .ref_(self)
                                 .get(right.ref_(self).as_member_name().escaped_text())
                                 .copied()
                                 .unwrap()
@@ -689,7 +686,7 @@ impl TypeChecker {
                     return Ok(self.error_type());
                 }
                 let index_info = index_info.unwrap();
-                if index_info.is_readonly && (is_assignment_target(node, self) || is_delete_target(node, self))
+                if index_info.ref_(self).is_readonly && (is_assignment_target(node, self) || is_delete_target(node, self))
                 {
                     self.error(
                         Some(node),
@@ -707,14 +704,14 @@ impl TypeChecker {
                     && !is_assignment_target(node, self)
                 {
                     self.get_union_type(
-                        &[index_info.type_.clone(), self.undefined_type()],
+                        &[index_info.ref_(self).type_.clone(), self.undefined_type()],
                         None,
                         Option::<Id<Symbol>>::None,
                         None,
                         None,
                     )?
                 } else {
-                    index_info.type_.clone()
+                    index_info.ref_(self).type_.clone()
                 };
                 if self
                     .compiler_options
@@ -751,7 +748,7 @@ impl TypeChecker {
                     Some(node),
                     self.is_self_type_access(left, parent_symbol)?,
                 );
-                self.get_node_links(node).borrow_mut().resolved_symbol = Some(prop.clone());
+                self.get_node_links(node).ref_mut(self).resolved_symbol = Some(prop.clone());
                 let writing = is_write_access(node, self);
                 self.check_property_accessibility(
                     node,
@@ -971,7 +968,7 @@ impl TypeChecker {
         if let Some(diagnostic_message) = diagnostic_message {
             add_related_info(
                 &diagnostic_message.ref_(self),
-                vec![Gc::new(
+                vec![self.alloc_diagnostic_related_information(
                     create_diagnostic_for_node(
                         value_declaration,
                         &Diagnostics::_0_is_declared_here,
@@ -1086,7 +1083,7 @@ impl TypeChecker {
         is_unchecked_js: bool,
     ) -> io::Result<()> {
         let mut error_info: Option<DiagnosticMessageChain> = None;
-        let mut related_info: Option<Gc<DiagnosticRelatedInformation>> = None;
+        let mut related_info: Option<Id<DiagnosticRelatedInformation>> = None;
         if !is_private_identifier(&prop_node.ref_(self))
             && containing_type
                 .ref_(self)
@@ -1159,7 +1156,7 @@ impl TypeChecker {
                         )?,
                     ]),
                 ));
-                related_info = Some(Gc::new(
+                related_info = Some(self.alloc_diagnostic_related_information(
                     create_diagnostic_for_node(
                         prop_node,
                         &Diagnostics::Did_you_forget_to_use_await,
@@ -1207,7 +1204,7 @@ impl TypeChecker {
                             .ref_(self)
                             .maybe_value_declaration()
                             .map(|suggestion_value_declaration| {
-                                Gc::new(
+                                self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         suggestion_value_declaration,
                                         &Diagnostics::_0_is_declared_here,

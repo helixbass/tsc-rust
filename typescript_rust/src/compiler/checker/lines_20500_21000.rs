@@ -19,26 +19,26 @@ use crate::{
 impl TypeChecker {
     pub(super) fn compare_signatures_identical(
         &self,
-        mut source: Gc<Signature>,
-        target: Gc<Signature>,
+        mut source: Id<Signature>,
+        target: Id<Signature>,
         partial_match: bool,
         ignore_this_types: bool,
         ignore_return_types: bool,
         mut compare_types: impl FnMut(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
-        if Gc::ptr_eq(&source, &target) {
+        if source == target {
             return Ok(Ternary::True);
         }
-        if !self.is_matching_signature(&source, &target, partial_match)? {
+        if !self.is_matching_signature(source, target, partial_match)? {
             return Ok(Ternary::False);
         }
-        if length(source.maybe_type_parameters().as_deref())
-            != length(target.maybe_type_parameters().as_deref())
+        if length(source.ref_(self).maybe_type_parameters().as_deref())
+            != length(target.ref_(self).maybe_type_parameters().as_deref())
         {
             return Ok(Ternary::False);
         }
-        if let Some(ref target_type_parameters) = target.maybe_type_parameters().clone() {
-            let source_type_parameters = source.maybe_type_parameters().clone().unwrap();
+        if let Some(ref target_type_parameters) = target.ref_(self).maybe_type_parameters().clone() {
+            let source_type_parameters = source.ref_(self).maybe_type_parameters().clone().unwrap();
             let mapper = self.create_type_mapper(
                 source_type_parameters.clone(),
                 Some(target_type_parameters.clone()),
@@ -69,13 +69,13 @@ impl TypeChecker {
                     return Ok(Ternary::False);
                 }
             }
-            source = Gc::new(self.instantiate_signature(source, mapper, Some(true))?);
+            source = self.alloc_signature(self.instantiate_signature(source, mapper, Some(true))?);
         }
         let mut result = Ternary::True;
         if !ignore_this_types {
-            let source_this_type = self.get_this_type_of_signature(&source)?;
+            let source_this_type = self.get_this_type_of_signature(source)?;
             if let Some(source_this_type) = source_this_type {
-                let target_this_type = self.get_this_type_of_signature(&target)?;
+                let target_this_type = self.get_this_type_of_signature(target)?;
                 if let Some(target_this_type) = target_this_type {
                     let related = compare_types(source_this_type, target_this_type)?;
                     if related == Ternary::False {
@@ -85,10 +85,10 @@ impl TypeChecker {
                 }
             }
         }
-        let target_len = self.get_parameter_count(&target)?;
+        let target_len = self.get_parameter_count(target)?;
         for i in 0..target_len {
-            let s = self.get_type_at_position(&source, i)?;
-            let t = self.get_type_at_position(&target, i)?;
+            let s = self.get_type_at_position(source, i)?;
+            let t = self.get_type_at_position(target, i)?;
             let related = compare_types(t, s)?;
             if related == Ternary::False {
                 return Ok(Ternary::False);
@@ -96,8 +96,8 @@ impl TypeChecker {
             result &= related;
         }
         if !ignore_return_types {
-            let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
-            let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
+            let source_type_predicate = self.get_type_predicate_of_signature(source)?;
+            let target_type_predicate = self.get_type_predicate_of_signature(target)?;
             result &= if source_type_predicate.is_some() || target_type_predicate.is_some() {
                 self.try_compare_type_predicates_identical(
                     source_type_predicate,
@@ -117,8 +117,8 @@ impl TypeChecker {
     #[allow(dead_code)]
     pub(super) fn compare_type_predicates_identical(
         &self,
-        source: Option<impl Borrow<TypePredicate>>,
-        target: Option<impl Borrow<TypePredicate>>,
+        source: Option<Id<TypePredicate>>,
+        target: Option<Id<TypePredicate>>,
         compare_types: impl FnOnce(Id<Type>, Id<Type>) -> Ternary,
     ) -> Ternary {
         self.try_compare_type_predicates_identical(source, target, |a: Id<Type>, b: Id<Type>| {
@@ -129,19 +129,17 @@ impl TypeChecker {
 
     pub(super) fn try_compare_type_predicates_identical(
         &self,
-        source: Option<impl Borrow<TypePredicate>>,
-        target: Option<impl Borrow<TypePredicate>>,
+        source: Option<Id<TypePredicate>>,
+        target: Option<Id<TypePredicate>>,
         compare_types: impl FnOnce(Id<Type>, Id<Type>) -> io::Result<Ternary>,
     ) -> io::Result<Ternary> {
         Ok(match (source, target) {
             (Some(source), Some(target)) => {
-                let source = source.borrow();
-                let target = target.borrow();
                 if !self.type_predicate_kinds_match(source, target) {
                     Ternary::False
-                } else if source.type_ == target.type_ {
+                } else if source.ref_(self).type_ == target.ref_(self).type_ {
                     Ternary::True
-                } else if let (Some(source_type), Some(target_type)) = (source.type_, target.type_)
+                } else if let (Some(source_type), Some(target_type)) = (source.ref_(self).type_, target.ref_(self).type_)
                 {
                     compare_types(source_type, target_type)?
                 } else {
@@ -346,8 +344,8 @@ impl TypeChecker {
         if bases.len() != 1 {
             return Ok(None);
         }
-        if !(*self.get_members_of_symbol(type_.ref_(self).symbol())?)
-            .borrow()
+        if !self.get_members_of_symbol(type_.ref_(self).symbol())?
+            .ref_(self)
             .is_empty()
         {
             return Ok(None);
@@ -1184,7 +1182,7 @@ impl TypeChecker {
             .ref_(self)
             .set_parent(source.ref_(self).maybe_parent());
         let symbol_links = symbol.ref_(self).as_transient_symbol().symbol_links();
-        let mut symbol_links = symbol_links.borrow_mut();
+        let mut symbol_links = symbol_links.ref_mut(self);
         symbol_links.type_ = type_;
         symbol_links.target = Some(source);
         if let Some(source_value_declaration) = source.ref_(self).maybe_value_declaration() {
@@ -1192,7 +1190,7 @@ impl TypeChecker {
                 .ref_(self)
                 .set_value_declaration(source_value_declaration);
         }
-        let name_type = (*self.get_symbol_links(source)).borrow().name_type.clone();
+        let name_type = (*self.get_symbol_links(source).ref_(self)).borrow().name_type.clone();
         if let Some(name_type) = name_type {
             symbol_links.name_type = Some(name_type);
         }

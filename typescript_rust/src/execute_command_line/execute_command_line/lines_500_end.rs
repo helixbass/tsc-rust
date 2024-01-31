@@ -109,7 +109,7 @@ pub fn execute_command_line(
 pub enum ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine {
     Program(Id<Program>),
     EmitAndSemanticDiagnosticsBuilderProgram(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>),
-    ParsedCommandLine(Rc<ParsedCommandLine>),
+    ParsedCommandLine(Id<ParsedCommandLine>),
 }
 
 impl From<Id<Program>>
@@ -170,7 +170,7 @@ pub(super) fn perform_build(
 
     if !errors.is_empty() {
         for error in errors {
-            report_diagnostic.call(error)?;
+            report_diagnostic.ref_(arena).call(error)?;
         }
         sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
@@ -195,7 +195,7 @@ pub(super) fn perform_build(
         || !sys.ref_(arena).is_set_modified_time_supported()
         || matches!(build_options.clean, Some(true)) && !sys.ref_(arena).is_delete_file_supported()
     {
-        report_diagnostic.call(arena.alloc_diagnostic(
+        report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
             create_compiler_diagnostic(
                 &Diagnostics::The_current_host_does_not_support_the_0_option,
                 Some(vec!["--build".to_owned()]),
@@ -206,7 +206,7 @@ pub(super) fn perform_build(
     }
 
     if matches!(build_options.watch, Some(true)) {
-        if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic, arena)? {
+        if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic.ref_(arena), arena)? {
             return Ok(());
         }
         let mut build_host = create_solution_builder_with_watch_host(
@@ -328,29 +328,30 @@ impl HasArena for ReportEmitErrorSummaryConcrete {
 pub(super) fn perform_compilation(
     sys: Id<Box<dyn System>>,
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
     arena: &impl HasArena,
 ) -> io::Result<()> {
     let file_names = &config.file_names;
     let options = config.options.clone();
     let project_references = &config.project_references;
-    let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_compiler_host_worker(
+    let host: Id<Box<dyn CompilerHost>> = arena.alloc_compiler_host(Box::new(create_compiler_host_worker(
         options.clone(),
         None,
         Some(sys.clone()),
         arena,
     )));
-    let current_directory = CompilerHost::get_current_directory(&**host)?;
+    let current_directory = CompilerHost::get_current_directory(&**host.ref_(arena))?;
     let get_canonical_file_name =
-        create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&**host));
+        create_get_canonical_file_name(CompilerHost::use_case_sensitive_file_names(&**host.ref_(arena)));
     change_compiler_host_like_to_use_cache(
         host.clone(),
-        Gc::new(Box::new(PerformCompilationToPath::new(
+        arena.alloc_to_path(Box::new(PerformCompilationToPath::new(
             current_directory,
             get_canonical_file_name,
         ))),
         None,
+        arena,
     );
 
     enable_statistics_and_tracing(sys, &options.ref_(arena), false, arena);
@@ -409,7 +410,7 @@ impl ToPath for PerformCompilationToPath {
 pub(super) fn perform_incremental_compilation(
     sys: Id<Box<dyn System>>,
     mut cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     config: &ParsedCommandLine,
     arena: &impl HasArena,
 ) {
@@ -417,7 +418,7 @@ pub(super) fn perform_incremental_compilation(
     let file_names = &config.file_names;
     let project_references = &config.project_references;
     enable_statistics_and_tracing(sys, &options.ref_(arena), false, arena);
-    let host: Gc<Box<dyn CompilerHost>> = Gc::new(Box::new(create_incremental_compiler_host(
+    let host: Id<Box<dyn CompilerHost>> = arena.alloc_compiler_host(Box::new(create_incremental_compiler_host(
         options.clone(),
         Some(sys.clone()),
         arena,
@@ -503,8 +504,8 @@ pub(super) fn create_watch_status_reporter(
 pub(super) fn create_watch_of_config_file(
     system: Id<Box<dyn System>>,
     cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
-    config_parse_result: Rc<ParsedCommandLine>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
+    config_parse_result: Id<ParsedCommandLine>,
     options_to_extend: Id<CompilerOptions>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     _extended_config_cache: HashMap<String, ExtendedConfigCacheEntry>,
@@ -513,17 +514,17 @@ pub(super) fn create_watch_of_config_file(
     let mut watch_compiler_host =
         create_watch_compiler_host_of_config_file(CreateWatchCompilerHostOfConfigFileInput {
             config_file_name: config_parse_result
-                .options
+                .ref_(arena).options
                 .ref_(arena).config_file_path
                 .as_ref()
                 .unwrap(),
             options_to_extend: Some(&options_to_extend.ref_(arena)),
             watch_options_to_extend,
             system: &**system.ref_(arena),
-            report_diagnostic: Some(&**report_diagnostic),
+            report_diagnostic: Some(&**report_diagnostic.ref_(arena)),
             report_watch_status: Some(create_watch_status_reporter(
                 system.clone(),
-                config_parse_result.options.clone().into(),
+                config_parse_result.ref_(arena).options.clone().into(),
                 arena,
             )),
             create_program: Option::<&dyn CreateProgram<BuilderProgramDummy>>::None,
@@ -539,7 +540,7 @@ pub(super) fn create_watch_of_config_file(
 pub(super) fn create_watch_of_files_and_compiler_options(
     _system: &dyn System,
     _cb: impl FnMut(ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine),
-    _report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    _report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     _root_files: &[String],
     _options: Id<CompilerOptions>,
     _watch_options: Option<Rc<WatchOptions>>,

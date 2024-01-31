@@ -20,7 +20,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*CallExpression*/
     ) -> io::Result<()> {
-        let indirect_call = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IndirectCall);
+        let indirect_call = get_emit_flags(node, self).intersects(EmitFlags::IndirectCall);
         if indirect_call {
             self.write_punctuation("(");
             self.write_literal("0");
@@ -31,7 +31,7 @@ impl Printer {
         let node_as_call_expression = node_ref.as_call_expression();
         self.emit_expression(
             Some(node_as_call_expression.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -41,13 +41,13 @@ impl Printer {
         self.emit(node_as_call_expression.question_dot_token, None)?;
         self.emit_type_arguments(
             node,
-            node_as_call_expression.maybe_type_arguments().as_deref(),
+            node_as_call_expression.maybe_type_arguments(),
         )?;
         self.emit_expression_list(
             Some(node),
-            Some(&node_as_call_expression.arguments),
+            Some(node_as_call_expression.arguments),
             ListFormat::CallExpressionArguments,
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -75,19 +75,19 @@ impl Printer {
         let node_as_new_expression = node_ref.as_new_expression();
         self.emit_expression(
             Some(node_as_new_expression.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
         self.emit_type_arguments(
             node,
-            node_as_new_expression.maybe_type_arguments().as_deref(),
+            node_as_new_expression.maybe_type_arguments(),
         )?;
         self.emit_expression_list(
             Some(node),
-            node_as_new_expression.arguments.as_deref(),
+            node_as_new_expression.arguments,
             ListFormat::NewExpressionArguments,
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -103,7 +103,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
     ) -> io::Result<()> {
-        let indirect_call = get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IndirectCall);
+        let indirect_call = get_emit_flags(node, self).intersects(EmitFlags::IndirectCall);
         if indirect_call {
             self.write_punctuation("(");
             self.write_literal("0");
@@ -114,7 +114,7 @@ impl Printer {
         let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         self.emit_expression(
             Some(node_as_tagged_template_expression.tag),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -124,8 +124,7 @@ impl Printer {
         self.emit_type_arguments(
             node,
             node_as_tagged_template_expression
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         )?;
         self.write_space();
         self.emit_expression(Some(node_as_tagged_template_expression.template), None)?;
@@ -144,7 +143,7 @@ impl Printer {
         self.write_punctuation(">");
         self.emit_expression(
             Some(node_as_type_assertion.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -198,8 +197,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ArrowFunction*/
     ) -> io::Result<()> {
-        self.emit_decorators(node, node.ref_(self).maybe_decorators().as_deref())?;
-        self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
+        self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
+        self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_arrow_function_head(node))?;
 
         Ok(())
@@ -213,9 +212,9 @@ impl Printer {
         let node_as_arrow_function = node_ref.as_arrow_function();
         self.emit_type_parameters(
             node,
-            node_as_arrow_function.maybe_type_parameters().as_deref(),
+            node_as_arrow_function.maybe_type_parameters(),
         )?;
-        self.emit_parameters_for_arrow(node, &node_as_arrow_function.parameters())?;
+        self.emit_parameters_for_arrow(node, node_as_arrow_function.parameters())?;
         self.emit_type_annotation(node_as_arrow_function.maybe_type())?;
         self.write_space();
         self.emit(
@@ -240,7 +239,7 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(node.ref_(self).as_delete_expression().expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -262,7 +261,7 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(node.ref_(self).as_type_of_expression().expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -284,7 +283,7 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(node.ref_(self).as_void_expression().expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -306,7 +305,7 @@ impl Printer {
         self.write_space();
         self.emit_expression(
             Some(node.ref_(self).as_await_expression().expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -330,7 +329,7 @@ impl Printer {
         }
         self.emit_expression(
             Some(node_as_prefix_unary_expression.operand),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -366,7 +365,7 @@ impl Printer {
         let node_as_postfix_unary_expression = node_ref.as_postfix_unary_expression();
         self.emit_expression(
             Some(node_as_postfix_unary_expression.operand),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -383,7 +382,7 @@ impl Printer {
 
     pub(super) fn create_emit_binary_expression(&self) -> EmitBinaryExpression {
         let trampoline = create_binary_expression_trampoline(
-            EmitBinaryExpressionStateMachine::new(self.rc_wrapper()),
+            EmitBinaryExpressionStateMachine::new(self.arena_id()),
         );
         EmitBinaryExpression::new(trampoline)
     }
@@ -417,7 +416,7 @@ impl Printer {
 
         self.emit_expression(
             Some(node_as_conditional_expression.condition),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -428,7 +427,7 @@ impl Printer {
         self.write_lines_and_indent(lines_after_question, true);
         self.emit_expression(
             Some(node_as_conditional_expression.when_true),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -441,7 +440,7 @@ impl Printer {
         self.write_lines_and_indent(lines_after_colon, true);
         self.emit_expression(
             Some(node_as_conditional_expression.when_false),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -461,7 +460,7 @@ impl Printer {
         self.emit(Some(node_as_template_expression.head), None)?;
         self.emit_list(
             Some(node),
-            Some(&node_as_template_expression.template_spans),
+            Some(node_as_template_expression.template_spans),
             ListFormat::TemplateExpressionSpans,
             None,
             None,
@@ -487,7 +486,7 @@ impl Printer {
         self.emit(node_as_yield_expression.asterisk_token, None)?;
         self.emit_expression_with_leading_space(
             node_as_yield_expression.expression,
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -510,7 +509,7 @@ impl Printer {
         );
         self.emit_expression(
             Some(node.ref_(self).as_spread_element().expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -540,15 +539,14 @@ impl Printer {
         let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
         self.emit_expression(
             Some(node_as_expression_with_type_arguments.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
         self.emit_type_arguments(
             node,
             node_as_expression_with_type_arguments
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         )?;
 
         Ok(())
@@ -579,7 +577,7 @@ impl Printer {
         let node_as_non_null_expression = node_ref.as_non_null_expression();
         self.emit_expression(
             Some(node_as_non_null_expression.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
@@ -639,7 +637,7 @@ impl Printer {
             node,
             None,
         );
-        let format = if force_single_line || get_emit_flags(&node.ref_(self)).intersects(EmitFlags::SingleLine)
+        let format = if force_single_line || get_emit_flags(node, self).intersects(EmitFlags::SingleLine)
         {
             ListFormat::SingleLineBlockStatements
         } else {
@@ -647,7 +645,7 @@ impl Printer {
         };
         self.emit_list(
             Some(node),
-            Some(&node.ref_(self).as_has_statements().statements()),
+            Some(node.ref_(self).as_has_statements().statements()),
             format,
             None,
             None,
@@ -655,7 +653,7 @@ impl Printer {
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBraceToken,
-            node.ref_(self).as_has_statements().statements().end(),
+            node.ref_(self).as_has_statements().statements().ref_(self).end(),
             |text: &str| self.write_punctuation(text),
             node,
             Some(format.intersects(ListFormat::MultiLine)),
@@ -668,7 +666,7 @@ impl Printer {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<()> {
-        self.emit_modifiers(node, node.ref_(self).maybe_modifiers().as_deref())?;
+        self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit(Some(node.ref_(self).as_variable_statement().declaration_list), None)?;
         self.write_trailing_semicolon();
 
@@ -691,7 +689,7 @@ impl Printer {
         let node_as_expression_statement = node_ref.as_expression_statement();
         self.emit_expression(
             Some(node_as_expression_statement.expression),
-            Some(Gc::new(Box::new(
+            Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule::new(
                     self.parenthesizer(),
                 ),
@@ -1164,11 +1162,11 @@ pub struct WorkArea {
 
 #[derive(Trace, Finalize)]
 pub struct EmitBinaryExpressionStateMachine {
-    printer: Gc<Printer>,
+    printer: Id<Printer>,
 }
 
 impl EmitBinaryExpressionStateMachine {
-    pub fn new(printer: Gc<Printer>) -> Self {
+    pub fn new(printer: Id<Printer>) -> Self {
         Self { printer }
     }
 
@@ -1178,31 +1176,31 @@ impl EmitBinaryExpressionStateMachine {
         parent: Id<Node>, /*BinaryExpression*/
         side: LeftOrRight,
     ) -> io::Result<Option<Id<Node>>> {
-        let parenthesizer_rule: Gc<Box<dyn CurrentParenthesizerRule>> =
-            Gc::new(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
+        let parenthesizer_rule: Id<Box<dyn CurrentParenthesizerRule>> =
+            self.alloc_current_parenthesizer_rule(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
                 side,
-                self.printer.parenthesizer(),
+                self.printer.ref_(self).parenthesizer(),
                 parent.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
             )));
 
-        let mut pipeline_phase = self.printer.get_pipeline_phase(
+        let mut pipeline_phase = self.printer.ref_(self).get_pipeline_phase(
             PipelinePhase::Notification,
             EmitHint::Expression,
             next,
         )?;
         // per https://users.rust-lang.org/t/compare-function-pointers-for-equality/52339/3
         if pipeline_phase as usize == Printer::pipeline_emit_with_substitution as usize {
-            Debug_.assert_is_defined(&self.printer.maybe_last_substitution(), None);
-            next = parenthesizer_rule.call(cast(
-                self.printer.maybe_last_substitution(),
+            Debug_.assert_is_defined(&self.printer.ref_(self).maybe_last_substitution(), None);
+            next = parenthesizer_rule.ref_(self).call(cast(
+                self.printer.ref_(self).maybe_last_substitution(),
                 |&node: &Id<Node>| is_expression(node, self),
             ));
-            pipeline_phase = self.printer.get_next_pipeline_phase(
+            pipeline_phase = self.printer.ref_(self).get_next_pipeline_phase(
                 PipelinePhase::Substitution,
                 EmitHint::Expression,
                 next,
             )?;
-            self.printer.set_last_substitution(None);
+            self.printer.ref_(self).set_last_substitution(None);
         }
 
         if pipeline_phase as usize == Printer::pipeline_emit_with_comments as usize
@@ -1215,8 +1213,8 @@ impl EmitBinaryExpressionStateMachine {
         }
 
         self.printer
-            .set_current_parenthesizer_rule(Some(parenthesizer_rule));
-        pipeline_phase(&self.printer, EmitHint::Expression, next)?;
+            .ref_(self).set_current_parenthesizer_rule(Some(parenthesizer_rule));
+        pipeline_phase(&self.printer.ref_(self), EmitHint::Expression, next)?;
         Ok(None)
     }
 }
@@ -1237,24 +1235,24 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             state.stack_index += 1;
             state
                 .preserve_source_newlines_stack
-                .push(self.printer.maybe_preserve_source_newlines());
-            state.container_pos_stack.push(self.printer.container_pos());
-            state.container_end_stack.push(self.printer.container_end());
+                .push(self.printer.ref_(self).maybe_preserve_source_newlines());
+            state.container_pos_stack.push(self.printer.ref_(self).container_pos());
+            state.container_end_stack.push(self.printer.ref_(self).container_end());
             state
                 .declaration_list_container_end_stack
-                .push(self.printer.declaration_list_container_end());
-            let emit_comments = self.printer.should_emit_comments(node);
+                .push(self.printer.ref_(self).declaration_list_container_end());
+            let emit_comments = self.printer.ref_(self).should_emit_comments(node);
             state.should_emit_comments_stack.push(emit_comments);
-            let emit_source_maps = self.printer.should_emit_source_maps(node);
+            let emit_source_maps = self.printer.ref_(self).should_emit_source_maps(node);
             state.should_emit_source_maps_stack.push(emit_source_maps);
-            self.printer.on_before_emit_node(Some(node));
+            self.printer.ref_(self).on_before_emit_node(Some(node));
             if emit_comments {
-                self.printer.emit_comments_before_node(node);
+                self.printer.ref_(self).emit_comments_before_node(node);
             }
             if emit_source_maps {
-                self.printer.emit_source_maps_before_node(node);
+                self.printer.ref_(self).emit_source_maps_before_node(node);
             }
-            self.printer.before_emit_node(node);
+            self.printer.ref_(self).before_emit_node(node);
         } else {
             state = Some(Rc::new(RefCell::new(WorkArea {
                 stack_index: 0,
@@ -1288,21 +1286,21 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
         let is_comma_operator = operator_token.ref_(self).kind() != SyntaxKind::CommaToken;
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
-        let lines_before_operator = self.printer.get_lines_between_nodes(
+        let lines_before_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             node_as_binary_expression.left,
             operator_token,
         );
-        let lines_after_operator = self.printer.get_lines_between_nodes(
+        let lines_after_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             operator_token,
             node_as_binary_expression.right,
         );
         self.printer
-            .write_lines_and_indent(lines_before_operator, is_comma_operator);
+            .ref_(self).write_lines_and_indent(lines_before_operator, is_comma_operator);
         self.printer
-            .emit_leading_comments_of_position(operator_token.ref_(self).pos());
-        self.printer.write_token_node(
+            .ref_(self).emit_leading_comments_of_position(operator_token.ref_(self).pos());
+        self.printer.ref_(self).write_token_node(
             operator_token,
             if operator_token.ref_(self).kind() == SyntaxKind::InKeyword {
                 Printer::write_keyword
@@ -1311,9 +1309,9 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             },
         );
         self.printer
-            .emit_trailing_comments_of_position(operator_token.ref_(self).end(), Some(true), None);
+            .ref_(self).emit_trailing_comments_of_position(operator_token.ref_(self).end(), Some(true), None);
         self.printer
-            .write_lines_and_indent(lines_after_operator, true);
+            .ref_(self).write_lines_and_indent(lines_after_operator, true);
 
         Ok(())
     }
@@ -1334,18 +1332,18 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
-        let lines_before_operator = self.printer.get_lines_between_nodes(
+        let lines_before_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             node_as_binary_expression.left,
             node_as_binary_expression.operator_token,
         );
-        let lines_after_operator = self.printer.get_lines_between_nodes(
+        let lines_after_operator = self.printer.ref_(self).get_lines_between_nodes(
             node,
             node_as_binary_expression.operator_token,
             node_as_binary_expression.right,
         );
         self.printer
-            .decrease_indent_if(lines_before_operator != 0, Some(lines_after_operator != 0));
+            .ref_(self).decrease_indent_if(lines_before_operator != 0, Some(lines_after_operator != 0));
         {
             let mut state = state.borrow_mut();
             if state.stack_index > 0 {
@@ -1357,19 +1355,19 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
                     state.declaration_list_container_end_stack.pop().unwrap();
                 let should_emit_comments = state.should_emit_comments_stack.pop().unwrap();
                 let should_emit_source_maps = state.should_emit_source_maps_stack.pop().unwrap();
-                self.printer.after_emit_node(saved_preserve_source_newlines);
+                self.printer.ref_(self).after_emit_node(saved_preserve_source_newlines);
                 if should_emit_source_maps {
-                    self.printer.emit_source_maps_after_node(node);
+                    self.printer.ref_(self).emit_source_maps_after_node(node);
                 }
                 if should_emit_comments {
-                    self.printer.emit_comments_after_node(
+                    self.printer.ref_(self).emit_comments_after_node(
                         node,
                         saved_container_pos,
                         saved_container_end,
                         saved_declaration_list_container_end,
                     );
                 }
-                self.printer.on_after_emit_node(Some(node));
+                self.printer.ref_(self).on_after_emit_node(Some(node));
                 state.stack_index -= 1;
             }
         }
@@ -1403,7 +1401,7 @@ impl HasArena for EmitBinaryExpressionStateMachine {
 struct MaybeEmitExpressionCurrentParenthesizerRule {
     #[unsafe_ignore_trace]
     side: LeftOrRight,
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
     #[unsafe_ignore_trace]
     parent_operator_token_kind: SyntaxKind,
 }
@@ -1411,7 +1409,7 @@ struct MaybeEmitExpressionCurrentParenthesizerRule {
 impl MaybeEmitExpressionCurrentParenthesizerRule {
     pub fn new(
         side: LeftOrRight,
-        parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+        parenthesizer: Id<Box<dyn ParenthesizerRules>>,
         parent_operator_token_kind: SyntaxKind,
     ) -> Self {
         Self {
@@ -1426,9 +1424,9 @@ impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         if self.side == LeftOrRight::Left {
             self.parenthesizer
-                .parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
+                .ref_(self).parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
         } else {
-            self.parenthesizer.parenthesize_right_side_of_binary(
+            self.parenthesizer.ref_(self).parenthesize_right_side_of_binary(
                 self.parent_operator_token_kind,
                 None,
                 node,
@@ -1437,13 +1435,19 @@ impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
     }
 }
 
+impl HasArena for MaybeEmitExpressionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1451,17 +1455,23 @@ impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_operand_of_prefix_unary(node)
+            .ref_(self).parenthesize_operand_of_prefix_unary(node)
+    }
+}
+
+impl HasArena for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1469,68 +1479,92 @@ impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_operand_of_postfix_unary(node)
+            .ref_(self).parenthesize_operand_of_postfix_unary(node)
+    }
+}
+
+impl HasArena for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
 
 impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.parenthesize_left_side_of_access(node)
+        self.parenthesizer.ref_(self).parenthesize_left_side_of_access(node)
+    }
+}
+
+impl HasArena for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfNewCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.parenthesize_expression_of_new(node)
+        self.parenthesizer.ref_(self).parenthesize_expression_of_new(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
 
 impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.parenthesize_member_of_element_type(node)
+        self.parenthesizer.ref_(self).parenthesize_member_of_element_type(node)
+    }
+}
+
+impl HasArena for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1538,17 +1572,23 @@ impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_member_of_conditional_type(node)
+            .ref_(self).parenthesize_member_of_conditional_type(node)
+    }
+}
+
+impl HasArena for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1556,17 +1596,23 @@ impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_element_type_of_array_type(node)
+            .ref_(self).parenthesize_element_type_of_array_type(node)
+    }
+}
+
+impl HasArena for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1576,17 +1622,23 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_of_computed_property_name(node)
+            .ref_(self).parenthesize_expression_of_computed_property_name(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1594,17 +1646,23 @@ impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_for_disallowed_comma(node)
+            .ref_(self).parenthesize_expression_for_disallowed_comma(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1612,17 +1670,23 @@ impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_of_export_default(node)
+            .ref_(self).parenthesize_expression_of_export_default(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1630,17 +1694,23 @@ impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
+            .ref_(self).parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
+    }
+}
+
+impl HasArena for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1648,17 +1718,23 @@ impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_concise_body_of_arrow_function(node)
+            .ref_(self).parenthesize_concise_body_of_arrow_function(node)
+    }
+}
+
+impl HasArena for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1668,17 +1744,23 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_expression_of_expression_statement(node)
+            .ref_(self).parenthesize_expression_of_expression_statement(node)
+    }
+}
+
+impl HasArena for ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1688,17 +1770,23 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_branch_of_conditional_expression(node)
+            .ref_(self).parenthesize_branch_of_conditional_expression(node)
+    }
+}
+
+impl HasArena for ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
-    parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>,
+    parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Gc<Box<dyn ParenthesizerRules<BaseNodeFactorySynthetic>>>) -> Self {
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
         Self { parenthesizer }
     }
 }
@@ -1708,6 +1796,12 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .parenthesize_condition_of_conditional_expression(node)
+            .ref_(self).parenthesize_condition_of_conditional_expression(node)
+    }
+}
+
+impl HasArena for ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

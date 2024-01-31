@@ -129,7 +129,7 @@ impl TypeChecker {
         if self.is_context_sensitive_function_or_object_literal_method(func)? {
             let contextual_signature = self.get_contextual_signature(func)?;
             if let Some(contextual_signature) = contextual_signature.as_ref() {
-                let this_parameter = *contextual_signature.maybe_this_parameter();
+                let this_parameter = *contextual_signature.ref_(self).maybe_this_parameter();
                 if let Some(this_parameter) = this_parameter {
                     return Ok(Some(self.get_type_of_symbol(this_parameter)?));
                 }
@@ -149,7 +149,7 @@ impl TypeChecker {
                         return Ok(Some(self.instantiate_type(
                             this_type,
                             self.get_mapper_from_context(
-                                self.get_inference_context(containing_literal).as_deref(),
+                                self.get_inference_context(containing_literal),
                             ),
                         )?));
                     }
@@ -220,7 +220,7 @@ impl TypeChecker {
             let args = self.get_effective_call_arguments(iife)?;
             let index_of_parameter = func_as_function_like_declaration
                 .parameters()
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&param| param == parameter)
                 .unwrap();
             if parameter_as_parameter_declaration
@@ -237,8 +237,8 @@ impl TypeChecker {
                 )?));
             }
             let links = self.get_node_links(iife);
-            let cached = (*links).borrow().resolved_signature.clone();
-            links.borrow_mut().resolved_signature = Some(self.any_signature());
+            let cached = links.ref_(self).resolved_signature.clone();
+            links.ref_mut(self).resolved_signature = Some(self.any_signature());
             let type_ = if index_of_parameter < args.len() {
                 Some(self.get_widened_literal_type(self.check_expression(
                     args[index_of_parameter],
@@ -253,14 +253,14 @@ impl TypeChecker {
             } else {
                 Some(self.undefined_widening_type())
             };
-            links.borrow_mut().resolved_signature = cached;
+            links.ref_mut(self).resolved_signature = cached;
             return Ok(type_);
         }
         let contextual_signature = self.get_contextual_signature(func)?;
-        if let Some(contextual_signature) = contextual_signature.as_ref() {
+        if let Some(contextual_signature) = contextual_signature {
             let index = func_as_function_like_declaration
                 .parameters()
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&param| param == parameter)
                 .unwrap()
                 - if get_this_parameter(func, self).is_some() {
@@ -273,7 +273,7 @@ impl TypeChecker {
                     .dot_dot_dot_token
                     .is_some()
                     && matches!(
-                        last_or_undefined(&func_as_function_like_declaration.parameters()),
+                        last_or_undefined(&func_as_function_like_declaration.parameters().ref_(self)),
                         Some(&last) if last == parameter
                     )
                 {
@@ -344,7 +344,7 @@ impl TypeChecker {
         let parent_type = parent_type.unwrap();
         if parent.ref_(self).as_named_declaration().name().ref_(self).kind() == SyntaxKind::ArrayBindingPattern {
             let index = index_of_node(
-                &declaration.ref_(self).parent().ref_(self).as_has_elements().elements(),
+                &declaration.ref_(self).parent().ref_(self).as_has_elements().elements().ref_(self),
                 declaration,
                 self,
             );
@@ -429,7 +429,7 @@ impl TypeChecker {
                             use_,
                             Option::<Id<Node>>::None,
                         )?);
-                    contextual_return_type = iteration_types.return_type();
+                    contextual_return_type = iteration_types.ref_(self).return_type();
                 }
 
                 if function_flags.intersects(FunctionFlags::Async) {
@@ -614,13 +614,7 @@ impl TypeChecker {
             });
         }
 
-        let signature = if matches!(
-            (*self.get_node_links(call_target)).borrow().resolved_signature.as_ref(),
-            Some(resolved_signature) if Gc::ptr_eq(
-                resolved_signature,
-                &self.resolving_signature()
-            )
-        ) {
+        let signature = if self.get_node_links(call_target).ref_(self).resolved_signature == Some(self.resolving_signature()) {
             self.resolving_signature()
         } else {
             self.get_resolved_signature_(call_target, None, None)?
@@ -630,14 +624,14 @@ impl TypeChecker {
             return self
                 .get_effective_first_argument_for_jsx_signature(signature.clone(), call_target);
         }
-        let rest_index = TryInto::<isize>::try_into(signature.parameters().len()).unwrap() - 1;
+        let rest_index = TryInto::<isize>::try_into(signature.ref_(self).parameters().len()).unwrap() - 1;
         Ok(
-            if signature_has_rest_parameter(&signature)
+            if signature_has_rest_parameter(&signature.ref_(self))
                 && TryInto::<isize>::try_into(arg_index).unwrap() >= rest_index
             {
                 let rest_index: usize = rest_index.try_into().unwrap();
                 self.get_indexed_access_type(
-                    self.get_type_of_symbol(signature.parameters()[rest_index])?,
+                    self.get_type_of_symbol(signature.ref_(self).parameters()[rest_index])?,
                     self.get_number_literal_type(Number::new((arg_index - rest_index) as f64)),
                     Some(AccessFlags::Contextual),
                     Option::<Id<Node>>::None,
@@ -645,7 +639,7 @@ impl TypeChecker {
                     None,
                 )?
             } else {
-                self.get_type_at_position(&signature, arg_index)?
+                self.get_type_at_position(signature, arg_index)?
             },
         )
     }

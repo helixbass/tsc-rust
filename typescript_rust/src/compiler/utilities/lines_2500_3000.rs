@@ -19,7 +19,8 @@ use crate::{
     last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, try_for_each_bool,
     AsDoubleDeref, AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
     NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
-    SignatureDeclarationInterface, Symbol, SyntaxKind, HasArena, InArena,
+    SignatureDeclarationInterface, Symbol, SyntaxKind,
+    HasArena, InArena, OptionInArena,
 };
 
 pub fn try_get_import_from_module_specifier(
@@ -81,7 +82,7 @@ pub fn get_external_module_name(
                 None
             }
         }
-        SyntaxKind::CallExpression => node.ref_(arena).as_call_expression().arguments.get(0).copied(),
+        SyntaxKind::CallExpression => node.ref_(arena).as_call_expression().arguments.ref_(arena).get(0).copied(),
         SyntaxKind::ModuleDeclaration => {
             let node_ref = node.ref_(arena);
             let node_as_module_declaration = node_ref.as_module_declaration();
@@ -168,7 +169,7 @@ pub fn try_for_each_import_clause_declaration_bool<TError>(
             action(node_named_bindings)?
         } else {
             try_for_each_bool(
-                &node_named_bindings.ref_(arena).as_named_imports().elements,
+                &*node_named_bindings.ref_(arena).as_named_imports().elements.ref_(arena),
                 |&element, _| action(element),
             )?
         };
@@ -202,7 +203,7 @@ pub fn has_question_token(node: &Node) -> bool {
 
 pub fn is_jsdoc_construct_signature(node: Id<Node>, arena: &impl HasArena) -> bool {
     let Some(param) = (if is_jsdoc_function_type(&node.ref_(arena)) {
-        first_or_undefined(&node.ref_(arena).as_jsdoc_function_type().parameters()).cloned()
+        first_or_undefined(&node.ref_(arena).as_jsdoc_function_type().parameters().ref_(arena)).cloned()
     } else {
         None
     }) else {
@@ -318,7 +319,7 @@ pub fn get_single_variable_of_variable_statement(
                 .ref_(arena).as_variable_statement()
                 .declaration_list
                 .ref_(arena).as_variable_declaration_list()
-                .declarations,
+                .declarations.ref_(arena),
         )
         .copied()
     } else {
@@ -437,11 +438,11 @@ fn filter_owned_jsdoc_tags(
 ) -> Option<Vec<Id<Node /*JSDoc | JSDocTag*/>>> {
     if is_jsdoc(&js_doc.ref_(arena)) {
         let owned_tags = maybe_filter(
-            js_doc.ref_(arena).as_jsdoc().tags.as_double_deref(),
+            js_doc.ref_(arena).as_jsdoc().tags.refed(arena).as_double_deref(),
             |&tag: &Id<Node>| owns_jsdoc_tag(host_node, tag, arena),
         );
         return if match (js_doc.ref_(arena).as_jsdoc().tags.as_ref(), owned_tags.as_ref()) {
-            (Some(js_doc_tags), Some(owned_tags)) if js_doc_tags.len() == owned_tags.len() => true,
+            (Some(js_doc_tags), Some(owned_tags)) if js_doc_tags.ref_(arena).len() == owned_tags.len() => true,
             (None, None) => true,
             _ => false,
         } {
@@ -532,7 +533,7 @@ pub fn get_parameter_symbol_from_jsdoc(node: Id<Node> /*JSDocParameterTag*/, are
     let decl = get_host_signature_from_jsdoc(node, arena);
     let decl = decl?;
     let parameter = find(
-        &decl.ref_(arena).as_signature_declaration().parameters(),
+        &decl.ref_(arena).as_signature_declaration().parameters().ref_(arena),
         |p: &Id<Node>, _| {
             let p_name = p.ref_(arena).as_parameter_declaration().name();
             p_name.ref_(arena).kind() == SyntaxKind::Identifier && &p_name.ref_(arena).as_identifier().escaped_text == name
@@ -547,10 +548,10 @@ pub fn get_effective_container_for_jsdoc_template_tag(
 ) -> Option<Id<Node>> {
     let node_parent = node.ref_(arena).parent();
     if is_jsdoc(&node_parent.ref_(arena)) {
-        if let Some(node_parent_tags) = node_parent.ref_(arena).as_jsdoc().tags.as_ref() {
-            let type_alias = find(node_parent_tags, |tag, _| is_jsdoc_type_alias(&tag.ref_(arena)));
+        if let Some(node_parent_tags) = node_parent.ref_(arena).as_jsdoc().tags {
+            let type_alias = find(&node_parent_tags.ref_(arena), |tag, _| is_jsdoc_type_alias(&tag.ref_(arena))).copied();
             if type_alias.is_some() {
-                return type_alias.copied();
+                return type_alias;
             }
         }
     }
@@ -603,25 +604,23 @@ pub fn get_type_parameter_from_js_doc(
         .ref_(arena).as_has_type_parameters()
         .maybe_type_parameters();
     type_parameters
-        .as_ref()
         .and_then(|type_parameters| {
-            find(type_parameters, |p, _| {
+            find(&type_parameters.ref_(arena), |p, _| {
                 &p.ref_(arena).as_type_parameter_declaration()
                     .name()
                     .ref_(arena).as_identifier()
                     .escaped_text
                     == name
-            })
+            }).copied()
         })
-        .copied()
 }
 
 pub fn has_rest_parameter(node: Id<Node> /*SignatureDeclaration | JSDocSignature*/, arena: &impl HasArena) -> bool {
     let Some(last) = (match node.ref_(arena).kind() {
         SyntaxKind::JSDocSignature => {
-            last_or_undefined(&node.ref_(arena).as_jsdoc_signature().parameters).copied()
+            last_or_undefined(&node.ref_(arena).as_jsdoc_signature().parameters.ref_(arena)).copied()
         }
-        _ => last_or_undefined(&node.ref_(arena).as_signature_declaration().parameters()).copied(),
+        _ => last_or_undefined(&node.ref_(arena).as_signature_declaration().parameters().ref_(arena)).copied(),
     }) else {
         return false;
     };

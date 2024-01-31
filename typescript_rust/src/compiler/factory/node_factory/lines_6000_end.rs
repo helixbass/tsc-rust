@@ -13,7 +13,7 @@ use crate::{
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
-    parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
+    get_parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
     HasMembersInterface, HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface,
@@ -24,9 +24,10 @@ use crate::{
     SyntaxKind, TransformFlags,
     HasArena, InArena,
     maybe_append_if_unique_eq,
+    per_arena,
 };
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
+impl NodeFactory {
     pub fn update_modifiers(
         &self,
         node: Id<Node>, /*HasModifiers*/
@@ -311,7 +312,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     pub(super) fn as_node_array(
         &self,
         array: Option<impl Into<NodeArrayOrVec>>,
-    ) -> Option<Gc<NodeArray>> {
+    ) -> Option<Id<NodeArray>> {
         array.map(|array| self.create_node_array(Some(array), None))
     }
 
@@ -551,12 +552,12 @@ pub(super) fn propagate_children_flags(children: Option<&NodeArray>) -> Transfor
     })
 }
 
-pub(super) fn aggregate_children_flags(children: &NodeArray, arena: &impl HasArena) {
+pub(super) fn aggregate_children_flags(children: Id<NodeArray>, arena: &impl HasArena) {
     let mut subtree_flags = TransformFlags::None;
-    for &child in children.iter() {
+    for &child in children.ref_(arena).iter() {
         subtree_flags |= propagate_child_flags(Some(child), arena);
     }
-    children.set_transform_flags(Some(subtree_flags));
+    children.ref_(arena).set_transform_flags(Some(subtree_flags));
 }
 
 pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> TransformFlags {
@@ -628,38 +629,12 @@ pub(super) fn make_synthetic(node: BaseNode) -> BaseNode {
     node
 }
 
-thread_local! {
-    pub static synthetic_factory: Gc<BaseNodeFactorySynthetic> = Gc::new(BaseNodeFactorySynthetic::new());
-}
-
-pub fn get_synthetic_factory() -> Gc<BaseNodeFactorySynthetic> {
-    synthetic_factory.with(|synthetic_factory_| synthetic_factory_.clone())
-}
-
-pub fn with_synthetic_factory_and_factory<TReturn>(
-    callback: impl FnOnce(
-        &BaseNodeFactorySynthetic,
-        &Gc<NodeFactory<BaseNodeFactorySynthetic>>,
-    ) -> TReturn,
-) -> TReturn {
-    synthetic_factory.with(|synthetic_factory_| {
-        factory.with(|factory_| callback(&**synthetic_factory_, factory_))
-    })
-}
-
-pub fn with_factory<
-    TReturn,
-    TCallback: FnOnce(&Gc<NodeFactory<BaseNodeFactorySynthetic>>) -> TReturn,
->(
-    callback: TCallback,
-) -> TReturn {
-    factory.with(|factory_| callback(factory_))
-}
-
-pub fn with_synthetic_factory<TReturn>(
-    callback: impl FnOnce(&BaseNodeFactorySynthetic) -> TReturn,
-) -> TReturn {
-    synthetic_factory.with(|synthetic_factory_| callback(&**synthetic_factory_))
+pub fn get_synthetic_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory>> {
+    per_arena!(
+        Box<dyn BaseNodeFactory>,
+        arena,
+        arena.alloc_base_node_factory(Box::new(BaseNodeFactorySynthetic::new()))
+    )
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -702,18 +677,25 @@ impl BaseNodeFactory for BaseNodeFactorySynthetic {
         make_synthetic(base_factory_static.with(|base_factory| base_factory.create_base_node(kind)))
     }
 
-    fn update_cloned_node<TNode: NodeInterface>(&self, node: &TNode) {
+    fn update_cloned_node(&self, node: &BaseNode) {
         make_synthetic_ref(node);
     }
 }
 
-thread_local! {
-    pub static factory: Gc<NodeFactory<BaseNodeFactorySynthetic>> =
-        create_node_factory::<BaseNodeFactorySynthetic>(NodeFactoryFlags::NoIndentationOnFreshPropertyAccess, get_synthetic_factory());
+pub fn get_factory_id(arena: &impl HasArena) -> Id<NodeFactory> {
+    per_arena!(
+        NodeFactory,
+        arena,
+        create_node_factory(
+            NodeFactoryFlags::NoIndentationOnFreshPropertyAccess,
+            get_synthetic_factory(arena),
+            arena,
+        )
+    )
 }
 
-pub fn get_factory() -> Gc<NodeFactory<BaseNodeFactorySynthetic>> {
-    factory.with(|factory_| factory_.clone())
+pub fn get_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, NodeFactory> {
+    get_factory_id(arena).ref_(arena)
 }
 
 pub enum PseudoBigIntOrString {
@@ -751,11 +733,11 @@ pub fn create_input_files(
     javascript_path: Option<String>,
     declaration_path: Option<String>,
     build_info_path: Option<String>,
-    build_info: Option<Gc<BuildInfo>>,
+    build_info: Option<Id<BuildInfo>>,
     old_file_of_current_emit: Option<bool>,
+    arena: &impl HasArena,
 ) -> Id<Node /*InputFiles*/> {
-    let mut node: InputFiles = parse_node_factory
-        .with(|parse_node_factory_| parse_node_factory_.create_input_files_raw().into());
+    let mut node: InputFiles = get_parse_node_factory(arena).create_input_files_raw().into();
     match javascript_text_or_read_file_text.into() {
         StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
             node.initialize_with_read_file_callback(
@@ -783,7 +765,7 @@ pub fn create_input_files(
             );
         }
     }
-    parse_node_factory.with(|parse_node_factory_| parse_node_factory_.alloc_node(node.into()))
+    arena.alloc_node(node.into())
 }
 
 pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {
@@ -792,7 +774,7 @@ pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {
 
 pub enum StringOrReadFileCallback {
     String(String),
-    ReadFileCallback(Gc<Box<dyn ReadFileCallback>>),
+    ReadFileCallback(Id<Box<dyn ReadFileCallback>>),
 }
 
 impl From<String> for StringOrReadFileCallback {
@@ -801,8 +783,8 @@ impl From<String> for StringOrReadFileCallback {
     }
 }
 
-impl From<Gc<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
-    fn from(value: Gc<Box<dyn ReadFileCallback>>) -> Self {
+impl From<Id<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
+    fn from(value: Id<Box<dyn ReadFileCallback>>) -> Self {
         Self::ReadFileCallback(value)
     }
 }
@@ -811,18 +793,18 @@ pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>, arena: &imp
     node.ref_(arena).set_original(original);
     if let Some(original) = original {
         let emit_node = original.ref_(arena).maybe_emit_node();
-        if let Some(emit_node) = emit_node.as_ref() {
+        if let Some(emit_node) = emit_node {
             let node_emit_node = node
                 .ref_(arena).maybe_emit_node_mut()
-                .get_or_insert_default_()
+                .get_or_insert_with(|| arena.alloc_emit_node(Default::default()))
                 .clone();
-            // looks like node and original can share the same Gc<GcCell<EmitNode>> (eg from
+            // looks like node and original can share the same Id<EmitNode> (eg from
             // clone_node(), which I believe is correctly mimicking the Typescript version in
-            // cloning that field by reference) so we'd have a GcCell borrow error if we try
+            // cloning that field by reference) so we'd have a borrow error if we try
             // and immutably + mutably borrow them "separately". So assume that we can skip
             // merge_emit_node() if they're the same already?
-            if !Gc::ptr_eq(&node_emit_node, emit_node) {
-                merge_emit_node(&(**emit_node).borrow(), &mut node_emit_node.borrow_mut());
+            if node_emit_node != emit_node {
+                merge_emit_node(&emit_node.ref_(arena), &mut node_emit_node.ref_mut(arena));
             }
             // node.set_emit_node(node_emit_node);
         }

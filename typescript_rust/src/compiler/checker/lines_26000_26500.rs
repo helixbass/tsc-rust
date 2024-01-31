@@ -45,7 +45,7 @@ impl TypeChecker {
                             Some(
                                 self.instantiate_type(
                                     self.get_type_from_type_node_(overall_annotation)?,
-                                    (*self.get_symbol_links(lhs_symbol.unwrap()))
+                                    (*self.get_symbol_links(lhs_symbol.unwrap()).ref_(self))
                                         .borrow()
                                         .mapper
                                         .clone(),
@@ -279,7 +279,7 @@ impl TypeChecker {
 
     pub(super) fn is_circular_mapped_property(&self, symbol: Id<Symbol>) -> bool {
         get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Mapped)
-            && (*symbol.ref_(self).as_mapped_symbol().symbol_links())
+            && (*symbol.ref_(self).as_mapped_symbol().symbol_links().ref_(self))
                 .borrow()
                 .type_
                 .is_none()
@@ -330,7 +330,7 @@ impl TypeChecker {
                             &self.get_index_infos_of_structured_type(t)?,
                             self.get_string_literal_type(&unescape_leading_underscores(name)),
                         )?
-                        .map(|index_info| index_info.type_.clone()));
+                        .map(|index_info| index_info.ref_(self).type_.clone()));
                 }
                 Ok(None)
             },
@@ -385,7 +385,7 @@ impl TypeChecker {
                                 &self.get_index_infos_of_structured_type(t)?,
                                 name_type,
                             )?
-                            .map(|index_info| index_info.type_.clone()))
+                            .map(|index_info| index_info.ref_(self).type_.clone()))
                     },
                     Some(true),
                 );
@@ -467,7 +467,7 @@ impl TypeChecker {
         }
         let attributes_type = attributes_type.unwrap();
         let jsx_children_property_name = jsx_children_property_name.unwrap();
-        let real_children = get_semantic_jsx_children(&node_as_jsx_element.children, self);
+        let real_children = get_semantic_jsx_children(&node_as_jsx_element.children.ref_(self), self);
         let child_index = real_children
             .iter()
             .position(|&real_child| real_child == child)
@@ -578,7 +578,7 @@ impl TypeChecker {
                 contextual_type,
                 map(
                     try_filter(
-                        &node.ref_(self).as_object_literal_expression().properties,
+                        &node.ref_(self).as_object_literal_expression().properties.ref_(self),
                         |p| -> io::Result<_> {
                             Ok(p.ref_(self).maybe_symbol().is_some() &&
                                 p.ref_(self).kind() == SyntaxKind::PropertyAssignment &&
@@ -589,10 +589,12 @@ impl TypeChecker {
                     |prop, _| {
                         (
                             Box::new({
-                                let type_checker = self.rc_wrapper();
+                                let type_checker = self.arena_id();
                                 let prop_clone = prop.clone();
+                                let arena_raw: *const AllArenas = self.arena();
                                 move || {
-                                    type_checker.get_context_free_type_of_expression(prop_clone.ref_(&*type_checker).as_has_initializer().maybe_initializer().unwrap())
+                                    let arena = unsafe { &*arena_raw };
+                                    type_checker.ref_(arena).get_context_free_type_of_expression(prop_clone.ref_(arena).as_has_initializer().maybe_initializer().unwrap())
                                 }
                             }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                             prop.ref_(self).symbol().ref_(self).escaped_name().to_owned(),
@@ -607,8 +609,8 @@ impl TypeChecker {
                                     matches!(
                                         node.ref_(self).maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.ref_(self).maybe_members().clone(),
-                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.ref_(self).escaped_name())
+                                            node_symbol.ref_(self).maybe_members().as_ref(),
+                                            Some(node_symbol_members) if !node_symbol_members.ref_(self).contains_key(s.ref_(self).escaped_name())
                                         )
                                     ) &&
                                     self.is_discriminant_property(
@@ -620,9 +622,11 @@ impl TypeChecker {
                         |&s: &Id<Symbol>, _| {
                             (
                                 Box::new({
-                                    let type_checker = self.rc_wrapper();
+                                    let type_checker = self.arena_id();
+                                    let arena_raw: *const AllArenas = self.arena();
                                     move || {
-                                        Ok(type_checker.undefined_type())
+                                        let arena = unsafe { &*arena_raw };
+                                        Ok(type_checker.ref_(arena).undefined_type())
                                     }
                                 }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                                 s.ref_(self).escaped_name().to_owned(),
@@ -646,7 +650,7 @@ impl TypeChecker {
             contextual_type,
             map(
                 &try_filter(
-                    &node.ref_(self).as_jsx_attributes().properties,
+                    &node.ref_(self).as_jsx_attributes().properties.ref_(self),
                     |p: &Id<Node>| -> io::Result<_> {
                         Ok(p.ref_(self).maybe_symbol().is_some() &&
                             p.ref_(self).kind() == SyntaxKind::JsxAttribute &&
@@ -660,21 +664,21 @@ impl TypeChecker {
                 |prop: &Id<Node>, _| {
                     (
                         Box::new({
-                            let type_checker = self.rc_wrapper();
+                            let type_checker = self.arena_id();
                             let prop_clone = prop.clone();
                             let arena_raw: *const AllArenas = self.arena();
                             let arena = unsafe { &*arena_raw };
                             move || -> io::Result<_> {
                                 if prop_clone.ref_(arena).kind() != SyntaxKind::JsxAttribute {
-                                    return Ok(type_checker.true_type());
+                                    return Ok(type_checker.ref_(arena).true_type());
                                 }
                                 let prop_clone_ref = prop_clone.ref_(arena);
                                 let prop_as_jsx_attribute = prop_clone_ref.as_jsx_attribute();
                                 let prop_initializer = prop_as_jsx_attribute.initializer;
                                 Ok(match prop_initializer {
-                                    None => type_checker.true_type(),
+                                    None => type_checker.ref_(arena).true_type(),
                                     Some(prop_initializer) =>
-                                        type_checker.get_context_free_type_of_expression(prop_initializer)?
+                                        type_checker.ref_(arena).get_context_free_type_of_expression(prop_initializer)?
                                 })
                             }
                         }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
@@ -691,8 +695,8 @@ impl TypeChecker {
                                     matches!(
                                         node.ref_(self).maybe_symbol(),
                                         Some(node_symbol) if matches!(
-                                            node_symbol.ref_(self).maybe_members().clone(),
-                                            Some(node_symbol_members) if !(*node_symbol_members).borrow().contains_key(s.ref_(self).escaped_name())
+                                            node_symbol.ref_(self).maybe_members().as_ref(),
+                                            Some(node_symbol_members) if !node_symbol_members.ref_(self).contains_key(s.ref_(self).escaped_name())
                                         )
                                     ) &&
                                     self.is_discriminant_property(
@@ -704,9 +708,11 @@ impl TypeChecker {
                         |&s: &Id<Symbol>, _| {
                             (
                                 Box::new({
-                                    let type_checker = self.rc_wrapper();
+                                    let type_checker = self.arena_id();
+                                    let arena_raw: *const AllArenas = self.arena();
+                                    let arena = unsafe { &*arena_raw };
                                     move || {
-                                        Ok(type_checker.undefined_type())
+                                        Ok(type_checker.ref_(arena).undefined_type())
                                     }
                                 }) as Box<dyn Fn() -> io::Result<Id<Type>>>,
                                 s.ref_(self).escaped_name().to_owned(),
@@ -793,9 +799,9 @@ impl TypeChecker {
             if let Some(inference_context) =
                 inference_context.as_ref().filter(|inference_context| {
                     some(
-                        Some(&**inference_context.inferences()),
-                        Some(|inference: &Gc<InferenceInfo>| {
-                            self.has_inference_candidates(inference)
+                        Some(&**inference_context.ref_(self).inferences()),
+                        Some(|inference: &Id<InferenceInfo>| {
+                            self.has_inference_candidates(&inference.ref_(self))
                         }),
                     )
                 })
@@ -806,10 +812,10 @@ impl TypeChecker {
                 ) {
                     return Ok(Some(self.instantiate_instantiable_types(
                         contextual_type,
-                        inference_context.non_fixing_mapper(),
+                        inference_context.ref_(self).non_fixing_mapper(),
                     )?));
                 }
-                let inference_context_return_mapper = inference_context.maybe_return_mapper();
+                let inference_context_return_mapper = inference_context.ref_(self).maybe_return_mapper();
                 if let Some(inference_context_return_mapper) = inference_context_return_mapper {
                     return Ok(Some(self.instantiate_instantiable_types(
                         contextual_type,
@@ -907,7 +913,7 @@ impl TypeChecker {
                     self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
                 self.get_contextual_type_for_element_expression(
                     type_,
-                    index_of_node(&array_literal.ref_(self).as_array_literal_expression().elements, node, self)
+                    index_of_node(&array_literal.ref_(self).as_array_literal_expression().elements.ref_(self), node, self)
                         .try_into()
                         .unwrap(),
                 )?
@@ -975,7 +981,7 @@ impl TypeChecker {
         self.get_contextual_type_(node, None)
     }
 
-    pub(super) fn get_inference_context(&self, node: Id<Node>) -> Option<Gc<InferenceContext>> {
+    pub(super) fn get_inference_context(&self, node: Id<Node>) -> Option<Id<InferenceContext>> {
         let ancestor = find_ancestor(Some(node), |n: Id<Node>| {
             n.ref_(self).maybe_inference_context().is_some()
         }, self);
@@ -998,12 +1004,12 @@ impl TypeChecker {
 
     pub(super) fn get_effective_first_argument_for_jsx_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         node: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         Ok(
             if self.get_jsx_reference_kind(node)? != JsxReferenceKind::Component {
-                self.get_jsx_props_type_from_call_signature(&signature, node)?
+                self.get_jsx_props_type_from_call_signature(signature, node)?
             } else {
                 self.get_jsx_props_type_from_class_type(signature, node)?
             },
@@ -1012,7 +1018,7 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_from_call_signature(
         &self,
-        sig: &Signature,
+        sig: Id<Signature>,
         context: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         let mut props_type =
@@ -1033,10 +1039,10 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_for_signature_from_member(
         &self,
-        sig: Gc<Signature>,
+        sig: Id<Signature>,
         forced_lookup_location: &str, /*__String*/
     ) -> io::Result<Option<Id<Type>>> {
-        if let Some(sig_composite_signatures) = sig.composite_signatures.as_ref() {
+        if let Some(sig_composite_signatures) = sig.ref_(self).composite_signatures.as_ref() {
             let mut results: Vec<Id<Type>> = vec![];
             for signature in sig_composite_signatures {
                 let instance = self.get_return_type_of_signature(signature.clone())?;

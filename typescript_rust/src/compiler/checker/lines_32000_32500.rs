@@ -57,12 +57,12 @@ impl TypeChecker {
                 ) {
                     let links = self.get_node_links(node);
                     if let Some(links_context_free_type) =
-                        (*links).borrow().context_free_type.clone()
+                        links.ref_(self).context_free_type.clone()
                     {
                         return Ok(links_context_free_type);
                     }
                     let return_type = self.get_return_type_from_body(node, check_mode)?;
-                    let return_only_signature = Gc::new(self.create_signature(
+                    let return_only_signature = self.alloc_signature(self.create_signature(
                         None,
                         None,
                         None,
@@ -89,7 +89,7 @@ impl TypeChecker {
                                 .object_flags()
                                 | ObjectFlags::NonInferrableType,
                         );
-                    links.borrow_mut().context_free_type = Some(return_only_type.clone());
+                    links.ref_mut(self).context_free_type = Some(return_only_type.clone());
                     return Ok(return_only_type);
                 }
             }
@@ -112,27 +112,25 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<()> {
         let links = self.get_node_links(node);
-        if !(*links)
-            .borrow()
+        if !links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::ContextChecked)
         {
             let contextual_signature = self.get_contextual_signature(node)?;
-            if !(*links)
-                .borrow()
+            if !links
+                .ref_(self)
                 .flags
                 .intersects(NodeCheckFlags::ContextChecked)
             {
-                links.borrow_mut().flags |= NodeCheckFlags::ContextChecked;
+                links.ref_mut(self).flags |= NodeCheckFlags::ContextChecked;
                 let signatures_of_type = self.get_signatures_of_type(
                     self.get_type_of_symbol(self.get_symbol_of_node(node)?.unwrap())?,
                     SignatureKind::Call,
                 )?;
-                let signature = first_or_undefined(&signatures_of_type);
-                if signature.is_none() {
+                let Some(signature) = first_or_undefined(&signatures_of_type).copied() else {
                     return Ok(());
-                }
-                let signature = signature.unwrap();
+                };
                 if self.is_context_sensitive(node)? {
                     if let Some(contextual_signature) = contextual_signature.as_ref() {
                         let inference_context = self.get_inference_context(node);
@@ -143,14 +141,14 @@ impl TypeChecker {
                             self.infer_from_annotated_parameters(
                                 signature,
                                 contextual_signature.clone(),
-                                inference_context.as_ref().unwrap(),
+                                inference_context.unwrap(),
                             )?;
                         }
                         let instantiated_contextual_signature =
                             if let Some(inference_context) = inference_context.as_ref() {
-                                Gc::new(self.instantiate_signature(
+                                self.alloc_signature(self.instantiate_signature(
                                     contextual_signature.clone(),
-                                    inference_context.mapper(),
+                                    inference_context.ref_(self).mapper(),
                                     None,
                                 )?)
                             } else {
@@ -158,7 +156,7 @@ impl TypeChecker {
                             };
                         self.assign_contextual_parameter_types(
                             signature,
-                            &instantiated_contextual_signature,
+                            instantiated_contextual_signature,
                         )?;
                     } else {
                         self.assign_non_contextual_parameter_types(signature)?;
@@ -166,11 +164,11 @@ impl TypeChecker {
                 }
                 if contextual_signature.is_some()
                     && self.get_return_type_from_annotation(node)?.is_none()
-                    && signature.maybe_resolved_return_type().is_none()
+                    && signature.ref_(self).maybe_resolved_return_type().is_none()
                 {
                     let return_type = self.get_return_type_from_body(node, check_mode)?;
-                    if signature.maybe_resolved_return_type().is_none() {
-                        *signature.maybe_resolved_return_type_mut() = Some(return_type);
+                    if signature.ref_(self).maybe_resolved_return_type().is_none() {
+                        *signature.ref_(self).maybe_resolved_return_type_mut() = Some(return_type);
                     }
                 }
                 self.check_signature_declaration(node)?;
@@ -279,7 +277,7 @@ impl TypeChecker {
         let d_ref = d.ref_(self);
         let d_as_call_expression = d_ref.as_call_expression();
         let object_lit_type =
-            self.check_expression_cached(d_as_call_expression.arguments[2], None)?;
+            self.check_expression_cached(d_as_call_expression.arguments.ref_(self)[2], None)?;
         let value_type = self.get_type_of_property_of_type_(object_lit_type, "value")?;
         if value_type.is_some() {
             let writable_prop = self.get_property_of_type_(object_lit_type, "writable", None)?;
@@ -398,8 +396,8 @@ impl TypeChecker {
         if is_access_expression(&expr.ref_(self)) {
             let node = skip_parentheses(expr.ref_(self).as_has_expression().expression(), None, self);
             if node.ref_(self).kind() == SyntaxKind::Identifier {
-                let symbol = (*self.get_node_links(node))
-                    .borrow()
+                let symbol = self.get_node_links(node)
+                    .ref_(self)
                     .resolved_symbol
                     .clone()
                     .unwrap();
@@ -463,7 +461,7 @@ impl TypeChecker {
             );
         }
         let links = self.get_node_links(expr);
-        let resolved_symbol = (*links).borrow().resolved_symbol.clone();
+        let resolved_symbol = links.ref_(self).resolved_symbol.clone();
         let symbol = self.get_export_symbol_of_value_symbol_if_exported(resolved_symbol);
         if let Some(symbol) = symbol {
             if self.is_readonly_symbol(symbol)? {
@@ -606,7 +604,7 @@ impl TypeChecker {
                                 && !get_function_flags(Some(container), self)
                                     .intersects(FunctionFlags::Async)
                         }) {
-                            let related_info: Gc<DiagnosticRelatedInformation> = Gc::new(
+                            let related_info: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(
                                 create_diagnostic_for_node(
                                     container,
                                     &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
@@ -960,8 +958,8 @@ impl TypeChecker {
             if self.language_version < ScriptTarget::ESNext {
                 self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn)?;
             }
-            if (*self.get_node_links(left))
-                .borrow()
+            if self.get_node_links(left)
+                .ref_(self)
                 .resolved_symbol
                 .is_none()
                 && get_containing_class(left, self).is_some()

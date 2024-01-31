@@ -17,7 +17,7 @@ use crate::{
     is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
     BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
     GetOrInsertDefault, Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
-    InArena, static_arena,
+    HasArena, InArena, static_arena,
 };
 
 impl Printer {
@@ -76,7 +76,7 @@ impl Printer {
         &self,
         bundle: Id<Node>, /*Bundle*/
         output: Id<Box<dyn EmitTextWriter>>,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
         self.set_is_own_file_emit(false);
         let previous_writer = self.maybe_writer();
@@ -93,14 +93,13 @@ impl Printer {
             let pos = self.writer().get_text_pos();
             let bundle_file_info = self.maybe_bundle_file_info();
             let saved_sections = bundle_file_info
-                .as_ref()
-                .map(|bundle_file_info| (**bundle_file_info).borrow().sections.clone());
+                .map(|bundle_file_info| bundle_file_info.ref_(self).sections.clone());
             if saved_sections.is_some() {
-                bundle_file_info.as_ref().unwrap().borrow_mut().sections = vec![];
+                bundle_file_info.unwrap().ref_mut(self).sections = vec![];
             }
             self.print(EmitHint::Unspecified, prepend, None)?;
             if let Some(bundle_file_info) = bundle_file_info {
-                let mut bundle_file_info = bundle_file_info.borrow_mut();
+                let mut bundle_file_info = bundle_file_info.ref_mut(self);
                 let mut new_sections = bundle_file_info.sections.clone();
                 bundle_file_info.sections = saved_sections.unwrap();
                 if prepend
@@ -111,11 +110,11 @@ impl Printer {
                     bundle_file_info.sections.append(&mut new_sections);
                 } else {
                     for section in &new_sections {
-                        Debug_.assert(is_bundle_file_text_like(section), None);
+                        Debug_.assert(is_bundle_file_text_like(&section.ref_(self)), None);
                     }
                     bundle_file_info
                         .sections
-                        .push(Gc::new(BundleFileSection::new_prepend(
+                        .push(self.alloc_bundle_file_section(BundleFileSection::new_prepend(
                             self.relative_to_build_info(&prepend.ref_(self).as_unparsed_source().file_name),
                             new_sections,
                             pos.try_into().unwrap(),
@@ -138,7 +137,7 @@ impl Printer {
                     let prologues = self.get_prologue_directives_from_bundled_source_files(bundle);
                     if let Some(prologues) = prologues {
                         bundle_file_info
-                            .borrow_mut()
+                            .ref_mut(self)
                             .sources
                             .get_or_insert_default_()
                             .prologues = Some(prologues);
@@ -147,7 +146,7 @@ impl Printer {
                     let helpers = self.get_helpers_from_bundled_source_files(bundle);
                     if let Some(helpers) = helpers {
                         bundle_file_info
-                            .borrow_mut()
+                            .ref_mut(self)
                             .sources
                             .get_or_insert_default_()
                             .helpers = Some(helpers);
@@ -180,7 +179,7 @@ impl Printer {
         &self,
         source_file: Id<Node>, /*SourceFile*/
         output: Id<Box<dyn EmitTextWriter>>,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) -> io::Result<()> {
         self.set_is_own_file_emit(true);
         let previous_writer = self.maybe_writer();
@@ -228,14 +227,14 @@ impl Printer {
         self.set_current_line_map(None);
         self.set_detached_comments_info(None);
         if let Some(source_file) = source_file {
-            self.set_source_map_source(Gc::new(source_file.into()));
+            self.set_source_map_source(self.alloc_source_map_source(source_file.into()));
         }
     }
 
     pub(super) fn set_writer(
         &self,
         mut writer: Option<Id<Box<dyn EmitTextWriter>>>,
-        source_map_generator: Option<Gc<Box<dyn SourceMapGenerator>>>,
+        source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) {
         if let Some(writer_present) = writer.as_ref() {
             if self.printer_options.omit_trailing_semicolon == Some(true) {
@@ -275,7 +274,7 @@ impl Printer {
     pub(super) fn emit(
         &self,
         node: Option<Id<Node>>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         if node.is_none() {
             return Ok(());
@@ -304,7 +303,7 @@ impl Printer {
     pub(super) fn emit_expression(
         &self,
         node: Option<Id<Node> /*Expression*/>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         if node.is_none() {
             return Ok(());
@@ -334,7 +333,7 @@ impl Printer {
 
     pub(super) fn before_emit_node(&self, node: Id<Node>) {
         if self.maybe_preserve_source_newlines() == Some(true)
-            && get_emit_flags(&node.ref_(self)).intersects(EmitFlags::IgnoreSourceNewlines)
+            && get_emit_flags(node, self).intersects(EmitFlags::IgnoreSourceNewlines)
         {
             self.set_preserve_source_newlines(Some(false));
         }
@@ -348,7 +347,7 @@ impl Printer {
         &self,
         emit_hint: EmitHint,
         node: Id<Node>,
-        parenthesizer_rule: Option<Gc<Box<dyn CurrentParenthesizerRule>>>,
+        parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) -> io::Result<()> {
         self.set_current_parenthesizer_rule(parenthesizer_rule);
         let pipeline_phase =
@@ -401,7 +400,7 @@ impl Printer {
                         self.maybe_current_parenthesizer_rule().as_ref()
                     {
                         self.set_last_substitution(Some(
-                            current_parenthesizer_rule.call(last_substitution),
+                            current_parenthesizer_rule.ref_(self).call(last_substitution),
                         ));
                     }
                     return Ok(Printer::pipeline_emit_with_substitution);
@@ -487,7 +486,7 @@ impl Printer {
     ) -> io::Result<()> {
         let allow_snippets = allow_snippets.unwrap_or(true);
         if allow_snippets {
-            let snippet = get_snippet_element(&node.ref_(self));
+            let snippet = get_snippet_element(node, self);
             if let Some(snippet) = snippet {
                 return self.emit_snippet_node(hint, node, snippet);
             }
@@ -737,7 +736,7 @@ impl Printer {
                         if let Some(current_parenthesizer_rule) =
                             self.maybe_current_parenthesizer_rule()
                         {
-                            node = current_parenthesizer_rule.call(node);
+                            node = current_parenthesizer_rule.ref_(self).call(node);
                         }
                     }
                 }

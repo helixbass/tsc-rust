@@ -14,7 +14,7 @@ use crate::{
     is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
     try_some, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext, InferenceFlags,
     InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext,
+    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext, AllArenas,
 };
 
 impl TypeChecker {
@@ -45,7 +45,7 @@ impl TypeChecker {
                 let symbol = resolved.ref_(self).maybe_symbol();
                 symbol
             },
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             {
                 let call_signatures = resolved
                     .ref_(self)
@@ -215,16 +215,16 @@ impl TypeChecker {
                 let symbol = type_.ref_(self).maybe_symbol();
                 symbol
             },
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             try_map(
                 &self.get_index_infos_of_type(type_)?,
-                |info: &Gc<IndexInfo>, _| -> io::Result<_> {
-                    Ok(Gc::new(self.create_index_info(
-                        info.key_type.clone(),
-                        self.get_widened_type(info.type_)?,
-                        info.is_readonly,
+                |info: &Id<IndexInfo>, _| -> io::Result<_> {
+                    Ok(self.alloc_index_info(self.create_index_info(
+                        info.ref_(self).key_type.clone(),
+                        self.get_widened_type(info.ref_(self).type_)?,
+                        info.ref_(self).is_readonly,
                         None,
                     )))
                 },
@@ -451,7 +451,7 @@ impl TypeChecker {
                         .ref_(self).parent()
                         .ref_(self).as_signature_declaration()
                         .parameters()
-                        .into_iter()
+                        .ref_(self).into_iter()
                         .position(|&parameter: &Id<Node>| param == parameter)
                         .is_some()
                     && (self
@@ -484,7 +484,7 @@ impl TypeChecker {
                             .ref_(self).parent()
                             .ref_(self).as_signature_declaration()
                             .parameters()
-                            .into_iter()
+                            .ref_(self).into_iter()
                             .position(|&parameter: &Id<Node>| param == parameter)
                             .unwrap()
                             .to_string()
@@ -631,8 +631,8 @@ impl TypeChecker {
 
     pub(super) fn apply_to_parameter_types(
         &self,
-        source: &Signature,
-        target: &Signature,
+        source: Id<Signature>,
+        target: Id<Signature>,
         mut callback: impl FnMut(Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<()> {
         let source_count = self.get_parameter_count(source)?;
@@ -674,18 +674,18 @@ impl TypeChecker {
 
     pub(super) fn apply_to_return_types(
         &self,
-        source: Gc<Signature>,
-        target: Gc<Signature>,
+        source: Id<Signature>,
+        target: Id<Signature>,
         mut callback: impl FnMut(Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<()> {
-        let source_type_predicate = self.get_type_predicate_of_signature(&source)?;
-        let target_type_predicate = self.get_type_predicate_of_signature(&target)?;
+        let source_type_predicate = self.get_type_predicate_of_signature(source)?;
+        let target_type_predicate = self.get_type_predicate_of_signature(target)?;
         let mut took_if_branch = false;
-        if let Some(source_type_predicate) = source_type_predicate.as_ref() {
-            if let Some(target_type_predicate) = target_type_predicate.as_ref() {
+        if let Some(source_type_predicate) = source_type_predicate {
+            if let Some(target_type_predicate) = target_type_predicate {
                 if self.type_predicate_kinds_match(source_type_predicate, target_type_predicate) {
-                    if let Some(source_type_predicate_type) = source_type_predicate.type_ {
-                        if let Some(target_type_predicate_type) = target_type_predicate.type_ {
+                    if let Some(source_type_predicate_type) = source_type_predicate.ref_(self).type_ {
+                        if let Some(target_type_predicate_type) = target_type_predicate.ref_(self).type_ {
                             callback(source_type_predicate_type, target_type_predicate_type)?;
                             took_if_branch = true;
                         }
@@ -706,22 +706,22 @@ impl TypeChecker {
     pub(super) fn create_inference_context(
         &self,
         type_parameters: &[Id<Type /*TypeParameter*/>],
-        signature: Option<Gc<Signature>>,
+        signature: Option<Id<Signature>>,
         flags: InferenceFlags,
-        compare_types: Option<Gc<Box<dyn TypeComparer>>>,
-    ) -> Gc<InferenceContext> {
+        compare_types: Option<Id<Box<dyn TypeComparer>>>,
+    ) -> Id<InferenceContext> {
         self.create_inference_context_worker(
             type_parameters
                 .into_iter()
                 .map(|&type_parameter: &Id<Type>| {
-                    Gc::new(self.create_inference_info(type_parameter))
+                    self.alloc_inference_info(self.create_inference_info(type_parameter))
                 })
                 .collect(),
             signature,
             flags,
             compare_types.unwrap_or_else(|| {
-                Gc::new(Box::new(TypeComparerCompareTypesAssignable::new(
-                    self.rc_wrapper(),
+                self.alloc_type_comparer(Box::new(TypeComparerCompareTypesAssignable::new(
+                    self.arena_id(),
                 )))
             }),
         )
@@ -729,33 +729,33 @@ impl TypeChecker {
 
     pub(super) fn clone_inference_context(
         &self,
-        context: Option<&InferenceContext>,
+        context: Option<Id<InferenceContext>>,
         extra_flags: Option<InferenceFlags>,
-    ) -> Option<Gc<InferenceContext>> {
+    ) -> Option<Id<InferenceContext>> {
         let extra_flags = extra_flags.unwrap_or(InferenceFlags::None);
         context.map(|context| {
             self.create_inference_context_worker(
                 map(
-                    &*context.inferences(),
-                    |inference: &Gc<InferenceInfo>, _| {
-                        Gc::new(self.clone_inference_info(inference))
+                    &*context.ref_(self).inferences(),
+                    |inference: &Id<InferenceInfo>, _| {
+                        self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
                     },
                 ),
-                context.signature.clone(),
-                context.flags() | extra_flags,
-                context.compare_types.clone(),
+                context.ref_(self).signature.clone(),
+                context.ref_(self).flags() | extra_flags,
+                context.ref_(self).compare_types.clone(),
             )
         })
     }
 
     pub(super) fn create_inference_context_worker(
         &self,
-        inferences: Vec<Gc<InferenceInfo>>,
-        signature: Option<Gc<Signature>>,
+        inferences: Vec<Id<InferenceInfo>>,
+        signature: Option<Id<Signature>>,
         flags: InferenceFlags,
-        compare_types: Gc<Box<dyn TypeComparer>>,
-    ) -> Gc<InferenceContext> {
-        let context = Gc::new(InferenceContext::new(
+        compare_types: Id<Box<dyn TypeComparer>>,
+    ) -> Id<InferenceContext> {
+        let context = self.alloc_inference_context(InferenceContext::new(
             inferences,
             signature,
             flags,
@@ -765,10 +765,10 @@ impl TypeChecker {
             None,
             None,
         ));
-        context.set_mapper(self.make_function_type_mapper(
+        context.ref_(self).set_mapper(self.make_function_type_mapper(
             CreateInferenceContextWorkerMapperCallback::new(context.clone()),
         ));
-        context.set_non_fixing_mapper(self.make_function_type_mapper(
+        context.ref_(self).set_non_fixing_mapper(self.make_function_type_mapper(
             CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
         ));
         context
@@ -776,17 +776,18 @@ impl TypeChecker {
 
     pub(super) fn map_to_inferred_type(
         &self,
-        context: &InferenceContext,
+        context: Id<InferenceContext>,
         t: Id<Type>,
         fix: bool,
     ) -> io::Result<Id<Type>> {
-        let inferences = context.inferences();
+        let context_ref = context.ref_(self);
+        let inferences = context_ref.inferences();
         let inferences = &*inferences;
         for (i, inference) in inferences.into_iter().enumerate() {
-            if t == inference.type_parameter {
-                if fix && !inference.is_fixed() {
+            if t == inference.ref_(self).type_parameter {
+                if fix && !inference.ref_(self).is_fixed() {
                     self.clear_cached_inferences(inferences);
-                    inference.set_is_fixed(true);
+                    inference.ref_(self).set_is_fixed(true);
                 }
                 return self.get_inferred_type(context, i);
             }
@@ -794,10 +795,10 @@ impl TypeChecker {
         Ok(t)
     }
 
-    pub(super) fn clear_cached_inferences(&self, inferences: &[Gc<InferenceInfo>]) {
+    pub(super) fn clear_cached_inferences(&self, inferences: &[Id<InferenceInfo>]) {
         for inference in inferences {
-            if !inference.is_fixed() {
-                *inference.maybe_inferred_type_mut() = None;
+            if !inference.ref_(self).is_fixed() {
+                *inference.ref_(self).maybe_inferred_type_mut() = None;
             }
         }
     }
@@ -824,19 +825,19 @@ impl TypeChecker {
 
     pub(super) fn clone_inferred_part_of_context(
         &self,
-        context: &InferenceContext,
-    ) -> Option<Gc<InferenceContext>> {
-        let inferences = filter(&context.inferences(), |inference: &Gc<InferenceInfo>| {
-            self.has_inference_candidates(inference)
+        context: Id<InferenceContext>,
+    ) -> Option<Id<InferenceContext>> {
+        let inferences = filter(&context.ref_(self).inferences(), |inference: &Id<InferenceInfo>| {
+            self.has_inference_candidates(&inference.ref_(self))
         });
         if !inferences.is_empty() {
             Some(self.create_inference_context_worker(
-                map(&inferences, |inference: &Gc<InferenceInfo>, _| {
-                    Gc::new(self.clone_inference_info(inference))
+                map(&inferences, |inference: &Id<InferenceInfo>, _| {
+                    self.alloc_inference_info(self.clone_inference_info(&inference.ref_(self)))
                 }),
-                context.signature.clone(),
-                context.flags(),
-                context.compare_types.clone(),
+                context.ref_(self).signature.clone(),
+                context.ref_(self).flags(),
+                context.ref_(self).compare_types.clone(),
             ))
         } else {
             None
@@ -845,9 +846,9 @@ impl TypeChecker {
 
     pub(super) fn get_mapper_from_context(
         &self,
-        context: Option<&InferenceContext>,
+        context: Option<Id<InferenceContext>>,
     ) -> Option<Id<TypeMapper>> {
-        context.map(|context| context.mapper().clone())
+        context.map(|context| context.ref_(self).mapper().clone())
     }
 
     pub(super) fn could_contain_type_variables(&self, type_: Id<Type>) -> io::Result<bool> {
@@ -986,7 +987,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(self.any_type());
             if let Some(t_symbol) = t.ref_(self).maybe_symbol() {
                 if let Some(t_symbol_declarations) =
@@ -1008,7 +1009,7 @@ impl TypeChecker {
             None
         });
         let index_infos = if type_.ref_(self).flags().intersects(TypeFlags::String) {
-            vec![Gc::new(self.create_index_info(
+            vec![self.alloc_index_info(self.create_index_info(
                 self.string_type(),
                 self.empty_object_type(),
                 false,
@@ -1019,7 +1020,7 @@ impl TypeChecker {
         };
         self.create_anonymous_type(
             Option::<Id<Symbol>>::None,
-            Gc::new(GcCell::new(members)),
+            self.alloc_symbol_table(members),
             vec![],
             vec![],
             index_infos,
@@ -1170,67 +1171,73 @@ impl TypeChecker {
         symbol: Id<Symbol>, /*ReverseMappedSymbol*/
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links).borrow().type_.is_none() {
+        if links.ref_(self).type_.is_none() {
             let symbol_ref = symbol.ref_(self);
             let symbol_as_reverse_mapped_symbol = symbol_ref.as_reverse_mapped_symbol();
-            links.borrow_mut().type_ = Some(self.infer_reverse_mapped_type(
+            links.ref_mut(self).type_ = Some(self.infer_reverse_mapped_type(
                 symbol_as_reverse_mapped_symbol.property_type,
                 symbol_as_reverse_mapped_symbol.mapped_type,
                 symbol_as_reverse_mapped_symbol.constraint_type,
             )?);
         }
-        let ret = (*links).borrow().type_.clone().unwrap();
+        let ret = links.ref_(self).type_.clone().unwrap();
         Ok(ret)
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerMapperCallback {
-    inference_context: Gc<InferenceContext>,
+    inference_context: Id<InferenceContext>,
 }
 
 impl CreateInferenceContextWorkerMapperCallback {
-    pub fn new(inference_context: Gc<InferenceContext>) -> Self {
+    pub fn new(inference_context: Id<InferenceContext>) -> Self {
         Self { inference_context }
     }
 }
 
 impl TypeMapperCallback for CreateInferenceContextWorkerMapperCallback {
     fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
-        checker.map_to_inferred_type(&self.inference_context, t, true)
+        checker.map_to_inferred_type(self.inference_context, t, true)
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerNonFixingMapperCallback {
-    inference_context: Gc<InferenceContext>,
+    inference_context: Id<InferenceContext>,
 }
 
 impl CreateInferenceContextWorkerNonFixingMapperCallback {
-    pub fn new(inference_context: Gc<InferenceContext>) -> Self {
+    pub fn new(inference_context: Id<InferenceContext>) -> Self {
         Self { inference_context }
     }
 }
 
 impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback {
     fn call(&self, checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
-        checker.map_to_inferred_type(&self.inference_context, t, false)
+        checker.map_to_inferred_type(self.inference_context, t, false)
     }
 }
 
 #[derive(Trace, Finalize)]
 pub(super) struct TypeComparerCompareTypesAssignable {
-    type_checker: Gc<TypeChecker>,
+    type_checker: Id<TypeChecker>,
 }
 
 impl TypeComparerCompareTypesAssignable {
-    pub fn new(type_checker: Gc<TypeChecker>) -> Self {
+    pub fn new(type_checker: Id<TypeChecker>) -> Self {
         Self { type_checker }
     }
 }
 
 impl TypeComparer for TypeComparerCompareTypesAssignable {
     fn call(&self, s: Id<Type>, t: Id<Type>, _report_errors: Option<bool>) -> io::Result<Ternary> {
-        self.type_checker.compare_types_assignable(s, t)
+        self.type_checker.ref_(self).compare_types_assignable(s, t)
+    }
+}
+
+impl HasArena for TypeComparerCompareTypesAssignable {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }

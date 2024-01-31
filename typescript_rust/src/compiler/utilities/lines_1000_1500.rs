@@ -26,8 +26,8 @@ use crate::{
     ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
     ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
     TextSpan, contains,
+    InArena, OptionInArena,
 };
-use crate::InArena;
 
 pub fn create_diagnostic_for_node(
     node: Id<Node>,
@@ -67,7 +67,7 @@ pub fn create_diagnostic_for_node_in_source_file(
 pub fn create_diagnostic_for_node_from_message_chain(
     node: Id<Node>,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>, arena: &impl HasArena,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>, arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node, arena);
     let span = get_error_span_for_node(source_file, node, arena);
@@ -110,7 +110,7 @@ pub fn create_file_diagnostic_from_message_chain(
     start: isize,
     length: isize,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     assert_diagnostic_location(Some(file), start, length);
     DiagnosticWithLocation::new(BaseDiagnostic::new(
@@ -133,7 +133,7 @@ pub fn create_file_diagnostic_from_message_chain(
 pub fn create_diagnostic_for_file_from_message_chain(
     source_file: Id<Node>, /*SourceFile*/
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Gc<DiagnosticRelatedInformation>>>,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
 ) -> DiagnosticWithLocation {
     DiagnosticWithLocation::new(BaseDiagnostic::new(
         BaseDiagnosticRelatedInformation::new(
@@ -292,8 +292,8 @@ pub fn get_error_span_for_node(
                 None,
                 None,
             );
-            let end = if !node_as_case_clause.statements.is_empty() {
-                node_as_case_clause.statements[0].ref_(arena).pos()
+            let end = if !node_as_case_clause.statements.ref_(arena).is_empty() {
+                node_as_case_clause.statements.ref_(arena)[0].ref_(arena).pos()
             } else {
                 node_ref.end()
             };
@@ -309,8 +309,8 @@ pub fn get_error_span_for_node(
                 None,
                 None,
             );
-            let end = if !node_as_default_clause.statements.is_empty() {
-                node_as_default_clause.statements[0].ref_(arena).pos()
+            let end = if !node_as_default_clause.statements.ref_(arena).is_empty() {
+                node_as_default_clause.statements.ref_(arena)[0].ref_(arena).pos()
             } else {
                 node_ref.end()
             };
@@ -442,12 +442,12 @@ pub fn is_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
         && node.ref_(arena).as_expression_statement().expression.ref_(arena).kind() == SyntaxKind::StringLiteral
 }
 
-pub fn is_custom_prologue(node: &Node /*Statement*/) -> bool {
-    get_emit_flags(node).intersects(EmitFlags::CustomPrologue)
+pub fn is_custom_prologue(node: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
+    get_emit_flags(node, arena).intersects(EmitFlags::CustomPrologue)
 }
 
-pub fn is_hoisted_function(node: &Node /*Statement*/) -> bool {
-    is_custom_prologue(node) && is_function_declaration(node)
+pub fn is_hoisted_function(node: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
+    is_custom_prologue(node, arena) && is_function_declaration(&node.ref_(arena))
 }
 
 fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/, arena: &impl HasArena) -> bool {
@@ -458,14 +458,14 @@ fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/, arena: &impl HasA
 }
 
 pub fn is_hoisted_variable_statement(node: Id<Node> /*Statement*/, arena: &impl HasArena) -> bool {
-    is_custom_prologue(&node.ref_(arena))
+    is_custom_prologue(node, arena)
         && is_variable_statement(&node.ref_(arena))
         && every(
             &node
                 .ref_(arena).as_variable_statement()
                 .declaration_list
                 .ref_(arena).as_variable_declaration_list()
-                .declarations,
+                .declarations.ref_(arena),
             |&declaration, _| is_hoisted_variable(declaration, arena),
         )
 }
@@ -653,7 +653,7 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
                         parent
                             .ref_(arena).as_call_expression()
                             .maybe_type_arguments()
-                            .as_double_deref(),
+                            .refed(arena).as_double_deref(),
                         &node,
                     );
                 }
@@ -662,7 +662,7 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
                         parent
                             .ref_(arena).as_new_expression()
                             .maybe_type_arguments()
-                            .as_double_deref(),
+                            .refed(arena).as_double_deref(),
                         &node,
                     );
                 }
@@ -735,7 +735,7 @@ fn try_for_each_return_statement_traverse<TError>(
             try_for_each_child(
                 node,
                 |node| try_for_each_return_statement_traverse(node, visitor, arena),
-                Option::<fn(&NodeArray) -> Result<(), TError>>::None,
+                Option::<fn(Id<NodeArray>) -> Result<(), TError>>::None,
                 arena,
             )?;
         }
@@ -777,7 +777,7 @@ fn for_each_return_statement_bool_traverse(
         | SyntaxKind::CatchClause => for_each_child_bool(
             node,
             |node| for_each_return_statement_bool_traverse(node, visitor, arena),
-            Option::<fn(&NodeArray) -> bool>::None,
+            Option::<fn(Id<NodeArray>) -> bool>::None,
             arena,
         ),
         _ => false,
@@ -835,7 +835,7 @@ fn try_for_each_yield_expression_traverse<TError>(
                 try_for_each_child(
                     node,
                     |node| try_for_each_yield_expression_traverse(node, visitor, arena),
-                    Option::<fn(&NodeArray) -> Result<(), TError>>::None,
+                    Option::<fn(Id<NodeArray>) -> Result<(), TError>>::None,
                     arena,
                 )?;
             }
@@ -846,17 +846,18 @@ fn try_for_each_yield_expression_traverse<TError>(
 }
 
 pub fn get_rest_parameter_element_type(
-    node: Option<&Node /*TypeNode*/>,
+    node: Option<Id<Node /*TypeNode*/>>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
     let Some(node) = node else {
         return None;
     };
-    match node.kind() {
-        SyntaxKind::ArrayType => Some(node.as_array_type_node().element_type),
+    match node.ref_(arena).kind() {
+        SyntaxKind::ArrayType => Some(node.ref_(arena).as_array_type_node().element_type),
         SyntaxKind::TypeReference => single_or_undefined(
-            node.as_type_reference_node()
+            node.ref_(arena).as_type_reference_node()
                 .maybe_type_arguments()
-                .as_double_deref(),
+                .refed(arena).as_double_deref(),
         )
         .cloned(),
         _ => None,
@@ -865,7 +866,7 @@ pub fn get_rest_parameter_element_type(
 
 pub fn get_members_of_declaration(
     node: &Node, /*Declaration*/
-) -> Option<Gc<NodeArray> /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
+) -> Option<Id<NodeArray> /*<ClassElement | TypeElement | ObjectLiteralElement*/> {
     match node.kind() {
         SyntaxKind::InterfaceDeclaration => Some(node.as_interface_declaration().members.clone()),
         SyntaxKind::ClassDeclaration => Some(node.as_class_declaration().members().clone()),

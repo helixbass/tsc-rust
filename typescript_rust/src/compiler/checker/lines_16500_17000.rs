@@ -19,6 +19,7 @@ use crate::{
     Node, NodeArray, NodeInterface, ObjectFlags, ObjectTypeInterface, ResolvableTypeInterface,
     Symbol, SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     TypeMapper, TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -70,7 +71,7 @@ impl TypeChecker {
                                         && try_for_each_child_bool(
                                             n.ref_(self).as_conditional_type_node().extends_type,
                                             |child| self.contains_reference(tp, child),
-                                            Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                                            Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                                             self,
                                         )?
                             }
@@ -113,13 +114,13 @@ impl TypeChecker {
                     || try_some(
                         node_as_signature_declaration
                             .maybe_type_parameters()
-                            .as_double_deref(),
+                            .refed(self).as_double_deref(),
                         Some(|&type_parameter: &Id<Node>| {
                             self.contains_reference(tp, type_parameter)
                         }),
                     )?
                     || try_some(
-                        Some(&node_as_signature_declaration.parameters()),
+                        Some(&*node_as_signature_declaration.parameters().ref_(self)),
                         Some(|&parameter: &Id<Node>| self.contains_reference(tp, parameter)),
                     )?
                     || matches!(
@@ -130,7 +131,7 @@ impl TypeChecker {
             _ => try_for_each_child_bool(
                 node,
                 |child| self.contains_reference(tp, child),
-                Option::<fn(&NodeArray) -> io::Result<bool>>::None,
+                Option::<fn(Id<NodeArray>) -> io::Result<bool>>::None,
                 self,
             )?,
         })
@@ -467,7 +468,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let root = type_.ref_(self).as_conditional_type().root.clone();
         if let Some(root_outer_type_parameters) =
-            (*root).borrow().outer_type_parameters.clone().as_deref()
+            root.ref_(self).outer_type_parameters.clone().as_deref()
         {
             let type_arguments = try_map(root_outer_type_parameters, |&t: &Id<Type>, _| {
                 self.get_mapped_type(t, mapper)
@@ -477,8 +478,8 @@ impl TypeChecker {
                 self.get_type_list_id(Some(&type_arguments)),
                 self.get_alias_id(alias_symbol, alias_type_arguments)
             );
-            let mut result = (*root)
-                .borrow()
+            let mut result = root
+                .ref_(self)
                 .maybe_instantiations()
                 .as_ref()
                 .unwrap()
@@ -489,8 +490,8 @@ impl TypeChecker {
                     root_outer_type_parameters.to_owned(),
                     Some(type_arguments),
                 );
-                let check_type = (*root).borrow().check_type.clone();
-                let distribution_type = if (*root).borrow().is_distributive {
+                let check_type = root.ref_(self).check_type.clone();
+                let distribution_type = if root.ref_(self).is_distributive {
                     Some(self.get_mapped_type(check_type, new_mapper)?)
                 } else {
                     None
@@ -531,8 +532,8 @@ impl TypeChecker {
                         )?
                     },
                 );
-                (*root)
-                    .borrow()
+                root
+                    .ref_(self)
                     .maybe_instantiations()
                     .as_mut()
                     .unwrap()
@@ -940,14 +941,14 @@ impl TypeChecker {
 
     pub(super) fn instantiate_index_info(
         &self,
-        info: &IndexInfo,
+        info: Id<IndexInfo>,
         mapper: Id<TypeMapper>,
-    ) -> io::Result<Gc<IndexInfo>> {
-        Ok(Gc::new(self.create_index_info(
-            info.key_type.clone(),
-            self.instantiate_type(info.type_, Some(mapper))?,
-            info.is_readonly,
-            info.declaration.clone(),
+    ) -> io::Result<Id<IndexInfo>> {
+        Ok(self.alloc_index_info(self.create_index_info(
+            info.ref_(self).key_type.clone(),
+            self.instantiate_type(info.ref_(self).type_, Some(mapper))?,
+            info.ref_(self).is_readonly,
+            info.ref_(self).declaration.clone(),
         )))
     }
 
@@ -967,11 +968,11 @@ impl TypeChecker {
                 self.is_context_sensitive_function_like_declaration(node)?
             }
             SyntaxKind::ObjectLiteralExpression => try_some(
-                Some(&node.ref_(self).as_object_literal_expression().properties),
+                Some(&*node.ref_(self).as_object_literal_expression().properties.ref_(self)),
                 Some(|&property: &Id<Node>| self.is_context_sensitive(property)),
             )?,
             SyntaxKind::ArrayLiteralExpression => try_some(
-                Some(&node.ref_(self).as_array_literal_expression().elements),
+                Some(&*node.ref_(self).as_array_literal_expression().elements.ref_(self)),
                 Some(|&element: &Id<Node>| self.is_context_sensitive(element)),
             )?,
             SyntaxKind::ConditionalExpression => {
@@ -997,11 +998,11 @@ impl TypeChecker {
             }
             SyntaxKind::JsxAttributes => {
                 try_some(
-                    Some(&node.ref_(self).as_jsx_attributes().properties),
+                    Some(&*node.ref_(self).as_jsx_attributes().properties.ref_(self)),
                     Some(|&property: &Id<Node>| self.is_context_sensitive(property)),
                 )? || is_jsx_opening_element(&node.ref_(self).parent().ref_(self))
                     && try_some(
-                        Some(&node.ref_(self).parent().ref_(self).parent().ref_(self).as_jsx_element().children),
+                        Some(&*node.ref_(self).parent().ref_(self).parent().ref_(self).as_jsx_element().children.ref_(self)),
                         Some(|&child: &Id<Node>| self.is_context_sensitive(child)),
                     )?
             }
@@ -1232,8 +1233,8 @@ impl TypeChecker {
         target: Id<Type>,
         error_node: Option<Id<Node>>,
         head_message: Option<&'static DiagnosticMessage>,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_object: Option<Gc<Box<dyn CheckTypeErrorOutputContainer>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_object: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
         self.check_type_related_to(
             source,

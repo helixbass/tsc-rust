@@ -4,7 +4,7 @@ use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{
-    get_module_instance_state, init_flow_node, is_exports_or_module_exports_or_alias, BinderType,
+    get_module_instance_state, init_flow_node, is_exports_or_module_exports_or_alias, Binder,
     ContainerFlags, ModuleInstanceState,
 };
 use crate::{
@@ -31,7 +31,7 @@ enum ElementKind {
     Accessor = 2,
 }
 
-impl BinderType {
+impl Binder {
     pub(super) fn declare_module_symbol(
         &self,
         node: Id<Node>, /*ModuleDeclaration*/
@@ -71,14 +71,14 @@ impl BinderType {
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let type_literal_symbol_ref = type_literal_symbol.ref_(self);
         let mut type_literal_symbol_members = type_literal_symbol_ref.maybe_members_mut();
-        *type_literal_symbol_members = Some(Gc::new(GcCell::new(create_symbol_table(
+        *type_literal_symbol_members = Some(self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        ))));
+        )));
         type_literal_symbol_members
             .as_ref()
             .unwrap()
-            .borrow_mut()
+            .ref_mut(self)
             .insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
     }
 
@@ -91,7 +91,7 @@ impl BinderType {
 
             let node_ref = node.ref_(self);
             let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-            for prop in &*node_as_object_literal_expression.properties {
+            for prop in &*node_as_object_literal_expression.properties.ref_(self) {
                 if prop.ref_(self).kind() == SyntaxKind::SpreadAssignment
                     || prop.ref_(self).as_named_declaration().name().ref_(self).kind() != SyntaxKind::Identifier
                 {
@@ -198,14 +198,14 @@ impl BinderType {
                         let mut block_scope_container_locals =
                             block_scope_container_ref.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
-                            *block_scope_container_locals = Some(Gc::new(GcCell::new(
+                            *block_scope_container_locals = Some(self.alloc_symbol_table(
                                 create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                            )));
+                            ));
                             self.add_to_container_chain(block_scope_container);
                         }
                     }
                     self.declare_symbol(
-                        &mut *block_scope_container.ref_(self).locals().borrow_mut(),
+                        &mut *block_scope_container.ref_(self).locals().ref_mut(self),
                         None,
                         node,
                         symbol_flags,
@@ -220,14 +220,14 @@ impl BinderType {
                     let block_scope_container_ref = block_scope_container.ref_(self);
                     let mut block_scope_container_locals = block_scope_container_ref.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
-                        *block_scope_container_locals = Some(Gc::new(GcCell::new(
+                        *block_scope_container_locals = Some(self.alloc_symbol_table(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                        )));
+                        ));
                         self.add_to_container_chain(block_scope_container);
                     }
                 }
                 self.declare_symbol(
-                    &mut block_scope_container.ref_(self).locals().borrow_mut(),
+                    &mut block_scope_container.ref_(self).locals().ref_mut(self),
                     None,
                     node,
                     symbol_flags,
@@ -393,8 +393,8 @@ impl BinderType {
         &self,
         node: Id<Node>, /*Identifier (and whatever ThisKeyword is) */
     ) {
-        if (*self.file().ref_(self).as_source_file().parse_diagnostics())
-            .borrow()
+        if self.file().ref_(self).as_source_file().parse_diagnostics()
+            .ref_(self)
             .is_empty()
             && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
             && !node.ref_(self).flags().intersects(NodeFlags::JSDoc)
@@ -486,8 +486,8 @@ impl BinderType {
             let file = self.file();
             let file_ref = file.ref_(self);
             let file_as_source_file = file_ref.as_source_file();
-            if (*file_as_source_file.parse_diagnostics())
-                .borrow()
+            if file_as_source_file.parse_diagnostics()
+                .ref_(self)
                 .is_empty()
             {
                 file_as_source_file.bind_diagnostics_mut().push(self.alloc_diagnostic(
@@ -889,10 +889,10 @@ impl BinderType {
 
     pub(super) fn update_strict_mode_statement_list(
         &self,
-        statements: &NodeArray, /*<Statement>*/
+        statements: Id<NodeArray>, /*<Statement>*/
     ) {
         if self.maybe_in_strict_mode() != Some(true) {
-            for &statement in statements {
+            for &statement in &*statements.ref_(self) {
                 if !is_prologue_directive(statement, self) {
                     return;
                 }

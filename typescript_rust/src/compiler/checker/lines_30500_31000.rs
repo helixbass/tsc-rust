@@ -25,6 +25,7 @@ use crate::{
     NodeFlags, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -33,7 +34,7 @@ impl TypeChecker {
         error_target: Id<Node>,
         apparent_type: Id<Type>,
         kind: SignatureKind,
-        related_information: Option<Gc<DiagnosticRelatedInformation>>,
+        related_information: Option<Id<DiagnosticRelatedInformation>>,
     ) -> io::Result<()> {
         let InvocationErrorDetails {
             message_chain,
@@ -45,7 +46,7 @@ impl TypeChecker {
         if let Some(related_info) = related_info {
             add_related_info(
                 &diagnostic.ref_(self),
-                vec![Gc::new(
+                vec![self.alloc_diagnostic_related_information(
                     create_diagnostic_for_node(error_target, related_info, None, self).into(),
                 )],
             );
@@ -82,7 +83,7 @@ impl TypeChecker {
             return Ok(());
         }
         let apparent_type_symbol = apparent_type_symbol.unwrap();
-        let import_node = (*self.get_symbol_links(apparent_type_symbol))
+        let import_node = (*self.get_symbol_links(apparent_type_symbol).ref_(self))
             .borrow()
             .originating_import
             .clone();
@@ -91,7 +92,7 @@ impl TypeChecker {
         {
             let sigs = self.get_signatures_of_type(
                 self.get_type_of_symbol(
-                    (*self.get_symbol_links(apparent_type_symbol))
+                    (*self.get_symbol_links(apparent_type_symbol).ref_(self))
                         .borrow()
                         .target
                         .clone()
@@ -108,7 +109,7 @@ impl TypeChecker {
             add_related_info(
                 diagnostic,
                 vec![
-                    Gc::new(
+                    self.alloc_diagnostic_related_information(
                         create_diagnostic_for_node(
                             import_node,
                             &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
@@ -126,9 +127,9 @@ impl TypeChecker {
     pub(super) fn resolve_tagged_template_expression(
         &self,
         node: Id<Node>, /*TaggedTemplateExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
         let tag_type =
@@ -209,9 +210,9 @@ impl TypeChecker {
     pub(super) fn resolve_decorator(
         &self,
         node: Id<Node>, /*Decorator*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_decorator = node_ref.as_decorator();
         let func_type = self.check_expression(node_as_decorator.expression, None, None)?;
@@ -271,7 +272,7 @@ impl TypeChecker {
             if let Some(error_details_related_message) = error_details_related_message {
                 add_related_info(
                     &diag.ref_(self),
-                    vec![Gc::new(
+                    vec![self.alloc_diagnostic_related_information(
                         create_diagnostic_for_node(
                             node_as_decorator.expression,
                             error_details_related_message,
@@ -301,14 +302,14 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
         result: Id<Type>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let namespace = self.get_jsx_namespace_at(Some(node))?;
         let exports = namespace.try_map(|namespace| self.get_exports_of_symbol(namespace))?;
         let type_symbol = exports.as_ref().try_and_then(|exports| {
-            self.get_symbol(&(**exports).borrow(), &JsxNames::Element, SymbolFlags::Type)
+            self.get_symbol(&exports.ref_(self), &JsxNames::Element, SymbolFlags::Type)
         })?;
         let return_node = type_symbol.try_and_then(|type_symbol| {
-            self.node_builder().symbol_to_entity_name(
+            self.node_builder().ref_(self).symbol_to_entity_name(
                 type_symbol,
                 Some(SymbolFlags::Type),
                 Some(node),
@@ -316,22 +317,22 @@ impl TypeChecker {
                 None,
             )
         })?;
-        let declaration = get_factory().create_function_type_node(
-            Option::<Gc<NodeArray>>::None,
-            vec![get_factory().create_parameter_declaration(
-                Option::<Gc<NodeArray>>::None,
-                Option::<Gc<NodeArray>>::None,
+        let declaration = get_factory(self).create_function_type_node(
+            Option::<Id<NodeArray>>::None,
+            vec![get_factory(self).create_parameter_declaration(
+                Option::<Id<NodeArray>>::None,
+                Option::<Id<NodeArray>>::None,
                 None,
                 Some("props"),
                 None,
                 self.node_builder()
-                    .type_to_type_node(result, Some(node), None, None)?,
+                    .ref_(self).type_to_type_node(result, Some(node), None, None)?,
                 None,
             )],
             Some(if let Some(return_node) = return_node {
-                get_factory().create_type_reference_node(return_node, Option::<Gc<NodeArray>>::None)
+                get_factory(self).create_type_reference_node(return_node, Option::<Id<NodeArray>>::None)
             } else {
-                get_factory().create_keyword_type_node(SyntaxKind::AnyKeyword)
+                get_factory(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
             }),
         );
         let parameter_symbol = self.alloc_symbol(
@@ -346,9 +347,9 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .borrow_mut()
+            .ref_mut(self)
             .type_ = Some(result);
-        Ok(Gc::new(self.create_signature(
+        Ok(self.alloc_signature(self.create_signature(
             Some(declaration),
             None,
             None,
@@ -367,9 +368,9 @@ impl TypeChecker {
     pub(super) fn resolve_jsx_opening_like_element(
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
         if self.is_jsx_intrinsic_identifier(node_as_jsx_opening_like_element.tag_name()) {
@@ -394,13 +395,13 @@ impl TypeChecker {
             if length(
                 node_as_jsx_opening_like_element
                     .maybe_type_arguments()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
             ) > 0
             {
                 try_maybe_for_each(
                     node_as_jsx_opening_like_element
                         .maybe_type_arguments()
-                        .as_ref(),
+                        .refed(self).as_deref(),
                     |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(type_argument))?;
                         Ok(None)
@@ -409,17 +410,16 @@ impl TypeChecker {
                 self.diagnostics().add(self.alloc_diagnostic(
                     create_diagnostic_for_node_array(
                         &get_source_file_of_node(node, self).ref_(self),
-                        node_as_jsx_opening_like_element
+                        &node_as_jsx_opening_like_element
                             .maybe_type_arguments()
-                            .as_ref()
-                            .unwrap(),
+                            .unwrap().ref_(self),
                         &Diagnostics::Expected_0_type_arguments_but_got_1,
                         Some(vec![
                             0usize.to_string(),
                             length(
                                 node_as_jsx_opening_like_element
                                     .maybe_type_arguments()
-                                    .as_double_deref(),
+                                    .refed(self).as_double_deref(),
                             )
                             .to_string(),
                         ]),
@@ -468,13 +468,13 @@ impl TypeChecker {
     pub(super) fn is_potentially_uncalled_decorator(
         &self,
         decorator: Id<Node>, /*Decorator*/
-        signatures: &[Gc<Signature>],
+        signatures: &[Id<Signature>],
     ) -> bool {
         !signatures.is_empty()
-            && every(signatures, |signature: &Gc<Signature>, _| {
-                signature.min_argument_count() == 0
-                    && !signature_has_rest_parameter(signature)
-                    && signature.parameters().len()
+            && every(signatures, |&signature: &Id<Signature>, _| {
+                signature.ref_(self).min_argument_count() == 0
+                    && !signature_has_rest_parameter(&signature.ref_(self))
+                    && signature.ref_(self).parameters().len()
                         < self.get_decorator_argument_count(decorator, signature)
             })
     }
@@ -482,9 +482,9 @@ impl TypeChecker {
     pub(super) fn resolve_signature(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         Ok(match node.ref_(self).kind() {
             SyntaxKind::CallExpression => {
                 self.resolve_call_expression(node, candidates_out_array, check_mode)?
@@ -511,24 +511,24 @@ impl TypeChecker {
     pub(super) fn get_resolved_signature_(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        candidates_out_array: Option<&mut Vec<Gc<Signature>>>,
+        candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: Option<CheckMode>,
-    ) -> io::Result<Gc<Signature>> {
+    ) -> io::Result<Id<Signature>> {
         let links = self.get_node_links(node);
-        let cached = (*links).borrow().resolved_signature.clone();
-        if let Some(cached) = cached.as_ref().filter(|cached| {
-            !Gc::ptr_eq(cached, &self.resolving_signature()) && candidates_out_array.is_none()
+        let cached = links.ref_(self).resolved_signature.clone();
+        if let Some(cached) = cached.filter(|&cached| {
+            cached != self.resolving_signature() && candidates_out_array.is_none()
         }) {
             return Ok(cached.clone());
         }
-        links.borrow_mut().resolved_signature = Some(self.resolving_signature());
+        links.ref_mut(self).resolved_signature = Some(self.resolving_signature());
         let result = self.resolve_signature(
             node,
             candidates_out_array,
             check_mode.unwrap_or(CheckMode::Normal),
         )?;
-        if !Gc::ptr_eq(&result, &self.resolving_signature()) {
-            links.borrow_mut().resolved_signature =
+        if result != self.resolving_signature() {
+            links.ref_mut(self).resolved_signature =
                 if self.flow_loop_start() == self.flow_loop_count() {
                     Some(result.clone())
                 } else {
@@ -565,7 +565,7 @@ impl TypeChecker {
             let symbol = self.get_symbol_of_node(func)?;
             return Ok(matches!(
                 symbol.and_then(|symbol| symbol.ref_(self).maybe_members().clone()).as_ref(),
-                Some(symbol_members) if !(**symbol_members).borrow().is_empty(),
+                Some(symbol_members) if !symbol_members.ref_(self).is_empty(),
             ));
         }
         Ok(false)
@@ -579,7 +579,7 @@ impl TypeChecker {
         let source = return_ok_default_if_none!(source);
         let links = self.get_symbol_links(source);
         if !matches!(
-            (*links).borrow().inferred_class_symbol.as_ref(),
+            (*links.ref_(self)).borrow().inferred_class_symbol.as_ref(),
             Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(&target.ref_(self)))
         ) {
             let inferred = if is_transient_symbol(&target.ref_(self)) {
@@ -591,20 +591,20 @@ impl TypeChecker {
                 let inferred_ref = inferred.ref_(self);
                 let mut inferred_exports = inferred_ref.maybe_exports_mut();
                 if inferred_exports.is_none() {
-                    *inferred_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *inferred_exports = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
             }
             {
                 let inferred_ref = inferred.ref_(self);
                 let mut inferred_members = inferred_ref.maybe_members_mut();
                 if inferred_members.is_none() {
-                    *inferred_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *inferred_members = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
             }
             inferred.ref_(self).set_flags(
@@ -612,26 +612,26 @@ impl TypeChecker {
             );
             if matches!(
                 source.ref_(self).maybe_exports().as_ref(),
-                Some(source_exports) if !(**source_exports).borrow().is_empty()
+                Some(source_exports) if !source_exports.ref_(self).is_empty()
             ) {
                 self.merge_symbol_table(
-                    inferred.ref_(self).maybe_exports().clone().unwrap(),
-                    &(*source.ref_(self).maybe_exports().clone().unwrap()).borrow(),
+                    inferred.ref_(self).maybe_exports().unwrap(),
+                    &source.ref_(self).maybe_exports().unwrap().ref_(self),
                     None,
                 )?;
             }
             if matches!(
                 source.ref_(self).maybe_members().as_ref(),
-                Some(source_members) if !(**source_members).borrow().is_empty()
+                Some(source_members) if !source_members.ref_(self).is_empty()
             ) {
                 self.merge_symbol_table(
-                    inferred.ref_(self).maybe_members().clone().unwrap(),
-                    &(*source.ref_(self).maybe_members().clone().unwrap()).borrow(),
+                    inferred.ref_(self).maybe_members().unwrap(),
+                    &source.ref_(self).maybe_members().unwrap().ref_(self),
                     None,
                 )?;
             }
             {
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 if links.inferred_class_symbol.is_none() {
                     links.inferred_class_symbol = Some(HashMap::new());
                 }
@@ -643,7 +643,7 @@ impl TypeChecker {
             }
             return Ok(Some(inferred));
         }
-        let ret = (*links)
+        let ret = (*links.ref_(self))
             .borrow()
             .inferred_class_symbol
             .as_ref()
@@ -661,8 +661,8 @@ impl TypeChecker {
         let prototype = assignment_symbol
             .and_then(|assignment_symbol| assignment_symbol.ref_(self).maybe_exports().clone())
             .and_then(|assignment_symbol_exports| {
-                (*assignment_symbol_exports)
-                    .borrow()
+                assignment_symbol_exports
+                    .ref_(self)
                     .get("prototype")
                     .cloned()
             });
@@ -787,14 +787,13 @@ impl TypeChecker {
         if !self.check_grammar_type_arguments(
             node,
             node.ref_(self).as_has_type_arguments()
-                .maybe_type_arguments()
-                .as_deref(),
+                .maybe_type_arguments(),
         ) {
-            self.check_grammar_arguments(node.ref_(self).as_has_arguments().maybe_arguments().as_deref());
+            self.check_grammar_arguments(node.ref_(self).as_has_arguments().maybe_arguments());
         }
 
         let signature = self.get_resolved_signature_(node, None, check_mode)?;
-        if Gc::ptr_eq(&signature, &self.resolving_signature()) {
+        if signature == self.resolving_signature() {
             return Ok(self.non_inferrable_type());
         }
 
@@ -805,7 +804,7 @@ impl TypeChecker {
         }
 
         if node.ref_(self).kind() == SyntaxKind::NewExpression {
-            let declaration = signature.declaration;
+            let declaration = signature.ref_(self).declaration;
 
             if declaration.try_matches(|declaration| -> io::Result<_> {
                 Ok(!matches!(
@@ -829,7 +828,7 @@ impl TypeChecker {
 
         if is_in_js_file(Some(&node.ref_(self))) && self.is_common_js_require(node)? {
             return self.resolve_external_module_type_by_literal(
-                node.ref_(self).as_has_arguments().maybe_arguments().unwrap()[0],
+                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().ref_(self)[0],
             );
         }
 
@@ -848,7 +847,7 @@ impl TypeChecker {
             && node.ref_(self).as_call_expression().question_dot_token.is_none()
             && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionStatement
             && return_type.ref_(self).flags().intersects(TypeFlags::Void)
-            && self.get_type_predicate_of_signature(&signature)?.is_some()
+            && self.get_type_predicate_of_signature(signature)?.is_some()
         {
             let node_ref = node.ref_(self);
             let node_as_call_expression = node_ref.as_call_expression();
@@ -875,7 +874,7 @@ impl TypeChecker {
             let js_symbol = self.get_symbol_of_expando(node, false)?;
             if let Some(js_symbol_exports) = js_symbol
                 .and_then(|js_symbol| js_symbol.ref_(self).maybe_exports().clone())
-                .filter(|js_symbol_exports| !(**js_symbol_exports).borrow().is_empty())
+                .filter(|js_symbol_exports| !js_symbol_exports.ref_(self).is_empty())
             {
                 let js_assignment_type = self.create_anonymous_type(
                     js_symbol,
@@ -906,12 +905,12 @@ impl TypeChecker {
 
     pub(super) fn check_deprecated_signature(
         &self,
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         node: Id<Node>, /*CallLikeExpression*/
     ) -> io::Result<()> {
         if let Some(signature_declaration) =
             signature
-                .declaration
+                .ref_(self).declaration
                 .filter(|signature_declaration| {
                     signature_declaration
                         .ref_(self).flags()

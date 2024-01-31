@@ -53,9 +53,9 @@ impl Printer {
         let mut node = Some(container);
         while maybe_is_node_descendant_of(node, Some(container), self) {
             let node_present = node.as_ref().unwrap();
-            if let Some(node_locals) = node_present.ref_(self).maybe_locals().as_ref() {
-                let local = (**node_locals)
-                    .borrow()
+            if let Some(node_locals) = node_present.ref_(self).maybe_locals() {
+                let local = node_locals
+                    .ref_(self)
                     .get(&*escape_leading_underscores(name))
                     .cloned();
                 if matches!(
@@ -356,8 +356,8 @@ impl Printer {
     }
 
     pub(super) fn emit_comments_before_node(&self, node: Id<Node>) {
-        let emit_flags = get_emit_flags(&node.ref_(self));
-        let comment_range = get_comment_range(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
+        let comment_range = get_comment_range(node, self);
 
         self.emit_leading_comments_of_node(
             node,
@@ -377,8 +377,8 @@ impl Printer {
         saved_container_end: isize,
         saved_declaration_list_container_end: isize,
     ) {
-        let emit_flags = get_emit_flags(&node.ref_(self));
-        let comment_range = get_comment_range(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
+        let comment_range = get_comment_range(node, self);
 
         if emit_flags.intersects(EmitFlags::NoNestedComments) {
             self.set_comments_disabled(false);
@@ -433,7 +433,7 @@ impl Printer {
             }
         }
         maybe_for_each(
-            get_synthetic_leading_comments(&node.ref_(self)).as_ref(),
+            get_synthetic_leading_comments(node, self).as_ref(),
             |comment: &Rc<SynthesizedComment>, _| -> Option<()> {
                 self.emit_leading_synthesized_comment(comment);
                 None
@@ -457,7 +457,7 @@ impl Printer {
             || emit_flags.intersects(EmitFlags::NoTrailingComments)
             || node.ref_(self).kind() == SyntaxKind::JsxText;
         maybe_for_each(
-            get_synthetic_trailing_comments(&node.ref_(self)).as_ref(),
+            get_synthetic_trailing_comments(node, self).as_ref(),
             |comment: &Rc<SynthesizedComment>, _| -> Option<()> {
                 self.emit_trailing_synthesized_comment(comment);
                 None
@@ -547,7 +547,7 @@ impl Printer {
         self.enter_comment();
         let pos = detached_range.pos();
         let end = detached_range.end();
-        let emit_flags = get_emit_flags(&node.ref_(self));
+        let emit_flags = get_emit_flags(node, self);
         let skip_leading_comments = pos < 0 || emit_flags.intersects(EmitFlags::NoLeadingComments);
         let skip_trailing_comments = self.comments_disabled()
             || end < 0
@@ -620,14 +620,14 @@ impl Printer {
         let parent_node_array = get_containing_node_array(previous_node);
         let prev_node_index = parent_node_array.as_ref().and_then(|parent_node_array| {
             parent_node_array
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&node| node == previous_node)
         });
         matches!(
             prev_node_index,
             Some(prev_node_index) if matches!(
-                parent_node_array.as_ref().and_then(|parent_node_array| {
-                    parent_node_array.into_iter().position(|&node| node == next_node)
+                parent_node_array.and_then(|parent_node_array| {
+                    parent_node_array.ref_(self).into_iter().position(|&node| node == next_node)
                 }),
                 Some(value) if value == prev_node_index + 1
             )

@@ -14,7 +14,7 @@ use crate::{
     get_referenced_file_location, get_regex_from_pattern, get_sys, is_reference_file_location,
     is_referenced_file, maybe_for_each, out_file, package_id_to_string,
     sort_and_deduplicate_diagnostics, target_option_declaration, text_substring, BuilderProgram,
-    CancellationTokenDebuggable, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CancellationToken, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram,
     CustomTransformers, Debug_, Diagnostic, DiagnosticCategory, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
@@ -28,12 +28,12 @@ use crate::{
     WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback, AllArenas, InArena,
 };
 
-fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Gc<SysFormatDiagnosticsHost>/*>*/ {
-    /*sys ?*/ Gc::new(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
+fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Id<SysFormatDiagnosticsHost>/*>*/ {
+    /*sys ?*/ arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
 }
 
 #[derive(Trace, Finalize)]
-struct SysFormatDiagnosticsHost {
+pub struct SysFormatDiagnosticsHost {
     system: Id<Box<dyn System>>,
     #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
@@ -75,23 +75,23 @@ pub fn create_diagnostic_reporter(
     system: Id<Box<dyn System>>,
     pretty: Option<bool>,
     arena: &impl HasArena,
-) -> Gc<Box<dyn DiagnosticReporter>> {
-    let host: Gc<SysFormatDiagnosticsHost> =
+) -> Id<Box<dyn DiagnosticReporter>> {
+    let host: Id<SysFormatDiagnosticsHost> =
         if system == get_sys(arena)
         /*&& sysFormatDiagnosticsHost*/
         {
             get_sys_format_diagnostics_host(arena)
         } else {
-            Gc::new(SysFormatDiagnosticsHost::new(system.clone(), arena))
+            arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(system.clone(), arena))
         };
-    Gc::new(Box::new(DiagnosticReporterConcrete::new(
+    arena.alloc_diagnostic_reporter(Box::new(DiagnosticReporterConcrete::new(
         host, pretty, system,
     )))
 }
 
 #[derive(Trace, Finalize)]
 struct DiagnosticReporterConcrete {
-    host: Gc<SysFormatDiagnosticsHost>,
+    host: Id<SysFormatDiagnosticsHost>,
     pretty: bool,
     diagnostics: GcCell<Vec<Id<Diagnostic>>>,
     system: Id<Box<dyn System>>,
@@ -99,7 +99,7 @@ struct DiagnosticReporterConcrete {
 
 impl DiagnosticReporterConcrete {
     pub fn new(
-        host: Gc<SysFormatDiagnosticsHost>,
+        host: Id<SysFormatDiagnosticsHost>,
         pretty: Option<bool>,
         system: Id<Box<dyn System>>,
     ) -> Self {
@@ -116,7 +116,7 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Id<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
             self.system
-                .ref_(self).write(&format_diagnostic(&diagnostic.ref_(self), &*self.host, self)?);
+                .ref_(self).write(&format_diagnostic(&diagnostic.ref_(self), &*self.host.ref_(self), self)?);
             return Ok(());
         }
 
@@ -124,8 +124,8 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
         diagnostics.push(diagnostic);
         self.system.ref_(self).write(&format!(
             "{}{}",
-            format_diagnostics_with_color_and_context(&diagnostics, &*self.host, self)?,
-            self.host.get_new_line()
+            format_diagnostics_with_color_and_context(&diagnostics, &*self.host.ref_(self), self)?,
+            self.host.ref_(self).get_new_line()
         ));
         diagnostics.pop();
 
@@ -262,7 +262,7 @@ pub fn parse_config_file_with_system(
     extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     watch_options_to_extend: Option<Rc<WatchOptions>>,
     system: Id<Box<dyn System>>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<ParsedCommandLine>> {
     let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic);
@@ -280,13 +280,13 @@ pub fn parse_config_file_with_system(
 #[derive(Trace, Finalize)]
 struct ParseConfigFileWithSystemHost {
     system: Id<Box<dyn System>>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
 }
 
 impl ParseConfigFileWithSystemHost {
     pub fn new(
         system: Id<Box<dyn System>>,
-        report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+        report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     ) -> Self {
         Self {
             system,
@@ -337,7 +337,7 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>) {
-        report_unrecoverable_diagnostic(&**self.system.ref_(self), &**self.report_diagnostic, diagnostic)
+        report_unrecoverable_diagnostic(&**self.system.ref_(self), &**self.report_diagnostic.ref_(self), diagnostic)
     }
 }
 
@@ -387,21 +387,21 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
 #[derive(Trace, Finalize)]
 pub enum ProgramOrBuilderProgram {
     Program(Id<Program>),
-    BuilderProgram(Gc<Box<dyn BuilderProgram>>),
+    BuilderProgram(Id<Box<dyn BuilderProgram>>),
 }
 
 impl ProgramOrBuilderProgram {
     fn get_compiler_options(&self, arena: &impl HasArena) -> Id<CompilerOptions> {
         match self {
             Self::Program(program) => program.ref_(arena).get_compiler_options(),
-            Self::BuilderProgram(program) => program.get_compiler_options(),
+            Self::BuilderProgram(program) => program.ref_(arena).get_compiler_options(),
         }
     }
 
     fn get_source_files(&self, arena: &impl HasArena) -> Vec<Id<Node>> {
         match self {
             Self::Program(program) => program.ref_(arena).get_source_files().clone(),
-            Self::BuilderProgram(program) => program.get_source_files().to_owned(),
+            Self::BuilderProgram(program) => program.ref_(arena).get_source_files().to_owned(),
         }
     }
 }
@@ -412,8 +412,8 @@ impl From<Id<Program>> for ProgramOrBuilderProgram {
     }
 }
 
-impl From<Gc<Box<dyn BuilderProgram>>> for ProgramOrBuilderProgram {
-    fn from(value: Gc<Box<dyn BuilderProgram>>) -> Self {
+impl From<Id<Box<dyn BuilderProgram>>> for ProgramOrBuilderProgram {
+    fn from(value: Id<Box<dyn BuilderProgram>>) -> Self {
         Self::BuilderProgram(value)
     }
 }
@@ -427,7 +427,7 @@ pub fn list_files(program: ProgramOrBuilderProgram, mut write: impl FnMut(&str),
     if matches!(options.ref_(arena).explain_files, Some(true)) {
         explain_files(
             &if is_builder_program(&program) {
-                enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).get_program()
+                enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).ref_(arena).get_program()
             } else {
                 enum_unwrapped!(&program, [ProgramOrBuilderProgram, Program]).clone()
             }.ref_(arena),
@@ -454,8 +454,8 @@ pub fn explain_files(program: &Program, mut write: impl FnMut(&str)) {
     };
     for &file in &*program.get_source_files() {
         write(&to_file_name(file.clone(), Some(&relative_file_name), program));
-        (*reasons)
-            .borrow()
+        reasons
+            .ref_(program)
             .get(&file.ref_(program).as_source_file().path())
             .map(|reasons| {
                 reasons.iter().for_each(|&reason| {
@@ -737,7 +737,7 @@ pub fn file_include_reason_to_diagnostics(
         }
         FileIncludeReason::ProjectReferenceFile(reason) => {
             let is_output = reason.kind == FileIncludeKind::OutputFromProjectReference;
-            let referenced_resolved_ref: Gc<ResolvedProjectReference> = Debug_.check_defined(
+            let referenced_resolved_ref: Id<ResolvedProjectReference> = Debug_.check_defined(
                 program.get_resolved_project_references().as_ref().and_then(
                     |resolved_project_references| {
                         resolved_project_references
@@ -766,8 +766,8 @@ pub fn file_include_reason_to_diagnostics(
                     to_file_name(
                         {
                             let tmp: String = referenced_resolved_ref
-                                .source_file
-                                .ref_(program).as_source_file()
+                                .ref_(arena).source_file
+                                .ref_(arena).as_source_file()
                                 .file_name()
                                 .clone();
                             tmp
@@ -866,11 +866,11 @@ struct EmitFilesAndReportErrorsReturn {
 
 fn emit_files_and_report_errors(
     program: Id<Program>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
-    write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
-    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    write_file: Option<Id<Box<dyn WriteFileCallback>>>,
+    cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
     arena: &impl HasArena,
@@ -938,7 +938,7 @@ fn emit_files_and_report_errors(
 
     let diagnostics = sort_and_deduplicate_diagnostics(&all_diagnostics, arena);
     for diagnostic in diagnostics.iter() {
-        report_diagnostic.call(diagnostic.clone())?;
+        report_diagnostic.ref_(arena).call(diagnostic.clone())?;
     }
     if let Some(mut write) = write {
         let current_dir = program.ref_(arena).get_current_directory();
@@ -962,11 +962,11 @@ fn emit_files_and_report_errors(
 
 pub fn emit_files_and_report_errors_and_get_exit_status(
     program: Id<Program>,
-    report_diagnostic: Gc<Box<dyn DiagnosticReporter>>,
+    report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     write: Option<impl FnMut(&str)>,
     report_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
-    write_file: Option<Gc<Box<dyn WriteFileCallback>>>,
-    cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+    write_file: Option<Id<Box<dyn WriteFileCallback>>>,
+    cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     emit_only_dts_files: Option<bool>,
     custom_transformers: Option<&CustomTransformers>,
     arena: &impl HasArena,
@@ -1066,8 +1066,8 @@ pub struct IncrementalCompilationOptions<'a> {
     pub options: &'a CompilerOptions,
     pub config_file_parsing_diagnostics: Option<&'a [Id<Diagnostic>]>,
     pub project_references: Option<&'a [Rc<ProjectReference>]>,
-    pub host: Option<Gc<Box<dyn CompilerHost>>>,
-    pub report_diagnostic: Option<Gc<Box<dyn DiagnosticReporter>>>,
+    pub host: Option<Id<Box<dyn CompilerHost>>>,
+    pub report_diagnostic: Option<Id<Box<dyn DiagnosticReporter>>>,
     pub report_error_summary: Option<Rc<dyn ReportEmitErrorSummary>>,
     pub after_program_emit_and_diagnostics:
         Option<&'a dyn FnMut(Rc<dyn EmitAndSemanticDiagnosticsBuilderProgram>)>,

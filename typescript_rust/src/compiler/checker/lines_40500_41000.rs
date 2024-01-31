@@ -71,7 +71,7 @@ impl TypeChecker {
         while let Some(location_present) = *location {
             if let Some(location_locals) = location_present.ref_(self).maybe_locals().clone() {
                 if !self.is_global_source_file(location_present) {
-                    self.copy_symbols(symbols, &(*location_locals).borrow(), meaning);
+                    self.copy_symbols(symbols, &location_locals.ref_(self), meaning);
                 }
             }
 
@@ -80,12 +80,12 @@ impl TypeChecker {
                     if is_external_module(&location_present.ref_(self)) {
                         self.copy_locally_visible_export_symbols(
                             symbols,
-                            &(*self
+                            &self
                                 .get_symbol_of_node(location_present)?
                                 .unwrap()
                                 .ref_(self)
-                                .exports())
-                            .borrow(),
+                                .exports()
+                                .ref_(self),
                             meaning & SymbolFlags::ModuleMember,
                         );
                     }
@@ -93,24 +93,24 @@ impl TypeChecker {
                 SyntaxKind::ModuleDeclaration => {
                     self.copy_locally_visible_export_symbols(
                         symbols,
-                        &(*self
+                        &self
                             .get_symbol_of_node(location_present)?
                             .unwrap()
                             .ref_(self)
-                            .exports())
-                        .borrow(),
+                            .exports()
+                            .ref_(self),
                         meaning & SymbolFlags::ModuleMember,
                     );
                 }
                 SyntaxKind::EnumDeclaration => {
                     self.copy_symbols(
                         symbols,
-                        &(*self
+                        &self
                             .get_symbol_of_node(location_present)?
                             .unwrap()
                             .ref_(self)
-                            .exports())
-                        .borrow(),
+                            .exports()
+                            .ref_(self),
                         meaning & SymbolFlags::EnumMember,
                     );
                 }
@@ -123,10 +123,9 @@ impl TypeChecker {
                     if !*is_static_symbol {
                         self.copy_symbols(
                             symbols,
-                            &(*self.get_members_of_symbol(
+                            &self.get_members_of_symbol(
                                 self.get_symbol_of_node(location_present)?.unwrap(),
-                            )?)
-                            .borrow(),
+                            )?.ref_(self),
                             meaning & SymbolFlags::Type,
                         );
                     }
@@ -135,10 +134,9 @@ impl TypeChecker {
                     if !*is_static_symbol {
                         self.copy_symbols(
                             symbols,
-                            &(*self.get_members_of_symbol(
+                            &self.get_members_of_symbol(
                                 self.get_symbol_of_node(location_present)?.unwrap(),
-                            )?)
-                            .borrow(),
+                            )?.ref_(self),
                             meaning & SymbolFlags::Type,
                         );
                     }
@@ -464,8 +462,8 @@ impl TypeChecker {
             let possible_import_node = self.is_import_type_qualifier_part(name);
             if let Some(possible_import_node) = possible_import_node {
                 self.get_type_from_type_node_(possible_import_node)?;
-                let sym = (*self.get_node_links(name))
-                    .borrow()
+                let sym = self.get_node_links(name)
+                    .ref_(self)
                     .resolved_symbol
                     .clone();
                 return Ok(sym.filter(|&sym| sym != self.unknown_symbol()));
@@ -560,7 +558,7 @@ impl TypeChecker {
                 SyntaxKind::PropertyAccessExpression | SyntaxKind::QualifiedName
             ) {
                 let links = self.get_node_links(name);
-                let links_resolved_symbol = (*links).borrow().resolved_symbol.clone();
+                let links_resolved_symbol = links.ref_(self).resolved_symbol.clone();
                 if links_resolved_symbol.is_some() {
                     return Ok(links_resolved_symbol);
                 }
@@ -570,13 +568,13 @@ impl TypeChecker {
                 } else {
                     self.check_qualified_name(name, Some(CheckMode::Normal))?;
                 }
-                if (*links).borrow().resolved_symbol.is_none()
+                if links.ref_(self).resolved_symbol.is_none()
                     && is_jsdoc
                     && is_qualified_name(&name.ref_(self))
                 {
                     return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
                 }
-                return Ok((*links).borrow().resolved_symbol.clone());
+                return Ok(links.ref_(self).resolved_symbol.clone());
             } else if is_jsdoc_member_name(&name.ref_(self)) {
                 return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
             }
@@ -634,7 +632,7 @@ impl TypeChecker {
             if symbol.is_none() && is_identifier(&name.ref_(self)) {
                 if let Some(container) = container {
                     symbol = self.get_merged_symbol(self.get_symbol(
-                        &(*self.get_exports_of_symbol(container)?).borrow(),
+                        &self.get_exports_of_symbol(container)?.ref_(self),
                         &name.ref_(self).as_identifier().escaped_text,
                         meaning,
                     )?);
@@ -758,7 +756,7 @@ impl TypeChecker {
                 let container = get_this_container(node, false, self);
                 if is_function_like(Some(&container.ref_(self))) {
                     let sig = self.get_signature_from_declaration_(container)?;
-                    let sig_this_parameter = sig.maybe_this_parameter().clone();
+                    let sig_this_parameter = sig.ref_(self).maybe_this_parameter().clone();
                     if sig_this_parameter.is_some() {
                         return Ok(sig_this_parameter);
                     }
@@ -818,7 +816,7 @@ impl TypeChecker {
                 }
                 if is_call_expression(&parent.ref_(self))
                     && is_bindable_object_define_property_call(parent, self)
-                    && parent.ref_(self).as_call_expression().arguments[1] == node
+                    && parent.ref_(self).as_call_expression().arguments.ref_(self)[1] == node
                 {
                     return self.get_symbol_of_node(parent);
                 }

@@ -1198,7 +1198,7 @@ pub fn get_first_constructor_with_body(
     node: Id<Node>, /*ClassLikeDeclaration*/
     arena: &impl HasArena,
 ) -> Option<Id<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
-    find(&node.ref_(arena).as_class_like_declaration().members(), |member, _| {
+    find(&node.ref_(arena).as_class_like_declaration().members().ref_(arena), |member, _| {
         is_constructor_declaration(&member.ref_(arena))
             && node_is_present(member.ref_(arena).as_constructor_declaration().maybe_body().refed(arena).as_deref())
     })
@@ -1214,10 +1214,10 @@ pub fn get_set_accessor_value_parameter(
     let accessor_parameters = accessor_as_set_accessor_declaration.parameters();
     if
     /*accessor &&*/
-    !accessor_parameters.is_empty() {
+    !accessor_parameters.ref_(arena).is_empty() {
         let has_this =
-            accessor_parameters.len() == 2 && parameter_is_this_keyword(accessor_parameters[0], arena);
-        return Some(accessor_parameters[if has_this { 1 } else { 0 }]);
+            accessor_parameters.ref_(arena).len() == 2 && parameter_is_this_keyword(accessor_parameters.ref_(arena)[0], arena);
+        return Some(accessor_parameters.ref_(arena)[if has_this { 1 } else { 0 }]);
     }
     None
 }
@@ -1236,9 +1236,9 @@ pub fn get_this_parameter(
 ) -> Option<Id<Node /*ParameterDeclaration*/>> {
     let signature_ref = signature.ref_(arena);
     let signature_as_signature_declaration = signature_ref.as_signature_declaration();
-    if !signature_as_signature_declaration.parameters().is_empty() && !is_jsdoc_signature(&signature.ref_(arena))
+    if !signature_as_signature_declaration.parameters().ref_(arena).is_empty() && !is_jsdoc_signature(&signature.ref_(arena))
     {
-        let this_parameter = signature_as_signature_declaration.parameters()[0];
+        let this_parameter = signature_as_signature_declaration.parameters().ref_(arena)[0];
         if parameter_is_this_keyword(this_parameter, arena) {
             return Some(this_parameter);
         }

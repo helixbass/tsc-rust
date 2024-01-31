@@ -324,8 +324,8 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let symbol = (*resolved.ref_(self).as_resolved_type().members())
-                .borrow()
+            let symbol = resolved.ref_(self).as_resolved_type().members()
+                .ref_(self)
                 .get(name)
                 .map(Clone::clone);
             if let Some(symbol) = symbol {
@@ -417,12 +417,12 @@ impl TypeChecker {
             .flags()
             .intersects(TypeFlags::StructuredType)
         {
-            for (escaped_name, &symbol) in &*(*self
+            for (escaped_name, &symbol) in &*self
                 .resolve_structured_type_members(type_)?
                 .ref_(self)
                 .as_resolved_type()
-                .members())
-            .borrow()
+                .members()
+                .ref_(self)
             {
                 if self.is_named_member(symbol, escaped_name)? {
                     action(symbol, escaped_name);
@@ -439,7 +439,7 @@ impl TypeChecker {
         obj: Id<Node>, /*ObjectLiteralExpression | JsxAttributes*/
     ) -> io::Result<bool> {
         let list = obj.ref_(self).as_has_properties().properties();
-        let ret = list.iter().try_any(|&property| -> io::Result<_> {
+        let ret = list.ref_(self).iter().try_any(|&property| -> io::Result<_> {
             let name_type = property.ref_(self).as_named_declaration().maybe_name().try_map(|name| self.get_literal_type_from_property_name(name))?;
             let name = name_type.filter(|&name_type| self.is_type_usable_as_property_name(name_type)).map(|name_type| self.get_property_name_from_type(name_type));
             let expected = name.try_and_then(|name| self.get_type_of_property_of_type_(contextual_type, &name))?;
@@ -632,8 +632,8 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Option<Id<Type>>> {
-        if (*type_.ref_(self).as_conditional_type().root)
-            .borrow()
+        if type_.ref_(self).as_conditional_type().root
+            .ref_(self)
             .is_distributive
             && !matches!(
                 *type_.ref_(self).maybe_restrictive_instantiation(),
@@ -653,13 +653,12 @@ impl TypeChecker {
                 let instantiated = self.get_conditional_type_instantiation(
                     type_,
                     self.prepend_type_mapping(
-                        (*{
+                        {
                             let root = type_.ref_(self).as_conditional_type().root.clone();
                             root
-                        })
-                        .borrow()
-                        .check_type
-                        .clone(),
+                        }
+                        .ref_(self)
+                        .check_type,
                         constraint,
                         {
                             let mapper = type_.ref_(self).as_conditional_type().mapper.clone();
@@ -844,12 +843,12 @@ impl TypeChecker {
                                 add_related_info(
                                     &diagnostic.ref_(self),
                                     vec![
-                                        create_diagnostic_for_node(
+                                        self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                             current_node,
                                             &Diagnostics::Circularity_originates_in_type_at_this_location,
                                             None,
                                             self,
-                                        ).into()
+                                        ).into())
                                     ]
                                 );
                             }

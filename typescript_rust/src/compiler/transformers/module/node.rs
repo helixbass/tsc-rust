@@ -18,11 +18,11 @@ struct TransformNodeModule {
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     esm_transform: Transformer,
-    esm_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
-    esm_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    esm_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    esm_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     cjs_transform: Transformer,
-    cjs_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
-    cjs_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    cjs_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    cjs_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
 }
 
@@ -53,13 +53,13 @@ impl TransformNodeModule {
         }));
 
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            Gc::new(Box::new(TransformNodeModuleOnEmitNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformNodeModuleOnEmitNodeOverrider::new(
                 ret,
                 previous_on_emit_node,
             )))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            Gc::new(Box::new(TransformNodeModuleOnSubstituteNodeOverrider::new(
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformNodeModuleOnSubstituteNodeOverrider::new(
                 ret,
                 previous_on_substitute_node,
             )))
@@ -112,7 +112,7 @@ impl TransformNodeModule {
     fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> io::Result<Id<Node>> {
         let node_ref = node.ref_(self);
         let node_as_bundle = node_ref.as_bundle();
-        Ok(self.context.ref_(self).factory().create_bundle(
+        Ok(self.context.ref_(self).factory().ref_(self).create_bundle(
             try_map(
                 &node_as_bundle.source_files,
                 |source_file: &Option<Id<Node>>, _| -> io::Result<_> {
@@ -145,13 +145,13 @@ impl HasArena for TransformNodeModule {
 #[derive(Trace, Finalize)]
 struct TransformNodeModuleOnEmitNodeOverrider {
     transform_node_module: Transformer,
-    previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+    previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
 
 impl TransformNodeModuleOnEmitNodeOverrider {
     fn new(
         transform_node_module: Transformer,
-        previous_on_emit_node: Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) -> Self {
         Self {
             transform_node_module,
@@ -178,14 +178,14 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
         let Some(current_source_file) = self.transform_node_module().maybe_current_source_file() else {
             return self
                 .previous_on_emit_node
-                .on_emit_node(hint, node, emit_callback);
+                .ref_(self).on_emit_node(hint, node, emit_callback);
         };
         if current_source_file
             .ref_(self).as_source_file()
             .maybe_implied_node_format()
             == Some(ModuleKind::ESNext)
         {
-            return self.transform_node_module().esm_on_emit_node.on_emit_node(
+            return self.transform_node_module().esm_on_emit_node.ref_(self).on_emit_node(
                 hint,
                 node,
                 emit_callback,
@@ -193,7 +193,7 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
         }
         self.transform_node_module()
             .cjs_on_emit_node
-            .on_emit_node(hint, node, emit_callback)
+            .ref_(self).on_emit_node(hint, node, emit_callback)
     }
 }
 
@@ -206,13 +206,13 @@ impl HasArena for TransformNodeModuleOnEmitNodeOverrider {
 #[derive(Trace, Finalize)]
 struct TransformNodeModuleOnSubstituteNodeOverrider {
     transform_node_module: Transformer,
-    previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+    previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
 
 impl TransformNodeModuleOnSubstituteNodeOverrider {
     fn new(
         transform_node_module: Transformer,
-        previous_on_substitute_node: Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) -> Self {
         Self {
             transform_node_module,
@@ -233,13 +233,13 @@ impl TransformationContextOnSubstituteNodeOverrider
             self.transform_node_module()
                 .set_current_source_file(Some(node));
             self.previous_on_substitute_node
-                .on_substitute_node(hint, node)
+                .ref_(self).on_substitute_node(hint, node)
         } else {
             let current_source_file = self.transform_node_module().maybe_current_source_file();
             if current_source_file.is_none() {
                 return self
                     .previous_on_substitute_node
-                    .on_substitute_node(hint, node);
+                    .ref_(self).on_substitute_node(hint, node);
             }
             let current_source_file = current_source_file.unwrap();
             if current_source_file
@@ -250,11 +250,11 @@ impl TransformationContextOnSubstituteNodeOverrider
                 return self
                     .transform_node_module()
                     .esm_on_substitute_node
-                    .on_substitute_node(hint, node);
+                    .ref_(self).on_substitute_node(hint, node);
             }
             self.transform_node_module()
                 .cjs_on_substitute_node
-                .on_substitute_node(hint, node)
+                .ref_(self).on_substitute_node(hint, node)
         }
     }
 }

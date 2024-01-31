@@ -74,7 +74,7 @@ impl TransformESNextFactory {
 
 impl TransformerFactoryInterface for TransformESNextFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle().call(
+        chain_bundle(self).ref_(self).call(
             context,
             self.alloc_transformer(Box::new(TransformESNext::new(context))),
         )

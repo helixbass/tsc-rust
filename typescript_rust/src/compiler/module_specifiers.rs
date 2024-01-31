@@ -167,7 +167,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_file_exists(
         &self,
-        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -182,7 +182,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_read_file(
         &self,
-        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -205,7 +205,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_directory_exists(
         &self,
-        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -224,7 +224,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_realpath(
         &self,
-        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -247,7 +247,7 @@ impl<THost: ModuleSpecifierResolutionHost + ?Sized> ModuleResolutionHost
 
     fn set_overriding_get_directories(
         &self,
-        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -278,6 +278,7 @@ pub fn get_module_specifier(
             arena,
         ),
         &Default::default(),
+        arena,
     )
 }
 
@@ -288,6 +289,7 @@ fn get_module_specifier_worker(
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     preferences: Preferences,
     user_preferences: &UserPreferences,
+    arena: &impl HasArena,
 ) -> io::Result<String> {
     let info = get_info(importing_source_file_name, host);
     let module_paths = get_all_module_paths(
@@ -296,6 +298,7 @@ fn get_module_specifier_worker(
         host,
         user_preferences,
         None,
+        arena,
     );
     first_defined(&module_paths, |module_path: &ModulePath, _| {
         try_get_module_name_as_node_module(module_path, &info, host, compiler_options, None)
@@ -417,6 +420,7 @@ pub fn get_module_specifiers_with_cache_info(
             &importing_source_file_as_source_file.path(),
             &module_source_file_as_source_file.original_file_name(),
             host,
+            arena,
         )
     });
     let result = compute_module_specifiers(
@@ -462,7 +466,7 @@ fn compute_module_specifiers(
     );
     let existing_specifier = for_each(module_paths, |module_path: &ModulePath, _| {
         maybe_for_each(
-            (*host.get_file_include_reasons()).borrow().get(&to_path(
+            host.get_file_include_reasons().ref_(arena).get(&to_path(
                 &module_path.path,
                 Some(&host.get_current_directory()),
                 info.get_canonical_file_name,
@@ -774,12 +778,13 @@ fn get_nearest_ancestor_directory_with_package_json(
     )
 }
 
-pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Option<TReturn>>(
+pub fn for_each_file_name_of_module<TReturn>(
     importing_file_name: &str,
     imported_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     prefer_sym_links: bool,
-    mut cb: TCallback,
+    mut cb: impl FnMut(&str, bool) -> Option<TReturn>,
+    arena: &impl HasArena,
 ) -> Option<TReturn> {
     let get_canonical_file_name =
         host_get_canonical_file_name(|| host.use_case_sensitive_file_names());
@@ -829,14 +834,10 @@ pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Opt
     }
 
     let symlink_cache = host.get_symlink_cache();
-    let symlinked_directories = symlink_cache
-        .as_ref()
-        .map(|symlink_cache| symlink_cache.get_symlinked_directories_by_realpath());
     let ref full_imported_file_name = get_normalized_absolute_path(imported_file_name, Some(&cwd));
-    let result = symlinked_directories.and_then(|symlinked_directories| {
-        symlinked_directories
-            .as_ref()
-            .and_then(|symlinked_directories| {
+    let result = symlink_cache
+        .and_then(|symlink_cache| {
+            symlink_cache.ref_(arena).get_symlinked_directories_by_realpath().as_ref().and_then(|symlinked_directories| {
                 for_each_ancestor_directory(
                     &get_directory_path(full_imported_file_name).into(),
                     |real_path_directory: &Path| -> Option<Option<TReturn>> {
@@ -891,7 +892,7 @@ pub fn for_each_file_name_of_module<TReturn, TCallback: FnMut(&str, bool) -> Opt
                 )
                 .flatten()
             })
-    });
+        });
     result.or_else(|| {
         if prefer_sym_links {
             for_each(&targets, |p: &String, _| {
@@ -919,6 +920,7 @@ fn get_all_module_paths(
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
     preferences: &UserPreferences,
     imported_file_path: Option<Path>,
+    arena: &impl HasArena,
 ) -> Vec<ModulePath> {
     let imported_file_path = imported_file_path.unwrap_or_else(|| {
         to_path(
@@ -935,7 +937,7 @@ fn get_all_module_paths(
             return cached_module_paths;
         }
     }
-    let module_paths = get_all_module_paths_worker(importing_file_path, imported_file_name, host);
+    let module_paths = get_all_module_paths_worker(importing_file_path, imported_file_name, host, arena);
     if let Some(cache) = cache.as_ref() {
         cache.set_module_paths(
             importing_file_path,
@@ -951,6 +953,7 @@ fn get_all_module_paths_worker(
     importing_file_name: &Path,
     imported_file_name: &str,
     host: &(impl ModuleSpecifierResolutionHost + ?Sized),
+    arena: &impl HasArena,
 ) -> Vec<ModulePath> {
     let get_canonical_file_name =
         host_get_canonical_file_name(|| host.use_case_sensitive_file_names());
@@ -974,6 +977,7 @@ fn get_all_module_paths_worker(
             imported_file_from_node_modules = imported_file_from_node_modules || is_in_node_modules;
             None
         },
+        arena,
     );
 
     let mut sorted_paths: Vec<ModulePath> = vec![];
@@ -1085,8 +1089,8 @@ fn try_get_module_name_from_ambient_module(
                 .maybe_exports()
                 .as_ref()
                 .and_then(|top_namespace_parent_parent_symbol_exports| {
-                    (**top_namespace_parent_parent_symbol_exports)
-                        .borrow()
+                    top_namespace_parent_parent_symbol_exports
+                        .ref_(checker)
                         .get("export=")
                         .cloned()
                 })

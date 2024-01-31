@@ -52,11 +52,10 @@ impl TypeChecker {
                                 self.get_type_parameters_for_type_reference(type_reference)?;
                             if let Some(type_parameters) = type_parameters {
                                 let index: usize = index_of_eq(
-                                    type_reference
+                                    &type_reference
                                         .ref_(self).as_type_reference_node()
                                         .maybe_type_arguments()
-                                        .as_deref()
-                                        .unwrap(),
+                                        .unwrap().ref_(self),
                                     &child_type_parameter,
                                 )
                                 .try_into()
@@ -507,7 +506,7 @@ impl TypeChecker {
                     vec![self.get_type_from_type_node_(node.ref_(self).as_array_type_node().element_type)?]
                 } else {
                     try_map(
-                        &node.ref_(self).as_tuple_type_node().elements,
+                        &*node.ref_(self).as_tuple_type_node().elements.ref_(self),
                         |&element: &Id<Node>, _| self.get_type_from_type_node_(element),
                     )?
                 }
@@ -624,7 +623,7 @@ impl TypeChecker {
             let num_type_arguments = length(
                 node.ref_(self).as_has_type_arguments()
                     .maybe_type_arguments()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
             );
             let min_type_argument_count = self.get_min_type_argument_count(Some(type_parameters));
             let is_js = is_in_js_file(Some(&node.ref_(self)));
@@ -676,7 +675,7 @@ impl TypeChecker {
                         length(
                             node.ref_(self).as_has_type_arguments()
                                 .maybe_type_arguments()
-                                .as_double_deref(),
+                                .refed(self).as_double_deref(),
                         ) != type_parameters.len(),
                     ),
                 )?
@@ -729,13 +728,13 @@ impl TypeChecker {
             return self.get_string_mapping_type(symbol, type_arguments.unwrap()[0]);
         }
         let links = self.get_symbol_links(symbol);
-        let type_parameters = (*links).borrow().type_parameters.clone().unwrap();
+        let type_parameters = (*links.ref_(self)).borrow().type_parameters.clone().unwrap();
         let id = format!(
             "{}{}",
             self.get_type_list_id(type_arguments),
             self.get_alias_id(alias_symbol, alias_type_arguments)
         );
-        let mut instantiation = (*links)
+        let mut instantiation = (*links.ref_(self))
             .borrow()
             .instantiations
             .as_ref()
@@ -758,7 +757,7 @@ impl TypeChecker {
                 alias_type_arguments,
             )?);
             links
-                .borrow_mut()
+                .ref_mut(self)
                 .instantiations
                 .as_mut()
                 .unwrap()
@@ -791,7 +790,7 @@ impl TypeChecker {
             return Ok(error_type.unwrap());
         }
         let type_ = self.get_declared_type_of_symbol(symbol)?;
-        let type_parameters = (*self.get_symbol_links(symbol))
+        let type_parameters = (*self.get_symbol_links(symbol).ref_(self))
             .borrow()
             .type_parameters
             .clone();
@@ -799,7 +798,7 @@ impl TypeChecker {
             let num_type_arguments = length(
                 node.ref_(self).as_has_type_arguments()
                     .maybe_type_arguments()
-                    .as_double_deref(),
+                    .refed(self).as_double_deref(),
             );
             let min_type_argument_count = self.get_min_type_argument_count(Some(&type_parameters));
             if num_type_arguments < min_type_argument_count
@@ -931,7 +930,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .declared_type = Some(self.unresolved_type());
             }
             return result.unwrap();
@@ -1018,7 +1017,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Option<Id<Type>>> {
         let links = self.get_node_links(node);
-        if (*links).borrow().resolved_jsdoc_type.is_none() {
+        if links.ref_(self).resolved_jsdoc_type.is_none() {
             let value_type = self.get_type_of_symbol(symbol)?;
             let mut type_type = value_type.clone();
             if symbol.ref_(self).maybe_value_declaration().is_some() {
@@ -1035,9 +1034,9 @@ impl TypeChecker {
                     type_type = self.get_type_reference_type(node, value_type_symbol)?;
                 }
             }
-            links.borrow_mut().resolved_jsdoc_type = Some(type_type);
+            links.ref_mut(self).resolved_jsdoc_type = Some(type_type);
         }
-        let ret = (*links).borrow().resolved_jsdoc_type.clone();
+        let ret = links.ref_(self).resolved_jsdoc_type.clone();
         Ok(ret)
     }
 
@@ -1070,7 +1069,7 @@ impl TypeChecker {
     }
 
     pub(super) fn is_unary_tuple_type_node(&self, node: Id<Node> /*TypeNode*/) -> bool {
-        node.ref_(self).kind() == SyntaxKind::TupleType && node.ref_(self).as_tuple_type_node().elements.len() == 1
+        node.ref_(self).kind() == SyntaxKind::TupleType && node.ref_(self).as_tuple_type_node().elements.ref_(self).len() == 1
     }
 
     pub(super) fn get_implied_constraint(
@@ -1085,8 +1084,8 @@ impl TypeChecker {
             {
                 self.get_implied_constraint(
                     type_,
-                    check_node.ref_(self).as_tuple_type_node().elements[0],
-                    extends_node.ref_(self).as_tuple_type_node().elements[0],
+                    check_node.ref_(self).as_tuple_type_node().elements.ref_(self)[0],
+                    extends_node.ref_(self).as_tuple_type_node().elements.ref_(self)[0],
                 )?
             } else if self.get_actual_type_variable(self.get_type_from_type_node_(check_node)?)?
                 == type_
@@ -1226,7 +1225,7 @@ impl TypeChecker {
                     return Ok(
                         if match type_args {
                             None => true,
-                            Some(type_args) => type_args.is_empty(),
+                            Some(type_args) => type_args.ref_(self).is_empty(),
                         } && !self.no_implicit_any
                         {
                             Some(self.any_array_type())
@@ -1239,7 +1238,7 @@ impl TypeChecker {
                     return Ok(
                         if match type_args {
                             None => true,
-                            Some(type_args) => type_args.is_empty(),
+                            Some(type_args) => type_args.ref_(self).is_empty(),
                         } && !self.no_implicit_any
                         {
                             Some(self.create_promise_type(self.any_type())?)
@@ -1250,14 +1249,14 @@ impl TypeChecker {
                 }
                 "Object" => {
                     if let Some(type_args) = type_args {
-                        if type_args.len() == 2 {
+                        if type_args.ref_(self).len() == 2 {
                             if is_jsdoc_index_signature(node, self) {
-                                let indexed = self.get_type_from_type_node_(type_args[0])?;
-                                let target = self.get_type_from_type_node_(type_args[1])?;
+                                let indexed = self.get_type_from_type_node_(type_args.ref_(self)[0])?;
+                                let target = self.get_type_from_type_node_(type_args.ref_(self)[1])?;
                                 let index_info = if indexed == self.string_type()
                                     || indexed == self.number_type()
                                 {
-                                    vec![Gc::new(
+                                    vec![self.alloc_index_info(
                                         self.create_index_info(indexed, target, false, None),
                                     )]
                                 } else {

@@ -29,20 +29,20 @@ use crate::{
     is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
     node_is_synthesized, null_transformation_context, out_file, push_if_unique_gc,
     return_ok_default_if_none, set_text_range_pos_end, set_value_declaration, some, try_cast,
-    CancellationTokenDebuggable, Comparison, DiagnosticCategory, DiagnosticInterface,
+    CancellationToken, Comparison, DiagnosticCategory, DiagnosticInterface,
     DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
     Diagnostics, DuplicateInfoForFiles, DuplicateInfoForSymbol, EmitResolver,
     FindAncestorCallbackReturn, HasInitializerInterface, InternalSymbolName, ModuleKind,
     NamedDeclarationInterface, NodeArray, NodeFlags, PatternAmbientModule, PragmaArgumentName,
     PragmaName, ReadonlyTextRange, ScriptTarget, VisitResult, __String, create_diagnostic_for_node,
-    escape_leading_underscores, factory, get_first_identifier, get_or_update_indexmap,
+    escape_leading_underscores, get_first_identifier, get_or_update_indexmap,
     get_source_file_of_node, is_jsx_opening_fragment, maybe_get_source_file_of_node,
     maybe_visit_each_child, maybe_visit_node, parse_isolated_entity_name, try_find_ancestor,
     unescape_leading_underscores, BaseTransientSymbol, CheckFlags, Debug_, Diagnostic,
     DiagnosticMessage, HasArena, InArena, Node, NodeInterface, NodeLinks, Symbol, SymbolFlags,
     SymbolInterface, SymbolLinks, SymbolTable, SyntaxKind, TransientSymbol,
     TransientSymbolInterface, TypeChecker, _d,
-    push_if_unique_eq, index_of_eq,
+    push_if_unique_eq, index_of_eq, get_factory,
 };
 
 impl TypeChecker {
@@ -73,6 +73,7 @@ impl TypeChecker {
                                 .as_without_captured_span()
                                 .clone(),
                             self.language_version,
+                            self,
                         );
                         maybe_visit_node(
                             file_local_jsx_fragment_factory.clone(),
@@ -122,6 +123,7 @@ impl TypeChecker {
                 *_jsx_factory_entity = parse_isolated_entity_name(
                     compiler_options_jsx_factory.clone(),
                     self.language_version,
+                    self,
                 );
                 maybe_visit_node(
                     _jsx_factory_entity.clone(),
@@ -147,12 +149,11 @@ impl TypeChecker {
         let _jsx_namespace = _jsx_namespace.clone().unwrap();
         let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
         if _jsx_factory_entity.is_none() {
-            *_jsx_factory_entity = factory.with(|factory_| {
-                Some(factory_.create_qualified_name(
-                    factory_.create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
+            *_jsx_factory_entity =
+                Some(get_factory(self).create_qualified_name(
+                    get_factory(self).create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
                     "createElement",
-                ))
-            });
+                ));
         }
         _jsx_namespace
     }
@@ -181,6 +182,7 @@ impl TypeChecker {
                     .as_without_captured_span()
                     .clone(),
                 self.language_version,
+                self,
             );
             maybe_visit_node(
                 file_local_jsx_factory.clone(),
@@ -214,8 +216,8 @@ impl TypeChecker {
     pub fn get_emit_resolver(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        cancellation_token: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
-    ) -> io::Result<Gc<Box<dyn EmitResolver>>> {
+        cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
+    ) -> io::Result<Id<Box<dyn EmitResolver>>> {
         self.get_diagnostics(source_file, cancellation_token)?;
         Ok(self.emit_resolver())
     }
@@ -332,13 +334,13 @@ impl TypeChecker {
     ) -> Id<Diagnostic> {
         let diagnostic = self.error(Some(location), message, args);
         if maybe_missing_await {
-            let related: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+            let related: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                 location,
                 &Diagnostics::Did_you_forget_to_use_await,
                 None,
                 self,
             )
-            .into();
+            .into());
             add_related_info(&diagnostic.ref_(self), vec![related]);
         }
         diagnostic
@@ -355,13 +357,13 @@ impl TypeChecker {
         if let Some(deprecated_tag) = deprecated_tag {
             add_related_info(
                 &diagnostic.ref_(self),
-                vec![create_diagnostic_for_node(
+                vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                     deprecated_tag,
                     &Diagnostics::The_declaration_was_marked_as_deprecated_here,
                     None,
                     self,
                 )
-                .into()],
+                .into())],
             );
         }
         self.suggestion_diagnostics().add(diagnostic.clone());
@@ -423,7 +425,7 @@ impl TypeChecker {
     ) -> TransientSymbol {
         self.increment_symbol_count();
         let symbol = (self.Symbol)(flags | SymbolFlags::Transient, name);
-        let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None));
+        let symbol = BaseTransientSymbol::new(symbol, check_flags.unwrap_or(CheckFlags::None), self);
         symbol.into()
     }
 
@@ -519,11 +521,11 @@ impl TypeChecker {
         }
         if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
             *result.ref_(self).maybe_members_mut() =
-                Some(Gc::new(GcCell::new((**symbol_members).borrow().clone())));
+                Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()));
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
             *result.ref_(self).maybe_exports_mut() =
-                Some(Gc::new(GcCell::new((**symbol_exports).borrow().clone())));
+                Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()));
         }
         self.record_merged_symbol(result, symbol);
         result
@@ -591,14 +593,14 @@ impl TypeChecker {
                 let target_ref = target.ref_(self);
                 let mut target_members = target_ref.maybe_members_mut();
                 if target_members.is_none() {
-                    *target_members = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *target_members = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
                 self.merge_symbol_table(
                     target_members.clone().unwrap(),
-                    &(**source_members).borrow(),
+                    &source_members.ref_(self),
                     Some(unidirectional),
                 )?;
             }
@@ -606,14 +608,14 @@ impl TypeChecker {
                 let target_ref = target.ref_(self);
                 let mut target_exports = target_ref.maybe_exports_mut();
                 if target_exports.is_none() {
-                    *target_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                    *target_exports = Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    )));
                 }
                 self.merge_symbol_table(
                     target_exports.clone().unwrap(),
-                    &(**source_exports).borrow(),
+                    &source_exports.ref_(self),
                     Some(unidirectional),
                 )?;
             }
@@ -812,21 +814,21 @@ impl TypeChecker {
                         *err_related_information = Some(vec![]);
                     }
                 }
-                let leading_message: Gc<DiagnosticRelatedInformation> = create_diagnostic_for_node(
+                let leading_message: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                     adjusted_node,
                     &Diagnostics::_0_was_also_declared_here,
                     Some(vec![symbol_name.to_owned()]),
                     self,
                 )
-                .into();
-                let follow_on_message: Gc<DiagnosticRelatedInformation> =
-                    create_diagnostic_for_node(adjusted_node, &Diagnostics::and_here, None, self).into();
+                .into());
+                let follow_on_message: Id<DiagnosticRelatedInformation> =
+                    self.alloc_diagnostic_related_information(create_diagnostic_for_node(adjusted_node, &Diagnostics::and_here, None, self).into());
                 if length(err.ref_(self).maybe_related_information().as_deref()) >= 5
                     || some(
                         err.ref_(self).maybe_related_information().as_deref(),
-                        Some(|r: &Gc<DiagnosticRelatedInformation>| {
-                            compare_diagnostics(&**r, &*follow_on_message, self) == Comparison::EqualTo
-                                || compare_diagnostics(&**r, &*leading_message, self)
+                        Some(|r: &Id<DiagnosticRelatedInformation>| {
+                            compare_diagnostics(&*r.ref_(self), &*follow_on_message.ref_(self), self) == Comparison::EqualTo
+                                || compare_diagnostics(&*r.ref_(self), &*leading_message.ref_(self), self)
                                     == Comparison::EqualTo
                         }),
                     )
@@ -847,9 +849,9 @@ impl TypeChecker {
 
     pub(super) fn combine_symbol_tables(
         &self,
-        first: Option<Gc<GcCell<SymbolTable>>>,
-        second: Option<Gc<GcCell<SymbolTable>>>,
-    ) -> io::Result<Option<Gc<GcCell<SymbolTable>>>> {
+        first: Option<Id<SymbolTable>>,
+        second: Option<Id<SymbolTable>>,
+    ) -> io::Result<Option<Id<SymbolTable>>> {
         if first.is_none() {
             return Ok(second);
         }
@@ -858,31 +860,31 @@ impl TypeChecker {
         }
         let first = first.unwrap();
         let second = second.unwrap();
-        if (*first).borrow().is_empty() {
+        if first.ref_(self).is_empty() {
             return Ok(Some(second));
         }
-        if (*second).borrow().is_empty() {
+        if second.ref_(self).is_empty() {
             return Ok(Some(first));
         }
-        let combined = Gc::new(GcCell::new(create_symbol_table(
+        let combined = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        )));
-        self.merge_symbol_table(combined.clone(), &(*first).borrow(), None)?;
-        self.merge_symbol_table(combined.clone(), &(*second).borrow(), None)?;
+        ));
+        self.merge_symbol_table(combined, &first.ref_(self), None)?;
+        self.merge_symbol_table(combined, &second.ref_(self), None)?;
         Ok(Some(combined))
     }
 
     pub(super) fn merge_symbol_table(
         &self,
-        target: Gc<GcCell<SymbolTable>>,
+        target: Id<SymbolTable>,
         source: &SymbolTable,
         unidirectional: Option<bool>,
     ) -> io::Result<()> {
         let unidirectional = unidirectional.unwrap_or(false);
         for (id, &source_symbol) in source {
             let target_symbol = {
-                let value = (*target).borrow().get(id).cloned();
+                let value = target.ref_(self).get(id).cloned();
                 value
             };
             let value = if let Some(target_symbol) = target_symbol {
@@ -890,7 +892,7 @@ impl TypeChecker {
             } else {
                 source_symbol.clone()
             };
-            target.borrow_mut().insert(id.clone(), value);
+            target.ref_mut(self).insert(id.clone(), value);
         }
 
         Ok(())
@@ -917,12 +919,12 @@ impl TypeChecker {
 
         if is_global_scope_augmentation(&module_augmentation.ref_(self)) {
             self.merge_symbol_table(
-                self.globals_rc(),
+                self.globals_id(),
                 &mut module_augmentation
                     .ref_(self).symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 None,
             )?;
         } else {
@@ -953,7 +955,7 @@ impl TypeChecker {
             {
                 if some(
                     self.maybe_pattern_ambient_modules().as_deref(),
-                    Some(|module: &Gc<PatternAmbientModule>| main_module == module.symbol),
+                    Some(|module: &Id<PatternAmbientModule>| main_module == module.ref_(self).symbol),
                 ) {
                     let merged =
                         self.merge_symbol(module_augmentation.ref_(self).symbol(), main_module, Some(true))?;
@@ -972,26 +974,26 @@ impl TypeChecker {
                         .maybe_exports()
                         .as_ref()
                         .and_then(|exports| {
-                            (**exports)
-                                .borrow()
+                            exports
+                                .ref_(self)
                                 .get(InternalSymbolName::ExportStar)
                                 .cloned()
                         })
                         .is_some()
                         && matches!(
                             module_augmentation.ref_(self).symbol().ref_(self).maybe_exports().as_ref(),
-                            Some(exports) if !(**exports).borrow().is_empty()
+                            Some(exports) if !exports.ref_(self).is_empty()
                         )
                     {
                         let resolved_exports = self.get_resolved_members_or_exports_of_symbol(
                             main_module,
                             MembersOrExportsResolutionKind::resolved_exports,
                         )?;
-                        let resolved_exports = (*resolved_exports).borrow();
+                        let resolved_exports = resolved_exports.ref_(self);
                         let main_module_exports = main_module.ref_(self).exports();
-                        let main_module_exports = (*main_module_exports).borrow();
+                        let main_module_exports = main_module_exports.ref_(self);
                         for (key, &value) in
-                            &*(*module_augmentation.ref_(self).symbol().ref_(self).exports()).borrow()
+                            &*module_augmentation.ref_(self).symbol().ref_(self).exports().ref_(self)
                         {
                             if resolved_exports.contains_key(key)
                                 && !main_module_exports.contains_key(key)
@@ -1048,7 +1050,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Gc<GcCell<SymbolLinks>> {
+    pub(super) fn get_symbol_links(&self, symbol: Id<Symbol>) -> Id<SymbolLinks> {
         if let Symbol::TransientSymbol(symbol) = &*symbol.ref_(self) {
             return symbol.symbol_links();
         }
@@ -1057,18 +1059,18 @@ impl TypeChecker {
         if let Some(symbol_links) = symbol_links_table.get(&id) {
             return symbol_links.clone();
         }
-        let symbol_links: Gc<GcCell<SymbolLinks>> = _d();
+        let symbol_links = self.alloc_symbol_links(_d());
         symbol_links_table.insert(id, symbol_links.clone());
         symbol_links
     }
 
-    pub(super) fn get_node_links(&self, node: Id<Node>) -> Gc<GcCell<NodeLinks>> {
+    pub(super) fn get_node_links(&self, node: Id<Node>) -> Id<NodeLinks> {
         let id = get_node_id(&node.ref_(self));
         let mut node_links_table = self.node_links.borrow_mut();
         if let Some(node_links) = node_links_table.get(&id) {
             return node_links.clone();
         }
-        let node_links = Gc::new(GcCell::new(NodeLinks::new()));
+        let node_links = self.alloc_node_links(NodeLinks::new());
         node_links_table.insert(id, node_links.clone());
         node_links
     }
@@ -1115,12 +1117,12 @@ impl TypeChecker {
         let class_declaration = parameter.ref_(self).parent().ref_(self).parent();
 
         let parameter_symbol = self.get_symbol(
-            &(*constructor_declaration.ref_(self).locals()).borrow(),
+            &constructor_declaration.ref_(self).locals().ref_(self),
             parameter_name,
             SymbolFlags::Value,
         )?;
         let property_symbol = self.get_symbol(
-            &(*self.get_members_of_symbol(class_declaration.ref_(self).symbol())?).borrow(),
+            &self.get_members_of_symbol(class_declaration.ref_(self).symbol())?.ref_(self),
             parameter_name,
             SymbolFlags::Value,
         )?;
@@ -1334,8 +1336,10 @@ impl TypeChecker {
                                     .ref_(self).parent()
                                     .ref_(self).as_class_like_declaration()
                                     .members()
-                                    .owned_iter()
-                                    .filter(|node| is_class_static_block_declaration(&node.ref_(self)));
+                                    .ref_(self).iter()
+                                    .filter(|node| is_class_static_block_declaration(&node.ref_(self)))
+                                    .copied()
+                                    .collect::<Vec<_>>();
                                 if self.is_property_initialized_in_static_blocks(
                                     prop_name,
                                     type_,
@@ -1433,11 +1437,11 @@ impl TypeChecker {
         {
             if target >= ScriptTarget::ES2015 {
                 let links = self.get_node_links(location);
-                let mut links = links.borrow_mut();
+                let mut links = links.ref_mut(self);
                 if links.declaration_requires_scope_change.is_none() {
                     links.declaration_requires_scope_change = Some(
                         for_each_bool(
-                            &function_location.unwrap().parameters(),
+                            &*function_location.unwrap().parameters().ref_(self),
                             |&node: &Id<Node>, _| self.requires_scope_change(target, node),
                         ) || false,
                     );
@@ -1499,7 +1503,7 @@ impl TypeChecker {
                 for_each_child_bool(
                     node,
                     |child| self.requires_scope_change_worker(target, child),
-                    Option::<fn(&NodeArray) -> bool>::None,
+                    Option::<fn(Id<NodeArray>) -> bool>::None,
                     self,
                 ) || false
             }
@@ -1564,7 +1568,7 @@ impl TypeChecker {
                 let location_maybe_locals = location_unwrapped.ref_(self).maybe_locals();
                 if let Some(location_locals) = location_maybe_locals.as_ref() {
                     if !self.is_global_source_file(location_unwrapped) {
-                        result = lookup(&(**location_locals).borrow(), name, meaning)?;
+                        result = lookup(&location_locals.ref_(self), name, meaning)?;
                         if let Some(result_unwrapped) = result {
                             let mut use_result = true;
                             if is_function_like(Some(&location_unwrapped.ref_(self)))
@@ -1656,11 +1660,11 @@ impl TypeChecker {
                         if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile {
                             is_in_external_module = true;
                         }
-                        let module_exports: Gc<GcCell<SymbolTable>> = self
+                        let module_exports: Id<SymbolTable> = self
                             .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
                             .unwrap_or_else(|| self.empty_symbols());
-                        let module_exports = (*module_exports).borrow();
+                        let module_exports = module_exports.ref_(self);
                         let mut should_skip_rest_of_match_arm = false;
                         if location_unwrapped.ref_(self).kind() == SyntaxKind::SourceFile
                             || (is_module_declaration(&location_unwrapped.ref_(self))
@@ -1725,11 +1729,11 @@ impl TypeChecker {
                 }
                 SyntaxKind::EnumDeclaration => {
                     result = lookup(
-                        &(*self
+                        &self
                             .get_symbol_of_node(location_unwrapped)?
                             .and_then(|symbol| symbol.ref_(self).maybe_exports().clone())
-                            .unwrap_or_else(|| self.empty_symbols()))
-                        .borrow(),
+                            .unwrap_or_else(|| self.empty_symbols())
+                            .ref_(self),
                         name,
                         meaning & SymbolFlags::EnumMember,
                     )?;
@@ -1741,9 +1745,9 @@ impl TypeChecker {
                     if !is_static(location_unwrapped, self) {
                         let ctor = self.find_constructor_declaration(location_unwrapped.ref_(self).parent());
                         if let Some(ctor) = ctor {
-                            if let Some(ctor_locals) = ctor.ref_(self).maybe_locals().as_ref() {
+                            if let Some(ctor_locals) = ctor.ref_(self).maybe_locals() {
                                 if lookup(
-                                    &(**ctor_locals).borrow(),
+                                    &ctor_locals.ref_(self),
                                     name,
                                     meaning & SymbolFlags::Value,
                                 )?
@@ -1760,14 +1764,14 @@ impl TypeChecker {
                 | SyntaxKind::ClassExpression
                 | SyntaxKind::InterfaceDeclaration => {
                     result = lookup(
-                        &*(*self
+                        &*self
                             .get_symbol_of_node(location_unwrapped)?
                             .unwrap()
                             .ref_(self)
                             .maybe_members()
                             .clone()
-                            .unwrap_or_else(|| self.empty_symbols()))
-                        .borrow(),
+                            .unwrap_or_else(|| self.empty_symbols())
+                            .ref_(self),
                         name,
                         meaning & SymbolFlags::Type,
                     )?;
@@ -1820,12 +1824,12 @@ impl TypeChecker {
                         let container = location_unwrapped.ref_(self).parent().ref_(self).parent();
                         if is_class_like(&container.ref_(self)) {
                             result = lookup(
-                                &(*self
+                                &self
                                     .get_symbol_of_node(container)?
                                     .unwrap()
                                     .ref_(self)
-                                    .members())
-                                .borrow(),
+                                    .members()
+                                    .ref_(self),
                                 name,
                                 meaning & SymbolFlags::Type,
                             )?;
@@ -1844,12 +1848,12 @@ impl TypeChecker {
                         || grandparent.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     {
                         result = lookup(
-                            &(*self
+                            &self
                                 .get_symbol_of_node(grandparent)?
                                 .unwrap()
                                 .ref_(self)
-                                .members())
-                            .borrow(),
+                                .members()
+                                .ref_(self),
                             name,
                             meaning & SymbolFlags::Type,
                         )?;
@@ -2115,13 +2119,13 @@ impl TypeChecker {
                             {
                                 add_related_info(
                                     &diagnostic.ref_(self),
-                                    vec![create_diagnostic_for_node(
+                                    vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                         suggestion_value_declaration,
                                         &Diagnostics::_0_is_declared_here,
                                         Some(vec![suggestion_name]),
                                         self,
                                     )
-                                    .into()],
+                                    .into())],
                                 );
                             }
                         }
@@ -2263,8 +2267,8 @@ impl TypeChecker {
                         candidate.ref_(self).maybe_value_declaration(),
                         Some(value_declaration) if value_declaration.ref_(self).pos() > associated_declaration_for_containing_initializer_or_binding_name.ref_(self).pos() &&
                             matches!(
-                                root.ref_(self).parent().ref_(self).maybe_locals().as_ref(),
-                                Some(locals) if lookup(&(**locals).borrow(), candidate.ref_(self).escaped_name(), meaning)? == Some(candidate)
+                                root.ref_(self).parent().ref_(self).maybe_locals(),
+                                Some(locals) if lookup(&locals.ref_(self), candidate.ref_(self).escaped_name(), meaning)? == Some(candidate)
                             )
                     ) {
                         self.error(

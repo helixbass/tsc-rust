@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::HashMap};
 use gc::{Gc, GcCell};
 use id_arena::Id;
 
-use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, BinderType};
+use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, Binder};
 use crate::{
     create_symbol_table, every, export_assignment_is_alias, for_each,
     get_assignment_declaration_kind, get_node_id, get_right_most_assigned_expression,
@@ -21,7 +21,7 @@ use crate::{
     OptionInArena,
 };
 
-impl BinderType {
+impl Binder {
     pub(super) fn bind_worker(&self, node: Id<Node>) {
         match node.ref_(self).kind() {
             SyntaxKind::Identifier => {
@@ -100,7 +100,7 @@ impl BinderType {
                         .is_none()
                 {
                     self.declare_symbol(
-                        &mut self.file().ref_(self).locals().borrow_mut(),
+                        &mut self.file().ref_(self).locals().ref_mut(self),
                         Option::<Id<Symbol>>::None,
                         expr.ref_(self).as_has_expression().expression(),
                         SymbolFlags::FunctionScopedVariable | SymbolFlags::ModuleExports,
@@ -369,7 +369,7 @@ impl BinderType {
             }
             SyntaxKind::SourceFile => {
                 self.update_strict_mode_statement_list(
-                    &node.ref_(self).as_source_file().statements(),
+                    node.ref_(self).as_source_file().statements(),
                 );
                 self.bind_source_file_if_external_module();
             }
@@ -379,11 +379,11 @@ impl BinderType {
                 ) {
                     return;
                 }
-                self.update_strict_mode_statement_list(&node.ref_(self).as_block().statements);
+                self.update_strict_mode_statement_list(node.ref_(self).as_block().statements);
             }
             SyntaxKind::ModuleBlock => {
                 self.update_strict_mode_statement_list(
-                    &node.ref_(self).as_module_block().statements,
+                    node.ref_(self).as_module_block().statements,
                 );
             }
 
@@ -485,7 +485,7 @@ impl BinderType {
             self.bind_source_file_as_external_module();
             let original_symbol = file.ref_(self).symbol();
             self.declare_symbol(
-                &mut file.ref_(self).symbol().ref_(self).exports().borrow_mut(),
+                &mut file.ref_(self).symbol().ref_(self).exports().ref_mut(self),
                 Some(file.ref_(self).symbol()),
                 file,
                 SymbolFlags::Property,
@@ -531,7 +531,7 @@ impl BinderType {
                     .symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 flags,
@@ -554,8 +554,8 @@ impl BinderType {
         node: Id<Node>, /*NamespaceExportDeclaration*/
     ) {
         if matches!(
-            node.ref_(self).maybe_modifiers().as_ref(),
-            Some(modifiers) if !modifiers.is_empty()
+            node.ref_(self).maybe_modifiers(),
+            Some(modifiers) if !modifiers.ref_(self).is_empty()
         ) {
             self.file()
                 .ref_(self)
@@ -597,13 +597,13 @@ impl BinderType {
             let file_symbol_ref = file_symbol.ref_(self);
             let mut global_exports = file_symbol_ref.maybe_global_exports();
             if global_exports.is_none() {
-                *global_exports = Some(Gc::new(GcCell::new(create_symbol_table(
+                *global_exports = Some(self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     Option::<&[Id<Symbol>]>::None,
-                ))));
+                )));
             }
             self.declare_symbol(
-                &mut global_exports.as_ref().unwrap().borrow_mut(),
+                &mut global_exports.as_ref().unwrap().ref_mut(self),
                 Some(self.file().ref_(self).symbol()),
                 node,
                 SymbolFlags::Alias,
@@ -634,7 +634,7 @@ impl BinderType {
                     .symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 SymbolFlags::ExportStar,
@@ -650,7 +650,7 @@ impl BinderType {
                     .symbol()
                     .ref_(self)
                     .exports()
-                    .borrow_mut(),
+                    .ref_mut(self),
                 Some(self.container().ref_(self).symbol()),
                 node_as_export_declaration.export_clause.unwrap(),
                 SymbolFlags::Alias,
@@ -698,7 +698,7 @@ impl BinderType {
             return;
         }
         let symbol = self.for_each_identifier_in_entity_name(
-            node.ref_(self).as_call_expression().arguments[0],
+            node.ref_(self).as_call_expression().arguments.ref_(self)[0],
             None,
             &mut |id, symbol, _| {
                 if let Some(symbol) = symbol {
@@ -714,7 +714,7 @@ impl BinderType {
         if let Some(symbol) = symbol {
             let flags = SymbolFlags::Property | SymbolFlags::ExportValue;
             self.declare_symbol(
-                &mut symbol.ref_(self).exports().borrow_mut(),
+                &mut symbol.ref_(self).exports().ref_mut(self),
                 Some(symbol),
                 node,
                 flags,
@@ -773,7 +773,7 @@ impl BinderType {
             };
             set_parent(&node_as_binary_expression.left.ref_(self), Some(node));
             self.declare_symbol(
-                &mut symbol.ref_(self).exports().borrow_mut(),
+                &mut symbol.ref_(self).exports().ref_mut(self),
                 Some(symbol),
                 node_as_binary_expression.left,
                 flags,
@@ -795,7 +795,7 @@ impl BinderType {
         let node_as_binary_expression = node_ref.as_binary_expression();
         let assigned_expression =
             get_right_most_assigned_expression(node_as_binary_expression.right, self);
-        if is_empty_object_literal(&assigned_expression.ref_(self))
+        if is_empty_object_literal(assigned_expression, self)
             || self.container() == self.file()
                 && is_exports_or_module_exports_or_alias(self, self.file(), assigned_expression)
         {
@@ -806,11 +806,11 @@ impl BinderType {
             let assigned_expression_ref = assigned_expression.ref_(self);
             let assigned_expression_as_object_literal_expression = assigned_expression_ref.as_object_literal_expression();
             if every(
-                &assigned_expression_as_object_literal_expression.properties,
+                &assigned_expression_as_object_literal_expression.properties.ref_(self),
                 |property, _| is_shorthand_property_assignment(&property.ref_(self)),
             ) {
                 for_each(
-                    &assigned_expression_as_object_literal_expression.properties,
+                    &*assigned_expression_as_object_literal_expression.properties.ref_(self),
                     |&property, _| {
                         self.bind_export_assigned_object_member_alias(property);
                         Option::<()>::None
@@ -832,7 +832,7 @@ impl BinderType {
                 .symbol()
                 .ref_(self)
                 .exports()
-                .borrow_mut(),
+                .ref_mut(self),
             Some(self.file().ref_(self).symbol()),
             node,
             flags | SymbolFlags::Assignment,
@@ -854,7 +854,7 @@ impl BinderType {
                 .symbol()
                 .ref_(self)
                 .exports()
-                .borrow_mut(),
+                .ref_mut(self),
             Some(self.file().ref_(self).symbol()),
             node,
             SymbolFlags::Alias | SymbolFlags::Assignment,
@@ -923,17 +923,17 @@ impl BinderType {
                                 constructor_symbol_ref.maybe_members_mut();
                             if constructor_symbol_members.is_none() {
                                 *constructor_symbol_members =
-                                    Some(Gc::new(GcCell::new(create_symbol_table(
+                                    Some(self.alloc_symbol_table(create_symbol_table(
                                         self.arena(),
                                         Option::<&[Id<Symbol>]>::None,
-                                    ))));
+                                    )));
                             }
                             let constructor_symbol_members =
                                 constructor_symbol_members.clone().unwrap();
                             constructor_symbol_members
                         };
                         let mut constructor_symbol_members =
-                            constructor_symbol_members.borrow_mut();
+                            constructor_symbol_members.ref_mut(self);
                         if has_dynamic_name(node, self) {
                             self.bind_dynamically_named_this_property_assignment(
                                 node,
@@ -972,7 +972,7 @@ impl BinderType {
                 } else {
                     containing_class.ref_(self).symbol().ref_(self).members()
                 };
-                let mut symbol_table = symbol_table.borrow_mut();
+                let mut symbol_table = symbol_table.ref_mut(self);
                 if has_dynamic_name(node, self) {
                     self.bind_dynamically_named_this_property_assignment(
                         node,
@@ -1006,7 +1006,7 @@ impl BinderType {
                             .symbol()
                             .ref_(self)
                             .exports()
-                            .borrow_mut(),
+                            .ref_mut(self),
                         Some(this_container.ref_(self).symbol()),
                         node,
                         SymbolFlags::Property | SymbolFlags::ExportValue,

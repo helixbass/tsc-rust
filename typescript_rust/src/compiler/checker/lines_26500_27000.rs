@@ -38,7 +38,7 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::TypeAlias)
             {
-                let params = (*self.get_symbol_links(managed_sym))
+                let params = (*self.get_symbol_links(managed_sym).ref_(self))
                     .borrow()
                     .type_parameters
                     .clone();
@@ -81,14 +81,14 @@ impl TypeChecker {
 
     pub(super) fn get_jsx_props_type_from_class_type(
         &self,
-        sig: Gc<Signature>,
+        sig: Id<Signature>,
         context: Id<Node>, /*JsxOpeningLikeElement*/
     ) -> io::Result<Id<Type>> {
         let ns = self.get_jsx_namespace_at(Some(context))?;
         let forced_lookup_location = self.get_jsx_element_properties_name(ns)?;
         let attributes_type = match forced_lookup_location.as_ref() {
             None => Some(self.get_type_of_first_parameter_of_signature_with_fallback(
-                &sig,
+                sig,
                 self.unknown_type(),
             )?),
             Some(forced_lookup_location) => {
@@ -110,7 +110,7 @@ impl TypeChecker {
                         .ref_(self).as_jsx_opening_like_element()
                         .attributes()
                         .ref_(self).as_jsx_attributes()
-                        .properties,
+                        .properties.ref_(self),
                 )) > 0
                 {
                     self.error(
@@ -175,22 +175,22 @@ impl TypeChecker {
 
     pub(super) fn get_intersected_signatures(
         &self,
-        signatures: &[Gc<Signature>],
-    ) -> io::Result<Option<Gc<Signature>>> {
+        signatures: &[Id<Signature>],
+    ) -> io::Result<Option<Id<Signature>>> {
         Ok(
             if get_strict_option_value(&self.compiler_options.ref_(self), "noImplicitAny") {
                 try_reduce_left_no_initial_value_optional(
                     signatures,
-                    |left: Option<Gc<Signature>>, right: &Gc<Signature>, _| -> io::Result<_> {
+                    |left: Option<Id<Signature>>, &right: &Id<Signature>, _| -> io::Result<_> {
                         Ok(
-                            if match left.as_ref() {
+                            if match left {
                                 None => true,
-                                Some(left) => Gc::ptr_eq(left, right),
+                                Some(left) => left == right,
                             } {
                                 left
                             } else if self.compare_type_parameters_identical(
-                                left.as_ref().unwrap().maybe_type_parameters().as_deref(),
-                                right.maybe_type_parameters().as_deref(),
+                                left.unwrap().ref_(self).maybe_type_parameters().as_deref(),
+                                right.ref_(self).maybe_type_parameters().as_deref(),
                             )? {
                                 Some(self.combine_signatures_of_intersection_members(
                                     left.clone().unwrap(),
@@ -236,8 +236,8 @@ impl TypeChecker {
 
     pub(super) fn combine_intersection_parameters(
         &self,
-        left: &Signature,
-        right: &Signature,
+        left: Id<Signature>,
+        right: Id<Signature>,
         mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         let left_count = self.get_parameter_count(left)?;
@@ -247,8 +247,8 @@ impl TypeChecker {
         } else {
             right
         };
-        let shorter = if ptr::eq(longest, left) { right } else { left };
-        let longest_count = if ptr::eq(longest, left) {
+        let shorter = if longest == left { right } else { left };
+        let longest_count = if longest == left {
             left_count
         } else {
             right_count
@@ -261,13 +261,13 @@ impl TypeChecker {
             Vec::with_capacity(longest_count + if needs_extra_rest_element { 1 } else { 0 });
         for i in 0..longest_count {
             let mut longest_param_type = self.try_get_type_at_position(longest, i)?.unwrap();
-            if ptr::eq(longest, right) {
+            if longest == right {
                 longest_param_type = self.instantiate_type(longest_param_type, mapper.clone())?;
             }
             let mut shorter_param_type = self
                 .try_get_type_at_position(shorter, i)?
                 .unwrap_or_else(|| self.unknown_type());
-            if ptr::eq(shorter, right) {
+            if shorter == right {
                 shorter_param_type = self.instantiate_type(shorter_param_type, mapper.clone())?;
             }
             let union_param_type = self.get_union_type(
@@ -318,7 +318,7 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(if is_rest_param {
                 self.create_array_type(union_param_type, None)
             } else {
@@ -337,14 +337,14 @@ impl TypeChecker {
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .borrow_mut()
+                .ref_mut(self)
                 .type_ = Some(rest_param_symbol_type.clone());
-            if ptr::eq(shorter, right) {
+            if shorter == right {
                 rest_param_symbol
                     .ref_(self)
                     .as_transient_symbol()
                     .symbol_links()
-                    .borrow_mut()
+                    .ref_mut(self)
                     .type_ = Some(self.instantiate_type(rest_param_symbol_type, mapper.clone())?);
             }
             params.push(rest_param_symbol);
@@ -354,42 +354,42 @@ impl TypeChecker {
 
     pub(super) fn combine_signatures_of_intersection_members(
         &self,
-        left: Gc<Signature>,
-        right: Gc<Signature>,
-    ) -> io::Result<Gc<Signature>> {
+        left: Id<Signature>,
+        right: Id<Signature>,
+    ) -> io::Result<Id<Signature>> {
         let type_params = left
-            .maybe_type_parameters()
+            .ref_(self).maybe_type_parameters()
             .clone()
-            .or_else(|| right.maybe_type_parameters().clone());
+            .or_else(|| right.ref_(self).maybe_type_parameters().clone());
         let mut param_mapper: Option<Id<TypeMapper>> = None;
-        if left.maybe_type_parameters().is_some() && right.maybe_type_parameters().is_some() {
+        if left.ref_(self).maybe_type_parameters().is_some() && right.ref_(self).maybe_type_parameters().is_some() {
             param_mapper = Some(self.create_type_mapper(
-                right.maybe_type_parameters().clone().unwrap(),
-                left.maybe_type_parameters().clone(),
+                right.ref_(self).maybe_type_parameters().clone().unwrap(),
+                left.ref_(self).maybe_type_parameters().clone(),
             ));
         }
-        let declaration = left.declaration.as_ref();
-        let params = self.combine_intersection_parameters(&left, &right, param_mapper.clone())?;
+        let declaration = left.ref_(self).declaration;
+        let params = self.combine_intersection_parameters(left, right, param_mapper.clone())?;
         let this_param = self.combine_intersection_this_param(
-            *left.maybe_this_parameter(),
-            *right.maybe_this_parameter(),
+            *left.ref_(self).maybe_this_parameter(),
+            *right.ref_(self).maybe_this_parameter(),
             param_mapper.clone(),
         )?;
-        let min_arg_count = cmp::max(left.min_argument_count(), right.min_argument_count());
+        let min_arg_count = cmp::max(left.ref_(self).min_argument_count(), right.ref_(self).min_argument_count());
         let mut result = self.create_signature(
-            declaration.cloned(),
+            declaration,
             type_params,
             this_param,
             params,
             None,
             None,
             min_arg_count,
-            (left.flags | right.flags) & SignatureFlags::PropagatingFlags,
+            (left.ref_(self).flags | right.ref_(self).flags) & SignatureFlags::PropagatingFlags,
         );
         result.composite_kind = Some(TypeFlags::Intersection);
         result.composite_signatures = Some(concatenate(
-            if left.composite_kind == Some(TypeFlags::Intersection) {
-                left.composite_signatures.clone()
+            if left.ref_(self).composite_kind == Some(TypeFlags::Intersection) {
+                left.ref_(self).composite_signatures.clone()
             } else {
                 None
             }
@@ -398,26 +398,26 @@ impl TypeChecker {
         ));
         if let Some(param_mapper) = param_mapper {
             result.mapper = Some(
-                if left.composite_kind == Some(TypeFlags::Intersection)
-                    && left.mapper.is_some()
-                    && left.composite_signatures.is_some()
+                if left.ref_(self).composite_kind == Some(TypeFlags::Intersection)
+                    && left.ref_(self).mapper.is_some()
+                    && left.ref_(self).composite_signatures.is_some()
                 {
-                    self.combine_type_mappers(left.mapper.clone(), param_mapper)
+                    self.combine_type_mappers(left.ref_(self).mapper.clone(), param_mapper)
                 } else {
                     param_mapper
                 },
             );
         }
-        Ok(Gc::new(result))
+        Ok(self.alloc_signature(result))
     }
 
     pub(super) fn get_contextual_call_signature(
         &self,
         type_: Id<Type>,
         node: Id<Node>, /*SignatureDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         let signatures = self.get_signatures_of_type(type_, SignatureKind::Call)?;
-        let applicable_by_arity = try_filter(&signatures, |s| -> io::Result<_> {
+        let applicable_by_arity = try_filter(&signatures, |&s| -> io::Result<_> {
             Ok(!self.is_arity_smaller(s, node)?)
         })?;
         Ok(if applicable_by_arity.len() == 1 {
@@ -429,14 +429,14 @@ impl TypeChecker {
 
     pub(super) fn is_arity_smaller(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         target: Id<Node>, /*SignatureDeclaration*/
     ) -> io::Result<bool> {
         let mut target_parameter_count = 0;
         let target_ref = target.ref_(self);
         let target_as_signature_declaration = target_ref.as_signature_declaration();
-        while target_parameter_count < target_as_signature_declaration.parameters().len() {
-            let param = target_as_signature_declaration.parameters()[target_parameter_count];
+        while target_parameter_count < target_as_signature_declaration.parameters().ref_(self).len() {
+            let param = target_as_signature_declaration.parameters().ref_(self)[target_parameter_count];
             let param_ref = param.ref_(self);
             let param_as_parameter_declaration = param_ref.as_parameter_declaration();
             if param_as_parameter_declaration.maybe_initializer().is_some()
@@ -448,8 +448,8 @@ impl TypeChecker {
             }
             target_parameter_count += 1;
         }
-        if !target_as_signature_declaration.parameters().is_empty()
-            && parameter_is_this_keyword(target_as_signature_declaration.parameters()[0], self)
+        if !target_as_signature_declaration.parameters().ref_(self).is_empty()
+            && parameter_is_this_keyword(target_as_signature_declaration.parameters().ref_(self)[0], self)
         {
             target_parameter_count -= 1;
         }
@@ -460,7 +460,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_signature_for_function_like_declaration(
         &self,
         node: Id<Node>, /*FunctionLikeDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         Ok(
             if is_function_expression_or_arrow_function(&node.ref_(self)) || is_object_literal_method(node, self) {
                 self.get_contextual_signature(node)?
@@ -473,7 +473,7 @@ impl TypeChecker {
     pub(super) fn get_contextual_signature(
         &self,
         node: Id<Node>, /*FunctionExpression | ArrowFunction | MethodDeclaration*/
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         Debug_.assert(
             node.ref_(self).kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
             None,
@@ -488,7 +488,7 @@ impl TypeChecker {
         if !type_.ref_(self).flags().intersects(TypeFlags::Union) {
             return self.get_contextual_call_signature(type_, node);
         }
-        let mut signature_list: Option<Vec<Gc<Signature>>> = None;
+        let mut signature_list: Option<Vec<Id<Signature>>> = None;
         let types = type_
             .ref_(self)
             .as_union_or_intersection_type_interface()
@@ -524,7 +524,7 @@ impl TypeChecker {
             if signature_list.len() == 1 {
                 signature_list[0].clone()
             } else {
-                Gc::new(self.create_union_signature(&signature_list[0].clone(), signature_list))
+                self.alloc_signature(self.create_union_signature(signature_list[0].clone(), signature_list))
             }
         }))
     }
@@ -593,7 +593,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
         let elements = &node_ref.as_array_literal_expression().elements;
-        let element_count = elements.len();
+        let element_count = elements.ref_(self).len();
         let mut element_types: Vec<Id<Type>> = vec![];
         let mut element_flags: Vec<ElementFlags> = vec![];
         let contextual_type = self.get_apparent_type_of_contextual_type(node, None)?;
@@ -601,7 +601,7 @@ impl TypeChecker {
         let in_const_context = self.is_const_context(node);
         let mut has_omitted_expression = false;
         for i in 0..element_count {
-            let e = elements[i];
+            let e = elements.ref_(self)[i];
             if e.ref_(self).kind() == SyntaxKind::SpreadElement {
                 if self.language_version < ScriptTarget::ES2015 {
                     self.check_external_emit_helpers(
@@ -799,7 +799,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_computed_property_name = node_ref.as_computed_property_name();
         let links = self.get_node_links(node_as_computed_property_name.expression);
-        if (*links).borrow().resolved_type.is_none() {
+        if links.ref_(self).resolved_type.is_none() {
             if (is_type_literal_node(&node.ref_(self).parent().ref_(self).parent().ref_(self))
                 || maybe_is_class_like(node.ref_(self).parent().ref_(self).maybe_parent().refed(self).as_deref())
                 || is_interface_declaration(&node.ref_(self).parent().ref_(self).parent().ref_(self)))
@@ -812,12 +812,12 @@ impl TypeChecker {
                     == SyntaxKind::InKeyword
             {
                 let ret = self.error_type();
-                links.borrow_mut().resolved_type = Some(ret.clone());
+                links.ref_mut(self).resolved_type = Some(ret.clone());
                 return Ok(ret);
             }
             let links_resolved_type =
                 self.check_expression(node_as_computed_property_name.expression, None, None)?;
-            links.borrow_mut().resolved_type = Some(links_resolved_type.clone());
+            links.ref_mut(self).resolved_type = Some(links_resolved_type.clone());
             if is_property_declaration(&node.ref_(self).parent().ref_(self))
                 && !has_static_modifier(node.ref_(self).parent(), self)
                 && is_class_expression(&node.ref_(self).parent().ref_(self).parent().ref_(self))
@@ -829,12 +829,12 @@ impl TypeChecker {
                 if let Some(enclosing_iteration_statement) = enclosing_iteration_statement
                 {
                     self.get_node_links(enclosing_iteration_statement)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
-                    self.get_node_links(node).borrow_mut().flags |=
+                    self.get_node_links(node).ref_mut(self).flags |=
                         NodeCheckFlags::BlockScopedBindingInLoop;
                     self.get_node_links(node.ref_(self).parent().ref_(self).parent())
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
                 }
             }
@@ -857,7 +857,7 @@ impl TypeChecker {
             }
         }
 
-        let ret = (*links).borrow().resolved_type.clone().unwrap();
+        let ret = links.ref_(self).resolved_type.clone().unwrap();
         Ok(ret)
     }
 
@@ -936,13 +936,13 @@ impl TypeChecker {
             Some("Should only get Alias here."),
         );
         let links = self.get_symbol_links(symbol);
-        if (*links).borrow().immediate_target.is_none() {
+        if links.ref_(self).immediate_target.is_none() {
             let node = debug_fail_if_none!(self.get_declaration_of_alias_symbol(symbol)?);
-            links.borrow_mut().immediate_target =
+            links.ref_mut(self).immediate_target =
                 self.get_target_of_alias_declaration(node, Some(true))?;
         }
 
-        let ret = (*links).borrow().immediate_target.clone();
+        let ret = links.ref_(self).immediate_target.clone();
         Ok(ret)
     }
 
@@ -996,7 +996,7 @@ impl TypeChecker {
         let mut has_computed_number_property = false;
         let mut has_computed_symbol_property = false;
 
-        for elem in &node_as_object_literal_expression.properties {
+        for elem in &*node_as_object_literal_expression.properties.ref_(self) {
             if let Some(elem_name) = elem
                 .ref_(self).as_named_declaration()
                 .maybe_name()
@@ -1007,7 +1007,7 @@ impl TypeChecker {
         }
 
         let mut offset = 0;
-        for &member_decl in &node_as_object_literal_expression.properties {
+        for &member_decl in &*node_as_object_literal_expression.properties.ref_(self) {
             let mut member = self.get_symbol_of_node(member_decl)?;
             let computed_name_type = member_decl
                 .ref_(self).as_named_declaration()
@@ -1101,7 +1101,7 @@ impl TypeChecker {
                     prop.ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .borrow_mut()
+                        .ref_mut(self)
                         .name_type = Some(name_type.clone());
                 }
 
@@ -1176,7 +1176,7 @@ impl TypeChecker {
 
                 {
                     let prop_links = prop.ref_(self).as_transient_symbol().symbol_links();
-                    let mut prop_links = prop_links.borrow_mut();
+                    let mut prop_links = prop_links.ref_mut(self);
                     prop_links.type_ = Some(type_);
                     prop_links.target = Some(member_present.clone());
                 }
@@ -1302,7 +1302,7 @@ impl TypeChecker {
                     if !prop.ref_(self).flags().intersects(SymbolFlags::Optional) {
                         self.error(
                             prop.ref_(self).maybe_value_declaration().or_else(|| {
-                                (*prop.ref_(self).as_transient_symbol().symbol_links()).borrow().binding_element.clone()
+                                (*prop.ref_(self).as_transient_symbol().symbol_links().ref_(self)).borrow().binding_element.clone()
                             }),
                             &Diagnostics::Initializer_provides_no_value_for_this_binding_element_and_the_binding_element_has_no_default_value,
                             None,

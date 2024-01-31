@@ -43,7 +43,7 @@ impl TypeChecker {
                     None
                 }
             },
-            Option::<fn(&NodeArray) -> Option<Id<Node>>>::None,
+            Option::<fn(Id<NodeArray>) -> Option<Id<Node>>>::None,
             self,
         );
         if let Some(subsequent_node) = subsequent_node
@@ -352,7 +352,7 @@ impl TypeChecker {
 
         let onfulfilled_parameter_type = self.get_type_with_facts(
             self.get_union_type(
-                &try_map(&then_signatures, |then_signature: &Gc<Signature>, _| {
+                &try_map(&then_signatures, |&then_signature: &Id<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(then_signature)
                 })?,
                 None,
@@ -382,7 +382,7 @@ impl TypeChecker {
         let ret = self.get_union_type(
             &try_map(
                 &onfulfilled_parameter_signatures,
-                |signature: &Gc<Signature>, _| {
+                |&signature: &Id<Signature>, _| {
                     self.get_type_of_first_parameter_of_signature(signature)
                 },
             )?,

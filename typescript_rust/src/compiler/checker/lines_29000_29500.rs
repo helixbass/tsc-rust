@@ -25,7 +25,7 @@ use crate::{
     ReadonlyTextRange, RelationComparisonResult, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeComparer, TypeFlags, TypeInterface,
     TypeMapper,
-    OptionInArena,
+    OptionInArena, AsDoubleDeref,
 };
 
 impl TypeChecker {
@@ -63,7 +63,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
         args: &[Id<Node /*Expression*/>],
-        signature: &Signature,
+        signature: Id<Signature>,
         signature_help_trailing_comma: Option<bool>,
     ) -> io::Result<bool> {
         let signature_help_trailing_comma = signature_help_trailing_comma.unwrap_or(false);
@@ -82,7 +82,7 @@ impl TypeChecker {
                     &node_as_tagged_template_expression
                         .template
                         .ref_(self).as_template_expression()
-                        .template_spans,
+                        .template_spans.ref_(self),
                 );
                 let last_span_ref = last_span.ref_(self);
                 let last_span_as_template_span = last_span_ref.as_template_span();
@@ -131,7 +131,7 @@ impl TypeChecker {
             };
 
             call_is_incomplete =
-                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().end() == node.ref_(self).end();
+                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().ref_(self).end() == node.ref_(self).end();
 
             let spread_arg_index = self.get_spread_argument_index(args);
             if let Some(spread_arg_index) = spread_arg_index {
@@ -172,33 +172,33 @@ impl TypeChecker {
 
     pub(super) fn has_correct_type_argument_arity(
         &self,
-        signature: &Signature,
-        type_arguments: Option<&NodeArray /*<TypeNode>*/>,
+        signature: Id<Signature>,
+        type_arguments: Option<Id<NodeArray> /*<TypeNode>*/>,
     ) -> bool {
-        let num_type_parameters = length(signature.maybe_type_parameters().as_deref());
+        let num_type_parameters = length(signature.ref_(self).maybe_type_parameters().as_deref());
         let min_type_argument_count =
-            self.get_min_type_argument_count(signature.maybe_type_parameters().as_deref());
+            self.get_min_type_argument_count(signature.ref_(self).maybe_type_parameters().as_deref());
         !some(
-            type_arguments.map(|type_arguments| &**type_arguments),
+            type_arguments.refed(self).as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) || {
             let type_arguments = type_arguments.unwrap();
-            type_arguments.len() >= min_type_argument_count
-                && type_arguments.len() <= num_type_parameters
+            type_arguments.ref_(self).len() >= min_type_argument_count
+                && type_arguments.ref_(self).len() <= num_type_parameters
         }
     }
 
     pub(super) fn get_single_call_signature(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_single_signature(type_, SignatureKind::Call, false)
     }
 
     pub(super) fn get_single_call_or_construct_signature(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         self.get_single_signature(type_, SignatureKind::Call, false)?
             .try_or_else(|| self.get_single_signature(type_, SignatureKind::Construct, false))
     }
@@ -208,7 +208,7 @@ impl TypeChecker {
         type_: Id<Type>,
         kind: SignatureKind,
         allow_members: bool,
-    ) -> io::Result<Option<Gc<Signature>>> {
+    ) -> io::Result<Option<Id<Signature>>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
             if allow_members
@@ -268,38 +268,38 @@ impl TypeChecker {
 
     pub(super) fn instantiate_signature_in_context_of(
         &self,
-        signature: Gc<Signature>,
-        contextual_signature: Gc<Signature>,
-        inference_context: Option<&InferenceContext>,
-        compare_types: Option<Gc<Box<dyn TypeComparer>>>,
-    ) -> io::Result<Gc<Signature>> {
+        signature: Id<Signature>,
+        contextual_signature: Id<Signature>,
+        inference_context: Option<Id<InferenceContext>>,
+        compare_types: Option<Id<Box<dyn TypeComparer>>>,
+    ) -> io::Result<Id<Signature>> {
         let context = self.create_inference_context(
-            &signature.maybe_type_parameters().clone().unwrap(),
+            &signature.ref_(self).maybe_type_parameters().clone().unwrap(),
             Some(signature.clone()),
             InferenceFlags::None,
             compare_types,
         );
-        let rest_type = self.get_effective_rest_type(&contextual_signature)?;
+        let rest_type = self.get_effective_rest_type(contextual_signature)?;
         let mapper = inference_context.map(|inference_context| {
             if matches!(
                 rest_type,
                 Some(rest_type) if rest_type.ref_(self).flags().intersects(TypeFlags::TypeParameter)
             ) {
-                inference_context.non_fixing_mapper().clone()
+                inference_context.ref_(self).non_fixing_mapper().clone()
             } else {
-                inference_context.mapper().clone()
+                inference_context.ref_(self).mapper().clone()
             }
         });
         let source_signature = if let Some(mapper) = mapper {
-            Gc::new(self.instantiate_signature(contextual_signature.clone(), mapper, None)?)
+            self.alloc_signature(self.instantiate_signature(contextual_signature.clone(), mapper, None)?)
         } else {
             contextual_signature.clone()
         };
         self.apply_to_parameter_types(
-            &source_signature,
-            &signature,
+            source_signature,
+            signature,
             |source: Id<Type>, target: Id<Type>| {
-                self.infer_types(&context.inferences(), source, target, None, None)
+                self.infer_types(&context.ref_(self).inferences(), source, target, None, None)
             },
         )?;
         if inference_context.is_none() {
@@ -308,7 +308,7 @@ impl TypeChecker {
                 signature.clone(),
                 |source: Id<Type>, target: Id<Type>| {
                     self.infer_types(
-                        &context.inferences(),
+                        &context.ref_(self).inferences(),
                         source,
                         target,
                         Some(InferencePriority::ReturnType),
@@ -321,8 +321,8 @@ impl TypeChecker {
         }
         self.get_signature_instantiation(
             signature.clone(),
-            Some(&*self.get_inferred_types(&context)?),
-            is_in_js_file(contextual_signature.declaration.refed(self).as_deref()),
+            Some(&*self.get_inferred_types(context)?),
+            is_in_js_file(contextual_signature.ref_(self).declaration.refed(self).as_deref()),
             None,
         )
     }
@@ -330,9 +330,9 @@ impl TypeChecker {
     pub(super) fn infer_jsx_type_arguments(
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         check_mode: CheckMode,
-        context: Gc<InferenceContext>,
+        context: Id<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
@@ -343,13 +343,13 @@ impl TypeChecker {
             check_mode,
         )?;
         self.infer_types(
-            &context.inferences(),
+            &context.ref_(self).inferences(),
             check_attr_type,
             param_type,
             None,
             None,
         )?;
-        self.get_inferred_types(&context)
+        self.get_inferred_types(context)
     }
 
     pub(super) fn get_this_argument_type(
@@ -372,10 +372,10 @@ impl TypeChecker {
     pub(super) fn infer_type_arguments(
         &self,
         node: Id<Node>, /*CallLikeExpression*/
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         args: &[Id<Node /*Expression*/>],
         check_mode: CheckMode,
-        context: Gc<InferenceContext>,
+        context: Id<InferenceContext>,
     ) -> io::Result<Vec<Id<Type>>> {
         if is_jsx_opening_like_element(&node.ref_(self)) {
             return self.infer_jsx_type_arguments(node, signature, check_mode, context);
@@ -386,7 +386,7 @@ impl TypeChecker {
                 node,
                 Some(
                     if try_maybe_every(
-                        signature.maybe_type_parameters().as_deref(),
+                        signature.ref_(self).maybe_type_parameters().as_deref(),
                         |&p: &Id<Type>, _| -> io::Result<_> {
                             Ok(self.get_default_from_type_parameter_(p)?.is_some())
                         },
@@ -401,18 +401,16 @@ impl TypeChecker {
                 let outer_context = self.get_inference_context(node);
                 let outer_mapper = self.get_mapper_from_context(
                     self.clone_inference_context(
-                        outer_context.as_deref(),
+                        outer_context,
                         Some(InferenceFlags::NoDefault),
-                    )
-                    .as_deref(),
+                    ),
                 );
                 let instantiated_type = self.instantiate_type(contextual_type, outer_mapper)?;
                 let contextual_signature = self.get_single_call_signature(instantiated_type)?;
                 let inference_source_type = if let Some(ref contextual_signature_type_parameters) =
                     contextual_signature
-                        .as_ref()
                         .and_then(|contextual_signature| {
-                            contextual_signature.maybe_type_parameters().clone()
+                            contextual_signature.ref_(self).maybe_type_parameters().clone()
                         }) {
                     self.get_or_create_type_from_signature(
                         self.get_signature_instantiation_without_filling_in_type_arguments(
@@ -425,43 +423,42 @@ impl TypeChecker {
                 };
                 let inference_target_type = self.get_return_type_of_signature(signature.clone())?;
                 self.infer_types(
-                    &context.inferences(),
+                    &context.ref_(self).inferences(),
                     inference_source_type,
                     inference_target_type,
                     Some(InferencePriority::ReturnType),
                     None,
                 )?;
                 let return_context = self.create_inference_context(
-                    &signature.maybe_type_parameters().clone().unwrap(),
+                    &signature.ref_(self).maybe_type_parameters().clone().unwrap(),
                     Some(signature.clone()),
-                    context.flags(),
+                    context.ref_(self).flags(),
                     None,
                 );
                 let return_source_type = self.instantiate_type(
                     contextual_type,
                     if let Some(outer_context) = outer_context.as_ref() {
-                        outer_context.maybe_return_mapper()
+                        outer_context.ref_(self).maybe_return_mapper()
                     } else {
                         None
                     },
                 )?;
                 self.infer_types(
-                    &return_context.inferences(),
+                    &return_context.ref_(self).inferences(),
                     return_source_type,
                     inference_target_type,
                     None,
                     None,
                 )?;
-                context.set_return_mapper(
+                context.ref_(self).set_return_mapper(
                     if some(
-                        Some(&**return_context.inferences()),
-                        Some(|inference: &Gc<InferenceInfo>| {
-                            self.has_inference_candidates(inference)
+                        Some(&**return_context.ref_(self).inferences()),
+                        Some(|inference: &Id<InferenceInfo>| {
+                            self.has_inference_candidates(&inference.ref_(self))
                         }),
                     ) {
                         self.get_mapper_from_context(
-                            self.clone_inferred_part_of_context(&return_context)
-                                .as_deref(),
+                            self.clone_inferred_part_of_context(return_context),
                         )
                     } else {
                         None
@@ -470,9 +467,9 @@ impl TypeChecker {
             }
         }
 
-        let rest_type = self.get_non_array_rest_type(&signature)?;
+        let rest_type = self.get_non_array_rest_type(signature)?;
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
+            cmp::min(self.get_parameter_count(signature)? - 1, args.len())
         } else {
             args.len()
         };
@@ -482,12 +479,12 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
         }) {
-            let info = find(&context.inferences(), |info: &Gc<InferenceInfo>, _| {
-                info.type_parameter == rest_type
+            let info = find(&context.ref_(self).inferences(), |info: &Id<InferenceInfo>, _| {
+                info.ref_(self).type_parameter == rest_type
             })
             .cloned();
             if let Some(info) = info.as_ref() {
-                info.set_implied_arity(
+                info.ref_(self).set_implied_arity(
                     if find_index(
                         args,
                         |&arg: &Id<Node>, _| self.is_spread_argument(Some(arg)),
@@ -503,11 +500,11 @@ impl TypeChecker {
             }
         }
 
-        let this_type = self.get_this_type_of_signature(&signature)?;
+        let this_type = self.get_this_type_of_signature(signature)?;
         if let Some(this_type) = this_type {
             let this_argument_node = self.get_this_argument_of_call(node);
             self.infer_types(
-                &context.inferences(),
+                &context.ref_(self).inferences(),
                 self.get_this_argument_type(this_argument_node)?,
                 this_type,
                 None,
@@ -518,14 +515,14 @@ impl TypeChecker {
         for i in 0..arg_count {
             let arg = args[i];
             if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature, i)?;
+                let param_type = self.get_type_at_position(signature, i)?;
                 let arg_type = self.check_expression_with_contextual_type(
                     arg,
                     param_type,
                     Some(context.clone()),
                     check_mode,
                 )?;
-                self.infer_types(&context.inferences(), arg_type, param_type, None, None)?;
+                self.infer_types(&context.ref_(self).inferences(), arg_type, param_type, None, None)?;
             }
         }
 
@@ -538,10 +535,10 @@ impl TypeChecker {
                 Some(context.clone()),
                 check_mode,
             )?;
-            self.infer_types(&context.inferences(), spread_type, rest_type, None, None)?;
+            self.infer_types(&context.ref_(self).inferences(), spread_type, rest_type, None, None)?;
         }
 
-        self.get_inferred_types(&context)
+        self.get_inferred_types(context)
     }
 
     pub(super) fn get_mutable_array_or_tuple_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
@@ -592,7 +589,7 @@ impl TypeChecker {
         index: usize,
         arg_count: usize,
         rest_type: Id<Type>,
-        context: Option<Gc<InferenceContext>>,
+        context: Option<Id<InferenceContext>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
         if index >= arg_count - 1 {
@@ -690,13 +687,13 @@ impl TypeChecker {
 
     pub(super) fn check_type_arguments(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         type_argument_nodes: &[Id<Node /*TypeNode*/>],
         report_errors: bool,
         head_message: Option<&'static DiagnosticMessage>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
-        let is_javascript = is_in_js_file(signature.declaration.refed(self).as_deref());
-        let type_parameters = signature.maybe_type_parameters().clone().unwrap();
+        let is_javascript = is_in_js_file(signature.ref_(self).declaration.refed(self).as_deref());
+        let type_parameters = signature.ref_(self).maybe_type_parameters().clone().unwrap();
         let type_argument_types = self
             .fill_missing_type_arguments(
                 Some(try_map(type_argument_nodes, |&node: &Id<Node>, _| {
@@ -715,9 +712,9 @@ impl TypeChecker {
             );
             let constraint = self.get_constraint_of_type_parameter(type_parameters[i])?;
             if let Some(constraint) = constraint {
-                let error_info: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>> =
+                let error_info: Option<Id<Box<dyn CheckTypeContainingMessageChain>>> =
                     if report_errors && head_message.is_some() {
-                        Some(Gc::new(Box::new(CheckTypeArgumentsErrorInfo)))
+                        Some(self.alloc_check_type_containing_message_chain(Box::new(CheckTypeArgumentsErrorInfo)))
                     } else {
                         None
                     };
@@ -785,12 +782,12 @@ impl TypeChecker {
     pub(super) fn check_applicable_signature_for_jsx_opening_like_element(
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
-        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
+        error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
         let param_type =
             self.get_effective_first_argument_for_jsx_signature(signature.clone(), node)?;
@@ -826,7 +823,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxOpeningLikeElement*/
         report_errors: bool,
-        error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>>,
+        error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>>,
     ) -> io::Result<bool> {
         if self
             .get_jsx_namespace_container_for_implicit_import(Some(node))?
@@ -871,14 +868,14 @@ impl TypeChecker {
 
         let mut has_first_param_signatures = false;
         let mut max_param_count = 0;
-        for sig in &call_signatures {
+        for &sig in &call_signatures {
             let firstparam = self.get_type_at_position(sig, 0)?;
             let signatures_of_param =
                 self.get_signatures_of_type(firstparam, SignatureKind::Call)?;
             if length(Some(&*signatures_of_param)) == 0 {
                 continue;
             }
-            for param_sig in &signatures_of_param {
+            for &param_sig in &signatures_of_param {
                 has_first_param_signatures = true;
                 if self.has_effective_rest_parameter(param_sig)? {
                     return Ok(true);
@@ -893,7 +890,7 @@ impl TypeChecker {
             return Ok(true);
         }
         let mut absolute_min_arg_count = usize::MAX;
-        for tag_sig in &tag_call_signatures {
+        for &tag_sig in &tag_call_signatures {
             let tag_required_arg_count = self.get_min_argument_count(tag_sig, None)?;
             if tag_required_arg_count < absolute_min_arg_count {
                 absolute_min_arg_count = tag_required_arg_count;
@@ -926,7 +923,7 @@ impl TypeChecker {
             if let Some(tag_name_declaration) = tag_name_declaration {
                 add_related_info(
                     &diag.ref_(self),
-                    vec![Gc::new(
+                    vec![self.alloc_diagnostic_related_information(
                         create_diagnostic_for_node(
                             tag_name_declaration,
                             &Diagnostics::_0_is_declared_here,
@@ -943,10 +940,10 @@ impl TypeChecker {
             }
             if
             /*errorOutputContainer &&*/
-            error_output_container.skip_logging() == Some(true) {
-                error_output_container.push_error(diag.clone());
+            error_output_container.ref_(self).skip_logging() == Some(true) {
+                error_output_container.ref_(self).push_error(diag.clone());
             }
-            if error_output_container.skip_logging() != Some(true) {
+            if error_output_container.ref_(self).skip_logging() != Some(true) {
                 self.diagnostics().add(diag);
             }
         }
@@ -957,13 +954,13 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*CallLikeExpression*/
         args: &[Id<Node /*Expression*/>],
-        signature: Gc<Signature>,
+        signature: Id<Signature>,
         relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
         check_mode: CheckMode,
         report_errors: bool,
-        containing_message_chain: Option<Gc<Box<dyn CheckTypeContainingMessageChain>>>,
+        containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     ) -> io::Result<Option<Vec<Id<Diagnostic>>>> {
-        let error_output_container: Gc<Box<dyn CheckTypeErrorOutputContainer>> = Gc::new(Box::new(
+        let error_output_container: Id<Box<dyn CheckTypeErrorOutputContainer>> = self.alloc_check_type_error_output_container(Box::new(
             CheckTypeErrorOutputContainerConcrete::new(Some(true)),
         ));
         if is_jsx_opening_like_element(&node.ref_(self)) {
@@ -977,14 +974,14 @@ impl TypeChecker {
                 error_output_container.clone(),
             )? {
                 Debug_.assert(
-                    !report_errors || error_output_container.errors_len() > 0,
+                    !report_errors || error_output_container.ref_(self).errors_len() > 0,
                     Some("jsx should have errors when reporting errors"),
                 );
-                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
             }
             return Ok(None);
         }
-        let this_type = self.get_this_type_of_signature(&signature)?;
+        let this_type = self.get_this_type_of_signature(signature)?;
         if let Some(this_type) = this_type.filter(|&this_type| {
             this_type != self.void_type() && node.ref_(self).kind() != SyntaxKind::NewExpression
         }) {
@@ -1009,24 +1006,24 @@ impl TypeChecker {
                 Some(error_output_container.clone()),
             )? {
                 Debug_.assert(
-                    !report_errors || error_output_container.errors_len() > 0,
+                    !report_errors || error_output_container.ref_(self).errors_len() > 0,
                     Some("this parameter should have errors when reporting errors"),
                 );
-                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
             }
         }
         let head_message =
             &Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1;
-        let rest_type = self.get_non_array_rest_type(&signature)?;
+        let rest_type = self.get_non_array_rest_type(signature)?;
         let arg_count = if rest_type.is_some() {
-            cmp::min(self.get_parameter_count(&signature)? - 1, args.len())
+            cmp::min(self.get_parameter_count(signature)? - 1, args.len())
         } else {
             args.len()
         };
         for i in 0..arg_count {
             let arg = args[i];
             if arg.ref_(self).kind() != SyntaxKind::OmittedExpression {
-                let param_type = self.get_type_at_position(&signature, i)?;
+                let param_type = self.get_type_at_position(signature, i)?;
                 let arg_type =
                     self.check_expression_with_contextual_type(arg, param_type, None, check_mode)?;
                 let check_arg_type = if check_mode.intersects(CheckMode::SkipContextSensitive) {
@@ -1049,7 +1046,7 @@ impl TypeChecker {
                     Some(error_output_container.clone()),
                 )? {
                     Debug_.assert(
-                        !report_errors || error_output_container.errors_len() > 0,
+                        !report_errors || error_output_container.ref_(self).errors_len() > 0,
                         Some("parameter should have errors when reporting errors"),
                     );
                     self.maybe_add_missing_await_info(
@@ -1060,7 +1057,7 @@ impl TypeChecker {
                         check_arg_type,
                         param_type,
                     )?;
-                    return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                    return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
                 }
             }
         }
@@ -1104,7 +1101,7 @@ impl TypeChecker {
                 Some(error_output_container.clone()),
             )? {
                 Debug_.assert(
-                    !report_errors || error_output_container.errors_len() > 0,
+                    !report_errors || error_output_container.ref_(self).errors_len() > 0,
                     Some("rest parameter should have errors when reporting errors"),
                 );
                 self.maybe_add_missing_await_info(
@@ -1115,7 +1112,7 @@ impl TypeChecker {
                     spread_type,
                     rest_type,
                 )?;
-                return Ok(Some(error_output_container.errors())) /*|| emptyArray*/;
+                return Ok(Some(error_output_container.ref_(self).errors())) /*|| emptyArray*/;
             }
         }
         Ok(None)

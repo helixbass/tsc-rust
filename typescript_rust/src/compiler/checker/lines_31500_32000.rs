@@ -22,10 +22,10 @@ use crate::{
 impl TypeChecker {
     pub(super) fn get_type_of_first_parameter_of_signature_with_fallback(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
         fallback_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        Ok(if !signature.parameters().is_empty() {
+        Ok(if !signature.ref_(self).parameters().is_empty() {
             self.get_type_at_position(signature, 0)?
         } else {
             fallback_type
@@ -34,18 +34,18 @@ impl TypeChecker {
 
     pub(super) fn infer_from_annotated_parameters(
         &self,
-        signature: &Signature,
-        context: Gc<Signature>,
-        inference_context: &InferenceContext,
+        signature: Id<Signature>,
+        context: Id<Signature>,
+        inference_context: Id<InferenceContext>,
     ) -> io::Result<()> {
-        let len = signature.parameters().len()
-            - if signature_has_rest_parameter(signature) {
+        let len = signature.ref_(self).parameters().len()
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
             };
         for i in 0..len {
-            let declaration = signature.parameters()[i]
+            let declaration = signature.ref_(self).parameters()[i]
                 .ref_(self)
                 .maybe_value_declaration()
                 .unwrap();
@@ -57,31 +57,31 @@ impl TypeChecker {
                 let type_node = get_effective_type_annotation_node(declaration, self);
                 if let Some(type_node) = type_node {
                     self.infer_types(
-                        &inference_context.inferences(),
+                        &inference_context.ref_(self).inferences(),
                         self.get_type_from_type_node_(type_node)?,
-                        self.get_type_at_position(&context, i)?,
+                        self.get_type_at_position(context, i)?,
                         None,
                         None,
                     )?;
                 }
             }
         }
-        let rest_type = self.get_effective_rest_type(&context)?;
+        let rest_type = self.get_effective_rest_type(context)?;
         if let Some(rest_type) = rest_type.filter(|&rest_type| {
             rest_type
                 .ref_(self)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
         }) {
-            let instantiated_context = self.instantiate_signature(
+            let instantiated_context = self.alloc_signature(self.instantiate_signature(
                 context.clone(),
-                inference_context.non_fixing_mapper(),
+                inference_context.ref_(self).non_fixing_mapper(),
                 None,
-            )?;
-            self.assign_contextual_parameter_types(signature, &instantiated_context)?;
-            let rest_pos = self.get_parameter_count(&context)? - 1;
+            )?);
+            self.assign_contextual_parameter_types(signature, instantiated_context)?;
+            let rest_pos = self.get_parameter_count(context)? - 1;
             self.infer_types(
-                &inference_context.inferences(),
+                &inference_context.ref_(self).inferences(),
                 self.get_rest_type_at_position(signature, rest_pos)?,
                 rest_type,
                 None,
@@ -94,18 +94,18 @@ impl TypeChecker {
 
     pub(super) fn assign_contextual_parameter_types(
         &self,
-        signature: &Signature,
-        context: &Signature,
+        signature: Id<Signature>,
+        context: Id<Signature>,
     ) -> io::Result<()> {
-        if let Some(context_type_parameters) = context.maybe_type_parameters().as_ref() {
-            if signature.maybe_type_parameters().is_none() {
-                *signature.maybe_type_parameters_mut() = Some(context_type_parameters.clone());
+        if let Some(context_type_parameters) = context.ref_(self).maybe_type_parameters().as_ref() {
+            if signature.ref_(self).maybe_type_parameters().is_none() {
+                *signature.ref_(self).maybe_type_parameters_mut() = Some(context_type_parameters.clone());
             } else {
                 return Ok(());
             }
         }
-        if let Some(context_this_parameter) = *context.maybe_this_parameter() {
-            let parameter = signature.maybe_this_parameter().clone();
+        if let Some(context_this_parameter) = *context.ref_(self).maybe_this_parameter() {
+            let parameter = signature.ref_(self).maybe_this_parameter().clone();
             if match parameter {
                 None => true,
                 Some(parameter) => matches!(
@@ -114,23 +114,23 @@ impl TypeChecker {
                 ),
             } {
                 if parameter.is_none() {
-                    *signature.maybe_this_parameter_mut() =
+                    *signature.ref_(self).maybe_this_parameter_mut() =
                         Some(self.create_symbol_with_type(context_this_parameter, None));
                 }
                 self.assign_parameter_type(
-                    signature.maybe_this_parameter().unwrap(),
+                    signature.ref_(self).maybe_this_parameter().unwrap(),
                     Some(self.get_type_of_symbol(context_this_parameter)?),
                 )?;
             }
         }
-        let len = signature.parameters().len()
-            - if signature_has_rest_parameter(signature) {
+        let len = signature.ref_(self).parameters().len()
+            - if signature_has_rest_parameter(&signature.ref_(self)) {
                 1
             } else {
                 0
             };
         for i in 0..len {
-            let parameter = signature.parameters()[i];
+            let parameter = signature.ref_(self).parameters()[i];
             if get_effective_type_annotation_node(
                 parameter.ref_(self).maybe_value_declaration().unwrap(),
                 self,
@@ -141,8 +141,8 @@ impl TypeChecker {
                 self.assign_parameter_type(parameter, contextual_parameter_type)?;
             }
         }
-        if signature_has_rest_parameter(signature) {
-            let parameter = *last(signature.parameters());
+        if signature_has_rest_parameter(&signature.ref_(self)) {
+            let parameter = *last(signature.ref_(self).parameters());
             if is_transient_symbol(&parameter.ref_(self))
                 || get_effective_type_annotation_node(
                     parameter.ref_(self).maybe_value_declaration().unwrap(),
@@ -160,12 +160,12 @@ impl TypeChecker {
 
     pub(super) fn assign_non_contextual_parameter_types(
         &self,
-        signature: &Signature,
+        signature: Id<Signature>,
     ) -> io::Result<()> {
-        if let Some(signature_this_parameter) = *signature.maybe_this_parameter() {
+        if let Some(signature_this_parameter) = *signature.ref_(self).maybe_this_parameter() {
             self.assign_parameter_type(signature_this_parameter, None)?;
         }
-        for &parameter in signature.parameters() {
+        for &parameter in signature.ref_(self).parameters() {
             self.assign_parameter_type(parameter, None)?;
         }
 
@@ -178,15 +178,15 @@ impl TypeChecker {
         type_: Option<Id<Type>>,
     ) -> io::Result<()> {
         let links = self.get_symbol_links(parameter);
-        if (*links).borrow().type_.is_none() {
+        if links.ref_(self).type_.is_none() {
             let declaration = parameter.ref_(self).maybe_value_declaration().unwrap();
-            links.borrow_mut().type_ = Some(type_.try_unwrap_or_else(|| {
+            links.ref_mut(self).type_ = Some(type_.try_unwrap_or_else(|| {
                 self.get_widened_type_for_variable_like_declaration(declaration, Some(true))
             })?);
             let declaration_name = declaration.ref_(self).as_named_declaration().name();
             if declaration_name.ref_(self).kind() != SyntaxKind::Identifier {
-                if (*links).borrow().type_.unwrap() == self.unknown_type() {
-                    links.borrow_mut().type_ =
+                if links.ref_(self).type_.unwrap() == self.unknown_type() {
+                    links.ref_mut(self).type_ =
                         Some(self.get_type_from_binding_pattern(declaration_name, None, None)?);
                 }
                 self.assign_binding_element_types(declaration_name)?;
@@ -200,13 +200,13 @@ impl TypeChecker {
         &self,
         pattern: Id<Node>, /*BindingPattern*/
     ) -> io::Result<()> {
-        for &element in &pattern.ref_(self).as_has_elements().elements() {
+        for &element in &*pattern.ref_(self).as_has_elements().elements().ref_(self) {
             if !is_omitted_expression(&element.ref_(self)) {
                 let element_ref = element.ref_(self);
                 let element_as_binding_element = element_ref.as_binding_element();
                 if element_as_binding_element.name().ref_(self).kind() == SyntaxKind::Identifier {
                     self.get_symbol_links(self.get_symbol_of_node(element)?.unwrap())
-                        .borrow_mut()
+                        .ref_mut(self)
                         .type_ = self.get_type_for_binding_element(element)?;
                 } else {
                     self.assign_binding_element_types(element_as_binding_element.name())?;
@@ -309,13 +309,13 @@ impl TypeChecker {
             .ref_(self)
             .as_transient_symbol()
             .symbol_links()
-            .borrow_mut()
+            .ref_mut(self)
             .type_ = Some(target_type);
 
-        let members = Gc::new(GcCell::new(create_symbol_table(
+        let members = self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Some(&[target_property_symbol]),
-        )));
+        ));
         *symbol.ref_(self).maybe_members_mut() = Some(members.clone());
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }
@@ -454,10 +454,7 @@ impl TypeChecker {
                 let contextual_type =
                     contextual_signature.try_and_then(|contextual_signature| -> io::Result<_> {
                         Ok(
-                            if Gc::ptr_eq(
-                                &contextual_signature,
-                                &self.get_signature_from_declaration_(func)?,
-                            ) {
+                            if contextual_signature == self.get_signature_from_declaration_(func)? {
                                 if is_generator {
                                     None
                                 } else {
@@ -563,13 +560,13 @@ impl TypeChecker {
             };
             let iterable_iterator_return_type =
                 if let Some(iteration_types) = iteration_types.as_ref() {
-                    iteration_types.return_type()
+                    iteration_types.ref_(self).return_type()
                 } else {
                     self.any_type()
                 };
             let iterable_iterator_next_type =
                 if let Some(iteration_types) = iteration_types.as_ref() {
-                    iteration_types.next_type()
+                    iteration_types.ref_(self).next_type()
                 } else {
                     self.undefined_type()
                 };
@@ -638,7 +635,7 @@ impl TypeChecker {
                         },
                         yield_expression_as_yield_expression.expression,
                     )?;
-                    next_type = iteration_types.map(|iteration_types| iteration_types.next_type());
+                    next_type = iteration_types.map(|iteration_types| iteration_types.ref_(self).next_type());
                 } else {
                     next_type = self.get_contextual_type_(yield_expression, None)?;
                 }
@@ -765,12 +762,12 @@ impl TypeChecker {
         node: Id<Node>, /*SwitchStatement*/
     ) -> io::Result<bool> {
         let links = self.get_node_links(node);
-        let links_is_exhaustive = (*links).borrow().is_exhaustive;
+        let links_is_exhaustive = links.ref_(self).is_exhaustive;
         if let Some(links_is_exhaustive) = links_is_exhaustive {
             return Ok(links_is_exhaustive);
         }
         let ret = self.compute_exhaustive_switch_statement(node)?;
-        links.borrow_mut().is_exhaustive = Some(ret);
+        links.ref_mut(self).is_exhaustive = Some(ret);
         Ok(ret)
     }
 

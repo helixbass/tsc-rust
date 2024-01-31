@@ -26,6 +26,7 @@ use crate::{
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
     __String, get_line_and_character_of_position, AllArenas, HasArena, LineAndCharacter,
     ProgramBuildInfo,
+    InArena,
 };
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -128,7 +129,7 @@ pub struct RedirectInfo {
 }
 
 pub trait HasStatementsInterface {
-    fn statements(&self) -> Gc<NodeArray>;
+    fn statements(&self) -> Id<NodeArray>;
 }
 
 #[derive(Debug, Trace, Finalize)]
@@ -140,7 +141,7 @@ pub struct SourceFile {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct SourceFileContents {
-    statements: Gc<NodeArray>,
+    statements: Id<NodeArray>,
     end_of_file_token: Id<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
 
     #[unsafe_ignore_trace]
@@ -189,7 +190,7 @@ pub struct SourceFileContents {
 
     external_module_indicator: GcCell<Option<Id<Node>>>,
     common_js_module_indicator: GcCell<Option<Id<Node>>>,
-    js_global_augmentations: GcCell<Option<Gc<GcCell<SymbolTable>>>>,
+    js_global_augmentations: GcCell<Option<Id<SymbolTable>>>,
 
     #[unsafe_ignore_trace]
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
@@ -200,7 +201,7 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     symbol_count: Cell<Option<usize>>,
 
-    parse_diagnostics: GcCell<Option<Gc<GcCell<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>>>,
+    parse_diagnostics: GcCell<Option<Id<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>>,
 
     bind_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
     bind_suggestion_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
@@ -217,12 +218,12 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     comment_directives: RefCell<Option<Vec<Rc<CommentDirective>>>>,
     resolved_modules:
-        GcCell<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull /*| undefined*/>>>>>,
+        GcCell<Option<ModeAwareCache<Option<Id<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
-        GcCell<Option<ModeAwareCache<Option<Gc<ResolvedTypeReferenceDirective>>>>>,
+        GcCell<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>>,
     imports: GcCell<Option<Vec<Id<Node /*StringLiteralLike*/>>>>,
     module_augmentations: GcCell<Option<Vec<Id<Node /*StringLiteral | Identifier*/>>>>,
-    pattern_ambient_modules: GcCell<Option<Vec<Gc<PatternAmbientModule>>>>,
+    pattern_ambient_modules: GcCell<Option<Vec<Id<PatternAmbientModule>>>>,
     #[unsafe_ignore_trace]
     ambient_module_names: RefCell<Option<Vec<String>>>,
     #[unsafe_ignore_trace]
@@ -249,7 +250,7 @@ pub struct SourceFileContents {
 impl SourceFile {
     pub fn new(
         base_node: BaseNode,
-        statements: Gc<NodeArray>,
+        statements: Id<NodeArray>,
         end_of_file_token: Id<Node>,
         file_name: String,
         text: String,
@@ -319,7 +320,7 @@ impl SourceFile {
         }
     }
 
-    pub fn set_statements(&mut self, statements: Gc<NodeArray>) {
+    pub fn set_statements(&mut self, statements: Id<NodeArray>) {
         self.contents.statements = statements;
     }
 
@@ -529,7 +530,7 @@ impl SourceFile {
 
     pub(crate) fn maybe_js_global_augmentations(
         &self,
-    ) -> GcCellRefMut<Option<Gc<GcCell<SymbolTable>>>> {
+    ) -> GcCellRefMut<Option<Id<SymbolTable>>> {
         self.contents.js_global_augmentations.borrow_mut()
     }
 
@@ -565,11 +566,11 @@ impl SourceFile {
         self.contents.symbol_count.set(Some(symbol_count))
     }
 
-    pub fn parse_diagnostics(&self) -> Gc<GcCell<Vec<Id<Diagnostic>>>> {
+    pub fn parse_diagnostics(&self) -> Id<Vec<Id<Diagnostic>>> {
         self.contents.parse_diagnostics.borrow().clone().unwrap()
     }
 
-    pub fn set_parse_diagnostics(&self, parse_diagnostics: Gc<GcCell<Vec<Id<Diagnostic>>>>) {
+    pub fn set_parse_diagnostics(&self, parse_diagnostics: Id<Vec<Id<Diagnostic>>>) {
         *self.contents.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
     }
 
@@ -644,13 +645,13 @@ impl SourceFile {
 
     pub fn maybe_resolved_modules(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Gc<ResolvedModuleFull>>>>> {
+    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Id<ResolvedModuleFull>>>>> {
         self.contents.resolved_modules.borrow_mut()
     }
 
     pub fn maybe_resolved_type_reference_directive_names(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Gc<ResolvedTypeReferenceDirective>>>>> {
+    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>> {
         self.contents
             .resolved_type_reference_directive_names
             .borrow_mut()
@@ -687,7 +688,7 @@ impl SourceFile {
 
     pub fn maybe_pattern_ambient_modules(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Gc<PatternAmbientModule>>>> {
+    ) -> GcCellRefMut<Option<Vec<Id<PatternAmbientModule>>>> {
         self.contents.pattern_ambient_modules.borrow_mut()
     }
 
@@ -834,7 +835,7 @@ impl PragmaContext for SourceFile {
 }
 
 impl HasStatementsInterface for SourceFile {
-    fn statements(&self) -> Gc<NodeArray> {
+    fn statements(&self) -> Id<NodeArray> {
         self.contents.statements.clone()
     }
 }
@@ -929,7 +930,7 @@ impl InputFiles {
 
     pub fn initialize_with_read_file_callback(
         &mut self,
-        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+        read_file_callback: Id<Box<dyn ReadFileCallback>>,
         declaration_text_or_javascript_path: String,
         javascript_map_path: Option<String>,
         javascript_map_text_or_declaration_path: Option<String>,
@@ -967,7 +968,7 @@ impl InputFiles {
         javascript_path: Option<String>,
         declaration_path: Option<String>,
         build_info_path: Option<String>,
-        build_info: Option<Gc<BuildInfo>>,
+        build_info: Option<Id<BuildInfo>>,
         old_file_of_current_emit: Option<bool>,
     ) {
         self.initialized_state = Gc::new(InputFilesInitializedState::InitializedWithString(
@@ -1047,7 +1048,7 @@ impl InputFiles {
         }
     }
 
-    pub fn build_info(&self) -> Option<Gc<BuildInfo>> {
+    pub fn build_info(&self) -> Option<Id<BuildInfo>> {
         match &*self.initialized_state {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
@@ -1091,7 +1092,7 @@ impl Default for InputFilesInitializedState {
 
 #[derive(Debug, Trace, Finalize)]
 struct InputFilesInitializedWithReadFileCallback {
-    read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+    read_file_callback: Id<Box<dyn ReadFileCallback>>,
     #[unsafe_ignore_trace]
     cache: RefCell<HashMap<String, Option<String>>>,
     declaration_text_or_javascript_path: String,
@@ -1100,12 +1101,12 @@ struct InputFilesInitializedWithReadFileCallback {
     declaration_map_path: Option<String>,
     declaration_map_text_or_build_info_path: Option<String>,
     #[unsafe_ignore_trace]
-    build_info: GcCell<Option<Option<Gc<BuildInfo>>>>,
+    build_info: GcCell<Option<Option<Id<BuildInfo>>>>,
 }
 
 impl InputFilesInitializedWithReadFileCallback {
     pub fn new(
-        read_file_callback: Gc<Box<dyn ReadFileCallback>>,
+        read_file_callback: Id<Box<dyn ReadFileCallback>>,
         declaration_text_or_javascript_path: String,
         javascript_map_path: Option<String>,
         javascript_map_text_or_declaration_path: String,
@@ -1133,7 +1134,7 @@ impl InputFilesInitializedWithReadFileCallback {
         let mut cache = self.cache_mut();
         let mut value = cache.get(path).cloned();
         if value.is_none() {
-            value = self.read_file_callback.call(path).map(Some);
+            value = self.read_file_callback.ref_(self).call(path).map(Some);
             cache.insert(
                 path.to_owned(),
                 match value.clone() {
@@ -1154,7 +1155,7 @@ impl InputFilesInitializedWithReadFileCallback {
     fn get_and_cache_build_info(
         &self,
         mut get_text: impl FnMut() -> Option<String>,
-    ) -> Option<Gc<BuildInfo>> {
+    ) -> Option<Id<BuildInfo>> {
         let mut build_info = self.build_info.borrow_mut();
         if build_info.is_none() {
             let result = get_text();
@@ -1164,13 +1165,19 @@ impl InputFilesInitializedWithReadFileCallback {
     }
 }
 
+impl HasArena for InputFilesInitializedWithReadFileCallback {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 #[derive(Debug, Trace, Finalize)]
 struct InputFilesInitializedWithString {
     javascript_text: String,
     javascript_map_text: Option<String>,
     declaration_text: String,
     declaration_map_text: Option<String>,
-    build_info: Option<Gc<BuildInfo>>,
+    build_info: Option<Id<BuildInfo>>,
 }
 
 impl InputFilesInitializedWithString {
@@ -1179,7 +1186,7 @@ impl InputFilesInitializedWithString {
         javascript_map_text: Option<String>,
         declaration_text: String,
         declaration_map_text: Option<String>,
-        build_info: Option<Gc<BuildInfo>>,
+        build_info: Option<Id<BuildInfo>>,
     ) -> Self {
         Self {
             javascript_text,
@@ -1390,11 +1397,11 @@ impl UnparsedTextLike {
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedSyntheticReference {
     _unparsed_node: BaseUnparsedNode,
-    pub section: Gc<BundleFileSection>,
+    pub section: Id<BundleFileSection>,
 }
 
 impl UnparsedSyntheticReference {
-    pub fn new(base_unparsed_node: BaseUnparsedNode, section: Gc<BundleFileSection>) -> Self {
+    pub fn new(base_unparsed_node: BaseUnparsedNode, section: Id<BundleFileSection>) -> Self {
         Self {
             _unparsed_node: base_unparsed_node,
             section,
@@ -1445,8 +1452,6 @@ pub trait CancellationToken: Trace + Finalize {
 
     fn throw_if_cancellation_requested(&self);
 }
-
-pub trait CancellationTokenDebuggable: CancellationToken + fmt::Debug {}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum FileIncludeKind {
@@ -1615,23 +1620,23 @@ pub struct Program {
     pub(crate) processing_default_lib_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
     pub(crate) processing_other_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
     pub(crate) files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
-    pub(crate) symlinks: GcCell<Option<Gc<SymlinkCache>>>,
+    pub(crate) symlinks: GcCell<Option<Id<SymlinkCache>>>,
     #[unsafe_ignore_trace]
     pub(crate) common_source_directory: RefCell<Option<String>>,
-    pub(crate) diagnostics_producing_type_checker: GcCell<Option<Gc<TypeChecker>>>,
-    pub(crate) no_diagnostics_type_checker: GcCell<Option<Gc<TypeChecker>>>,
+    pub(crate) diagnostics_producing_type_checker: GcCell<Option<Id<TypeChecker>>>,
+    pub(crate) no_diagnostics_type_checker: GcCell<Option<Id<TypeChecker>>>,
     #[allow(dead_code)]
     #[unsafe_ignore_trace]
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    pub(crate) file_reasons: GcCell<Gc<GcCell<MultiMap<Path, Id<FileIncludeReason>>>>>,
+    pub(crate) file_reasons: GcCell<Id<MultiMap<Path, Id<FileIncludeReason>>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        GcCell<Gc<GcCell<HashMap<String, Option<Gc<ResolvedTypeReferenceDirective>>>>>>,
-    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Gc<FilePreprocessingDiagnostics>>>>,
+        GcCell<Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
+    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Id<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,
     #[unsafe_ignore_trace]
@@ -1644,8 +1649,8 @@ pub struct Program {
     pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
     pub(crate) old_program: GcCell<Option<Id<Program>>>,
-    pub(crate) host: GcCell<Option<Gc<Box<dyn CompilerHost>>>>,
-    pub(crate) config_parsing_host: GcCell<Option<Gc<Box<dyn ParseConfigFileHost>>>>,
+    pub(crate) host: GcCell<Option<Id<Box<dyn CompilerHost>>>>,
+    pub(crate) config_parsing_host: GcCell<Option<Id<Box<dyn ParseConfigFileHost>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) skip_default_lib: Cell<Option<bool>>,
@@ -1666,13 +1671,13 @@ pub struct Program {
     pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
     pub(crate) _compiler_options_object_literal_syntax:
         GcCell<Option<Option<Id<Node /*ObjectLiteralExpression*/>>>>,
-    pub(crate) module_resolution_cache: GcCell<Option<Gc<ModuleResolutionCache>>>,
+    pub(crate) module_resolution_cache: GcCell<Option<Id<ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
-        GcCell<Option<Gc<TypeReferenceDirectiveResolutionCache>>>,
+        GcCell<Option<Id<TypeReferenceDirectiveResolutionCache>>>,
     pub(crate) actual_resolve_module_names_worker:
-        GcCell<Option<Gc<Box<dyn ActualResolveModuleNamesWorker>>>>,
+        GcCell<Option<Id<Box<dyn ActualResolveModuleNamesWorker>>>>,
     pub(crate) actual_resolve_type_reference_directive_names_worker:
-        GcCell<Option<Gc<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
+        GcCell<Option<Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
 
     pub(crate) package_id_to_source_file: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
     #[unsafe_ignore_trace]
@@ -1688,9 +1693,9 @@ pub struct Program {
     pub(crate) files_by_name_ignore_case: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
 
     pub(crate) resolved_project_references:
-        GcCell<Option<Vec<Option<Gc<ResolvedProjectReference>>>>>,
+        GcCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
     pub(crate) project_reference_redirects:
-        GcCell<Option<HashMap<Path, Option<Gc<ResolvedProjectReference>>>>>,
+        GcCell<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>>,
     #[unsafe_ignore_trace]
     pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
     #[unsafe_ignore_trace]
@@ -1699,15 +1704,15 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
 
-    pub(crate) file_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
-    pub(crate) directory_exists_rc: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+    pub(crate) file_exists_rc: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    pub(crate) directory_exists_rc: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) should_create_new_source_file: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,
 
-    pub(crate) get_program_build_info: GcCell<Option<Gc<Box<dyn GetProgramBuildInfo>>>>,
+    pub(crate) get_program_build_info: GcCell<Option<Id<Box<dyn GetProgramBuildInfo>>>>,
 }
 
 impl fmt::Debug for Program {
@@ -1717,5 +1722,5 @@ impl fmt::Debug for Program {
 }
 
 pub trait GetProgramBuildInfo: Trace + Finalize {
-    fn call(&self) -> Option<Gc<ProgramBuildInfo>>;
+    fn call(&self) -> Option<Id<ProgramBuildInfo>>;
 }

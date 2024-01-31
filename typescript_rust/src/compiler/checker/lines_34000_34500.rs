@@ -138,7 +138,7 @@ impl TypeChecker {
             if func
                 .ref_(self).as_signature_declaration()
                 .parameters()
-                .into_iter()
+                .ref_(self).into_iter()
                 .position(|&parameter| parameter == node)
                 != Some(0)
             {
@@ -211,7 +211,7 @@ impl TypeChecker {
 
         let signature = self.get_signature_from_declaration_(parent)?;
         let type_predicate =
-            return_ok_default_if_none!(self.get_type_predicate_of_signature(&signature)?);
+            return_ok_default_if_none!(self.get_type_predicate_of_signature(signature)?);
 
         let node_ref = node.ref_(self);
         let node_as_type_predicate_node = node_ref.as_type_predicate_node();
@@ -219,15 +219,15 @@ impl TypeChecker {
 
         let parameter_name = node_as_type_predicate_node.parameter_name;
         if matches!(
-            type_predicate.kind,
+            type_predicate.ref_(self).kind,
             TypePredicateKind::This | TypePredicateKind::AssertsThis
         ) {
             self.get_type_from_this_type_node(parameter_name)?;
         } else {
             #[allow(clippy::suspicious_else_formatting)]
-            if let Some(type_predicate_parameter_index) = type_predicate.parameter_index {
-                if signature_has_rest_parameter(&signature)
-                    && type_predicate_parameter_index == signature.parameters().len() - 1
+            if let Some(type_predicate_parameter_index) = type_predicate.ref_(self).parameter_index {
+                if signature_has_rest_parameter(&signature.ref_(self))
+                    && type_predicate_parameter_index == signature.ref_(self).parameters().len() - 1
                 {
                     self.error(
                         Some(parameter_name),
@@ -235,13 +235,13 @@ impl TypeChecker {
                         None,
                     );
                 } else {
-                    if let Some(type_predicate_type) = type_predicate.type_ {
-                        let leading_error: Gc<Box<dyn CheckTypeContainingMessageChain>> =
-                            Gc::new(Box::new(CheckTypePredicateContainingMessageChain));
+                    if let Some(type_predicate_type) = type_predicate.ref_(self).type_ {
+                        let leading_error: Id<Box<dyn CheckTypeContainingMessageChain>> =
+                            self.alloc_check_type_containing_message_chain(Box::new(CheckTypePredicateContainingMessageChain));
                         self.check_type_assignable_to(
                             type_predicate_type,
                             self.get_type_of_symbol(
-                                signature.parameters()[type_predicate_parameter_index],
+                                signature.ref_(self).parameters()[type_predicate_parameter_index],
                             )?,
                             node_as_type_predicate_node.type_,
                             None,
@@ -254,13 +254,13 @@ impl TypeChecker {
             /*if (parameterName)*/
             {
                 let mut has_reported_error = false;
-                for parameter in &parent.ref_(self).as_signature_declaration().parameters() {
+                for parameter in &*parent.ref_(self).as_signature_declaration().parameters().ref_(self) {
                     let name = parameter.ref_(self).as_named_declaration().name();
                     if is_binding_pattern(Some(&name.ref_(self)))
                         && self.check_if_type_predicate_variable_is_declared_in_binding_pattern(
                             name,
                             parameter_name,
-                            type_predicate.parameter_name.as_ref().unwrap(),
+                            type_predicate.ref_(self).parameter_name.as_ref().unwrap(),
                         )
                     {
                         has_reported_error = true;
@@ -271,7 +271,7 @@ impl TypeChecker {
                     self.error(
                         Some(node_as_type_predicate_node.parameter_name),
                         &Diagnostics::Cannot_find_parameter_0,
-                        Some(vec![type_predicate.parameter_name.clone().unwrap()]),
+                        Some(vec![type_predicate.ref_(self).parameter_name.clone().unwrap()]),
                     );
                 }
             }
@@ -308,7 +308,7 @@ impl TypeChecker {
         predicate_variable_node: Id<Node>,
         predicate_variable_name: &str,
     ) -> bool {
-        for element in &pattern.ref_(self).as_has_elements().elements() {
+        for element in &*pattern.ref_(self).as_has_elements().elements().ref_(self) {
             if is_omitted_expression(&element.ref_(self)) {
                 continue;
             }
@@ -386,7 +386,7 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_signature_declaration = node_ref.as_signature_declaration();
         try_for_each(
-            &node_as_signature_declaration.parameters(),
+            &*node_as_signature_declaration.parameters().ref_(self),
             |&parameter: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_parameter(parameter)?;
                 Ok(None)
@@ -491,9 +491,9 @@ impl TypeChecker {
         let mut instance_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut static_names: HashMap<__String, DeclarationMeaning> = HashMap::new();
         let mut private_identifiers: HashMap<__String, DeclarationMeaning> = HashMap::new();
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             if member.ref_(self).kind() == SyntaxKind::Constructor {
-                for &param in &member.ref_(self).as_constructor_declaration().parameters() {
+                for &param in &*member.ref_(self).as_constructor_declaration().parameters().ref_(self) {
                     if is_parameter_property_declaration(param, member, self)
                         && !is_binding_pattern(param.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref())
                     {
@@ -622,7 +622,7 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ClassLikeDeclaration*/
     ) -> io::Result<()> {
-        for &member in &node.ref_(self).as_class_like_declaration().members() {
+        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
             let member_name_node = member.ref_(self).as_named_declaration().maybe_name();
             let is_static_member = is_static(member, self);
             if is_static_member {
@@ -659,7 +659,7 @@ impl TypeChecker {
         node: Id<Node>, /*TypeLiteralNode | InterfaceDeclaration*/
     ) {
         let mut names: HashMap<String, bool> = HashMap::new();
-        for member in &node.ref_(self).as_has_members().members() {
+        for member in &*node.ref_(self).as_has_members().members().ref_(self) {
             if member.ref_(self).kind() == SyntaxKind::PropertySignature {
                 let member_name: String;
                 let name = member.ref_(self).as_named_declaration().name();
@@ -721,11 +721,11 @@ impl TypeChecker {
                 if declaration
                     .ref_(self).as_index_signature_declaration()
                     .parameters()
-                    .len()
+                    .ref_(self).len()
                     == 1
                 {
                     if let Some(declaration_parameters_0_type) =
-                        declaration.ref_(self).as_index_signature_declaration().parameters()[0]
+                        declaration.ref_(self).as_index_signature_declaration().parameters().ref_(self)[0]
                             .ref_(self).as_parameter_declaration()
                             .maybe_type()
                     {
@@ -886,7 +886,7 @@ impl TypeChecker {
             let mut lexical_scope = get_enclosing_block_scope_container(node, self);
             while let Some(lexical_scope_present) = lexical_scope {
                 self.get_node_links(lexical_scope_present)
-                    .borrow_mut()
+                    .ref_mut(self)
                     .flags |= NodeCheckFlags::ContainsClassWithPrivateIdentifiers;
                 lexical_scope = get_enclosing_block_scope_container(lexical_scope_present, self);
             }
@@ -897,10 +897,10 @@ impl TypeChecker {
                 if let Some(enclosing_iteration_statement) = enclosing_iteration_statement
                 {
                     self.get_node_links(node_as_named_declaration.name())
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::BlockScopedBindingInLoop;
                     self.get_node_links(enclosing_iteration_statement)
-                        .borrow_mut()
+                        .ref_mut(self)
                         .flags |= NodeCheckFlags::LoopWithCapturedBlockScopedBinding;
                 }
             }

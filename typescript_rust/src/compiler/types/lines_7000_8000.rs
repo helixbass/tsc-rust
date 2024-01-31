@@ -65,7 +65,7 @@ pub struct CallBinding {
     pub this_arg: Id<Node /*Expression*/>,
 }
 
-pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
+pub trait ParenthesizerRules: Trace + Finalize {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     fn parenthesize_left_side_of_binary(
@@ -114,7 +114,7 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
     fn parenthesize_expressions_of_comma_delimited_list(
         &self,
         elements: NodeArrayOrVec, /*<Expression>*/
-    ) -> Gc<NodeArray> /*<Expression>*/;
+    ) -> Id<NodeArray> /*<Expression>*/;
     fn parenthesize_expression_for_disallowed_comma(
         &self,
         expression: Id<Node>, /*Expression*/
@@ -142,14 +142,14 @@ pub trait ParenthesizerRules<TBaseNodeFactory: BaseNodeFactory>: Trace + Finaliz
     fn parenthesize_constituent_types_of_union_or_intersection_type(
         &self,
         members: NodeArrayOrVec, /*<TypeNode>*/
-    ) -> Gc<NodeArray> /*<TypeNode>*/;
+    ) -> Id<NodeArray> /*<TypeNode>*/;
     fn parenthesize_type_arguments(
         &self,
         type_parameters: Option<NodeArrayOrVec /*<TypeNode>*/>,
-    ) -> Option<Gc<NodeArray> /*<TypeNode>*/>;
+    ) -> Option<Id<NodeArray> /*<TypeNode>*/>;
 }
 
-pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
+pub trait NodeConverters: Trace + Finalize {
     fn convert_to_function_block(
         &self,
         node: Id<Node>, /*ConciseBody*/
@@ -186,12 +186,12 @@ pub trait NodeConverters<TBaseNodeFactory: BaseNodeFactory>: Trace + Finalize {
 }
 
 #[derive(Trace, Finalize)]
-pub struct NodeFactory<TBaseNodeFactory: Trace + Finalize + 'static> {
-    pub base_factory: Gc<TBaseNodeFactory>,
+pub struct NodeFactory {
+    pub base_factory: Id<Box<dyn BaseNodeFactory>>,
     #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: GcCell<Option<Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>>>,
-    pub converters: GcCell<Option<Box<dyn NodeConverters<TBaseNodeFactory>>>>,
+    pub parenthesizer_rules: GcCell<Option<Id<Box<dyn ParenthesizerRules>>>>,
+    pub converters: GcCell<Option<Box<dyn NodeConverters>>>,
 }
 
 bitflags! {
@@ -202,11 +202,8 @@ bitflags! {
     }
 }
 
-pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + Finalize>:
-    Trace + Finalize
-{
-    fn factory(&self) -> Gc<NodeFactory<TBaseNodeFactory>>;
-    fn base_factory(&self) -> Gc<TBaseNodeFactory>;
+pub trait CoreTransformationContext: Trace + Finalize {
+    fn factory(&self) -> Id<NodeFactory>;
 
     fn get_compiler_options(&self) -> Id<CompilerOptions>;
 
@@ -234,10 +231,10 @@ pub trait CoreTransformationContext<TBaseNodeFactory: BaseNodeFactory + Trace + 
     fn add_initialization_statement(&self, node: Id<Node> /*Statement*/);
 }
 
-pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthetic> + HasArena {
-    fn get_emit_resolver(&self) -> Gc<Box<dyn EmitResolver>>;
+pub trait TransformationContext: CoreTransformationContext + HasArena {
+    fn get_emit_resolver(&self) -> Id<Box<dyn EmitResolver>>;
     fn get_emit_host(&self) -> Id<Box<dyn EmitHost>>;
-    fn get_emit_helper_factory(&self) -> Gc<EmitHelperFactory>;
+    fn get_emit_helper_factory(&self) -> Id<EmitHelperFactory>;
 
     fn request_emit_helper(&self, helper: Id<EmitHelper>);
 
@@ -251,13 +248,13 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     fn override_on_substitute_node(
         &self,
         overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
         )
-            -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+            -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     );
     fn pop_overridden_on_substitute_node(
         &self,
-    ) -> Gc<Box<dyn TransformationContextOnSubstituteNodeOverrider>>;
+    ) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>;
 
     fn enable_emit_notification(&self, kind: SyntaxKind);
 
@@ -272,10 +269,10 @@ pub trait TransformationContext: CoreTransformationContext<BaseNodeFactorySynthe
     fn override_on_emit_node(
         &self,
         overrider: &mut dyn FnMut(
-            Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-        ) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+            Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        ) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     );
-    fn pop_overridden_on_emit_node(&self) -> Gc<Box<dyn TransformationContextOnEmitNodeOverrider>>;
+    fn pop_overridden_on_emit_node(&self) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>;
 
     fn add_diagnostic(&self, diag: Id<Diagnostic /*DiagnosticWithLocation*/>);
 }

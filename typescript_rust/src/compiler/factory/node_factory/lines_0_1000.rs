@@ -26,7 +26,7 @@ use crate::{
     ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
     ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral,
     StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
-    HasArena, AllArenas, InArena,
+    HasArena, AllArenas, InArena, OptionInArena,
 };
 
 thread_local! {
@@ -53,35 +53,36 @@ bitflags! {
     }
 }
 
-pub fn create_node_factory<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize>(
+pub fn create_node_factory(
     flags: NodeFactoryFlags, /*, baseFactory: BaseNodeFactory*/
-    base_factory: Gc<TBaseNodeFactory>,
-) -> Gc<NodeFactory<TBaseNodeFactory>> {
-    NodeFactory::new(flags, base_factory)
+    base_factory: Id<Box<dyn BaseNodeFactory>>,
+    arena: &impl HasArena,
+) -> Id<NodeFactory> {
+    NodeFactory::new(flags, base_factory, arena)
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory<TBaseNodeFactory> {
-    pub fn new(flags: NodeFactoryFlags, base_factory: Gc<TBaseNodeFactory>) -> Gc<Self> {
-        let factory_ = Gc::new(Self {
+impl NodeFactory {
+    pub fn new(flags: NodeFactoryFlags, base_factory: Id<Box<dyn BaseNodeFactory>>, arena: &impl HasArena) -> Id<Self> {
+        let factory_ = arena.alloc_node_factory(Self {
             base_factory,
             flags,
             parenthesizer_rules: Default::default(),
             converters: Default::default(),
         });
-        factory_.set_parenthesizer_rules(
+        factory_.ref_(arena).set_parenthesizer_rules(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
-                Gc::new(Box::new(null_parenthesizer_rules()))
+                arena.alloc_parenthesizer_rules(Box::new(null_parenthesizer_rules()))
             } else {
-                Gc::new(Box::new(create_parenthesizer_rules(factory_.clone())))
+                arena.alloc_parenthesizer_rules(Box::new(create_parenthesizer_rules(factory_)))
             },
         );
-        factory_.set_converters(
+        factory_.ref_(arena).set_converters(
             /*memoize(*/
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
                 Box::new(null_node_converters())
             } else {
-                Box::new(create_node_converters(factory_.clone()))
+                Box::new(create_node_converters(factory_))
             },
         );
         factory_
@@ -97,27 +98,27 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
 
     pub(crate) fn set_parenthesizer_rules(
         &self,
-        parenthesizer_rules: Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>>,
+        parenthesizer_rules: Id<Box<dyn ParenthesizerRules>>,
     ) {
         *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
     }
 
-    pub(crate) fn parenthesizer_rules(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
+    pub(crate) fn parenthesizer_rules(&self) -> Id<Box<dyn ParenthesizerRules>> {
         self.parenthesizer_rules.borrow().clone().unwrap()
     }
 
-    pub fn parenthesizer(&self) -> Gc<Box<dyn ParenthesizerRules<TBaseNodeFactory>>> {
+    pub fn parenthesizer(&self) -> Id<Box<dyn ParenthesizerRules>> {
         self.parenthesizer_rules()
     }
 
     pub(crate) fn set_converters(
         &self,
-        node_converters: Box<dyn NodeConverters<TBaseNodeFactory>>,
+        node_converters: Box<dyn NodeConverters>,
     ) {
         *self.converters.borrow_mut() = Some(node_converters);
     }
 
-    pub fn converters(&self) -> GcCellRef<Box<dyn NodeConverters<TBaseNodeFactory>>> {
+    pub fn converters(&self) -> GcCellRef<Box<dyn NodeConverters>> {
         GcCellRef::map(self.converters.borrow(), |option| option.as_ref().unwrap())
     }
 
@@ -586,7 +587,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         &self,
         elements: Option<impl Into<NodeArrayOrVec>>,
         has_trailing_comma: Option<bool>,
-    ) -> Gc<NodeArray> {
+    ) -> Id<NodeArray> {
         let elements = match elements {
             None => NodeArrayOrVec::Vec(vec![]),
             Some(elements) => elements.into(),
@@ -595,39 +596,40 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             NodeArrayOrVec::NodeArray(elements) => {
                 if match has_trailing_comma {
                     None => true,
-                    Some(has_trailing_comma) => elements.has_trailing_comma == has_trailing_comma,
+                    Some(has_trailing_comma) => elements.ref_(self).has_trailing_comma == has_trailing_comma,
                 } {
-                    if elements.maybe_transform_flags().is_none() {
-                        aggregate_children_flags(&elements, self);
+                    if elements.ref_(self).maybe_transform_flags().is_none() {
+                        aggregate_children_flags(elements, self);
                     }
-                    Debug_.attach_node_array_debug_info(&elements);
+                    Debug_.attach_node_array_debug_info(elements);
                     return elements;
                 }
 
-                let mut array = NodeArray::new(
-                    elements.to_vec(),
-                    elements.pos(),
-                    elements.end(),
+                let array = NodeArray::new(
+                    elements.ref_(self).to_vec(),
+                    elements.ref_(self).pos(),
+                    elements.ref_(self).end(),
                     has_trailing_comma.unwrap(),
-                    elements.maybe_transform_flags(),
+                    elements.ref_(self).maybe_transform_flags(),
+                    self,
                 );
-                Debug_.attach_node_array_debug_info(&mut array);
+                Debug_.attach_node_array_debug_info(array);
                 array
             }
             NodeArrayOrVec::Vec(elements) => {
                 // let length = elements.len();
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
                 let array =
-                    NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None);
-                aggregate_children_flags(&array, self);
-                Debug_.attach_node_array_debug_info(&array);
+                    NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None, self);
+                aggregate_children_flags(array, self);
+                Debug_.attach_node_array_debug_info(array);
                 array
             }
         }
     }
 
     pub(crate) fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        self.base_factory.create_base_node(kind)
+        self.base_factory.ref_(self).create_base_node(kind)
     }
 
     pub(crate) fn create_base_declaration<
@@ -642,8 +644,8 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node = self.create_base_node(kind);
         node.set_decorators(self.as_node_array(decorators));
         node.set_modifiers(self.as_node_array(modifiers));
-        let flags = propagate_children_flags(node.maybe_decorators().as_deref())
-            | propagate_children_flags(node.maybe_modifiers().as_deref());
+        let flags = propagate_children_flags(node.maybe_decorators().refed(self).as_deref())
+            | propagate_children_flags(node.maybe_modifiers().refed(self).as_deref());
         node.add_transform_flags(flags);
         // node.symbol = undefined!;
         // node.localSymbol = undefined!;
@@ -703,7 +705,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> BaseGenericNamedDeclaration {
         let node = self.create_base_named_declaration(kind, decorators, modifiers, name);
         let node = BaseGenericNamedDeclaration::new(node, self.as_node_array(type_parameters));
-        let flags = propagate_children_flags(node.maybe_type_parameters().as_deref());
+        let flags = propagate_children_flags(node.maybe_type_parameters().refed(self).as_deref());
         node.add_transform_flags(flags);
         if node.maybe_type_parameters().is_some() {
             node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -738,7 +740,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node =
             BaseSignatureDeclaration::new(node, self.create_node_array(parameters, None), type_);
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.parameters()))
+            propagate_children_flags(Some(&node.parameters().ref_(self)))
                 | propagate_child_flags(node.maybe_type(), self),
         );
         if node.maybe_type().is_some() {
@@ -839,7 +841,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         let node =
             BaseInterfaceOrClassLikeDeclaration::new(node, self.as_node_array(heritage_clauses));
         node.add_transform_flags(propagate_children_flags(
-            node.maybe_heritage_clauses().as_deref(),
+            node.maybe_heritage_clauses().refed(self).as_deref(),
         ));
         node
     }
@@ -871,7 +873,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
             heritage_clauses,
         );
         let node = ClassLikeDeclarationBase::new(node, self.create_node_array(Some(members), None));
-        node.add_transform_flags(propagate_children_flags(Some(&node.members())));
+        node.add_transform_flags(propagate_children_flags(Some(&node.members().ref_(self))));
         node
     }
 
@@ -1045,7 +1047,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
         let node = self
             .base_factory
-            .create_base_identifier_node(SyntaxKind::Identifier);
+            .ref_(self).create_base_identifier_node(SyntaxKind::Identifier);
         let mut node = Identifier::new(node, escape_leading_underscores(text).into_owned());
         node.original_keyword_kind = original_keyword_kind;
         node
@@ -1091,7 +1093,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 
     pub fn create_identifier(&self, text: &str) -> Id<Node> {
-        self.create_identifier_full(text, Option::<Gc<NodeArray>>::None, None)
+        self.create_identifier_full(text, Option::<Id<NodeArray>>::None, None)
     }
 
     pub fn update_identifier(
@@ -1103,7 +1105,7 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     ) -> Id<Node> {
         let type_arguments = type_arguments.map(Into::into);
         let node_type_arguments = node.ref_(self).as_identifier().maybe_type_arguments();
-        if has_option_node_array_changed(node_type_arguments.as_deref(), type_arguments.as_ref()) {
+        if has_option_node_array_changed(node_type_arguments, type_arguments.as_ref()) {
             self.update(
                 self.create_identifier_full(id_text(&node.ref_(self)), type_arguments, None),
                 node,
@@ -1192,14 +1194,14 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
         }
         let node = self
             .base_factory
-            .create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
+            .ref_(self).create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
         let node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
         node.add_transform_flags(TransformFlags::ContainsClassFields);
         node
     }
 
     pub fn create_base_token(&self, kind: SyntaxKind) -> BaseNode {
-        self.base_factory.create_base_token_node(kind)
+        self.base_factory.ref_(self).create_base_token_node(kind)
     }
 
     #[generate_node_factory_method_wrapper]
@@ -1266,32 +1268,29 @@ impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> NodeFactory
     }
 }
 
-impl<TBaseNodeFactory: 'static + BaseNodeFactory + Trace + Finalize> HasArena for NodeFactory<TBaseNodeFactory> {
+impl HasArena for NodeFactory {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
 
 pub fn has_option_node_array_changed(
-    existing: Option<&NodeArray>,
+    existing: Option<Id<NodeArray>>,
     maybe_changed: Option<&NodeArrayOrVec>,
 ) -> bool {
     match (existing, maybe_changed) {
         (None, None) => false,
         (Some(existing), Some(NodeArrayOrVec::NodeArray(maybe_changed))) => {
-            !ptr::eq(existing, &**maybe_changed)
+            existing != *maybe_changed
         }
         _ => true,
     }
 }
 
-pub fn has_node_array_changed(existing: &Gc<NodeArray>, maybe_changed: &NodeArrayOrVec) -> bool {
+pub fn has_node_array_changed(existing: Id<NodeArray>, maybe_changed: &NodeArrayOrVec) -> bool {
     !matches!(
         maybe_changed,
-        NodeArrayOrVec::NodeArray(maybe_changed) if Gc::ptr_eq(
-            existing,
-            maybe_changed
-        )
+        NodeArrayOrVec::NodeArray(maybe_changed) if existing == *maybe_changed
     )
 }
 

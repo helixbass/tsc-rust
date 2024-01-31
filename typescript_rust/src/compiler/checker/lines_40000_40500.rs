@@ -13,10 +13,10 @@ use crate::{
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_logging,
     is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined,
     relative_complement, skip_type_checking, try_for_each, try_for_each_child, try_maybe_for_each,
-    CancellationTokenDebuggable, Diagnostic, Diagnostics, HasStatementsInterface,
+    CancellationToken, Diagnostic, Diagnostics, HasStatementsInterface,
     ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
-    InArena,
+    InArena, OptionInArena,
 };
 
 impl TypeChecker {
@@ -53,8 +53,8 @@ impl TypeChecker {
                 node.ref_(self).maybe_js_doc().as_ref(),
                 |jsdoc: &Id<Node>, _| -> io::Result<Option<()>> {
                     let jsdoc_ref = jsdoc.ref_(self);
-                    let tags = jsdoc_ref.as_jsdoc().tags.as_ref();
-                    try_maybe_for_each(tags, |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
+                    let tags = jsdoc_ref.as_jsdoc().tags;
+                    try_maybe_for_each(tags.refed(self).as_deref(), |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(tag))?;
                         Ok(None)
                     })?;
@@ -72,7 +72,7 @@ impl TypeChecker {
                     | SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::FunctionDeclaration
             ) {
-                cancellation_token.throw_if_cancellation_requested();
+                cancellation_token.ref_(self).throw_if_cancellation_requested();
             }
         }
         if kind >= SyntaxKind::FirstStatement
@@ -196,7 +196,7 @@ impl TypeChecker {
                 try_for_each_child(
                     node,
                     |child| self.check_source_element(Some(child)),
-                    Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                    Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
                     self,
                 )?;
             }
@@ -209,7 +209,7 @@ impl TypeChecker {
                 try_for_each_child(
                     node,
                     |child| self.check_source_element(Some(child)),
-                    Option::<fn(&NodeArray) -> io::Result<()>>::None,
+                    Option::<fn(Id<NodeArray>) -> io::Result<()>>::None,
                     self,
                 )?;
             }
@@ -347,7 +347,7 @@ impl TypeChecker {
 
         let parent = node.ref_(self).parent();
         if is_parameter(&parent.ref_(self)) && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self)) {
-            if *last(&parent.ref_(self).parent().ref_(self).as_jsdoc_function_type().parameters()) != parent {
+            if *last(&parent.ref_(self).parent().ref_(self).as_jsdoc_function_type().parameters().ref_(self)) != parent {
                 self.error(
                     Some(node),
                     &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
@@ -383,7 +383,7 @@ impl TypeChecker {
         if match host {
             None => true,
             Some(host) => !matches!(
-                last(&host.ref_(self).as_signature_declaration().parameters()).ref_(self).maybe_symbol(),
+                last(&host.ref_(self).as_signature_declaration().parameters().ref_(self)).ref_(self).maybe_symbol(),
                 Some(symbol) if symbol == param
             ),
         } {
@@ -417,7 +417,7 @@ impl TypeChecker {
                             .ref_(self).as_jsdoc_callback_tag()
                             .type_expression
                             .ref_(self).as_jsdoc_signature()
-                            .parameters,
+                            .parameters.ref_(self),
                     )
                     .copied()
                 } else {
@@ -425,7 +425,7 @@ impl TypeChecker {
                         &**host
                             .unwrap()
                             .ref_(self).as_signature_declaration()
-                            .parameters(),
+                            .parameters().ref_(self),
                     )
                     .copied()
                 };
@@ -455,12 +455,12 @@ impl TypeChecker {
     pub(super) fn check_node_deferred(&self, node: Id<Node>) {
         let enclosing_file = get_source_file_of_node(node, self);
         let links = self.get_node_links(enclosing_file);
-        if !(*links)
-            .borrow()
+        if !links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::TypeChecked)
         {
-            let mut links = links.borrow_mut();
+            let mut links = links.ref_mut(self);
             if links.deferred_nodes.is_none() {
                 links.deferred_nodes = Some(IndexMap::new());
             }
@@ -479,18 +479,18 @@ impl TypeChecker {
     ) -> io::Result<()> {
         let links = self.get_node_links(context);
         let links_deferred_nodes_is_some = {
-            let value = (*links).borrow().deferred_nodes.is_some();
+            let value = links.ref_(self).deferred_nodes.is_some();
             value
         };
         if links_deferred_nodes_is_some {
             let mut i = 0;
             while i < {
-                let value = (*links).borrow().deferred_nodes.as_ref().unwrap().len();
+                let value = links.ref_(self).deferred_nodes.as_ref().unwrap().len();
                 value
             } {
                 self.check_deferred_node({
-                    let value = (*links)
-                        .borrow()
+                    let value = links
+                        .ref_(self)
                         .deferred_nodes
                         .as_ref()
                         .unwrap()
@@ -589,8 +589,8 @@ impl TypeChecker {
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
         let links = self.get_node_links(node);
-        if !(*links)
-            .borrow()
+        if !links
+            .ref_(self)
             .flags
             .intersects(NodeCheckFlags::TypeChecked)
         {
@@ -610,7 +610,7 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_source_file = node_ref.as_source_file();
             try_for_each(
-                &node_as_source_file.statements(),
+                &*node_as_source_file.statements().ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
@@ -716,7 +716,7 @@ impl TypeChecker {
                 }
             }
 
-            links.borrow_mut().flags |= NodeCheckFlags::TypeChecked;
+            links.ref_mut(self).flags |= NodeCheckFlags::TypeChecked;
         }
 
         Ok(())
@@ -725,7 +725,7 @@ impl TypeChecker {
     pub fn get_diagnostics(
         &self,
         source_file: Option<Id<Node> /*SourceFile*/>,
-        ct: Option<Gc<Box<dyn CancellationTokenDebuggable>>>,
+        ct: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic>>> {
         // try {
         self.set_cancellation_token(ct);
