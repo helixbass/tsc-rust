@@ -1213,7 +1213,8 @@ fn write_configurations(
         create_multi_map_ordered();
     // TODO: implement IntoIterator for &GcVec<T>?
     for option in option_declarations(arena).ref_(arena).iter() {
-        let category = option.ref_(arena).maybe_category();
+        let option_ref = option.ref_(arena);
+        let category = option_ref.maybe_category();
 
         if is_allowed_option_for_output(compiler_options_map, &option.ref_(arena)) {
             categorized_options.add(
