@@ -19,179 +19,219 @@ use crate::{
     Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, HasArena,
     ModuleKind, ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage,
     WatchOptions,
+    InArena, per_arena,
 };
 
-thread_local! {
-    pub static option_declarations: GcVec<Id<CommandLineOption>>  =
-        common_options_with_build.with(|common_options_with_build_| {
-            command_options_without_build.with(|command_options_without_build_| {
-                common_options_with_build_
-                    .iter()
-                    .chain(command_options_without_build_.iter())
-                    .cloned()
-                    .collect_vec().into()
-            })
-        });
-}
-
-thread_local! {
-    pub(crate) static semantic_diagnostics_option_declarations: Vec<Id<CommandLineOption>> =
-        option_declarations.with(|option_declarations_| {
-            option_declarations_
+pub fn option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            common_options_with_build(arena)
+                .ref_(arena)
                 .iter()
-                .filter(|option| option.affects_semantic_diagnostics())
-                .map(Clone::clone)
+                .chain(command_options_without_build(arena).ref_(arena).iter())
+                .copied()
                 .collect()
-        });
+        )
+    )
 }
 
-thread_local! {
-    pub(crate) static affects_emit_option_declarations: Vec<Id<CommandLineOption>> =
-        option_declarations.with(|option_declarations_| {
-            option_declarations_
+pub(crate) fn semantic_diagnostics_option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            option_declarations(arena)
+                .ref_(arena)
                 .iter()
-                .filter(|option| option.affects_emit())
-                .map(Clone::clone)
+                .filter(|option| option.ref_(arena).affects_semantic_diagnostics())
+                .copied()
                 .collect()
-        });
+        )
+    )
 }
 
-thread_local! {
-    pub(crate) static module_resolution_option_declarations: Vec<Id<CommandLineOption>> =
-        option_declarations.with(|option_declarations_| {
-            option_declarations_
+pub(crate) fn affects_emit_option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            option_declarations(arena)
+                .ref_(arena)
                 .iter()
-                .filter(|option| option.affects_module_resolution())
-                .map(Clone::clone)
+                .filter(|option| option.ref_(arena).affects_emit())
+                .copied()
                 .collect()
-        });
+        )
+    )
 }
 
-thread_local! {
-    pub(crate) static source_file_affecting_compiler_options: Vec<Id<CommandLineOption>> =
-        option_declarations.with(|option_declarations_| {
-            option_declarations_
+pub(crate) fn module_resolution_option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            option_declarations(arena)
+                .ref_(arena)
+                .iter()
+                .filter(|option| option.ref_(arena).affects_module_resolution())
+                .copied()
+                .collect()
+        )
+    )
+}
+
+pub(crate) fn source_file_affecting_compiler_options(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            option_declarations(arena)
+                .ref_(arena)
                 .iter()
                 .filter(|option| {
-                    option.affects_source_file()
-                        || option.affects_module_resolution()
-                        || option.affects_bind_diagnostics()
+                    option.ref_(arena).affects_source_file()
+                        || option.ref_(arena).affects_module_resolution()
+                        || option.ref_(arena).affects_bind_diagnostics()
                 })
-                .map(Clone::clone)
+                .copied()
                 .collect()
-        });
-}
-
-thread_local! {
-    pub(crate) static options_affecting_program_structure: Vec<Id<CommandLineOption>> =
-        option_declarations.with(|option_declarations_| {
-            option_declarations_
-                .iter()
-                .filter(|option| option.affects_program_structure())
-                .map(Clone::clone)
-                .collect()
-        });
-}
-
-thread_local! {
-    pub(crate) static transpile_option_value_compiler_options: Vec<Id<CommandLineOption>> =
-        option_declarations.with(|option_declarations_| {
-            option_declarations_
-                .iter()
-                .filter(|option| option.transpile_option_value().is_some())
-                .map(Clone::clone)
-                .collect()
-        });
-}
-
-thread_local! {
-    pub(crate) static options_for_build: Vec<Id<CommandLineOption>> = vec![
-        CommandLineOptionBaseBuilder::default()
-            .name("verbose")
-            .type_(CommandLineOptionType::Boolean)
-            .short_name("v")
-            .description(&Diagnostics::Enable_verbose_logging)
-            .default_value_description("false".to_owned())
-            .category(&Diagnostics::Command_line_Options)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("dry")
-            .type_(CommandLineOptionType::Boolean)
-            .short_name("d")
-            .description(&Diagnostics::Show_what_would_be_built_or_deleted_if_specified_with_clean)
-            .default_value_description("false".to_owned())
-            .category(&Diagnostics::Command_line_Options)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("force")
-            .type_(CommandLineOptionType::Boolean)
-            .short_name("f")
-            .description(&Diagnostics::Build_all_projects_including_those_that_appear_to_be_up_to_date)
-            .default_value_description("false".to_owned())
-            .category(&Diagnostics::Command_line_Options)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("clean".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Delete_the_outputs_of_all_projects)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Command_line_Options)
-            .build().unwrap().try_into().unwrap(),
-    ];
-}
-
-thread_local! {
-    pub(crate) static build_opts: crate::GcVec<Id<CommandLineOption>>  =
-        common_options_with_build.with(|common_options_with_build_| {
-            options_for_build.with(|options_for_build_| {
-                common_options_with_build_
-                    .iter()
-                    .chain(options_for_build_.iter())
-                    .cloned()
-                    .collect_vec()
-                    .into()
-            })
-        });
-}
-
-thread_local! {
-    pub(crate) static type_acquisition_declarations: GcVec<Id<CommandLineOption>> = vec![
-        CommandLineOptionBaseBuilder::default()
-                .name("enableAutoDiscovery".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("enable".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
-            .name("include".to_string())
-            .type_(CommandLineOptionType::List)
-            .build().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-        .name("include".to_string())
-        .type_(CommandLineOptionType::String)
-            .build().unwrap().try_into().unwrap(),
         )
-        .into(),
-        CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
-            .name("exclude".to_string())
-            .type_(CommandLineOptionType::List)
-            .build().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-                .name("exclude".to_string())
-                .type_(CommandLineOptionType::String)
-            .build().unwrap().try_into().unwrap(),
+    )
+}
+
+pub(crate) fn options_affecting_program_structure(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            option_declarations(arena)
+                .ref_(arena)
+                .iter()
+                .filter(|option| option.ref_(arena).affects_program_structure())
+                .copied()
+                .collect()
         )
-        .into(),
-        CommandLineOptionBaseBuilder::default()
-            .name("disableFilenameBasedTypeAcquisition".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .build().unwrap().try_into().unwrap(),
-    ].into();
+    )
+}
+
+pub(crate) fn transpile_option_value_compiler_options(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            option_declarations(arena)
+                .ref_(arena)
+                .iter()
+                .filter(|option| option.ref_(arena).transpile_option_value().is_some())
+                .copied()
+                .collect()
+        )
+    )
+}
+
+pub(crate) fn options_for_build(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            vec![
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("verbose")
+                    .type_(CommandLineOptionType::Boolean)
+                    .short_name("v")
+                    .description(&Diagnostics::Enable_verbose_logging)
+                    .default_value_description("false".to_owned())
+                    .category(&Diagnostics::Command_line_Options)
+                    .build().unwrap().try_into().unwrap()),
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("dry")
+                    .type_(CommandLineOptionType::Boolean)
+                    .short_name("d")
+                    .description(&Diagnostics::Show_what_would_be_built_or_deleted_if_specified_with_clean)
+                    .default_value_description("false".to_owned())
+                    .category(&Diagnostics::Command_line_Options)
+                    .build().unwrap().try_into().unwrap()),
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("force")
+                    .type_(CommandLineOptionType::Boolean)
+                    .short_name("f")
+                    .description(&Diagnostics::Build_all_projects_including_those_that_appear_to_be_up_to_date)
+                    .default_value_description("false".to_owned())
+                    .category(&Diagnostics::Command_line_Options)
+                    .build().unwrap().try_into().unwrap()),
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("clean".to_string())
+                    .type_(CommandLineOptionType::Boolean)
+                    .description(&Diagnostics::Delete_the_outputs_of_all_projects)
+                    .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                    .category(&Diagnostics::Command_line_Options)
+                    .build().unwrap().try_into().unwrap()),
+            ]
+        )
+    )
+}
+
+pub(crate) fn build_opts(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            common_options_with_build(arena)
+                .ref_(arena)
+                .iter()
+                .chain(options_for_build(arena).ref_(arena).iter())
+                .copied()
+                .collect()
+        )
+    )
+}
+
+pub(crate) fn type_acquisition_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(
+            vec![
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("enableAutoDiscovery".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("enable".to_string())
+                    .type_(CommandLineOptionType::Boolean)
+                    .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                    .build().unwrap().try_into().unwrap()),
+                arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                    CommandLineOptionBaseBuilder::default()
+                        .name("include".to_string())
+                        .type_(CommandLineOptionType::List)
+                        .build().unwrap(),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("include".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                ).into()),
+                arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                    CommandLineOptionBaseBuilder::default()
+                        .name("exclude".to_string())
+                        .type_(CommandLineOptionType::List)
+                        .build().unwrap(),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("exclude".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                ).into()),
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("disableFilenameBasedTypeAcquisition".to_string())
+                    .type_(CommandLineOptionType::Boolean)
+                    .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                    .build().unwrap().try_into().unwrap()),
+            ]
+        )
+    )
 }
 
 pub struct OptionsNameMap {
