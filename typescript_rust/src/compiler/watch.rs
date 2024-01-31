@@ -815,8 +815,8 @@ pub fn file_include_reason_to_diagnostics(
                     Some(vec![options.ref_(arena).lib.as_ref().unwrap()[reason_index].clone()]),
                 );
             }
-            let target = target_option_declaration.with(|target_option_declaration_| {
-                for_each_entry(target_option_declaration_.type_().as_map(), |value, key| {
+            let target =
+                for_each_entry(target_option_declaration(arena).type_().as_map(), |value, key| {
                     if enum_unwrapped!(value, [CommandLineOptionMapTypeValue, ScriptTarget])
                         == &get_emit_script_target(&options.ref_(arena))
                     {
@@ -824,8 +824,7 @@ pub fn file_include_reason_to_diagnostics(
                     } else {
                         None
                     }
-                })
-            });
+                });
             chain_diagnostic_messages(
                 None,
                 if target.is_some() {

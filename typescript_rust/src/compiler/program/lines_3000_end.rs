@@ -1496,8 +1496,8 @@ impl Program {
                     );
                     message = &Diagnostics::File_is_library_specified_here;
                 } else {
-                    let target = target_option_declaration.with(|target_option_declaration_| {
-                        for_each_entry(target_option_declaration_.type_().as_map(), |value, key| {
+                    let target =
+                        for_each_entry(target_option_declaration(self).ref_(self).type_().as_map(), |value, key| {
                             if value
                                 == &CommandLineOptionMapTypeValue::ScriptTarget(
                                     get_emit_script_target(&self.options.ref_(self)),
@@ -1507,8 +1507,7 @@ impl Program {
                             } else {
                                 None
                             }
-                        })
-                    });
+                        });
                     config_file_node = target
                         .as_ref()
                         .and_then(|target| self.get_options_syntax_by_value("target", target));
