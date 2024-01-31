@@ -1259,7 +1259,7 @@ pub trait HasArena {
         self.arena().alloc_command_line_option(command_line_option)
     }
 
-    fn vec_command_line_option(&self, vec_command_line_option: Vec<Id<CommandLineOption>>) -> Ref<Vec<Id<CommandLineOption>>> {
+    fn vec_command_line_option(&self, vec_command_line_option: Id<Vec<Id<CommandLineOption>>>) -> Ref<Vec<Id<CommandLineOption>>> {
         self.arena().vec_command_line_option(vec_command_line_option)
     }
 

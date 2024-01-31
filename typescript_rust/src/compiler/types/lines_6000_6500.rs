@@ -18,6 +18,7 @@ use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
     are_option_gcs_equal, hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike,
     Number, OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
+    AllArenas,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -2612,12 +2613,12 @@ impl CommandLineOptionOfCustomType {
 
 pub struct AlternateModeDiagnostics {
     pub diagnostic: &'static DiagnosticMessage,
-    pub get_options_name_map: fn() -> Id<OptionsNameMap>,
+    pub get_options_name_map: Box<dyn Fn(&AllArenas) -> Id<OptionsNameMap>>,
 }
 
 pub trait DidYouMeanOptionsDiagnostics {
     fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>>;
-    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>>;
+    fn option_declarations(&self) -> Id<Vec<Id<CommandLineOption>>>;
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
     fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
 }

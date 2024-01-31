@@ -307,6 +307,7 @@ pub(super) fn convert_options_from_json_compiler_options(
                         diagnostics,
                         |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         None,
+                        arena,
                     ));
                 }
             }
@@ -346,6 +347,7 @@ pub(super) fn convert_options_from_json_type_acquisition(
                         diagnostics,
                         |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         None,
+                        arena,
                     ));
                 }
             }
@@ -388,6 +390,7 @@ pub(super) fn convert_options_from_json_watch_options(
                         diagnostics,
                         |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         None,
+                        arena,
                     ));
                 }
             }

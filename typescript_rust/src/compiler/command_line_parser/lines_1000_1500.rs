@@ -19,7 +19,7 @@ use crate::{
     Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, HasArena,
     ModuleKind, ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage,
     WatchOptions,
-    InArena, per_arena,
+    InArena, per_arena, AllArenas,
 };
 
 pub fn option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
@@ -239,13 +239,13 @@ pub struct OptionsNameMap {
     pub short_option_names: HashMap<String, String>,
 }
 
-pub fn create_option_name_map(option_declarations_: &[Id<CommandLineOption>]) -> OptionsNameMap {
+pub fn create_option_name_map(option_declarations_: &[Id<CommandLineOption>], arena: &impl HasArena) -> OptionsNameMap {
     let mut options_name_map = HashMap::new();
     let mut short_option_names = HashMap::new();
     for_each(option_declarations_, |option, _| {
-        options_name_map.insert(option.name().to_lowercase(), option.clone());
-        if let Some(option_short_name) = option.maybe_short_name() {
-            short_option_names.insert(option_short_name.to_owned(), option.name().to_owned());
+        options_name_map.insert(option.ref_(arena).name().to_lowercase(), option.clone());
+        if let Some(option_short_name) = option.ref_(arena).maybe_short_name() {
+            short_option_names.insert(option_short_name.to_owned(), option.ref_(arena).name().to_owned());
         }
         Option::<()>::None
     });
@@ -256,27 +256,18 @@ pub fn create_option_name_map(option_declarations_: &[Id<CommandLineOption>]) ->
     }
 }
 
-thread_local! {
-    pub(super) static options_name_map_cache: RefCell<Option<Id<OptionsNameMap>>> = RefCell::new(None);
-}
-
-pub(crate) fn get_options_name_map() -> Id<OptionsNameMap> {
-    options_name_map_cache.with(|options_name_map_cache_| {
-        let mut options_name_map_cache_ = options_name_map_cache_.borrow_mut();
-        if options_name_map_cache_.is_none() {
-            option_declarations.with(|option_declarations_| {
-                *options_name_map_cache_ =
-                    Some(Rc::new(create_option_name_map(&option_declarations_)));
-            });
-        }
-        options_name_map_cache_.as_ref().unwrap().clone()
-    })
+pub(crate) fn get_options_name_map(arena: &impl HasArena) -> Id<OptionsNameMap> {
+    per_arena!(
+        OptionsNameMap,
+        arena,
+        arena.alloc_options_name_map(create_option_name_map(&option_declarations(arena), arena))
+    )
 }
 
 thread_local! {
     static compiler_options_alternate_mode_: Rc<AlternateModeDiagnostics> = Rc::new(AlternateModeDiagnostics {
         diagnostic: &Diagnostics::Compiler_option_0_may_only_be_used_with_build,
-        get_options_name_map: get_build_options_name_map,
+        get_options_name_map: Box::new(|arena: &AllArenas| get_build_options_name_map(arena)),
     });
 }
 
@@ -387,13 +378,13 @@ pub fn parse_list_type_option(
     }
     let values = value.split(",");
     let opt_as_command_line_option_of_list_type = opt.as_command_line_option_of_list_type();
-    match opt_as_command_line_option_of_list_type.element.type_() {
+    match opt_as_command_line_option_of_list_type.element.ref_(arena).type_() {
         // CommandLineOptionType::Number =>
         CommandLineOptionType::String => Some(
             values
                 .filter_map(|v| {
                     match validate_json_option_value(
-                        &opt_as_command_line_option_of_list_type.element,
+                        &opt_as_command_line_option_of_list_type.element.ref_(arena),
                         Some(&serde_json::Value::String(v.to_owned())),
                         errors,
                         arena,
@@ -408,7 +399,7 @@ pub fn parse_list_type_option(
             values
                 .filter_map(|v| {
                     match parse_custom_type_option(
-                        &opt_as_command_line_option_of_list_type.element,
+                        &opt_as_command_line_option_of_list_type.element.ref_(arena),
                         Some(v),
                         errors,
                         arena,
@@ -442,10 +433,11 @@ pub(super) fn create_unknown_option_error(
     diagnostics: &dyn DidYouMeanOptionsDiagnostics,
     mut create_diagnostics: impl FnMut(&DiagnosticMessage, Option<Vec<String>>) -> Id<Diagnostic>,
     unknown_option_error_text: Option<&str>,
+    arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
-        if (diagnostics_alternate_mode.get_options_name_map)()
-            .options_name_map
+        if (diagnostics_alternate_mode.get_options_name_map)(arena)
+            .ref_(arena).options_name_map
             .contains_key(&unknown_option.to_lowercase())
         {
             return create_diagnostics(
@@ -459,7 +451,7 @@ pub(super) fn create_unknown_option_error(
     let possible_option = get_spelling_suggestion(
         unknown_option,
         &*diagnostics_option_declarations,
-        |candidate: &Id<CommandLineOption>| Some(get_option_name(candidate).to_owned()),
+        |candidate: &Id<CommandLineOption>| Some(get_option_name(&candidate.ref_(arena)).to_owned()),
     );
     match possible_option {
         Some(possible_option) => create_diagnostics(
@@ -468,7 +460,7 @@ pub(super) fn create_unknown_option_error(
                 unknown_option_error_text
                     .unwrap_or(unknown_option)
                     .to_owned(),
-                possible_option.name().to_owned(),
+                possible_option.ref_(arena).name().to_owned(),
             ]),
         ),
         None => create_diagnostics(
@@ -1157,7 +1149,7 @@ pub(super) fn parse_strings(
                 Some(true),
             );
             if let Some(opt) = opt {
-                i = parse_option_value(args, i, diagnostics, &opt, options, errors, arena);
+                i = parse_option_value(args, i, diagnostics, &opt.ref_(arena), options, errors, arena);
             } else {
                 let watch_opt = get_option_declaration_from_name(
                     || watch_options_did_you_mean_diagnostics().get_options_name_map(),
@@ -1173,7 +1165,7 @@ pub(super) fn parse_strings(
                         args,
                         i,
                         &*watch_options_did_you_mean_diagnostics(),
-                        &watch_opt,
+                        &watch_opt.ref_(arena),
                         watch_options.as_mut().unwrap(),
                         errors,
                         arena,
@@ -1184,6 +1176,7 @@ pub(super) fn parse_strings(
                         diagnostics.as_did_you_mean_options_diagnostics(),
                         |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
                         Some(s),
+                        arena,
                     ));
                 }
             }

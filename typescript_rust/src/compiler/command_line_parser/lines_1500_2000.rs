@@ -277,8 +277,8 @@ impl DidYouMeanOptionsDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
         Some(compiler_options_alternate_mode())
     }
 
-    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
-        option_declarations.with(|option_declarations_| option_declarations_.clone())
+    fn option_declarations(&self) -> Id<Vec<Id<CommandLineOption>>> {
+        option_declarations(self)
     }
 
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
@@ -301,6 +301,12 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
 
     fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
         self
+    }
+}
+
+impl HasArena for CompilerOptionsDidYouMeanDiagnostics {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -356,23 +362,18 @@ thread_local! {
     pub(super) static build_options_name_map_cache: RefCell<Option<Id<OptionsNameMap>>> = RefCell::new(None);
 }
 
-pub(crate) fn get_build_options_name_map() -> Id<OptionsNameMap> {
-    build_options_name_map_cache.with(|build_options_name_map_cache_| {
-        let mut build_options_name_map_cache_ = build_options_name_map_cache_.borrow_mut();
-        if build_options_name_map_cache_.is_none() {
-            build_opts.with(|build_opts_| {
-                *build_options_name_map_cache_ =
-                    Some(Rc::new(create_option_name_map(&build_opts_)));
-            });
-        }
-        build_options_name_map_cache_.as_ref().unwrap().clone()
-    })
+pub(crate) fn get_build_options_name_map(arena: &impl HasArena) -> Id<OptionsNameMap> {
+    per_arena!(
+        OptionsNameMap,
+        arena,
+        arena.alloc_options_name_map(create_option_name_map(&build_opts(arena), arena))
+    )
 }
 
 thread_local! {
     static build_options_alternate_mode_: Rc<AlternateModeDiagnostics> = Rc::new(AlternateModeDiagnostics {
         diagnostic: &Diagnostics::Compiler_option_0_may_not_be_used_with_build,
-        get_options_name_map,
+        get_options_name_map: Box::new(|arena: &AllArenas| get_options_name_map(arena)),
     });
 }
 

@@ -137,6 +137,7 @@ pub(super) fn convert_object_literal_expression_to_json(
                                 )
                             },
                             None,
+                            arena,
                         ))
                     } else {
                         errors.ref_mut(arena).push(arena.alloc_diagnostic(
