@@ -183,7 +183,7 @@ pub(super) fn convert_object_literal_expression_to_json(
             if let Some(json_conversion_notifier) = json_conversion_notifier {
                 if parent_option.is_some() || is_root_option_map(known_root_options, known_options, arena)
                 {
-                    let is_valid_option_value = is_compiler_options_value(&option.ref_(arena), value.as_ref());
+                    let is_valid_option_value = is_compiler_options_value(option.refed(arena).as_deref(), value.as_ref());
                     if let Some(parent_option) = parent_option {
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_parent(
@@ -1063,7 +1063,7 @@ pub(super) fn serialize_option_base_object(
         {
             continue;
         }
-        let option_definition = options_name_map.get(&name.to_lowercase());
+        let option_definition = options_name_map.get(&name.to_lowercase()).copied();
         if let Some(option_definition) = option_definition {
             let custom_type_map = get_custom_type_map_of_command_line_option(option_definition, arena);
             match custom_type_map {
@@ -1146,20 +1146,20 @@ fn get_overwritten_default_options(
     let default_init_compiler_options_as_hash_map =
         get_default_init_compiler_options(arena).ref_(arena).to_hash_map_of_compiler_options_values();
     command_options_without_build(arena).ref_(arena).iter().for_each(|cmd| {
-        if !compiler_options_map.contains_key(cmd.name()) {
+        if !compiler_options_map.contains_key(cmd.ref_(arena).name()) {
             return;
         }
 
-        let new_value = compiler_options_map.get(cmd.name()).unwrap();
-        let default_value = get_default_value_for_option(cmd);
+        let new_value = compiler_options_map.get(cmd.ref_(arena).name()).unwrap();
+        let default_value = get_default_value_for_option(&cmd.ref_(arena));
         if new_value != &default_value {
             // TODO: this presumably needs to print new_value "as JSON"?
-            result.push(format!("{}{}: {:?}", tab, cmd.name(), new_value));
-        } else if match default_init_compiler_options_as_hash_map.get(cmd.name()) {
+            result.push(format!("{}{}: {:?}", tab, cmd.ref_(arena).name(), new_value));
+        } else if match default_init_compiler_options_as_hash_map.get(cmd.ref_(arena).name()) {
             None => false,
             Some(compiler_options_value) => compiler_options_value.is_some(),
         } {
-            result.push(format!("{}{}: {:?}", tab, cmd.name(), default_value));
+            result.push(format!("{}{}: {:?}", tab, cmd.ref_(arena).name(), default_value));
         }
     });
     format!("{}{}", result.join(new_line), new_line)
@@ -1215,7 +1215,7 @@ fn write_configurations(
     for option in option_declarations(arena).ref_(arena).iter() {
         let category = option.ref_(arena).maybe_category();
 
-        if is_allowed_option_for_output(compiler_options_map, option) {
+        if is_allowed_option_for_output(compiler_options_map, &option.ref_(arena)) {
             categorized_options.add(
                 get_locale_specific_message(category.unwrap()),
                 option.clone(),

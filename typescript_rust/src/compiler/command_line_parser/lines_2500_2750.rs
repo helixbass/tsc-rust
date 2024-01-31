@@ -18,7 +18,7 @@ use crate::{
     ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, Node,
     NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
-    InArena,
+    InArena, OptionInArena,
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths(
@@ -36,7 +36,9 @@ pub(crate) fn convert_to_options_with_absolute_paths(
             convert_to_option_value_with_absolute_paths(
                 options_name_map
                     .get(&name.to_lowercase())
-                    .map(|option| &**option),
+                    .copied()
+                    .refed(arena)
+                    .as_deref(),
                 value,
                 &to_absolute_path,
                 arena,
