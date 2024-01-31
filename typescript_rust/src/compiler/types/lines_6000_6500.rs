@@ -2612,7 +2612,7 @@ impl CommandLineOptionOfCustomType {
 
 pub struct AlternateModeDiagnostics {
     pub diagnostic: &'static DiagnosticMessage,
-    pub get_options_name_map: fn() -> Rc<OptionsNameMap>,
+    pub get_options_name_map: fn() -> Id<OptionsNameMap>,
 }
 
 pub trait DidYouMeanOptionsDiagnostics {

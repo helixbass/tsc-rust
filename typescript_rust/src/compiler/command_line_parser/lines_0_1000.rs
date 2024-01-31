@@ -11,40 +11,29 @@ use crate::{
     ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
     PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
     WatchDirectoryKind, WatchFileKind,
-    HasArena,
+    HasArena, per_arena,
 };
 
 macro_rules! command_line_option_per_arena {
-    ($builder:expr, $arena:expr $(,)?) => {{
-        use std::cell::RefCell;
-        use std::collections::HashMap;
-        use id_arena::Id;
-        use crate::AllArenas;
-
-        thread_local! {
-            static PER_ARENA: RefCell<HashMap<*const AllArenas, Id<CommandLineOption>>> = RefCell::new(HashMap::new());
-        }
-
-        PER_ARENA.with(|per_arena| {
-            let mut per_arena = per_arena.borrow_mut();
-            let arena_ptr: *const AllArenas = $arena.arena();
-            *per_arena.entry(arena_ptr).or_insert_with(|| {
-                $arena.alloc_command_line_option(
-                    $builder
-                        .build().unwrap().try_into().unwrap()
-                )
-            })
-        })
-    }}
+    ($arena:expr, $builder:expr $(,)?) => {
+        $crate::per_arena(
+            $crate::CommandLineOption,
+            $arena,
+            $arena.alloc_command_line_option(
+                $builder
+                    .build().unwrap().try_into().unwrap()
+            )
+        )
+    }
 }
 
 pub(crate) fn compile_on_save_command_line_option(arena: &impl HasArena) -> Id<CommandLineOption> {
     command_line_option_per_arena!(
+        arena,
         CommandLineOptionBaseBuilder::default()
             .name("compileOnSave".to_string())
             .type_(CommandLineOptionType::Boolean)
             .default_value_description(StringOrDiagnosticMessage::String("false".to_string())),
-        arena,
     )
 }
 
@@ -149,218 +138,226 @@ thread_local! {
         .with(|lib_entries_| IndexMap::from_iter(lib_entries_.iter().map(|tuple| (tuple.0, tuple.1))));
 }
 
-thread_local! {
-    pub(crate) static options_for_watch: GcVec<Id<CommandLineOption>> = vec![
-        CommandLineOptionBaseBuilder::default()
-            .name("watchFile".to_string())
-            .type_(CommandLineOptionType::Map(
-                IndexMap::from_iter([
-                    ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::FixedPollingInterval)),
-                    ("prioritypollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::PriorityPollingInterval)),
-                    ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::DynamicPriorityPolling)),
-                    ("fixedchunksizepolling", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::FixedChunkSizePolling)),
-                    ("usefsevents", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::UseFsEvents)),
-                    ("usefseventsonparentdirectory", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::UseFsEventsOnParentDirectory)),
-                ])
-            ))
-            .description(&Diagnostics::Specify_how_the_TypeScript_watch_mode_works)
-            .category(&Diagnostics::Watch_and_Build_Modes)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("watchDirectory".to_string())
-            .type_(CommandLineOptionType::Map(
-                IndexMap::from_iter(IntoIterator::into_iter([
-                    ("usefsevents", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::UseFsEvents)),
-                    ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::FixedPollingInterval)),
-                    ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::DynamicPriorityPolling)),
-                    ("fixedchunksizepolling", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::FixedChunkSizePolling)),
-                ]))
-            ))
-            .description(&Diagnostics::Specify_how_directories_are_watched_on_systems_that_lack_recursive_file_watching_functionality)
-            .category(&Diagnostics::Watch_and_Build_Modes)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("fallbackPolling".to_string())
-            .type_(CommandLineOptionType::Map(
-                IndexMap::from_iter(IntoIterator::into_iter([
-                    ("fixedinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::FixedInterval)),
-                    ("priorityinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::PriorityInterval)),
-                    ("dynamicpriority", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::DynamicPriority)),
-                    ("fixedchunksize", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::FixedChunkSize)),
-                ]))
-            ))
-            .description(&Diagnostics::Specify_what_approach_the_watcher_should_use_if_the_system_runs_out_of_native_file_watchers)
-            .category(&Diagnostics::Watch_and_Build_Modes)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("synchronousWatchDirectory".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Synchronously_call_callbacks_and_update_the_state_of_directory_watchers_on_platforms_that_don_t_support_recursive_watching_natively)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Watch_and_Build_Modes)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
-            .name("excludeDirectories".to_string())
-            .type_(CommandLineOptionType::List)
-            .description(&Diagnostics::Remove_a_list_of_directories_from_the_watch_process)
-            .category(&Diagnostics::Watch_and_Build_Modes)
-            .build().unwrap(),
-            CommandLineOptionBaseBuilder::default()
+pub(crate) fn options_for_watch(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        arena.alloc_vec_command_line_option(vec![
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("watchFile".to_string())
+                .type_(CommandLineOptionType::Map(
+                    IndexMap::from_iter([
+                        ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::FixedPollingInterval)),
+                        ("prioritypollinginterval", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::PriorityPollingInterval)),
+                        ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::DynamicPriorityPolling)),
+                        ("fixedchunksizepolling", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::FixedChunkSizePolling)),
+                        ("usefsevents", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::UseFsEvents)),
+                        ("usefseventsonparentdirectory", CommandLineOptionMapTypeValue::WatchFileKind(WatchFileKind::UseFsEventsOnParentDirectory)),
+                    ])
+                ))
+                .description(&Diagnostics::Specify_how_the_TypeScript_watch_mode_works)
+                .category(&Diagnostics::Watch_and_Build_Modes)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("watchDirectory".to_string())
+                .type_(CommandLineOptionType::Map(
+                    IndexMap::from_iter(IntoIterator::into_iter([
+                        ("usefsevents", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::UseFsEvents)),
+                        ("fixedpollinginterval", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::FixedPollingInterval)),
+                        ("dynamicprioritypolling", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::DynamicPriorityPolling)),
+                        ("fixedchunksizepolling", CommandLineOptionMapTypeValue::WatchDirectoryKind(WatchDirectoryKind::FixedChunkSizePolling)),
+                    ]))
+                ))
+                .description(&Diagnostics::Specify_how_directories_are_watched_on_systems_that_lack_recursive_file_watching_functionality)
+                .category(&Diagnostics::Watch_and_Build_Modes)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("fallbackPolling".to_string())
+                .type_(CommandLineOptionType::Map(
+                    IndexMap::from_iter(IntoIterator::into_iter([
+                        ("fixedinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::FixedInterval)),
+                        ("priorityinterval", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::PriorityInterval)),
+                        ("dynamicpriority", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::DynamicPriority)),
+                        ("fixedchunksize", CommandLineOptionMapTypeValue::PollingWatchKind(PollingWatchKind::FixedChunkSize)),
+                    ]))
+                ))
+                .description(&Diagnostics::Specify_what_approach_the_watcher_should_use_if_the_system_runs_out_of_native_file_watchers)
+                .category(&Diagnostics::Watch_and_Build_Modes)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("synchronousWatchDirectory".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Synchronously_call_callbacks_and_update_the_state_of_directory_watchers_on_platforms_that_don_t_support_recursive_watching_natively)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Watch_and_Build_Modes)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
                 .name("excludeDirectories".to_string())
-                .type_(CommandLineOptionType::String)
-                .is_file_path(true)
-                .extra_validation(Rc::new(|value: Option<&serde_json::Value>| spec_to_diagnostic(value.unwrap().as_str().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
-                .extra_validation_compiler_options_value(Rc::new(|value: &CompilerOptionsValue| spec_to_diagnostic(value.as_option_string().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
-                .build().unwrap().try_into().unwrap(),
-        )
-        .into(),
-        CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
-            .name("excludeFiles".to_string())
-            .type_(CommandLineOptionType::List)
-            .description(&Diagnostics::Remove_a_list_of_files_from_the_watch_mode_s_processing)
-            .category(&Diagnostics::Watch_and_Build_Modes)
-            .build().unwrap(),
-            CommandLineOptionBaseBuilder::default()
+                .type_(CommandLineOptionType::List)
+                .description(&Diagnostics::Remove_a_list_of_directories_from_the_watch_process)
+                .category(&Diagnostics::Watch_and_Build_Modes)
+                .build().unwrap(),
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("excludeDirectories".to_string())
+                    .type_(CommandLineOptionType::String)
+                    .is_file_path(true)
+                    .extra_validation(Rc::new(|value: Option<&serde_json::Value>| spec_to_diagnostic(value.unwrap().as_str().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
+                    .extra_validation_compiler_options_value(Rc::new(|value: &CompilerOptionsValue| spec_to_diagnostic(value.as_option_string().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
+                    .build().unwrap().try_into().unwrap()),
+            )
+            .into()),
+            arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
                 .name("excludeFiles".to_string())
-                .type_(CommandLineOptionType::String)
-                .is_file_path(true)
-                .extra_validation(Rc::new(|value: Option<&serde_json::Value>| spec_to_diagnostic(value.unwrap().as_str().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
-                .extra_validation_compiler_options_value(Rc::new(|value: &CompilerOptionsValue| spec_to_diagnostic(value.as_option_string().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
-                .build().unwrap().try_into().unwrap(),
-        )
-        .into(),
-    ].into();
+                .type_(CommandLineOptionType::List)
+                .description(&Diagnostics::Remove_a_list_of_files_from_the_watch_mode_s_processing)
+                .category(&Diagnostics::Watch_and_Build_Modes)
+                .build().unwrap(),
+                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                    .name("excludeFiles".to_string())
+                    .type_(CommandLineOptionType::String)
+                    .is_file_path(true)
+                    .extra_validation(Rc::new(|value: Option<&serde_json::Value>| spec_to_diagnostic(value.unwrap().as_str().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
+                    .extra_validation_compiler_options_value(Rc::new(|value: &CompilerOptionsValue| spec_to_diagnostic(value.as_option_string().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
+                    .build().unwrap().try_into().unwrap()),
+            )
+            .into()),
+        ])
+    )
 }
 
-thread_local! {
-    pub(crate) static common_options_with_build: Vec<Id<CommandLineOption>> = vec![
-    CommandLineOptionBaseBuilder::default()
-            .name("help".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .short_name("h".to_string())
-            .description(&Diagnostics::Print_this_message)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .show_in_simplified_help_view(true)
-            .category(&Diagnostics::Command_line_Options)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("help".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .short_name("?".to_string())
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("watch".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .short_name("w".to_string())
-            .description(&Diagnostics::Watch_input_files)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .show_in_simplified_help_view(true)
-            .category(&Diagnostics::Command_line_Options)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("preserveWatchOutput".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Disable_wiping_the_console_in_watch_mode)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .show_in_simplified_help_view(false)
-            .category(&Diagnostics::Output_Formatting)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("listFiles".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Print_all_of_the_files_read_during_the_compilation)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("explainFiles".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Print_files_read_during_the_compilation_including_why_it_was_included)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("listEmittedFiles".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Print_the_names_of_emitted_files_after_a_compilation)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("pretty".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Enable_color_and_formatting_in_TypeScript_s_output_to_make_compiler_errors_easier_to_read)
-            .default_value_description(StringOrDiagnosticMessage::String("true".to_string()))
-            .show_in_simplified_help_view(true)
-            .category(&Diagnostics::Output_Formatting)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("traceResolution".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Log_paths_used_during_the_moduleResolution_process)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("diagnostics".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Output_compiler_performance_information_after_building)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("extendedDiagnostics".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Output_more_detailed_compiler_performance_information_after_building)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("generateCpuProfile".to_string())
-            .type_(CommandLineOptionType::String)
-            .is_file_path(true)
-            .description(&Diagnostics::Emit_a_v8_CPU_profile_of_the_compiler_run_for_debugging)
-            .default_value_description(StringOrDiagnosticMessage::String("profile.cpuprofile".to_string()))
-            .param_type(&Diagnostics::FILE_OR_DIRECTORY)
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("generateTrace".to_string())
-            .type_(CommandLineOptionType::String)
-            .is_file_path(true)
-            .description(&Diagnostics::Generates_an_event_trace_and_a_list_of_types)
-            .param_type(&Diagnostics::DIRECTORY)
-            .is_command_line_only(true)
-            .category(&Diagnostics::Compiler_Diagnostics)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("incremental".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .short_name("i".to_string())
-            .description(&Diagnostics::Enable_incremental_compilation)
-            .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::false_unless_composite_is_set))
-            .category(&Diagnostics::Projects)
-            .transpile_option_value(None)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("assumeChangesOnlyAffectDirectDependencies".to_string())
-            .type_(CommandLineOptionType::Boolean)
-            .description(&Diagnostics::Have_recompiles_in_projects_that_use_incremental_and_watch_mode_assume_that_changes_within_a_file_will_only_affect_files_directly_depending_on_it)
-            .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-            .category(&Diagnostics::Watch_and_Build_Modes)
-            .affects_semantic_diagnostics(true)
-            .affects_emit(true)
-            .build().unwrap().try_into().unwrap(),
-        CommandLineOptionBaseBuilder::default()
-            .name("locale".to_string())
-            .type_(CommandLineOptionType::String)
-            .description(&Diagnostics::Set_the_language_of_the_messaging_from_TypeScript_This_does_not_affect_emit)
-            .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::Platform_specific))
-            .is_command_line_only(true)
-            .category(&Diagnostics::Command_line_Options)
-            .build().unwrap().try_into().unwrap(),
-    ];
+pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+    per_arena!(
+        Vec<Id<CommandLineOption>>,
+        arena,
+        vec![
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("help".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .short_name("h".to_string())
+                .description(&Diagnostics::Print_this_message)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .show_in_simplified_help_view(true)
+                .category(&Diagnostics::Command_line_Options)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("help".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .short_name("?".to_string())
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("watch".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .short_name("w".to_string())
+                .description(&Diagnostics::Watch_input_files)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .show_in_simplified_help_view(true)
+                .category(&Diagnostics::Command_line_Options)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("preserveWatchOutput".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Disable_wiping_the_console_in_watch_mode)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .show_in_simplified_help_view(false)
+                .category(&Diagnostics::Output_Formatting)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("listFiles".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Print_all_of_the_files_read_during_the_compilation)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("explainFiles".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Print_files_read_during_the_compilation_including_why_it_was_included)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("listEmittedFiles".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Print_the_names_of_emitted_files_after_a_compilation)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("pretty".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Enable_color_and_formatting_in_TypeScript_s_output_to_make_compiler_errors_easier_to_read)
+                .default_value_description(StringOrDiagnosticMessage::String("true".to_string()))
+                .show_in_simplified_help_view(true)
+                .category(&Diagnostics::Output_Formatting)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("traceResolution".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Log_paths_used_during_the_moduleResolution_process)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("diagnostics".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Output_compiler_performance_information_after_building)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("extendedDiagnostics".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Output_more_detailed_compiler_performance_information_after_building)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("generateCpuProfile".to_string())
+                .type_(CommandLineOptionType::String)
+                .is_file_path(true)
+                .description(&Diagnostics::Emit_a_v8_CPU_profile_of_the_compiler_run_for_debugging)
+                .default_value_description(StringOrDiagnosticMessage::String("profile.cpuprofile".to_string()))
+                .param_type(&Diagnostics::FILE_OR_DIRECTORY)
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("generateTrace".to_string())
+                .type_(CommandLineOptionType::String)
+                .is_file_path(true)
+                .description(&Diagnostics::Generates_an_event_trace_and_a_list_of_types)
+                .param_type(&Diagnostics::DIRECTORY)
+                .is_command_line_only(true)
+                .category(&Diagnostics::Compiler_Diagnostics)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("incremental".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .short_name("i".to_string())
+                .description(&Diagnostics::Enable_incremental_compilation)
+                .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::false_unless_composite_is_set))
+                .category(&Diagnostics::Projects)
+                .transpile_option_value(None)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("assumeChangesOnlyAffectDirectDependencies".to_string())
+                .type_(CommandLineOptionType::Boolean)
+                .description(&Diagnostics::Have_recompiles_in_projects_that_use_incremental_and_watch_mode_assume_that_changes_within_a_file_will_only_affect_files_directly_depending_on_it)
+                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                .category(&Diagnostics::Watch_and_Build_Modes)
+                .affects_semantic_diagnostics(true)
+                .affects_emit(true)
+                .build().unwrap().try_into().unwrap()),
+            arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                .name("locale".to_string())
+                .type_(CommandLineOptionType::String)
+                .description(&Diagnostics::Set_the_language_of_the_messaging_from_TypeScript_This_does_not_affect_emit)
+                .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::Platform_specific))
+                .is_command_line_only(true)
+                .category(&Diagnostics::Command_line_Options)
+                .build().unwrap().try_into().unwrap()),
+        ]
+    )
 }
 
 thread_local! {

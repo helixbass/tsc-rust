@@ -214,7 +214,7 @@ pub(crate) fn convert_compiler_options_from_json_worker(
 ) -> CompilerOptions {
     let mut options = get_default_compiler_options(config_file_name);
     convert_options_from_json_compiler_options(
-        &get_command_line_compiler_options_map(),
+        &get_command_line_compiler_options_map(arena),
         json_options,
         base_path,
         &mut options,

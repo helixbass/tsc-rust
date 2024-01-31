@@ -28,7 +28,7 @@ use crate::{
     OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
     ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
     TsConfigOnlyOption, WatchOptions,
-    InArena,
+    InArena, per_arena, AllArenas,
 };
 
 pub(super) fn parse_response_file(
@@ -291,7 +291,7 @@ impl DidYouMeanOptionsDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
 }
 
 impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
-    fn get_options_name_map(&self) -> Rc<OptionsNameMap> {
+    fn get_options_name_map(&self) -> Id<OptionsNameMap> {
         get_options_name_map()
     }
 
@@ -327,7 +327,7 @@ pub(crate) fn get_option_from_name(
 }
 
 pub(super) fn get_option_declaration_from_name(
-    mut get_option_name_map: impl FnMut() -> Rc<OptionsNameMap>,
+    mut get_option_name_map: impl FnMut() -> Id<OptionsNameMap>,
     option_name: &str,
     allow_short: Option<bool>,
 ) -> Option<Id<CommandLineOption>> {
@@ -353,10 +353,10 @@ pub(crate) struct ParsedBuildCommand {
 }
 
 thread_local! {
-    pub(super) static build_options_name_map_cache: RefCell<Option<Rc<OptionsNameMap>>> = RefCell::new(None);
+    pub(super) static build_options_name_map_cache: RefCell<Option<Id<OptionsNameMap>>> = RefCell::new(None);
 }
 
-pub(crate) fn get_build_options_name_map() -> Rc<OptionsNameMap> {
+pub(crate) fn get_build_options_name_map() -> Id<OptionsNameMap> {
     build_options_name_map_cache.with(|build_options_name_map_cache_| {
         let mut build_options_name_map_cache_ = build_options_name_map_cache_.borrow_mut();
         if build_options_name_map_cache_.is_none() {
@@ -412,7 +412,7 @@ impl DidYouMeanOptionsDiagnostics for BuildOptionsDidYouMeanDiagnostics {
 }
 
 impl ParseCommandLineWorkerDiagnostics for BuildOptionsDidYouMeanDiagnostics {
-    fn get_options_name_map(&self) -> Rc<OptionsNameMap> {
+    fn get_options_name_map(&self) -> Id<OptionsNameMap> {
         get_build_options_name_map()
     }
 
@@ -741,21 +741,12 @@ pub(super) fn type_acquisition_did_you_mean_diagnostics() -> Rc<dyn DidYouMeanOp
     })
 }
 
-thread_local! {
-    pub(super) static watch_options_name_map_cache: RefCell<Option<Rc<OptionsNameMap>>> = RefCell::new(None);
-}
-
-pub(super) fn get_watch_options_name_map() -> Rc<OptionsNameMap> {
-    watch_options_name_map_cache.with(|watch_options_name_map_cache_| {
-        let mut watch_options_name_map_cache_ = watch_options_name_map_cache_.borrow_mut();
-        if watch_options_name_map_cache_.is_none() {
-            options_for_watch.with(|options_for_watch_| {
-                *watch_options_name_map_cache_ =
-                    Some(Rc::new(create_option_name_map(&options_for_watch_)));
-            });
-        }
-        watch_options_name_map_cache_.as_ref().unwrap().clone()
-    })
+pub(super) fn get_watch_options_name_map(arena: &impl HasArena) -> Id<OptionsNameMap> {
+    per_arena!(
+        OptionsNameMap,
+        arena,
+        arena.alloc_options_name_map(create_option_name_map(&options_for_watch(arena).ref_(arena)))
+    )
 }
 
 thread_local! {
@@ -775,8 +766,8 @@ impl DidYouMeanOptionsDiagnostics for WatchOptionsDidYouMeanDiagnostics {
         None
     }
 
-    fn option_declarations(&self) -> GcVec<Id<CommandLineOption>> {
-        options_for_watch.with(|options_for_watch_| options_for_watch_.clone())
+    fn option_declarations(&self) -> Id<Vec<Id<CommandLineOption>>> {
+        options_for_watch(self)
     }
 
     fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
@@ -789,8 +780,8 @@ impl DidYouMeanOptionsDiagnostics for WatchOptionsDidYouMeanDiagnostics {
 }
 
 impl ParseCommandLineWorkerDiagnostics for WatchOptionsDidYouMeanDiagnostics {
-    fn get_options_name_map(&self) -> Rc<OptionsNameMap> {
-        get_watch_options_name_map()
+    fn get_options_name_map(&self) -> Id<OptionsNameMap> {
+        get_watch_options_name_map(self)
     }
 
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
@@ -802,6 +793,12 @@ impl ParseCommandLineWorkerDiagnostics for WatchOptionsDidYouMeanDiagnostics {
     }
 }
 
+impl HasArena for WatchOptionsDidYouMeanDiagnostics {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLineWorkerDiagnostics>
 {
     watch_options_did_you_mean_diagnostics_.with(|watch_options_did_you_mean_diagnostics| {
@@ -809,70 +806,36 @@ pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLin
     })
 }
 
-thread_local! {
-    static command_line_compiler_options_map_cache: RefCell<Option<Rc<HashMap<String, Id<CommandLineOption>>>>> = RefCell::new(None);
-}
-
-pub(super) fn get_command_line_compiler_options_map() -> Rc<HashMap<String, Id<CommandLineOption>>>
+pub(super) fn get_command_line_compiler_options_map(arena: &impl HasArena) -> Id<HashMap<String, Id<CommandLineOption>>>
 {
-    command_line_compiler_options_map_cache.with(|command_line_compiler_options_map_cache_| {
-        let mut command_line_compiler_options_map_cache_ =
-            command_line_compiler_options_map_cache_.borrow_mut();
-        if command_line_compiler_options_map_cache_.is_none() {
-            *command_line_compiler_options_map_cache_ =
-                Some(Rc::new(option_declarations.with(|option_declarations_| {
-                    command_line_options_to_map(option_declarations_)
-                })));
-        }
-        command_line_compiler_options_map_cache_
-            .as_ref()
-            .unwrap()
-            .clone()
-    })
+    per_arena!(
+        HashMap<String, Id<CommandLineOption>>,
+        arena,
+        arena.alloc_command_line_options_map(
+            command_line_options_to_map(&option_declarations(arena).ref_(arena))
+        )
+    )
 }
 
-thread_local! {
-    static command_line_watch_options_map_cache: RefCell<Option<Rc<HashMap<String, Id<CommandLineOption>>>>> = RefCell::new(None);
+pub(super) fn get_command_line_watch_options_map(arena: &impl HasArena) -> Id<HashMap<String, Id<CommandLineOption>>> {
+    per_arena!(
+        HashMap<String, Id<CommandLineOption>>,
+        arena,
+        arena.alloc_command_line_options_map(
+            command_line_options_to_map(&options_for_watch(arena).ref_(arena))
+        )
+    )
 }
 
-pub(super) fn get_command_line_watch_options_map() -> Rc<HashMap<String, Id<CommandLineOption>>> {
-    command_line_watch_options_map_cache.with(|command_line_watch_options_map_cache_| {
-        let mut command_line_watch_options_map_cache_ =
-            command_line_watch_options_map_cache_.borrow_mut();
-        if command_line_watch_options_map_cache_.is_none() {
-            *command_line_watch_options_map_cache_ =
-                Some(Rc::new(options_for_watch.with(|options_for_watch_| {
-                    command_line_options_to_map(options_for_watch_)
-                })));
-        }
-        command_line_watch_options_map_cache_
-            .as_ref()
-            .unwrap()
-            .clone()
-    })
-}
-
-thread_local! {
-    static command_line_type_acquisition_map_cache: RefCell<Option<Rc<HashMap<String, Id<CommandLineOption>>>>> = RefCell::new(None);
-}
-
-pub(super) fn get_command_line_type_acquisition_map() -> Rc<HashMap<String, Id<CommandLineOption>>>
+pub(super) fn get_command_line_type_acquisition_map(arena: &impl HasArena) -> Id<HashMap<String, Id<CommandLineOption>>>
 {
-    command_line_type_acquisition_map_cache.with(|command_line_type_acquisition_map_cache_| {
-        let mut command_line_type_acquisition_map_cache_ =
-            command_line_type_acquisition_map_cache_.borrow_mut();
-        if command_line_type_acquisition_map_cache_.is_none() {
-            *command_line_type_acquisition_map_cache_ = Some(Rc::new(
-                type_acquisition_declarations.with(|type_acquisition_declarations_| {
-                    command_line_options_to_map(type_acquisition_declarations_)
-                }),
-            ));
-        }
-        command_line_type_acquisition_map_cache_
-            .as_ref()
-            .unwrap()
-            .clone()
-    })
+    per_arena!(
+        HashMap<String, Id<CommandLineOption>>,
+        arena,
+        arena.alloc_command_line_options_map(
+            command_line_options_to_map(&type_acquisition_declarations(arena).ref_(arena))
+        )
+    )
 }
 
 pub(super) const tsconfig_root_options_dummy_name: &str = "TSCONFIG ROOT OPTIONS";
@@ -895,7 +858,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .name("compilerOptions".to_string())
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
-                            Some(get_command_line_compiler_options_map()),
+                            Some(get_command_line_compiler_options_map(arena)),
                             Some(compiler_options_did_you_mean_diagnostics().into()),
                         )
                         .into(),
@@ -913,7 +876,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .name("typingOptions".to_string())
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
-                            Some(get_command_line_type_acquisition_map()),
+                            Some(get_command_line_type_acquisition_map(arena)),
                             Some(type_acquisition_did_you_mean_diagnostics().into()),
                         )
                         .into(),
@@ -922,7 +885,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .name("typeAcquisition".to_string())
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
-                            Some(get_command_line_type_acquisition_map()),
+                            Some(get_command_line_type_acquisition_map(arena)),
                             Some(type_acquisition_did_you_mean_diagnostics().into()),
                         )
                         .into(),

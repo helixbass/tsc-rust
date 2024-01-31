@@ -217,10 +217,10 @@ pub fn create_option_name_map(option_declarations_: &[Id<CommandLineOption>]) ->
 }
 
 thread_local! {
-    pub(super) static options_name_map_cache: RefCell<Option<Rc<OptionsNameMap>>> = RefCell::new(None);
+    pub(super) static options_name_map_cache: RefCell<Option<Id<OptionsNameMap>>> = RefCell::new(None);
 }
 
-pub(crate) fn get_options_name_map() -> Rc<OptionsNameMap> {
+pub(crate) fn get_options_name_map() -> Id<OptionsNameMap> {
     options_name_map_cache.with(|options_name_map_cache_| {
         let mut options_name_map_cache_ = options_name_map_cache_.borrow_mut();
         if options_name_map_cache_.is_none() {
@@ -388,7 +388,7 @@ pub fn parse_list_type_option(
 // }
 
 pub trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics {
-    fn get_options_name_map(&self) -> Rc<OptionsNameMap>;
+    fn get_options_name_map(&self) -> Id<OptionsNameMap>;
     fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage;
     fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics;
 }

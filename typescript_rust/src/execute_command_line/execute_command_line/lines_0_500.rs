@@ -824,19 +824,15 @@ pub(super) fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
 }
 
 pub(super) fn print_help(sys: &dyn System, command_line: &ParsedCommandLine, arena: &impl HasArena) {
-    if !matches!(command_line.options.ref_(arena).all, Some(true)) {
+    if command_line.options.ref_(arena).all != Some(true) {
         print_easy_help(sys, &get_options_for_help(command_line, arena));
     } else {
-        options_for_build.with(|options_for_build_| {
-            options_for_watch.with(|options_for_watch_| {
-                print_all_help(
-                    sys,
-                    &get_options_for_help(command_line, arena),
-                    &options_for_build_,
-                    &options_for_watch_,
-                )
-            })
-        });
+        print_all_help(
+            sys,
+            &get_options_for_help(command_line, arena),
+            &options_for_build(arena).ref_(arena),
+            &options_for_watch(arena).ref_(arena),
+        );
     }
 }
 

@@ -819,7 +819,7 @@ pub(crate) fn convert_to_tsconfig(
     let _watch_option_map = config_parse_result
         .watch_options
         .as_ref()
-        .map(|watch_options| serialize_watch_options(watch_options));
+        .map(|watch_options| serialize_watch_options(watch_options, arena));
     let mut compiler_options: CompilerOptions = hash_map_to_compiler_options(&option_map);
     compiler_options.show_config = None;
     compiler_options.config_file = None;
@@ -1012,8 +1012,9 @@ pub(super) fn serialize_compiler_options(
 
 pub(super) fn serialize_watch_options(
     options: &WatchOptions,
+    arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    serialize_option_base_object(options, &get_watch_options_name_map(), None)
+    serialize_option_base_object(options, &get_watch_options_name_map(arena).ref_(arena), None)
 }
 
 pub(super) fn serialize_option_base_object(

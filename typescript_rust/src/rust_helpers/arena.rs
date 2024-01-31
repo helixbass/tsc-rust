@@ -32,6 +32,7 @@ use crate::{
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
+    OptionsNameMap,
 };
 
 #[derive(Default)]
@@ -162,6 +163,9 @@ pub struct AllArenas {
     pub parsers: RefCell<Arena<ParserType>>,
     pub incremental_parser_syntax_cursors: RefCell<Arena<IncrementalParserSyntaxCursor>>,
     pub command_line_options: RefCell<Arena<CommandLineOption>>,
+    pub vec_command_line_options: RefCell<Arena<Vec<Id<CommandLineOption>>>>,
+    pub options_name_maps: RefCell<Arena<OptionsNameMap>>,
+    pub command_line_options_maps: RefCell<Arena<HashMap<String, Id<CommandLineOption>>>>,
 }
 
 pub trait HasArena {
@@ -1253,6 +1257,30 @@ pub trait HasArena {
 
     fn alloc_command_line_option(&self, command_line_option: CommandLineOption) -> Id<CommandLineOption> {
         self.arena().alloc_command_line_option(command_line_option)
+    }
+
+    fn vec_command_line_option(&self, vec_command_line_option: Vec<Id<CommandLineOption>>) -> Ref<Vec<Id<CommandLineOption>>> {
+        self.arena().vec_command_line_option(vec_command_line_option)
+    }
+
+    fn alloc_vec_command_line_option(&self, vec_command_line_option: Vec<Id<CommandLineOption>>) -> Id<Vec<Id<CommandLineOption>>> {
+        self.arena().alloc_vec_command_line_option(vec_command_line_option)
+    }
+
+    fn options_name_map(&self, options_name_map: Id<OptionsNameMap>) -> Ref<OptionsNameMap> {
+        self.arena().options_name_map(options_name_map)
+    }
+
+    fn alloc_options_name_map(&self, options_name_map: OptionsNameMap) -> Id<OptionsNameMap> {
+        self.arena().alloc_options_name_map(options_name_map)
+    }
+
+    fn command_line_options_map(&self, command_line_options_map: Id<HashMap<String, Id<CommandLineOption>>>) -> Ref<HashMap<String, Id<CommandLineOption>>> {
+        self.arena().command_line_options_map(command_line_options_map)
+    }
+
+    fn alloc_command_line_options_map(&self, command_line_options_map: HashMap<String, Id<CommandLineOption>>) -> Id<HashMap<String, Id<CommandLineOption>>> {
+        self.arena().alloc_command_line_options_map(command_line_options_map)
     }
 }
 
@@ -2602,6 +2630,7 @@ impl HasArena for AllArenas {
         let id = self.incremental_parser_syntax_cursors.borrow_mut().alloc(incremental_parser_syntax_cursor);
         id
     }
+
     #[track_caller]
     fn command_line_option(&self, command_line_option: Id<CommandLineOption>) -> Ref<CommandLineOption> {
         Ref::map(self.command_line_options.borrow(), |command_line_options| &command_line_options[command_line_option])
@@ -2610,6 +2639,36 @@ impl HasArena for AllArenas {
     fn alloc_command_line_option(&self, command_line_option: CommandLineOption) -> Id<CommandLineOption> {
         let id = self.command_line_options.borrow_mut().alloc(command_line_option);
         id.ref_(self).set_arena_id(id);
+        id
+    }
+
+    #[track_caller]
+    fn vec_command_line_option(&self, vec_command_line_option: Id<Vec<Id<CommandLineOption>>>) -> Ref<Vec<Id<CommandLineOption>>> {
+        Ref::map(self.vec_command_line_options.borrow(), |vec_command_line_options| &vec_command_line_options[vec_command_line_option])
+    }
+
+    fn alloc_vec_command_line_option(&self, vec_command_line_option: Vec<Id<CommandLineOption>>) -> Id<Vec<Id<CommandLineOption>>> {
+        let id = self.vec_command_line_options.borrow_mut().alloc(vec_command_line_option);
+        id
+    }
+
+    #[track_caller]
+    fn options_name_map(&self, options_name_map: Id<OptionsNameMap>) -> Ref<OptionsNameMap> {
+        Ref::map(self.options_name_maps.borrow(), |options_name_maps| &options_name_maps[options_name_map])
+    }
+
+    fn alloc_options_name_map(&self, options_name_map: OptionsNameMap) -> Id<OptionsNameMap> {
+        let id = self.options_name_maps.borrow_mut().alloc(options_name_map);
+        id
+    }
+
+    #[track_caller]
+    fn command_line_options_map(&self, command_line_options_map: Id<HashMap<String, Id<CommandLineOption>>>) -> Ref<HashMap<String, Id<CommandLineOption>>> {
+        Ref::map(self.command_line_options_maps.borrow(), |command_line_options_maps| &command_line_options_maps[command_line_options_map])
+    }
+
+    fn alloc_command_line_options_map(&self, command_line_options_map: HashMap<String, Id<CommandLineOption>>) -> Id<HashMap<String, Id<CommandLineOption>>> {
+        let id = self.command_line_options_maps.borrow_mut().alloc(command_line_options_map);
         id
     }
 }
@@ -3709,6 +3768,30 @@ impl InArena for Id<CommandLineOption> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CommandLineOption> {
         has_arena.command_line_option(*self)
+    }
+}
+
+impl InArena for Id<Vec<Id<CommandLineOption>>> {
+    type Item = Vec<Id<CommandLineOption>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<CommandLineOption>>> {
+        has_arena.vec_command_line_option(*self)
+    }
+}
+
+impl InArena for Id<OptionsNameMap> {
+    type Item = OptionsNameMap;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, OptionsNameMap> {
+        has_arena.options_name_map(*self)
+    }
+}
+
+impl InArena for Id<HashMap<String, Id<CommandLineOption>>> {
+    type Item = HashMap<String, Id<CommandLineOption>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, HashMap<String, Id<CommandLineOption>>> {
+        has_arena.command_line_options_map(*self)
     }
 }
 
