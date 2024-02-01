@@ -183,11 +183,9 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> io::Result<Vec<Id<Symbol>>> {
-        let declaration = get_parse_tree_node(Some(node), Some(|node: Id<Node>| is_function_declaration(&node.ref_(self))), self);
-        if declaration.is_none() {
-            return Ok(Either::Right(iter::empty()));
-        }
-        let declaration = declaration.unwrap();
+        let Some(declaration) = get_parse_tree_node(Some(node), Some(|node: Id<Node>| is_function_declaration(&node.ref_(self))), self) else {
+            return Ok(vec![]);
+        };
         let symbol = self.get_symbol_of_node(declaration)?;
         Ok(if let Some(symbol) = symbol {
             Some(self.get_properties_of_type(self.get_type_of_symbol(symbol)?)?)

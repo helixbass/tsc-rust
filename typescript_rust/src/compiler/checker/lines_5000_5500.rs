@@ -1074,7 +1074,7 @@ impl NodeBuilder {
                     )
                 );
                 self.add_property_to_element_list(
-                    properties[properties.ref_(self).len() - 1],
+                    properties.ref_(self)[properties.ref_(self).len() - 1],
                     context,
                     &mut type_elements,
                 )?;

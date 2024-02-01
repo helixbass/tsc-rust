@@ -182,9 +182,9 @@ impl TypeChecker {
         };
         let mut properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
-            properties.iter().find(|&&x| symbol_name(x, self) == "htmlFor")
+            properties.iter().copied().find(|&&x| symbol_name(x, self) == "htmlFor")
         } else if str_name == "class" {
-            properties.iter().find(|&&x| symbol_name(x, self) == "className")
+            properties.iter().copied().find(|&&x| symbol_name(x, self) == "className")
         } else {
             None
         };
