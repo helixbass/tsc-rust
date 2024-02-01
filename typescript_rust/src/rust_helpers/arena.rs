@@ -185,6 +185,8 @@ pub struct AllArenas {
     pub cache_with_redirects_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: RefCell<Arena<CacheWithRedirects<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>>,
     pub mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps: RefCell<Arena<HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>>>,
     pub path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps: RefCell<Arena<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>>>>>,
+    pub mode_aware_cache_resolved_module_with_failed_lookup_locations_maps: RefCell<Arena<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>,
+    pub path_mode_aware_cache_resolved_module_with_failed_lookup_locations_maps: RefCell<Arena<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>>>,
 }
 
 pub trait HasArena {
@@ -1448,6 +1450,22 @@ pub trait HasArena {
 
     fn alloc_path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map(&self, path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map: HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>>>) -> Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>>>> {
         self.arena().alloc_path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map(path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map)
+    }
+
+    fn mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, mode_aware_cache_resolved_module_with_failed_lookup_locations_map: Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>) -> Ref<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>> {
+        self.arena().mode_aware_cache_resolved_module_with_failed_lookup_locations_map(mode_aware_cache_resolved_module_with_failed_lookup_locations_map)
+    }
+
+    fn alloc_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, mode_aware_cache_resolved_module_with_failed_lookup_locations_map: HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>) -> Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>> {
+        self.arena().alloc_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(mode_aware_cache_resolved_module_with_failed_lookup_locations_map)
+    }
+
+    fn path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map: Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>>) -> Ref<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>> {
+        self.arena().path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map)
+    }
+
+    fn alloc_path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map: HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>) -> Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>> {
+        self.arena().alloc_path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map)
     }
 }
 
@@ -3022,6 +3040,26 @@ impl HasArena for AllArenas {
         let id = self.path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps.borrow_mut().alloc(path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map);
         id
     }
+
+    #[track_caller]
+    fn mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, mode_aware_cache_resolved_module_with_failed_lookup_locations_map: Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>) -> Ref<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>> {
+        Ref::map(self.mode_aware_cache_resolved_module_with_failed_lookup_locations_maps.borrow(), |mode_aware_cache_resolved_module_with_failed_lookup_locations_maps| &mode_aware_cache_resolved_module_with_failed_lookup_locations_maps[mode_aware_cache_resolved_module_with_failed_lookup_locations_map])
+    }
+
+    fn alloc_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, mode_aware_cache_resolved_module_with_failed_lookup_locations_map: HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>) -> Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>> {
+        let id = self.mode_aware_cache_resolved_module_with_failed_lookup_locations_maps.borrow_mut().alloc(mode_aware_cache_resolved_module_with_failed_lookup_locations_map);
+        id
+    }
+
+    #[track_caller]
+    fn path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map: Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>>) -> Ref<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>> {
+        Ref::map(self.path_mode_aware_cache_resolved_module_with_failed_lookup_locations_maps.borrow(), |path_mode_aware_cache_resolved_module_with_failed_lookup_locations_maps| &path_mode_aware_cache_resolved_module_with_failed_lookup_locations_maps[path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map])
+    }
+
+    fn alloc_path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(&self, path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map: HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>) -> Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>> {
+        let id = self.path_mode_aware_cache_resolved_module_with_failed_lookup_locations_maps.borrow_mut().alloc(path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map);
+        id
+    }
 }
 
 pub trait InArena {
@@ -4294,6 +4332,22 @@ impl InArena for Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<Resolv
     }
 }
 
+impl InArena for Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>> {
+    type Item = HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>> {
+        has_arena.mode_aware_cache_resolved_module_with_failed_lookup_locations_map(*self)
+    }
+}
+
+impl InArena for Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>> {
+    type Item = HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>>> {
+        has_arena.path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -4443,6 +4497,18 @@ impl ArenaAlloc for HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDi
 impl ArenaAlloc for HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>>> {
     fn alloc(self, arena: &impl HasArena) -> Id<Self> {
         arena.alloc_path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map(self)
+    }
+}
+
+impl ArenaAlloc for HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>> {
+    fn alloc(self, arena: &impl HasArena) -> Id<Self> {
+        arena.alloc_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(self)
+    }
+}
+
+impl ArenaAlloc for HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>> {
+    fn alloc(self, arena: &impl HasArena) -> Id<Self> {
+        arena.alloc_path_mode_aware_cache_resolved_module_with_failed_lookup_locations_map(self)
     }
 }
 
