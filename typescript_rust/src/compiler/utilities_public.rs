@@ -842,14 +842,15 @@ fn get_jsdoc_parameter_tags_worker(
             Some("Parameters should always be in their parent's parameter lists"),
         );
         let i = i.unwrap();
-        let mut param_tags = get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena)
+        let param_tags = get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena)
             .ref_(arena)
             .iter()
             .copied()
-            .filter(|&tag| is_jsdoc_parameter_tag(&tag.ref_(arena)));
+            .filter(|&tag| is_jsdoc_parameter_tag(&tag.ref_(arena)))
+            .collect::<Vec<_>>();
         if
         /*i < paramTags.length*/
-        let Some(param_tags_i) = param_tags.nth(i) {
+        let Some(param_tags_i) = param_tags.get(i).copied() {
             return vec![param_tags_i];
         }
     }
