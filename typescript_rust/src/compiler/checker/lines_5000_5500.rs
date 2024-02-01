@@ -17,7 +17,7 @@ use crate::{
     get_object_flags, get_parse_tree_node, is_binary_expression, is_class_like,
     is_element_access_expression, is_identifier, is_import_type_node,
     is_property_access_entity_name_expression, is_static, last, length, map, maybe_for_each_bool,
-    node_is_synthesized, null_transformation_context, range_equals, range_equals_gc, same_map,
+    node_is_synthesized, null_transformation_context, range_equals, same_map,
     set_emit_flags, set_text_range, some, symbol_name, unescape_leading_underscores,
     visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags, GetOrInsertDefault, HasArena,
     HasTypeArgumentsInterface, InArena, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags,

@@ -1173,21 +1173,6 @@ pub fn range_equals_rc<TItem>(
     true
 }
 
-pub fn range_equals_gc<TItem: Trace + Finalize>(
-    array1: &[Gc<TItem>],
-    array2: &[Gc<TItem>],
-    mut pos: usize,
-    end: usize,
-) -> bool {
-    while pos < end {
-        if !Gc::ptr_eq(&array1[pos], &array2[pos]) {
-            return false;
-        }
-        pos += 1;
-    }
-    true
-}
-
 pub fn stable_sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,

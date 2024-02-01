@@ -165,7 +165,7 @@ pub use compiler::{
         maybe_first_defined, maybe_for_each, maybe_for_each_bool, maybe_map, maybe_same_map,
         maybe_single_or_many_node, not_implemented, ordered_remove_item_at, pad_left, pad_right,
         pattern_text, push_if_unique_eq, push_if_unique_rc, range_equals,
-        range_equals_gc, range_equals_rc, reduce_left, reduce_left_no_initial_value,
+        range_equals_rc, reduce_left, reduce_left_no_initial_value,
         reduce_left_no_initial_value_optional, relative_complement, remove_prefix, remove_suffix,
         replace_element, same_flat_map_id_node, same_map, set_ui_locale, single_element_array,
         single_or_many_node, single_or_undefined, some, sort, sort_and_deduplicate, span_map,
