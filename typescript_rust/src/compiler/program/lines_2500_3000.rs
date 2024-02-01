@@ -289,7 +289,7 @@ impl Program {
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
         let redirect = redirect.alloc(self.arena());
-        redirect.ref_(self).set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
+        redirect.ref_(self).set_id_override(self.alloc_node_id_override(Box::new(RedirectSourceFileIdOverride::new(
             redirect.clone(),
         ))));
         redirect.ref_(self).set_symbol_override(self.alloc_node_symbol_override(Box::new(RedirectSourceFileSymbolOverride::new(

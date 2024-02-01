@@ -1883,7 +1883,7 @@ impl NodeInterface for BaseNode {
 
     fn maybe_id(&self) -> Option<NodeId> {
         match self._id_override.borrow().as_ref() {
-            Some(id_override) => id_override.maybe_id(),
+            Some(id_override) => id_override.ref_(self).maybe_id(),
             None => self.id.get(),
         }
     }
@@ -1895,7 +1895,7 @@ impl NodeInterface for BaseNode {
     fn set_id(&self, id: NodeId) {
         match self._id_override.borrow().as_ref() {
             Some(id_override) => {
-                id_override.set_id(id);
+                id_override.ref_(self).set_id(id);
             }
             None => {
                 self.id.set(Some(id));
