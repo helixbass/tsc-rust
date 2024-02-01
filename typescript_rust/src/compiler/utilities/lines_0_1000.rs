@@ -94,7 +94,7 @@ pub fn create_symbol_table(
         for symbol in symbols {
             let &symbol: &Id<Symbol> = symbol.borrow();
             result.insert(
-                arena.symbol(symbol).escaped_name().to_owned(),
+                arena.symbol_ref(symbol).escaped_name().to_owned(),
                 symbol.clone(),
             );
         }

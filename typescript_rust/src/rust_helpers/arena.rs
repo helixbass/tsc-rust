@@ -196,8 +196,8 @@ pub trait HasArena {
         self.arena().alloc_type_mapper(type_mapper)
     }
 
-    fn symbol(&self, symbol: Id<Symbol>) -> Ref<Symbol> {
-        self.arena().symbol(symbol)
+    fn symbol_ref(&self, symbol: Id<Symbol>) -> Ref<Symbol> {
+        self.arena().symbol_ref(symbol)
     }
 
     fn alloc_symbol(&self, symbol: Symbol) -> Id<Symbol> {
@@ -1338,7 +1338,7 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn symbol(&self, symbol: Id<Symbol>) -> Ref<Symbol> {
+    fn symbol_ref(&self, symbol: Id<Symbol>) -> Ref<Symbol> {
         Ref::map(self.symbols.borrow(), |symbols| &symbols[symbol])
     }
 
@@ -2730,7 +2730,7 @@ impl InArena for Id<Symbol> {
     type Item = Symbol;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Symbol> {
-        has_arena.symbol(*self)
+        has_arena.symbol_ref(*self)
     }
 }
 

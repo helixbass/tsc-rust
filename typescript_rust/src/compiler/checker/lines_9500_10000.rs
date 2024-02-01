@@ -147,7 +147,7 @@ impl TypeChecker {
                 .into(),
         );
         Ok(
-            if self.symbol(symbol).flags().intersects(SymbolFlags::Class) {
+            if self.symbol_ref(symbol).flags().intersects(SymbolFlags::Class) {
                 let base_type_variable = self.get_base_type_variable_of_class(symbol)?;
                 if let Some(base_type_variable) = base_type_variable {
                     self.get_intersection_type(

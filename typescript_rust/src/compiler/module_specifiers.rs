@@ -1040,7 +1040,7 @@ fn try_get_module_name_from_ambient_module(
     checker: &TypeChecker,
 ) -> io::Result<Option<String>> {
     let decl = checker
-        .symbol(module_symbol)
+        .symbol_ref(module_symbol)
         .maybe_declarations()
         .as_ref()
         .and_then(|module_symbol_declarations| {
@@ -1066,7 +1066,7 @@ fn try_get_module_name_from_ambient_module(
     }
 
     let ambient_module_declare_candidates = try_map_defined(
-        checker.symbol(module_symbol).maybe_declarations().as_ref(),
+        checker.symbol_ref(module_symbol).maybe_declarations().as_ref(),
         |&d: &Id<Node>, _| -> io::Result<Option<Id<Node>>> {
             if !is_module_declaration(&d.ref_(checker)) {
                 return Ok(None);
@@ -1096,7 +1096,7 @@ fn try_get_module_name_from_ambient_module(
                 })
                 .and_then(|top_namespace_parent_parent_symbol_exports_got| {
                     checker
-                        .symbol(top_namespace_parent_parent_symbol_exports_got)
+                        .symbol_ref(top_namespace_parent_parent_symbol_exports_got)
                         .maybe_value_declaration()
                 })
                 .map(

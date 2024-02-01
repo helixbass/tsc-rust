@@ -1926,7 +1926,7 @@ impl Printer {
     }
 
     pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
-        self.arena().symbol(symbol)
+        self.arena().symbol_ref(symbol)
     }
 
     pub(super) fn arena_id(&self) -> Id<Printer> {
