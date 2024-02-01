@@ -3450,7 +3450,7 @@ impl TypeChecker {
 
     pub(super) fn flow_loop_caches(
         &self,
-    ) -> GcCellRefMut<HashMap<usize, Gc<GcCell<HashMap<String, Id<Type>>>>>> {
+    ) -> GcCellRefMut<HashMap<usize, Id<HashMap<String, Id<Type>>>>> {
         self.flow_loop_caches.borrow_mut()
     }
 

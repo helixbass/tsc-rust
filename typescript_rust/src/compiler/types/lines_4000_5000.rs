@@ -415,7 +415,7 @@ pub struct TypeChecker {
     pub(crate) merged_symbols: GcCell<HashMap<u32, Id<Symbol>>>,
     pub(crate) symbol_links: GcCell<HashMap<SymbolId, Id<SymbolLinks>>>,
     pub(crate) node_links: GcCell<HashMap<NodeId, Id<NodeLinks>>>,
-    pub(crate) flow_loop_caches: GcCell<HashMap<usize, Gc<GcCell<HashMap<String, Id<Type>>>>>>,
+    pub(crate) flow_loop_caches: GcCell<HashMap<usize, Id<HashMap<String, Id<Type>>>>>,
     pub(crate) flow_loop_nodes: GcCell<HashMap<usize, Id<FlowNode>>>,
     #[unsafe_ignore_trace]
     pub(crate) flow_loop_keys: RefCell<HashMap<usize, String>>,

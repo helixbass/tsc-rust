@@ -636,52 +636,19 @@ impl TypeChecker {
     }
 
     #[allow(dead_code)]
-    pub(super) fn instantiate_list<TItem: Trace + Finalize>(
+    pub(super) fn instantiate_list<TItem: PartialEq + Clone>(
         &self,
-        items: Option<&[Gc<TItem>]>,
+        items: Option<&[TItem]>,
         mapper: Option<Id<TypeMapper>>,
-        mut instantiator: impl FnMut(&Gc<TItem>, Option<Id<TypeMapper>>) -> Gc<TItem>,
-    ) -> Option<Vec<Gc<TItem>>> {
-        self.try_instantiate_list(items, mapper, |a: &Gc<TItem>, b: Option<Id<TypeMapper>>| {
+        mut instantiator: impl FnMut(&TItem, Option<Id<TypeMapper>>) -> TItem,
+    ) -> Option<Vec<TItem>> {
+        self.try_instantiate_list(items, mapper, |a: &TItem, b: Option<Id<TypeMapper>>| {
             Ok(instantiator(a, b))
         })
         .unwrap()
     }
 
-    pub(super) fn try_instantiate_list<TItem: Trace + Finalize>(
-        &self,
-        items: Option<&[Gc<TItem>]>,
-        mapper: Option<Id<TypeMapper>>,
-        mut instantiator: impl FnMut(&Gc<TItem>, Option<Id<TypeMapper>>) -> io::Result<Gc<TItem>>,
-    ) -> io::Result<Option<Vec<Gc<TItem>>>> {
-        let items = return_ok_none_if_none!(items);
-        if !items.is_empty() {
-            let mut i = 0;
-            while i < items.len() {
-                let item = &items[i];
-                let mapped = instantiator(item, mapper.clone())?;
-                if !Gc::ptr_eq(item, &mapped) {
-                    let mut result = if i == 0 {
-                        vec![]
-                    } else {
-                        items[..i].to_owned()
-                    };
-                    result.push(mapped);
-                    i += 1;
-                    while i < items.len() {
-                        result.push(instantiator(&items[i], mapper.clone())?);
-                        i += 1;
-                    }
-                    return Ok(Some(result));
-                }
-
-                i += 1;
-            }
-        }
-        Ok(Some(items.to_owned()))
-    }
-
-    pub(super) fn try_instantiate_list_non_gc<TItem: PartialEq + Clone>(
+    pub(super) fn try_instantiate_list<TItem: PartialEq + Clone>(
         &self,
         items: Option<&[TItem]>,
         mapper: Option<Id<TypeMapper>>,
@@ -719,7 +686,7 @@ impl TypeChecker {
         types: Option<&[Id<Type>]>,
         mapper: Option<Id<TypeMapper>>,
     ) -> io::Result<Option<Vec<Id<Type>>>> {
-        self.try_instantiate_list_non_gc(types, mapper, |&type_: &Id<Type>, mapper| {
+        self.try_instantiate_list(types, mapper, |&type_: &Id<Type>, mapper| {
             self.instantiate_type(type_, mapper)
         })
     }
@@ -730,7 +697,7 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Vec<Id<Signature>>> {
         Ok(self
-            .try_instantiate_list_non_gc(
+            .try_instantiate_list(
                 Some(signatures),
                 Some(mapper),
                 |signature: &Id<Signature>, mapper| {
@@ -750,7 +717,7 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
     ) -> io::Result<Vec<Id<IndexInfo>>> {
         Ok(self
-            .try_instantiate_list_non_gc(
+            .try_instantiate_list(
                 Some(index_infos),
                 Some(mapper.clone()),
                 |&index_info: &Id<IndexInfo>, mapper| {
@@ -1014,7 +981,7 @@ impl TypeChecker {
             signature.ref_(self).maybe_this_parameter().try_map(|this_parameter| {
                 self.instantiate_symbol(this_parameter, mapper.clone())
             })?,
-            self.try_instantiate_list_non_gc(
+            self.try_instantiate_list(
                 Some(signature.ref_(self).parameters()),
                 Some(mapper.clone()),
                 |&parameter, mapper| self.instantiate_symbol(parameter, mapper.unwrap()),

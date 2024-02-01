@@ -174,6 +174,7 @@ pub struct AllArenas {
     pub input_files_initialized_states: RefCell<Arena<InputFilesInitializedState>>,
     pub vec_symbol_tables: RefCell<Arena<Vec<Id<SymbolTable>>>>,
     pub check_type_related_tos: RefCell<Arena<CheckTypeRelatedTo>>,
+    pub flow_loop_caches: RefCell<Arena<HashMap<String, Id<Type>>>>,
 }
 
 pub trait HasArena {
@@ -1349,6 +1350,18 @@ pub trait HasArena {
 
     fn alloc_check_type_related_to(&self, check_type_related_to: CheckTypeRelatedTo) -> Id<CheckTypeRelatedTo> {
         self.arena().alloc_check_type_related_to(check_type_related_to)
+    }
+
+    fn flow_loop_cache(&self, flow_loop_cache: Id<HashMap<String, Id<Type>>>) -> Ref<HashMap<String, Id<Type>>> {
+        self.arena().flow_loop_cache(flow_loop_cache)
+    }
+
+    fn flow_loop_cache_mut(&self, flow_loop_cache: Id<HashMap<String, Id<Type>>>) -> RefMut<HashMap<String, Id<Type>>> {
+        self.arena().flow_loop_cache_mut(flow_loop_cache)
+    }
+
+    fn alloc_flow_loop_cache(&self, flow_loop_cache: HashMap<String, Id<Type>>) -> Id<HashMap<String, Id<Type>>> {
+        self.arena().alloc_flow_loop_cache(flow_loop_cache)
     }
 }
 
@@ -2815,6 +2828,20 @@ impl HasArena for AllArenas {
         id.ref_(self).set_arena_id(id);
         id
     }
+
+    #[track_caller]
+    fn flow_loop_cache(&self, flow_loop_cache: Id<HashMap<String, Id<Type>>>) -> Ref<HashMap<String, Id<Type>>> {
+        Ref::map(self.flow_loop_caches.borrow(), |flow_loop_caches| &flow_loop_caches[flow_loop_cache])
+    }
+
+    fn flow_loop_cache_mut(&self, flow_loop_cache: Id<HashMap<String, Id<Type>>>) -> RefMut<HashMap<String, Id<Type>>> {
+        RefMut::map(self.flow_loop_caches.borrow_mut(), |flow_loop_caches| &mut flow_loop_caches[flow_loop_cache])
+    }
+
+    fn alloc_flow_loop_cache(&self, flow_loop_cache: HashMap<String, Id<Type>>) -> Id<HashMap<String, Id<Type>>> {
+        let id = self.flow_loop_caches.borrow_mut().alloc(flow_loop_cache);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3996,6 +4023,18 @@ impl InArena for Id<CheckTypeRelatedTo> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CheckTypeRelatedTo> {
         has_arena.check_type_related_to(*self)
+    }
+}
+
+impl InArena for Id<HashMap<String, Id<Type>>> {
+    type Item = HashMap<String, Id<Type>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, HashMap<String, Id<Type>>> {
+        has_arena.flow_loop_cache(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, HashMap<String, Id<Type>>> {
+        has_arena.flow_loop_cache_mut(*self)
     }
 }
 

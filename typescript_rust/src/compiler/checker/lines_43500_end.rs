@@ -282,9 +282,6 @@ impl TypeChecker {
             .ref_(self).as_constructor_declaration()
             .maybe_type_parameters()
             .as_ref()
-            // .map(|node_type_parameters| {
-            //     Gc::new(node_type_parameters.clone()) as Gc<dyn ReadonlyTextRange>
-            // })
             .map(|node_type_parameters| {
                 Box::new(ReadonlyTextRangeConcrete::new(
                     node_type_parameters.ref_(self).pos(),
@@ -297,7 +294,6 @@ impl TypeChecker {
                     .and_then(|jsdoc_type_parameters| {
                         first_or_undefined(jsdoc_type_parameters).cloned()
                     })
-                    // .map(|jsdoc_type_parameter| jsdoc_type_parameter as Gc<dyn ReadonlyTextRange>)
                     .map(|jsdoc_type_parameter| {
                         Box::new(ReadonlyTextRangeConcrete::new(
                             jsdoc_type_parameter.ref_(self).pos(),

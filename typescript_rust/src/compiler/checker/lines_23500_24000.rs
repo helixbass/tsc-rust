@@ -870,7 +870,7 @@ impl GetFlowTypeOfReference {
             value
         }
         .unwrap_or_else(|| {
-            let flow_loop_cache = Gc::new(GcCell::new(HashMap::new()));
+            let flow_loop_cache = self.alloc_flow_loop_cache(HashMap::new());
             self.type_checker
                 .ref_(self).flow_loop_caches()
                 .insert(id, flow_loop_cache.clone());
@@ -881,7 +881,7 @@ impl GetFlowTypeOfReference {
             return Ok(self.declared_type.clone().into());
         }
         let key = key.unwrap();
-        let cached = (*cache).borrow().get(&key).cloned();
+        let cached = cache.ref_(self).get(&key).cloned();
         if let Some(cached) = cached {
             return Ok(cached.into());
         }
@@ -942,7 +942,7 @@ impl GetFlowTypeOfReference {
                     *self.type_checker.ref_(self).maybe_flow_type_cache() = save_flow_type_cache;
                     self.type_checker
                         .ref_(self).set_flow_loop_count(self.type_checker.ref_(self).flow_loop_count() - 1);
-                    let cached = (*cache).borrow().get(&key).cloned();
+                    let cached = cache.ref_(self).get(&key).cloned();
                     if let Some(cached) = cached {
                         return Ok(cached.into());
                     }
@@ -974,7 +974,7 @@ impl GetFlowTypeOfReference {
         {
             return Ok(self.type_checker.ref_(self).create_flow_type(result, true));
         }
-        cache.borrow_mut().insert(key, result.clone());
+        cache.ref_mut(self).insert(key, result.clone());
         Ok(result.into())
     }
 }
