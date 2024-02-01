@@ -2064,6 +2064,12 @@ impl ReadonlyTextRange for BaseNode {
     }
 }
 
+impl HasArena for BaseNode {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 impl From<BaseNode> for Node {
     fn from(base_node: BaseNode) -> Self {
         Node::BaseNode(base_node)
