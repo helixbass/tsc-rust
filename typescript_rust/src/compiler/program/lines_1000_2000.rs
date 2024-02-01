@@ -250,7 +250,7 @@ impl Program {
     }
 
     pub fn get_file_include_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
-        self.file_reasons.borrow().clone()
+        self.file_reasons.get()
     }
 
     pub fn get_source_file_(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>> {

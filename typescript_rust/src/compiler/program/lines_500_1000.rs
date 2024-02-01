@@ -1,5 +1,5 @@
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::{Ref, RefCell, RefMut, Cell},
     collections::{HashMap, HashSet},
     convert::TryInto,
     io, mem,
@@ -872,7 +872,7 @@ impl Program {
         let ret =
             arena.alloc_program(Self {
                 _arena_id: Default::default(),
-                create_program_options: GcCell::new(Some(create_program_options)),
+                create_program_options: RefCell::new(Some(create_program_options)),
                 root_names: Default::default(),
                 options,
                 config_file_parsing_diagnostics: Default::default(),
@@ -886,11 +886,11 @@ impl Program {
                 no_diagnostics_type_checker: Default::default(),
                 classifiable_names: Default::default(),
                 ambient_module_name_to_unmodified_file_name: Default::default(),
-                file_reasons: GcCell::new(arena.alloc_file_reasons(create_multi_map())),
+                file_reasons: Cell::new(arena.alloc_file_reasons(create_multi_map())),
                 cached_bind_and_check_diagnostics_for_file: Default::default(),
                 cached_declaration_diagnostics_for_file: Default::default(),
 
-                resolved_type_reference_directives: GcCell::new(arena.alloc_resolved_type_reference_directives_map(Default::default())),
+                resolved_type_reference_directives: Cell::new(arena.alloc_resolved_type_reference_directives_map(Default::default())),
                 file_processing_diagnostics: Default::default(),
 
                 max_node_module_js_depth,
@@ -1528,14 +1528,14 @@ impl Program {
     }
 
     pub(super) fn file_reasons(&self) -> Id<MultiMap<Path, Id<FileIncludeReason>>> {
-        self.file_reasons.borrow().clone()
+        self.file_reasons.get()
     }
 
     pub(super) fn set_file_reasons(
         &self,
         file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>,
     ) {
-        *self.file_reasons.borrow_mut() = file_reasons;
+        self.file_reasons.set(file_reasons);
     }
 
     pub(super) fn cached_bind_and_check_diagnostics_for_file_mut(
@@ -1559,14 +1559,14 @@ impl Program {
     pub(super) fn resolved_type_reference_directives(
         &self,
     ) -> Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>> {
-        self.resolved_type_reference_directives.borrow().clone()
+        self.resolved_type_reference_directives.get()
     }
 
     pub(super) fn set_resolved_type_reference_directives(
         &self,
         resolved_type_reference_directives: Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>,
     ) {
-        *self.resolved_type_reference_directives.borrow_mut() = resolved_type_reference_directives;
+        self.resolved_type_reference_directives.set(resolved_type_reference_directives);
     }
 
     pub(super) fn program_diagnostics(&self) -> GcCellRef<DiagnosticCollection> {

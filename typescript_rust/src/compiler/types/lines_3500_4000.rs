@@ -1617,7 +1617,7 @@ impl FilePreprocessingDiagnostics {
 #[derive(Trace, Finalize)]
 pub struct Program {
     pub(crate) _arena_id: GcCell<Option<Id<Program>>>,
-    pub(crate) create_program_options: GcCell<Option<CreateProgramOptions>>,
+    pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
     #[unsafe_ignore_trace]
     pub(crate) root_names: RefCell<Option<Vec<String>>>,
     pub(crate) options: Id<CompilerOptions>,
@@ -1637,12 +1637,12 @@ pub struct Program {
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
-    pub(crate) file_reasons: GcCell<Id<MultiMap<Path, Id<FileIncludeReason>>>>,
+    pub(crate) file_reasons: Cell<Id<MultiMap<Path, Id<FileIncludeReason>>>>,
     pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
     pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
-        GcCell<Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
+        Cell<Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
     pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Id<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,

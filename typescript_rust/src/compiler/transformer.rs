@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, RefMut},
+    cell::{Cell, RefCell, RefMut, Ref},
     collections::HashMap,
     io, mem, any::Any,
 };
@@ -27,6 +27,7 @@ use crate::{
     TransformerFactoryOrCustomTransformerFactory, TransformerInterface, _d,
     HasArena, AllArenas, InArena, static_arena, per_arena,
     BaseNodeFactory, get_factory_id,
+    ref_unwrapped, ref_mut_unwrapped,
 };
 
 fn get_module_transformer(module_kind: ModuleKind, arena: &impl HasArena) -> TransformerFactory {
@@ -370,49 +371,49 @@ pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Self>>>,
     on_emit_node_outermost_override_or_original_method:
-        GcCell<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
+        Cell<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
     on_emit_node_previous_override_or_original_method:
-        GcCell<Option<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>>,
+        Cell<Option<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>>,
     on_substitute_node_outermost_override_or_original_method:
-        GcCell<Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
+        Cell<Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>,
     on_substitute_node_previous_override_or_original_method:
-        GcCell<Option<Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>>,
-    transformed: GcCell<Vec<Id<Node>>>,
+        Cell<Option<Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>>,
+    transformed: RefCell<Vec<Id<Node>>>,
     #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
     nodes: Vec<Id<Node>>,
     #[unsafe_ignore_trace]
     enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
     lexical_environment_variable_declarations:
-        GcCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
+        RefCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
     lexical_environment_function_declarations:
-        GcCell<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>,
-    lexical_environment_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
+        RefCell<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>,
+    lexical_environment_statements: RefCell<Option<Vec<Id<Node /*Statement*/>>>>,
     #[unsafe_ignore_trace]
     lexical_environment_flags: Cell<LexicalEnvironmentFlags>,
     lexical_environment_variable_declarations_stack:
-        GcCell<Option<Vec<Option<Vec<Id<Node /*VariableDeclaration*/>>>>>>,
+        RefCell<Option<Vec<Option<Vec<Id<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
-        GcCell<Option<Vec<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>>>,
-    lexical_environment_statements_stack: GcCell<Option<Vec<Option<Vec<Id<Node /*Statement*/>>>>>>,
+        RefCell<Option<Vec<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>>>,
+    lexical_environment_statements_stack: RefCell<Option<Vec<Option<Vec<Id<Node /*Statement*/>>>>>>,
     #[unsafe_ignore_trace]
     lexical_environment_flags_stack: RefCell<Option<Vec<LexicalEnvironmentFlags>>>,
     #[unsafe_ignore_trace]
     lexical_environment_suspended: Cell<bool>,
     block_scoped_variable_declarations_stack:
-        GcCell<Option<Vec<Option<Vec<Id<Node /*Identifier*/>>>>>>,
+        RefCell<Option<Vec<Option<Vec<Id<Node /*Identifier*/>>>>>>,
     #[unsafe_ignore_trace]
     block_scope_stack_offset: Cell<usize>,
-    block_scoped_variable_declarations: GcCell<Option<Vec<Id<Node /*Identifier*/>>>>,
-    emit_helpers: GcCell<Option<Vec<Id<EmitHelper>>>>,
-    diagnostics: GcCell<Vec<Id<Diagnostic>>>,
+    block_scoped_variable_declarations: RefCell<Option<Vec<Id<Node /*Identifier*/>>>>,
+    emit_helpers: RefCell<Option<Vec<Id<EmitHelper>>>>,
+    diagnostics: RefCell<Vec<Id<Diagnostic>>>,
     transformers: Vec<TransformerFactory>,
-    transformers_with_context: GcCell<Option<Vec<Transformer>>>,
+    transformers_with_context: RefCell<Option<Vec<Transformer>>>,
     allow_dts_files: bool,
     options: Id<CompilerOptions>,
     resolver: Option<Id<Box<dyn EmitResolver>>>,
     host: Option<Id<Box<dyn EmitHost>>>,
-    created_emit_helper_factory: GcCell<Option<Id<EmitHelperFactory>>>,
+    created_emit_helper_factory: Cell<Option<Id<EmitHelperFactory>>>,
     factory: Id<NodeFactory>,
 }
 
@@ -439,42 +440,42 @@ impl TransformNodesTransformationResult {
         let ret = arena_ref.alloc_transform_nodes_transformation_result(Self {
             _arena: arena,
             _arena_id: _d(),
-            on_emit_node_outermost_override_or_original_method: GcCell::new(arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+            on_emit_node_outermost_override_or_original_method: Cell::new(arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
                 NoEmitNotificationTransformationContextOnEmitNodeOverrider,
             ))),
             on_emit_node_previous_override_or_original_method: _d(),
-            on_substitute_node_outermost_override_or_original_method: GcCell::new(arena_ref.alloc_transformation_context_on_substitute_node_overrider(
+            on_substitute_node_outermost_override_or_original_method: Cell::new(arena_ref.alloc_transformation_context_on_substitute_node_overrider(
                 Box::new(NoEmitNotificationTransformationContextOnSubstituteNodeOverrider),
             )),
             on_substitute_node_previous_override_or_original_method: _d(),
-            transformed: GcCell::new(transformed),
+            transformed: RefCell::new(transformed),
             state: Cell::new(state),
             nodes,
-            lexical_environment_variable_declarations: GcCell::new(
+            lexical_environment_variable_declarations: RefCell::new(
                 lexical_environment_variable_declarations,
             ),
-            lexical_environment_function_declarations: GcCell::new(
+            lexical_environment_function_declarations: RefCell::new(
                 lexical_environment_function_declarations,
             ),
-            lexical_environment_statements: GcCell::new(Some(vec![])),
-            lexical_environment_variable_declarations_stack: GcCell::new(Some(
+            lexical_environment_statements: RefCell::new(Some(vec![])),
+            lexical_environment_variable_declarations_stack: RefCell::new(Some(
                 lexical_environment_variable_declarations_stack,
             )),
-            lexical_environment_function_declarations_stack: GcCell::new(Some(
+            lexical_environment_function_declarations_stack: RefCell::new(Some(
                 lexical_environment_function_declarations_stack,
             )),
-            lexical_environment_statements_stack: GcCell::new(Some(vec![])),
+            lexical_environment_statements_stack: RefCell::new(Some(vec![])),
             lexical_environment_flags_stack: RefCell::new(Some(vec![])),
-            emit_helpers: GcCell::new(emit_helpers),
-            diagnostics: GcCell::new(diagnostics),
+            emit_helpers: RefCell::new(emit_helpers),
+            diagnostics: RefCell::new(diagnostics),
             transformers,
             transformers_with_context: Default::default(),
             allow_dts_files,
             enabled_syntax_kind_features: Default::default(),
             lexical_environment_flags: Cell::new(LexicalEnvironmentFlags::None),
             lexical_environment_suspended: Default::default(),
-            block_scoped_variable_declarations_stack: GcCell::new(Some(vec![])),
-            block_scoped_variable_declarations: GcCell::new(Some(vec![])),
+            block_scoped_variable_declarations_stack: RefCell::new(Some(vec![])),
+            block_scoped_variable_declarations: RefCell::new(Some(vec![])),
             block_scope_stack_offset: Default::default(),
             options,
             resolver,
@@ -498,7 +499,11 @@ impl TransformNodesTransformationResult {
         self.state.get()
     }
 
-    fn lexical_environment_variable_declarations(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    fn lexical_environment_variable_declarations(&self) -> Ref<Option<Vec<Id<Node>>>> {
+        self.lexical_environment_variable_declarations.borrow()
+    }
+
+    fn lexical_environment_variable_declarations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.lexical_environment_variable_declarations.borrow_mut()
     }
 
@@ -506,11 +511,14 @@ impl TransformNodesTransformationResult {
         &self,
         lexical_environment_variable_declarations: Option<Vec<Id<Node>>>,
     ) {
-        *self.lexical_environment_variable_declarations.borrow_mut() =
-            lexical_environment_variable_declarations;
+        self.set_lexical_environment_variable_declarations(lexical_environment_variable_declarations);
     }
 
-    fn lexical_environment_function_declarations(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    fn lexical_environment_function_declarations(&self) -> Ref<Option<Vec<Id<Node>>>> {
+        self.lexical_environment_function_declarations.borrow_mut()
+    }
+
+    fn lexical_environment_function_declarations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.lexical_environment_function_declarations.borrow_mut()
     }
 
@@ -522,18 +530,28 @@ impl TransformNodesTransformationResult {
             lexical_environment_function_declarations;
     }
 
-    fn lexical_environment_statements(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    fn lexical_environment_statements(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.lexical_environment_statements.borrow_mut()
+    }
+
+    fn lexical_environment_statements_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
+        self.lexical_environment_statements.borrow_mut()
+    }
+
+    fn set_lexical_environment_statements(&self, lexical_environment_statements: Option<Vec<Id<Node>>>) {
+        *self.lexical_environment_statements.borrow_mut() = lexical_environment_statements;
     }
 
     fn lexical_environment_variable_declarations_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
-        GcCellRefMut::map(
-            self.lexical_environment_variable_declarations_stack
-                .borrow_mut(),
-            |option| option.as_mut().unwrap(),
-        )
+    ) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
+        ref_unwrapped(&self.lexical_environment_variable_declarations_stack)
+    }
+
+    fn lexical_environment_variable_declarations_stack_mut(
+        &self,
+    ) -> RefMut<Vec<Option<Vec<Id<Node>>>>> {
+        ref_mut_unwrapped(&self.lexical_environment_variable_declarations_stack)
     }
 
     fn set_lexical_environment_variable_declarations_stack(
@@ -547,12 +565,14 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_function_declarations_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
-        GcCellRefMut::map(
-            self.lexical_environment_function_declarations_stack
-                .borrow_mut(),
-            |option| option.as_mut().unwrap(),
-        )
+    ) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
+        ref_unwrapped(&self.lexical_environment_function_declarations_stack)
+    }
+
+    fn lexical_environment_function_declarations_stack_mut(
+        &self,
+    ) -> RefMut<Vec<Option<Vec<Id<Node>>>>> {
+        ref_mut_unwrapped(&self.lexical_environment_function_declarations_stack)
     }
 
     fn set_lexical_environment_function_declarations_stack(
@@ -566,11 +586,14 @@ impl TransformNodesTransformationResult {
 
     fn lexical_environment_statements_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
-        GcCellRefMut::map(
-            self.lexical_environment_statements_stack.borrow_mut(),
-            |option| option.as_mut().unwrap(),
-        )
+    ) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
+        ref_unwrapped(&self.lexical_environment_statements_stack)
+    }
+
+    fn lexical_environment_statements_stack_mut(
+        &self,
+    ) -> RefMut<Vec<Option<Vec<Id<Node>>>>> {
+        ref_mut_unwrapped(&self.lexical_environment_statements_stack)
     }
 
     fn lexical_environment_flags_stack(&self) -> RefMut<Vec<LexicalEnvironmentFlags>> {
@@ -582,11 +605,14 @@ impl TransformNodesTransformationResult {
 
     fn block_scoped_variable_declarations_stack(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Vec<Id<Node>>>>>, Vec<Option<Vec<Id<Node>>>>> {
-        GcCellRefMut::map(
-            self.block_scoped_variable_declarations_stack.borrow_mut(),
-            |option| option.as_mut().unwrap(),
-        )
+    ) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
+        ref_unwrapped(&self.block_scoped_variable_declarations_stack)
+    }
+
+    fn block_scoped_variable_declarations_stack_mut(
+        &self,
+    ) -> RefMut<Vec<Option<Vec<Id<Node>>>>> {
+        ref_mut_unwrapped(&self.block_scoped_variable_declarations_stack)
     }
 
     fn set_block_scoped_variable_declarations_stack(
@@ -597,15 +623,15 @@ impl TransformNodesTransformationResult {
             block_scoped_variable_declarations_stack;
     }
 
-    fn maybe_block_scoped_variable_declarations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    fn maybe_block_scoped_variable_declarations(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.block_scoped_variable_declarations.borrow()
     }
 
-    fn block_scoped_variable_declarations(&self) -> GcCellRef<Vec<Id<Node>>> {
-        gc_cell_ref_unwrapped(&self.block_scoped_variable_declarations)
+    fn block_scoped_variable_declarations(&self) -> Ref<Vec<Id<Node>>> {
+        ref_unwrapped(&self.block_scoped_variable_declarations)
     }
 
-    fn maybe_block_scoped_variable_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    fn maybe_block_scoped_variable_declarations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.block_scoped_variable_declarations.borrow_mut()
     }
 
@@ -620,7 +646,7 @@ impl TransformNodesTransformationResult {
         self.emit_helpers.borrow().clone()
     }
 
-    fn emit_helpers_mut(&self) -> GcCellRefMut<Option<Vec<Id<EmitHelper>>>> {
+    fn emit_helpers_mut(&self) -> RefMut<Option<Vec<Id<EmitHelper>>>> {
         self.emit_helpers.borrow_mut()
     }
 
@@ -632,19 +658,19 @@ impl TransformNodesTransformationResult {
         self.state.set(state);
     }
 
-    fn diagnostics(&self) -> GcCellRefMut<Vec<Id<Diagnostic>>> {
+    fn diagnostics_mut(&self) -> RefMut<Vec<Id<Diagnostic>>> {
         self.diagnostics.borrow_mut()
     }
 
-    fn transformers_with_context(&self) -> GcCellRef<Vec<Transformer>> {
-        gc_cell_ref_unwrapped(&self.transformers_with_context)
+    fn transformers_with_context(&self) -> Ref<Vec<Transformer>> {
+        ref_unwrapped(&self.transformers_with_context)
     }
 
     fn set_transformers_with_context(&self, transformers_with_context: Vec<Transformer>) {
         *self.transformers_with_context.borrow_mut() = Some(transformers_with_context);
     }
 
-    fn transformed(&self) -> GcCellRefMut<Vec<Id<Node>>> {
+    fn transformed(&self) -> RefMut<Vec<Id<Node>>> {
         self.transformed.borrow_mut()
     }
 
@@ -678,8 +704,12 @@ impl TransformNodesTransformationResult {
         self.block_scope_stack_offset.set(block_scope_stack_offset)
     }
 
-    fn created_emit_helper_factory(&self) -> GcCellRefMut<Option<Id<EmitHelperFactory>>> {
-        self.created_emit_helper_factory.borrow_mut()
+    fn created_emit_helper_factory(&self) -> Option<Id<EmitHelperFactory>> {
+        self.created_emit_helper_factory.get()
+    }
+
+    fn set_created_emit_helper_factory(&self, created_emit_helper_factory: Option<Id<EmitHelperFactory>>) {
+        self.created_emit_helper_factory.set(created_emit_helper_factory);
     }
 
     fn call(&self) -> io::Result<()> {
@@ -763,16 +793,10 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             Some("Lexical environment is suspended."),
         );
 
-        let mut lexical_environment_variable_declarations_stack =
-            self.lexical_environment_variable_declarations_stack();
-        lexical_environment_variable_declarations_stack
-            .push(self.lexical_environment_variable_declarations().take());
-        let mut lexical_environment_function_declarations_stack =
-            self.lexical_environment_function_declarations_stack();
-        lexical_environment_function_declarations_stack
-            .push(self.lexical_environment_function_declarations().take());
-        let mut lexical_environment_statements_stack = self.lexical_environment_statements_stack();
-        lexical_environment_statements_stack.push(self.lexical_environment_statements().take());
+        self.lexical_environment_variable_declarations_stack_mut()
+            .push(self.lexical_environment_variable_declarations_mut().take());
+        self.lexical_environment_function_declarations_stack_mut().push(self.lexical_environment_function_declarations_mut().take());
+        self.lexical_environment_statements_stack_mut().push(self.lexical_environment_statements_mut().take());
         let mut lexical_environment_flags_stack = self.lexical_environment_flags_stack();
         lexical_environment_flags_stack.push(self.lexical_environment_flags());
         // lexicalEnvironmentStackOffset++;
@@ -841,23 +865,16 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
         );
 
         let mut statements: Option<Vec<Id<Node>>> = None;
-        let mut lexical_environment_variable_declarations =
-            self.lexical_environment_variable_declarations();
-        let mut lexical_environment_function_declarations =
-            self.lexical_environment_function_declarations();
-        let mut lexical_environment_statements = self.lexical_environment_statements();
-        if lexical_environment_variable_declarations.is_some()
-            || lexical_environment_function_declarations.is_some()
-            || lexical_environment_statements.is_some()
+        if self.lexical_environment_variable_declarations().is_some()
+            || self.lexical_environment_function_declarations().is_some()
+            || self.lexical_environment_statements().is_some()
         {
-            if let Some(lexical_environment_function_declarations) =
-                lexical_environment_function_declarations.as_ref()
+            if let Some(lexical_environment_function_declarations) = self.lexical_environment_function_declarations().as_ref()
             {
                 statements = Some(lexical_environment_function_declarations.clone());
             }
 
-            if let Some(lexical_environment_variable_declarations) =
-                lexical_environment_variable_declarations.as_ref()
+            if let Some(lexical_environment_variable_declarations) = self.lexical_environment_variable_declarations().as_ref()
             {
                 let statement = self.factory.ref_(self).create_variable_statement(
                     Option::<Id<NodeArray>>::None,
@@ -876,7 +893,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
                 }
             }
 
-            if let Some(lexical_environment_statements) = lexical_environment_statements.as_ref() {
+            if let Some(lexical_environment_statements) = self.lexical_environment_statements().as_ref() {
                 if statements.is_none() {
                     statements = Some(lexical_environment_statements.clone());
                 } else {
@@ -889,16 +906,15 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
         }
 
         // lexicalEnvironmentStackOffset--;
-        *lexical_environment_variable_declarations = self
-            .lexical_environment_variable_declarations_stack()
+        self.set_lexical_environment_variable_declarations(self
+            .lexical_environment_variable_declarations_stack_mut()
             .pop()
-            .unwrap();
-        *lexical_environment_function_declarations = self
-            .lexical_environment_function_declarations_stack()
+            .unwrap());
+        self.set_lexical_environment_function_declarations(self
+            .lexical_environment_function_declarations_stack_mut()
             .pop()
-            .unwrap();
-        *lexical_environment_statements =
-            self.lexical_environment_statements_stack().pop().unwrap();
+            .unwrap());
+        self.set_lexical_environment_statements(self.lexical_environment_statements_stack_mut().pop().unwrap());
         self.set_lexical_environment_flags_(self.lexical_environment_flags_stack().pop().unwrap());
         // if (lexicalEnvironmentStackOffset === 0) {
         //   lexicalEnvironmentVariableDeclarationsStack = [];
@@ -919,16 +935,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             Some("Cannot modify the lexical environment after transformation has completed."),
         );
         set_emit_flags(func, EmitFlags::CustomPrologue, self);
-        let mut lexical_environment_function_declarations =
-            self.lexical_environment_function_declarations();
-        if lexical_environment_function_declarations.is_none() {
-            *lexical_environment_function_declarations = Some(vec![func]);
-        } else {
-            lexical_environment_function_declarations
-                .as_mut()
-                .unwrap()
-                .push(func);
-        }
+        self.lexical_environment_variable_declarations_mut().get_or_insert_with(|| Default::default()).push(func);
     }
 
     fn hoist_variable_declaration(&self, name: Id<Node> /*Identifier*/) {
@@ -946,16 +953,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             EmitFlags::NoNestedSourceMaps,
             self,
         );
-        let mut lexical_environment_variable_declarations =
-            self.lexical_environment_variable_declarations();
-        if lexical_environment_variable_declarations.is_none() {
-            *lexical_environment_variable_declarations = Some(vec![decl]);
-        } else {
-            lexical_environment_variable_declarations
-                .as_mut()
-                .unwrap()
-                .push(decl);
-        }
+        self.lexical_environment_variable_declarations_mut().get_or_insert_with(|| Default::default()).push(decl);
         let lexical_environment_flags = self.lexical_environment_flags();
         if lexical_environment_flags.intersects(LexicalEnvironmentFlags::InParameters) {
             self.set_lexical_environment_flags_(
@@ -973,9 +971,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             self.state() < TransformationState::Completed,
             Some("Cannot start a block scope after transformation has completed."),
         );
-        let mut block_scoped_variable_declarations_stack =
-            self.block_scoped_variable_declarations_stack();
-        block_scoped_variable_declarations_stack
+        self.block_scoped_variable_declarations_stack_mut()
             .push(self.maybe_block_scoped_variable_declarations_mut().take());
         self.set_block_scope_stack_offset(self.block_scope_stack_offset() + 1);
         // blockScopedVariableDeclarations = undefined!;
@@ -1016,7 +1012,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
         };
         self.set_block_scope_stack_offset(self.block_scope_stack_offset() - 1);
         self.set_block_scoped_variable_declarations(
-            self.block_scoped_variable_declarations_stack()
+            self.block_scoped_variable_declarations_stack_mut()
                 .pop()
                 .unwrap(),
         );
@@ -1046,15 +1042,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             Some("Cannot modify the lexical environment after transformation has completed."),
         );
         set_emit_flags(node, EmitFlags::CustomPrologue, self);
-        let mut lexical_environment_statements = self.lexical_environment_statements();
-        if lexical_environment_statements.is_none() {
-            *lexical_environment_statements = Some(vec![node]);
-        } else {
-            lexical_environment_statements
-                .as_mut()
-                .unwrap()
-                .push(node);
-        }
+        self.lexical_environment_statements_mut().get_or_insert_with(|| Default::default).push(node);
     }
 }
 
@@ -1069,14 +1057,13 @@ impl TransformationContext for TransformNodesTransformationResult {
 
     fn get_emit_helper_factory(&self) -> Id<EmitHelperFactory> {
         /*memoize(*/
-        let mut created_emit_helper_factory = self.created_emit_helper_factory();
-        if created_emit_helper_factory.is_none() {
-            *created_emit_helper_factory = Some(create_emit_helper_factory(
+        if self.created_emit_helper_factory().is_none() {
+            self.set_created_emit_helper_factory(Some(create_emit_helper_factory(
                 self.arena_id(),
                 self,
-            ));
+            )));
         }
-        created_emit_helper_factory.clone().unwrap()
+        self.created_emit_helper_factory().unwrap()
     }
 
     fn request_emit_helper(&self, helper: Id<EmitHelper>) {
@@ -1139,7 +1126,7 @@ impl TransformationContext for TransformNodesTransformationResult {
 
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         self.on_substitute_node_outermost_override_or_original_method
-            .borrow()
+            .get()
             .ref_(self).on_substitute_node(hint, node)
     }
 
@@ -1150,29 +1137,19 @@ impl TransformationContext for TransformNodesTransformationResult {
         )
             -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     ) {
-        let mut on_substitute_node_outermost_override_or_original_method = self
-            .on_substitute_node_outermost_override_or_original_method
-            .borrow_mut();
-        let previous_on_substitute_node =
-            on_substitute_node_outermost_override_or_original_method.clone();
-        *on_substitute_node_outermost_override_or_original_method =
-            overrider(previous_on_substitute_node.clone());
-        *self
-            .on_substitute_node_previous_override_or_original_method
-            .borrow_mut() = Some(previous_on_substitute_node);
+        let previous_on_substitute_node = self.on_substitute_node_outermost_override_or_original_method.get();
+        self.on_substitute_node_outermost_override_or_original_method.set(overrider(previous_on_substitute_node.clone()));
+        self.on_substitute_node_previous_override_or_original_method.set(Some(previous_on_substitute_node));
     }
 
     fn pop_overridden_on_substitute_node(
         &self,
     ) -> Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>> {
-        let previous = self.on_substitute_node_previous_override_or_original_method.borrow().clone().expect("Should only call .pop_overridden_on_substitute_node() when there's currently an override");
+        let previous = self.on_substitute_node_previous_override_or_original_method.get().expect("Should only call .pop_overridden_on_substitute_node() when there's currently an override");
         let current = self
             .on_substitute_node_outermost_override_or_original_method
-            .borrow()
-            .clone();
-        *self
-            .on_substitute_node_outermost_override_or_original_method
-            .borrow_mut() = previous;
+            .get();
+        self.on_substitute_node_outermost_override_or_original_method.set(previous);
         current
     }
 
@@ -1202,7 +1179,7 @@ impl TransformationContext for TransformNodesTransformationResult {
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         self.on_emit_node_outermost_override_or_original_method
-            .borrow()
+            .get()
             .ref_(self).on_emit_node(hint, node, emit_callback)
     }
 
@@ -1212,31 +1189,24 @@ impl TransformationContext for TransformNodesTransformationResult {
             Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
         ) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
     ) {
-        let mut on_emit_node_outermost_override_or_original_method = self
-            .on_emit_node_outermost_override_or_original_method
-            .borrow_mut();
-        let previous_on_emit_node = on_emit_node_outermost_override_or_original_method.clone();
-        *on_emit_node_outermost_override_or_original_method =
-            overrider(previous_on_emit_node.clone());
-        *self
-            .on_emit_node_previous_override_or_original_method
-            .borrow_mut() = Some(previous_on_emit_node);
+        let previous_on_emit_node = self.on_emit_node_outermost_override_or_original_method.get();
+        self.on_emit_node_outermost_override_or_original_method.set(
+            overrider(previous_on_emit_node.clone())
+        );
+        self.on_emit_node_previous_override_or_original_method.set(Some(previous_on_emit_node));
     }
 
     fn pop_overridden_on_emit_node(&self) -> Id<Box<dyn TransformationContextOnEmitNodeOverrider>> {
-        let previous = self.on_emit_node_previous_override_or_original_method.borrow().clone().expect("Should only call .pop_overridden_on_emit_node() when there's currently an override");
+        let previous = self.on_emit_node_previous_override_or_original_method.get().expect("Should only call .pop_overridden_on_emit_node() when there's currently an override");
         let current = self
             .on_emit_node_outermost_override_or_original_method
-            .borrow()
-            .clone();
-        *self
-            .on_emit_node_outermost_override_or_original_method
-            .borrow_mut() = previous;
+            .get();
+        self.on_emit_node_outermost_override_or_original_method.set(previous);
         current
     }
 
     fn add_diagnostic(&self, diag: Id<Diagnostic /*DiagnosticWithLocation*/>) {
-        self.diagnostics().push(diag);
+        self.diagnostics_mut().push(diag);
     }
 }
 

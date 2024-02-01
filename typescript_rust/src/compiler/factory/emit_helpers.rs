@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, cell::OnceCell};
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
@@ -15,37 +15,31 @@ use crate::{
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
-// TODO: remove #[unsafe_ignore_trace] from TransformNodesTransformationResult if this ends up
-// needing to be traced
 #[derive(Trace, Finalize)]
 pub struct EmitHelperFactory {
     factory: Id<NodeFactory>,
     context: Id<TransformNodesTransformationResult>,
-    immutable_true: GcCell<Option<Id<Node>>>,
-    immutable_false: GcCell<Option<Id<Node>>>,
+    immutable_true: OnceCell<Id<Node>>,
+    immutable_false: OnceCell<Id<Node>>,
 }
 
 impl EmitHelperFactory {
     fn immutable_true(&self) -> Id<Node> {
-        self.immutable_true
-            .borrow_mut()
-            .get_or_insert_with(|| {
+        *self.immutable_true
+            .get_or_init(|| {
                 self.factory
                     .ref_(self).create_true()
                     .set_emit_flags(EmitFlags::Immutable, self)
             })
-            .clone()
     }
 
     fn immutable_false(&self) -> Id<Node> {
-        self.immutable_false
-            .borrow_mut()
-            .get_or_insert_with(|| {
+        *self.immutable_false
+            .get_or_init(|| {
                 self.factory
                     .ref_(self).create_false()
                     .set_emit_flags(EmitFlags::Immutable, self)
             })
-            .clone()
     }
 
     pub fn get_unscoped_helper_name(&self, name: &str) -> Id<Node /*Identifier*/> {

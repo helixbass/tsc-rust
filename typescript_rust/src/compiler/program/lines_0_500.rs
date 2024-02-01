@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Borrow, Cow}, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io, time,
+    borrow::{Borrow, Cow}, cell::{RefCell, Cell}, cmp, collections::HashMap, convert::TryInto, io, time,
     time::SystemTime,
 };
 
@@ -134,7 +134,7 @@ pub fn create_compiler_host_worker(
     CompilerHostConcrete {
         set_parent_nodes,
         system,
-        existing_directories: GcCell::new(existing_directories),
+        existing_directories: RefCell::new(existing_directories),
         output_fingerprints: Default::default(),
         options,
         new_line,
@@ -154,54 +154,82 @@ pub fn create_compiler_host_worker(
 struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
     system: Id<Box<dyn System>>,
-    existing_directories: GcCell<HashMap<String, bool>>,
+    existing_directories: RefCell<HashMap<String, bool>>,
     #[unsafe_ignore_trace]
     output_fingerprints: RefCell<Option<HashMap<String, OutputFingerprint>>>,
     options: Id<CompilerOptions>,
     new_line: String,
-    current_directory: GcCell<Option<String>>,
+    current_directory: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
-    read_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-    file_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-    directory_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-    realpath_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-    get_directories_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-    write_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-    create_directory_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    read_file_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    file_exists_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    directory_exists_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    realpath_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    get_directories_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    write_file_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    create_directory_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
 }
 
 impl CompilerHostConcrete {
     fn maybe_read_file_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.read_file_override.borrow().clone()
+        self.read_file_override.get()
+    }
+
+    fn set_read_file_override(&self, read_file_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        self.read_file_override.set(read_file_override);
     }
 
     fn maybe_file_exists_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.file_exists_override.borrow().clone()
+        self.file_exists_override.get()
+    }
+
+    fn set_file_exists_override(&self, file_exists_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        self.file_exists_override.set(file_exists_override);
     }
 
     fn maybe_directory_exists_override(
         &self,
     ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.directory_exists_override.borrow().clone()
+        self.directory_exists_override.get()
+    }
+
+    fn set_directory_exists_override(&self, directory_exists_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        self.directory_exists_override.set(directory_exists_override);
     }
 
     fn maybe_realpath_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.realpath_override.borrow().clone()
+        self.realpath_override.get()
+    }
+
+    fn set_realpath_override(&self, realpath_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        self.realpath_override.set(realpath_override);
     }
 
     fn maybe_get_directories_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.get_directories_override.borrow().clone()
+        self.get_directories_override.get()
+    }
+
+    fn set_get_directories_override(&self, get_directories_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        self.get_directories_override.set(get_directories_override);
     }
 
     fn maybe_write_file_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.write_file_override.borrow().clone()
+        self.write_file_override.get()
+    }
+
+    fn set_write_file_override(&self, write_file_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        self.write_file_override.set(write_file_override);
     }
 
     fn maybe_create_directory_override(
         &self,
     ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.create_directory_override.borrow().clone()
+        self.create_directory_override.get()
+    }
+
+    fn set_create_directory_override(&self, create_directory_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        self.create_directory_override.set(create_directory_override);
     }
 
     fn compute_hash(&self, data: &str) -> String {
@@ -296,11 +324,10 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         &self,
         overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        let mut read_file_override = self.read_file_override.borrow_mut();
-        if read_file_override.is_some() && overriding_read_file.is_some() {
+        if self.maybe_read_file_override().is_some() && overriding_read_file.is_some() {
             panic!("Trying to re-override set_overriding_read_file(), need eg a stack instead?");
         }
-        *read_file_override = overriding_read_file;
+        self.set_read_file_override(overriding_read_file);
     }
 
     fn file_exists(&self, file_name: &str) -> bool {
@@ -319,11 +346,10 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         &self,
         overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        let mut file_exists_override = self.file_exists_override.borrow_mut();
-        if file_exists_override.is_some() && overriding_file_exists.is_some() {
+        if self.maybe_file_exists_override().is_some() && overriding_file_exists.is_some() {
             panic!("Trying to re-override set_overriding_file_exists(), need eg a stack instead?");
         }
-        *file_exists_override = overriding_file_exists;
+        self.set_file_exists_override(overriding_file_exists);
     }
 
     fn trace(&self, s: &str) {
@@ -354,13 +380,12 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         &self,
         overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        let mut directory_exists_override = self.directory_exists_override.borrow_mut();
-        if directory_exists_override.is_some() && overriding_directory_exists.is_some() {
+        if self.maybe_directory_exists_override().is_some() && overriding_directory_exists.is_some() {
             panic!(
                 "Trying to re-override set_overriding_directory_exists(), need eg a stack instead?"
             );
         }
-        *directory_exists_override = overriding_directory_exists;
+        self.set_directory_exists_override(overriding_directory_exists);
     }
 
     fn realpath(&self, path: &str) -> Option<String> {
@@ -383,11 +408,10 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         &self,
         overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        let mut realpath_override = self.realpath_override.borrow_mut();
-        if realpath_override.is_some() && overriding_realpath.is_some() {
+        if self.maybe_realpath_override().is_some() && overriding_realpath.is_some() {
             panic!("Trying to re-override set_overriding_realpath(), need eg a stack instead?");
         }
-        *realpath_override = overriding_realpath;
+        self.set_realpath_override(overriding_realpath);
     }
 
     fn get_directories(&self, path: &str) -> Option<Vec<String>> {
@@ -410,13 +434,12 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         &self,
         overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        let mut get_directories_override = self.get_directories_override.borrow_mut();
-        if get_directories_override.is_some() && overriding_get_directories.is_some() {
+        if self.maybe_get_directories_override().is_some() && overriding_get_directories.is_some() {
             panic!(
                 "Trying to re-override set_overriding_get_directories(), need eg a stack instead?"
             );
         }
-        *get_directories_override = overriding_get_directories;
+        self.set_get_directories_override(overriding_get_directories);
     }
 }
 
@@ -568,11 +591,10 @@ impl CompilerHost for CompilerHostConcrete {
         &self,
         overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        let mut write_file_override = self.write_file_override.borrow_mut();
-        if write_file_override.is_some() && overriding_write_file.is_some() {
+        if self.maybe_write_file_override().is_some() && overriding_write_file.is_some() {
             panic!("Trying to re-override set_overriding_write_file(), need eg a stack instead?");
         }
-        *write_file_override = overriding_write_file;
+        self.set_write_file_override(overriding_write_file);
     }
 
     fn get_environment_variable(&self, name: &str) -> Option<String> {
@@ -619,13 +641,12 @@ impl CompilerHost for CompilerHostConcrete {
         &self,
         overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        let mut create_directory_override = self.create_directory_override.borrow_mut();
-        if create_directory_override.is_some() && overriding_create_directory.is_some() {
+        if self.maybe_create_directory_override().is_some() && overriding_create_directory.is_some() {
             panic!(
                 "Trying to re-override set_overriding_create_directory(), need eg a stack instead?"
             );
         }
-        *create_directory_override = overriding_create_directory;
+        self.set_create_directory_override(overriding_create_directory);
     }
 
     fn is_on_release_old_source_file_supported(&self) -> bool {
@@ -705,7 +726,7 @@ struct ChangeCompilerHostLikeToUseCacheOverrider {
     file_exists_cache: RefCell<HashMap<String, bool>>,
     #[unsafe_ignore_trace]
     directory_exists_cache: RefCell<HashMap<String, bool>>,
-    source_file_cache: GcCell<HashMap<String, Id<Node /*SourceFile*/>>>,
+    source_file_cache: RefCell<HashMap<String, Id<Node /*SourceFile*/>>>,
     has_get_source_file_with_cache: bool,
 }
 
