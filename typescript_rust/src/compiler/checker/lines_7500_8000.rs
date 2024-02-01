@@ -319,7 +319,7 @@ impl SymbolTableToDeclarationStatements {
             self.type_checker.clone(),
             self.node_builder.clone(),
             self.context(),
-            self.rc_wrapper(),
+            self.arena_id(),
             create_property,
             method_kind,
             use_accessors,
@@ -660,7 +660,7 @@ pub(super) struct MakeSerializePropertySymbol {
     type_checker: Id<TypeChecker>,
     node_builder: Id<NodeBuilder>,
     context: Id<NodeBuilderContext>,
-    symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
+    symbol_table_to_declaration_statements: Id<SymbolTableToDeclarationStatements>,
     create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
     method_kind: SyntaxKind,
     use_accessors: bool,
@@ -677,7 +677,7 @@ impl MakeSerializePropertySymbol {
         type_checker: Id<TypeChecker>,
         node_builder: Id<NodeBuilder>,
         context: Id<NodeBuilderContext>,
-        symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
+        symbol_table_to_declaration_statements: Id<SymbolTableToDeclarationStatements>,
         create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
         method_kind: SyntaxKind,
         use_accessors: bool,
@@ -791,13 +791,13 @@ impl MakeSerializePropertySymbol {
                                         Some(
                                             self
                                                 .symbol_table_to_declaration_statements
-                                                .enclosing_declaration,
+                                                .ref_(self).enclosing_declaration,
                                         ),
                                         Some(&|symbol: Id<Symbol>| {
                                             self.symbol_table_to_declaration_statements
-                                                .include_private_symbol(symbol);
+                                                .ref_(self).include_private_symbol(symbol);
                                         }),
-                                        self.symbol_table_to_declaration_statements.bundled,
+                                        self.symbol_table_to_declaration_statements.ref_(self).bundled,
                                     )?,
                                 )
                             },
@@ -838,13 +838,13 @@ impl MakeSerializePropertySymbol {
                                     Some(
                                         self
                                             .symbol_table_to_declaration_statements
-                                            .enclosing_declaration,
+                                            .ref_(self).enclosing_declaration,
                                     ),
                                     Some(&|symbol: Id<Symbol>| {
                                         self.symbol_table_to_declaration_statements
-                                            .include_private_symbol(symbol);
+                                            .ref_(self).include_private_symbol(symbol);
                                     }),
-                                    self.symbol_table_to_declaration_statements.bundled,
+                                    self.symbol_table_to_declaration_statements.ref_(self).bundled,
                                 )?,
                             )
                         },
@@ -898,13 +898,13 @@ impl MakeSerializePropertySymbol {
                                 Some(
                                     self
                                         .symbol_table_to_declaration_statements
-                                        .enclosing_declaration,
+                                        .ref_(self).enclosing_declaration,
                                 ),
                                 Some(&|symbol: Id<Symbol>| {
                                     self.symbol_table_to_declaration_statements
-                                        .include_private_symbol(symbol);
+                                        .ref_(self).include_private_symbol(symbol);
                                 }),
-                                self.symbol_table_to_declaration_statements.bundled,
+                                self.symbol_table_to_declaration_statements.ref_(self).bundled,
                             )?,
                         )
                     } else {

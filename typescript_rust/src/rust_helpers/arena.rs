@@ -33,6 +33,7 @@ use crate::{
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
     OptionsNameMap, NodeSymbolOverride, NodeIdOverride, MakeSerializePropertySymbolCreateProperty,
+    SymbolTableToDeclarationStatements,
 };
 
 #[derive(Default)]
@@ -169,6 +170,7 @@ pub struct AllArenas {
     pub node_symbol_overrides: RefCell<Arena<Box<dyn NodeSymbolOverride>>>,
     pub node_id_overrides: RefCell<Arena<Box<dyn NodeIdOverride>>>,
     pub make_serialize_property_symbol_create_properties: RefCell<Arena<Box<dyn MakeSerializePropertySymbolCreateProperty>>>,
+    pub symbol_table_to_declaration_statements: RefCell<Arena<SymbolTableToDeclarationStatements>>,
 }
 
 pub trait HasArena {
@@ -1308,6 +1310,14 @@ pub trait HasArena {
 
     fn alloc_make_serialize_property_symbol_create_property(&self, make_serialize_property_symbol_create_property: Box<dyn MakeSerializePropertySymbolCreateProperty>) -> Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
         self.arena().alloc_make_serialize_property_symbol_create_property(make_serialize_property_symbol_create_property)
+    }
+
+    fn symbol_table_to_declaration_statements(&self, symbol_table_to_declaration_statements: Id<SymbolTableToDeclarationStatements>) -> Ref<SymbolTableToDeclarationStatements> {
+        self.arena().symbol_table_to_declaration_statements(symbol_table_to_declaration_statements)
+    }
+
+    fn alloc_symbol_table_to_declaration_statements(&self, symbol_table_to_declaration_statements: SymbolTableToDeclarationStatements) -> Id<SymbolTableToDeclarationStatements> {
+        self.arena().alloc_symbol_table_to_declaration_statements(symbol_table_to_declaration_statements)
     }
 }
 
@@ -2728,6 +2738,17 @@ impl HasArena for AllArenas {
         let id = self.make_serialize_property_symbol_create_properties.borrow_mut().alloc(make_serialize_property_symbol_create_property);
         id
     }
+
+    #[track_caller]
+    fn symbol_table_to_declaration_statements(&self, symbol_table_to_declaration_statements: Id<SymbolTableToDeclarationStatements>) -> Ref<SymbolTableToDeclarationStatements> {
+        Ref::map(self.symbol_table_to_declaration_statements.borrow(), |symbol_table_to_declaration_statements_| &symbol_table_to_declaration_statements_[symbol_table_to_declaration_statements])
+    }
+
+    fn alloc_symbol_table_to_declaration_statements(&self, symbol_table_to_declaration_statements: SymbolTableToDeclarationStatements) -> Id<SymbolTableToDeclarationStatements> {
+        let id = self.symbol_table_to_declaration_statements.borrow_mut().alloc(symbol_table_to_declaration_statements);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3873,6 +3894,14 @@ impl InArena for Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn MakeSerializePropertySymbolCreateProperty>> {
         has_arena.make_serialize_property_symbol_create_property(*self)
+    }
+}
+
+impl InArena for Id<SymbolTableToDeclarationStatements> {
+    type Item = SymbolTableToDeclarationStatements;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymbolTableToDeclarationStatements> {
+        has_arena.symbol_table_to_declaration_statements(*self)
     }
 }
 

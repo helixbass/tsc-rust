@@ -64,13 +64,13 @@ impl NodeBuilder {
             bundled,
             self,
         )
-        .call()
+        .ref_(self).call()
     }
 }
 
 #[derive(Trace, Finalize)]
-pub(super) struct SymbolTableToDeclarationStatements {
-    pub(super) _rc_wrapper: GcCell<Option<Gc<Self>>>,
+pub struct SymbolTableToDeclarationStatements {
+    pub(super) _arena_id: GcCell<Option<Id<Self>>>,
     pub(super) bundled: Option<bool>,
     pub(super) type_checker: Id<TypeChecker>,
     pub(super) context: GcCell<Id<NodeBuilderContext>>,
@@ -102,7 +102,7 @@ impl SymbolTableToDeclarationStatements {
         symbol_table: Id<SymbolTable>,
         bundled: Option<bool>,
         arena: &impl HasArena,
-    ) -> Gc<Self> {
+    ) -> Id<Self> {
         let oldcontext = context.arena_id();
         let mut context = context.clone();
         context.used_symbol_names = Rc::new(RefCell::new(Some(
@@ -113,8 +113,8 @@ impl SymbolTableToDeclarationStatements {
         )));
         context.remapped_symbol_names = Rc::new(RefCell::new(Some(Default::default())));
         let context = arena.alloc_node_builder_context(context);
-        let ret = Gc::new(Self {
-            _rc_wrapper: Default::default(),
+        let ret = arena.alloc_symbol_table_to_declaration_statements(Self {
+            _arena_id: Default::default(),
             bundled,
             type_checker: type_checker.clone(),
             context: GcCell::new(context.clone()),
@@ -129,15 +129,14 @@ impl SymbolTableToDeclarationStatements {
             symbol_table: GcCell::new(symbol_table),
             adding_declare: Cell::new(bundled != Some(true)),
         });
-        *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
-        *ret.serialize_property_symbol_for_class.borrow_mut() =
-            Some(ret.make_serialize_property_symbol(
+        *ret.ref_(arena).serialize_property_symbol_for_class.borrow_mut() =
+            Some(ret.ref_(arena).make_serialize_property_symbol(
                 MakeSerializePropertySymbolCreatePropertyDeclaration::new(arena),
                 SyntaxKind::MethodDeclaration,
                 true,
             ));
-        *ret.serialize_property_symbol_for_interface_worker
-            .borrow_mut() = Some(ret.make_serialize_property_symbol(
+        *ret.ref_(arena).serialize_property_symbol_for_interface_worker
+            .borrow_mut() = Some(ret.ref_(arena).make_serialize_property_symbol(
             MakeSerializePropertySymbolCreatePropertySignature::new(arena),
             SyntaxKind::MethodSignature,
             false,
@@ -156,8 +155,12 @@ impl SymbolTableToDeclarationStatements {
         ret
     }
 
-    pub fn rc_wrapper(&self) -> Gc<Self> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
+    }
+
+    pub fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
     pub fn context(&self) -> Id<NodeBuilderContext> {
@@ -1124,7 +1127,7 @@ struct SymbolTableToDeclarationStatementsSymbolTracker {
     type_checker: Id<TypeChecker>,
     node_builder: NodeBuilder,
     context: Id<NodeBuilderContext>,
-    symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
+    symbol_table_to_declaration_statements: Id<SymbolTableToDeclarationStatements>,
 }
 
 impl SymbolTableToDeclarationStatementsSymbolTracker {
@@ -1133,7 +1136,7 @@ impl SymbolTableToDeclarationStatementsSymbolTracker {
         type_checker: Id<TypeChecker>,
         node_builder: NodeBuilder,
         context: Id<NodeBuilderContext>,
-        symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
+        symbol_table_to_declaration_statements: Id<SymbolTableToDeclarationStatements>,
         arena: &impl HasArena,
     ) -> Id<Box<dyn SymbolTracker>> {
         arena.alloc_symbol_tracker(Box::new(Self {
@@ -1180,7 +1183,7 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
             };
             if !sym.ref_(self).flags().intersects(SymbolFlags::Property) {
                 self.symbol_table_to_declaration_statements
-                    .include_private_symbol(chain[0]);
+                    .ref_(self).include_private_symbol(chain[0]);
             }
         } else if
         /*oldcontext.tracker && */
