@@ -1540,7 +1540,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
             None,
         );
         get_or_create_cache(
-            self.module_name_to_directory_map.ref_(self).as_deref(),
+            &self.module_name_to_directory_map.ref_(self),
             redirected_reference,
             &*match mode {
                 None => non_relative_module_name.to_owned(),
