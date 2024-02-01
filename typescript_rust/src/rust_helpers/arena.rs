@@ -32,7 +32,7 @@ use crate::{
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
-    OptionsNameMap, NodeSymbolOverride, NodeIdOverride,
+    OptionsNameMap, NodeSymbolOverride, NodeIdOverride, MakeSerializePropertySymbolCreateProperty,
 };
 
 #[derive(Default)]
@@ -168,6 +168,7 @@ pub struct AllArenas {
     pub command_line_options_maps: RefCell<Arena<HashMap<String, Id<CommandLineOption>>>>,
     pub node_symbol_overrides: RefCell<Arena<Box<dyn NodeSymbolOverride>>>,
     pub node_id_overrides: RefCell<Arena<Box<dyn NodeIdOverride>>>,
+    pub make_serialize_property_symbol_create_properties: RefCell<Arena<Box<dyn MakeSerializePropertySymbolCreateProperty>>>,
 }
 
 pub trait HasArena {
@@ -1299,6 +1300,14 @@ pub trait HasArena {
 
     fn alloc_node_id_override(&self, node_id_override: Box<dyn NodeIdOverride>) -> Id<Box<dyn NodeIdOverride>> {
         self.arena().alloc_node_id_override(node_id_override)
+    }
+
+    fn make_serialize_property_symbol_create_property(&self, make_serialize_property_symbol_create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>) -> Ref<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        self.arena().make_serialize_property_symbol_create_property(make_serialize_property_symbol_create_property)
+    }
+
+    fn alloc_make_serialize_property_symbol_create_property(&self, make_serialize_property_symbol_create_property: Box<dyn MakeSerializePropertySymbolCreateProperty>) -> Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        self.arena().alloc_make_serialize_property_symbol_create_property(make_serialize_property_symbol_create_property)
     }
 }
 
@@ -2709,6 +2718,16 @@ impl HasArena for AllArenas {
         let id = self.node_id_overrides.borrow_mut().alloc(node_id_override);
         id
     }
+
+    #[track_caller]
+    fn make_serialize_property_symbol_create_property(&self, make_serialize_property_symbol_create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>) -> Ref<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        Ref::map(self.make_serialize_property_symbol_create_properties.borrow(), |make_serialize_property_symbol_create_properties| &make_serialize_property_symbol_create_properties[make_serialize_property_symbol_create_property])
+    }
+
+    fn alloc_make_serialize_property_symbol_create_property(&self, make_serialize_property_symbol_create_property: Box<dyn MakeSerializePropertySymbolCreateProperty>) -> Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        let id = self.make_serialize_property_symbol_create_properties.borrow_mut().alloc(make_serialize_property_symbol_create_property);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3846,6 +3865,14 @@ impl InArena for Id<Box<dyn NodeIdOverride>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn NodeIdOverride>> {
         has_arena.node_id_override(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+    type Item = Box<dyn MakeSerializePropertySymbolCreateProperty>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        has_arena.make_serialize_property_symbol_create_property(*self)
     }
 }
 

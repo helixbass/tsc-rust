@@ -132,13 +132,13 @@ impl SymbolTableToDeclarationStatements {
         *ret._rc_wrapper.borrow_mut() = Some(ret.clone());
         *ret.serialize_property_symbol_for_class.borrow_mut() =
             Some(ret.make_serialize_property_symbol(
-                MakeSerializePropertySymbolCreatePropertyDeclaration::new(),
+                MakeSerializePropertySymbolCreatePropertyDeclaration::new(arena),
                 SyntaxKind::MethodDeclaration,
                 true,
             ));
         *ret.serialize_property_symbol_for_interface_worker
             .borrow_mut() = Some(ret.make_serialize_property_symbol(
-            MakeSerializePropertySymbolCreatePropertySignature::new(),
+            MakeSerializePropertySymbolCreatePropertySignature::new(arena),
             SyntaxKind::MethodSignature,
             false,
         ));
@@ -1318,8 +1318,8 @@ impl HasArena for SymbolTableToDeclarationStatementsSymbolTracker {
 pub(super) struct MakeSerializePropertySymbolCreatePropertyDeclaration;
 
 impl MakeSerializePropertySymbolCreatePropertyDeclaration {
-    pub fn new() -> Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
-        Gc::new(Box::new(Self))
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        arena.alloc_make_serialize_property_symbol_create_property(Box::new(Self))
     }
 }
 
@@ -1356,8 +1356,8 @@ impl HasArena for MakeSerializePropertySymbolCreatePropertyDeclaration {
 pub(super) struct MakeSerializePropertySymbolCreatePropertySignature;
 
 impl MakeSerializePropertySymbolCreatePropertySignature {
-    pub fn new() -> Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
-        Gc::new(Box::new(Self))
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
+        arena.alloc_make_serialize_property_symbol_create_property(Box::new(Self))
     }
 }
 

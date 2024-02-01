@@ -311,7 +311,7 @@ impl SymbolTableToDeclarationStatements {
 
     pub(super) fn make_serialize_property_symbol(
         &self,
-        create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
+        create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
         method_kind: SyntaxKind,
         use_accessors: bool,
     ) -> MakeSerializePropertySymbol {
@@ -661,7 +661,7 @@ pub(super) struct MakeSerializePropertySymbol {
     node_builder: Id<NodeBuilder>,
     context: Id<NodeBuilderContext>,
     symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
-    create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
+    create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
     method_kind: SyntaxKind,
     use_accessors: bool,
 }
@@ -678,7 +678,7 @@ impl MakeSerializePropertySymbol {
         node_builder: Id<NodeBuilder>,
         context: Id<NodeBuilderContext>,
         symbol_table_to_declaration_statements: Gc<SymbolTableToDeclarationStatements>,
-        create_property: Gc<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
+        create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
         method_kind: SyntaxKind,
         use_accessors: bool,
     ) -> Self {
@@ -871,7 +871,7 @@ impl MakeSerializePropertySymbol {
             .intersects(SymbolFlags::Property | SymbolFlags::Variable | SymbolFlags::Accessor)
         {
             return Ok(vec![set_text_range_id_node(
-                self.create_property.call(
+                self.create_property.ref_(self).call(
                     None,
                     Some(
                         get_factory(self)
@@ -939,7 +939,7 @@ impl MakeSerializePropertySymbol {
                 .ref_(self).get_signatures_of_type(type_, SignatureKind::Call)?;
             if flag.intersects(ModifierFlags::Private) {
                 return Ok(vec![set_text_range_id_node(
-                    self.create_property.call(
+                    self.create_property.ref_(self).call(
                         None,
                         Some(
                             get_factory(self)
@@ -1025,7 +1025,7 @@ impl MakeSerializePropertySymbol {
     }
 }
 
-pub(super) trait MakeSerializePropertySymbolCreateProperty: Trace + Finalize {
+pub trait MakeSerializePropertySymbolCreateProperty: Trace + Finalize {
     fn call(
         &self,
         decorators: Option<NodeArrayOrVec /*Decorator*/>,
