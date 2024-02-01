@@ -172,6 +172,7 @@ pub struct AllArenas {
     pub make_serialize_property_symbol_create_properties: RefCell<Arena<Box<dyn MakeSerializePropertySymbolCreateProperty>>>,
     pub symbol_table_to_declaration_statements: RefCell<Arena<SymbolTableToDeclarationStatements>>,
     pub input_files_initialized_states: RefCell<Arena<InputFilesInitializedState>>,
+    pub vec_symbol_tables: RefCell<Arena<Vec<Id<SymbolTable>>>>,
 }
 
 pub trait HasArena {
@@ -1327,6 +1328,18 @@ pub trait HasArena {
 
     fn alloc_input_files_initialized_state(&self, input_files_initialized_state: InputFilesInitializedState) -> Id<InputFilesInitializedState> {
         self.arena().alloc_input_files_initialized_state(input_files_initialized_state)
+    }
+
+    fn vec_symbol_table(&self, vec_symbol_table: Id<Vec<Id<SymbolTable>>>) -> Ref<Vec<Id<SymbolTable>>> {
+        self.arena().vec_symbol_table(vec_symbol_table)
+    }
+
+    fn vec_symbol_table_mut(&self, vec_symbol_table: Id<Vec<Id<SymbolTable>>>) -> RefMut<Vec<Id<SymbolTable>>> {
+        self.arena().vec_symbol_table_mut(vec_symbol_table)
+    }
+
+    fn alloc_vec_symbol_table(&self, vec_symbol_table: Vec<Id<SymbolTable>>) -> Id<Vec<Id<SymbolTable>>> {
+        self.arena().alloc_vec_symbol_table(vec_symbol_table)
     }
 }
 
@@ -2768,6 +2781,20 @@ impl HasArena for AllArenas {
         let id = self.input_files_initialized_states.borrow_mut().alloc(input_files_initialized_state);
         id
     }
+
+    #[track_caller]
+    fn vec_symbol_table(&self, vec_symbol_table: Id<Vec<Id<SymbolTable>>>) -> Ref<Vec<Id<SymbolTable>>> {
+        Ref::map(self.vec_symbol_tables.borrow(), |vec_symbol_tables| &vec_symbol_tables[vec_symbol_table])
+    }
+
+    fn vec_symbol_table_mut(&self, vec_symbol_table: Id<Vec<Id<SymbolTable>>>) -> RefMut<Vec<Id<SymbolTable>>> {
+        RefMut::map(self.vec_symbol_tables.borrow_mut(), |vec_symbol_tables| &mut vec_symbol_tables[vec_symbol_table])
+    }
+
+    fn alloc_vec_symbol_table(&self, vec_symbol_table: Vec<Id<SymbolTable>>) -> Id<Vec<Id<SymbolTable>>> {
+        let id = self.vec_symbol_tables.borrow_mut().alloc(vec_symbol_table);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3929,6 +3956,18 @@ impl InArena for Id<InputFilesInitializedState> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, InputFilesInitializedState> {
         has_arena.input_files_initialized_state(*self)
+    }
+}
+
+impl InArena for Id<Vec<Id<SymbolTable>>> {
+    type Item = Vec<Id<SymbolTable>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<SymbolTable>>> {
+        has_arena.vec_symbol_table(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Vec<Id<SymbolTable>>> {
+        has_arena.vec_symbol_table_mut(*self)
     }
 }
 

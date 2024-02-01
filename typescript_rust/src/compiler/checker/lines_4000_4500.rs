@@ -268,7 +268,7 @@ impl TypeChecker {
         Ok(())
     }
 
-    // extracted this because it's easy to do BaseObjectType.into() -> Gc<Type> to incorrectly wrap
+    // extracted this because it's easy to do BaseObjectType.into() -> Type to incorrectly wrap
     // this return type (should be wrapped in a BaseInterfaceType) (so only "knowing" consumers
     // should call this instead of the "default" .create_anonymous_type() which does the correct
     // wrapping for you)
@@ -490,7 +490,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
         visited_symbol_tables_map: Option<
-            &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
+            &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
         >,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
@@ -529,7 +529,7 @@ impl TypeChecker {
 
         let id = get_symbol_id(&symbol.ref_(self));
         if !visited_symbol_tables_map.contains_key(&id) {
-            visited_symbol_tables_map.insert(id, Gc::new(GcCell::new(vec![])));
+            visited_symbol_tables_map.insert(id, self.alloc_vec_symbol_table(vec![]));
         }
         let visited_symbol_tables = visited_symbol_tables_map.get(&id).unwrap().clone();
         let result = self.try_for_each_symbol_table_in_scope(
@@ -558,17 +558,17 @@ impl TypeChecker {
 
     pub(super) fn get_accessible_symbol_chain_from_symbol_table(
         &self,
-        visited_symbol_tables: Gc<GcCell<Vec<Id<SymbolTable>>>>,
+        visited_symbol_tables: Id<Vec<Id<SymbolTable>>>,
         meaning: SymbolFlags,
         symbol: Id<Symbol>,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
         symbols: Id<SymbolTable>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
-        if !push_if_unique_eq(&mut visited_symbol_tables.borrow_mut(), &symbols) {
+        if !push_if_unique_eq(&mut visited_symbol_tables.ref_mut(self), &symbols) {
             return Ok(None);
         }
 
@@ -583,7 +583,7 @@ impl TypeChecker {
             ignore_qualification,
             is_local_name_lookup,
         )?;
-        visited_symbol_tables.borrow_mut().pop();
+        visited_symbol_tables.ref_mut(self).pop();
         Ok(result)
     }
 
@@ -591,7 +591,7 @@ impl TypeChecker {
         &self,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
         symbol_from_symbol_table: Id<Symbol>,
         meaning: SymbolFlags,
     ) -> io::Result<bool> {
@@ -615,7 +615,7 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
         symbol_from_symbol_table: Option<Id<Symbol>>,
         resolved_alias_symbol: Option<Id<Symbol>>,
         ignore_qualification: Option<bool>,
@@ -655,8 +655,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
-        visited_symbol_tables: Gc<GcCell<Vec<Id<SymbolTable>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
+        visited_symbol_tables: Id<Vec<Id<SymbolTable>>>,
         symbols: Id<SymbolTable>,
         ignore_qualification: Option<bool>,
         is_local_name_lookup: Option<bool>,
@@ -789,8 +789,8 @@ impl TypeChecker {
         meaning: SymbolFlags,
         enclosing_declaration: Option<Id<Node>>,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: &mut HashMap<SymbolId, Gc<GcCell<Vec<Id<SymbolTable>>>>>,
-        visited_symbol_tables: Gc<GcCell<Vec<Id<SymbolTable>>>>,
+        visited_symbol_tables_map: &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
+        visited_symbol_tables: Id<Vec<Id<SymbolTable>>>,
         symbol_from_symbol_table: Id<Symbol>,
         resolved_import_symbol: Id<Symbol>,
         ignore_qualification: Option<bool>,
