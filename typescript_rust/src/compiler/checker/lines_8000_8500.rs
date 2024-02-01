@@ -6,7 +6,6 @@ use std::{
     io, ptr,
 };
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};

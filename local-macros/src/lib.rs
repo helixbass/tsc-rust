@@ -343,8 +343,8 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_type_parameters()
                     }
 
-                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::NodeArray>>> {
-                        self.#first_field_name.maybe_type_parameters_mut()
+                    fn set_type_parameters(&self, type_parameters: ::std::option::Option<::id_arena::Id<crate::NodeArray>>) {
+                        self.#first_field_name.set_type_parameters(type_parameters);
                     }
                 }
             }
@@ -965,9 +965,9 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_type_parameters_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::NodeArray>>> {
+                    fn set_type_parameters(&self, type_parameters: ::std::option::Option<::id_arena::Id<crate::NodeArray>>) {
                         match self {
-                            #(#ast_type_name::#variant_names(nested) => nested.maybe_type_parameters_mut()),*
+                            #(#ast_type_name::#variant_names(nested) => nested.set_type_parameters(type_parameters)),*
                         }
                     }
                 }

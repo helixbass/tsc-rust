@@ -553,7 +553,7 @@ impl TypeChecker {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct NodeBuilder {
-    pub(super) _arena_id: GcCell<Option<Id<Self>>>,
+    pub(super) _arena_id: Cell<Option<Id<Self>>>,
     pub type_checker: Id<TypeChecker>,
 }
 
@@ -572,11 +572,11 @@ impl NodeBuilder {
     }
 
     pub fn arena_id(&self) -> Id<Self> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     pub fn set_arena_id(&self, id: Id<Self>) {
-        *self._arena_id.borrow_mut() = Some(id);
+        self._arena_id.set(Some(id));
     }
 
     pub fn type_to_type_node(
@@ -1814,12 +1814,12 @@ impl HasArena for NodeBuilderContextWrappedSymbolTracker {
 
 #[derive(Trace, Finalize)]
 pub struct NodeBuilderContext {
-    pub(super) _arena_id: GcCell<Option<Id<NodeBuilderContext>>>,
+    pub(super) _arena_id: Cell<Option<Id<NodeBuilderContext>>>,
     #[unsafe_ignore_trace]
     pub(super) enclosing_declaration: Cell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub flags: Cell<NodeBuilderFlags>,
-    pub(super) tracker: GcCell<Id<Box<dyn SymbolTracker>>>,
+    pub(super) tracker: Cell<Id<Box<dyn SymbolTracker>>>,
 
     #[unsafe_ignore_trace]
     pub encountered_error: Cell<bool>,
@@ -1859,7 +1859,7 @@ impl NodeBuilderContext {
             _arena_id: Default::default(),
             enclosing_declaration: Cell::new(enclosing_declaration),
             flags: Cell::new(flags),
-            tracker: GcCell::new(tracker),
+            tracker: Cell::new(tracker),
             encountered_error: Default::default(),
             reported_diagnostic: Default::default(),
             visited_types: Default::default(),
@@ -1878,11 +1878,11 @@ impl NodeBuilderContext {
     }
 
     pub fn arena_id(&self) -> Id<Self> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     pub fn set_arena_id(&self, id: Id<Self>) {
-        *self._arena_id.borrow_mut() = Some(id);
+        self._arena_id.set(Some(id));
     }
 
     pub fn maybe_enclosing_declaration(&self) -> Option<Id<Node>> {
@@ -1906,15 +1906,15 @@ impl NodeBuilderContext {
     }
 
     pub fn tracker_ref(&self) -> debug_cell::Ref<'_, Box<dyn SymbolTracker>> {
-        self.tracker.borrow().clone().ref_(self)
+        self.tracker.get().ref_(self)
     }
 
     pub fn tracker(&self) -> Id<Box<dyn SymbolTracker>> {
-        self.tracker.borrow().clone()
+        self.tracker.get()
     }
 
     pub fn set_tracker(&self, tracker: Id<Box<dyn SymbolTracker>>) {
-        *self.tracker.borrow_mut() = tracker;
+        self.tracker.set(tracker);
     }
 
     pub fn encountered_error(&self) -> bool {

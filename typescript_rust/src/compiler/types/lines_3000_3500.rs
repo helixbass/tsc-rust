@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell, Ref, RefMut};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -992,7 +992,7 @@ pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
     pub constraint: Option<Id<Node /*JSDocTypeExpression*/>>,
     pub type_parameters: Id<NodeArray>, /*<TypeParameterDeclaration>*/
-    type_parameters_for_has_type_parameters_interface: GcCell<Option<Id<NodeArray>>>, /*<TypeParameterDeclaration>*/
+    type_parameters_for_has_type_parameters_interface: Cell<Option<Id<NodeArray>>>, /*<TypeParameterDeclaration>*/
 }
 
 impl JSDocTemplateTag {
@@ -1005,7 +1005,7 @@ impl JSDocTemplateTag {
             _base_jsdoc_tag: base_jsdoc_tag,
             constraint,
             type_parameters: type_parameters.clone(),
-            type_parameters_for_has_type_parameters_interface: GcCell::new(Some(type_parameters)),
+            type_parameters_for_has_type_parameters_interface: Cell::new(Some(type_parameters)),
         }
     }
 }
@@ -1013,13 +1013,12 @@ impl JSDocTemplateTag {
 impl HasTypeParametersInterface for JSDocTemplateTag {
     fn maybe_type_parameters(&self) -> Option<Id<NodeArray>> {
         self.type_parameters_for_has_type_parameters_interface
-            .borrow()
-            .clone()
+            .get()
     }
 
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
+    fn set_type_parameters(&self, type_parameters: Option<Id<NodeArray>>) {
         self.type_parameters_for_has_type_parameters_interface
-            .borrow_mut()
+            .set(type_parameters);
     }
 }
 
@@ -1159,7 +1158,7 @@ impl JSDocTypeLikeTagInterface for JSDocCallbackTag {
 #[ast_type]
 pub struct JSDocSignature {
     _node: BaseNode,
-    type_parameters: GcCell<Option<Id<NodeArray> /*<JSDocTemplateTag>*/>>,
+    type_parameters: Cell<Option<Id<NodeArray> /*<JSDocTemplateTag>*/>>,
     pub parameters: Id<NodeArray>, /*<JSDocParameterTag>*/
     pub type_: Option<Id<Node /*JSDocReturnTag*/>>,
 }
@@ -1173,7 +1172,7 @@ impl JSDocSignature {
     ) -> Self {
         Self {
             _node: base_node,
-            type_parameters: GcCell::new(type_parameters),
+            type_parameters: Cell::new(type_parameters),
             parameters,
             type_,
         }
@@ -1212,11 +1211,11 @@ impl HasTypeInterface for JSDocSignature {
 
 impl HasTypeParametersInterface for JSDocSignature {
     fn maybe_type_parameters(&self) -> Option<Id<NodeArray>> {
-        self.type_parameters.borrow().clone()
+        self.type_parameters.get()
     }
 
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
-        self.type_parameters.borrow_mut()
+    fn set_type_parameters(&self, type_parameters: Option<Id<NodeArray>>) {
+        self.type_parameters.set(type_parameters);
     }
 }
 
@@ -1441,7 +1440,7 @@ pub struct FlowStart {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    node: GcCell<
+    node: Cell<
         Option<
             Id<
                 Node, /*FunctionExpression | ArrowFunction | MethodDeclaration | GetAccessorDeclaration | SetAccessorDeclaration*/
@@ -1455,18 +1454,18 @@ impl FlowStart {
         Self {
             flags: Cell::new(flags),
             id: Default::default(),
-            node: GcCell::new(node),
+            node: Cell::new(node),
         }
     }
 }
 
 impl FlowStart {
     pub fn maybe_node(&self) -> Option<Id<Node>> {
-        self.node.borrow().clone()
+        self.node.get()
     }
 
     pub fn set_node(&self, node: Option<Id<Node>>) {
-        *self.node.borrow_mut() = node;
+        self.node.set(node);
     }
 }
 
@@ -1500,7 +1499,7 @@ pub struct FlowLabel {
     flags: Cell<FlowFlags>,
     #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
-    antecedents: GcCell<Option<Vec<Id<FlowNode>>>>,
+    antecedents: RefCell<Option<Vec<Id<FlowNode>>>>,
 }
 
 impl FlowLabel {
@@ -1508,15 +1507,15 @@ impl FlowLabel {
         Self {
             flags: Cell::new(flags),
             id: Cell::new(None),
-            antecedents: GcCell::new(antecedents),
+            antecedents: RefCell::new(antecedents),
         }
     }
 
-    pub fn maybe_antecedents(&self) -> GcCellRef<Option<Vec<Id<FlowNode>>>> {
+    pub fn maybe_antecedents(&self) -> Ref<Option<Vec<Id<FlowNode>>>> {
         self.antecedents.borrow()
     }
 
-    pub fn maybe_antecedents_mut(&self) -> GcCellRefMut<Option<Vec<Id<FlowNode>>>> {
+    pub fn maybe_antecedents_mut(&self) -> RefMut<Option<Vec<Id<FlowNode>>>> {
         self.antecedents.borrow_mut()
     }
 

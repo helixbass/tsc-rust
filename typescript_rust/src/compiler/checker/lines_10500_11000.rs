@@ -4,7 +4,6 @@ use std::{
     io, ptr,
 };
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};

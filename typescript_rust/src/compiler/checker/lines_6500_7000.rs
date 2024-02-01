@@ -1,6 +1,6 @@
 use std::{
     borrow::Borrow,
-    cell::{Cell, RefCell},
+    cell::{Cell, RefCell, Ref, RefMut},
     collections::{HashMap, HashSet},
     io, ptr,
     rc::Rc,
@@ -32,6 +32,7 @@ use crate::{
     SymbolFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker, SyntaxKind, TypeChecker,
     TypeInterface,
     OptionInArena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+    ref_unwrapped,
 };
 
 impl NodeBuilder {
@@ -70,20 +71,20 @@ impl NodeBuilder {
 
 #[derive(Trace, Finalize)]
 pub struct SymbolTableToDeclarationStatements {
-    pub(super) _arena_id: GcCell<Option<Id<Self>>>,
+    pub(super) _arena_id: Cell<Option<Id<Self>>>,
     pub(super) bundled: Option<bool>,
     pub(super) type_checker: Id<TypeChecker>,
-    pub(super) context: GcCell<Id<NodeBuilderContext>>,
+    pub(super) context: Cell<Id<NodeBuilderContext>>,
     pub(super) node_builder: Id<NodeBuilder>,
-    pub(super) serialize_property_symbol_for_class: GcCell<Option<MakeSerializePropertySymbol>>,
+    pub(super) serialize_property_symbol_for_class: Cell<Option<MakeSerializePropertySymbol>>,
     pub(super) serialize_property_symbol_for_interface_worker:
-        GcCell<Option<MakeSerializePropertySymbol>>,
+        Cell<Option<MakeSerializePropertySymbol>>,
     pub(super) enclosing_declaration: Id<Node>,
-    pub(super) results: GcCell<Vec<Id<Node>>>,
-    pub(super) visited_symbols: GcCell<HashSet<SymbolId>>,
-    pub(super) deferred_privates_stack: GcCell<Vec<HashMap<SymbolId, Id<Symbol>>>>,
+    pub(super) results: RefCell<Vec<Id<Node>>>,
+    pub(super) visited_symbols: RefCell<HashSet<SymbolId>>,
+    pub(super) deferred_privates_stack: RefCell<Vec<HashMap<SymbolId, Id<Symbol>>>>,
     pub(super) oldcontext: Id<NodeBuilderContext>,
-    pub(super) symbol_table: GcCell<Id<SymbolTable>>,
+    pub(super) symbol_table: Cell<Id<SymbolTable>>,
     #[unsafe_ignore_trace]
     pub(super) adding_declare: Cell<bool>,
 }
@@ -117,7 +118,7 @@ impl SymbolTableToDeclarationStatements {
             _arena_id: Default::default(),
             bundled,
             type_checker: type_checker.clone(),
-            context: GcCell::new(context.clone()),
+            context: Cell::new(context),
             node_builder: node_builder.arena_id(),
             serialize_property_symbol_for_class: Default::default(),
             serialize_property_symbol_for_interface_worker: Default::default(),
@@ -126,21 +127,23 @@ impl SymbolTableToDeclarationStatements {
             visited_symbols: Default::default(),
             deferred_privates_stack: Default::default(),
             oldcontext: oldcontext.clone(),
-            symbol_table: GcCell::new(symbol_table),
+            symbol_table: Cell::new(symbol_table),
             adding_declare: Cell::new(bundled != Some(true)),
         });
-        *ret.ref_(arena).serialize_property_symbol_for_class.borrow_mut() =
+        ret.ref_(arena).serialize_property_symbol_for_class.set(
             Some(ret.ref_(arena).make_serialize_property_symbol(
                 MakeSerializePropertySymbolCreatePropertyDeclaration::new(arena),
                 SyntaxKind::MethodDeclaration,
                 true,
-            ));
-        *ret.ref_(arena).serialize_property_symbol_for_interface_worker
-            .borrow_mut() = Some(ret.ref_(arena).make_serialize_property_symbol(
-            MakeSerializePropertySymbolCreatePropertySignature::new(arena),
-            SyntaxKind::MethodSignature,
-            false,
-        ));
+            ))
+        );
+        ret.ref_(arena).serialize_property_symbol_for_interface_worker.set(
+            Some(ret.ref_(arena).make_serialize_property_symbol(
+                MakeSerializePropertySymbolCreatePropertySignature::new(arena),
+                SyntaxKind::MethodSignature,
+                false,
+            ))
+        );
         context.ref_(arena).set_tracker(SymbolTableToDeclarationStatementsSymbolTracker::new(
             oldcontext.ref_(arena).tracker(),
             type_checker,
@@ -156,36 +159,36 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub fn arena_id(&self) -> Id<Self> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     pub fn set_arena_id(&self, id: Id<Self>) {
-        *self._arena_id.borrow_mut() = Some(id);
+        self._arena_id.set(Some(id));
     }
 
     pub fn context(&self) -> Id<NodeBuilderContext> {
-        self.context.borrow().clone()
+        self.context.get()
     }
 
     pub fn set_context(&self, context: Id<NodeBuilderContext>) {
-        *self.context.borrow_mut() = context;
+        self.context.set(context);
     }
 
-    pub fn serialize_property_symbol_for_class(&self) -> GcCellRef<MakeSerializePropertySymbol> {
-        gc_cell_ref_unwrapped(&self.serialize_property_symbol_for_class)
+    pub fn serialize_property_symbol_for_class(&self) -> Ref<MakeSerializePropertySymbol> {
+        ref_unwrapped(&self.serialize_property_symbol_for_class)
     }
 
     pub fn serialize_property_symbol_for_interface_worker(
         &self,
-    ) -> GcCellRef<MakeSerializePropertySymbol> {
-        gc_cell_ref_unwrapped(&self.serialize_property_symbol_for_interface_worker)
+    ) -> Ref<MakeSerializePropertySymbol> {
+        ref_unwrapped(&self.serialize_property_symbol_for_interface_worker)
     }
 
-    pub fn results(&self) -> GcCellRef<Vec<Id<Node>>> {
+    pub fn results(&self) -> Ref<Vec<Id<Node>>> {
         self.results.borrow()
     }
 
-    pub fn results_mut(&self) -> GcCellRefMut<Vec<Id<Node>>> {
+    pub fn results_mut(&self) -> RefMut<Vec<Id<Node>>> {
         self.results.borrow_mut()
     }
 
@@ -193,28 +196,28 @@ impl SymbolTableToDeclarationStatements {
         *self.results.borrow_mut() = results;
     }
 
-    pub fn visited_symbols(&self) -> GcCellRef<HashSet<SymbolId>> {
+    pub fn visited_symbols(&self) -> Ref<HashSet<SymbolId>> {
         self.visited_symbols.borrow()
     }
 
-    pub fn visited_symbols_mut(&self) -> GcCellRefMut<HashSet<SymbolId>> {
+    pub fn visited_symbols_mut(&self) -> RefMut<HashSet<SymbolId>> {
         self.visited_symbols.borrow_mut()
     }
 
-    pub fn deferred_privates_stack(&self) -> GcCellRef<Vec<HashMap<SymbolId, Id<Symbol>>>> {
+    pub fn deferred_privates_stack(&self) -> Ref<Vec<HashMap<SymbolId, Id<Symbol>>>> {
         self.deferred_privates_stack.borrow()
     }
 
-    pub fn deferred_privates_stack_mut(&self) -> GcCellRefMut<Vec<HashMap<SymbolId, Id<Symbol>>>> {
+    pub fn deferred_privates_stack_mut(&self) -> RefMut<Vec<HashMap<SymbolId, Id<Symbol>>>> {
         self.deferred_privates_stack.borrow_mut()
     }
 
     pub fn symbol_table(&self) -> Id<SymbolTable> {
-        self.symbol_table.borrow().clone()
+        self.symbol_table.get()
     }
 
     pub fn set_symbol_table(&self, symbol_table: Id<SymbolTable>) {
-        *self.symbol_table.borrow_mut() = symbol_table;
+        self.symbol_table.set(symbol_table);
     }
 
     pub fn adding_declare(&self) -> bool {

@@ -658,7 +658,7 @@ impl SymbolTableToDeclarationStatements {
     }
 }
 
-#[derive(Trace, Finalize)]
+#[derive(Copy, Clone, Trace, Finalize)]
 pub(super) struct MakeSerializePropertySymbol {
     type_checker: Id<TypeChecker>,
     node_builder: Id<NodeBuilder>,

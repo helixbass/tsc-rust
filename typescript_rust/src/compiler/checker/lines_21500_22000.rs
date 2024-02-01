@@ -576,15 +576,15 @@ pub(super) struct InferTypes {
     contravariant: Cell<bool>,
     #[unsafe_ignore_trace]
     bivariant: Cell<bool>,
-    propagation_type: GcCell<Option<Id<Type>>>,
+    propagation_type: Cell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     inference_priority: Cell<InferencePriority>,
     #[unsafe_ignore_trace]
     allow_complex_constraint_inference: Cell<bool>,
     #[unsafe_ignore_trace]
     visited: RefCell<Option<HashMap<String, InferencePriority>>>,
-    source_stack: GcCell<Option<Vec<RecursionIdentity>>>,
-    target_stack: GcCell<Option<Vec<RecursionIdentity>>>,
+    source_stack: RefCell<Option<Vec<RecursionIdentity>>>,
+    target_stack: RefCell<Option<Vec<RecursionIdentity>>>,
     #[unsafe_ignore_trace]
     expanding_flags: Cell<ExpandingFlags>,
 }
@@ -644,8 +644,12 @@ impl InferTypes {
         self.bivariant.set(bivariant);
     }
 
-    pub(super) fn maybe_propagation_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.propagation_type.borrow_mut()
+    pub(super) fn maybe_propagation_type(&self) -> Option<Id<Type>> {
+        self.propagation_type.get()
+    }
+
+    pub(super) fn set_propagation_type(&self, propagation_type: Option<Id<Type>>) {
+        self.propagation_type.set(propagation_type);
     }
 
     pub(super) fn inference_priority(&self) -> InferencePriority {
@@ -672,12 +676,28 @@ impl InferTypes {
         self.visited.borrow_mut()
     }
 
-    pub(super) fn maybe_source_stack(&self) -> GcCellRefMut<Option<Vec<RecursionIdentity>>> {
+    pub(super) fn maybe_source_stack(&self) -> Ref<Option<Vec<RecursionIdentity>>> {
+        self.source_stack.borrow()
+    }
+
+    pub(super) fn maybe_source_stack_mut(&self) -> RefMut<Option<Vec<RecursionIdentity>>> {
         self.source_stack.borrow_mut()
     }
 
-    pub(super) fn maybe_target_stack(&self) -> GcCellRefMut<Option<Vec<RecursionIdentity>>> {
+    pub(super) fn set_source_stack(&self, source_stack: Option<Vec<RecursionIdentity>>) {
+        *self.source_stack.borrow_mut() = source_stack;
+    }
+
+    pub(super) fn maybe_target_stack(&self) -> Ref<Option<Vec<RecursionIdentity>>> {
+        self.target_stack.borrow()
+    }
+
+    pub(super) fn maybe_target_stack_mut(&self) -> RefMut<Option<Vec<RecursionIdentity>>> {
         self.target_stack.borrow_mut()
+    }
+
+    pub(super) fn set_target_stack(&self, target_stack: Option<Vec<RecursionIdentity>>) {
+        *self.target_stack.borrow_mut() = target_stack;
     }
 
     pub(super) fn expanding_flags(&self) -> ExpandingFlags {
@@ -697,10 +717,10 @@ impl InferTypes {
             return Ok(());
         }
         if source == self.type_checker.ref_(self).wildcard_type() {
-            let save_propagation_type = self.maybe_propagation_type().clone();
-            *self.maybe_propagation_type() = Some(source);
+            let save_propagation_type = self.maybe_propagation_type();
+            self.set_propagation_type(Some(source));
             self.infer_from_types(target, target)?;
-            *self.maybe_propagation_type() = save_propagation_type;
+            self.set_propagation_type(save_propagation_type);
             return Ok(());
         }
         if let Some(source_alias_symbol) = {
@@ -886,7 +906,6 @@ impl InferTypes {
                     if Some(self.priority()) == inference.ref_(self).maybe_priority() {
                         let candidate = self
                             .maybe_propagation_type()
-                            .clone()
                             .unwrap_or_else(|| source.clone());
                         if self.contravariant() && !self.bivariant() {
                             if !contains(inference.ref_(self).maybe_contra_candidates().as_deref(), &candidate)
@@ -1192,22 +1211,22 @@ impl InferTypes {
         }
         if self.expanding_flags() != ExpandingFlags::Both {
             if self.maybe_source_stack().is_none() {
-                *self.maybe_source_stack() = Some(vec![]);
+                self.set_source_stack(Some(vec![]));
             }
-            self.maybe_source_stack()
+            self.maybe_source_stack_mut()
                 .as_mut()
                 .unwrap()
                 .push(source_identity);
             if self.maybe_target_stack().is_none() {
-                *self.maybe_target_stack() = Some(vec![]);
+                self.set_target_stack(Some(vec![]));
             }
-            self.maybe_target_stack()
+            self.maybe_target_stack_mut()
                 .as_mut()
                 .unwrap()
                 .push(target_identity);
             action(source, target)?;
-            self.maybe_target_stack().as_mut().unwrap().pop();
-            self.maybe_source_stack().as_mut().unwrap().pop();
+            self.maybe_target_stack_mut().as_mut().unwrap().pop();
+            self.maybe_source_stack_mut().as_mut().unwrap().pop();
         } else {
             self.set_inference_priority(InferencePriority::Circularity);
         }

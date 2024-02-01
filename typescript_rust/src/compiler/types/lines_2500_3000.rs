@@ -1405,7 +1405,7 @@ impl HasElementsInterface for ArrayBindingPattern {
 
 pub trait HasTypeParametersInterface {
     fn maybe_type_parameters(&self) -> Option<Id<NodeArray>>;
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>>;
+    fn set_type_parameters(&self, type_parameters: Option<Id<NodeArray>>);
 }
 
 pub trait GenericNamedDeclarationInterface:
@@ -1437,7 +1437,7 @@ impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
         self.type_parameters.borrow().clone()
     }
 
-    fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
+    fn set_type_parameters(&self, type_parameters: Option<Id<NodeArray>>) {
         self.type_parameters.borrow_mut()
     }
 }

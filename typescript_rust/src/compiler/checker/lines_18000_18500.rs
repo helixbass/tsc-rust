@@ -29,24 +29,24 @@ use crate::{
 
 #[derive(Trace, Finalize)]
 pub struct CheckTypeRelatedTo {
-    _arena_id: GcCell<Option<Id<CheckTypeRelatedTo>>>,
+    _arena_id: Cell<Option<Id<CheckTypeRelatedTo>>>,
     pub type_checker: Id<TypeChecker>,
     pub source: Id<Type>,
     pub target: Id<Type>,
     #[unsafe_ignore_trace]
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
-    pub error_node: GcCell<Option<Id<Node>>>,
+    pub error_node: Cell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
     pub containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     pub error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     #[unsafe_ignore_trace]
     pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
-    pub related_info: GcCell<Option<Vec<DiagnosticRelatedInformation>>>,
+    pub related_info: RefCell<Option<Vec<DiagnosticRelatedInformation>>>,
     #[unsafe_ignore_trace]
     pub maybe_keys: RefCell<Option<Vec<String>>>,
-    pub source_stack: GcCell<Option<Vec<Id<Type>>>>,
-    pub target_stack: GcCell<Option<Vec<Id<Type>>>>,
+    pub source_stack: RefCell<Option<Vec<Id<Type>>>>,
+    pub target_stack: RefCell<Option<Vec<Id<Type>>>>,
     #[unsafe_ignore_trace]
     pub maybe_count: Cell<usize>,
     #[unsafe_ignore_trace]
@@ -59,7 +59,7 @@ pub struct CheckTypeRelatedTo {
     pub overflow: Cell<bool>,
     #[unsafe_ignore_trace]
     pub override_next_error_info: Cell<usize>,
-    pub last_skipped_info: GcCell<Option<(Id<Type>, Id<Type>)>>,
+    pub last_skipped_info: Cell<Option<(Id<Type>, Id<Type>)>>,
     #[unsafe_ignore_trace]
     pub incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
     #[unsafe_ignore_trace]
@@ -89,7 +89,7 @@ impl CheckTypeRelatedTo {
             source,
             target,
             relation,
-            error_node: GcCell::new(error_node),
+            error_node: Cell::new(error_node),
             head_message,
             containing_message_chain,
             error_output_container,
@@ -110,20 +110,20 @@ impl CheckTypeRelatedTo {
         })
     }
 
-    pub fn set_arena_id(&self, id: Id<Self>) {
-        *self._arena_id.borrow_mut() = Some(id);
+    pub(super) fn arena_id(&self) -> Id<Self> {
+        self._arena_id.get().unwrap()
     }
 
-    pub(super) fn arena_id(&self) -> Id<Self> {
-        self._arena_id.borrow().clone().unwrap()
+    pub fn set_arena_id(&self, id: Id<Self>) {
+        self._arena_id.set(Some(id));
     }
 
     pub(super) fn maybe_error_node(&self) -> Option<Id<Node>> {
-        self.error_node.borrow().clone()
+        self.error_node.get()
     }
 
     pub(super) fn set_error_node(&self, error_node: Option<Id<Node>>) {
-        *self.error_node.borrow_mut() = error_node;
+        self.error_node.set(error_node);
     }
 
     pub(super) fn maybe_error_info(&self) -> Option<Rc<DiagnosticMessageChain>> {
@@ -136,7 +136,7 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn maybe_related_info(
         &self,
-    ) -> GcCellRefMut<Option<Vec<DiagnosticRelatedInformation>>> {
+    ) -> RefMut<Option<Vec<DiagnosticRelatedInformation>>> {
         self.related_info.borrow_mut()
     }
 
@@ -144,11 +144,11 @@ impl CheckTypeRelatedTo {
         self.maybe_keys.borrow_mut()
     }
 
-    pub(super) fn maybe_source_stack(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
+    pub(super) fn maybe_source_stack(&self) -> RefMut<Option<Vec<Id<Type>>>> {
         self.source_stack.borrow_mut()
     }
 
-    pub(super) fn maybe_target_stack(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
+    pub(super) fn maybe_target_stack(&self) -> RefMut<Option<Vec<Id<Type>>>> {
         self.target_stack.borrow_mut()
     }
 
@@ -200,8 +200,12 @@ impl CheckTypeRelatedTo {
         self.override_next_error_info.set(override_next_error_info);
     }
 
-    pub(super) fn maybe_last_skipped_info(&self) -> GcCellRefMut<Option<(Id<Type>, Id<Type>)>> {
-        self.last_skipped_info.borrow_mut()
+    pub(super) fn maybe_last_skipped_info(&self) -> Option<(Id<Type>, Id<Type>)> {
+        self.last_skipped_info.get()
+    }
+
+    pub(super) fn set_last_skipped_info(&self, last_skipped_info: Option<(Id<Type>, Id<Type>)>) {
+        self.last_skipped_info.set(last_skipped_info);
     }
 
     pub(super) fn incompatible_stack(
@@ -365,7 +369,7 @@ impl CheckTypeRelatedTo {
             related_info,
         } = saved;
         *self.maybe_error_info_mut() = error_info;
-        *self.maybe_last_skipped_info() = last_skipped_info;
+        self.set_last_skipped_info(last_skipped_info);
         *self.incompatible_stack() = incompatible_stack;
         self.set_override_next_error_info(override_next_error_info);
         *self.maybe_related_info() = related_info;
@@ -374,7 +378,7 @@ impl CheckTypeRelatedTo {
     pub(super) fn capture_error_calculation_state(&self) -> ErrorCalculationState {
         ErrorCalculationState {
             error_info: self.maybe_error_info(),
-            last_skipped_info: self.maybe_last_skipped_info().clone(),
+            last_skipped_info: self.maybe_last_skipped_info(),
             incompatible_stack: self.incompatible_stack().clone(),
             override_next_error_info: self.override_next_error_info(),
             related_info: self.maybe_related_info().clone(),
@@ -387,15 +391,15 @@ impl CheckTypeRelatedTo {
         args: Option<Vec<String>>,
     ) {
         self.set_override_next_error_info(self.override_next_error_info() + 1);
-        *self.maybe_last_skipped_info() = None;
+        self.set_last_skipped_info(None);
         self.incompatible_stack().push((message, args));
     }
 
     pub(super) fn report_incompatible_stack(&self) -> io::Result<()> {
         let mut stack = self.incompatible_stack().clone();
         *self.incompatible_stack() = vec![];
-        let info = self.maybe_last_skipped_info().clone();
-        *self.maybe_last_skipped_info() = None;
+        let info = self.maybe_last_skipped_info();
+        self.set_last_skipped_info(None);
         if stack.len() == 1 {
             let (stack_0_error, stack_0_args) = stack.into_iter().next().unwrap();
             self.report_error(Cow::Borrowed(stack_0_error), stack_0_args)?;
@@ -1315,7 +1319,7 @@ impl CheckTypeRelatedTo {
                 *self.maybe_error_info_mut() = error_info;
             }
             if head_message.is_none() && maybe_suppress {
-                *self.maybe_last_skipped_info() = Some((source, target));
+                self.set_last_skipped_info(Some((source, target)));
                 return Ok(()) /*result*/;
             }
             self.report_relation_error(head_message, source, target)?;

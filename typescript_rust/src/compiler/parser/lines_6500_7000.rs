@@ -267,7 +267,7 @@ impl ParserType {
                     Some(parameters),
                     body,
                 );
-                *node.maybe_type_parameters_mut() = type_parameters;
+                node.set_type_parameters(type_parameters);
                 node.set_type(type_);
                 return Some(self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc));
             }
@@ -418,7 +418,7 @@ impl ParserType {
             }
             node_as_set_accessor_declaration.into()
         };
-        *node.as_has_type_parameters().maybe_type_parameters_mut() = type_parameters;
+        node.as_has_type_parameters().set_type_parameters(type_parameters);
         self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 

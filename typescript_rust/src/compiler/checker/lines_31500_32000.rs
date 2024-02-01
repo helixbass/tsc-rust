@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, io};
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{
@@ -99,7 +98,7 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if let Some(context_type_parameters) = context.ref_(self).maybe_type_parameters().as_ref() {
             if signature.ref_(self).maybe_type_parameters().is_none() {
-                *signature.ref_(self).maybe_type_parameters_mut() = Some(context_type_parameters.clone());
+                signature.ref_(self).maybe_type_parameters_mut() = Some(context_type_parameters.clone());
             } else {
                 return Ok(());
             }

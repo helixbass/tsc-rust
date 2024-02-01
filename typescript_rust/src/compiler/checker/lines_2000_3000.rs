@@ -3,7 +3,6 @@ use std::{
     io, ptr,
 };
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::ResolveNameNameArg;

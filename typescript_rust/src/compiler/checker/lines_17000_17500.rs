@@ -1578,7 +1578,7 @@ pub trait CheckTypeErrorOutputContainer: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub(super) struct CheckTypeErrorOutputContainerConcrete {
-    errors: GcCell<Vec<Id<Diagnostic>>>,
+    errors: RefCell<Vec<Id<Diagnostic>>>,
     skip_logging: Option<bool>,
 }
 
@@ -1601,7 +1601,7 @@ impl CheckTypeErrorOutputContainer for CheckTypeErrorOutputContainerConcrete {
     }
 
     fn get_error(&self, index: usize) -> Option<Id<Diagnostic>> {
-        self.errors.borrow().get(index).map(Clone::clone)
+        self.errors.borrow().get(index).copied()
     }
 
     fn errors_len(&self) -> usize {
