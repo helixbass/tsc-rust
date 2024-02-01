@@ -292,7 +292,7 @@ impl Program {
         redirect.ref_(self).set_id_override(Gc::new(Box::new(RedirectSourceFileIdOverride::new(
             redirect.clone(),
         ))));
-        redirect.ref_(self).set_symbol_override(Gc::new(Box::new(RedirectSourceFileSymbolOverride::new(
+        redirect.ref_(self).set_symbol_override(self.alloc_node_symbol_override(Box::new(RedirectSourceFileSymbolOverride::new(
             redirect.clone(),
         ))));
         redirect

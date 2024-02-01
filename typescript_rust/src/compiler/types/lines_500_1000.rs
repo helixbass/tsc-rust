@@ -203,7 +203,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_symbol(&self) -> Option<Id<Symbol>>;
     fn symbol(&self) -> Id<Symbol>;
     fn set_symbol(&self, symbol: Id<Symbol>);
-    fn set_symbol_override(&self, symbol_override: Gc<Box<dyn NodeSymbolOverride>>);
+    fn set_symbol_override(&self, symbol_override: Id<Box<dyn NodeSymbolOverride>>);
     fn maybe_locals(&self) -> Option<Id<SymbolTable>>;
     fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
     fn locals(&self) -> Id<SymbolTable>;
@@ -1711,7 +1711,7 @@ pub struct BaseNode {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Node>>>,
     _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
-    _symbol_override: GcCell<Option<Gc<Box<dyn NodeSymbolOverride>>>>,
+    _symbol_override: GcCell<Option<Id<Box<dyn NodeSymbolOverride>>>>,
     #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
     #[unsafe_ignore_trace]
@@ -1929,7 +1929,7 @@ impl NodeInterface for BaseNode {
 
     fn maybe_symbol(&self) -> Option<Id<Symbol>> {
         match self._symbol_override.borrow().as_ref() {
-            Some(symbol_override) => symbol_override.maybe_symbol(),
+            Some(symbol_override) => symbol_override.ref_(self).maybe_symbol(),
             None => self.symbol.borrow().clone(),
         }
     }
@@ -1941,7 +1941,7 @@ impl NodeInterface for BaseNode {
     fn set_symbol(&self, symbol: Id<Symbol>) {
         match self._symbol_override.borrow().as_ref() {
             Some(symbol_override) => {
-                symbol_override.set_symbol(symbol);
+                symbol_override.ref_(self).set_symbol(symbol);
             }
             None => {
                 *self.symbol.borrow_mut() = Some(symbol);
@@ -1949,7 +1949,7 @@ impl NodeInterface for BaseNode {
         }
     }
 
-    fn set_symbol_override(&self, symbol_override: Gc<Box<dyn NodeSymbolOverride>>) {
+    fn set_symbol_override(&self, symbol_override: Id<Box<dyn NodeSymbolOverride>>) {
         *self._symbol_override.borrow_mut() = Some(symbol_override);
     }
 

@@ -200,7 +200,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_symbol(symbol);
                     }
 
-                    fn set_symbol_override(&self, symbol_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
+                    fn set_symbol_override(&self, symbol_override: ::id_arena::Id<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
                         self.#first_field_name.set_symbol_override(symbol_override)
                     }
 
@@ -717,7 +717,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_symbol_override(&self, symbol_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
+                    fn set_symbol_override(&self, symbol_override: ::id_arena::Id<::std::boxed::Box<dyn crate::NodeSymbolOverride>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_symbol_override(symbol_override)),*
                         }
