@@ -1516,7 +1516,7 @@ impl CheckTypeRelatedTo {
             }),
             Some(&|source: Id<Type>, target: Id<Type>| incompatible_reporter(self, source, target)),
             self.alloc_type_comparer(Box::new(TypeComparerIsRelatedToWorker::new(
-                self.rc_wrapper(),
+                self.arena_id(),
             ))),
             Some(
                 self.type_checker

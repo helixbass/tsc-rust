@@ -28,8 +28,8 @@ use crate::{
 };
 
 #[derive(Trace, Finalize)]
-pub(super) struct CheckTypeRelatedTo {
-    _rc_wrapper: GcCell<Option<Gc<CheckTypeRelatedTo>>>,
+pub struct CheckTypeRelatedTo {
+    _arena_id: GcCell<Option<Id<CheckTypeRelatedTo>>>,
     pub type_checker: Id<TypeChecker>,
     pub source: Id<Type>,
     pub target: Id<Type>,
@@ -82,9 +82,9 @@ impl CheckTypeRelatedTo {
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
-    ) -> Gc<Self> {
-        let instance = Self {
-            _rc_wrapper: Default::default(),
+    ) -> Id<Self> {
+        type_checker.alloc_check_type_related_to(Self {
+            _arena_id: Default::default(),
             type_checker: type_checker.arena_id(),
             source,
             target,
@@ -107,18 +107,15 @@ impl CheckTypeRelatedTo {
             last_skipped_info: Default::default(),
             incompatible_stack: RefCell::new(vec![]),
             in_property_check: Default::default(),
-        };
-        let rc_wrapped = Gc::new(instance);
-        rc_wrapped.set_rc_wrapper(rc_wrapped.clone());
-        rc_wrapped
+        })
     }
 
-    pub(super) fn set_rc_wrapper(&self, rc_wrapper: Gc<CheckTypeRelatedTo>) {
-        *self._rc_wrapper.borrow_mut() = Some(rc_wrapper);
+    pub fn set_arena_id(&self, id: Id<Self>) {
+        *self._arena_id.borrow_mut() = Some(id);
     }
 
-    pub(super) fn rc_wrapper(&self) -> Gc<CheckTypeRelatedTo> {
-        self._rc_wrapper.borrow().clone().unwrap()
+    pub(super) fn arena_id(&self) -> Id<Self> {
+        self._arena_id.borrow().clone().unwrap()
     }
 
     pub(super) fn maybe_error_node(&self) -> Option<Id<Node>> {

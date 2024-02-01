@@ -33,7 +33,7 @@ use crate::{
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
     OptionsNameMap, NodeSymbolOverride, NodeIdOverride, MakeSerializePropertySymbolCreateProperty,
-    SymbolTableToDeclarationStatements, InputFilesInitializedState,
+    SymbolTableToDeclarationStatements, InputFilesInitializedState, CheckTypeRelatedTo,
 };
 
 #[derive(Default)]
@@ -173,6 +173,7 @@ pub struct AllArenas {
     pub symbol_table_to_declaration_statements: RefCell<Arena<SymbolTableToDeclarationStatements>>,
     pub input_files_initialized_states: RefCell<Arena<InputFilesInitializedState>>,
     pub vec_symbol_tables: RefCell<Arena<Vec<Id<SymbolTable>>>>,
+    pub check_type_related_tos: RefCell<Arena<CheckTypeRelatedTo>>,
 }
 
 pub trait HasArena {
@@ -1340,6 +1341,14 @@ pub trait HasArena {
 
     fn alloc_vec_symbol_table(&self, vec_symbol_table: Vec<Id<SymbolTable>>) -> Id<Vec<Id<SymbolTable>>> {
         self.arena().alloc_vec_symbol_table(vec_symbol_table)
+    }
+
+    fn check_type_related_to(&self, check_type_related_to: Id<CheckTypeRelatedTo>) -> Ref<CheckTypeRelatedTo> {
+        self.arena().check_type_related_to(check_type_related_to)
+    }
+
+    fn alloc_check_type_related_to(&self, check_type_related_to: CheckTypeRelatedTo) -> Id<CheckTypeRelatedTo> {
+        self.arena().alloc_check_type_related_to(check_type_related_to)
     }
 }
 
@@ -2795,6 +2804,17 @@ impl HasArena for AllArenas {
         let id = self.vec_symbol_tables.borrow_mut().alloc(vec_symbol_table);
         id
     }
+
+    #[track_caller]
+    fn check_type_related_to(&self, check_type_related_to: Id<CheckTypeRelatedTo>) -> Ref<CheckTypeRelatedTo> {
+        Ref::map(self.check_type_related_tos.borrow(), |check_type_related_tos| &check_type_related_tos[check_type_related_to])
+    }
+
+    fn alloc_check_type_related_to(&self, check_type_related_to: CheckTypeRelatedTo) -> Id<CheckTypeRelatedTo> {
+        let id = self.check_type_related_tos.borrow_mut().alloc(check_type_related_to);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3968,6 +3988,14 @@ impl InArena for Id<Vec<Id<SymbolTable>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Vec<Id<SymbolTable>>> {
         has_arena.vec_symbol_table_mut(*self)
+    }
+}
+
+impl InArena for Id<CheckTypeRelatedTo> {
+    type Item = CheckTypeRelatedTo;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CheckTypeRelatedTo> {
+        has_arena.check_type_related_to(*self)
     }
 }
 

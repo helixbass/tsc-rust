@@ -602,7 +602,7 @@ impl TypeChecker {
             head_message,
             containing_message_chain,
             error_output_container,
-        )
+        ).ref_(self)
         .call()
     }
 }

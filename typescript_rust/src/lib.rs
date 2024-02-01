@@ -130,6 +130,7 @@ pub use compiler::{
         CheckBinaryExpression, DiagnosticMessageOrDiagnosticMessageChain, NodeBuilder,
         CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer, NodeBuilderContext,
         MakeSerializePropertySymbolCreateProperty, SymbolTableToDeclarationStatements,
+        CheckTypeRelatedTo,
     },
     command_line_parser::{
         compiler_options_did_you_mean_diagnostics, convert_compiler_options_from_json,

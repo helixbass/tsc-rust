@@ -1643,7 +1643,7 @@ impl CheckTypeRelatedTo {
                         None,
                         InferenceFlags::None,
                         Some(self.alloc_type_comparer(Box::new(TypeComparerIsRelatedToWorker::new(
-                            self.rc_wrapper(),
+                            self.arena_id(),
                         )))),
                     );
                     self.type_checker.ref_(self).infer_types(
@@ -1961,11 +1961,11 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
 
 #[derive(Trace, Finalize)]
 pub(super) struct TypeComparerIsRelatedToWorker {
-    check_type_related_to: Gc<CheckTypeRelatedTo>,
+    check_type_related_to: Id<CheckTypeRelatedTo>,
 }
 
 impl TypeComparerIsRelatedToWorker {
-    pub fn new(check_type_related_to: Gc<CheckTypeRelatedTo>) -> Self {
+    pub fn new(check_type_related_to: Id<CheckTypeRelatedTo>) -> Self {
         Self {
             check_type_related_to,
         }
@@ -1974,11 +1974,17 @@ impl TypeComparerIsRelatedToWorker {
 
 impl TypeComparer for TypeComparerIsRelatedToWorker {
     fn call(&self, s: Id<Type>, t: Id<Type>, report_errors: Option<bool>) -> io::Result<Ternary> {
-        self.check_type_related_to.is_related_to_worker(
+        self.check_type_related_to.ref_(self).is_related_to_worker(
             s,
             t,
             report_errors.unwrap_or(false), // the default isn't in the Typescript version but that appears to be a type-checking bug there
         )
+    }
+}
+
+impl HasArena for TypeComparerIsRelatedToWorker {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
