@@ -605,7 +605,7 @@ impl TypeChecker {
                 ) {
                     return Ok(true);
                 } else if self.check_grammar_for_invalid_exclamation_token(
-                    *node_as_method_declaration
+                    node_as_method_declaration
                         .maybe_exclamation_token(),
                     &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                 ) {

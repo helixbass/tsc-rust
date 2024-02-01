@@ -42,6 +42,7 @@ use crate::{
     push_if_unique_eq, contains, 
     TransformNodesTransformationResult, CoreTransformationContext,
     get_factory_id, per_arena,
+    ref_mut_unwrapped, ref_unwrapped,
 };
 
 pub fn get_declaration_diagnostics(
@@ -164,7 +165,7 @@ pub(super) struct TransformDeclarations {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
-    pub(super) get_symbol_accessibility_diagnostic: GcCell<GetSymbolAccessibilityDiagnostic>,
+    pub(super) get_symbol_accessibility_diagnostic: Cell<GetSymbolAccessibilityDiagnostic>,
     #[unsafe_ignore_trace]
     pub(super) needs_declare: Cell<bool>,
     #[unsafe_ignore_trace]
@@ -175,12 +176,12 @@ pub(super) struct TransformDeclarations {
     pub(super) needs_scope_fix_marker: Cell<bool>,
     #[unsafe_ignore_trace]
     pub(super) result_has_scope_marker: Cell<bool>,
-    pub(super) enclosing_declaration: GcCell<Option<Id<Node>>>,
+    pub(super) enclosing_declaration: Cell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub(super) necessary_type_references: RefCell<Option<HashSet<String>>>,
     pub(super) late_marked_statements:
-        GcCell<Option<Vec<Id<Node /*LateVisibilityPaintedStatement*/>>>>,
-    pub(super) late_statement_replacement_map: GcCell<
+        RefCell<Option<Vec<Id<Node /*LateVisibilityPaintedStatement*/>>>>,
+    pub(super) late_statement_replacement_map: RefCell<
         Option<
             HashMap<
                 NodeId,
@@ -190,16 +191,16 @@ pub(super) struct TransformDeclarations {
     >,
     #[unsafe_ignore_trace]
     pub(super) suppress_new_diagnostic_contexts: Cell<Option<bool>>,
-    pub(super) exported_modules_from_declaration_emit: GcCell<Option<Vec<Id<Symbol>>>>,
+    pub(super) exported_modules_from_declaration_emit: RefCell<Option<Vec<Id<Symbol>>>>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) host: Id<Box<dyn EmitHost>>,
-    pub(super) symbol_tracker: GcCell<Option<Id<Box<dyn SymbolTracker>>>>,
-    pub(super) error_name_node: GcCell<Option<Id<Node /*DeclarationName*/>>>,
-    pub(super) error_fallback_node: GcCell<Option<Id<Node /*Declaration*/>>>,
-    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    pub(super) refs: GcCell<Option<HashMap<NodeId, Id<Node /*SourceFile*/>>>>,
-    pub(super) libs: GcCell<Option<HashMap<String, bool>>>,
-    pub(super) emitted_imports: GcCell<Option<Vec<Id<Node /*AnyImportSyntax*/>>>>,
+    pub(super) symbol_tracker: Cell<Option<Id<Box<dyn SymbolTracker>>>>,
+    pub(super) error_name_node: Cell<Option<Id<Node /*DeclarationName*/>>>,
+    pub(super) error_fallback_node: Cell<Option<Id<Node /*Declaration*/>>>,
+    pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    pub(super) refs: RefCell<Option<HashMap<NodeId, Id<Node /*SourceFile*/>>>>,
+    pub(super) libs: RefCell<Option<HashMap<String, bool>>>,
+    pub(super) emitted_imports: RefCell<Option<Vec<Id<Node /*AnyImportSyntax*/>>>>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) options: Id<CompilerOptions>,
     pub(super) no_resolve: Option<bool>,
@@ -217,7 +218,7 @@ impl TransformDeclarations {
         let host = context.ref_(arena_ref).get_emit_host();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            get_symbol_accessibility_diagnostic: GcCell::new(throw_diagnostic(arena_ref)),
+            get_symbol_accessibility_diagnostic: Cell::new(throw_diagnostic(arena_ref)),
             needs_declare: Cell::new(true),
             is_bundled_emit: Cell::new(false),
             result_has_external_module_indicator: Cell::new(false),
@@ -244,22 +245,21 @@ impl TransformDeclarations {
             options,
             context,
         }));
-        *downcast_transformer_ref::<Self>(ret, arena_ref).symbol_tracker.borrow_mut() = Some(arena_ref.alloc_symbol_tracker(Box::new(
+        downcast_transformer_ref::<Self>(ret, arena_ref).symbol_tracker.set(Some(arena_ref.alloc_symbol_tracker(Box::new(
             TransformDeclarationsSymbolTracker::new(ret, host),
-        )));
+        ))));
         ret
     }
 
     pub(super) fn get_symbol_accessibility_diagnostic(&self) -> GetSymbolAccessibilityDiagnostic {
-        self.get_symbol_accessibility_diagnostic.borrow().clone()
+        self.get_symbol_accessibility_diagnostic.get()
     }
 
     pub(super) fn set_get_symbol_accessibility_diagnostic(
         &self,
         get_symbol_accessibility_diagnostic: GetSymbolAccessibilityDiagnostic,
     ) {
-        *self.get_symbol_accessibility_diagnostic.borrow_mut() =
-            get_symbol_accessibility_diagnostic;
+        self.get_symbol_accessibility_diagnostic.set(get_symbol_accessibility_diagnostic);
     }
 
     pub(super) fn needs_declare(&self) -> bool {
@@ -307,15 +307,15 @@ impl TransformDeclarations {
     }
 
     pub(super) fn maybe_enclosing_declaration(&self) -> Option<Id<Node>> {
-        self.enclosing_declaration.borrow().clone()
+        self.enclosing_declaration.get()
     }
 
     pub(super) fn enclosing_declaration(&self) -> Id<Node> {
-        self.enclosing_declaration.borrow().clone().unwrap()
+        self.enclosing_declaration.get().unwrap()
     }
 
     pub(super) fn set_enclosing_declaration(&self, enclosing_declaration: Option<Id<Node>>) {
-        *self.enclosing_declaration.borrow_mut() = enclosing_declaration;
+        self.enclosing_declaration.set(enclosing_declaration);
     }
 
     pub(super) fn maybe_necessary_type_references(&self) -> Ref<Option<HashSet<String>>> {
@@ -333,32 +333,32 @@ impl TransformDeclarations {
         *self.necessary_type_references.borrow_mut() = necessary_type_references;
     }
 
-    pub(super) fn maybe_late_marked_statements(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    pub(super) fn maybe_late_marked_statements(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.late_marked_statements.borrow()
     }
 
-    pub(super) fn maybe_late_marked_statements_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    pub(super) fn maybe_late_marked_statements_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.late_marked_statements.borrow_mut()
     }
 
     pub(super) fn late_marked_statements_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Node>>>, Vec<Id<Node>>> {
-        gc_cell_ref_mut_unwrapped(&self.late_marked_statements)
+    ) -> RefMut<Option<Vec<Id<Node>>>, Vec<Id<Node>>> {
+        ref_mut_unwrapped(&self.late_marked_statements)
     }
 
     pub(super) fn set_late_marked_statements(&self, late_marked_statements: Option<Vec<Id<Node>>>) {
         *self.late_marked_statements.borrow_mut() = late_marked_statements;
     }
 
-    pub(super) fn late_statement_replacement_map(&self) -> GcCellRef<HashMap<NodeId, VisitResult>> {
-        gc_cell_ref_unwrapped(&self.late_statement_replacement_map)
+    pub(super) fn late_statement_replacement_map(&self) -> Ref<HashMap<NodeId, VisitResult>> {
+        ref_unwrapped(&self.late_statement_replacement_map)
     }
 
     pub(super) fn late_statement_replacement_map_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, VisitResult>>, HashMap<NodeId, VisitResult>> {
-        gc_cell_ref_mut_unwrapped(&self.late_statement_replacement_map)
+    ) -> RefMut<HashMap<NodeId, VisitResult>> {
+        ref_mut_unwrapped(&self.late_statement_replacement_map)
     }
 
     pub(super) fn set_late_statement_replacement_map(
@@ -382,73 +382,73 @@ impl TransformDeclarations {
 
     pub(super) fn maybe_exported_modules_from_declaration_emit(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<Symbol>>>> {
+    ) -> Ref<Option<Vec<Id<Symbol>>>> {
         self.exported_modules_from_declaration_emit.borrow()
     }
 
     pub(super) fn maybe_exported_modules_from_declaration_emit_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Symbol>>>> {
+    ) -> RefMut<Option<Vec<Id<Symbol>>>> {
         self.exported_modules_from_declaration_emit.borrow_mut()
     }
 
     pub(super) fn symbol_tracker(&self) -> Id<Box<dyn SymbolTracker>> {
-        self.symbol_tracker.borrow().clone().unwrap()
+        self.symbol_tracker.get().unwrap()
     }
 
     pub(super) fn maybe_error_name_node(&self) -> Option<Id<Node>> {
-        self.error_name_node.borrow().clone()
+        self.error_name_node.get()
     }
 
     pub(super) fn set_error_name_node(&self, error_name_node: Option<Id<Node>>) {
-        *self.error_name_node.borrow_mut() = error_name_node;
+        self.error_name_node.set(error_name_node);
     }
 
     pub(super) fn maybe_error_fallback_node(&self) -> Option<Id<Node>> {
-        self.error_fallback_node.borrow().clone()
+        self.error_fallback_node.get()
     }
 
     pub(super) fn set_error_fallback_node(&self, error_fallback_node: Option<Id<Node>>) {
-        *self.error_fallback_node.borrow_mut() = error_fallback_node;
+        self.error_fallback_node.set(error_fallback_node);
     }
 
     pub(super) fn current_source_file(&self) -> Id<Node> {
-        self.current_source_file.borrow().clone().unwrap()
+        self.current_source_file.get().unwrap()
     }
 
     pub(super) fn set_current_source_file(&self, current_source_file: Option<Id<Node>>) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
-    pub(super) fn refs(&self) -> GcCellRef<HashMap<NodeId, Id<Node>>> {
-        gc_cell_ref_unwrapped(&self.refs)
+    pub(super) fn refs(&self) -> Ref<HashMap<NodeId, Id<Node>>> {
+        ref_unwrapped(&self.refs)
     }
 
     pub(super) fn refs_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node>>>, HashMap<NodeId, Id<Node>>> {
-        gc_cell_ref_mut_unwrapped(&self.refs)
+    ) -> RefMut<HashMap<NodeId, Id<Node>>> {
+        ref_mut_unwrapped(&self.refs)
     }
 
     pub(super) fn set_refs(&self, refs: Option<HashMap<NodeId, Id<Node>>>) {
         *self.refs.borrow_mut() = refs;
     }
 
-    pub(super) fn libs(&self) -> GcCellRef<HashMap<String, bool>> {
-        gc_cell_ref_unwrapped(&self.libs)
+    pub(super) fn libs(&self) -> Ref<HashMap<String, bool>> {
+        ref_unwrapped(&self.libs)
     }
 
     pub(super) fn libs_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, bool>>, HashMap<String, bool>> {
-        gc_cell_ref_mut_unwrapped(&self.libs)
+    ) -> RefMut<HashMap<String, bool>> {
+        ref_mut_unwrapped(&self.libs)
     }
 
     pub(super) fn set_libs(&self, libs: Option<HashMap<String, bool>>) {
         *self.libs.borrow_mut() = libs;
     }
 
-    pub(super) fn maybe_emitted_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    pub(super) fn maybe_emitted_imports(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.emitted_imports.borrow()
     }
 

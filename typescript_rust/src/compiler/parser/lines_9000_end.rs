@@ -62,10 +62,10 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
 #[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
     source_file: Id<Node /*SourceFile*/>,
-    current_array: GcCell<Option<Id<NodeArray>>>,
+    current_array: Cell<Option<Id<NodeArray>>>,
     #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
-    current: GcCell<Option<Id<Node>>>,
+    current: Cell<Option<Id<Node>>>,
     #[unsafe_ignore_trace]
     last_queried_position: Cell<Option<usize>>,
 }
@@ -80,19 +80,19 @@ impl IncrementalParserSyntaxCursorCreated {
         Debug_.assert(current_array_index < current_array.ref_(arena).len(), None);
         Self {
             source_file,
-            current_array: GcCell::new(Some(current_array.clone())),
+            current_array: Cell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
-            current: GcCell::new(Some(current_array.ref_(arena)[current_array_index].clone())),
+            current: Cell::new(Some(current_array.ref_(arena)[current_array_index].clone())),
             last_queried_position: Default::default(), /*InvalidPosition::Value*/
         }
     }
 
     fn current_array(&self) -> Id<NodeArray> {
-        self.current_array.borrow().clone().unwrap()
+        self.current_array.get().unwrap()
     }
 
     fn set_current_array(&self, current_array: Option<Id<NodeArray>>) {
-        *self.current_array.borrow_mut() = current_array;
+        self.current_array.set(current_array);
     }
 
     fn current_array_index(&self) -> usize {
@@ -104,11 +104,11 @@ impl IncrementalParserSyntaxCursorCreated {
     }
 
     fn maybe_current(&self) -> Option<Id<Node>> {
-        self.current.borrow().clone()
+        self.current.get()
     }
 
     fn set_current(&self, current: Option<Id<Node>>) {
-        *self.current.borrow_mut() = current;
+        self.current.set(current);
     }
 
     fn maybe_last_queried_position(&self) -> Option<usize> {

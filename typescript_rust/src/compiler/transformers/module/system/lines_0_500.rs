@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, mem, any::Any};
+use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut, Cell}};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
@@ -37,18 +37,18 @@ pub(super) struct TransformSystemModule {
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) host: Id<Box<dyn EmitHost>>,
-    pub(super) module_info_map: GcCell<HashMap<NodeId, Id<ExternalModuleInfo>>>,
-    pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
-    pub(super) export_functions_map: GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
-    pub(super) no_substitution_map: GcCell<HashMap<NodeId, HashMap<NodeId, bool>>>,
-    pub(super) context_object_map: GcCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
-    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    pub(super) module_info: GcCell<Option<Id<ExternalModuleInfo>>>,
-    pub(super) export_function: GcCell<Option<Id<Node /*Identifier*/>>>,
-    pub(super) context_object: GcCell<Option<Id<Node /*Identifier*/>>>,
-    pub(super) hoisted_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
-    pub(super) enclosing_block_scoped_container: GcCell<Option<Id<Node>>>,
-    pub(super) no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
+    pub(super) module_info_map: RefCell<HashMap<NodeId, Id<ExternalModuleInfo>>>,
+    pub(super) deferred_exports: RefCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
+    pub(super) export_functions_map: RefCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
+    pub(super) no_substitution_map: RefCell<HashMap<NodeId, HashMap<NodeId, bool>>>,
+    pub(super) context_object_map: RefCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
+    pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    pub(super) module_info: Cell<Option<Id<ExternalModuleInfo>>>,
+    pub(super) export_function: Cell<Option<Id<Node /*Identifier*/>>>,
+    pub(super) context_object: Cell<Option<Id<Node /*Identifier*/>>>,
+    pub(super) hoisted_statements: RefCell<Option<Vec<Id<Node /*Statement*/>>>>,
+    pub(super) enclosing_block_scoped_container: Cell<Option<Id<Node>>>,
+    pub(super) no_substitution: RefCell<Option<HashMap<NodeId, bool>>>,
 }
 
 impl TransformSystemModule {
@@ -97,116 +97,116 @@ impl TransformSystemModule {
         ret
     }
 
-    pub(super) fn module_info_map(&self) -> GcCellRef<HashMap<NodeId, Id<ExternalModuleInfo>>> {
+    pub(super) fn module_info_map(&self) -> Ref<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow()
     }
 
     pub(super) fn module_info_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Id<ExternalModuleInfo>>> {
+    ) -> RefMut<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow_mut()
     }
 
     pub(super) fn deferred_exports(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
+    ) -> Ref<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow()
     }
 
     pub(super) fn deferred_exports_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
+    ) -> RefMut<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow_mut()
     }
 
     pub(super) fn export_functions_map(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Id<Node /*Identifier*/>>> {
+    ) -> Ref<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.export_functions_map.borrow()
     }
 
     pub(super) fn export_functions_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
+    ) -> RefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.export_functions_map.borrow_mut()
     }
 
-    pub(super) fn no_substitution_map(&self) -> GcCellRef<HashMap<NodeId, HashMap<NodeId, bool>>> {
+    pub(super) fn no_substitution_map(&self) -> Ref<HashMap<NodeId, HashMap<NodeId, bool>>> {
         self.no_substitution_map.borrow()
     }
 
     pub(super) fn no_substitution_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, HashMap<NodeId, bool>>> {
+    ) -> RefMut<HashMap<NodeId, HashMap<NodeId, bool>>> {
         self.no_substitution_map.borrow_mut()
     }
 
-    pub(super) fn context_object_map(&self) -> GcCellRef<HashMap<NodeId, Id<Node /*Identifier*/>>> {
+    pub(super) fn context_object_map(&self) -> Ref<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.context_object_map.borrow()
     }
 
     pub(super) fn context_object_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
+    ) -> RefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         self.context_object_map.borrow_mut()
     }
 
     pub(super) fn current_source_file(&self) -> Id<Node /*SourceFile*/> {
-        self.current_source_file.borrow().clone().unwrap()
+        self.current_source_file.get().unwrap()
     }
 
     pub(super) fn set_current_source_file(
         &self,
         current_source_file: Option<Id<Node /*SourceFile*/>>,
     ) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
     pub(super) fn maybe_module_info(&self) -> Option<Id<ExternalModuleInfo>> {
-        self.module_info.borrow().clone()
+        self.module_info.get()
     }
 
     pub(super) fn module_info(&self) -> Id<ExternalModuleInfo> {
-        self.module_info.borrow().clone().unwrap()
+        self.module_info.get().unwrap()
     }
 
     pub(super) fn set_module_info(&self, module_info: Option<Id<ExternalModuleInfo>>) {
-        *self.module_info.borrow_mut() = module_info;
+        self.module_info.set(module_info);
     }
 
     pub(super) fn maybe_export_function(&self) -> Option<Id<Node /*Identifier*/>> {
-        self.export_function.borrow().clone()
+        self.export_function.get()
     }
 
     pub(super) fn export_function(&self) -> Id<Node /*Identifier*/> {
-        self.export_function.borrow().clone().unwrap()
+        self.export_function.get().unwrap()
     }
 
     pub(super) fn set_export_function(&self, export_function: Option<Id<Node /*Identifier*/>>) {
-        *self.export_function.borrow_mut() = export_function;
+        self.export_function.set(export_function);
     }
 
     pub(super) fn maybe_context_object(&self) -> Option<Id<Node /*Identifier*/>> {
-        self.context_object.borrow().clone()
+        self.context_object.get()
     }
 
     pub(super) fn context_object(&self) -> Id<Node /*Identifier*/> {
-        self.context_object.borrow().clone().unwrap()
+        self.context_object.get().unwrap()
     }
 
     pub(super) fn set_context_object(&self, context_object: Option<Id<Node /*Identifier*/>>) {
-        *self.context_object.borrow_mut() = context_object;
+        self.context_object.set(context_object);
     }
 
     pub(super) fn maybe_hoisted_statements(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<Node /*Statement*/>>>> {
+    ) -> Ref<Option<Vec<Id<Node /*Statement*/>>>> {
         self.hoisted_statements.borrow()
     }
 
     pub(super) fn maybe_hoisted_statements_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Node /*Statement*/>>>> {
+    ) -> RefMut<Option<Vec<Id<Node /*Statement*/>>>> {
         self.hoisted_statements.borrow_mut()
     }
 
@@ -218,13 +218,12 @@ impl TransformSystemModule {
     }
 
     pub(super) fn maybe_enclosing_block_scoped_container(&self) -> Option<Id<Node>> {
-        self.enclosing_block_scoped_container.borrow().clone()
+        self.enclosing_block_scoped_container.get()
     }
 
     pub(super) fn enclosing_block_scoped_container(&self) -> Id<Node> {
         self.enclosing_block_scoped_container
-            .borrow()
-            .clone()
+            .get()
             .unwrap()
     }
 
@@ -232,14 +231,14 @@ impl TransformSystemModule {
         &self,
         enclosing_block_scoped_container: Option<Id<Node>>,
     ) {
-        *self.enclosing_block_scoped_container.borrow_mut() = enclosing_block_scoped_container;
+        self.enclosing_block_scoped_container.set(enclosing_block_scoped_container);
     }
 
-    pub(super) fn maybe_no_substitution(&self) -> GcCellRef<Option<HashMap<NodeId, bool>>> {
+    pub(super) fn maybe_no_substitution(&self) -> Ref<Option<HashMap<NodeId, bool>>> {
         self.no_substitution.borrow()
     }
 
-    pub(super) fn maybe_no_substitution_mut(&self) -> GcCellRefMut<Option<HashMap<NodeId, bool>>> {
+    pub(super) fn maybe_no_substitution_mut(&self) -> RefMut<Option<HashMap<NodeId, bool>>> {
         self.no_substitution.borrow_mut()
     }
 

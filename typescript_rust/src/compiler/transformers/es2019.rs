@@ -16,7 +16,6 @@ use crate::{
 struct TransformES2019 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
-    _transformer_wrapper: GcCell<Option<Transformer>>,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
 }
@@ -27,7 +26,6 @@ impl TransformES2019 {
         let context_ref = context.ref_(arena_ref);
         arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
-            _transformer_wrapper: Default::default(),
             factory: context_ref.factory(),
             context,
         }))

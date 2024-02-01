@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc};
+use std::{borrow::Cow, collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc, cell::RefCell};
 
 use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
@@ -93,7 +93,7 @@ pub fn create_diagnostic_reporter(
 struct DiagnosticReporterConcrete {
     host: Id<SysFormatDiagnosticsHost>,
     pretty: bool,
-    diagnostics: GcCell<Vec<Id<Diagnostic>>>,
+    diagnostics: RefCell<Vec<Id<Diagnostic>>>,
     system: Id<Box<dyn System>>,
 }
 

@@ -157,7 +157,7 @@ impl TransformES2015 {
                 &*self.context.ref_(self),
                 node,
                 |node: Id<Node>| self.visitor(node),
-                *self.current_source_file(),
+                self.current_source_file(),
                 |node: Id<Node>| self.record_tagged_template_string(node),
                 ProcessLevel::All,
             )?

@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, ptr, any::Any};
+use std::{cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, ptr, any::Any};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -21,6 +21,7 @@ use crate::{
     TransformerFactoryInterface, TransformerInterface, VisitResult,
     HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
+    ref_unwrapped,
 };
 
 bitflags! {
@@ -191,13 +192,13 @@ pub(super) struct TransformES2015 {
     pub(super) factory: Id<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
-    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    pub(super) current_text: GcCell<Option<SourceTextAsChars>>,
+    pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    pub(super) current_text: RefCell<Option<SourceTextAsChars>>,
     #[unsafe_ignore_trace]
     pub(super) hierarchy_facts: Cell<Option<HierarchyFacts>>,
     pub(super) tagged_template_string_declarations:
-        GcCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
-    pub(super) converted_loop_state: GcCell<Option<Id<ConvertedLoopState>>>,
+        RefCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
+    pub(super) converted_loop_state: Cell<Option<Id<ConvertedLoopState>>>,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ES2015SubstitutionFlags>>,
 }
@@ -244,12 +245,12 @@ impl TransformES2015 {
         self._arena_id.set(Some(id));
     }
 
-    pub(super) fn maybe_current_source_file(&self) -> GcCellRef<Option<Id<Node /*SourceFile*/>>> {
-        self.current_source_file.borrow()
+    pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node /*SourceFile*/>> {
+        self.current_source_file.get()
     }
 
-    pub(super) fn current_source_file(&self) -> GcCellRef<Id<Node /*SourceFile*/>> {
-        gc_cell_ref_unwrapped(&self.current_source_file)
+    pub(super) fn current_source_file(&self) -> Id<Node /*SourceFile*/> {
+        self.current_source_file.get().unwrap()
     }
 
     pub(super) fn set_current_source_file(
@@ -259,8 +260,8 @@ impl TransformES2015 {
         *self.current_source_file.borrow_mut() = current_source_file;
     }
 
-    pub(super) fn current_text(&self) -> GcCellRef<SourceTextAsChars> {
-        gc_cell_ref_unwrapped(&self.current_text)
+    pub(super) fn current_text(&self) -> Ref<SourceTextAsChars> {
+        ref_unwrapped(&self.current_text)
     }
 
     pub(super) fn set_current_text(&self, current_text: Option<SourceTextAsChars>) {
@@ -276,18 +277,18 @@ impl TransformES2015 {
     }
 
     pub(super) fn maybe_converted_loop_state(&self) -> Option<Id<ConvertedLoopState>> {
-        self.converted_loop_state.borrow().clone()
+        self.converted_loop_state.get()
     }
 
     pub(super) fn converted_loop_state(&self) -> Id<ConvertedLoopState> {
-        self.converted_loop_state.borrow().clone().unwrap()
+        self.converted_loop_state.get().unwrap()
     }
 
     pub(super) fn set_converted_loop_state(
         &self,
         converted_loop_state: Option<Id<ConvertedLoopState>>,
     ) {
-        *self.converted_loop_state.borrow_mut() = converted_loop_state;
+        self.converted_loop_state.set(converted_loop_state);
     }
 
     pub(super) fn maybe_enabled_substitutions(&self) -> Option<ES2015SubstitutionFlags> {
@@ -303,13 +304,13 @@ impl TransformES2015 {
 
     pub(super) fn maybe_tagged_template_string_declarations(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<Node /*VariableDeclaration*/>>>> {
+    ) -> Ref<Option<Vec<Id<Node /*VariableDeclaration*/>>>> {
         self.tagged_template_string_declarations.borrow()
     }
 
     pub(super) fn maybe_tagged_template_string_declarations_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Node /*VariableDeclaration*/>>>> {
+    ) -> RefMut<Option<Vec<Id<Node /*VariableDeclaration*/>>>> {
         self.tagged_template_string_declarations.borrow_mut()
     }
 

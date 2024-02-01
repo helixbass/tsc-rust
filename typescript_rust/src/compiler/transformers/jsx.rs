@@ -2,6 +2,7 @@ use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
     io, any::Any,
+    cell::{Cell, RefCell, Ref, RefMut},
 };
 
 use derive_builder::Builder;
@@ -30,6 +31,7 @@ use crate::{
     ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
     HasArena, AllArenas, InArena, static_arena,
     TransformNodesTransformationResult, CoreTransformationContext,
+    ref_unwrapped, ref_mut_unwrapped,
 };
 
 #[derive(Builder, Default, Trace, Finalize)]
@@ -51,8 +53,8 @@ pub(super) struct TransformJsx {
     context: Id<TransformNodesTransformationResult>,
     compiler_options: Id<CompilerOptions>,
     factory: Id<NodeFactory>,
-    current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    current_file_state: GcCell<Option<PerFileState>>,
+    current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    current_file_state: RefCell<Option<PerFileState>>,
 }
 
 impl TransformJsx {
@@ -70,28 +72,28 @@ impl TransformJsx {
     }
 
     pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node /*SourceFile*/>> {
-        self.current_source_file.borrow().clone()
+        self.current_source_file.get()
     }
 
     pub(super) fn current_source_file(&self) -> Id<Node /*SourceFile*/> {
-        self.current_source_file.borrow().clone().unwrap()
+        self.current_source_file.get().unwrap()
     }
 
     pub(super) fn set_current_source_file(
         &self,
         current_source_file: Option<Id<Node /*SourceFile*/>>,
     ) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
-    pub(super) fn current_file_state(&self) -> GcCellRef<PerFileState> {
-        gc_cell_ref_unwrapped(&self.current_file_state)
+    pub(super) fn current_file_state(&self) -> Ref<PerFileState> {
+        ref_unwrapped(&self.current_file_state)
     }
 
     pub(super) fn current_file_state_mut(
         &self,
-    ) -> GcCellRefMut<Option<PerFileState>, PerFileState> {
-        gc_cell_ref_mut_unwrapped(&self.current_file_state)
+    ) -> RefMut<Option<PerFileState>, PerFileState> {
+        ref_mut_unwrapped(&self.current_file_state)
     }
 
     pub(super) fn set_current_file_state(&self, current_file_state: Option<PerFileState>) {

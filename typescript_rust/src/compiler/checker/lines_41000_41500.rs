@@ -630,7 +630,6 @@ impl TypeChecker {
         if let Some(node_in_generated_import_reference) = node_in
             .ref_(self).as_identifier()
             .maybe_generated_import_reference()
-            .clone()
         {
             return Ok(Some(node_in_generated_import_reference));
         }

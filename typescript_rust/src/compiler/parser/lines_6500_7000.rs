@@ -316,7 +316,7 @@ impl ParserType {
             type_,
             body,
         );
-        *node.maybe_exclamation_token() = exclamation_token;
+        node.set_exclamation_token(exclamation_token);
         self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
     }
 

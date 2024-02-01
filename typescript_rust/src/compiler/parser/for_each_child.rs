@@ -291,7 +291,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
-            visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
+            visit_node(&mut cb_node, node.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -341,7 +341,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.maybe_question_token());
-            visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
+            visit_node(&mut cb_node, node.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -368,7 +368,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
-            visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
+            visit_node(&mut cb_node, node.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -395,7 +395,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, Some(node.name()));
             visit_node(&mut cb_node, node.maybe_question_token());
-            visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
+            visit_node(&mut cb_node, node.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -422,7 +422,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.maybe_question_token());
-            visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
+            visit_node(&mut cb_node, node.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -449,7 +449,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.maybe_question_token());
-            visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
+            visit_node(&mut cb_node, node.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -476,7 +476,7 @@ pub fn for_each_child(
             visit_node(&mut cb_node, node.maybe_asterisk_token());
             visit_node(&mut cb_node, node.maybe_name());
             visit_node(&mut cb_node, node.maybe_question_token());
-            visit_node(&mut cb_node, node.maybe_exclamation_token().clone());
+            visit_node(&mut cb_node, node.maybe_exclamation_token());
             visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1542,7 +1542,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
             try_visit_node(&mut cb_node, Some(node.name()))?;
             try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token().clone())?;
+            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1592,7 +1592,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
             try_visit_node(&mut cb_node, node.maybe_name())?;
             try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token().clone())?;
+            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1619,7 +1619,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
             try_visit_node(&mut cb_node, Some(node.name()))?;
             try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token().clone())?;
+            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1646,7 +1646,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
             try_visit_node(&mut cb_node, Some(node.name()))?;
             try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token().clone())?;
+            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1673,7 +1673,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
             try_visit_node(&mut cb_node, node.maybe_name())?;
             try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token().clone())?;
+            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1700,7 +1700,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
             try_visit_node(&mut cb_node, node.maybe_name())?;
             try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token().clone())?;
+            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),
@@ -1727,7 +1727,7 @@ pub fn try_for_each_child<TError>(
             try_visit_node(&mut cb_node, node.maybe_asterisk_token())?;
             try_visit_node(&mut cb_node, node.maybe_name())?;
             try_visit_node(&mut cb_node, node.maybe_question_token())?;
-            try_visit_node(&mut cb_node, node.maybe_exclamation_token().clone())?;
+            try_visit_node(&mut cb_node, node.maybe_exclamation_token())?;
             try_visit_nodes(
                 &mut cb_node,
                 cb_nodes.as_mut(),

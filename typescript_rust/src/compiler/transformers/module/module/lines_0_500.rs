@@ -1,4 +1,4 @@
-use std::{cell::Cell, cmp, collections::HashMap, io, mem, any::Any};
+use std::{cell::{Cell, RefCell, Ref, RefMut}, cmp, collections::HashMap, io, mem, any::Any};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
@@ -45,11 +45,11 @@ pub(super) struct TransformModule {
     pub(super) language_version: ScriptTarget,
     #[unsafe_ignore_trace]
     pub(super) module_kind: ModuleKind,
-    pub(super) module_info_map: GcCell<HashMap<NodeId, Id<ExternalModuleInfo>>>,
-    pub(super) deferred_exports: GcCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
-    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    pub(super) current_module_info: GcCell<Option<Id<ExternalModuleInfo>>>,
-    pub(super) no_substitution: GcCell<HashMap<NodeId, bool>>,
+    pub(super) module_info_map: RefCell<HashMap<NodeId, Id<ExternalModuleInfo>>>,
+    pub(super) deferred_exports: RefCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
+    pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    pub(super) current_module_info: Cell<Option<Id<ExternalModuleInfo>>>,
+    pub(super) no_substitution: RefCell<HashMap<NodeId, bool>>,
     #[unsafe_ignore_trace]
     pub(super) need_umd_dynamic_import_helper: Cell<bool>,
 }
@@ -100,59 +100,59 @@ impl TransformModule {
         self.context.ref_(self).get_emit_helper_factory().ref_(self)
     }
 
-    pub(super) fn module_info_map(&self) -> GcCellRef<HashMap<NodeId, Id<ExternalModuleInfo>>> {
+    pub(super) fn module_info_map(&self) -> Ref<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow()
     }
 
     pub(super) fn module_info_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Id<ExternalModuleInfo>>> {
+    ) -> RefMut<HashMap<NodeId, Id<ExternalModuleInfo>>> {
         self.module_info_map.borrow_mut()
     }
 
     pub(super) fn deferred_exports(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
+    ) -> Ref<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow()
     }
 
     pub(super) fn deferred_exports_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
+    ) -> RefMut<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>> {
         self.deferred_exports.borrow_mut()
     }
 
     pub(super) fn current_source_file(&self) -> Id<Node /*SourceFile*/> {
-        self.current_source_file.borrow().clone().unwrap()
+        self.current_source_file.get().unwrap()
     }
 
     pub(super) fn set_current_source_file(
         &self,
         current_source_file: Option<Id<Node /*SourceFile*/>>,
     ) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
     pub(super) fn maybe_current_module_info(&self) -> Option<Id<ExternalModuleInfo>> {
-        self.current_module_info.borrow().clone()
+        self.current_module_info.get()
     }
 
     pub(super) fn current_module_info(&self) -> Id<ExternalModuleInfo> {
-        self.current_module_info.borrow().clone().unwrap()
+        self.current_module_info.get().unwrap()
     }
 
     pub(super) fn set_current_module_info(
         &self,
         current_module_info: Option<Id<ExternalModuleInfo>>,
     ) {
-        *self.current_module_info.borrow_mut() = current_module_info;
+        self.current_module_info.set(current_module_info);
     }
 
-    pub(super) fn no_substitution(&self) -> GcCellRef<HashMap<NodeId, bool>> {
+    pub(super) fn no_substitution(&self) -> Ref<HashMap<NodeId, bool>> {
         self.no_substitution.borrow()
     }
 
-    pub(super) fn no_substitution_mut(&self) -> GcCellRefMut<HashMap<NodeId, bool>> {
+    pub(super) fn no_substitution_mut(&self) -> RefMut<HashMap<NodeId, bool>> {
         self.no_substitution.borrow_mut()
     }
 

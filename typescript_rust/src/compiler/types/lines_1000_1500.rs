@@ -314,10 +314,10 @@ pub struct Identifier {
     #[unsafe_ignore_trace]
     pub(crate) auto_generate_flags: Cell<Option<GeneratedIdentifierFlags>>,
     pub(crate) auto_generate_id: Option<usize>,
-    generated_import_reference: GcCell<Option<Id<Node /*ImportSpecifier*/>>>,
+    generated_import_reference: Cell<Option<Id<Node /*ImportSpecifier*/>>>,
     #[unsafe_ignore_trace]
     is_in_jsdoc_namespace: Cell<Option<bool>>,
-    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode | TypeParameterDeclaration>*/>>,
+    type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode | TypeParameterDeclaration>*/>>,
     #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
@@ -349,12 +349,12 @@ impl Identifier {
         self.auto_generate_flags.set(auto_generate_flags);
     }
 
-    pub fn maybe_generated_import_reference(&self) -> GcCellRef<Option<Id<Node>>> {
-        self.generated_import_reference.borrow()
+    pub fn maybe_generated_import_reference(&self) -> Option<Id<Node>> {
+        self.generated_import_reference.get()
     }
 
     pub fn set_generated_import_reference(&self, generated_import_reference: Option<Id<Node>>) {
-        *self.generated_import_reference.borrow_mut() = generated_import_reference;
+        self.generated_import_reference.set(generated_import_reference);
     }
 
     pub fn maybe_is_in_jsdoc_namespace(&self) -> Option<bool> {
@@ -365,8 +365,12 @@ impl Identifier {
         self.is_in_jsdoc_namespace.set(is_in_jsdoc_namespace);
     }
 
-    pub fn maybe_type_arguments_mut(&self) -> GcCellRefMut<Option<Id<NodeArray>>> {
-        self.type_arguments.borrow_mut()
+    pub fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
+        self.type_arguments.get()
+    }
+
+    pub fn set_type_arguments(&self, type_arguments: Option<Id<NodeArray>>) {
+        self.type_arguments.set(type_arguments);
     }
 }
 
@@ -393,7 +397,7 @@ impl HasJSDocDotPosInterface for Identifier {
 
 impl HasTypeArgumentsInterface for Identifier {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 
@@ -759,7 +763,8 @@ pub trait FunctionLikeDeclarationInterface:
 {
     fn maybe_body(&self) -> Option<Id<Node>>;
     fn maybe_asterisk_token(&self) -> Option<Id<Node>>;
-    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Id<Node>>>;
+    fn maybe_exclamation_token(&self) -> Option<Id<Node>>;
+    fn set_exclamation_token(&self, exclamation_token: Option<Id<Node>>);
     fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>>;
     fn set_end_flow_node(&self, end_flow_node: Option<Id<FlowNode>>);
     fn maybe_return_flow_node(&self) -> Option<Id<FlowNode>>;
@@ -775,7 +780,7 @@ pub struct BaseFunctionLikeDeclaration {
     _signature_declaration: BaseSignatureDeclaration,
     pub asterisk_token: Option<Id<Node /*AsteriskToken*/>>,
     pub question_token: Option<Id<Node /*QuestionToken*/>>,
-    pub exclamation_token: GcCell<Option<Id<Node /*ExclamationToken*/>>>,
+    pub exclamation_token: Cell<Option<Id<Node /*ExclamationToken*/>>>,
     body: Option<Id<Node /*Block | Expression*/>>,
     end_flow_node: GcCell<Option<Id<FlowNode>>>,
     return_flow_node: GcCell<Option<Id<FlowNode>>>,
@@ -786,11 +791,11 @@ impl BaseFunctionLikeDeclaration {
         Self {
             _signature_declaration: signature_declaration,
             body,
-            asterisk_token: None,
-            question_token: None,
-            exclamation_token: GcCell::new(None),
-            end_flow_node: GcCell::new(None),
-            return_flow_node: GcCell::new(None),
+            asterisk_token: Default::default(),
+            question_token: Default::default(),
+            exclamation_token: Default::default(),
+            end_flow_node: Default::default(),
+            return_flow_node: Default::default(),
         }
     }
 }
@@ -804,8 +809,12 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
         self.asterisk_token.clone()
     }
 
-    fn maybe_exclamation_token(&self) -> GcCellRefMut<Option<Id<Node>>> {
-        self.exclamation_token.borrow_mut()
+    fn maybe_exclamation_token(&self) -> Option<Id<Node>> {
+        self.exclamation_token.get()
+    }
+
+    fn set_exclamation_token(&self, exclamation_token: Option<Id<Node>>) {
+        self.exclamation_token.set(exclamation_token);
     }
 
     fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>> {

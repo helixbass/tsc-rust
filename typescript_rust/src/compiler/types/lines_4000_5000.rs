@@ -433,8 +433,8 @@ pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) awaited_type_stack: RefCell<Vec<TypeId>>,
 
-    pub(crate) diagnostics: GcCell<DiagnosticCollection>,
-    pub(crate) suggestion_diagnostics: GcCell<DiagnosticCollection>,
+    pub(crate) diagnostics: RefCell<DiagnosticCollection>,
+    pub(crate) suggestion_diagnostics: RefCell<DiagnosticCollection>,
 
     pub(crate) typeof_types_by_name: Option<HashMap<&'static str, Id<Type>>>,
     pub(crate) typeof_type: Option<Id<Type>>,

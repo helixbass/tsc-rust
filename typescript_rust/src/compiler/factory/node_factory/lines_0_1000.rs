@@ -804,10 +804,8 @@ impl NodeFactory {
         let original_as_function_like_declaration = original_ref.as_function_like_declaration();
         if let Some(original_exclamation_token) = original_as_function_like_declaration
             .maybe_exclamation_token()
-            .clone()
         {
-            *updated_as_function_like_declaration.maybe_exclamation_token() =
-                Some(original_exclamation_token);
+            updated_as_function_like_declaration.set_exclamation_token(Some(original_exclamation_token));
         }
         // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet
         // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
@@ -1073,8 +1071,7 @@ impl NodeFactory {
     ) -> Identifier {
         let node = self.create_base_identifier(text, original_keyword_kind);
         if let Some(type_arguments) = type_arguments {
-            *node.maybe_type_arguments_mut() =
-                Some(self.create_node_array(Some(type_arguments), None));
+            node.set_type_arguments(Some(self.create_node_array(Some(type_arguments), None)));
         }
         if matches!(node.original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
             node.add_transform_flags(TransformFlags::ContainsPossibleTopLevelAwait);

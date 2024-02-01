@@ -23,7 +23,7 @@ struct TransformNodeModule {
     cjs_transform: Transformer,
     cjs_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
     cjs_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
-    current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
+    current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
 }
 
 impl TransformNodeModule {
@@ -70,11 +70,11 @@ impl TransformNodeModule {
     }
 
     fn maybe_current_source_file(&self) -> Option<Id<Node /*SourceFile*/>> {
-        self.current_source_file.borrow().clone()
+        self.current_source_file.get()
     }
 
     fn set_current_source_file(&self, current_source_file: Option<Id<Node /*SourceFile*/>>) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
     fn get_module_transform_for_file(&self, file: Id<Node> /*SourceFile*/) -> Transformer {

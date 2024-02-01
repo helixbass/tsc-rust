@@ -353,7 +353,7 @@ pub fn for_each_child_returns<TReturn>(
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -433,7 +433,7 @@ pub fn for_each_child_returns<TReturn>(
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -484,7 +484,7 @@ pub fn for_each_child_returns<TReturn>(
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -535,7 +535,7 @@ pub fn for_each_child_returns<TReturn>(
                         visit_node_returns(&mut cb_node, Some(node.name())).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -586,7 +586,7 @@ pub fn for_each_child_returns<TReturn>(
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -637,7 +637,7 @@ pub fn for_each_child_returns<TReturn>(
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -688,7 +688,7 @@ pub fn for_each_child_returns<TReturn>(
                         visit_node_returns(&mut cb_node, node.maybe_name()).or_else(|| {
                             visit_node_returns(&mut cb_node, node.maybe_question_token()).or_else(
                                 || {
-                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())
+                                    visit_node_returns(&mut cb_node, node.maybe_exclamation_token())
                                         .or_else(|| {
                                             visit_nodes_returns(
                                                 &mut cb_node,
@@ -1875,7 +1875,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
                         try_visit_node_returns(&mut cb_node, Some(node.name()))?.try_or_else(|| {
                             try_visit_node_returns(&mut cb_node, node.maybe_question_token())?.try_or_else(
                                 || {
-                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())?
+                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token())?
                                         .try_or_else(|| {
                                             try_visit_nodes_returns(
                                                 &mut cb_node,
@@ -1955,7 +1955,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
                         try_visit_node_returns(&mut cb_node, node.maybe_name())?.try_or_else(|| {
                             try_visit_node_returns(&mut cb_node, node.maybe_question_token())?.try_or_else(
                                 || {
-                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())?
+                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token())?
                                         .try_or_else(|| {
                                             try_visit_nodes_returns(
                                                 &mut cb_node,
@@ -2006,7 +2006,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
                         try_visit_node_returns(&mut cb_node, Some(node.name()))?.try_or_else(|| {
                             try_visit_node_returns(&mut cb_node, node.maybe_question_token())?.try_or_else(
                                 || {
-                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())?
+                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token())?
                                         .try_or_else(|| {
                                             try_visit_nodes_returns(
                                                 &mut cb_node,
@@ -2057,7 +2057,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
                         try_visit_node_returns(&mut cb_node, Some(node.name()))?.try_or_else(|| {
                             try_visit_node_returns(&mut cb_node, node.maybe_question_token())?.try_or_else(
                                 || {
-                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())?
+                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token())?
                                         .try_or_else(|| {
                                             try_visit_nodes_returns(
                                                 &mut cb_node,
@@ -2108,7 +2108,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
                         try_visit_node_returns(&mut cb_node, node.maybe_name())?.try_or_else(|| {
                             try_visit_node_returns(&mut cb_node, node.maybe_question_token())?.try_or_else(
                                 || {
-                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())?
+                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token())?
                                         .try_or_else(|| {
                                             try_visit_nodes_returns(
                                                 &mut cb_node,
@@ -2159,7 +2159,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
                         try_visit_node_returns(&mut cb_node, node.maybe_name())?.try_or_else(|| {
                             try_visit_node_returns(&mut cb_node, node.maybe_question_token())?.try_or_else(
                                 || {
-                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())?
+                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token())?
                                         .try_or_else(|| {
                                             try_visit_nodes_returns(
                                                 &mut cb_node,
@@ -2210,7 +2210,7 @@ pub fn try_for_each_child_returns<TReturn, TError>(
                         try_visit_node_returns(&mut cb_node, node.maybe_name())?.try_or_else(|| {
                             try_visit_node_returns(&mut cb_node, node.maybe_question_token())?.try_or_else(
                                 || {
-                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token().clone())?
+                                    try_visit_node_returns(&mut cb_node, node.maybe_exclamation_token())?
                                         .try_or_else(|| {
                                             try_visit_nodes_returns(
                                                 &mut cb_node,

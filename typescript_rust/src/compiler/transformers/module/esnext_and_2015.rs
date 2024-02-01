@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, mem, any::Any};
+use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut, Cell}};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
@@ -20,6 +20,7 @@ use crate::{
     TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
     HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
+    ref_unwrapped, ref_mut_unwrapped,
 };
 
 #[derive(Trace, Finalize)]
@@ -33,9 +34,9 @@ struct TransformEcmascriptModule {
     compiler_options: Id<CompilerOptions>,
     #[unsafe_ignore_trace]
     language_version: ScriptTarget,
-    helper_name_substitutions: GcCell<Option<HashMap<String, Id<Node /*Identifier*/>>>>,
-    current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    import_require_statements: GcCell<
+    helper_name_substitutions: RefCell<Option<HashMap<String, Id<Node /*Identifier*/>>>>,
+    current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    import_require_statements: Cell<
         Option<(
             Id<Node /*ImportDeclaration*/>,
             Id<Node /*VariableStatement*/>,
@@ -85,23 +86,22 @@ impl TransformEcmascriptModule {
 
     fn maybe_helper_name_substitutions(
         &self,
-    ) -> GcCellRef<Option<HashMap<String, Id<Node /*Identifier*/>>>> {
+    ) -> Ref<Option<HashMap<String, Id<Node /*Identifier*/>>>> {
         self.helper_name_substitutions.borrow()
     }
 
     pub(super) fn helper_name_substitutions(
         &self,
-    ) -> GcCellRef<HashMap<String, Id<Node /*Identifier*/>>> {
-        gc_cell_ref_unwrapped(&self.helper_name_substitutions)
+    ) -> Ref<HashMap<String, Id<Node /*Identifier*/>>> {
+        ref_unwrapped(&self.helper_name_substitutions)
     }
 
     pub(super) fn helper_name_substitutions_mut(
         &self,
-    ) -> GcCellRefMut<
-        Option<HashMap<String, Id<Node /*Identifier*/>>>,
+    ) -> RefMut<
         HashMap<String, Id<Node /*Identifier*/>>,
     > {
-        gc_cell_ref_mut_unwrapped(&self.helper_name_substitutions)
+        ref_mut_unwrapped(&self.helper_name_substitutions)
     }
 
     fn set_helper_name_substitutions(
@@ -112,11 +112,11 @@ impl TransformEcmascriptModule {
     }
 
     fn maybe_current_source_file(&self) -> Option<Id<Node /*SourceFile*/>> {
-        self.current_source_file.borrow().clone()
+        self.current_source_file.get()
     }
 
     fn set_current_source_file(&self, current_source_file: Option<Id<Node /*SourceFile*/>>) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
     fn maybe_import_require_statements(
@@ -125,7 +125,7 @@ impl TransformEcmascriptModule {
         Id<Node /*ImportDeclaration*/>,
         Id<Node /*VariableStatement*/>,
     )> {
-        self.import_require_statements.borrow().clone()
+        self.import_require_statements.get()
     }
 
     pub(super) fn import_require_statements(
@@ -134,7 +134,7 @@ impl TransformEcmascriptModule {
         Id<Node /*ImportDeclaration*/>,
         Id<Node /*VariableStatement*/>,
     ) {
-        self.import_require_statements.borrow().clone().unwrap()
+        self.import_require_statements.get().unwrap()
     }
 
     fn set_import_require_statements(
@@ -144,7 +144,7 @@ impl TransformEcmascriptModule {
             Id<Node /*VariableStatement*/>,
         )>,
     ) {
-        *self.import_require_statements.borrow_mut() = import_require_statements;
+        self.import_require_statements.set(import_require_statements);
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {

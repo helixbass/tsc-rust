@@ -1,6 +1,6 @@
 use std::{
     borrow::Borrow,
-    cell::Cell,
+    cell::{Cell, RefCell, Ref, RefMut},
     collections::{HashMap, HashSet},
     io, mem, any::Any,
 };
@@ -35,6 +35,7 @@ use crate::{
     HasArena, AllArenas, InArena, OptionInArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
     BaseNodeFactory,
+    ref_unwrapped,
 };
 
 bitflags! {
@@ -90,12 +91,12 @@ struct TransformES2018 {
     enclosing_super_container_flags: Cell<NodeCheckFlags>,
     #[unsafe_ignore_trace]
     hierarchy_facts: Cell<HierarchyFacts>,
-    current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    tagged_template_string_declarations: GcCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
-    captured_super_properties: GcCell<Option<HashSet<__String>>>,
+    current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    tagged_template_string_declarations: RefCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
+    captured_super_properties: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     has_super_element_access: Cell<bool>,
-    substituted_super_accessors: GcCell<HashMap<NodeId, bool>>,
+    substituted_super_accessors: RefCell<HashMap<NodeId, bool>>,
 }
 
 impl TransformES2018 {
@@ -179,18 +180,18 @@ impl TransformES2018 {
     }
 
     fn current_source_file(&self) -> Id<Node> {
-        self.current_source_file.borrow().clone().unwrap()
+        self.current_source_file.get().unwrap()
     }
 
     fn set_current_source_file(&self, current_source_file: Option<Id<Node>>) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
-    fn maybe_tagged_template_string_declarations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    fn maybe_tagged_template_string_declarations(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.tagged_template_string_declarations.borrow()
     }
 
-    fn maybe_tagged_template_string_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    fn maybe_tagged_template_string_declarations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.tagged_template_string_declarations.borrow_mut()
     }
 
@@ -202,15 +203,15 @@ impl TransformES2018 {
             tagged_template_string_declarations;
     }
 
-    fn maybe_captured_super_properties(&self) -> GcCellRef<Option<HashSet<String>>> {
+    fn maybe_captured_super_properties(&self) -> Ref<Option<HashSet<String>>> {
         self.captured_super_properties.borrow()
     }
 
-    fn captured_super_properties(&self) -> GcCellRef<HashSet<String>> {
-        gc_cell_ref_unwrapped(&self.captured_super_properties)
+    fn captured_super_properties(&self) -> Ref<HashSet<String>> {
+        ref_unwrapped(&self.captured_super_properties)
     }
 
-    fn maybe_captured_super_properties_mut(&self) -> GcCellRefMut<Option<HashSet<String>>> {
+    fn maybe_captured_super_properties_mut(&self) -> RefMut<Option<HashSet<String>>> {
         self.captured_super_properties.borrow_mut()
     }
 
@@ -226,11 +227,11 @@ impl TransformES2018 {
         self.has_super_element_access.set(has_super_element_access);
     }
 
-    fn substituted_super_accessors(&self) -> GcCellRef<HashMap<NodeId, bool>> {
+    fn substituted_super_accessors(&self) -> Ref<HashMap<NodeId, bool>> {
         self.substituted_super_accessors.borrow()
     }
 
-    fn substituted_super_accessors_mut(&self) -> GcCellRefMut<HashMap<NodeId, bool>> {
+    fn substituted_super_accessors_mut(&self) -> RefMut<HashMap<NodeId, bool>> {
         self.substituted_super_accessors.borrow_mut()
     }
 

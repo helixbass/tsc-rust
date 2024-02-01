@@ -1340,7 +1340,7 @@ impl NodeBuilder {
                     } else {
                         non_root_parts.ref_(self).as_qualified_name().right
                     };
-                    *last_id.ref_(self).as_identifier().maybe_type_arguments_mut() = None;
+                    last_id.ref_(self).as_identifier().set_type_arguments(None);
                 }
                 return Ok(get_factory(self).create_import_type_node(
                     lit,
@@ -1386,7 +1386,8 @@ impl NodeBuilder {
             } else {
                 entity_name.ref_(self).as_qualified_name().right
             };
-            let last_type_args = last_id.ref_(self).as_identifier().maybe_type_arguments_mut().take();
+            let last_type_args = last_id.ref_(self).as_identifier().maybe_type_arguments();
+            last_id.ref_(self).as_identifier().set_type_arguments(None);
             get_factory(self).create_type_reference_node(entity_name, last_type_args)
         })
     }

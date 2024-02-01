@@ -1,6 +1,6 @@
 use std::{
     borrow::Borrow,
-    cell::{Cell, Ref, RefMut},
+    cell::{Cell, Ref, RefMut, RefCell},
     collections::HashMap,
     fmt, io,
     iter::FromIterator,
@@ -808,8 +808,8 @@ pub fn create_type_checker(
         potential_reflect_collisions: Default::default(),
         awaited_type_stack: Default::default(),
 
-        diagnostics: GcCell::new(create_diagnostic_collection(&*static_arena())),
-        suggestion_diagnostics: GcCell::new(create_diagnostic_collection(&*static_arena())),
+        diagnostics: RefCell::new(create_diagnostic_collection(&*static_arena())),
+        suggestion_diagnostics: RefCell::new(create_diagnostic_collection(&*static_arena())),
 
         typeof_types_by_name: Default::default(),
         typeof_type: Default::default(),
@@ -3502,11 +3502,11 @@ impl TypeChecker {
         self.awaited_type_stack.borrow_mut()
     }
 
-    pub(super) fn diagnostics(&self) -> GcCellRefMut<DiagnosticCollection> {
+    pub(super) fn diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.diagnostics.borrow_mut()
     }
 
-    pub(super) fn suggestion_diagnostics(&self) -> GcCellRefMut<DiagnosticCollection> {
+    pub(super) fn suggestion_diagnostics(&self) -> RefMut<DiagnosticCollection> {
         self.suggestion_diagnostics.borrow_mut()
     }
 

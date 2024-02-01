@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::Cell, collections::HashMap, io, mem, any::Any};
+use std::{borrow::Borrow, cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, any::Any};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -22,6 +22,7 @@ use crate::{
     HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
     OptionInArena,
+    ref_unwrapped, ref_mut_unwrapped,
 };
 
 bitflags! {
@@ -387,19 +388,19 @@ pub(super) struct TransformClassFields {
     pub(super) should_transform_this_in_static_initializers: bool,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ClassPropertySubstitutionFlags>>,
-    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
-    pub(super) pending_expressions: GcCell<Option<Vec<Id<Node /*Expression*/>>>>,
-    pub(super) pending_statements: GcCell<Option<Vec<Id<Node /*Statement*/>>>>,
+    pub(super) class_aliases: RefCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
+    pub(super) pending_expressions: RefCell<Option<Vec<Id<Node /*Expression*/>>>>,
+    pub(super) pending_statements: RefCell<Option<Vec<Id<Node /*Statement*/>>>>,
     pub(super) class_lexical_environment_stack:
-        GcCell<Vec<Option<Id<ClassLexicalEnvironment>>>>,
+        RefCell<Vec<Option<Id<ClassLexicalEnvironment>>>>,
     pub(super) class_lexical_environment_map:
-        GcCell<HashMap<NodeId, Id<ClassLexicalEnvironment>>>,
+        RefCell<HashMap<NodeId, Id<ClassLexicalEnvironment>>>,
     pub(super) current_class_lexical_environment:
-        GcCell<Option<Id<ClassLexicalEnvironment>>>,
+        Cell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_computed_property_name_class_lexical_environment:
-        GcCell<Option<Id<ClassLexicalEnvironment>>>,
+        Cell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_static_property_declaration_or_static_block:
-        GcCell<Option<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
+        Cell<Option<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>>>,
 }
 
 impl TransformClassFields {
@@ -463,17 +464,16 @@ impl TransformClassFields {
         self.enabled_substitutions.set(enabled_substitutions);
     }
 
-    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Id<Node /*Identifier*/>>> {
-        gc_cell_ref_unwrapped(&self.class_aliases)
+    pub(super) fn class_aliases(&self) -> Ref<HashMap<NodeId, Id<Node /*Identifier*/>>> {
+        ref_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn class_aliases_mut(
         &self,
-    ) -> GcCellRefMut<
-        Option<HashMap<NodeId, Id<Node /*Identifier*/>>>,
+    ) -> RefMut<
         HashMap<NodeId, Id<Node /*Identifier*/>>,
     > {
-        gc_cell_ref_mut_unwrapped(&self.class_aliases)
+        ref_mut_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn set_class_aliases(
@@ -485,24 +485,24 @@ impl TransformClassFields {
 
     pub(super) fn maybe_pending_expressions(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<Node /*Expression*/>>>> {
+    ) -> Ref<Option<Vec<Id<Node /*Expression*/>>>> {
         self.pending_expressions.borrow()
     }
 
-    pub(super) fn pending_expressions(&self) -> GcCellRef<Vec<Id<Node /*Expression*/>>> {
-        gc_cell_ref_unwrapped(&self.pending_expressions)
+    pub(super) fn pending_expressions(&self) -> Ref<Vec<Id<Node /*Expression*/>>> {
+        ref_unwrapped(&self.pending_expressions)
     }
 
     pub(super) fn maybe_pending_expressions_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Node /*Expression*/>>>> {
+    ) -> RefMut<Option<Vec<Id<Node /*Expression*/>>>> {
         self.pending_expressions.borrow_mut()
     }
 
     pub(super) fn pending_expressions_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Node /*Expression*/>>>, Vec<Id<Node /*Expression*/>>> {
-        gc_cell_ref_mut_unwrapped(&self.pending_expressions)
+    ) -> RefMut<Vec<Id<Node /*Expression*/>>> {
+        ref_mut_unwrapped(&self.pending_expressions)
     }
 
     pub(super) fn set_pending_expressions(
@@ -514,18 +514,18 @@ impl TransformClassFields {
 
     pub(super) fn maybe_pending_statements(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<Node /*Statement*/>>>> {
+    ) -> Ref<Option<Vec<Id<Node /*Statement*/>>>> {
         self.pending_statements.borrow()
     }
 
-    pub(super) fn pending_statements(&self) -> GcCellRef<Vec<Id<Node /*Statement*/>>> {
-        gc_cell_ref_unwrapped(&self.pending_statements)
+    pub(super) fn pending_statements(&self) -> Ref<Vec<Id<Node /*Statement*/>>> {
+        ref_unwrapped(&self.pending_statements)
     }
 
     pub(super) fn pending_statements_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Node /*Statement*/>>>, Vec<Id<Node /*Statement*/>>> {
-        gc_cell_ref_mut_unwrapped(&self.pending_statements)
+    ) -> RefMut<Vec<Id<Node /*Statement*/>>> {
+        ref_mut_unwrapped(&self.pending_statements)
     }
 
     pub(super) fn set_pending_statements(
@@ -537,47 +537,46 @@ impl TransformClassFields {
 
     pub(super) fn class_lexical_environment_stack(
         &self,
-    ) -> GcCellRef<Vec<Option<Id<ClassLexicalEnvironment>>>> {
+    ) -> Ref<Vec<Option<Id<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_stack.borrow()
     }
 
     pub(super) fn class_lexical_environment_stack_mut(
         &self,
-    ) -> GcCellRefMut<Vec<Option<Id<ClassLexicalEnvironment>>>> {
+    ) -> RefMut<Vec<Option<Id<ClassLexicalEnvironment>>>> {
         self.class_lexical_environment_stack.borrow_mut()
     }
 
     pub(super) fn class_lexical_environment_map(
         &self,
-    ) -> GcCellRef<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
+    ) -> Ref<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
         self.class_lexical_environment_map.borrow()
     }
 
     pub(super) fn class_lexical_environment_map_mut(
         &self,
-    ) -> GcCellRefMut<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
+    ) -> RefMut<HashMap<NodeId, Id<ClassLexicalEnvironment>>> {
         self.class_lexical_environment_map.borrow_mut()
     }
 
     pub(super) fn maybe_current_class_lexical_environment(
         &self,
     ) -> Option<Id<ClassLexicalEnvironment>> {
-        self.current_class_lexical_environment.borrow().clone()
+        self.current_class_lexical_environment.get()
     }
 
     pub(super) fn set_current_class_lexical_environment(
         &self,
         current_class_lexical_environment: Option<Id<ClassLexicalEnvironment>>,
     ) {
-        *self.current_class_lexical_environment.borrow_mut() = current_class_lexical_environment;
+        self.current_class_lexical_environment.set(current_class_lexical_environment);
     }
 
     pub(super) fn maybe_current_computed_property_name_class_lexical_environment(
         &self,
     ) -> Option<Id<ClassLexicalEnvironment>> {
         self.current_computed_property_name_class_lexical_environment
-            .borrow()
-            .clone()
+            .get()
     }
 
     pub(super) fn set_current_computed_property_name_class_lexical_environment(
@@ -586,17 +585,14 @@ impl TransformClassFields {
             Id<ClassLexicalEnvironment>,
         >,
     ) {
-        *self
-            .current_computed_property_name_class_lexical_environment
-            .borrow_mut() = current_computed_property_name_class_lexical_environment;
+        self.current_computed_property_name_class_lexical_environment.set(current_computed_property_name_class_lexical_environment);
     }
 
     pub(super) fn maybe_current_static_property_declaration_or_static_block(
         &self,
     ) -> Option<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
         self.current_static_property_declaration_or_static_block
-            .borrow()
-            .clone()
+            .get()
     }
 
     pub(super) fn set_current_static_property_declaration_or_static_block(
@@ -605,9 +601,7 @@ impl TransformClassFields {
             Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>,
         >,
     ) {
-        *self
-            .current_static_property_declaration_or_static_block
-            .borrow_mut() = current_static_property_declaration_or_static_block;
+        self.current_static_property_declaration_or_static_block.set(current_static_property_declaration_or_static_block);
     }
 
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {

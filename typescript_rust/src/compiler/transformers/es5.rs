@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, mem, any::Any};
+use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut}};
 
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
@@ -13,6 +13,7 @@ use crate::{
     TransformerFactoryInterface, TransformerInterface,
     HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
+    ref_mut_unwrapped,
 };
 
 #[derive(Trace, Finalize)]
@@ -22,7 +23,7 @@ struct TransformES5 {
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
     compiler_options: Id<CompilerOptions>,
-    no_substitution: GcCell<Option<HashMap<NodeId, bool>>>,
+    no_substitution: RefCell<Option<HashMap<NodeId, bool>>>,
 }
 
 impl TransformES5 {
@@ -64,14 +65,14 @@ impl TransformES5 {
         ret
     }
 
-    fn maybe_no_substitution(&self) -> GcCellRef<Option<HashMap<usize, bool>>> {
+    fn maybe_no_substitution(&self) -> Ref<Option<HashMap<usize, bool>>> {
         self.no_substitution.borrow()
     }
 
     fn no_substitution_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, bool>>, HashMap<NodeId, bool>> {
-        gc_cell_ref_mut_unwrapped(&self.no_substitution)
+    ) -> RefMut<HashMap<NodeId, bool>> {
+        ref_mut_unwrapped(&self.no_substitution)
     }
 
     fn transform_source_file(&self, node: Id<Node>) -> Id<Node> {

@@ -452,8 +452,12 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_asterisk_token()
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
+                    fn maybe_exclamation_token(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_exclamation_token()
+                    }
+
+                    fn set_exclamation_token(&self, exclamation_token: ::std::option::Option<::id_arena::Id<crate::Node>>) {
+                        self.#first_field_name.set_exclamation_token(exclamation_token)
                     }
 
                     fn maybe_end_flow_node(&self) -> ::std::option::Option<::id_arena::Id<crate::FlowNode>> {
@@ -1021,9 +1025,15 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_exclamation_token(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
+                    fn maybe_exclamation_token(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_exclamation_token()),*
+                        }
+                    }
+
+                    fn set_exclamation_token(&self, exclamation_token: ::std::option::Option<::id_arena::Id<crate::Node>>) {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.set_exclamation_token(exclamation_token)),*
                         }
                     }
 

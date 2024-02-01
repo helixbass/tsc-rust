@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, io, mem, ptr, any::Any};
+use std::{cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, ptr, any::Any};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
@@ -22,6 +22,7 @@ use crate::{
     UnderscoreEscapedMap, VisitResult,
     HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
     TransformNodesTransformationResult, CoreTransformationContext,
+    ref_unwrapped, ref_mut_unwrapped,
 };
 
 pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
@@ -68,19 +69,19 @@ pub(super) struct TransformTypeScript {
     pub(super) language_version: ScriptTarget,
     #[unsafe_ignore_trace]
     pub(super) module_kind: ModuleKind,
-    pub(super) current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
-    pub(super) current_namespace: GcCell<Option<Id<Node /*ModuleDeclaration*/>>>,
-    pub(super) current_namespace_container_name: GcCell<Option<Id<Node /*Identifier*/>>>,
+    pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
+    pub(super) current_namespace: Cell<Option<Id<Node /*ModuleDeclaration*/>>>,
+    pub(super) current_namespace_container_name: Cell<Option<Id<Node /*Identifier*/>>>,
     pub(super) current_lexical_scope:
-        GcCell<Option<Id<Node /*SourceFile | Block | ModuleBlock | CaseBlock*/>>>,
-    pub(super) current_name_scope: GcCell<Option<Id<Node /*ClassDeclaration*/>>>,
+        Cell<Option<Id<Node /*SourceFile | Block | ModuleBlock | CaseBlock*/>>>,
+    pub(super) current_name_scope: Cell<Option<Id<Node /*ClassDeclaration*/>>>,
     pub(super) current_scope_first_declarations_of_name:
-        GcCell<Option<UnderscoreEscapedMap<Id<Node>>>>,
+        RefCell<Option<UnderscoreEscapedMap<Id<Node>>>>,
     #[unsafe_ignore_trace]
     pub(super) current_class_has_parameter_properties: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<TypeScriptSubstitutionFlags>,
-    pub(super) class_aliases: GcCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
+    pub(super) class_aliases: RefCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
     #[unsafe_ignore_trace]
     pub(super) applicable_substitutions: Cell<TypeScriptSubstitutionFlags>,
 }
@@ -130,33 +131,32 @@ impl TransformTypeScript {
     }
 
     pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node>> {
-        self.current_source_file.borrow().clone()
+        self.current_source_file.get()
     }
 
     pub(super) fn current_source_file(&self) -> Id<Node> {
-        self.current_source_file.borrow().clone().unwrap()
+        self.current_source_file.get().unwrap()
     }
 
     pub(super) fn set_current_source_file(&self, current_source_file: Option<Id<Node>>) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
     pub(super) fn maybe_current_namespace(&self) -> Option<Id<Node>> {
-        self.current_namespace.borrow().clone()
+        self.current_namespace.get()
     }
 
     pub(super) fn set_current_namespace(&self, current_namespace: Option<Id<Node>>) {
-        *self.current_namespace.borrow_mut() = current_namespace;
+        self.current_namespace.set(current_namespace);
     }
 
     pub(super) fn maybe_current_namespace_container_name(&self) -> Option<Id<Node>> {
-        self.current_namespace_container_name.borrow().clone()
+        self.current_namespace_container_name.get()
     }
 
     pub(super) fn current_namespace_container_name(&self) -> Id<Node> {
         self.current_namespace_container_name
-            .borrow()
-            .clone()
+            .get()
             .unwrap()
     }
 
@@ -164,38 +164,38 @@ impl TransformTypeScript {
         &self,
         current_namespace_container_name: Option<Id<Node>>,
     ) {
-        *self.current_namespace_container_name.borrow_mut() = current_namespace_container_name;
+        self.current_namespace_container_name.set(current_namespace_container_name);
     }
 
     pub(super) fn current_lexical_scope(&self) -> Id<Node> {
-        self.current_lexical_scope.borrow().clone().unwrap()
+        self.current_lexical_scope.get().unwrap()
     }
 
     pub(super) fn maybe_current_lexical_scope(&self) -> Option<Id<Node>> {
-        self.current_lexical_scope.borrow().clone()
+        self.current_lexical_scope.get()
     }
 
     pub(super) fn set_current_lexical_scope(&self, current_lexical_scope: Option<Id<Node>>) {
-        *self.current_lexical_scope.borrow_mut() = current_lexical_scope;
+        self.current_lexical_scope.set(current_lexical_scope);
     }
 
     pub(super) fn maybe_current_name_scope(&self) -> Option<Id<Node>> {
-        self.current_name_scope.borrow().clone()
+        self.current_name_scope.get()
     }
 
     pub(super) fn set_current_name_scope(&self, current_name_scope: Option<Id<Node>>) {
-        *self.current_name_scope.borrow_mut() = current_name_scope;
+        self.current_name_scope.set(current_name_scope);
     }
 
     pub(super) fn maybe_current_scope_first_declarations_of_name(
         &self,
-    ) -> GcCellRef<Option<UnderscoreEscapedMap<Id<Node>>>> {
+    ) -> Ref<Option<UnderscoreEscapedMap<Id<Node>>>> {
         self.current_scope_first_declarations_of_name.borrow()
     }
 
     pub(super) fn maybe_current_scope_first_declarations_of_name_mut(
         &self,
-    ) -> GcCellRefMut<Option<UnderscoreEscapedMap<Id<Node>>>> {
+    ) -> RefMut<Option<UnderscoreEscapedMap<Id<Node>>>> {
         self.current_scope_first_declarations_of_name.borrow_mut()
     }
 
@@ -230,18 +230,18 @@ impl TransformTypeScript {
         self.enabled_substitutions.set(enabled_substitutions);
     }
 
-    pub(super) fn maybe_class_aliases(&self) -> GcCellRef<Option<HashMap<NodeId, Id<Node>>>> {
+    pub(super) fn maybe_class_aliases(&self) -> Ref<Option<HashMap<NodeId, Id<Node>>>> {
         self.class_aliases.borrow()
     }
 
-    pub(super) fn class_aliases(&self) -> GcCellRef<HashMap<NodeId, Id<Node>>> {
-        gc_cell_ref_unwrapped(&self.class_aliases)
+    pub(super) fn class_aliases(&self) -> Ref<HashMap<NodeId, Id<Node>>> {
+        ref_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn class_aliases_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node>>>, HashMap<NodeId, Id<Node>>> {
-        gc_cell_ref_mut_unwrapped(&self.class_aliases)
+    ) -> RefMut<HashMap<NodeId, Id<Node>>> {
+        ref_mut_unwrapped(&self.class_aliases)
     }
 
     pub(super) fn set_class_aliases(&self, class_aliases: Option<HashMap<NodeId, Id<Node>>>) {
