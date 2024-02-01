@@ -1588,7 +1588,7 @@ pub fn create_type_reference_directive_resolution_cache(
     options: Option<Id<CompilerOptions>>,
     package_json_info_cache: Option<Id<Box<dyn PackageJsonInfoCache>>>,
     directory_to_module_name_map: Option<
-        Gc<
+        Id<
             CacheWithRedirects<
                 ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>,
             >,
@@ -1600,7 +1600,7 @@ pub fn create_type_reference_directive_resolution_cache(
         current_directory,
         get_canonical_file_name.clone(),
         directory_to_module_name_map
-            .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options), arena)),
+            .unwrap_or_else(|| arena.alloc_cache_with_redirects_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(create_cache_with_redirects(options, arena))),
     );
     let package_json_info_cache = package_json_info_cache.unwrap_or_else(|| {
         arena.alloc_package_json_info_cache(Box::new(create_package_json_info_cache(
