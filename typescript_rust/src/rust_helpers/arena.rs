@@ -179,6 +179,7 @@ pub struct AllArenas {
     pub vec_symbols: RefCell<Arena<Vec<Id<Symbol>>>>,
     pub vec_nodes: RefCell<Arena<Vec<Id<Node>>>>,
     pub type_mapper_callbacks: RefCell<Arena<Box<dyn TypeMapperCallback>>>,
+    pub option_symbol_tables: RefCell<Arena<Option<Id<SymbolTable>>>>,
 }
 
 pub trait HasArena {
@@ -1390,6 +1391,18 @@ pub trait HasArena {
 
     fn alloc_type_mapper_callback(&self, type_mapper_callback: Box<dyn TypeMapperCallback>) -> Id<Box<dyn TypeMapperCallback>> {
         self.arena().alloc_type_mapper_callback(type_mapper_callback)
+    }
+
+    fn option_symbol_table(&self, option_symbol_table: Id<Option<Id<SymbolTable>>>) -> Ref<Option<Id<SymbolTable>>> {
+        self.arena().option_symbol_table(option_symbol_table)
+    }
+
+    fn option_symbol_table_mut(&self, option_symbol_table: Id<Option<Id<SymbolTable>>>) -> RefMut<Option<Id<SymbolTable>>> {
+        self.arena().option_symbol_table_mut(option_symbol_table)
+    }
+
+    fn alloc_option_symbol_table(&self, option_symbol_table: Option<Id<SymbolTable>>) -> Id<Option<Id<SymbolTable>>> {
+        self.arena().alloc_option_symbol_table(option_symbol_table)
     }
 }
 
@@ -2900,6 +2913,20 @@ impl HasArena for AllArenas {
         let id = self.type_mapper_callbacks.borrow_mut().alloc(type_mapper_callback);
         id
     }
+
+    #[track_caller]
+    fn option_symbol_table(&self, option_symbol_table: Id<Option<Id<SymbolTable>>>) -> Ref<Option<Id<SymbolTable>>> {
+        Ref::map(self.option_symbol_tables.borrow(), |option_symbol_tables| &option_symbol_tables[option_symbol_table])
+    }
+
+    fn option_symbol_table_mut(&self, option_symbol_table: Id<Option<Id<SymbolTable>>>) -> RefMut<Option<Id<SymbolTable>>> {
+        RefMut::map(self.option_symbol_tables.borrow_mut(), |option_symbol_tables| &mut option_symbol_tables[option_symbol_table])
+    }
+
+    fn alloc_option_symbol_table(&self, option_symbol_table: Option<Id<SymbolTable>>) -> Id<Option<Id<SymbolTable>>> {
+        let id = self.option_symbol_tables.borrow_mut().alloc(option_symbol_table);
+        id
+    }
 }
 
 pub trait InArena {
@@ -4117,6 +4144,18 @@ impl InArena for Id<Box<dyn TypeMapperCallback>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TypeMapperCallback>> {
         has_arena.type_mapper_callback(*self)
+    }
+}
+
+impl InArena for Id<Option<Id<SymbolTable>>> {
+    type Item = Option<Id<SymbolTable>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Option<Id<SymbolTable>>> {
+        has_arena.option_symbol_table(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Id<SymbolTable>>> {
+        has_arena.option_symbol_table_mut(*self)
     }
 }
 

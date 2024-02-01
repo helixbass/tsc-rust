@@ -1731,7 +1731,7 @@ pub struct BaseNode {
     #[unsafe_ignore_trace]
     pub end: Cell<isize>,
     pub symbol: GcCell<Option<Id<Symbol>>>,
-    pub locals: Gc<GcCell<Option<Id<SymbolTable>>>>,
+    pub locals: Id<Option<Id<SymbolTable>>>,
     next_container: GcCell<Option<Id<Node>>>,
     local_symbol: GcCell<Option<Id<Symbol>>>,
     emit_node: GcCell<Option<Id<EmitNode>>>,
@@ -1783,6 +1783,7 @@ impl BaseNode {
         transform_flags: TransformFlags,
         pos: isize,
         end: isize,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
             _arena_id: Default::default(),
@@ -1800,7 +1801,7 @@ impl BaseNode {
             pos: Cell::new(pos),
             end: Cell::new(end),
             symbol: Default::default(),
-            locals: Default::default(),
+            locals: arena.alloc_option_symbol_table(Default::default()),
             next_container: Default::default(),
             local_symbol: Default::default(),
             emit_node: Default::default(),
@@ -1954,23 +1955,23 @@ impl NodeInterface for BaseNode {
     }
 
     fn maybe_locals(&self) -> Option<Id<SymbolTable>> {
-        (*self.locals).borrow().clone()
+        *self.locals.ref_(self)
     }
 
-    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
-        self.locals.borrow_mut()
+    fn maybe_locals_mut(&self) -> debug_cell::RefMut<Option<Id<SymbolTable>>> {
+        self.locals.ref_mut(self)
     }
 
     fn locals(&self) -> Id<SymbolTable> {
-        (*self.locals).borrow().clone().unwrap()
+        self.locals.ref_(self).unwrap()
     }
 
-    fn locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>, Id<SymbolTable>> {
-        GcCellRefMut::map(self.locals.borrow_mut(), |option| option.as_mut().unwrap())
+    fn locals_mut(&self) -> debug_cell::RefMut<Id<SymbolTable>> {
+        debug_cell::RefMut::map(self.locals.ref_mut(self), |option| option.as_mut().unwrap())
     }
 
     fn set_locals(&self, locals: Option<Id<SymbolTable>>) {
-        *self.locals.borrow_mut() = locals;
+        *self.locals.ref_mut(self) = locals;
     }
 
     fn maybe_next_container(&self) -> Option<Id<Node>> {

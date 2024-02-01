@@ -763,40 +763,40 @@ fn _Signature(flags: SignatureFlags) -> Signature {
 }
 
 #[allow(non_snake_case)]
-fn Node(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end)
+fn Node(kind: SyntaxKind, pos: isize, end: isize, arena: &AllArenas) -> BaseNode {
+    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end, arena)
 }
 
 #[allow(non_snake_case)]
-fn Token(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end)
+fn Token(kind: SyntaxKind, pos: isize, end: isize, arena: &AllArenas) -> BaseNode {
+    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end, arena)
 }
 
 #[allow(non_snake_case)]
-fn Identifier(kind: SyntaxKind, pos: isize, end: isize) -> BaseNode {
-    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end)
+fn Identifier(kind: SyntaxKind, pos: isize, end: isize, arena: &AllArenas) -> BaseNode {
+    BaseNode::new(kind, NodeFlags::None, TransformFlags::None, pos, end, arena)
 }
 
 pub struct ObjectAllocator {}
 
 impl ObjectAllocator {
-    pub fn get_node_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub fn get_node_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Node
     }
 
-    pub fn get_token_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub fn get_token_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Token
     }
 
-    pub fn get_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub fn get_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Identifier
     }
 
-    pub fn get_private_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub fn get_private_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Node
     }
 
-    pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Node
     }
 

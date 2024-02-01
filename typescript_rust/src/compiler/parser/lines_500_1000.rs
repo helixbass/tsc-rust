@@ -297,15 +297,15 @@ pub struct ParserType {
     #[unsafe_ignore_trace]
     pub(super) disallow_in_and_decorator_context: NodeFlags,
     #[unsafe_ignore_trace]
-    pub(super) NodeConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    pub(super) NodeConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    pub(super) IdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    pub(super) IdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    pub(super) PrivateIdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    pub(super) PrivateIdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     pub(super) factory: GcCell<Option<Id<NodeFactory>>>,
     #[unsafe_ignore_trace]
     pub(super) file_name: RefCell<Option<String>>,
@@ -418,67 +418,67 @@ impl ParserType {
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn NodeConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub(super) fn NodeConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.NodeConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_NodeConstructor(
         &self,
-        NodeConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
+        NodeConstructor: fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode,
     ) {
         self.NodeConstructor.set(Some(NodeConstructor));
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn IdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub(super) fn IdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.IdentifierConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_IdentifierConstructor(
         &self,
-        IdentifierConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
+        IdentifierConstructor: fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode,
     ) {
         self.IdentifierConstructor.set(Some(IdentifierConstructor));
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn PrivateIdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub(super) fn PrivateIdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.PrivateIdentifierConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_PrivateIdentifierConstructor(
         &self,
-        PrivateIdentifierConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
+        PrivateIdentifierConstructor: fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode,
     ) {
         self.PrivateIdentifierConstructor
             .set(Some(PrivateIdentifierConstructor));
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn TokenConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub(super) fn TokenConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.TokenConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_TokenConstructor(
         &self,
-        TokenConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
+        TokenConstructor: fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode,
     ) {
         self.TokenConstructor.set(Some(TokenConstructor));
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn SourceFileConstructor(&self) -> fn(SyntaxKind, isize, isize) -> BaseNode {
+    pub(super) fn SourceFileConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.SourceFileConstructor.get().unwrap()
     }
 
     #[allow(non_snake_case)]
     pub(super) fn set_SourceFileConstructor(
         &self,
-        SourceFileConstructor: fn(SyntaxKind, isize, isize) -> BaseNode,
+        SourceFileConstructor: fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode,
     ) {
         self.SourceFileConstructor.set(Some(SourceFileConstructor));
     }

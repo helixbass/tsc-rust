@@ -208,7 +208,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.maybe_locals()
                     }
 
-                    fn maybe_locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_locals_mut(&self) -> ::debug_cell::RefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         self.#first_field_name.maybe_locals_mut()
                     }
 
@@ -216,7 +216,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.locals()
                     }
 
-                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>, ::id_arena::Id<crate::SymbolTable>> {
+                    fn locals_mut(&self) -> ::debug_cell::RefMut<::id_arena::Id<crate::SymbolTable>> {
                         self.#first_field_name.locals_mut()
                     }
 
@@ -729,7 +729,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_locals_mut(&self) -> ::debug_cell::RefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_locals_mut()),*
                         }
@@ -741,7 +741,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn locals_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>, ::id_arena::Id<crate::SymbolTable>> {
+                    fn locals_mut(&self) -> ::debug_cell::RefMut<::id_arena::Id<crate::SymbolTable>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.locals_mut()),*
                         }

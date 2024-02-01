@@ -633,6 +633,7 @@ pub fn read_json_config_file(
                 TransformFlags::None,
                 -1,
                 -1,
+                arena,
             );
             let end_of_file_token = BaseNode::new(
                 SyntaxKind::EndOfFileToken,
@@ -640,6 +641,7 @@ pub fn read_json_config_file(
                 TransformFlags::None,
                 -1,
                 -1,
+                arena,
             )
             .alloc(arena.arena());
             let source_file = SourceFile::new(

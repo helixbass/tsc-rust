@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use gc::{Trace, Finalize};
 
-use crate::{object_allocator, BaseNode, NodeInterface, SyntaxKind};
+use crate::{object_allocator, BaseNode, NodeInterface, SyntaxKind, AllArenas, HasArena};
 
 pub trait BaseNodeFactory: Trace + Finalize {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;
@@ -21,15 +21,15 @@ pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
 #[allow(non_snake_case)]
 pub struct BaseNodeFactoryConcrete {
     #[unsafe_ignore_trace]
-    SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
-    NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize) -> BaseNode>>,
+    NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
 }
 
 impl BaseNodeFactoryConcrete {
@@ -51,7 +51,7 @@ impl BaseNodeFactory for BaseNodeFactoryConcrete {
         if SourceFileConstructor.is_none() {
             *SourceFileConstructor = Some(object_allocator.get_source_file_constructor());
         }
-        (SourceFileConstructor.unwrap())(kind, -1, -1)
+        (SourceFileConstructor.unwrap())(kind, -1, -1, self.arena())
     }
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
@@ -59,7 +59,7 @@ impl BaseNodeFactory for BaseNodeFactoryConcrete {
         if IdentifierConstructor.is_none() {
             *IdentifierConstructor = Some(object_allocator.get_identifier_constructor());
         }
-        (IdentifierConstructor.unwrap())(kind, -1, -1)
+        (IdentifierConstructor.unwrap())(kind, -1, -1, self.arena())
     }
 
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
@@ -68,7 +68,7 @@ impl BaseNodeFactory for BaseNodeFactoryConcrete {
             *PrivateIdentifierConstructor =
                 Some(object_allocator.get_private_identifier_constructor());
         }
-        (PrivateIdentifierConstructor.unwrap())(kind, -1, -1)
+        (PrivateIdentifierConstructor.unwrap())(kind, -1, -1, self.arena())
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
@@ -76,7 +76,7 @@ impl BaseNodeFactory for BaseNodeFactoryConcrete {
         if TokenConstructor.is_none() {
             *TokenConstructor = Some(object_allocator.get_token_constructor());
         }
-        (TokenConstructor.unwrap())(kind, -1, -1)
+        (TokenConstructor.unwrap())(kind, -1, -1, self.arena())
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
@@ -84,6 +84,12 @@ impl BaseNodeFactory for BaseNodeFactoryConcrete {
         if NodeConstructor.is_none() {
             *NodeConstructor = Some(object_allocator.get_node_constructor());
         }
-        (NodeConstructor.unwrap())(kind, -1, -1)
+        (NodeConstructor.unwrap())(kind, -1, -1, self.arena())
+    }
+}
+
+impl HasArena for BaseNodeFactoryConcrete {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
