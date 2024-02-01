@@ -181,6 +181,7 @@ pub struct AllArenas {
     pub type_mapper_callbacks: RefCell<Arena<Box<dyn TypeMapperCallback>>>,
     pub option_symbol_tables: RefCell<Arena<Option<Id<SymbolTable>>>>,
     pub cache_with_redirects_per_module_name_caches: RefCell<Arena<CacheWithRedirects<PerModuleNameCache>>>,
+    pub cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations: RefCell<Arena<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>,
 }
 
 pub trait HasArena {
@@ -1412,6 +1413,14 @@ pub trait HasArena {
 
     fn alloc_cache_with_redirects_per_module_name_cache(&self, cache_with_redirects_per_module_name_cache: CacheWithRedirects<PerModuleNameCache>) -> Id<CacheWithRedirects<PerModuleNameCache>> {
         self.arena().alloc_cache_with_redirects_per_module_name_cache(cache_with_redirects_per_module_name_cache)
+    }
+
+    fn cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations(&self, cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations: Id<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>) -> Ref<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>> {
+        self.arena().cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations(cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations)
+    }
+
+    fn alloc_cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations(&self, cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations: CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>) -> Id<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>> {
+        self.arena().alloc_cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations(cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations)
     }
 }
 
@@ -2944,7 +2953,16 @@ impl HasArena for AllArenas {
 
     fn alloc_cache_with_redirects_per_module_name_cache(&self, cache_with_redirects_per_module_name_cache: CacheWithRedirects<PerModuleNameCache>) -> Id<CacheWithRedirects<PerModuleNameCache>> {
         let id = self.cache_with_redirects_per_module_name_caches.borrow_mut().alloc(cache_with_redirects_per_module_name_cache);
-        id.ref_(self).set_arena_id(id);
+        id
+    }
+
+    #[track_caller]
+    fn cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations(&self, cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations: Id<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>) -> Ref<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>> {
+        Ref::map(self.cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations.borrow(), |cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations| &cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations[cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations])
+    }
+
+    fn alloc_cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations(&self, cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations: CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>) -> Id<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>> {
+        let id = self.cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations.borrow_mut().alloc(cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations);
         id
     }
 }
@@ -4184,6 +4202,14 @@ impl InArena for Id<CacheWithRedirects<PerModuleNameCache>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CacheWithRedirects<PerModuleNameCache>> {
         has_arena.cache_with_redirects_per_module_name_cache(*self)
+    }
+}
+
+impl InArena for Id<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>> {
+    type Item = CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>> {
+        has_arena.cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations(*self)
     }
 }
 
