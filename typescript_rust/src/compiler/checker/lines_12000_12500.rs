@@ -477,6 +477,7 @@ impl TypeChecker {
                 object_flags |= ObjectFlags::IsNeverIntersectionComputed
                     | if self
                         .get_properties_of_union_or_intersection_type(type_)?
+                        .into_iter()
                         .try_any(|symbol| self.is_never_reduced_property(symbol))?
                     {
                         ObjectFlags::IsNeverIntersection
@@ -557,6 +558,7 @@ impl TypeChecker {
         {
             let never_prop = self
                 .get_properties_of_union_or_intersection_type(type_)?
+                .into_iter()
                 .try_find_(|&property| self.is_discriminant_with_never_type(property))?;
             if let Some(never_prop) = never_prop {
                 return Ok(Some(
@@ -572,6 +574,7 @@ impl TypeChecker {
             }
             let private_prop = self
                 .get_properties_of_union_or_intersection_type(type_)?
+                .into_iter()
                 .find(|&property| self.is_conflicting_private_property(property));
             if let Some(private_prop) = private_prop {
                 return Ok(Some(
@@ -872,7 +875,7 @@ impl TypeChecker {
             matches!(
                 node.ref_(self).as_parameter_declaration().maybe_type(),
                 Some(type_) if type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
-            ) || get_jsdoc_parameter_tags(node, self).any(|tag: Id<Node>| {
+            ) || get_jsdoc_parameter_tags(node, self).into_iter().any(|tag: Id<Node>| {
                 let tag_ref = tag.ref_(self);
                 let tag_as_jsdoc_property_like_tag = tag_ref.as_jsdoc_property_like_tag();
                 let is_bracketed = tag_as_jsdoc_property_like_tag.is_bracketed;

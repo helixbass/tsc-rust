@@ -1226,8 +1226,7 @@ impl EmitResolver for EmitResolverCreateResolver {
     ) -> io::Result<Vec<Id<Symbol>>> {
         Ok(self
             .type_checker
-            .ref_(self).get_properties_of_container_function(node)?
-            .collect_vec())
+            .ref_(self).get_properties_of_container_function(node)?)
     }
 
     fn create_type_of_declaration(

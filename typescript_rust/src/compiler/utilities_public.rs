@@ -797,11 +797,11 @@ pub(crate) fn get_assigned_name(node: Id<Node>, arena: &impl HasArena) -> Option
     None
 }
 
-fn get_jsdoc_parameter_tags_worker<'a>(
+fn get_jsdoc_parameter_tags_worker(
     param: Id<Node>, /*ParameterDeclaration*/
     no_cache: Option<bool>,
-    arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> + 'a {
+    arena: &impl HasArena,
+) -> Vec<Id<Node /*JSDocParameterTag*/>> {
     let param_ref = param.ref_(arena);
     let param_as_parameter_declaration = param_ref.as_parameter_declaration();
     /*if param.name {*/
@@ -812,24 +812,22 @@ fn get_jsdoc_parameter_tags_worker<'a>(
             .as_identifier()
             .escaped_text
             .clone();
-        return Either3::One(
-            get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena).filter(move |tag| {
-                if !is_jsdoc_parameter_tag(&tag.ref_(arena)) {
-                    return false;
-                }
-                let tag_ref = tag.ref_(arena);
-                let tag_as_jsdoc_parameter_tag = tag_ref.as_jsdoc_property_like_tag();
-                if !is_identifier(&tag_as_jsdoc_parameter_tag.name.ref_(arena)) {
-                    return false;
-                }
-                tag_as_jsdoc_parameter_tag
-                    .name
-                    .ref_(arena)
-                    .as_identifier()
-                    .escaped_text
-                    == name
-            }),
-        );
+        return get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena).ref_(arena).iter().copied().filter(move |tag| {
+            if !is_jsdoc_parameter_tag(&tag.ref_(arena)) {
+                return false;
+            }
+            let tag_ref = tag.ref_(arena);
+            let tag_as_jsdoc_parameter_tag = tag_ref.as_jsdoc_property_like_tag();
+            if !is_identifier(&tag_as_jsdoc_parameter_tag.name.ref_(arena)) {
+                return false;
+            }
+            tag_as_jsdoc_parameter_tag
+                .name
+                .ref_(arena)
+                .as_identifier()
+                .escaped_text
+                == name
+        }).collect();
     } else {
         let i = param
             .ref_(arena)
@@ -845,36 +843,39 @@ fn get_jsdoc_parameter_tags_worker<'a>(
         );
         let i = i.unwrap();
         let mut param_tags = get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena)
+            .ref_(arena)
+            .iter()
+            .copied()
             .filter(|&tag| is_jsdoc_parameter_tag(&tag.ref_(arena)));
         if
         /*i < paramTags.length*/
         let Some(param_tags_i) = param_tags.nth(i) {
-            return Either3::Two(iter::once(param_tags_i));
+            return vec![param_tags_i];
         }
     }
     /*}*/
-    Either3::Three(iter::empty())
+    vec![]
 }
 
-pub fn get_jsdoc_parameter_tags<'a>(
+pub fn get_jsdoc_parameter_tags(
     param: Id<Node>,
-    /*ParameterDeclaration*/ arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> + 'a {
+    /*ParameterDeclaration*/ arena: &impl HasArena,
+) -> Vec<Id<Node /*JSDocParameterTag*/>> {
     get_jsdoc_parameter_tags_worker(param, Some(false), arena)
 }
 
-pub(crate) fn get_jsdoc_parameter_tags_no_cache<'a>(
+pub(crate) fn get_jsdoc_parameter_tags_no_cache(
     param: Id<Node>,
-    /*ParameterDeclaration*/ arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*JSDocParameterTag*/>> + 'a {
+    /*ParameterDeclaration*/ arena: &impl HasArena,
+) -> Vec<Id<Node /*JSDocParameterTag*/>> {
     get_jsdoc_parameter_tags_worker(param, Some(true), arena)
 }
 
-fn get_jsdoc_type_parameter_tags_worker<'a>(
+fn get_jsdoc_type_parameter_tags_worker(
     param: Id<Node>, /*TypeParameterDeclaration*/
     no_cache: Option<bool>,
-    arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> + 'a {
+    arena: &impl HasArena,
+) -> Vec<Id<Node /*JSDocTemplateTag*/>> {
     let name = param
         .ref_(arena)
         .as_type_parameter_declaration()
@@ -883,7 +884,7 @@ fn get_jsdoc_type_parameter_tags_worker<'a>(
         .as_identifier()
         .escaped_text
         .clone();
-    get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena).filter(move |&tag| {
+    get_jsdoc_tags_worker(param.ref_(arena).parent(), no_cache, arena).ref_(arena).iter().copied().filter(move |&tag| {
         if !is_jsdoc_template_tag(&tag.ref_(arena)) {
             return false;
         }
@@ -898,20 +899,20 @@ fn get_jsdoc_type_parameter_tags_worker<'a>(
                 .escaped_text
                 == name
         })
-    })
+    }).collect()
 }
 
-pub fn get_jsdoc_type_parameter_tags<'a>(
+pub fn get_jsdoc_type_parameter_tags(
     param: Id<Node>,
-    /*TypeParameterDeclaration*/ arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> + 'a {
+    /*TypeParameterDeclaration*/ arena: &impl HasArena,
+) -> Vec<Id<Node /*JSDocTemplateTag*/>> {
     get_jsdoc_type_parameter_tags_worker(param, Some(false), arena)
 }
 
-pub(crate) fn get_jsdoc_type_parameter_tags_no_cache<'a>(
+pub(crate) fn get_jsdoc_type_parameter_tags_no_cache(
     param: Id<Node>,
-    /*TypeParameterDeclaration*/ arena: &'a impl HasArena,
-) -> impl Iterator<Item = Id<Node /*JSDocTemplateTag*/>> + 'a {
+    /*TypeParameterDeclaration*/ arena: &impl HasArena,
+) -> Vec<Id<Node /*JSDocTemplateTag*/>> {
     get_jsdoc_type_parameter_tags_worker(param, Some(true), arena)
 }
 
@@ -1064,6 +1065,7 @@ pub fn get_jsdoc_type(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /
     let mut tag = get_first_jsdoc_tag(node, |node| is_jsdoc_type_tag(&node.ref_(arena)), None, arena);
     if tag.is_none() && is_parameter(&node.ref_(arena)) {
         tag = get_jsdoc_parameter_tags(node, arena)
+            .into_iter()
             .find(|tag| tag.ref_(arena).as_jsdoc_property_like_tag().type_expression.is_some());
     }
 
@@ -1111,14 +1113,13 @@ fn get_jsdoc_tags_worker(
     node: Id<Node>,
     no_cache: Option<bool>,
     arena: &impl HasArena,
-) -> impl DoubleEndedIterator<Item = Id<Node /*JSDocTag*/>>
-       + ExactSizeIterator<Item = Id<Node /*JSDocTag*/>> {
+) -> Id<Vec<Id<Node /*JSDocTag*/>>> {
     let mut tags = node.ref_(arena).maybe_js_doc_cache();
     if tags.is_none() || no_cache == Some(true) {
         let comments = get_jsdoc_comments_and_tags(node, no_cache, arena);
         Debug_.assert(comments.len() < 2 || comments[0] != comments[1], None);
         tags = Some(
-            flat_map(Some(comments), |j, _| {
+            arena.alloc_vec_node(flat_map(Some(comments), |j, _| {
                 if is_jsdoc(&j.ref_(arena)) {
                     j.ref_(arena)
                         .as_jsdoc()
@@ -1127,21 +1128,19 @@ fn get_jsdoc_tags_worker(
                 } else {
                     vec![j]
                 }
-            })
-            .into(),
+            }))
         );
         if !no_cache.unwrap_or(false) {
             node.ref_(arena).set_js_doc_cache(tags.clone());
         }
     }
-    tags.unwrap().owned_iter()
+    tags.unwrap()
 }
 
 pub fn get_jsdoc_tags(
     node: Id<Node>,
     arena: &impl HasArena,
-) -> impl DoubleEndedIterator<Item = Id<Node /*JSDocTag*/>>
-       + ExactSizeIterator<Item = Id<Node /*JSDocTag*/>> {
+) -> Id<Vec<Id<Node /*JSDocTag*/>>> {
     get_jsdoc_tags_worker(node, Some(false), arena)
 }
 
@@ -1149,7 +1148,7 @@ pub fn get_jsdoc_tags(
 pub(crate) fn get_jsdoc_tags_no_cache(
     node: Id<Node>,
     arena: &impl HasArena,
-) -> impl Iterator<Item = Id<Node /*JSDocTag*/>> {
+) -> Id<Vec<Id<Node /*JSDocTag*/>>> {
     get_jsdoc_tags_worker(node, Some(true), arena)
 }
 
@@ -1159,7 +1158,7 @@ fn get_first_jsdoc_tag(
     no_cache: Option<bool>,
     arena: &impl HasArena,
 ) -> Option<Id<Node>> {
-    get_jsdoc_tags_worker(node, no_cache, arena).find(|&element| predicate(element))
+    get_jsdoc_tags_worker(node, no_cache, arena).ref_(arena).iter().copied().find(|&element| predicate(element))
 }
 
 pub fn get_all_jsdoc_tags(
@@ -1168,7 +1167,8 @@ pub fn get_all_jsdoc_tags(
     arena: &impl HasArena,
 ) -> Vec<Id<Node>> {
     get_jsdoc_tags(node, arena)
-        .filter(|&tag| predicate(tag))
+        .ref_(arena)
+        .iter().copied().filter(|&tag| predicate(tag))
         .collect()
 }
 
@@ -1178,7 +1178,8 @@ pub fn get_all_jsdoc_tags_of_kind(
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*JSDocTag*/>> {
     get_jsdoc_tags(node, arena)
-        .filter(|tag| tag.ref_(arena).kind() == kind)
+        .ref_(arena)
+        .iter().copied().filter(|tag| tag.ref_(arena).kind() == kind)
         .collect()
 }
 

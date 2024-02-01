@@ -307,12 +307,13 @@ impl TypeChecker {
         type_: Id<Type>,
     ) -> io::Result<Vec<Id<Symbol>>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
-            return Ok((*self
+            return Ok(self
                 .resolve_structured_type_members(type_)?
                 .ref_(self)
                 .as_resolved_type()
-                .properties())
-            .clone());
+                .properties()
+                .ref_(self)
+                .clone());
         }
         Ok(_d())
     }
@@ -340,7 +341,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_union_or_intersection_type(
         &self,
         type_: Id<Type>, /*UnionOrIntersectionType*/
-    ) -> io::Result<impl ExactSizeIterator<Item = Id<Symbol>> + Clone> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         if type_
             .ref_(self)
             .as_union_or_intersection_type_interface()
@@ -378,20 +379,23 @@ impl TypeChecker {
             *type_
                 .ref_(self)
                 .as_union_or_intersection_type_interface()
-                .maybe_resolved_properties_mut() = Some(self.get_named_members(&members)?.into());
+                .maybe_resolved_properties_mut() = Some(self.alloc_vec_symbol(self.get_named_members(&members)?));
         }
         Ok(type_
             .ref_(self)
             .as_union_or_intersection_type_interface()
             .maybe_resolved_properties()
             .unwrap()
-            .owned_iter())
+            .ref_(self)
+            .iter()
+            .copied()
+            .collect())
     }
 
     pub(super) fn get_properties_of_type(
         &self,
         type_: Id<Type>,
-    ) -> io::Result<impl ExactSizeIterator<Item = Id<Symbol>> + Clone> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_reduced_apparent_type(type_)?;
         Ok(
             if type_
@@ -399,9 +403,9 @@ impl TypeChecker {
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
             {
-                Either::Left(self.get_properties_of_union_or_intersection_type(type_)?)
+                self.get_properties_of_union_or_intersection_type(type_)?
             } else {
-                Either::Right(self.get_properties_of_object_type(type_)?.into_iter())
+                self.get_properties_of_object_type(type_)?
             },
         )
     }

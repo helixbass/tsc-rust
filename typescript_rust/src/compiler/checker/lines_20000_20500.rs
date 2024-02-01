@@ -300,7 +300,7 @@ impl TypeChecker {
             return Ok(vec![]);
         }
         try_filter(
-            &self.get_properties_of_type(target)?.collect_vec(),
+            &self.get_properties_of_type(target)?,
             |&target_prop: &Id<Symbol>| -> io::Result<_> {
                 Ok(self.is_exact_optional_property_mismatch(
                     self.get_type_of_property_of_type_(
@@ -328,7 +328,7 @@ impl TypeChecker {
 
     pub fn get_exact_optional_properties(&self, type_: Id<Type>) -> io::Result<Vec<Id<Symbol>>> {
         try_filter(
-            &self.get_properties_of_type(type_)?.collect_vec(),
+            &self.get_properties_of_type(type_)?,
             |&target_prop: &Id<Symbol>| -> io::Result<_> {
                 Ok(self.contains_missing_type(self.get_type_of_symbol(target_prop)?))
             },
@@ -442,9 +442,9 @@ impl TypeChecker {
                     .ref_(self)
                     .as_resolved_type()
                     .properties()
-                    .is_empty()
+                    .ref_(self).is_empty()
                 && every(
-                    &*resolved.ref_(self).as_resolved_type().properties(),
+                    &*resolved.ref_(self).as_resolved_type().properties().ref_(self),
                     |&p: &Id<Symbol>, _| p.ref_(self).flags().intersects(SymbolFlags::Optional),
                 ));
         }

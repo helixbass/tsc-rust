@@ -148,7 +148,7 @@ impl TypeChecker {
 
     pub(super) fn is_empty_resolved_type(&self, t: Id<Type> /*ResolvedType*/) -> bool {
         t != self.any_function_type() && {
-            t.ref_(self).as_resolved_type().properties().is_empty()
+            t.ref_(self).as_resolved_type().properties().ref_(self).is_empty()
                 && t.ref_(self).as_resolved_type().call_signatures().is_empty()
                 && t.ref_(self)
                     .as_resolved_type()

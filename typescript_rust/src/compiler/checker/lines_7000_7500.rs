@@ -265,8 +265,7 @@ impl SymbolTableToDeclarationStatements {
             Some(
                 &self
                     .type_checker
-                    .ref_(self).get_properties_of_type(interface_type)?
-                    .collect_vec(),
+                    .ref_(self).get_properties_of_type(interface_type)?,
             ),
             |&p: &Id<Symbol>, _| self.serialize_property_symbol_for_interface(p, base_type),
         )?;
@@ -491,6 +490,7 @@ impl SymbolTableToDeclarationStatements {
                 Some(
                     self.type_checker
                         .ref_(self).get_properties_of_type(self.type_checker.ref_(self).get_type_of_symbol(symbol)?)?
+                        .into_iter()
                         .filter(|&p| p.ref_(self).flags().intersects(SymbolFlags::EnumMember))
                         .map(|p| -> io::Result<Id<Node>> {
                             let initialized_value = p
@@ -571,6 +571,7 @@ impl SymbolTableToDeclarationStatements {
             let props = self
                 .type_checker
                 .ref_(self).get_properties_of_type(type_)?
+                .into_iter()
                 .filter(|&property| self.is_namespace_member(property));
             self.serialize_as_namespace_declaration(
                 &props.collect_vec(),
@@ -944,8 +945,7 @@ impl SymbolTableToDeclarationStatements {
             Some(&filter(
                 &self
                     .type_checker
-                    .ref_(self).get_properties_of_type(static_type)?
-                    .collect_vec(),
+                    .ref_(self).get_properties_of_type(static_type)?,
                 |&p: &Id<Symbol>| {
                     !p.ref_(self).flags().intersects(SymbolFlags::Prototype)
                         && p.ref_(self).escaped_name() != "prototype"

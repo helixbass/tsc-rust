@@ -4202,6 +4202,14 @@ impl OptionInArena for Option<Id<HashMap<String, Id<CommandLineOption>>>> {
     }
 }
 
+impl OptionInArena for Option<Id<Vec<Id<Symbol>>>> {
+    type Item = Vec<Id<Symbol>>;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, Vec<Id<Symbol>>>> {
+        self.map(|vec_symbol| has_arena.vec_symbol(vec_symbol))
+    }
+}
+
 pub trait ArenaAlloc: Sized {
     fn alloc(self, arena: &impl HasArena) -> Id<Self>;
 }

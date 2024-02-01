@@ -1073,8 +1073,7 @@ impl CheckTypeRelatedTo {
             for &source_prop in &self.exclude_properties(
                 &self
                     .type_checker
-                    .ref_(self).get_properties_of_type(source)?
-                    .collect_vec(),
+                    .ref_(self).get_properties_of_type(source)?,
                 excluded_properties,
             ) {
                 if self
@@ -1116,7 +1115,7 @@ impl CheckTypeRelatedTo {
         let properties = self.type_checker.ref_(self).get_properties_of_type(target)?;
         let numeric_names_only =
             self.type_checker.ref_(self).is_tuple_type(source) && self.type_checker.ref_(self).is_tuple_type(target);
-        for &target_prop in &self.exclude_properties(&properties.collect_vec(), excluded_properties)
+        for &target_prop in &self.exclude_properties(&properties, excluded_properties)
         {
             let target_prop_ref = target_prop.ref_(self);
             let name = target_prop_ref.escaped_name();
@@ -1569,16 +1568,11 @@ impl CheckTypeRelatedTo {
             .flags()
             .intersects(TypeFlags::Intersection)
         {
-            Either::Left(
-                self.type_checker
-                    .ref_(self).get_properties_of_union_or_intersection_type(source)?,
-            )
+            self.type_checker
+                .ref_(self).get_properties_of_union_or_intersection_type(source)?
         } else {
-            Either::Right(
-                self.type_checker
-                    .ref_(self).get_properties_of_object_type(source)?
-                    .into_iter(),
-            )
+            self.type_checker
+                .ref_(self).get_properties_of_object_type(source)?
         };
         for prop in props {
             if self.type_checker.ref_(self).is_ignored_jsx_property(source, prop) {

@@ -75,7 +75,7 @@ pub fn get_jsdoc_type_parameter_declarations(
     node: Id<Node> /*DeclarationWithTypeParameters*/,
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
-    flat_map(Some(get_jsdoc_tags(node, arena)), |tag, _| {
+    flat_map(Some(&*get_jsdoc_tags(node, arena).ref_(arena)), |&tag, _| {
         if is_non_type_alias_template(tag, arena) {
             tag.ref_(arena).as_jsdoc_template_tag().type_parameters.ref_(arena).to_vec()
         } else {

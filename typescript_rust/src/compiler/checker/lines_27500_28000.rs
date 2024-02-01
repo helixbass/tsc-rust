@@ -50,12 +50,13 @@ impl TypeChecker {
                 },
             )?;
         Ok(properties_of_jsx_element_attrib_prop_interface.and_then(
-            |mut properties_of_jsx_element_attrib_prop_interface| {
+            |properties_of_jsx_element_attrib_prop_interface| {
                 if properties_of_jsx_element_attrib_prop_interface.len() == 0 {
                     return Some("".to_owned());
                 } else if properties_of_jsx_element_attrib_prop_interface.len() == 1 {
                     return Some(
                         properties_of_jsx_element_attrib_prop_interface
+                            .into_iter()
                             .next()
                             .unwrap()
                             .ref_(self)
@@ -386,7 +387,7 @@ impl TypeChecker {
     pub fn get_jsx_intrinsic_tag_names_at(
         &self,
         location: Id<Node>,
-    ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let intrinsics = self.get_jsx_type(&JsxNames::IntrinsicElements, Some(location))?;
         /*intrinsics ?*/
         self.get_properties_of_type(intrinsics) /*: emptyArray*/

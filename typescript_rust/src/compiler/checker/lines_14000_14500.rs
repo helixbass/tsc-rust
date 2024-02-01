@@ -566,6 +566,7 @@ impl TypeChecker {
                         | TypeFlags::InstantiableNonPrimitive,
                 ) {
                     self.get_properties_of_type(source)?
+                        .into_iter()
                         .try_find_(|&p| -> io::Result<_> {
                             Ok(self.is_unit_type(self.get_type_of_symbol(p)?))
                         })?

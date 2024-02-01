@@ -72,7 +72,7 @@ impl TypeChecker {
         let class_like = class_like.unwrap();
 
         let augments_tags = get_jsdoc_tags(class_like, self)
-            .into_iter()
+            .ref_(self).iter().copied()
             .filter(|jsdoc_tag| is_jsdoc_augments_tag(&jsdoc_tag.ref_(self)))
             .collect::<Vec<_>>();
         Debug_.assert(!augments_tags.is_empty(), None);

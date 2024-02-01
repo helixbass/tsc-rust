@@ -562,7 +562,8 @@ impl TypeChecker {
             let decl = get_host_signature_from_jsdoc(node, self);
             if let Some(decl) = decl {
                 let i = get_jsdoc_tags(decl, self)
-                    .filter(|jsdoc_tag| is_jsdoc_parameter_tag(&jsdoc_tag.ref_(self)))
+                    .ref_(self)
+                    .iter().copied().filter(|jsdoc_tag| is_jsdoc_parameter_tag(&jsdoc_tag.ref_(self)))
                     .position(|jsdoc_tag| jsdoc_tag == node);
                 if matches!(
                     i,
@@ -592,7 +593,7 @@ impl TypeChecker {
                             ])
                         );
                     }
-                } else if get_jsdoc_tags(decl, self).rfind(
+                } else if get_jsdoc_tags(decl, self).ref_(self).iter().copied().rfind(
                     |jsdoc_tag| is_jsdoc_parameter_tag(&jsdoc_tag.ref_(self))
                 ) == Some(node)
                 && matches!(

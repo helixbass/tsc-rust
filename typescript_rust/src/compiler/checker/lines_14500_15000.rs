@@ -800,6 +800,7 @@ impl TypeChecker {
         };
         let property_types = self
             .get_properties_of_type(type_)?
+            .into_iter()
             .map(|prop| self.get_literal_type_from_property(prop, include, None))
             .collect::<Result<Vec<_>, _>>()?;
         let index_infos = self.get_index_infos_of_type(type_)?;

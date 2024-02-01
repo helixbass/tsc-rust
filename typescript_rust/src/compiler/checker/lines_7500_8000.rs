@@ -281,6 +281,7 @@ impl SymbolTableToDeclarationStatements {
             && !self
                 .type_checker
                 .ref_(self).get_properties_of_type(type_to_serialize)?
+                .into_iter()
                 .any(|p| {
                     self.type_checker
                         .ref_(self).is_late_bound_name(p.ref_(self).escaped_name())
@@ -288,6 +289,7 @@ impl SymbolTableToDeclarationStatements {
             && !self
                 .type_checker
                 .ref_(self).get_properties_of_type(type_to_serialize)?
+                .into_iter()
                 .any(|p| {
                     some(
                         p.ref_(self).maybe_declarations().as_deref(),
@@ -300,6 +302,7 @@ impl SymbolTableToDeclarationStatements {
             && self
                 .type_checker
                 .ref_(self).get_properties_of_type(type_to_serialize)?
+                .into_iter()
                 .all(|p| {
                     is_identifier_text(
                         &symbol_name(p, self),

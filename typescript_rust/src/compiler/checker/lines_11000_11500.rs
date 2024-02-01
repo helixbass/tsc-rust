@@ -12,6 +12,7 @@ use crate::{
     SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
+    OptionInArena,
 };
 
 impl TypeChecker {
@@ -624,7 +625,7 @@ impl TypeChecker {
                                 .ref_(self)
                                 .as_object_type()
                                 .maybe_properties()
-                                .as_deref(),
+                                .refed(self).as_deref(),
                             Some(|&prop: &Id<Symbol>| -> io::Result<_> {
                                 Ok(self
                                     .get_type_of_symbol(prop)?

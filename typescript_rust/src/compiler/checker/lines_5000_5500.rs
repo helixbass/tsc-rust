@@ -483,7 +483,7 @@ impl NodeBuilder {
             .ref_(self)
             .as_resolved_type()
             .properties()
-            .is_empty()
+            .ref_(self).is_empty()
             && resolved
                 .ref_(self)
                 .as_resolved_type()
@@ -588,13 +588,13 @@ impl NodeBuilder {
                     .intersects(NodeBuilderFlags::WriteClassExpressionAsTypeLiteral)
                 {
                     count_where(
-                        Some(&*resolved.ref_(self).as_resolved_type().properties()),
+                        Some(&*resolved.ref_(self).as_resolved_type().properties().ref_(self)),
                         |&p: &Id<Symbol>, _| {
                             !p.ref_(self).flags().intersects(SymbolFlags::Prototype)
                         },
                     )
                 } else {
-                    length(Some(&*resolved.ref_(self).as_resolved_type().properties()))
+                    length(Some(&*resolved.ref_(self).as_resolved_type().properties().ref_(self)))
                 };
             if type_element_count > 0 {
                 types.push(
@@ -1036,7 +1036,7 @@ impl NodeBuilder {
         // }
 
         let mut i = 0;
-        for &property_symbol in &*properties {
+        for &property_symbol in &*properties.ref_(self) {
             i += 1;
             if context
                 .flags()
@@ -1064,17 +1064,17 @@ impl NodeBuilder {
                         ));
                 }
             }
-            if self.check_truncation_length(context) && i + 2 < properties.len() - 1 {
+            if self.check_truncation_length(context) && i + 2 < properties.ref_(self).len() - 1 {
                 type_elements.push(
                     get_factory(self).create_property_signature(
                         Option::<Id<NodeArray>>::None,
-                        &*format!("... {} more ...", properties.len() - 1),
+                        &*format!("... {} more ...", properties.ref_(self).len() - 1),
                         None,
                         None,
                     )
                 );
                 self.add_property_to_element_list(
-                    properties[properties.len() - 1],
+                    properties[properties.ref_(self).len() - 1],
                     context,
                     &mut type_elements,
                 )?;

@@ -216,7 +216,7 @@ impl TypeChecker {
                     .ref_(self)
                     .as_resolved_type()
                     .properties()
-                    .is_empty()
+                    .ref_(self).is_empty()
                     && resolved
                         .ref_(self)
                         .as_resolved_type()

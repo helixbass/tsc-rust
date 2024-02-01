@@ -580,7 +580,7 @@ impl TypeChecker {
                             .intersects(TypeFlags::Number | TypeFlags::String)
                         {
                             let mut types = try_map(
-                                &*object_type.ref_(self).as_resolved_type().properties(),
+                                &*object_type.ref_(self).as_resolved_type().properties().ref_(self),
                                 |&property: &Id<Symbol>, _| self.get_type_of_symbol(property),
                             )?;
                             append(&mut types, Some(self.undefined_type()));

@@ -230,6 +230,7 @@ impl InferTypes {
             let prop_types = self
                 .type_checker
                 .ref_(self).get_properties_of_type(source)?
+                .into_iter()
                 .map(|property| self.type_checker.ref_(self).get_type_of_symbol(property))
                 .collect::<Result<Vec<_>, _>>()?;
             let index_infos = self.type_checker.ref_(self).get_index_infos_of_type(source)?;

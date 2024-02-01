@@ -182,7 +182,7 @@ impl TypeChecker {
     pub(super) fn get_properties_of_container_function(
         &self,
         node: Id<Node>, /*Declaration*/
-    ) -> io::Result<impl Iterator<Item = Id<Symbol>>> {
+    ) -> io::Result<Vec<Id<Symbol>>> {
         let declaration = get_parse_tree_node(Some(node), Some(|node: Id<Node>| is_function_declaration(&node.ref_(self))), self);
         if declaration.is_none() {
             return Ok(Either::Right(iter::empty()));
@@ -194,7 +194,7 @@ impl TypeChecker {
         } else {
             None
         }
-        .unwrap_or_empty())
+        .unwrap_or_default())
     }
 
     pub(super) fn get_node_check_flags(&self, node: Id<Node>) -> NodeCheckFlags {

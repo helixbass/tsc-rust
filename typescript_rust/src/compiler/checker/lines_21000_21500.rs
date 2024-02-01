@@ -1062,6 +1062,7 @@ impl TypeChecker {
                 || self.is_object_literal_type(type_)
                     && self
                         .get_properties_of_type(type_)?
+                        .into_iter()
                         .try_any(|prop: Id<Symbol>| {
                             self.is_partially_inferable_type(self.get_type_of_symbol(prop)?)
                         })?

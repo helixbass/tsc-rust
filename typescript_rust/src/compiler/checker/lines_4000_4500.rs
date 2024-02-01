@@ -255,13 +255,13 @@ impl TypeChecker {
     ) -> io::Result<()> /*-> BaseObjectType*/ {
         type_.resolve(
             members.clone(),
-            vec![].into(),
+            self.alloc_vec_symbol(vec![]),
             call_signatures,
             construct_signatures,
             index_infos,
         );
         if members != self.empty_symbols() {
-            type_.set_properties(self.get_named_members(&members.ref_(self))?.into());
+            type_.set_properties(self.alloc_vec_symbol(self.get_named_members(&members.ref_(self))?));
         }
         // type_
 

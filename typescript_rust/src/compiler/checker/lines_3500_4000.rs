@@ -368,7 +368,7 @@ impl TypeChecker {
             if self.should_treat_properties_of_external_module_as_exports(type_) {
                 add_range(
                     &mut exports,
-                    Some(&*self.get_properties_of_type(type_)?.collect_vec()),
+                    Some(&*self.get_properties_of_type(type_)?),
                     None,
                     None,
                 );

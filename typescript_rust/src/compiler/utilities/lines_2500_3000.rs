@@ -402,9 +402,9 @@ pub fn get_jsdoc_comments_and_tags(
             add_range(
                 result.as_mut().unwrap(),
                 Some(&if no_cache {
-                    get_jsdoc_parameter_tags_no_cache(node_present, arena).collect::<Vec<_>>()
+                    get_jsdoc_parameter_tags_no_cache(node_present, arena)
                 } else {
-                    get_jsdoc_parameter_tags(node_present, arena).collect::<Vec<_>>()
+                    get_jsdoc_parameter_tags(node_present, arena)
                 }),
                 None,
                 None,
@@ -418,9 +418,9 @@ pub fn get_jsdoc_comments_and_tags(
             add_range(
                 result.as_mut().unwrap(),
                 Some(&if no_cache {
-                    get_jsdoc_type_parameter_tags_no_cache(node_present, arena).collect::<Vec<_>>()
+                    get_jsdoc_type_parameter_tags_no_cache(node_present, arena)
                 } else {
-                    get_jsdoc_type_parameter_tags(node_present, arena).collect::<Vec<_>>()
+                    get_jsdoc_type_parameter_tags(node_present, arena)
                 }),
                 None,
                 None,

@@ -143,28 +143,27 @@ impl TypeChecker {
             StrOrRcNode::RcNode(name) => Some(name),
             _ => None,
         };
-        let mut props_: Option<Either<_, _>> = None;
+        let mut props_: Option<Vec<Id<Symbol>>> = None;
         let mut did_set_props = false;
         let name_inner_rc_node_ref = name_inner_rc_node.refed(self);
         if let Some(name_inner_rc_node_ref) = name_inner_rc_node_ref.as_ref() {
             let parent = name_inner_rc_node_ref.parent();
             if is_property_access_expression(&parent.ref_(self)) {
                 did_set_props = true;
-                props_ = Some(Either::Right(
-                    try_filter(&props.clone().collect_vec(), |&prop: &Id<Symbol>| {
+                props_ = Some(
+                    try_filter(&props, |&prop: &Id<Symbol>| {
                         self.is_valid_property_access_for_completions_(
                             parent,
                             containing_type,
                             prop,
                         )
                     })?
-                    .into_iter(),
-                ));
+                );
             }
             name = StrOrRcNode::Str(id_text(&name_inner_rc_node_ref));
         }
         if !did_set_props {
-            props_ = Some(Either::Left(props));
+            props_ = Some(props);
         }
         let props = props_.unwrap();
         let name = enum_unwrapped!(name, [StrOrRcNode, Str]);
@@ -183,9 +182,9 @@ impl TypeChecker {
         };
         let mut properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
-            properties.find(|&x| symbol_name(x, self) == "htmlFor")
+            properties.iter().find(|&&x| symbol_name(x, self) == "htmlFor")
         } else if str_name == "class" {
-            properties.find(|&x| symbol_name(x, self) == "className")
+            properties.iter().find(|&&x| symbol_name(x, self) == "className")
         } else {
             None
         };
