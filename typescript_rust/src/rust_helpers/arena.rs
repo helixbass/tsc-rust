@@ -175,6 +175,8 @@ pub struct AllArenas {
     pub vec_symbol_tables: RefCell<Arena<Vec<Id<SymbolTable>>>>,
     pub check_type_related_tos: RefCell<Arena<CheckTypeRelatedTo>>,
     pub flow_loop_caches: RefCell<Arena<HashMap<String, Id<Type>>>>,
+    pub vec_symbols: RefCell<Arena<Vec<Id<Symbol>>>>,
+    pub vec_nodes: RefCell<Arena<Vec<Id<Node>>>>,
 }
 
 pub trait HasArena {
@@ -1362,6 +1364,22 @@ pub trait HasArena {
 
     fn alloc_flow_loop_cache(&self, flow_loop_cache: HashMap<String, Id<Type>>) -> Id<HashMap<String, Id<Type>>> {
         self.arena().alloc_flow_loop_cache(flow_loop_cache)
+    }
+
+    fn vec_symbol(&self, vec_symbol: Id<Vec<Id<Symbol>>>) -> Ref<Vec<Id<Symbol>>> {
+        self.arena().vec_symbol(vec_symbol)
+    }
+
+    fn alloc_vec_symbol(&self, vec_symbol: Vec<Id<Symbol>>) -> Id<Vec<Id<Symbol>>> {
+        self.arena().alloc_vec_symbol(vec_symbol)
+    }
+
+    fn vec_node(&self, vec_node: Id<Vec<Id<Node>>>) -> Ref<Vec<Id<Node>>> {
+        self.arena().vec_node(vec_node)
+    }
+
+    fn alloc_vec_node(&self, vec_node: Vec<Id<Node>>) -> Id<Vec<Id<Node>>> {
+        self.arena().alloc_vec_node(vec_node)
     }
 }
 
@@ -2842,6 +2860,26 @@ impl HasArena for AllArenas {
         let id = self.flow_loop_caches.borrow_mut().alloc(flow_loop_cache);
         id
     }
+
+    #[track_caller]
+    fn vec_symbol(&self, vec_symbol: Id<Vec<Id<Symbol>>>) -> Ref<Vec<Id<Symbol>>> {
+        Ref::map(self.vec_symbols.borrow(), |vec_symbols| &vec_symbols[vec_symbol])
+    }
+
+    fn alloc_vec_symbol(&self, vec_symbol: Vec<Id<Symbol>>) -> Id<Vec<Id<Symbol>>> {
+        let id = self.vec_symbols.borrow_mut().alloc(vec_symbol);
+        id
+    }
+
+    #[track_caller]
+    fn vec_node(&self, vec_node: Id<Vec<Id<Node>>>) -> Ref<Vec<Id<Node>>> {
+        Ref::map(self.vec_nodes.borrow(), |vec_nodes| &vec_nodes[vec_node])
+    }
+
+    fn alloc_vec_node(&self, vec_node: Vec<Id<Node>>) -> Id<Vec<Id<Node>>> {
+        let id = self.vec_nodes.borrow_mut().alloc(vec_node);
+        id
+    }
 }
 
 pub trait InArena {
@@ -4035,6 +4073,22 @@ impl InArena for Id<HashMap<String, Id<Type>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, HashMap<String, Id<Type>>> {
         has_arena.flow_loop_cache_mut(*self)
+    }
+}
+
+impl InArena for Id<Vec<Id<Symbol>>> {
+    type Item = Vec<Id<Symbol>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<Symbol>>> {
+        has_arena.vec_symbol(*self)
+    }
+}
+
+impl InArena for Id<Vec<Id<Node>>> {
+    type Item = Vec<Id<Node>>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<Node>>> {
+        has_arena.vec_node(*self)
     }
 }
 

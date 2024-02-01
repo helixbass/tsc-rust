@@ -11,7 +11,7 @@ use id_arena::Id;
 
 use super::SignatureToSignatureDeclarationOptions;
 use crate::{
-    add_synthetic_leading_comment, append_if_unique_gc, contains, contains_gc, create_printer,
+    add_synthetic_leading_comment, contains, create_printer,
     create_text_writer, default_maximum_truncation_length, every, get_factory,
     get_first_identifier, get_object_flags, get_text_of_node,
     get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text, is_binding_element,

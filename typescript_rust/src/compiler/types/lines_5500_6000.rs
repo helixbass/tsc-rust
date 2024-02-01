@@ -21,7 +21,7 @@ use super::{
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
     TypePredicate,
 };
-use crate::{Debug_, GcVec, ObjectFlags, ScriptKind, TypeFlags, __String, are_option_gcs_equal};
+use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String, are_option_gcs_equal};
 
 #[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
@@ -169,9 +169,9 @@ pub trait ResolvedTypeInterface:
     ObjectFlagsTypeInterface + ObjectTypeInterface + ResolvableTypeInterface
 {
     fn members(&self) -> Id<SymbolTable>;
-    fn properties(&self) -> GcVec<Id<Symbol>>;
-    fn properties_mut(&self) -> GcCellRefMut<Option<GcVec<Id<Symbol>>>, GcVec<Id<Symbol>>>;
-    fn set_properties(&self, properties: GcVec<Id<Symbol>>);
+    fn properties(&self) -> Id<Vec<Id<Symbol>>>;
+    fn properties_mut(&self) -> GcCellRefMut<Option<Id<Vec<Id<Symbol>>>>, Id<Vec<Id<Symbol>>>>;
+    fn set_properties(&self, properties: Id<Vec<Id<Symbol>>>);
     fn call_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;
     fn set_call_signatures(&self, call_signatures: Vec<Id<Signature>>);
     fn construct_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;

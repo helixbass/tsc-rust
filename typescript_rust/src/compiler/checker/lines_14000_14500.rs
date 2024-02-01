@@ -13,7 +13,7 @@ use peekmore::PeekMore;
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find_index,
     find_last_index_returns_isize, for_each, get_object_flags, is_part_of_type_node, map,
-    ordered_remove_item_at, push_if_unique_eq, push_if_unique_gc, reduce_left, replace_element,
+    ordered_remove_item_at, push_if_unique_eq, reduce_left, replace_element,
     return_ok_default_if_none, some, try_map, try_some, BaseUnionOrIntersectionType, Diagnostics,
     ElementFlags, HasArena, InArena, IntersectionType, IntrinsicType, IteratorExt,
     LiteralTypeInterface, Node, ObjectFlags, OptionTry, PeekMoreExt, Signature, Symbol,

@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     array_is_equal_to, changes_affect_module_resolution, changes_affecting_program_structure,
-    compare_values, concatenate, contains, contains_gc, contains_path, create_type_checker,
+    compare_values, concatenate, contains, contains_path, create_type_checker,
     emit_files, file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_emit_script_target, get_mode_for_resolution_at_index, get_normalized_absolute_path,
     get_resolved_module, get_transformers, has_changes_in_resolutions, is_source_file_js,

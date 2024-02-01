@@ -10,7 +10,7 @@ use super::{
 use crate::{
     are_option_gcs_equal, create_symbol_table, get_effective_return_type_node,
     get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
-    is_transient_symbol, last, node_is_missing, push_if_unique_eq, push_if_unique_gc, some,
+    is_transient_symbol, last, node_is_missing, push_if_unique_eq, some,
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
     FunctionFlags, HasArena, HasTypeInterface, InArena, InferenceContext,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Signature, Symbol,

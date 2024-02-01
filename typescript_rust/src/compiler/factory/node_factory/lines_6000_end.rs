@@ -12,7 +12,7 @@ use crate::{
     is_index_signature_declaration, is_interface_declaration, is_method_declaration,
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
-    is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_gc,
+    is_type_alias_declaration, is_variable_statement,
     get_parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
     BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
     FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,

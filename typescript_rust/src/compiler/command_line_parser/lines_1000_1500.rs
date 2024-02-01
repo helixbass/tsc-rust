@@ -16,7 +16,7 @@ use crate::{
     AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
     CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, GcVec, HasArena,
+    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, HasArena,
     ModuleKind, ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage,
     WatchOptions,
     InArena, per_arena, AllArenas,

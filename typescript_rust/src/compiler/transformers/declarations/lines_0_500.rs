@@ -25,7 +25,7 @@ use crate::{
     is_json_source_file, is_source_file_js, is_source_file_not_json, is_string_literal,
     is_string_literal_like, is_unparsed_source, last, map, map_defined, maybe_concatenate,
     maybe_filter, maybe_for_each, maybe_for_each_bool, module_specifiers, normalize_slashes,
-    path_contains_node_modules, path_is_relative, push_if_unique_gc, set_text_range_node_array,
+    path_contains_node_modules, path_is_relative, set_text_range_node_array,
     skip_trivia, starts_with, static_arena, string_contains, to_file_name_lower_case, to_path,
     transform_nodes, try_map, try_map_defined, try_maybe_for_each, try_visit_nodes, AllArenas,
     BaseNodeFactorySynthetic, CommentRange, CompilerOptions, Debug_, Diagnostic, Diagnostics,

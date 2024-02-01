@@ -23,7 +23,7 @@ use crate::{
     CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
     DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
-    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, GcVec, HasArena,
+    DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, HasArena,
     HasStatementsInterface, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
     OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
     ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,

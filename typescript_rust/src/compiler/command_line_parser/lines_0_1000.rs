@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 use super::spec_to_diagnostic;
 use crate::{
     CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionMapTypeValue,
-    CommandLineOptionOfListType, CommandLineOptionType, CompilerOptionsValue, Diagnostics, GcVec,
+    CommandLineOptionOfListType, CommandLineOptionType, CompilerOptionsValue, Diagnostics,
     ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
     PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
     WatchDirectoryKind, WatchFileKind,

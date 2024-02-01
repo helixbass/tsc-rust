@@ -9,7 +9,7 @@ use id_arena::Id;
 use super::ResolveNameNameArg;
 use crate::{
     add_related_info, break_if_none, concatenate, create_diagnostic_for_node,
-    declaration_name_to_string, deduplicate_gc, ends_with, escape_leading_underscores,
+    declaration_name_to_string, ends_with, escape_leading_underscores,
     export_assignment_is_alias, find, find_ancestor, get_assignment_declaration_kind,
     get_es_module_interop, get_external_module_import_equals_declaration_expression,
     get_external_module_require_argument, get_immediately_invoked_function_expression,

@@ -61,7 +61,7 @@ use crate::{
     add_synthetic_trailing_comment, get_emit_flags, move_synthetic_comments, remove_all_comments,
     set_comment_range, set_emit_flags, set_original_node, set_parent_recursive,
     set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_id_node,
-    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, GcVec,
+    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper,
     HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
     HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
     HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
@@ -223,8 +223,8 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_inference_context(&self) -> GcCellRefMut<Option<Id<InferenceContext>>>;
     fn maybe_js_doc(&self) -> Option<Vec<Id<Node /*JSDoc*/>>>;
     fn set_js_doc(&self, js_doc: Option<Vec<Id<Node /*JSDoc*/>>>);
-    fn maybe_js_doc_cache(&self) -> Option<GcVec<Id<Node /*JSDocTag*/>>>;
-    fn set_js_doc_cache(&self, js_doc_cache: Option<GcVec<Id<Node /*JSDocTag*/>>>);
+    fn maybe_js_doc_cache(&self) -> Option<Id<Vec<Id<Node /*JSDocTag*/>>>>;
+    fn set_js_doc_cache(&self, js_doc_cache: Option<Id<Vec<Id<Node /*JSDocTag*/>>>>);
     // IncrementalElement
     fn maybe_intersects_change(&self) -> Option<bool>;
     fn set_intersects_change(&self, intersects_change: Option<bool>);
@@ -1739,7 +1739,7 @@ pub struct BaseNode {
     inference_context: GcCell<Option<Id<InferenceContext>>>,
     flow_node: GcCell<Option<Id<FlowNode>>>,
     js_doc: GcCell<Option<Vec<Id<Node>>>>,
-    js_doc_cache: GcCell<Option<GcVec<Id<Node>>>>,
+    js_doc_cache: GcCell<Option<Id<Vec<Id<Node>>>>>,
     #[unsafe_ignore_trace]
     intersects_change: Cell<Option<bool>>,
 }
@@ -2029,11 +2029,11 @@ impl NodeInterface for BaseNode {
         *self.js_doc.borrow_mut() = js_doc;
     }
 
-    fn maybe_js_doc_cache(&self) -> Option<GcVec<Id<Node>>> {
+    fn maybe_js_doc_cache(&self) -> Option<Id<Vec<Id<Node>>>> {
         self.js_doc_cache.borrow().clone()
     }
 
-    fn set_js_doc_cache(&self, js_doc_cache: Option<GcVec<Id<Node>>>) {
+    fn set_js_doc_cache(&self, js_doc_cache: Option<Id<Vec<Id<Node>>>>) {
         *self.js_doc_cache.borrow_mut() = js_doc_cache;
     }
 

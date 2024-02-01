@@ -27,7 +27,7 @@ use crate::{
     is_optional_chain, is_parameter, is_parameter_declaration, is_parameter_property_declaration,
     is_private_identifier, is_property_declaration, is_require_call, is_source_file, is_static,
     is_this_property, is_type_alias_declaration, is_type_node, length, maybe_for_each,
-    node_is_synthesized, null_transformation_context, out_file, push_if_unique_gc,
+    node_is_synthesized, null_transformation_context, out_file,
     return_ok_default_if_none, set_text_range_pos_end, set_value_declaration, some, try_cast,
     CancellationToken, Comparison, DiagnosticCategory, DiagnosticInterface,
     DiagnosticMessageChain, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,

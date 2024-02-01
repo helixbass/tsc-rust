@@ -12,7 +12,7 @@ use crate::{
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_object_flags, get_parameter_symbol_from_jsdoc, is_access_expression, is_binary_expression,
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
-    is_source_file, is_type_alias, length, maybe_append_if_unique_eq, maybe_append_if_unique_gc,
+    is_source_file, is_type_alias, length, maybe_append_if_unique_eq,
     resolving_empty_array, return_ok_default_if_none, some, try_map, try_maybe_first_defined,
     try_maybe_map, try_some, AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_,
     Diagnostics, ElementFlags, HasArena, HasTypeArgumentsInterface, InArena,

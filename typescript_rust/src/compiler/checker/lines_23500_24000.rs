@@ -10,9 +10,9 @@ use id_arena::Id;
 
 use super::TypeFacts;
 use crate::{
-    contains, contains_gc, get_assignment_target_kind, get_declared_expando_initializer,
+    contains, get_assignment_target_kind, get_declared_expando_initializer,
     get_object_flags, is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const,
-    is_variable_declaration, maybe_every, push_if_unique_eq, push_if_unique_gc, skip_parentheses,
+    is_variable_declaration, maybe_every, push_if_unique_eq, skip_parentheses,
     AllArenas, AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasArena, InArena,
     Node, NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, TypePredicateKind, UnionReduction,

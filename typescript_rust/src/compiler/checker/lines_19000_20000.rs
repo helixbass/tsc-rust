@@ -18,7 +18,7 @@ use super::{
 use crate::{
     are_option_gcs_equal, cartesian_product, create_diagnostic_for_node,
     get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
-    is_named_declaration, is_private_identifier, length, push_if_unique_gc, reduce_left, some,
+    is_named_declaration, is_private_identifier, length, reduce_left, some,
     CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,
     ModifierFlags, Node, NodeInterface, ObjectFlags, Signature, SignatureFlags, SignatureKind,
     Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type, TypeFlags, TypeFormatFlags,

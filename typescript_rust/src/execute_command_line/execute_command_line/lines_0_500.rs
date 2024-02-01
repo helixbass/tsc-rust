@@ -9,7 +9,7 @@ use super::{
     ProgramOrEmitAndSemanticDiagnosticsBuilderProgramOrParsedCommandLine,
 };
 use crate::{
-    combine_paths, compare_strings_case_insensitive, contains, contains_gc,
+    combine_paths, compare_strings_case_insensitive, contains,
     convert_to_options_with_absolute_paths, convert_to_tsconfig, create_compiler_diagnostic,
     create_diagnostic_reporter, file_extension_is, file_extension_is_one_of, filter,
     find_config_file, for_each, format_message, get_diagnostic_text, get_line_starts,

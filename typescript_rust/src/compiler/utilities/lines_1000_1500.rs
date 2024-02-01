@@ -8,7 +8,7 @@ use id_arena::Id;
 use regex::Regex;
 
 use crate::{
-    concatenate, contains_gc, create_file_diagnostic, create_scanner, create_text_span,
+    concatenate, create_file_diagnostic, create_scanner, create_text_span,
     create_text_span_from_bounds, every, for_each_child_bool, get_combined_modifier_flags,
     get_combined_node_flags, get_emit_flags, get_end_line_position, get_leading_comment_ranges,
     get_line_and_character_of_position, get_source_file_of_node, get_trailing_comment_ranges,

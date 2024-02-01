@@ -280,11 +280,11 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_js_doc(js_doc)
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         self.#first_field_name.maybe_js_doc_cache()
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Node>>>>) {
                         self.#first_field_name.set_js_doc_cache(js_doc_cache)
                     }
 
@@ -837,13 +837,13 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>> {
+                    fn maybe_js_doc_cache(&self) -> ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.maybe_js_doc_cache()),*
                         }
                     }
 
-                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Node>>>) {
+                    fn set_js_doc_cache(&self, js_doc_cache: ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Node>>>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_js_doc_cache(js_doc_cache)),*
                         }
@@ -1515,7 +1515,7 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_members(members)
                     }
 
-                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         self.#first_field_name.maybe_properties()
                     }
 
@@ -1540,7 +1540,7 @@ fn get_type_struct_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::id_arena::Id<crate::SymbolTable>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::id_arena::Id<crate::SymbolTable>, properties: ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         self.#first_field_name.resolve(members, properties, call_signatures, construct_signatures, index_infos)
                     }
 
@@ -1557,15 +1557,15 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.members()
                     }
 
-                    fn properties(&self) -> crate::GcVec<::id_arena::Id<crate::Symbol>> {
+                    fn properties(&self) -> ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>> {
                         self.#first_field_name.properties()
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>, crate::GcVec<::id_arena::Id<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>>, ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         self.#first_field_name.properties_mut()
                     }
 
-                    fn set_properties(&self, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>) {
+                    fn set_properties(&self, properties: ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>) {
                         self.#first_field_name.set_properties(properties)
                     }
 
@@ -1628,11 +1628,11 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_property_cache_without_object_function_property_augment()
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         self.#first_field_name.maybe_resolved_properties()
                     }
 
-                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>> {
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>>> {
                         self.#first_field_name.maybe_resolved_properties_mut()
                     }
                 }
@@ -2099,7 +2099,7 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
+                    fn maybe_properties(&self) -> ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_properties()),*
                         }
@@ -2134,7 +2134,7 @@ fn get_type_enum_interface_impl(
         "ResolvableTypeInterface" => {
             quote! {
                 impl crate::ResolvableTypeInterface for #type_type_name {
-                    fn resolve(&self, members: ::id_arena::Id<crate::SymbolTable>, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
+                    fn resolve(&self, members: ::id_arena::Id<crate::SymbolTable>, properties: ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>, call_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, construct_signatures: ::std::vec::Vec<::id_arena::Id<crate::Signature>>, index_infos: ::std::vec::Vec<::id_arena::Id<crate::IndexInfo>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.resolve(members, properties, call_signatures, construct_signatures, index_infos)),*
                         }
@@ -2157,19 +2157,19 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn properties(&self) -> crate::GcVec<::id_arena::Id<crate::Symbol>> {
+                    fn properties(&self) -> ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties()),*
                         }
                     }
 
-                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>, crate::GcVec<::id_arena::Id<crate::Symbol>>> {
+                    fn properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>>, ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.properties_mut()),*
                         }
                     }
 
-                    fn set_properties(&self, properties: crate::GcVec<::id_arena::Id<crate::Symbol>>) {
+                    fn set_properties(&self, properties: ::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>) {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.set_properties(properties)),*
                         }
@@ -2256,13 +2256,13 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_resolved_properties(&self) -> ::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>> {
+                    fn maybe_resolved_properties(&self) -> ::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties()),*
                         }
                     }
 
-                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<crate::GcVec<::id_arena::Id<crate::Symbol>>>> {
+                    fn maybe_resolved_properties_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<::std::vec::Vec<::id_arena::Id<crate::Symbol>>>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_properties_mut()),*
                         }

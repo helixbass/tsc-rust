@@ -16,7 +16,7 @@ use serde::Serialize;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
-    are_option_gcs_equal, hash_map_to_compiler_options, CompilerHost, Diagnostic, GcVec, MapLike,
+    are_option_gcs_equal, hash_map_to_compiler_options, CompilerHost, Diagnostic, MapLike,
     Number, OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
     AllArenas, InArena,
 };

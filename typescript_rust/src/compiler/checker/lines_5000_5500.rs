@@ -12,7 +12,7 @@ use super::{
     SignatureToSignatureDeclarationOptions,
 };
 use crate::{
-    contains, contains_gc, count_where, filter, first, get_check_flags,
+    contains, count_where, filter, first, get_check_flags,
     get_declaration_modifier_flags_from_symbol, get_factory, get_name_of_declaration,
     get_object_flags, get_parse_tree_node, is_binary_expression, is_class_like,
     is_element_access_expression, is_identifier, is_import_type_node,

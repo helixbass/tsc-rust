@@ -269,15 +269,6 @@ pub fn contains_rc<TItem>(array: Option<&[Rc<TItem>]>, value: &Rc<TItem>) -> boo
     })
 }
 
-pub fn contains_gc<TItem: Trace + Finalize>(
-    array: Option<&[Gc<TItem>]>,
-    value: &Gc<TItem>,
-) -> bool {
-    array.map_or(false, |array| {
-        array.iter().any(|item| Gc::ptr_eq(item, value))
-    })
-}
-
 pub fn contains_comparer<TItem>(
     array: Option<&[TItem]>,
     value: &TItem,
@@ -795,14 +786,6 @@ fn deduplicate_equality_eq<TItem: PartialEq + Clone>(array: &[TItem]) -> Vec<TIt
     result
 }
 
-fn deduplicate_equality_gc<TItem: Trace + Finalize>(array: &[Gc<TItem>]) -> Vec<Gc<TItem>> {
-    let mut result = vec![];
-    for item in array {
-        push_if_unique_gc(&mut result, item);
-    }
-    result
-}
-
 fn deduplicate_equality_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
     let mut result = vec![];
     for item in array {
@@ -828,16 +811,6 @@ pub fn deduplicate_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
         vec![array[0].clone()]
     } else {
         deduplicate_equality_rc(array)
-    }
-}
-
-pub fn deduplicate_gc<TItem: Trace + Finalize>(array: &[Gc<TItem>]) -> Vec<Gc<TItem>> {
-    if array.is_empty() {
-        vec![]
-    } else if array.len() == 1 {
-        vec![array[0].clone()]
-    } else {
-        deduplicate_equality_gc(array)
     }
 }
 
@@ -1083,18 +1056,6 @@ pub fn push_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) 
     }
 }
 
-pub fn push_if_unique_gc<TItem: Trace + Finalize>(
-    array: &mut Vec<Gc<TItem>>,
-    to_add: &Gc<TItem>,
-) -> bool {
-    if contains_gc(Some(array), to_add) {
-        false
-    } else {
-        array.push(to_add.clone());
-        true
-    }
-}
-
 pub fn push_if_unique_eq<TItem: PartialEq + Clone>(array: &mut Vec<TItem>, to_add: &TItem) -> bool {
     if array.iter().any(|item| item == to_add) {
         false
@@ -1110,13 +1071,6 @@ pub fn append_if_unique_eq<TItem: PartialEq + Clone>(array: &mut Vec<TItem>, to_
 
 pub fn append_if_unique_rc<TItem>(array: &mut Vec<Rc<TItem>>, to_add: &Rc<TItem>) {
     push_if_unique_rc(array, to_add);
-}
-
-pub fn append_if_unique_gc<TItem: Trace + Finalize>(
-    array: &mut Vec<Gc<TItem>>,
-    to_add: &Gc<TItem>,
-) {
-    push_if_unique_gc(array, to_add);
 }
 
 pub fn maybe_append_if_unique_eq<TItem: PartialEq + Clone>(
@@ -1137,18 +1091,6 @@ pub fn maybe_append_if_unique_rc<TItem>(
 ) -> Vec<Rc<TItem>> {
     if let Some(mut array) = array {
         push_if_unique_rc(&mut array, to_add);
-        array
-    } else {
-        vec![to_add.clone()]
-    }
-}
-
-pub fn maybe_append_if_unique_gc<TItem: Trace + Finalize>(
-    array: Option<Vec<Gc<TItem>>>,
-    to_add: &Gc<TItem>,
-) -> Vec<Gc<TItem>> {
-    if let Some(mut array) = array {
-        push_if_unique_gc(&mut array, to_add);
         array
     } else {
         vec![to_add.clone()]

@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::{init_flow_node, Binder, ContainerFlags};
 use crate::{
-    contains_gc, create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
+    create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
     get_immediately_invoked_function_expression, get_name_of_declaration, has_syntactic_modifier,
     is_ambient_module, is_assignment_expression, is_binary_expression, is_declaration,
     is_destructuring_assignment, is_dotted_name, is_element_access_expression,

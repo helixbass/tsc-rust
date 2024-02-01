@@ -4,7 +4,7 @@ use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use crate::{
-    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, push_if_unique_gc,
+    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node,
     return_if_none, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, GetOrInsertDefault,
     Node, NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement, SourceMapRange,
     StringOrNumber, SyntaxKind, SynthesizedComment,

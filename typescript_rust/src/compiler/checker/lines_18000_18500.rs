@@ -15,7 +15,7 @@ use super::{
 };
 use crate::{
     add_related_info, append, are_option_gcs_equal, chain_diagnostic_messages,
-    concatenate_diagnostic_message_chains, contains, contains_gc, create_diagnostic_for_node,
+    concatenate_diagnostic_message_chains, contains, create_diagnostic_for_node,
     create_diagnostic_for_node_from_message_chain, find_ancestor, first_or_undefined,
     get_emit_script_target, get_object_flags, is_identifier, is_identifier_text, is_import_call,
     is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,

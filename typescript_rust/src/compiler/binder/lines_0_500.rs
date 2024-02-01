@@ -23,7 +23,7 @@ use crate::{
     AssignmentDeclarationKind, BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic,
     DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticWithLocation, Diagnostics,
     FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_gc,
+    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String,
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
     is_property_name_literal, object_allocator, set_parent, set_value_declaration, static_arena,
     AllArenas, BaseSymbol, HasArena, InArena, InternalSymbolName, NamedDeclarationInterface, Node,

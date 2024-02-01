@@ -1211,7 +1211,6 @@ fn write_configurations(
 ) -> String {
     let mut categorized_options: MultiMapOrdered<String, Id<CommandLineOption>> =
         create_multi_map_ordered();
-    // TODO: implement IntoIterator for &GcVec<T>?
     for option in option_declarations(arena).ref_(arena).iter() {
         let option_ref = option.ref_(arena);
         let category = option_ref.maybe_category();
