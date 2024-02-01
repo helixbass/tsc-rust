@@ -205,9 +205,9 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn set_symbol(&self, symbol: Id<Symbol>);
     fn set_symbol_override(&self, symbol_override: Id<Box<dyn NodeSymbolOverride>>);
     fn maybe_locals(&self) -> Option<Id<SymbolTable>>;
-    fn maybe_locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn maybe_locals_mut(&self) -> RefMut<Option<Id<SymbolTable>>>;
     fn locals(&self) -> Id<SymbolTable>;
-    fn locals_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>, Id<SymbolTable>>;
+    fn locals_mut(&self) -> RefMut<Id<SymbolTable>>;
     fn set_locals(&self, locals: Option<Id<SymbolTable>>);
     fn maybe_next_container(&self) -> Option<Id<Node>>;
     fn set_next_container(&self, next_container: Option<Id<Node>>);
