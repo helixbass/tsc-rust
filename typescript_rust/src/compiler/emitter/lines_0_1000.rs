@@ -1925,10 +1925,6 @@ impl Printer {
         }
     }
 
-    pub(super) fn symbol(&self, symbol: Id<Symbol>) -> debug_cell::Ref<Symbol> {
-        self.arena().symbol_ref(symbol)
-    }
-
     pub(super) fn arena_id(&self) -> Id<Printer> {
         self._arena_id.borrow().clone().unwrap()
     }

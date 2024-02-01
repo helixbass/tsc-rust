@@ -654,7 +654,7 @@ impl TypeChecker {
                     |p: &Id<Node>| -> io::Result<_> {
                         Ok(p.ref_(self).maybe_symbol().is_some() &&
                             p.ref_(self).kind() == SyntaxKind::JsxAttribute &&
-                            self.is_discriminant_property(Some(contextual_type), self.symbol_ref(p.ref_(self).symbol()).escaped_name())? &&
+                            self.is_discriminant_property(Some(contextual_type), p.ref_(self).symbol().ref_(self).escaped_name())? &&
                             match p.ref_(self).as_jsx_attribute().initializer {
                                 None => true,
                                 Some(p_initializer) => self.is_possibly_discriminant_value(p_initializer)

@@ -850,8 +850,8 @@ pub fn create_type_checker(
                 .into(),
         ),
     );
-    type_checker
-        .symbol_ref(type_checker.undefined_symbol.unwrap())
+    type_checker.undefined_symbol.unwrap()
+        .ref_(&type_checker)
         .set_declarations(vec![]);
     type_checker.global_this_symbol = Some(
         type_checker.alloc_symbol(
@@ -866,17 +866,15 @@ pub fn create_type_checker(
     );
     let global_this_symbol = type_checker.global_this_symbol();
     {
-        let global_this_symbol_ref = type_checker.symbol_ref(global_this_symbol);
+        let global_this_symbol_ref = global_this_symbol.ref_(&type_checker);
         let mut global_this_symbol_exports = global_this_symbol_ref.maybe_exports_mut();
         *global_this_symbol_exports = Some(type_checker.globals_id());
     }
-    type_checker
-        .symbol_ref(global_this_symbol)
-        .set_declarations(vec![]);
+    global_this_symbol
+        .ref_(&type_checker).set_declarations(vec![]);
     type_checker.globals_mut().insert(
-        type_checker
-            .symbol_ref(global_this_symbol)
-            .escaped_name()
+        global_this_symbol
+            .ref_(&type_checker).escaped_name()
             .to_owned(),
         global_this_symbol,
     );
@@ -1450,8 +1448,8 @@ pub fn create_type_checker(
 
     let mut builtin_globals: SymbolTable = SymbolTable::new();
     builtin_globals.insert(
-        type_checker
-            .symbol_ref(type_checker.undefined_symbol())
+        type_checker.undefined_symbol()
+            .ref_(&type_checker)
             .escaped_name()
             .to_owned(),
         type_checker.undefined_symbol(),

@@ -146,7 +146,7 @@ impl Binder {
                     self.container(),
                     &root_expr.ref_(self).as_identifier().escaped_text
                 ),
-                Some(symbol) if self.symbol_ref(symbol).flags().intersects(SymbolFlags::Alias)
+                Some(symbol) if symbol.ref_(self).flags().intersects(SymbolFlags::Alias)
             )
         {
             return;
@@ -1011,8 +1011,8 @@ pub fn is_exports_or_module_exports_or_alias(
             let symbol =
                 lookup_symbol_for_name(binder, source_file, &node.ref_(binder).as_identifier().escaped_text);
             if let Some(symbol) = symbol {
-                if let Some(symbol_value_declaration) = binder
-                    .symbol_ref(symbol)
+                if let Some(symbol_value_declaration) =
+                    symbol.ref_(binder)
                     .maybe_value_declaration()
                     .filter(|value_declaration| {
                         is_variable_declaration(&value_declaration.ref_(binder))
@@ -1050,9 +1050,8 @@ pub(super) fn lookup_symbol_for_name(
         .and_then(|locals| locals.ref_(binder).get(name).cloned());
     if let Some(local) = local {
         return Some(
-            binder
-                .symbol_ref(local)
-                .maybe_export_symbol()
+            local
+                .ref_(binder).maybe_export_symbol()
                 .unwrap_or_else(|| local.clone()),
         );
     }
@@ -1071,6 +1070,6 @@ pub(super) fn lookup_symbol_for_name(
     }
     container
         .ref_(binder).maybe_symbol()
-        .and_then(|symbol| binder.symbol_ref(symbol).maybe_exports().clone())
+        .and_then(|symbol| symbol.ref_(binder).maybe_exports().clone())
         .and_then(|exports| exports.ref_(binder).get(name).cloned())
 }
