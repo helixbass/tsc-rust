@@ -254,7 +254,7 @@ impl TypeChecker {
         let last_param_tags = if let Some(last_param) = last_param {
             get_jsdoc_parameter_tags(last_param, self)
         } else {
-            get_jsdoc_tags(declaration, self).ref_(self).iter().copied().filter(|tag: &Id<Node>| is_jsdoc_parameter_tag(&tag.ref_(self))).ref_(self).clone()
+            get_jsdoc_tags(declaration, self).ref_(self).iter().copied().filter(|tag: &Id<Node>| is_jsdoc_parameter_tag(&tag.ref_(self))).collect()
         };
         let last_param_variadic_type = first_defined(last_param_tags, |p: Id<Node>, _| {
             p.ref_(self).as_jsdoc_property_like_tag()
