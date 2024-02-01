@@ -1825,10 +1825,12 @@ pub fn create_printer(
 ) -> Id<Printer> {
     let handlers = handlers.unwrap_or_else(|| arena.alloc_print_handlers(Box::new(DummyPrintHandlers)));
     let printer = arena.alloc_printer(Printer::new(&*static_arena(), printer_options, handlers));
-    *printer.ref_(arena)._arena_id.borrow_mut() = Some(printer.clone());
+    // TODO: move this into the arena alloc_*() method like other types
+    printer.ref_(arena)._arena_id.set(Some(printer.clone()));
     printer.ref_(arena).reset();
-    *printer.ref_(arena).emit_binary_expression.borrow_mut() =
-        Some(arena.alloc_emit_binary_expression(printer.ref_(arena).create_emit_binary_expression()));
+    printer.ref_(arena).emit_binary_expression.set(
+        Some(arena.alloc_emit_binary_expression(printer.ref_(arena).create_emit_binary_expression()))
+    );
     printer
 }
 
@@ -1897,7 +1899,7 @@ impl Printer {
             own_writer: Default::default(),
             write: Cell::new(Printer::write_base),
             is_own_file_emit: Default::default(),
-            bundle_file_info: GcCell::new(bundle_file_info),
+            bundle_file_info: Cell::new(bundle_file_info),
             relative_to_build_info,
             record_internal_section,
             source_file_text_pos: Default::default(),
@@ -1926,19 +1928,19 @@ impl Printer {
     }
 
     pub(super) fn arena_id(&self) -> Id<Printer> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     pub(super) fn maybe_current_source_file(&self) -> Option<Id<Node>> {
-        self.current_source_file.borrow().clone()
+        self.current_source_file.get()
     }
 
     pub(super) fn current_source_file(&self) -> Id<Node> {
-        self.current_source_file.borrow().clone().unwrap()
+        self.current_source_file.get().unwrap()
     }
 
     pub(super) fn set_current_source_file(&self, current_source_file: Option<Id<Node>>) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
     pub(super) fn bundled_helpers(&self) -> Ref<HashMap<String, bool>> {
@@ -2046,11 +2048,11 @@ impl Printer {
     }
 
     pub(super) fn maybe_writer(&self) -> Option<Id<Box<dyn EmitTextWriter>>> {
-        self.writer.borrow().clone()
+        self.writer.get()
     }
 
     pub(super) fn writer(&self) -> debug_cell::Ref<'_, Box<dyn EmitTextWriter>> {
-        self.writer.borrow().clone().unwrap().ref_(self)
+        self.writer.get().unwrap().ref_(self)
     }
 
     pub(super) fn has_global_name(&self, name: &str) -> Option<bool> {
@@ -2131,11 +2133,11 @@ impl Printer {
     }
 
     pub(super) fn maybe_bundle_file_info(&self) -> Option<Id<BundleFileInfo>> {
-        self.bundle_file_info.borrow().clone()
+        self.bundle_file_info.get()
     }
 
     pub(super) fn bundle_file_info(&self) -> Id<BundleFileInfo> {
-        self.bundle_file_info.borrow().clone().unwrap()
+        self.bundle_file_info.get().unwrap()
     }
 
     pub(super) fn relative_to_build_info(&self, value: &str) -> String {
@@ -2162,7 +2164,7 @@ impl Printer {
         &self,
         source_map_generator: Option<Id<Box<dyn SourceMapGenerator>>>,
     ) {
-        *self.source_map_generator.borrow_mut() = source_map_generator;
+        self.source_map_generator.set(source_map_generator);
     }
 
     pub(super) fn source_maps_disabled(&self) -> bool {
@@ -2174,23 +2176,23 @@ impl Printer {
     }
 
     pub(super) fn source_map_generator(&self) -> Id<Box<dyn SourceMapGenerator>> {
-        self.source_map_generator.borrow().clone().unwrap()
+        self.source_map_generator.get().unwrap()
     }
 
     pub(super) fn maybe_source_map_generator(&self) -> Option<Id<Box<dyn SourceMapGenerator>>> {
-        self.source_map_generator.borrow().clone()
+        self.source_map_generator.get()
     }
 
     pub(super) fn maybe_source_map_source(&self) -> Option<Id<SourceMapSource>> {
-        self.source_map_source.borrow().clone()
+        self.source_map_source.get()
     }
 
     pub(super) fn source_map_source(&self) -> Id<SourceMapSource> {
-        self.source_map_source.borrow().clone().unwrap()
+        self.source_map_source.get().unwrap()
     }
 
     pub(super) fn set_source_map_source_(&self, source_map_source: Option<Id<SourceMapSource>>) {
-        *self.source_map_source.borrow_mut() = source_map_source;
+        self.source_map_source.set(source_map_source);
     }
 
     pub(super) fn source_map_source_index(&self) -> isize {
@@ -2204,15 +2206,14 @@ impl Printer {
     pub(super) fn maybe_most_recently_added_source_map_source(
         &self,
     ) -> Option<Id<SourceMapSource>> {
-        self.most_recently_added_source_map_source.borrow().clone()
+        self.most_recently_added_source_map_source.get()
     }
 
     pub(super) fn set_most_recently_added_source_map_source(
         &self,
         most_recently_added_source_map_source: Option<Id<SourceMapSource>>,
     ) {
-        *self.most_recently_added_source_map_source.borrow_mut() =
-            most_recently_added_source_map_source;
+        self.most_recently_added_source_map_source.set(most_recently_added_source_map_source);
     }
 
     pub(super) fn most_recently_added_source_map_source_index(&self) -> isize {
@@ -2314,24 +2315,24 @@ impl Printer {
     }
 
     pub(super) fn maybe_last_substitution(&self) -> Option<Id<Node>> {
-        self.last_substitution.borrow().clone()
+        self.last_substitution.get()
     }
 
     pub(super) fn set_last_substitution(&self, last_substitution: Option<Id<Node>>) {
-        *self.last_substitution.borrow_mut() = last_substitution;
+        self.last_substitution.set(last_substitution);
     }
 
     pub(super) fn maybe_current_parenthesizer_rule(
         &self,
     ) -> Option<Id<Box<dyn CurrentParenthesizerRule>>> {
-        self.current_parenthesizer_rule.borrow().clone()
+        self.current_parenthesizer_rule.get()
     }
 
     pub(super) fn set_current_parenthesizer_rule(
         &self,
         current_parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) {
-        *self.current_parenthesizer_rule.borrow_mut() = current_parenthesizer_rule;
+        self.current_parenthesizer_rule.set(current_parenthesizer_rule);
     }
 
     pub(super) fn parenthesizer(
@@ -2349,7 +2350,7 @@ impl Printer {
     }
 
     pub(super) fn emit_binary_expression_id(&self) -> Id<EmitBinaryExpression> {
-        self.emit_binary_expression.borrow().clone().unwrap()
+        self.emit_binary_expression.get().unwrap()
     }
 
     pub(super) fn emit_binary_expression(&self, node: Id<Node> /*BinaryExpression*/) {
@@ -2431,7 +2432,7 @@ impl Printer {
         self.set_writer(Some(output), None);
         self.print(hint, node, source_file)?;
         self.reset();
-        *self.writer.borrow_mut() = previous_writer;
+        self.writer.set(previous_writer);
 
         Ok(())
     }
@@ -2457,7 +2458,7 @@ impl Printer {
             None,
         )?;
         self.reset();
-        *self.writer.borrow_mut() = previous_writer;
+        self.writer.set(previous_writer);
 
         Ok(())
     }

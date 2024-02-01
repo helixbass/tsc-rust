@@ -244,17 +244,16 @@ impl Binder {
                         } else {
                             let file = self.file();
                             let file_ref = file.ref_(self);
-                            let mut file_js_global_augmentations =
-                                file_ref.as_source_file().maybe_js_global_augmentations();
-                            if file_js_global_augmentations.is_none() {
-                                *file_js_global_augmentations =
+                            if file_ref.as_source_file().maybe_js_global_augmentations().is_none() {
+                                file_ref.as_source_file().set_js_global_augmentations(
                                     Some(self.alloc_symbol_table(create_symbol_table(
                                         self.arena(),
                                         Option::<&[Id<Symbol>]>::None,
-                                    )));
+                                    )))
+                                );
                             }
                             Some(self.declare_symbol(
-                                &mut file_js_global_augmentations.clone().unwrap().ref_mut(self),
+                                &mut file_ref.as_source_file().maybe_js_global_augmentations().unwrap().ref_mut(self),
                                 parent,
                                 id,
                                 flags,
@@ -1060,7 +1059,6 @@ pub(super) fn lookup_symbol_for_name(
         let container_as_source_file = container_ref.as_source_file();
         if let Some(container_js_global_augmentations) = container_as_source_file
             .maybe_js_global_augmentations()
-            .as_ref()
         {
             let container_js_global_augmentations = container_js_global_augmentations.ref_(binder);
             if container_js_global_augmentations.contains_key(name) {

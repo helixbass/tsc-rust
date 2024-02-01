@@ -690,7 +690,7 @@ impl TypeChecker {
             Some(reference),
         );
         set_parent(&reference.ref_(self), Some(file));
-        reference.ref_(self).set_flow_node(file.ref_(self).as_source_file().maybe_end_flow_node().clone());
+        reference.ref_(self).set_flow_node(file.ref_(self).as_source_file().maybe_end_flow_node());
         self.get_flow_type_of_reference(
             reference,
             self.auto_type(),

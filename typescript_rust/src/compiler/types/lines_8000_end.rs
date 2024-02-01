@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell},
+    cell::{Cell, RefCell, OnceCell},
     collections::{HashMap, HashSet},
     io,
     iter::FromIterator,
@@ -27,14 +27,14 @@ use crate::{
 pub struct Printer {
     #[unsafe_ignore_trace]
     pub arena: *const AllArenas,
-    pub _arena_id: GcCell<Option<Id<Printer>>>,
+    pub _arena_id: Cell<Option<Id<Printer>>>,
     pub printer_options: PrinterOptions,
     pub handlers: Id<Box<dyn PrintHandlers>>,
     pub extended_diagnostics: bool,
     pub new_line: String,
     #[unsafe_ignore_trace]
     pub module_kind: ModuleKind,
-    pub current_source_file: GcCell<Option<Id<Node /*SourceFile*/>>>,
+    pub current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
     #[unsafe_ignore_trace]
     pub bundled_helpers: RefCell<HashMap<String, bool>>,
     #[unsafe_ignore_trace]
@@ -56,13 +56,13 @@ pub struct Printer {
     #[unsafe_ignore_trace]
     pub next_list_element_pos: Cell<Option<isize>>,
 
-    pub writer: GcCell<Option<Id<Box<dyn EmitTextWriter>>>>,
-    pub own_writer: GcCell<Option<Id<Box<dyn EmitTextWriter>>>>,
+    pub writer: Cell<Option<Id<Box<dyn EmitTextWriter>>>>,
+    pub own_writer: OnceCell<Id<Box<dyn EmitTextWriter>>>,
     #[unsafe_ignore_trace]
     pub write: Cell<fn(&Printer, &str)>,
     #[unsafe_ignore_trace]
     pub is_own_file_emit: Cell<bool>,
-    pub bundle_file_info: GcCell<Option<Id<BundleFileInfo>>>,
+    pub bundle_file_info: Cell<Option<Id<BundleFileInfo>>>,
     pub relative_to_build_info: Option<Id<Box<dyn RelativeToBuildInfo>>>,
     pub record_internal_section: Option<bool>,
     #[unsafe_ignore_trace]
@@ -72,11 +72,11 @@ pub struct Printer {
 
     #[unsafe_ignore_trace]
     pub source_maps_disabled: Cell<bool>,
-    pub source_map_generator: GcCell<Option<Id<Box<dyn SourceMapGenerator>>>>,
-    pub source_map_source: GcCell<Option<Id<SourceMapSource>>>,
+    pub source_map_generator: Cell<Option<Id<Box<dyn SourceMapGenerator>>>>,
+    pub source_map_source: Cell<Option<Id<SourceMapSource>>>,
     #[unsafe_ignore_trace]
     pub source_map_source_index: Cell<isize>,
-    pub most_recently_added_source_map_source: GcCell<Option<Id<SourceMapSource>>>,
+    pub most_recently_added_source_map_source: Cell<Option<Id<SourceMapSource>>>,
     #[unsafe_ignore_trace]
     pub most_recently_added_source_map_source_index: Cell<isize>,
     #[unsafe_ignore_trace]
@@ -93,10 +93,10 @@ pub struct Printer {
     pub has_written_comment: Cell<bool>,
     #[unsafe_ignore_trace]
     pub comments_disabled: Cell<bool>,
-    pub last_substitution: GcCell<Option<Id<Node>>>,
-    pub current_parenthesizer_rule: GcCell<Option<Id<Box<dyn CurrentParenthesizerRule>>>>,
+    pub last_substitution: Cell<Option<Id<Node>>>,
+    pub current_parenthesizer_rule: Cell<Option<Id<Box<dyn CurrentParenthesizerRule>>>>,
     pub parenthesizer: Id<Box<dyn ParenthesizerRules>>,
-    pub emit_binary_expression: GcCell<Option<Id<EmitBinaryExpression>>>,
+    pub emit_binary_expression: Cell<Option<Id<EmitBinaryExpression>>>,
 }
 
 pub trait CurrentParenthesizerRule: Trace + Finalize {

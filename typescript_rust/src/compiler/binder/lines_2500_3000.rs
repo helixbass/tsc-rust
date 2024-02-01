@@ -681,10 +681,8 @@ impl Binder {
         {
             return false;
         }
-        let mut file_common_js_module_indicator =
-            file_as_source_file.maybe_common_js_module_indicator_mut();
-        if file_common_js_module_indicator.is_none() {
-            *file_common_js_module_indicator = Some(node);
+        if file_as_source_file.maybe_common_js_module_indicator().is_none() {
+            file_as_source_file.set_common_js_module_indicator(Some(node));
             self.bind_source_file_as_external_module();
         }
         true

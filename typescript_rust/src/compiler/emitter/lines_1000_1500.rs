@@ -156,7 +156,7 @@ impl Printer {
         }
 
         self.reset();
-        *self.writer.borrow_mut() = previous_writer;
+        self.writer.set(previous_writer);
 
         Ok(())
     }
@@ -170,7 +170,7 @@ impl Printer {
         self.set_writer(Some(output), None);
         self.print(EmitHint::Unspecified, unparsed, None)?;
         self.reset();
-        *self.writer.borrow_mut() = previous_writer;
+        self.writer.set(previous_writer);
 
         Ok(())
     }
@@ -188,20 +188,18 @@ impl Printer {
         self.emit_prologue_directives_if_needed(source_file)?;
         self.print(EmitHint::SourceFile, source_file, Some(source_file))?;
         self.reset();
-        *self.writer.borrow_mut() = previous_writer;
+        self.writer.set(previous_writer);
 
         Ok(())
     }
 
     pub(super) fn begin_print(&self) -> Id<Box<dyn EmitTextWriter>> {
-        self.own_writer
-            .borrow_mut()
-            .get_or_insert_with(|| create_text_writer(&self.new_line, self))
-            .clone()
+        *self.own_writer
+            .get_or_init(|| create_text_writer(&self.new_line, self))
     }
 
     pub(super) fn end_print(&self) -> String {
-        let own_writer = self.own_writer.borrow().clone().unwrap();
+        let own_writer = self.own_writer.get().copied().unwrap();
         let text = own_writer.ref_(self).get_text();
         own_writer.ref_(self).clear();
         text
@@ -223,7 +221,7 @@ impl Printer {
     }
 
     pub(super) fn set_source_file(&self, source_file: Option<Id<Node> /*SourceFile*/>) {
-        *self.current_source_file.borrow_mut() = source_file;
+        self.current_source_file.set(source_file);
         self.set_current_line_map(None);
         self.set_detached_comments_info(None);
         if let Some(source_file) = source_file {
@@ -244,7 +242,7 @@ impl Printer {
                 ));
             }
         }
-        *self.writer.borrow_mut() = writer.clone();
+        self.writer.set(writer).clone();
         self.set_source_map_generator(source_map_generator.clone());
         self.set_source_maps_disabled(writer.is_none() || source_map_generator.is_none());
     }

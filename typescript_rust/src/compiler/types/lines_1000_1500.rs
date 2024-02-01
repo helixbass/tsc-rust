@@ -782,8 +782,8 @@ pub struct BaseFunctionLikeDeclaration {
     pub question_token: Option<Id<Node /*QuestionToken*/>>,
     pub exclamation_token: Cell<Option<Id<Node /*ExclamationToken*/>>>,
     body: Option<Id<Node /*Block | Expression*/>>,
-    end_flow_node: GcCell<Option<Id<FlowNode>>>,
-    return_flow_node: GcCell<Option<Id<FlowNode>>>,
+    end_flow_node: Cell<Option<Id<FlowNode>>>,
+    return_flow_node: Cell<Option<Id<FlowNode>>>,
 }
 
 impl BaseFunctionLikeDeclaration {
@@ -818,19 +818,19 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
     }
 
     fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>> {
-        self.end_flow_node.borrow().clone()
+        self.end_flow_node.get()
     }
 
     fn set_end_flow_node(&self, end_flow_node: Option<Id<FlowNode>>) {
-        *self.end_flow_node.borrow_mut() = end_flow_node;
+        *self.end_flow_node.b = end_flow_node;
     }
 
     fn maybe_return_flow_node(&self) -> Option<Id<FlowNode>> {
-        self.return_flow_node.borrow().clone()
+        self.return_flow_node.get()
     }
 
     fn set_return_flow_node(&self, return_flow_node: Option<Id<FlowNode>>) {
-        *self.return_flow_node.borrow_mut() = return_flow_node;
+        self.return_flow_node.set(return_flow_node);
     }
 }
 

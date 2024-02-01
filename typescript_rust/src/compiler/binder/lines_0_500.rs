@@ -1,6 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
-    cell::{Cell, RefCell},
+    cell::{Cell, RefCell, RefMut},
     collections::{HashMap, HashSet},
     rc::Rc,
 };
@@ -43,7 +43,7 @@ pub struct ActiveLabel {
     pub next: Option<Id<ActiveLabel>>,
     pub name: __String,
     break_target: Id<FlowNode /*FlowLabel*/>,
-    continue_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    continue_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
     #[unsafe_ignore_trace]
     referenced: Cell<bool>,
 }
@@ -60,7 +60,7 @@ impl ActiveLabel {
             next,
             name,
             break_target,
-            continue_target: GcCell::new(continue_target),
+            continue_target: Cell::new(continue_target),
             referenced: Cell::new(referenced),
         }
     }
@@ -74,11 +74,11 @@ impl ActiveLabel {
     }
 
     pub fn maybe_continue_target(&self) -> Option<Id<FlowNode>> {
-        self.continue_target.borrow().clone()
+        self.continue_target.get()
     }
 
     pub fn set_continue_target(&self, continue_target: Option<Id<FlowNode>>) {
-        *self.continue_target.borrow_mut() = continue_target;
+        self.continue_target.set(continue_target);
     }
 
     pub fn referenced(&self) -> bool {
@@ -310,30 +310,30 @@ pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptio
 pub struct Binder {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
-    pub(super) _arena_id: GcCell<Option<Id<Self>>>,
-    pub(super) file: GcCell<Option<Id</*SourceFile*/ Node>>>,
-    pub(super) options: GcCell<Option<Id<CompilerOptions>>>,
+    pub(super) _arena_id: Cell<Option<Id<Self>>>,
+    pub(super) file: Cell<Option<Id</*SourceFile*/ Node>>>,
+    pub(super) options: Cell<Option<Id<CompilerOptions>>>,
     #[unsafe_ignore_trace]
     pub(super) language_version: Cell<Option<ScriptTarget>>,
-    pub(super) parent: GcCell<Option<Id<Node>>>,
-    pub(super) container: GcCell<Option<Id<Node>>>,
-    pub(super) this_parent_container: GcCell<Option<Id<Node>>>,
-    pub(super) block_scope_container: GcCell<Option<Id<Node>>>,
-    pub(super) last_container: GcCell<Option<Id<Node>>>,
+    pub(super) parent: Cell<Option<Id<Node>>>,
+    pub(super) container: Cell<Option<Id<Node>>>,
+    pub(super) this_parent_container: Cell<Option<Id<Node>>>,
+    pub(super) block_scope_container: Cell<Option<Id<Node>>>,
+    pub(super) last_container: Cell<Option<Id<Node>>>,
     pub(super) delayed_type_aliases:
-        GcCell<Option<Vec<Id<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
+        RefCell<Option<Vec<Id<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
     #[unsafe_ignore_trace]
     pub(super) seen_this_keyword: Cell<Option<bool>>,
 
-    pub(super) current_flow: GcCell<Option<Id<FlowNode>>>,
-    pub(super) current_break_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_continue_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_return_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_true_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_false_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
-    pub(super) current_exception_target: GcCell<Option<Id<FlowNode /*FlowLabel*/>>>,
-    pub(super) pre_switch_case_flow: GcCell<Option<Id<FlowNode>>>,
-    pub(super) active_label_list: GcCell<Option<Id<ActiveLabel>>>,
+    pub(super) current_flow: Cell<Option<Id<FlowNode>>>,
+    pub(super) current_break_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_continue_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_return_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_true_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_false_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) current_exception_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
+    pub(super) pre_switch_case_flow: Cell<Option<Id<FlowNode>>>,
+    pub(super) active_label_list: Cell<Option<Id<ActiveLabel>>>,
     #[unsafe_ignore_trace]
     pub(super) has_explicit_return: Cell<Option<bool>>,
 
@@ -354,9 +354,9 @@ pub struct Binder {
     #[unsafe_ignore_trace]
     pub(super) classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
 
-    pub(super) unreachable_flow: GcCell<Id<FlowNode>>,
-    pub(super) reported_unreachable_flow: GcCell<Id<FlowNode>>,
-    pub(super) bind_binary_expression_flow: GcCell<Option<Id<BindBinaryExpressionFlow>>>,
+    pub(super) unreachable_flow: Cell<Id<FlowNode>>,
+    pub(super) reported_unreachable_flow: Cell<Id<FlowNode>>,
+    pub(super) bind_binary_expression_flow: Cell<Option<Id<BindBinaryExpressionFlow>>>,
 }
 
 pub(super) fn create_binder(arena: *const AllArenas) -> Id<Binder> {
@@ -391,14 +391,15 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Id<Binder> {
         symbol_count: Default::default(),
         Symbol: Default::default(),
         classifiable_names: Default::default(),
-        unreachable_flow: GcCell::new(arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into())),
-        reported_unreachable_flow: GcCell::new(arena_ref.alloc_flow_node(
+        unreachable_flow: Cell::new(arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into())),
+        reported_unreachable_flow: Cell::new(arena_ref.alloc_flow_node(
             FlowStart::new(FlowFlags::Unreachable, None).into(),
         )),
         bind_binary_expression_flow: Default::default(),
     });
-    *ret.ref_(arena_ref).bind_binary_expression_flow.borrow_mut() =
-        Some(arena_ref.alloc_bind_binary_expression_flow(ret.ref_(arena_ref).create_bind_binary_expression_flow()));
+    ret.ref_(arena_ref).bind_binary_expression_flow.set(
+        Some(arena_ref.alloc_bind_binary_expression_flow(ret.ref_(arena_ref).create_bind_binary_expression_flow()))
+    );
     ret
 }
 
@@ -408,27 +409,27 @@ impl Binder {
     }
 
     pub(super) fn arena_id(&self) -> Id<Self> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     pub fn set_arena_id(&self, id: Id<Self>) {
-        *self._arena_id.borrow_mut() = Some(id);
+        self._arena_id.set(Some(id));
     }
 
     pub(super) fn file(&self) -> Id<Node> {
-        self.file.borrow().as_ref().unwrap().clone()
+        self.file.get().unwrap()
     }
 
     pub(super) fn set_file(&self, file: Option<Id<Node>>) {
-        *self.file.borrow_mut() = file;
+        self.file.set(file);
     }
 
     pub(super) fn options(&self) -> Id<CompilerOptions> {
-        self.options.borrow().as_ref().unwrap().clone()
+        self.options.get().unwrap()
     }
 
     pub(super) fn set_options(&self, options: Option<Id<CompilerOptions>>) {
-        *self.options.borrow_mut() = options;
+        self.options.set(options);
     }
 
     pub(super) fn maybe_language_version(&self) -> Option<ScriptTarget> {
@@ -440,76 +441,67 @@ impl Binder {
     }
 
     pub(super) fn maybe_parent(&self) -> Option<Id<Node>> {
-        self.parent.borrow().clone()
+        self.parent.get()
     }
 
     pub(super) fn parent(&self) -> Id<Node> {
-        self.parent.borrow().as_ref().unwrap().clone()
+        self.parent.get().unwrap()
     }
 
     pub(super) fn set_parent(&self, parent: Option<Id<Node>>) {
-        *self.parent.borrow_mut() = parent;
+        self.parent.set(parent);
     }
 
     pub(super) fn container(&self) -> Id<Node> {
-        self.container.borrow().as_ref().unwrap().clone()
+        self.container.get().clone().unwrap()
     }
 
     pub(super) fn maybe_container(&self) -> Option<Id<Node>> {
-        self.container.borrow().as_ref().map(Clone::clone)
+        self.container.get().clone()
     }
 
     pub(super) fn set_container(&self, container: Option<Id<Node>>) {
-        *self.container.borrow_mut() = container;
+        self.container.set(container);
     }
 
     pub(super) fn this_parent_container(&self) -> Id<Node> {
         self.this_parent_container
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .clone()
+            .get().unwrap()
     }
 
     pub(super) fn maybe_this_parent_container(&self) -> Option<Id<Node>> {
         self.this_parent_container
-            .borrow()
-            .as_ref()
-            .map(Clone::clone)
+            .get()
     }
 
     pub(super) fn set_this_parent_container(&self, this_parent_container: Option<Id<Node>>) {
-        *self.this_parent_container.borrow_mut() = this_parent_container;
+        self.this_parent_container.set(this_parent_container);
     }
 
     pub(super) fn maybe_block_scope_container(&self) -> Option<Id<Node>> {
         self.block_scope_container
-            .borrow()
-            .as_ref()
-            .map(Clone::clone)
+            .get()
     }
 
     pub(super) fn block_scope_container(&self) -> Id<Node> {
         self.block_scope_container
-            .borrow()
-            .as_ref()
+            .get()
             .unwrap()
-            .clone()
     }
 
     pub(super) fn set_block_scope_container(&self, block_scope_container: Option<Id<Node>>) {
-        *self.block_scope_container.borrow_mut() = block_scope_container;
+        self.block_scope_container.set(block_scope_container);
     }
 
     pub(super) fn maybe_last_container(&self) -> Option<Id<Node>> {
-        self.last_container.borrow().clone()
+        self.last_container.get()
     }
 
     pub(super) fn set_last_container(&self, last_container: Option<Id<Node>>) {
-        *self.last_container.borrow_mut() = last_container;
+        self.last_container.set(last_container);
     }
 
-    pub(super) fn maybe_delayed_type_aliases(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    pub(super) fn maybe_delayed_type_aliases(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.delayed_type_aliases.borrow_mut()
     }
 
@@ -526,101 +518,101 @@ impl Binder {
     }
 
     pub(super) fn current_flow(&self) -> Id<FlowNode> {
-        self.current_flow.borrow().clone().unwrap()
+        self.current_flow.get().unwrap()
     }
 
     pub(super) fn maybe_current_flow(&self) -> Option<Id<FlowNode>> {
-        self.current_flow.borrow().clone()
+        self.current_flow.get()
     }
 
     pub(super) fn set_current_flow(&self, current_flow: Option<Id<FlowNode>>) {
-        *self.current_flow.borrow_mut() = current_flow;
+        self.current_flow.set(current_flow);
     }
 
     pub(super) fn maybe_current_break_target(&self) -> Option<Id<FlowNode>> {
-        self.current_break_target.borrow().clone()
+        self.current_break_target.get()
     }
 
     pub(super) fn set_current_break_target(&self, current_break_target: Option<Id<FlowNode>>) {
-        *self.current_break_target.borrow_mut() = current_break_target;
+        self.current_break_target.set(current_break_target);
     }
 
     pub(super) fn maybe_current_continue_target(&self) -> Option<Id<FlowNode>> {
-        self.current_continue_target.borrow().clone()
+        self.current_continue_target.get()
     }
 
     pub(super) fn set_current_continue_target(
         &self,
         current_continue_target: Option<Id<FlowNode>>,
     ) {
-        *self.current_continue_target.borrow_mut() = current_continue_target;
+        self.current_continue_target.set(current_continue_target);
     }
 
     pub(super) fn maybe_current_return_target(&self) -> Option<Id<FlowNode>> {
-        self.current_return_target.borrow().clone()
+        self.current_return_target.get()
     }
 
     pub(super) fn set_current_return_target(&self, current_return_target: Option<Id<FlowNode>>) {
-        *self.current_return_target.borrow_mut() = current_return_target;
+        self.current_return_target.set(current_return_target);
     }
 
     pub(super) fn current_true_target(&self) -> Id<FlowNode> {
-        self.current_true_target.borrow().clone().unwrap()
+        self.current_true_target.get().unwrap()
     }
 
     pub(super) fn maybe_current_true_target(&self) -> Option<Id<FlowNode>> {
-        self.current_true_target.borrow().clone()
+        self.current_true_target.get()
     }
 
     pub(super) fn set_current_true_target(&self, current_true_target: Option<Id<FlowNode>>) {
-        *self.current_true_target.borrow_mut() = current_true_target;
+        self.current_true_target.set(current_true_target);
     }
 
     pub(super) fn current_false_target(&self) -> Id<FlowNode> {
-        self.current_false_target.borrow().clone().unwrap()
+        self.current_false_target.get().unwrap()
     }
 
     pub(super) fn maybe_current_false_target(&self) -> Option<Id<FlowNode>> {
-        self.current_false_target.borrow().clone()
+        self.current_false_target.get()
     }
 
     pub(super) fn set_current_false_target(&self, current_false_target: Option<Id<FlowNode>>) {
-        *self.current_false_target.borrow_mut() = current_false_target;
+        self.current_false_target.set(current_false_target);
     }
 
     pub(super) fn maybe_current_exception_target(&self) -> Option<Id<FlowNode>> {
-        self.current_exception_target.borrow().clone()
+        self.current_exception_target.get()
     }
 
     pub(super) fn set_current_exception_target(
         &self,
         current_exception_target: Option<Id<FlowNode>>,
     ) {
-        *self.current_exception_target.borrow_mut() = current_exception_target;
+        self.current_exception_target.set(current_exception_target);
     }
 
     pub(super) fn pre_switch_case_flow(&self) -> Id<FlowNode> {
-        self.pre_switch_case_flow.borrow().clone().unwrap()
+        self.pre_switch_case_flow.get().unwrap()
     }
 
     pub(super) fn maybe_pre_switch_case_flow(&self) -> Option<Id<FlowNode>> {
-        self.pre_switch_case_flow.borrow().clone()
+        self.pre_switch_case_flow.get()
     }
 
     pub(super) fn set_pre_switch_case_flow(&self, pre_switch_case_flow: Option<Id<FlowNode>>) {
-        *self.pre_switch_case_flow.borrow_mut() = pre_switch_case_flow;
+        self.pre_switch_case_flow.set(pre_switch_case_flow);
     }
 
     pub(super) fn active_label_list(&self) -> Id<ActiveLabel> {
-        self.active_label_list.borrow().clone().unwrap()
+        self.active_label_list.get().unwrap()
     }
 
     pub(super) fn maybe_active_label_list(&self) -> Option<Id<ActiveLabel>> {
-        self.active_label_list.borrow().clone()
+        self.active_label_list.get()
     }
 
     pub(super) fn set_active_label_list(&self, active_label_list: Option<Id<ActiveLabel>>) {
-        *self.active_label_list.borrow_mut() = active_label_list;
+        self.active_label_list.set(active_label_list);
     }
 
     pub(super) fn maybe_has_explicit_return(&self) -> Option<bool> {
@@ -689,15 +681,15 @@ impl Binder {
     }
 
     pub(super) fn unreachable_flow(&self) -> Id<FlowNode> {
-        self.unreachable_flow.borrow().clone()
+        self.unreachable_flow.get()
     }
 
     pub(super) fn reported_unreachable_flow(&self) -> Id<FlowNode> {
-        self.reported_unreachable_flow.borrow().clone()
+        self.reported_unreachable_flow.get()
     }
 
     pub(super) fn bind_binary_expression_flow(&self) -> Id<BindBinaryExpressionFlow> {
-        self.bind_binary_expression_flow.borrow().clone().unwrap()
+        self.bind_binary_expression_flow.get().unwrap()
     }
 
     pub(super) fn create_diagnostic_for_node(

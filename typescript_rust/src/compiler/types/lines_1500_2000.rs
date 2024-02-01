@@ -108,8 +108,8 @@ impl IndexSignatureDeclaration {
 pub struct ClassStaticBlockDeclaration {
     _generic_named_declaration: BaseGenericNamedDeclaration,
     pub body: Id<Node /*Block*/>,
-    end_flow_node: GcCell<Option<Id<FlowNode>>>,
-    return_flow_node: GcCell<Option<Id<FlowNode>>>,
+    end_flow_node: Cell<Option<Id<FlowNode>>>,
+    return_flow_node: Cell<Option<Id<FlowNode>>>,
 }
 
 impl ClassStaticBlockDeclaration {
@@ -123,19 +123,19 @@ impl ClassStaticBlockDeclaration {
     }
 
     pub fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>> {
-        self.end_flow_node.borrow().clone()
+        self.end_flow_node.get()
     }
 
     pub fn set_end_flow_node(&self, end_flow_node: Option<Id<FlowNode>>) {
-        *self.end_flow_node.borrow_mut() = end_flow_node;
+        self.end_flow_node.set(end_flow_node);
     }
 
     pub fn maybe_return_flow_node(&self) -> Option<Id<FlowNode>> {
-        self.return_flow_node.borrow().clone()
+        self.return_flow_node.get()
     }
 
     pub fn set_return_flow_node(&self, return_flow_node: Option<Id<FlowNode>>) {
-        *self.return_flow_node.borrow_mut() = return_flow_node;
+        self.return_flow_node.set(return_flow_node);
     }
 }
 
@@ -238,7 +238,7 @@ impl From<BaseNode> for KeywordTypeNode {
 #[ast_type]
 pub struct ImportTypeNode {
     _node: BaseNode,
-    type_arguments: GcCell<Option<Id<NodeArray /*<TypeNode>*/>>>,
+    type_arguments: Cell<Option<Id<NodeArray /*<TypeNode>*/>>>,
     #[unsafe_ignore_trace]
     is_type_of: Cell<bool>,
     pub argument: Id<Node /*<TypeNode>*/>,
@@ -255,7 +255,7 @@ impl ImportTypeNode {
     ) -> Self {
         Self {
             _node: base_node,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
             is_type_of: Cell::new(is_type_of),
             argument,
             qualifier,
@@ -273,7 +273,7 @@ impl ImportTypeNode {
 
 impl HasTypeArgumentsInterface for ImportTypeNode {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 
@@ -322,9 +322,6 @@ impl ConstructorTypeNode {
 }
 
 pub trait HasTypeArgumentsInterface {
-    // TODO: changed this from Option<&NodeArray> to Ref<Option<NodeArray>> (and changed everything
-    // except Identifier to have an unnecessary RefCell wrapper) because Identifier needs to mutate
-    // its type_arguments, don't know if there's "a better way"?
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>>;
 }
 
@@ -333,7 +330,7 @@ pub trait HasTypeArgumentsInterface {
 pub struct TypeReferenceNode {
     _node: BaseNode,
     pub type_name: Id<Node /*EntityName*/>,
-    type_arguments: GcCell<Option<Id<NodeArray /*<TypeNode>*/>>>,
+    type_arguments: Cell<Option<Id<NodeArray /*<TypeNode>*/>>>,
 }
 
 impl TypeReferenceNode {
@@ -345,14 +342,14 @@ impl TypeReferenceNode {
         Self {
             _node: base_node,
             type_name,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
         }
     }
 }
 
 impl HasTypeArgumentsInterface for TypeReferenceNode {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 

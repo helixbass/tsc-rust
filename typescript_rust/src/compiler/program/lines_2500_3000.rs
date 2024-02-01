@@ -282,10 +282,10 @@ impl Program {
         redirect.set_path(path.clone());
         redirect.set_resolved_path(Some(resolved_path.clone()));
         redirect.set_original_file_name(Some(original_file_name.to_owned()));
-        *redirect.maybe_redirect_info_mut() = Some(RedirectInfo {
+        redirect.set_redirect_info(Some(RedirectInfo {
             redirect_target,
             unredirected,
-        });
+        }));
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
         let redirect = redirect.alloc(self.arena());

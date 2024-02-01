@@ -18,6 +18,7 @@ HasArena, InArena,    attach_file_to_diagnostics, convert_to_object_worker, crea
     NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
     ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
     TextChangeRange, AllArenas,
+    ref_mut_unwrapped,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -306,7 +307,7 @@ pub struct ParserType {
     pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     #[unsafe_ignore_trace]
     pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    pub(super) factory: GcCell<Option<Id<NodeFactory>>>,
+    pub(super) factory: Cell<Option<Id<NodeFactory>>>,
     #[unsafe_ignore_trace]
     pub(super) file_name: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
@@ -322,10 +323,10 @@ pub struct ParserType {
     #[unsafe_ignore_trace]
     pub(super) language_variant: Cell<Option<LanguageVariant>>,
     pub(super) parse_diagnostics:
-        GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+        RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
-        GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
-    pub(super) syntax_cursor: GcCell<Option<IncrementalParserSyntaxCursor>>,
+        RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
+    pub(super) syntax_cursor: RefCell<Option<IncrementalParserSyntaxCursor>>,
     #[unsafe_ignore_trace]
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
     #[unsafe_ignore_trace]
@@ -392,7 +393,7 @@ impl ParserType {
             parse_error_before_next_finished_node: Default::default(),
             has_deprecated_tag: Default::default(),
         });
-        *ret.ref_(arena).factory.borrow_mut() = Some(create_node_factory(
+        ret.ref_(arena).factory.set(Some(create_node_factory(
             NodeFactoryFlags::NoParenthesizerRules
                 | NodeFactoryFlags::NoNodeConverters
                 | NodeFactoryFlags::NoOriginalNode,
@@ -401,12 +402,12 @@ impl ParserType {
             // ret.clone(),
             super::get_parse_base_node_factory(arena),
             arena,
-        ));
+        )));
         ret
     }
 
-    pub(super) fn factory(&self) -> GcCellRef<Id<NodeFactory>> {
-        gc_cell_ref_unwrapped(&self.factory)
+    pub(super) fn factory(&self) -> Id<NodeFactory> {
+        self.factory.get().unwrap()
     }
 
     pub(super) fn scanner(&self) -> Ref<Scanner> {
@@ -540,17 +541,15 @@ impl ParserType {
 
     pub(super) fn parse_diagnostics(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>, Vec<Id<Diagnostic>>> {
-        GcCellRefMut::map(self.parse_diagnostics.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
+    ) -> RefMut<Vec<Id<Diagnostic>>> {
+        ref_mut_unwrapped(&self.parse_diagnostics)
     }
 
     pub(super) fn set_parse_diagnostics(&self, parse_diagnostics: Option<Vec<Id<Diagnostic>>>) {
         *self.parse_diagnostics.borrow_mut() = parse_diagnostics;
     }
 
-    pub(super) fn maybe_js_doc_diagnostics(&self) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
+    pub(super) fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Id<Diagnostic>>>> {
         self.js_doc_diagnostics.borrow_mut()
     }
 
@@ -558,14 +557,12 @@ impl ParserType {
         *self.js_doc_diagnostics.borrow_mut() = js_doc_diagnostics;
     }
 
-    pub(super) fn maybe_syntax_cursor(&self) -> GcCellRef<Option<IncrementalParserSyntaxCursor>> {
+    pub(super) fn maybe_syntax_cursor(&self) -> Ref<Option<IncrementalParserSyntaxCursor>> {
         self.syntax_cursor.borrow()
     }
 
-    pub(super) fn syntax_cursor(&self) -> GcCellRef<IncrementalParserSyntaxCursor> {
-        GcCellRef::map(self.syntax_cursor.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub(super) fn syntax_cursor(&self) -> Ref<IncrementalParserSyntaxCursor> {
+        ref_unwrapped(&self.syntax_cursor)
     }
 
     pub(super) fn take_syntax_cursor(&self) -> Option<IncrementalParserSyntaxCursor> {

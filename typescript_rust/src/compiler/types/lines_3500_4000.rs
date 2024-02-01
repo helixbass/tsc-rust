@@ -27,6 +27,7 @@ use crate::{
     __String, get_line_and_character_of_position, AllArenas, HasArena, LineAndCharacter,
     ProgramBuildInfo,
     InArena,
+    ref_unwrapped, ref_mut_unwrapped,
 };
 
 #[derive(Clone, Debug, Trace, Finalize)]
@@ -122,7 +123,7 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Copy, Clone, Debug, Trace, Finalize)]
 pub struct RedirectInfo {
     pub redirect_target: Id<Node /*SourceFile*/>,
     pub unredirected: Id<Node /*SourceFile*/>,
@@ -157,7 +158,7 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     original_file_name: RefCell<Option<String>>,
 
-    redirect_info: GcCell<Option<RedirectInfo>>,
+    redirect_info: Cell<Option<RedirectInfo>>,
 
     #[unsafe_ignore_trace]
     amd_dependencies: RefCell<Option<Vec<AmdDependency>>>,
@@ -174,7 +175,7 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     is_declaration_file: Cell<bool>,
 
-    renamed_dependencies: GcCell<Option<HashMap<String, String>>>,
+    renamed_dependencies: RefCell<Option<HashMap<String, String>>>,
 
     #[unsafe_ignore_trace]
     has_no_default_lib: Cell<bool>,
@@ -188,9 +189,9 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     script_kind: Cell<ScriptKind>,
 
-    external_module_indicator: GcCell<Option<Id<Node>>>,
-    common_js_module_indicator: GcCell<Option<Id<Node>>>,
-    js_global_augmentations: GcCell<Option<Id<SymbolTable>>>,
+    external_module_indicator: Cell<Option<Id<Node>>>,
+    common_js_module_indicator: Cell<Option<Id<Node>>>,
+    js_global_augmentations: Cell<Option<Id<SymbolTable>>>,
 
     #[unsafe_ignore_trace]
     identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
@@ -201,15 +202,15 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     symbol_count: Cell<Option<usize>>,
 
-    parse_diagnostics: GcCell<Option<Id<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>>,
+    parse_diagnostics: Cell<Option<Id<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>>,
 
-    bind_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
-    bind_suggestion_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    bind_diagnostics: RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    bind_suggestion_diagnostics: RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
-    js_doc_diagnostics: GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
+    js_doc_diagnostics: RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     additional_syntactic_diagnostics:
-        GcCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
+        RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>>>,
 
     #[unsafe_ignore_trace]
     line_map: RefCell<Option<Vec<usize>>>,
@@ -218,12 +219,12 @@ pub struct SourceFileContents {
     #[unsafe_ignore_trace]
     comment_directives: RefCell<Option<Vec<Rc<CommentDirective>>>>,
     resolved_modules:
-        GcCell<Option<ModeAwareCache<Option<Id<ResolvedModuleFull /*| undefined*/>>>>>,
+        RefCell<Option<ModeAwareCache<Option<Id<ResolvedModuleFull /*| undefined*/>>>>>,
     resolved_type_reference_directive_names:
-        GcCell<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>>,
-    imports: GcCell<Option<Vec<Id<Node /*StringLiteralLike*/>>>>,
-    module_augmentations: GcCell<Option<Vec<Id<Node /*StringLiteral | Identifier*/>>>>,
-    pattern_ambient_modules: GcCell<Option<Vec<Id<PatternAmbientModule>>>>,
+        RefCell<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>>,
+    imports: RefCell<Option<Vec<Id<Node /*StringLiteralLike*/>>>>,
+    module_augmentations: RefCell<Option<Vec<Id<Node /*StringLiteral | Identifier*/>>>>,
+    pattern_ambient_modules: RefCell<Option<Vec<Id<PatternAmbientModule>>>>,
     #[unsafe_ignore_trace]
     ambient_module_names: RefCell<Option<Vec<String>>>,
     #[unsafe_ignore_trace]
@@ -234,11 +235,11 @@ pub struct SourceFileContents {
     local_jsx_namespace: RefCell<Option<__String>>,
     #[unsafe_ignore_trace]
     local_jsx_fragment_namespace: RefCell<Option<__String>>,
-    local_jsx_factory: GcCell<Option<Id<Node>>>,
-    local_jsx_fragment_factory: GcCell<Option<Id<Node>>>,
+    local_jsx_factory: Cell<Option<Id<Node>>>,
+    local_jsx_fragment_factory: Cell<Option<Id<Node>>>,
 
-    exported_modules_from_declaration_emit: GcCell<Option<ExportedModulesFromDeclarationEmit>>,
-    end_flow_node: GcCell<Option<Id<FlowNode>>>,
+    exported_modules_from_declaration_emit: RefCell<Option<ExportedModulesFromDeclarationEmit>>,
+    end_flow_node: Cell<Option<Id<FlowNode>>>,
 
     // TsConfigSourceFile
     #[unsafe_ignore_trace]
@@ -381,15 +382,15 @@ impl SourceFile {
         *self.contents.original_file_name.borrow_mut() = original_file_name;
     }
 
-    pub fn maybe_redirect_info(&self) -> GcCellRef<Option<RedirectInfo>> {
-        self.contents.redirect_info.borrow()
+    pub fn maybe_redirect_info(&self) -> Option<RedirectInfo> {
+        self.contents.redirect_info.get()
     }
 
-    pub fn maybe_redirect_info_mut(&self) -> GcCellRefMut<Option<RedirectInfo>> {
-        self.contents.redirect_info.borrow_mut()
+    pub fn set_redirect_info(&self, redirect_info: Option<RedirectInfo>) {
+        self.contents.redirect_info.set(redirect_info);
     }
 
-    pub fn maybe_renamed_dependencies(&self) -> GcCellRef<Option<HashMap<String, String>>> {
+    pub fn maybe_renamed_dependencies(&self) -> Ref<Option<HashMap<String, String>>> {
         self.contents.renamed_dependencies.borrow()
     }
 
@@ -510,28 +511,35 @@ impl SourceFile {
     }
 
     pub(crate) fn maybe_external_module_indicator(&self) -> Option<Id<Node>> {
-        self.contents.external_module_indicator.borrow().clone()
+        self.contents.external_module_indicator.get()
     }
 
     pub(crate) fn set_external_module_indicator(
         &self,
         external_module_indicator: Option<Id<Node>>,
     ) {
-        *self.contents.external_module_indicator.borrow_mut() = external_module_indicator;
+        self.contents.external_module_indicator.set(external_module_indicator);
     }
 
     pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Id<Node>> {
-        self.contents.common_js_module_indicator.borrow().clone()
+        self.contents.common_js_module_indicator.get()
     }
 
-    pub(crate) fn maybe_common_js_module_indicator_mut(&self) -> GcCellRefMut<Option<Id<Node>>> {
-        self.contents.common_js_module_indicator.borrow_mut()
+    pub(crate) fn set_common_js_module_indicator(&self, common_js_module_indicator: Option<Id<Node>>) {
+        self.contents.common_js_module_indicator.set(common_js_module_indicator);
     }
 
     pub(crate) fn maybe_js_global_augmentations(
         &self,
-    ) -> GcCellRefMut<Option<Id<SymbolTable>>> {
-        self.contents.js_global_augmentations.borrow_mut()
+    ) -> Option<Id<SymbolTable>> {
+        self.contents.js_global_augmentations.get()
+    }
+
+    pub(crate) fn set_js_global_augmentations(
+        &self,
+        js_global_augmentations: Option<Id<SymbolTable>>,
+    ) {
+        self.contents.js_global_augmentations.set(js_global_augmentations);
     }
 
     pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
@@ -567,36 +575,32 @@ impl SourceFile {
     }
 
     pub fn parse_diagnostics(&self) -> Id<Vec<Id<Diagnostic>>> {
-        self.contents.parse_diagnostics.borrow().clone().unwrap()
+        self.contents.parse_diagnostics.get().unwrap()
     }
 
     pub fn set_parse_diagnostics(&self, parse_diagnostics: Id<Vec<Id<Diagnostic>>>) {
-        *self.contents.parse_diagnostics.borrow_mut() = Some(parse_diagnostics);
+        self.contents.parse_diagnostics.set(Some(parse_diagnostics));
     }
 
-    pub fn maybe_bind_diagnostics(&self) -> GcCellRef<Option<Vec<Id<Diagnostic>>>> {
+    pub fn maybe_bind_diagnostics(&self) -> Ref<Option<Vec<Id<Diagnostic>>>> {
         self.contents.bind_diagnostics.borrow()
     }
 
-    pub fn bind_diagnostics(&self) -> GcCellRef<Vec<Id<Diagnostic>>> {
-        GcCellRef::map(self.contents.bind_diagnostics.borrow(), |option| {
-            option.as_ref().unwrap()
-        })
+    pub fn bind_diagnostics(&self) -> Ref<Vec<Id<Diagnostic>>> {
+        ref_unwrapped(&self.contents.bind_diagnostics)
     }
 
     pub fn bind_diagnostics_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>, Vec<Id<Diagnostic>>> {
-        GcCellRefMut::map(self.contents.bind_diagnostics.borrow_mut(), |option| {
-            option.as_mut().unwrap()
-        })
+    ) -> RefMut<Vec<Id<Diagnostic>>> {
+        ref_mut_unwrapped(&self.contents.bind_diagnostics)
     }
 
     pub fn set_bind_diagnostics(&self, bind_diagnostics: Option<Vec<Id<Diagnostic>>>) {
         *self.contents.bind_diagnostics.borrow_mut() = bind_diagnostics;
     }
 
-    pub fn maybe_bind_suggestion_diagnostics(&self) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
+    pub fn maybe_bind_suggestion_diagnostics(&self) -> RefMut<Option<Vec<Id<Diagnostic>>>> {
         self.contents.bind_suggestion_diagnostics.borrow_mut()
     }
 
@@ -607,7 +611,7 @@ impl SourceFile {
         *self.contents.bind_suggestion_diagnostics.borrow_mut() = bind_suggestion_diagnostics;
     }
 
-    pub fn maybe_js_doc_diagnostics(&self) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
+    pub fn maybe_js_doc_diagnostics(&self) -> RefMut<Option<Vec<Id<Diagnostic>>>> {
         self.contents.js_doc_diagnostics.borrow_mut()
     }
 
@@ -617,7 +621,7 @@ impl SourceFile {
 
     pub fn maybe_additional_syntactic_diagnostics_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Diagnostic>>>> {
+    ) -> RefMut<Option<Vec<Id<Diagnostic>>>> {
         self.contents.additional_syntactic_diagnostics.borrow_mut()
     }
 
@@ -645,50 +649,45 @@ impl SourceFile {
 
     pub fn maybe_resolved_modules(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Id<ResolvedModuleFull>>>>> {
+    ) -> RefMut<Option<ModeAwareCache<Option<Id<ResolvedModuleFull>>>>> {
         self.contents.resolved_modules.borrow_mut()
     }
 
     pub fn maybe_resolved_type_reference_directive_names(
         &self,
-    ) -> GcCellRefMut<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>> {
+    ) -> RefMut<Option<ModeAwareCache<Option<Id<ResolvedTypeReferenceDirective>>>>> {
         self.contents
             .resolved_type_reference_directive_names
             .borrow_mut()
     }
 
-    pub fn maybe_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    pub fn maybe_imports(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.contents.imports.borrow()
     }
 
-    pub fn imports(&self) -> GcCellRef<Vec<Id<Node>>> {
-        GcCellRef::map(self.contents.imports.borrow(), |imports| {
-            imports.as_ref().unwrap()
-        })
+    pub fn imports(&self) -> Ref<Vec<Id<Node>>> {
+        ref_unwrapped(&self.contents.imports)
     }
 
-    pub fn maybe_imports_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    pub fn maybe_imports_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.contents.imports.borrow_mut()
     }
 
-    pub fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    pub fn maybe_module_augmentations(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.contents.module_augmentations.borrow()
     }
 
-    pub fn module_augmentations(&self) -> GcCellRef<Vec<Id<Node>>> {
-        GcCellRef::map(
-            self.contents.module_augmentations.borrow(),
-            |module_augmentations| module_augmentations.as_ref().unwrap(),
-        )
+    pub fn module_augmentations(&self) -> Ref<Vec<Id<Node>>> {
+        ref_unwrapped(&self.contents.module_augmentations)
     }
 
-    pub fn maybe_module_augmentations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    pub fn maybe_module_augmentations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.contents.module_augmentations.borrow_mut()
     }
 
     pub fn maybe_pattern_ambient_modules(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<PatternAmbientModule>>>> {
+    ) -> RefMut<Option<Vec<Id<PatternAmbientModule>>>> {
         self.contents.pattern_ambient_modules.borrow_mut()
     }
 
@@ -722,16 +721,24 @@ impl SourceFile {
         self.contents.local_jsx_fragment_namespace.borrow_mut()
     }
 
-    pub fn maybe_local_jsx_factory(&self) -> GcCellRefMut<Option<Id<Node>>> {
-        self.contents.local_jsx_factory.borrow_mut()
+    pub fn maybe_local_jsx_factory(&self) -> Option<Id<Node>> {
+        self.contents.local_jsx_factory.get()
     }
 
-    pub fn maybe_local_jsx_fragment_factory(&self) -> GcCellRefMut<Option<Id<Node>>> {
-        self.contents.local_jsx_fragment_factory.borrow_mut()
+    pub fn set_local_jsx_factory(&self, local_jsx_factory: Option<Id<Node>>) {
+        self.contents.local_jsx_factory.set(local_jsx_factory);
+    }
+
+    pub fn maybe_local_jsx_fragment_factory(&self) -> Option<Id<Node>> {
+        self.contents.local_jsx_fragment_factory.get()
+    }
+
+    pub fn set_local_jsx_fragment_factory(&self, local_jsx_fragment_factory: Option<Id<Node>>) {
+        self.contents.local_jsx_fragment_factory.set(local_jsx_fragment_factory);
     }
 
     pub fn set_end_flow_node(&self, end_flow_node: Option<Id<FlowNode>>) {
-        *self.contents.end_flow_node.borrow_mut() = end_flow_node;
+        self.contents.end_flow_node.set(end_flow_node);
     }
 
     pub fn maybe_extended_source_files(&self) -> RefMut<Option<Vec<String>>> {
@@ -748,14 +755,14 @@ impl SourceFile {
 
     pub fn maybe_exported_modules_from_declaration_emit(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Symbol>>>> {
+    ) -> RefMut<Option<Vec<Id<Symbol>>>> {
         self.contents
             .exported_modules_from_declaration_emit
             .borrow_mut()
     }
 
-    pub fn maybe_end_flow_node(&self) -> GcCellRefMut<Option<Id<FlowNode>>> {
-        self.contents.end_flow_node.borrow_mut()
+    pub fn maybe_end_flow_node(&self) -> Option<Id<FlowNode>> {
+        self.contents.end_flow_node.get()
     }
 }
 
@@ -1108,7 +1115,7 @@ struct InputFilesInitializedWithReadFileCallback {
     declaration_map_path: Option<String>,
     declaration_map_text_or_build_info_path: Option<String>,
     #[unsafe_ignore_trace]
-    build_info: GcCell<Option<Option<Id<BuildInfo>>>>,
+    build_info: Cell<Option<Option<Id<BuildInfo>>>>,
 }
 
 impl InputFilesInitializedWithReadFileCallback {
@@ -1163,12 +1170,11 @@ impl InputFilesInitializedWithReadFileCallback {
         &self,
         mut get_text: impl FnMut() -> Option<String>,
     ) -> Option<Id<BuildInfo>> {
-        let mut build_info = self.build_info.borrow_mut();
-        if build_info.is_none() {
+        if self.build_info.get().is_none() {
             let result = get_text();
-            *build_info = Some(result.map(|result| get_build_info(&result)));
+            self.build_info.set(Some(result.map(|result| get_build_info(&result))));
         }
-        build_info.clone().unwrap()
+        self.build_info.get().unwrap()
     }
 }
 

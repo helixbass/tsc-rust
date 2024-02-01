@@ -621,7 +621,6 @@ impl TypeChecker {
         get_source_file_of_node(location, self)
             .ref_(self).as_source_file()
             .maybe_local_jsx_factory()
-            .clone()
             .or_else(|| self._jsx_factory_entity.borrow().clone())
         /*: _jsxFactoryEntity*/
     }
@@ -637,9 +636,8 @@ impl TypeChecker {
             let file_as_source_file = file_ref.as_source_file();
             if let Some(file_local_jsx_fragment_factory) = file_as_source_file
                 .maybe_local_jsx_fragment_factory()
-                .as_ref()
             {
-                return Some(file_local_jsx_fragment_factory.clone());
+                return Some(file_local_jsx_fragment_factory);
             }
             let file_pragmas = file_as_source_file.pragmas();
             let jsx_frag_pragmas = file_pragmas.get(&PragmaName::Jsxfrag);
@@ -656,7 +654,7 @@ impl TypeChecker {
                     self.language_version,
                     self,
                 );
-                *file_as_source_file.maybe_local_jsx_fragment_factory() = ret.clone();
+                file_as_source_file.set_local_jsx_fragment_factory(ret);
                 return ret;
             }
         }
@@ -746,7 +744,7 @@ impl TypeChecker {
                 self.merge_symbol_table(self.globals_id(), &file.ref_(self).locals().ref_(self), None)?;
             }
             if let Some(file_js_global_augmentations) =
-                file_as_source_file.maybe_js_global_augmentations().clone()
+                file_as_source_file.maybe_js_global_augmentations()
             {
                 self.merge_symbol_table(
                     self.globals_id(),
