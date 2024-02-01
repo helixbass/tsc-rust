@@ -194,7 +194,7 @@ pub trait NodeInterface: ReadonlyTextRange {
     fn maybe_id(&self) -> Option<NodeId>;
     fn id(&self) -> NodeId;
     fn set_id(&self, id: NodeId);
-    fn set_id_override(&self, id_override: Gc<Box<dyn NodeIdOverride>>);
+    fn set_id_override(&self, id_override: Id<Box<dyn NodeIdOverride>>);
     fn maybe_parent(&self) -> Option<Id<Node>>;
     fn parent(&self) -> Id<Node>;
     fn set_parent(&self, parent: Option<Id<Node>>);
@@ -1710,7 +1710,7 @@ impl Node {
 pub struct BaseNode {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Node>>>,
-    _id_override: GcCell<Option<Gc<Box<dyn NodeIdOverride>>>>,
+    _id_override: GcCell<Option<Id<Box<dyn NodeIdOverride>>>>,
     _symbol_override: GcCell<Option<Id<Box<dyn NodeSymbolOverride>>>>,
     #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
@@ -1903,7 +1903,7 @@ impl NodeInterface for BaseNode {
         }
     }
 
-    fn set_id_override(&self, id_override: Gc<Box<dyn NodeIdOverride>>) {
+    fn set_id_override(&self, id_override: Id<Box<dyn NodeIdOverride>>) {
         *self._id_override.borrow_mut() = Some(id_override);
     }
 

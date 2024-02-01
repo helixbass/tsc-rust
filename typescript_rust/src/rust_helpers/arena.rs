@@ -32,7 +32,7 @@ use crate::{
     CheckTypeErrorOutputContainer, NodeBuilder, NodeBuilderContext, TypeId, TypeComparer,
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
-    OptionsNameMap, NodeSymbolOverride,
+    OptionsNameMap, NodeSymbolOverride, NodeIdOverride,
 };
 
 #[derive(Default)]
@@ -167,6 +167,7 @@ pub struct AllArenas {
     pub options_name_maps: RefCell<Arena<OptionsNameMap>>,
     pub command_line_options_maps: RefCell<Arena<HashMap<String, Id<CommandLineOption>>>>,
     pub node_symbol_overrides: RefCell<Arena<Box<dyn NodeSymbolOverride>>>,
+    pub node_id_overrides: RefCell<Arena<Box<dyn NodeIdOverride>>>,
 }
 
 pub trait HasArena {
@@ -1290,6 +1291,14 @@ pub trait HasArena {
 
     fn alloc_node_symbol_override(&self, node_symbol_override: Box<dyn NodeSymbolOverride>) -> Id<Box<dyn NodeSymbolOverride>> {
         self.arena().alloc_node_symbol_override(node_symbol_override)
+    }
+
+    fn node_id_override(&self, node_id_override: Id<Box<dyn NodeIdOverride>>) -> Ref<Box<dyn NodeIdOverride>> {
+        self.arena().node_id_override(node_id_override)
+    }
+
+    fn alloc_node_id_override(&self, node_id_override: Box<dyn NodeIdOverride>) -> Id<Box<dyn NodeIdOverride>> {
+        self.arena().alloc_node_id_override(node_id_override)
     }
 }
 
@@ -2690,6 +2699,16 @@ impl HasArena for AllArenas {
         let id = self.node_symbol_overrides.borrow_mut().alloc(node_symbol_override);
         id
     }
+
+    #[track_caller]
+    fn node_id_override(&self, node_id_override: Id<Box<dyn NodeIdOverride>>) -> Ref<Box<dyn NodeIdOverride>> {
+        Ref::map(self.node_id_overrides.borrow(), |node_id_overrides| &node_id_overrides[node_id_override])
+    }
+
+    fn alloc_node_id_override(&self, node_id_override: Box<dyn NodeIdOverride>) -> Id<Box<dyn NodeIdOverride>> {
+        let id = self.node_id_overrides.borrow_mut().alloc(node_id_override);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3819,6 +3838,14 @@ impl InArena for Id<Box<dyn NodeSymbolOverride>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn NodeSymbolOverride>> {
         has_arena.node_symbol_override(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn NodeIdOverride>> {
+    type Item = Box<dyn NodeIdOverride>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn NodeIdOverride>> {
+        has_arena.node_id_override(*self)
     }
 }
 

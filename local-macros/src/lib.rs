@@ -164,7 +164,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_id(id)
                     }
 
-                    fn set_id_override(&self, id_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
+                    fn set_id_override(&self, id_override: ::id_arena::Id<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
                         self.#first_field_name.set_id_override(id_override)
                     }
 
@@ -663,7 +663,7 @@ fn get_ast_enum_interface_impl(
                         }
                     }
 
-                    fn set_id_override(&self, id_override: ::gc::Gc<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
+                    fn set_id_override(&self, id_override: ::id_arena::Id<::std::boxed::Box<dyn crate::NodeIdOverride>>) {
                         match self {
                             #(#ast_type_name::#variant_names(nested) => nested.set_id_override(id_override)),*
                         }
