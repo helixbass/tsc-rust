@@ -9,7 +9,7 @@ use id_arena::Id;
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
-    are_gc_slices_equal, concatenate, create_symbol_table,
+    concatenate, create_symbol_table,
     declaration_name_to_string, escape_leading_underscores, every, for_each,
     get_assignment_declaration_kind, get_check_flags, get_class_like_declaration_of_symbol,
     get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,

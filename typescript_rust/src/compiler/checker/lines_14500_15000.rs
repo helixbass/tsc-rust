@@ -10,7 +10,7 @@ use indexmap::IndexMap;
 
 use crate::{
     contains, every, filter, find_index, get_declaration_modifier_flags_from_symbol,
-    get_name_of_declaration, get_object_flags, index_of_eq, index_of_gc, is_computed_property_name,
+    get_name_of_declaration, get_object_flags, index_of_eq, is_computed_property_name,
     is_identifier, is_known_symbol, is_private_identifier, map, ordered_remove_item_at,
     reduce_left, replace_element, some, symbol_name, try_find_index, try_map,
     unescape_leading_underscores, walk_up_parenthesized_types, BaseUnionOrIntersectionType, Debug_,

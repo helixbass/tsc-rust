@@ -4,7 +4,7 @@ use gc::Gc;
 use id_arena::Id;
 
 use crate::{
-    try_maybe_for_each, Type, TypeChecker, __String, are_option_gcs_equal,
+    try_maybe_for_each, Type, TypeChecker, __String,
     declaration_name_to_string, find_ancestor, for_each_key, get_class_extends_heritage_element,
     get_declaration_of_kind, get_effective_base_type_node,
     get_effective_constraint_of_type_parameter, get_effective_implements_type_nodes,

@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::{HierarchyFacts, TransformES2015};
 use crate::{
-    add_range, are_gc_slices_equal, concatenate, create_expression_for_property_name,
+    add_range, concatenate, create_expression_for_property_name,
     create_member_access_for_property_name, get_all_accessor_declarations, get_comment_range,
     get_emit_flags, get_source_map_range, get_use_define_for_class_fields,
     insert_statement_after_custom_prologue, is_block, is_class_like, is_computed_property_name,

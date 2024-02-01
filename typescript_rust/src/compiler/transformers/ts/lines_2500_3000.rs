@@ -6,7 +6,7 @@ use id_arena::Id;
 use super::TransformTypeScript;
 use crate::{
     is_named_import_bindings, is_statement, Matches, ModuleKind, Node, NodeInterface, VisitResult,
-    __String, add_emit_flags, add_range, are_option_gcs_equal, create_expression_from_entity_name,
+    __String, add_emit_flags, add_range, create_expression_from_entity_name,
     get_emit_flags, has_syntactic_modifier, insert_statements_after_standard_prologue,
     is_export_specifier, is_external_module, is_external_module_import_equals_declaration,
     is_identifier, is_import_clause, is_import_specifier, is_modifier, is_named_export_bindings,

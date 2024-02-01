@@ -4,7 +4,7 @@ use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    are_option_gcs_equal, has_node_array_changed, has_option_node_array_changed,
+    has_node_array_changed, has_option_node_array_changed,
     has_option_str_or_node_changed, has_static_modifier, is_computed_property_name,
     is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, ArrayTypeNode,
     AsDoubleDeref, BaseNode, BaseNodeFactory, CallSignatureDeclaration,

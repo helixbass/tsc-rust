@@ -11,7 +11,7 @@ use id_arena::Id;
 
 use super::{ambient_module_symbol_regex, get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_gcs_equal, array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
+    array_is_homogeneous, cast_present, create_underscore_escaped_multi_map,
     first, get_check_flags, get_declaration_of_kind, get_emit_module_resolution_kind, get_factory,
     get_first_identifier, get_name_from_index_info, get_non_augmentation_declaration,
     get_original_node, get_source_file_of_node, get_text_of_jsdoc_comment, is_ambient_module,

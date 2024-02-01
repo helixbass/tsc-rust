@@ -6,7 +6,7 @@ use itertools::Itertools;
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
-    are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic, filter, find,
+    create_diagnostic_for_node, create_file_diagnostic, filter, find,
     first_or_undefined, for_each_bool, get_check_flags, get_declaration_of_kind,
     get_effective_return_type_node, get_jsdoc_type_parameter_declarations, get_object_flags,
     get_parse_tree_node, get_source_file_of_node, get_span_of_token_at_position,

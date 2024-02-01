@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::IterationUse;
 use crate::{
-    add_related_info, are_option_gcs_equal, create_diagnostic_for_node, declaration_name_to_string,
+    add_related_info, create_diagnostic_for_node, declaration_name_to_string,
     find_ancestor, get_ancestor, get_combined_node_flags, get_containing_function,
     get_effective_initializer, get_enclosing_block_scope_container, get_module_instance_state,
     get_name_of_declaration, get_selected_effective_modifier_flags, get_source_file_of_node,

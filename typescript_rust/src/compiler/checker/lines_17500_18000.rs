@@ -15,7 +15,7 @@ use super::{
     ErrorReporter, IntersectionState,
 };
 use crate::{
-    are_option_gcs_equal, get_object_flags, get_symbol_id, symbol_name, try_every, try_some,
+    get_object_flags, get_symbol_id, symbol_name, try_every, try_some,
     DiagnosticMessage, Diagnostics, HasArena, InArena, IntrinsicType, LiteralTypeInterface, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol,
     SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags,

@@ -11,7 +11,7 @@ use id_arena::Id;
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    are_option_gcs_equal, create_printer, create_symbol_table, declaration_name_to_string,
+    create_printer, create_symbol_table, declaration_name_to_string,
     escape_string, find_ancestor, first_defined, get_check_flags, get_combined_modifier_flags,
     get_declaration_modifier_flags_from_symbol, get_emit_script_target, get_factory,
     get_first_identifier, get_name_of_declaration, get_root_declaration, has_effective_modifier,

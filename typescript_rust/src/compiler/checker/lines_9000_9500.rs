@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::CheckMode;
 use crate::{
-    are_option_gcs_equal, create_symbol_table, find_last_index_returns_isize, get_check_flags,
+    create_symbol_table, find_last_index_returns_isize, get_check_flags,
     get_declaration_of_kind, get_effective_return_type_node,
     get_effective_set_accessor_type_annotation_node, get_effective_type_annotation_node,
     get_root_declaration, get_source_file_of_node, get_this_container, is_accessor,

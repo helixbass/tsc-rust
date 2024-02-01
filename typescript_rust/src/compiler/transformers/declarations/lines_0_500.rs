@@ -11,7 +11,7 @@ use id_arena::Id;
 
 use super::{can_have_literal_initializer, mask_modifiers};
 use crate::{
-    add_related_info_rc, are_option_gcs_equal, can_produce_diagnostics, contains_comparer,
+    add_related_info_rc, can_produce_diagnostics, contains_comparer,
     create_diagnostic_for_node, create_empty_exports,
     create_get_symbol_accessibility_diagnostic_for_node, create_unparsed_source_file,
     declaration_name_to_string, filter, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped,

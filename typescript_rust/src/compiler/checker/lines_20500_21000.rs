@@ -6,7 +6,7 @@ use peekmore::PeekMore;
 
 use super::{IterationTypeKind, TypeFacts};
 use crate::{
-    are_option_gcs_equal, compiler::utilities_public::is_expression_of_optional_chain_root,
+    compiler::utilities_public::is_expression_of_optional_chain_root,
     create_symbol_table, every, find, get_check_flags, get_object_flags, is_optional_chain,
     is_outermost_optional_chain, last, length, some, try_every, try_reduce_left_no_initial_value,
     CheckFlags, Debug_, ElementFlags, HasArena, InArena, InterfaceTypeInterface, Node,

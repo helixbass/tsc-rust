@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::{CheckMode, TypeFacts};
 use crate::{
-    add_related_info, are_option_gcs_equal, create_diagnostic_for_node, create_file_diagnostic,
+    add_related_info, create_diagnostic_for_node, create_file_diagnostic,
     first_or_undefined, get_check_flags, get_containing_class, get_containing_function,
     get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
     get_effective_return_type_node, get_function_flags, get_object_flags, get_source_file_of_node,

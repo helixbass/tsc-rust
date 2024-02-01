@@ -21,7 +21,7 @@ use super::{
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
     TypePredicate,
 };
-use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String, are_option_gcs_equal};
+use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String, HasArena};
 
 #[derive(Clone, Debug, Trace, Finalize)]
 #[type_type(
@@ -795,7 +795,7 @@ pub trait TypeMapperCallback: Trace + Finalize {
 
 #[derive(Clone, Finalize, Trace)]
 pub struct TypeMapperFunction {
-    pub func: Gc<Box<dyn TypeMapperCallback>>,
+    pub func: Id<Box<dyn TypeMapperCallback>>,
 }
 
 impl fmt::Debug for TypeMapperFunction {
@@ -819,9 +819,9 @@ impl TypeMapper {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
-    pub fn new_function<TFunc: 'static + TypeMapperCallback>(func: TFunc) -> Self {
+    pub fn new_function<TFunc: 'static + TypeMapperCallback>(func: TFunc, arena: &impl HasArena) -> Self {
         Self::Function(TypeMapperFunction {
-            func: Gc::new(Box::new(func)),
+            func: arena.alloc_type_mapper_callback(Box::new(func)),
         })
     }
 

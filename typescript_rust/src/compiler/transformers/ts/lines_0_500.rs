@@ -5,7 +5,7 @@ use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use crate::{
-    add_emit_helpers, add_synthetic_trailing_comment, are_option_gcs_equal,
+    add_emit_helpers, add_synthetic_trailing_comment,
     create_unparsed_source_file, declaration_name_to_string, gc_cell_ref_mut_unwrapped,
     gc_cell_ref_unwrapped, get_emit_module_kind, get_emit_script_target, get_original_node,
     get_parse_tree_node, get_strict_option_value, get_text_of_node, has_syntactic_modifier,

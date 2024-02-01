@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    are_option_gcs_equal, expression_result_is_unused, get_assigned_expando_initializer,
+    expression_result_is_unused, get_assigned_expando_initializer,
     get_containing_function, get_function_flags, is_assignment_operator,
     is_element_access_expression, is_identifier, is_jsdoc_typedef_tag, is_jsx_self_closing_element,
     is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,

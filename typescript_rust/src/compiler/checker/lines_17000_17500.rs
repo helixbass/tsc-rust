@@ -14,7 +14,7 @@ use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
 };
 use crate::{
-    add_related_info, are_gc_slices_equal, continue_if_none, create_diagnostic_for_node,
+    add_related_info, continue_if_none, create_diagnostic_for_node,
     format_message, get_function_flags, get_semantic_jsx_children, get_source_file_of_node,
     get_text_of_node, has_type, id_text, is_block, is_computed_non_literal_name,
     is_identifier_type_predicate, is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute,

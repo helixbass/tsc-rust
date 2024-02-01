@@ -9,7 +9,7 @@ use super::{
     TrackExistingEntityNameReturn,
 };
 use crate::{
-    are_option_gcs_equal, array_to_multi_map, can_have_modifiers, create_symbol_table,
+    array_to_multi_map, can_have_modifiers, create_symbol_table,
     debug_fail_if_none, filter, find_ancestor, get_assignment_declaration_kind,
     get_effective_implements_type_nodes, get_effective_modifier_flags, get_es_module_interop,
     get_factory, get_name_of_declaration, get_parse_node_factory, get_source_file_of_node,

@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::{CheckMode, GetFlowTypeOfReference, TypeFacts};
 use crate::{
-    are_option_gcs_equal, escape_leading_underscores, find_ancestor, get_assignment_target_kind,
+    escape_leading_underscores, find_ancestor, get_assignment_target_kind,
     get_containing_class, get_containing_function, get_immediately_invoked_function_expression,
     get_name_of_declaration, get_object_flags, get_root_declaration, get_this_container,
     has_syntactic_modifier, is_access_expression, is_assignment_target, is_binary_expression,

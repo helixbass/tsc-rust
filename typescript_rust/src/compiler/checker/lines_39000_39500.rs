@@ -6,7 +6,7 @@ use id_arena::Id;
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
     try_for_each, try_maybe_for_each, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, __String, are_option_gcs_equal, cast_present, declaration_name_to_string,
+    TypeInterface, __String, cast_present, declaration_name_to_string,
     escape_leading_underscores, for_each, get_declaration_of_kind,
     get_effective_modifier_flags, get_enclosing_block_scope_container, get_factory,
     get_interface_base_type_nodes, get_name_of_declaration, get_text_of_identifier_or_literal,

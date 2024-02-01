@@ -6,7 +6,7 @@ use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_gcs_equal, are_option_rcs_equal, every, has_node_array_changed,
+    are_option_rcs_equal, every, has_node_array_changed,
     is_binary_expression, is_comma_list_expression, is_comma_token, is_custom_prologue,
     is_hoisted_function, is_hoisted_variable_statement, is_outer_expression, is_parse_tree_node,
     is_prologue_directive, is_statement_or_block, node_is_synthesized, same_flat_map_id_node,

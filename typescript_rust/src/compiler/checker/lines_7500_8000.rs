@@ -8,7 +8,7 @@ use super::{
     NodeBuilderContext, SignatureToSignatureDeclarationOptions, SymbolTableToDeclarationStatements,
 };
 use crate::{
-    are_option_gcs_equal, get_declaration_modifier_flags_from_symbol,
+    get_declaration_modifier_flags_from_symbol,
     get_export_assignment_expression, get_factory, get_object_flags,
     get_property_assignment_alias_like_expression, get_selected_effective_modifier_flags,
     get_source_file_of_node, get_symbol_id, id_text, is_accessor, is_binary_expression,

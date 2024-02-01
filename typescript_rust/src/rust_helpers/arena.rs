@@ -34,6 +34,7 @@ use crate::{
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
     OptionsNameMap, NodeSymbolOverride, NodeIdOverride, MakeSerializePropertySymbolCreateProperty,
     SymbolTableToDeclarationStatements, InputFilesInitializedState, CheckTypeRelatedTo,
+    TypeMapperCallback,
 };
 
 #[derive(Default)]
@@ -177,6 +178,7 @@ pub struct AllArenas {
     pub flow_loop_caches: RefCell<Arena<HashMap<String, Id<Type>>>>,
     pub vec_symbols: RefCell<Arena<Vec<Id<Symbol>>>>,
     pub vec_nodes: RefCell<Arena<Vec<Id<Node>>>>,
+    pub type_mapper_callbacks: RefCell<Arena<Box<dyn TypeMapperCallback>>>,
 }
 
 pub trait HasArena {
@@ -1380,6 +1382,14 @@ pub trait HasArena {
 
     fn alloc_vec_node(&self, vec_node: Vec<Id<Node>>) -> Id<Vec<Id<Node>>> {
         self.arena().alloc_vec_node(vec_node)
+    }
+
+    fn type_mapper_callback(&self, type_mapper_callback: Id<Box<dyn TypeMapperCallback>>) -> Ref<Box<dyn TypeMapperCallback>> {
+        self.arena().type_mapper_callback(type_mapper_callback)
+    }
+
+    fn alloc_type_mapper_callback(&self, type_mapper_callback: Box<dyn TypeMapperCallback>) -> Id<Box<dyn TypeMapperCallback>> {
+        self.arena().alloc_type_mapper_callback(type_mapper_callback)
     }
 }
 
@@ -2880,6 +2890,16 @@ impl HasArena for AllArenas {
         let id = self.vec_nodes.borrow_mut().alloc(vec_node);
         id
     }
+
+    #[track_caller]
+    fn type_mapper_callback(&self, type_mapper_callback: Id<Box<dyn TypeMapperCallback>>) -> Ref<Box<dyn TypeMapperCallback>> {
+        Ref::map(self.type_mapper_callbacks.borrow(), |type_mapper_callbacks| &type_mapper_callbacks[type_mapper_callback])
+    }
+
+    fn alloc_type_mapper_callback(&self, type_mapper_callback: Box<dyn TypeMapperCallback>) -> Id<Box<dyn TypeMapperCallback>> {
+        let id = self.type_mapper_callbacks.borrow_mut().alloc(type_mapper_callback);
+        id
+    }
 }
 
 pub trait InArena {
@@ -4089,6 +4109,14 @@ impl InArena for Id<Vec<Id<Node>>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Vec<Id<Node>>> {
         has_arena.vec_node(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn TypeMapperCallback>> {
+    type Item = Box<dyn TypeMapperCallback>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn TypeMapperCallback>> {
+        has_arena.type_mapper_callback(*self)
     }
 }
 

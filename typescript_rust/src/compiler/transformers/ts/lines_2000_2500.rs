@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::TransformTypeScript;
 use crate::{
-    add_emit_flags, add_range, are_option_gcs_equal, get_initialized_variables,
+    add_emit_flags, add_range, get_initialized_variables,
     get_leading_comment_ranges_of_node, get_parse_tree_node, has_syntactic_modifier,
     insert_statements_after_standard_prologue, is_assertion_expression, is_binding_name,
     is_binding_pattern, is_enum_const, is_expression, is_instantiated_module, is_jsx_attributes,

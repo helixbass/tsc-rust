@@ -11,7 +11,7 @@ use crate::{
     get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
     get_effective_modifier_flags, get_effective_type_annotation_node, get_jsdoc_type,
     get_jsdoc_type_tag, get_object_flags, get_source_file_of_node, get_this_container,
-    has_only_expression_initializer, has_static_modifier, index_of_gc, is_access_expression,
+    has_only_expression_initializer, has_static_modifier, is_access_expression,
     is_binary_expression, is_binding_pattern, is_call_expression,
     is_class_static_block_declaration, is_function_type_node, is_in_js_file, is_jsx_attribute,
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,

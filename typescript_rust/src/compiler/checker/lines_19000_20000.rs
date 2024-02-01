@@ -16,7 +16,7 @@ use super::{
     TypeComparerIsRelatedToWorker, TypeFacts,
 };
 use crate::{
-    are_option_gcs_equal, cartesian_product, create_diagnostic_for_node,
+    cartesian_product, create_diagnostic_for_node,
     get_declaration_modifier_flags_from_symbol, get_symbol_name_for_private_identifier,
     is_named_declaration, is_private_identifier, length, reduce_left, some,
     CheckFlags, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, ElementFlags, IndexInfo,

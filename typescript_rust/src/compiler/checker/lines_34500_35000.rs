@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::MappedTypeModifiers;
 use crate::{
-    add_related_info, are_option_gcs_equal, create_diagnostic_for_node, filter, find_ancestor,
+    add_related_info, create_diagnostic_for_node, filter, find_ancestor,
     for_each, get_class_extends_heritage_element, get_combined_modifier_flags,
     get_declaration_modifier_flags_from_symbol, get_declaration_of_kind,
     get_effective_constraint_of_type_parameter, get_effective_modifier_flags,

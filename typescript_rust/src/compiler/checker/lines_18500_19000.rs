@@ -8,7 +8,7 @@ use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_gc_slices_equal, are_option_rcs_equal, get_object_flags, try_map, AccessFlags,
+    are_option_rcs_equal, get_object_flags, try_map, AccessFlags,
     DiagnosticMessageChain, HasArena, InArena, InferenceFlags, InferencePriority, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
     RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,

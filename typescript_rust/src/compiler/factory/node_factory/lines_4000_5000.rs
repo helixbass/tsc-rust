@@ -4,7 +4,7 @@ use local_macros::generate_node_factory_method_wrapper;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_gcs_equal, escape_leading_underscores, get_jsdoc_type_alias_name,
+    escape_leading_underscores, get_jsdoc_type_alias_name,
     has_node_array_changed, has_option_node_array_changed, is_variable_declaration, AssertClause,
     AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory,
     CaseClause, CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration,

@@ -9,7 +9,7 @@ use super::{
     MembersOrExportsResolutionKind,
 };
 use crate::{
-    add_range, add_related_info, are_option_gcs_equal, compare_diagnostics, compare_paths,
+    add_range, add_related_info, compare_diagnostics, compare_paths,
     create_compiler_diagnostic, create_diagnostic_for_file_from_message_chain,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, create_symbol_table,
     declaration_name_to_string, every, find_ancestor, for_each, for_each_bool, for_each_child_bool,
@@ -17,7 +17,7 @@ use crate::{
     get_effective_container_for_jsdoc_template_tag, get_emit_script_target,
     get_enclosing_block_scope_container, get_expando_initializer, get_jsdoc_deprecated_tag,
     get_jsdoc_root, get_local_symbol_for_export_default, get_name_of_declaration,
-    get_name_of_expando, get_or_update, get_root_declaration, has_static_modifier, index_of_gc,
+    get_name_of_expando, get_or_update, get_root_declaration, has_static_modifier,
     is_ambient_module, is_binding_element, is_binding_pattern, is_class_declaration,
     is_class_element, is_class_like, is_class_static_block_declaration, is_computed_property_name,
     is_external_or_common_js_module, is_for_in_or_of_statement, is_function_like,

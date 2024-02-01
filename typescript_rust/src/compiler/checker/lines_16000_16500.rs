@@ -769,7 +769,7 @@ impl TypeChecker {
                 type_
             } else if matches!(&*mapper.ref_(self), TypeMapper::Function(mapper)) {
                 let func = mapper.ref_(self).as_function().func.clone();
-                func.call(self, type_)?
+                func.ref_(self).call(self, type_)?
             } else {
                 let (mapper_mapper1, mapper_mapper2) = match &*mapper.ref_(self) {
                     TypeMapper::Composite(composite_or_merged_mapper)
@@ -809,7 +809,7 @@ impl TypeChecker {
         &self,
         func: impl TypeMapperCallback + 'static,
     ) -> Id<TypeMapper> {
-        self.alloc_type_mapper(TypeMapper::new_function(func))
+        self.alloc_type_mapper(TypeMapper::new_function(func, self))
     }
 
     pub(super) fn make_composite_type_mapper(

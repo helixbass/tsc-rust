@@ -5,7 +5,7 @@ use id_arena::Id;
 
 use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};
 use crate::{
-    are_option_gcs_equal, count_where, find, CheckFlags, FlowNodeBase, TransientSymbolInterface,
+    count_where, find, CheckFlags, FlowNodeBase, TransientSymbolInterface,
     UnionOrIntersectionTypeInterface, __String, escape_leading_underscores, find_ancestor,
     get_check_flags, get_node_id, get_object_flags, get_symbol_id, is_access_expression,
     is_assignment_expression, is_binary_expression, is_binding_element, is_identifier,

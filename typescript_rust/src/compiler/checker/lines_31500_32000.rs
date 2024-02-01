@@ -8,7 +8,7 @@ use super::{
     IterationUse, TypeFacts, WideningKind,
 };
 use crate::{
-    are_option_gcs_equal, create_symbol_table, get_effective_return_type_node,
+    create_symbol_table, get_effective_return_type_node,
     get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
     is_transient_symbol, last, node_is_missing, push_if_unique_eq, some,
     try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,

@@ -6,7 +6,7 @@ use itertools::Either;
 
 use super::EmitResolverCreateResolver;
 use crate::{
-    add_related_info, are_option_gcs_equal, bind_source_file, concatenate,
+    add_related_info, bind_source_file, concatenate,
     create_diagnostic_for_node, escape_leading_underscores, external_helpers_module_name_text,
     for_each_entry_bool, get_all_accessor_declarations, get_declaration_of_kind,
     get_effective_modifier_flags, get_external_module_name, get_factory, get_first_identifier,

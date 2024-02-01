@@ -6,10 +6,10 @@ use indexmap::IndexMap;
 
 use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
-    add_range, append, are_gc_slices_equal, chain_diagnostic_messages, create_symbol_table, find,
+    add_range, append, chain_diagnostic_messages, create_symbol_table, find,
     get_check_flags, get_declaration_modifier_flags_from_symbol,
     get_effective_type_parameter_declarations, get_immediately_invoked_function_expression,
-    get_jsdoc_parameter_tags, get_object_flags, has_question_token, index_of_gc,
+    get_jsdoc_parameter_tags, get_object_flags, has_question_token,
     is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
     is_property_declaration, length, map, maybe_append_if_unique_eq,
     reduce_left, try_filter, try_map, unescape_leading_underscores, CheckFlags, Debug_,

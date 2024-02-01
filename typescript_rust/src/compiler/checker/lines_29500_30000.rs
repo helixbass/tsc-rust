@@ -13,7 +13,7 @@ use local_macros::enum_unwrapped;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, CheckTypeErrorOutputContainer};
 use crate::{
-    add_related_info, are_option_gcs_equal, chain_diagnostic_messages,
+    add_related_info, chain_diagnostic_messages,
     chain_diagnostic_messages_multiple, create_diagnostic_for_node,
     create_diagnostic_for_node_array, create_diagnostic_for_node_from_message_chain,
     create_file_diagnostic, every, filter, find, first, flat_map, flatten, for_each,

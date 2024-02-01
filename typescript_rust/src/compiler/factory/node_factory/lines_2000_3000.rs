@@ -7,7 +7,7 @@ use super::{
     propagate_identifier_name_flags, CookedText,
 };
 use crate::{
-    are_option_gcs_equal, get_elements_of_binding_or_assignment_pattern,
+    get_elements_of_binding_or_assignment_pattern,
     get_target_of_binding_or_assignment_element, has_invalid_escape, has_node_array_changed,
     has_option_node_array_changed, is_array_literal_expression, is_assignment_pattern,
     is_call_chain, is_element_access_chain, is_generated_identifier, is_identifier,
