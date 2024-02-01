@@ -459,7 +459,7 @@ impl NodeFactory {
     #[generate_node_factory_method_wrapper]
     pub fn create_input_files_raw(&self) -> InputFiles {
         let node = self.create_base_node(SyntaxKind::InputFiles);
-        InputFiles::new(node, "".to_owned(), "".to_owned())
+        InputFiles::new(node, "".to_owned(), "".to_owned(), self)
     }
 
     #[generate_node_factory_method_wrapper]

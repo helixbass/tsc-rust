@@ -33,7 +33,7 @@ use crate::{
     InferenceContext, SkipTrivia, CustomTransformerFactoryInterface, CustomTransformerInterface,
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
     OptionsNameMap, NodeSymbolOverride, NodeIdOverride, MakeSerializePropertySymbolCreateProperty,
-    SymbolTableToDeclarationStatements,
+    SymbolTableToDeclarationStatements, InputFilesInitializedState,
 };
 
 #[derive(Default)]
@@ -171,6 +171,7 @@ pub struct AllArenas {
     pub node_id_overrides: RefCell<Arena<Box<dyn NodeIdOverride>>>,
     pub make_serialize_property_symbol_create_properties: RefCell<Arena<Box<dyn MakeSerializePropertySymbolCreateProperty>>>,
     pub symbol_table_to_declaration_statements: RefCell<Arena<SymbolTableToDeclarationStatements>>,
+    pub input_files_initialized_states: RefCell<Arena<InputFilesInitializedState>>,
 }
 
 pub trait HasArena {
@@ -1318,6 +1319,14 @@ pub trait HasArena {
 
     fn alloc_symbol_table_to_declaration_statements(&self, symbol_table_to_declaration_statements: SymbolTableToDeclarationStatements) -> Id<SymbolTableToDeclarationStatements> {
         self.arena().alloc_symbol_table_to_declaration_statements(symbol_table_to_declaration_statements)
+    }
+
+    fn input_files_initialized_state(&self, input_files_initialized_state: Id<InputFilesInitializedState>) -> Ref<InputFilesInitializedState> {
+        self.arena().input_files_initialized_state(input_files_initialized_state)
+    }
+
+    fn alloc_input_files_initialized_state(&self, input_files_initialized_state: InputFilesInitializedState) -> Id<InputFilesInitializedState> {
+        self.arena().alloc_input_files_initialized_state(input_files_initialized_state)
     }
 }
 
@@ -2749,6 +2758,16 @@ impl HasArena for AllArenas {
         id.ref_(self).set_arena_id(id);
         id
     }
+
+    #[track_caller]
+    fn input_files_initialized_state(&self, input_files_initialized_state: Id<InputFilesInitializedState>) -> Ref<InputFilesInitializedState> {
+        Ref::map(self.input_files_initialized_states.borrow(), |input_files_initialized_states| &input_files_initialized_states[input_files_initialized_state])
+    }
+
+    fn alloc_input_files_initialized_state(&self, input_files_initialized_state: InputFilesInitializedState) -> Id<InputFilesInitializedState> {
+        let id = self.input_files_initialized_states.borrow_mut().alloc(input_files_initialized_state);
+        id
+    }
 }
 
 pub trait InArena {
@@ -3902,6 +3921,14 @@ impl InArena for Id<SymbolTableToDeclarationStatements> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, SymbolTableToDeclarationStatements> {
         has_arena.symbol_table_to_declaration_statements(*self)
+    }
+}
+
+impl InArena for Id<InputFilesInitializedState> {
+    type Item = InputFilesInitializedState;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, InputFilesInitializedState> {
+        has_arena.input_files_initialized_state(*self)
     }
 }
 

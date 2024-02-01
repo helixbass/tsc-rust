@@ -567,7 +567,7 @@ pub use compiler::{
         VariableStatement, VarianceFlags, VisitResult, VisitResultInterface, VoidExpression,
         WatchDirectoryFlags, WatchDirectoryKind, WatchFileKind, WatchOptions, WatchOptionsBuilder,
         WhileStatement, WithStatement, WriteFileCallback, YieldExpression, __String,
-        SkipTrivia,
+        SkipTrivia, InputFilesInitializedState,
     },
     utilities::{
         add_related_info, add_related_info_rc, array_is_homogeneous, attach_file_to_diagnostics,

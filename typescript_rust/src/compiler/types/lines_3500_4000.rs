@@ -899,7 +899,7 @@ pub struct InputFiles {
     _node: BaseNode,
     fallback_javascript_text: String,
     fallback_declaration_text: String,
-    initialized_state: Gc<InputFilesInitializedState>,
+    initialized_state: Id<InputFilesInitializedState>,
     pub javascript_path: Option<String>,
     pub javascript_map_path: Option<String>,
     pub declaration_path: Option<String>,
@@ -913,12 +913,13 @@ impl InputFiles {
         base_node: BaseNode,
         fallback_javascript_text: String,
         fallback_declaration_text: String,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
             _node: base_node,
             fallback_javascript_text,
             fallback_declaration_text,
-            initialized_state: Default::default(),
+            initialized_state: arena.alloc_input_files_initialized_state(Default::default()),
             javascript_path: None,
             javascript_map_path: None,
             declaration_path: None,
@@ -940,7 +941,7 @@ impl InputFiles {
         let javascript_map_text_or_declaration_path =
             Debug_.check_defined(javascript_map_text_or_declaration_path, None);
         self.initialized_state =
-            Gc::new(InputFilesInitializedState::InitializedWithReadFileCallback(
+            self.alloc_input_files_initialized_state(InputFilesInitializedState::InitializedWithReadFileCallback(
                 InputFilesInitializedWithReadFileCallback::new(
                     read_file_callback,
                     declaration_text_or_javascript_path.clone(),
@@ -971,7 +972,7 @@ impl InputFiles {
         build_info: Option<Id<BuildInfo>>,
         old_file_of_current_emit: Option<bool>,
     ) {
-        self.initialized_state = Gc::new(InputFilesInitializedState::InitializedWithString(
+        self.initialized_state = self.alloc_input_files_initialized_state(InputFilesInitializedState::InitializedWithString(
             InputFilesInitializedWithString::new(
                 javascript_text_or_read_file_text,
                 javascript_map_text_or_declaration_path,
@@ -989,7 +990,7 @@ impl InputFiles {
     }
 
     pub fn javascript_text(&self) -> String {
-        match &*self.initialized_state {
+        match &*self.initialized_state.ref_(self) {
             InputFilesInitializedState::Uninitialized => self.fallback_javascript_text.clone(),
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1003,7 +1004,7 @@ impl InputFiles {
     }
 
     pub fn javascript_map_text(&self) -> Option<String> {
-        match &*self.initialized_state {
+        match &*self.initialized_state.ref_(self) {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1019,7 +1020,7 @@ impl InputFiles {
     }
 
     pub fn declaration_text(&self) -> String {
-        match &*self.initialized_state {
+        match &*self.initialized_state.ref_(self) {
             InputFilesInitializedState::Uninitialized => self.fallback_declaration_text.clone(),
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1033,7 +1034,7 @@ impl InputFiles {
     }
 
     pub fn declaration_map_text(&self) -> Option<String> {
-        match &*self.initialized_state {
+        match &*self.initialized_state.ref_(self) {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1049,7 +1050,7 @@ impl InputFiles {
     }
 
     pub fn build_info(&self) -> Option<Id<BuildInfo>> {
-        match &*self.initialized_state {
+        match &*self.initialized_state.ref_(self) {
             InputFilesInitializedState::Uninitialized => None,
             InputFilesInitializedState::InitializedWithReadFileCallback(
                 initialized_with_read_file_callback,
@@ -1077,8 +1078,14 @@ impl HasOldFileOfCurrentEmitInterface for InputFiles {
     }
 }
 
+impl HasArena for InputFiles {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
 #[derive(Debug, Trace, Finalize)]
-enum InputFilesInitializedState {
+pub enum InputFilesInitializedState {
     Uninitialized,
     InitializedWithReadFileCallback(InputFilesInitializedWithReadFileCallback),
     InitializedWithString(InputFilesInitializedWithString),
