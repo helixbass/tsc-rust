@@ -34,7 +34,7 @@ use crate::{
     NodeLinks, ParserType, IncrementalParserSyntaxCursor, CommandLineOption, CommandLineOptionInterface,
     OptionsNameMap, NodeSymbolOverride, NodeIdOverride, MakeSerializePropertySymbolCreateProperty,
     SymbolTableToDeclarationStatements, InputFilesInitializedState, CheckTypeRelatedTo,
-    TypeMapperCallback,
+    TypeMapperCallback, CacheWithRedirects,
 };
 
 #[derive(Default)]
@@ -180,6 +180,7 @@ pub struct AllArenas {
     pub vec_nodes: RefCell<Arena<Vec<Id<Node>>>>,
     pub type_mapper_callbacks: RefCell<Arena<Box<dyn TypeMapperCallback>>>,
     pub option_symbol_tables: RefCell<Arena<Option<Id<SymbolTable>>>>,
+    pub cache_with_redirects_per_module_name_caches: RefCell<Arena<CacheWithRedirects<PerModuleNameCache>>>,
 }
 
 pub trait HasArena {
@@ -1403,6 +1404,14 @@ pub trait HasArena {
 
     fn alloc_option_symbol_table(&self, option_symbol_table: Option<Id<SymbolTable>>) -> Id<Option<Id<SymbolTable>>> {
         self.arena().alloc_option_symbol_table(option_symbol_table)
+    }
+
+    fn cache_with_redirects_per_module_name_cache(&self, cache_with_redirects_per_module_name_cache: Id<CacheWithRedirects<PerModuleNameCache>>) -> Ref<CacheWithRedirects<PerModuleNameCache>> {
+        self.arena().cache_with_redirects_per_module_name_cache(cache_with_redirects_per_module_name_cache)
+    }
+
+    fn alloc_cache_with_redirects_per_module_name_cache(&self, cache_with_redirects_per_module_name_cache: CacheWithRedirects<PerModuleNameCache>) -> Id<CacheWithRedirects<PerModuleNameCache>> {
+        self.arena().alloc_cache_with_redirects_per_module_name_cache(cache_with_redirects_per_module_name_cache)
     }
 }
 
@@ -2927,6 +2936,17 @@ impl HasArena for AllArenas {
         let id = self.option_symbol_tables.borrow_mut().alloc(option_symbol_table);
         id
     }
+
+    #[track_caller]
+    fn cache_with_redirects_per_module_name_cache(&self, cache_with_redirects_per_module_name_cache: Id<CacheWithRedirects<PerModuleNameCache>>) -> Ref<CacheWithRedirects<PerModuleNameCache>> {
+        Ref::map(self.cache_with_redirects_per_module_name_caches.borrow(), |cache_with_redirects_per_module_name_caches| &cache_with_redirects_per_module_name_caches[cache_with_redirects_per_module_name_cache])
+    }
+
+    fn alloc_cache_with_redirects_per_module_name_cache(&self, cache_with_redirects_per_module_name_cache: CacheWithRedirects<PerModuleNameCache>) -> Id<CacheWithRedirects<PerModuleNameCache>> {
+        let id = self.cache_with_redirects_per_module_name_caches.borrow_mut().alloc(cache_with_redirects_per_module_name_cache);
+        id.ref_(self).set_arena_id(id);
+        id
+    }
 }
 
 pub trait InArena {
@@ -4156,6 +4176,14 @@ impl InArena for Id<Option<Id<SymbolTable>>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Option<Id<SymbolTable>>> {
         has_arena.option_symbol_table_mut(*self)
+    }
+}
+
+impl InArena for Id<CacheWithRedirects<PerModuleNameCache>> {
+    type Item = CacheWithRedirects<PerModuleNameCache>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, CacheWithRedirects<PerModuleNameCache>> {
+        has_arena.cache_with_redirects_per_module_name_cache(*self)
     }
 }
 

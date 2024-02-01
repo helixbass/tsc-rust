@@ -313,7 +313,7 @@ pub use compiler::{
         resolve_type_reference_directive, GetCanonicalFileName, ModeAwareCache,
         ModuleResolutionCache, NonRelativeModuleNameResolutionCache, PackageJsonInfoCache,
         TypeReferenceDirectiveResolutionCache, PerModuleNameCache,
-        PackageJsonInfo,
+        PackageJsonInfo, CacheWithRedirects,
     },
     module_specifiers,
     parser::{

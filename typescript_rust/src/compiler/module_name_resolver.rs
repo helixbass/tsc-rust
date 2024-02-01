@@ -991,7 +991,7 @@ pub struct ModuleResolutionCache {
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     pre_directory_resolution_cache:
         PerDirectoryResolutionCacheConcrete<Id<ResolvedModuleWithFailedLookupLocations>>,
-    module_name_to_directory_map: Gc<CacheWithRedirects<PerModuleNameCache>>,
+    module_name_to_directory_map: Id<CacheWithRedirects<PerModuleNameCache>>,
     package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>>,
 }
 
@@ -1022,48 +1022,54 @@ pub struct PerModuleNameCache {
 #[derive(Trace, Finalize)]
 pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
     options: GcCell<Option<Id<CompilerOptions>>>,
-    own_map: GcCell<Gc<GcCell<HashMap<String, Id<TCache>>>>>,
-    redirects_map: Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Id<TCache>>>>>>>,
+    own_map: GcCell<Id<HashMap<String, Id<TCache>>>>,
+    redirects_map: Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
 }
 
-impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
-    pub fn new(options: Option<Id<CompilerOptions>>) -> Self {
+impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
+    where
+        HashMap<String, Id<TCache>>: ArenaAlloc,
+        HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
+        Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
+        Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>: InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
+{
+    pub fn new(options: Option<Id<CompilerOptions>>, arena: &impl HasArena) -> Self {
         Self {
             options: GcCell::new(options),
-            own_map: Default::default(),
-            redirects_map: Default::default(),
+            own_map: GcCell::new(HashMap::<String, Id<TCache>>::new().alloc(arena)),
+            redirects_map: HashMap::<Path, Id<HashMap<String, Id<TCache>>>>::new().alloc(arena),
         }
     }
 
-    pub fn get_own_map(&self) -> Gc<GcCell<HashMap<String, Id<TCache>>>> {
+    pub fn get_own_map(&self) -> Id<HashMap<String, Id<TCache>>> {
         self.own_map.borrow().clone()
     }
 
     pub fn redirects_map(
         &self,
-    ) -> Gc<GcCell<HashMap<Path, Gc<GcCell<HashMap<String, Id<TCache>>>>>>> {
-        self.redirects_map.clone()
+    ) -> Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>> {
+        self.redirects_map
     }
 
     pub fn set_own_options(&self, new_options: Id<CompilerOptions>) {
         *self.options.borrow_mut() = Some(new_options);
     }
 
-    pub fn set_own_map(&self, new_own_map: Gc<GcCell<HashMap<String, Id<TCache>>>>) {
+    pub fn set_own_map(&self, new_own_map: Id<HashMap<String, Id<TCache>>>) {
         *self.own_map.borrow_mut() = new_own_map;
     }
 
     pub fn get_or_create_map_of_cache_redirects(
         &self,
         redirected_reference: Option<Id<ResolvedProjectReference>>,
-    ) -> Gc<GcCell<HashMap<String, Id<TCache>>>> {
+    ) -> Id<HashMap<String, Id<TCache>>> {
         if redirected_reference.is_none() {
             return self.own_map.borrow().clone();
         }
         let redirected_reference = redirected_reference.unwrap();
         let redirected_reference_source_file_ref = redirected_reference.ref_(self).source_file.ref_(self);
         let path = redirected_reference_source_file_ref.as_source_file().path();
-        let mut redirects = (*self.redirects_map).borrow().get(&path).cloned();
+        let mut redirects = self.redirects_map.ref_(self).get(&path).cloned();
         if redirects.is_none() {
             redirects = Some(
                 if match self.options.borrow().as_ref() {
@@ -1074,21 +1080,21 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache> {
                         self,
                     ),
                 } {
-                    Gc::new(GcCell::new(HashMap::new()))
+                    HashMap::<String, Id<TCache>>::new().alloc(self)
                 } else {
                     self.own_map.borrow().clone()
                 },
             );
             self.redirects_map
-                .borrow_mut()
+                .ref_mut(self)
                 .insert(path.clone(), redirects.clone().unwrap());
         }
         redirects.unwrap()
     }
 
     pub fn clear(&self) {
-        self.own_map.borrow().borrow_mut().clear();
-        self.redirects_map.borrow_mut().clear();
+        self.own_map.borrow().ref_mut(self).clear();
+        self.redirects_map.ref_mut(self).clear();
     }
 }
 
@@ -1100,8 +1106,15 @@ impl<TCache: Trace + Finalize> HasArena for CacheWithRedirects<TCache> {
 
 pub(crate) fn create_cache_with_redirects<TCache: Trace + Finalize>(
     options: Option<Id<CompilerOptions>>,
-) -> CacheWithRedirects<TCache> {
-    CacheWithRedirects::new(options)
+    arena: &impl HasArena,
+) -> CacheWithRedirects<TCache>
+    where
+        HashMap<String, Id<TCache>>: ArenaAlloc,
+        HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
+        Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
+        Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>: InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
+{
+    CacheWithRedirects::new(options, arena)
 }
 
 pub fn create_package_json_info_cache(
@@ -1174,7 +1187,11 @@ fn get_or_create_cache<TCache: Trace + Finalize>(
     mut create: impl FnMut() -> TCache,
     arena: &impl HasArena,
 ) -> Id<TCache>
-    where TCache: ArenaAlloc
+    where TCache: ArenaAlloc,
+    HashMap<String, Id<TCache>>: ArenaAlloc,
+    HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
+    Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
+    Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>: InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
 {
     let cache = cache_with_redirects.get_or_create_map_of_cache_redirects(redirected_reference);
     let mut result: Option<Id<TCache>> = (*cache).borrow().get(key).cloned();
@@ -1190,7 +1207,7 @@ fn get_or_create_cache<TCache: Trace + Finalize>(
 fn create_per_directory_resolution_cache<TValue: Trace + Finalize>(
     current_directory: &str,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
-    directory_to_module_name_map: Gc<CacheWithRedirects<ModeAwareCache<TValue>>>,
+    directory_to_module_name_map: Id<CacheWithRedirects<ModeAwareCache<TValue>>>,
 ) -> PerDirectoryResolutionCacheConcrete<TValue> {
     PerDirectoryResolutionCacheConcrete {
         current_directory: current_directory.to_owned(),
@@ -1203,7 +1220,7 @@ fn create_per_directory_resolution_cache<TValue: Trace + Finalize>(
 pub struct PerDirectoryResolutionCacheConcrete<TValue: Trace + Finalize + 'static> {
     pub current_directory: String,
     pub get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
-    pub directory_to_module_name_map: Gc<CacheWithRedirects<ModeAwareCache<TValue>>>,
+    pub directory_to_module_name_map: Id<CacheWithRedirects<ModeAwareCache<TValue>>>,
 }
 
 pub trait GetCanonicalFileName: Trace + Finalize {
@@ -1337,20 +1354,20 @@ pub fn create_module_resolution_cache(
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     options: Option<Id<CompilerOptions>>,
     directory_to_module_name_map: Option<
-        Gc<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
+        Id<CacheWithRedirects<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
     >,
-    module_name_to_directory_map: Option<Gc<CacheWithRedirects<PerModuleNameCache>>>,
+    module_name_to_directory_map: Option<Id<CacheWithRedirects<PerModuleNameCache>>>,
     arena: &impl HasArena,
 ) -> ModuleResolutionCache {
     let directory_to_module_name_map = directory_to_module_name_map
-        .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options.clone())));
+        .unwrap_or_else(|| arena.alloc_cache_with_redirects_per_module_name_cache(create_cache_with_redirects(options.clone(), arena)));
     let pre_directory_resolution_cache = create_per_directory_resolution_cache(
         current_directory,
         get_canonical_file_name.clone(),
         directory_to_module_name_map.clone(),
     );
     let module_name_to_directory_map = module_name_to_directory_map
-        .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options.clone())));
+        .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options.clone(), arena)));
     let package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>> = arena.alloc_package_json_info_cache(Box::new(
         create_package_json_info_cache(current_directory, get_canonical_file_name.clone()),
     ));
@@ -1518,7 +1535,7 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
             None,
         );
         get_or_create_cache(
-            self.module_name_to_directory_map.as_ref(),
+            self.module_name_to_directory_map.ref_(self).as_ref(),
             redirected_reference,
             &*match mode {
                 None => non_relative_module_name.to_owned(),
@@ -1578,7 +1595,7 @@ pub fn create_type_reference_directive_resolution_cache(
         current_directory,
         get_canonical_file_name.clone(),
         directory_to_module_name_map
-            .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options))),
+            .unwrap_or_else(|| Gc::new(create_cache_with_redirects(options), arena)),
     );
     let package_json_info_cache = package_json_info_cache.unwrap_or_else(|| {
         arena.alloc_package_json_info_cache(Box::new(create_package_json_info_cache(
