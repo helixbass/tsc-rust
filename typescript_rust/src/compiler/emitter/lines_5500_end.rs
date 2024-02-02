@@ -1,7 +1,6 @@
 use std::{collections::HashMap, convert::TryInto, io, iter::FromIterator, rc::Rc};
 
 use bitflags::bitflags;
-use gc::Gc;
 use id_arena::Id;
 
 use super::{brackets, PipelinePhase};

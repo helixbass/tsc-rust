@@ -1,4 +1,3 @@
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{

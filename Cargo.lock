@@ -1144,7 +1144,6 @@ dependencies = [
  "encoding_rs",
  "encoding_rs_io",
  "fancy-regex",
- "gc",
  "id-arena",
  "indexmap",
  "itertools",

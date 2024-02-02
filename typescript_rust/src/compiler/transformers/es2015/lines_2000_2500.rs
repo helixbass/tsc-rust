@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cmp, io};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{HierarchyFacts, TransformES2015};

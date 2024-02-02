@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use crate::{

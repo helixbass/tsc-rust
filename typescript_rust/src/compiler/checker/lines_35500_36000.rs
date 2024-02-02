@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::ResolveCallContainingMessageChain;

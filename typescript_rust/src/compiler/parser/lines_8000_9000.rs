@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{ParseJSDocCommentWorker, PropertyLikeParse};

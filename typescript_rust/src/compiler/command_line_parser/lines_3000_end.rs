@@ -1,7 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap, io, rc::Rc};
 
 use fancy_regex::Regex;
-use gc::{Gc, GcCell};
 use id_arena::Id;
 use indexmap::IndexMap;
 

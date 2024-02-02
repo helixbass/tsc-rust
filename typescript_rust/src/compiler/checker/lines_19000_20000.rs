@@ -6,7 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::Gc;
 use id_arena::Id;
 use itertools::{Either, Itertools};
 

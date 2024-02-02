@@ -1,7 +1,6 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use derive_builder::Builder;
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{

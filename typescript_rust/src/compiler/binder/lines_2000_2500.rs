@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, collections::HashMap, convert::TryInto};
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{

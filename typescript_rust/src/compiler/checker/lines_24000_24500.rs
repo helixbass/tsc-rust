@@ -1,6 +1,5 @@
 use std::{io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{typeof_eq_facts, typeof_ne_facts, GetFlowTypeOfReference, TypeFacts};

@@ -1,6 +1,5 @@
 use std::{io, rc::Rc};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{HierarchyFacts, SpreadSegment, SpreadSegmentKind, TransformES2015};

@@ -1,4 +1,3 @@
-use gc::Gc;
 use id_arena::Id;
 
 use super::{try_visit_node, try_visit_nodes, visit_node, visit_nodes};

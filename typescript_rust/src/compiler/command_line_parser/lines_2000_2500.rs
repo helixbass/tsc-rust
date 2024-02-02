@@ -1,7 +1,6 @@
 use std::{cmp, collections::HashMap, io, ptr, rc::Rc};
 
 use fancy_regex::Regex;
-use gc::{Gc, GcCell};
 use id_arena::Id;
 use indexmap::IndexMap;
 use serde::Serialize;

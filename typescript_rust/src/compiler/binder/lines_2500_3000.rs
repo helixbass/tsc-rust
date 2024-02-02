@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, collections::HashMap};
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{is_exports_or_module_exports_or_alias, lookup_symbol_for_name, Binder};

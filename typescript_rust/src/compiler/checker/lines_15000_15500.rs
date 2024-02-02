@@ -4,7 +4,6 @@ use std::{
     io, ptr,
 };
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{get_symbol_id, intrinsic_type_kinds, IntrinsicTypeKind};

@@ -1,6 +1,5 @@
 use std::{convert::TryInto, io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{signature_has_literal_types, signature_has_rest_parameter, CheckMode};

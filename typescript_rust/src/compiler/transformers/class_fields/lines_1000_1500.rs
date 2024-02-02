@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 
-use gc::Gc;
 use id_arena::Id;
 use itertools::Itertools;
 

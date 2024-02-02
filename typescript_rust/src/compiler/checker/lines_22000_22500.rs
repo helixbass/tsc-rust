@@ -1,6 +1,5 @@
 use std::{cmp, io, iter::once, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 use itertools::Either;
 use peekmore::PeekMore;

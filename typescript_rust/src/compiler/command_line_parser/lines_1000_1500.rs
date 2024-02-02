@@ -1,6 +1,5 @@
 use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
 
-use gc::Gc;
 use id_arena::Id;
 use indexmap::IndexMap;
 use itertools::Itertools;

@@ -1,6 +1,5 @@
 use std::{borrow::{Borrow, Cow}, iter};
 
-use gc::Gc;
 use id_arena::Id;
 use itertools::Either;
 

@@ -1,6 +1,5 @@
 use std::{convert::TryInto, io, ptr, rc::Rc};
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 use regex::Regex;
 

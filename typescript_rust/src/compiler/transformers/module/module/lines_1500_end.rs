@@ -1,6 +1,5 @@
 use std::{cell::OnceCell, io};
 
-use gc::Gc;
 use id_arena::Id;
 use once_cell::unsync::Lazy;
 

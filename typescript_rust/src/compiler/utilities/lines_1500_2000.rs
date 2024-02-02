@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, iter, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 use itertools::Either;
 

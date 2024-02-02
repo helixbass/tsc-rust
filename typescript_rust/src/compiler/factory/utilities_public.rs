@@ -1,4 +1,3 @@
-use gc::Gc;
 use id_arena::Id;
 
 use crate::{set_text_range_pos_end, Node, NodeArray, ReadonlyTextRange, HasArena, InArena};

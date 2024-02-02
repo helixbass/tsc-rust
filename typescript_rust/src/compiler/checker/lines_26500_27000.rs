@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cmp, io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{CheckMode, IterationUse, JsxNames};

@@ -10,7 +10,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::Gc;
 use id_arena::Id;
 use regex::{Captures, Regex};
 

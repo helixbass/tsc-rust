@@ -1,6 +1,5 @@
 use std::io;
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{is_not_overload, is_not_overload_and_not_accessor};

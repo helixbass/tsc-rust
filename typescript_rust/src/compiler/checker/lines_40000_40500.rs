@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, io};
 
-use gc::Gc;
 use id_arena::Id;
 use indexmap::IndexMap;
 

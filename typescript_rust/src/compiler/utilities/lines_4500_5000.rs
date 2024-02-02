@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cmp, convert::TryInto, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{

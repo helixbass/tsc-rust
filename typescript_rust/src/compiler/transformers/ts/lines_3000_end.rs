@@ -1,6 +1,5 @@
 use std::{borrow::Cow, io};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{TransformTypeScript, TypeScriptSubstitutionFlags};

@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{ParserType, SignatureFlags, Tristate};

@@ -188,7 +188,6 @@ mod _NodeArrayOrVecDeriveTraceScope {
 }
 
 pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
-use gc::GcCellRef;
 use id_arena::Id;
 
 impl From<Id<NodeArray>> for NodeArrayOrVec {

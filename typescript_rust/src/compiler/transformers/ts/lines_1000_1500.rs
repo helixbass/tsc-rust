@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{AllDecorators, TransformTypeScript, USE_NEW_TYPE_METADATA_FORMAT};

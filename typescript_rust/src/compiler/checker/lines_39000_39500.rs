@@ -1,6 +1,5 @@
 use std::{io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{intrinsic_type_kinds, is_instantiated_module};

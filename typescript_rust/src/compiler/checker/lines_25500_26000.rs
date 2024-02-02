@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{signature_has_rest_parameter, CheckMode, IterationTypeKind, IterationUse};

@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, ptr};
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::{get_module_instance_state, Binder, ModuleInstanceState};

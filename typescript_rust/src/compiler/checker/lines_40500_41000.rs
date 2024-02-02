@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{is_declaration_name_or_import_property_name, CheckMode};

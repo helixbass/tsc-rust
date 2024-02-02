@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 use itertools::Either;
 

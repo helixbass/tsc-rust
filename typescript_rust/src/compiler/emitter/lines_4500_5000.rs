@@ -1,6 +1,5 @@
 use std::{borrow::Cow, cell::RefCell, collections::HashSet, convert::TryInto, ptr, rc::Rc};
 
-use gc::Gc;
 use id_arena::Id;
 use regex::Regex;
 

@@ -1,4 +1,3 @@
-use gc::Gc;
 use id_arena::Id;
 
 use super::TransformGenerators;

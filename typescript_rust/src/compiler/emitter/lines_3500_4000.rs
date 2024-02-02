@@ -1,6 +1,5 @@
 use std::{collections::HashSet, convert::TryInto, io};
 
-use gc::Gc;
 use id_arena::Id;
 use regex::Regex;
 

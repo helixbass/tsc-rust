@@ -1,6 +1,5 @@
 use std::{collections::HashMap, iter::FromIterator, rc::Rc};
 
-use gc::Gc;
 use id_arena::Id;
 use indexmap::IndexMap;
 

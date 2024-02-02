@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, collections::HashMap, convert::TryInto, io, ptr};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{get_next_flow_id, increment_next_flow_id, IterationUse, TypeFacts};

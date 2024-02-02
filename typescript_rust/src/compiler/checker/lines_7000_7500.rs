@@ -1,6 +1,5 @@
 use std::{io, ptr, rc::Rc};
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 use itertools::Itertools;
 

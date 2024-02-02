@@ -1,6 +1,5 @@
 use std::{convert::TryInto, io, rc::Rc};
 
-use gc::Gc;
 use id_arena::Id;
 
 use super::{PipelinePhase, TempFlags};

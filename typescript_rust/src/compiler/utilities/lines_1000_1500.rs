@@ -3,7 +3,6 @@ use std::{
     convert::{TryFrom, TryInto},
 };
 
-use gc::Gc;
 use id_arena::Id;
 use regex::Regex;
 

@@ -1,6 +1,5 @@
 use std::{marker::PhantomData, rc::Rc};
 
-use gc::Gc;
 use id_arena::Id;
 
 use crate::{

@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, convert::TryInto, io, ptr};
 
-use gc::{Gc, GcCell};
 use id_arena::Id;
 
 use super::CheckMode;
