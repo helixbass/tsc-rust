@@ -1347,7 +1347,7 @@ pub fn create_type_checker(
         ),
     );
     let marker_sub_type = type_checker.create_type_parameter(Option::<Id<Symbol>>::None);
-    marker_sub_type.set_constraint(type_checker.marker_super_type());
+    marker_sub_type.set_constraint(Some(type_checker.marker_super_type()));
     type_checker.marker_sub_type = Some(type_checker.alloc_type(marker_sub_type.into()));
     type_checker.marker_other_type = Some(
         type_checker.alloc_type(

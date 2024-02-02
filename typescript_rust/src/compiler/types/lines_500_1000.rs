@@ -1868,7 +1868,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn set_modifiers(&self, modifiers: Option<Id<NodeArray>>) {
-        *self.modifiers.borrow_mut() = modifiers;
+        self.modifiers.set(modifiers);
     }
 
     fn maybe_id(&self) -> Option<NodeId> {

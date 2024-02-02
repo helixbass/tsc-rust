@@ -1182,7 +1182,7 @@ impl TypeChecker {
         this_type
             .ref_(self)
             .as_type_parameter()
-            .set_constraint(type_.clone());
+            .set_constraint(Some(type_.clone()));
         let mut instantiations = HashMap::new();
         instantiations.insert(
             self.get_type_list_id(type_parameters.as_deref()),

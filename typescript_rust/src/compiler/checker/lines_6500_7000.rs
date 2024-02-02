@@ -172,13 +172,13 @@ impl SymbolTableToDeclarationStatements {
     }
 
     pub fn serialize_property_symbol_for_class(&self) -> MakeSerializePropertySymbol {
-        self.serialize_property_symbol_for_class.get()
+        self.serialize_property_symbol_for_class.get().unwrap()
     }
 
     pub fn serialize_property_symbol_for_interface_worker(
         &self,
     ) -> MakeSerializePropertySymbol {
-        self.serialize_property_symbol_for_interface_worker.get()
+        self.serialize_property_symbol_for_interface_worker.get().unwrap()
     }
 
     pub fn results(&self) -> Ref<Vec<Id<Node>>> {

@@ -917,7 +917,7 @@ impl TypeChecker {
                 restrictive_instantiation
                     .ref_(self)
                     .as_type_parameter()
-                    .set_constraint(self.unknown_type());
+                    .set_constraint(Some(self.unknown_type()));
             }
             tp.ref_(self)
                 .maybe_restrictive_instantiation()

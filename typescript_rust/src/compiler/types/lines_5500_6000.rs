@@ -688,6 +688,10 @@ impl Signature {
         self.type_parameters.borrow_mut()
     }
 
+    pub fn set_type_parameters(&self, type_parameters: Option<Vec<Id<Type>>>) {
+        *self.type_parameters.borrow_mut() = type_parameters;
+    }
+
     pub fn parameters(&self) -> &[Id<Symbol>] {
         self.parameters.as_ref().unwrap()
     }

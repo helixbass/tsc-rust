@@ -218,7 +218,7 @@ impl TypeChecker {
                 type_parameter
                     .ref_(self)
                     .as_type_parameter()
-                    .set_constraint(constraint);
+                    .set_constraint(Some(constraint));
             } else {
                 let constraint_declaration = self.get_constraint_declaration(type_parameter);
                 match constraint_declaration {
@@ -227,8 +227,8 @@ impl TypeChecker {
                             .ref_(self)
                             .as_type_parameter()
                             .set_constraint(
-                                self.get_inferred_type_parameter_constraint(type_parameter)?
-                                    .unwrap_or_else(|| self.no_constraint_type()),
+                                Some(self.get_inferred_type_parameter_constraint(type_parameter)?
+                                    .unwrap_or_else(|| self.no_constraint_type())),
                             );
                     }
                     Some(constraint_declaration) => {
@@ -247,7 +247,7 @@ impl TypeChecker {
                         type_parameter
                             .ref_(self)
                             .as_type_parameter()
-                            .set_constraint(type_);
+                            .set_constraint(Some(type_));
                     }
                 }
             }
