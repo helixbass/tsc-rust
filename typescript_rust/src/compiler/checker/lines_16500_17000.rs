@@ -440,7 +440,7 @@ impl TypeChecker {
                 result,
                 type_.ref_(self).as_mapped_type().declaration.clone(),
             );
-            *result.maybe_type_parameter() = mapped_type_type_parameter;
+            result.set_type_parameter(mapped_type_type_parameter);
             self.alloc_type(result.into())
         } else {
             self.alloc_type(result.into())

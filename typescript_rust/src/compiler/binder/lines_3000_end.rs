@@ -300,21 +300,19 @@ impl Binder {
         let symbol_table = {
             let symbol_table =
                 if is_prototype_property {
-                    let mut namespace_symbol_members = namespace_symbol_ref.maybe_members_mut();
-                    if namespace_symbol_members.is_none() {
-                        *namespace_symbol_members = Some(self.alloc_symbol_table(
+                    if namespace_symbol_ref.maybe_members().is_none() {
+                        namespace_symbol_ref.set_members(Some(self.alloc_symbol_table(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                        ));
+                        )));
                     }
-                    namespace_symbol_members
+                    namespace_symbol_ref.maybe_members()
                 } else {
-                    let mut namespace_symbol_exports = namespace_symbol_ref.maybe_exports_mut();
-                    if namespace_symbol_exports.is_none() {
-                        *namespace_symbol_exports = Some(self.alloc_symbol_table(
+                    if namespace_symbol_ref.maybe_exports().is_none() {
+                        namespace_symbol_ref.set_exports(Some(self.alloc_symbol_table(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                        ));
+                        )));
                     }
-                    namespace_symbol_exports
+                    namespace_symbol_ref.maybe_exports()
                 };
             let symbol_table = symbol_table.clone().unwrap();
             symbol_table

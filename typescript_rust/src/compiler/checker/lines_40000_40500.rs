@@ -602,10 +602,10 @@ impl TypeChecker {
 
             self.check_grammar_source_file(node);
 
-            clear(&mut self.potential_this_collisions());
-            clear(&mut self.potential_new_target_collisions());
-            clear(&mut self.potential_weak_map_set_collisions());
-            clear(&mut self.potential_reflect_collisions());
+            clear(&mut self.potential_this_collisions_mut());
+            clear(&mut self.potential_new_target_collisions_mut());
+            clear(&mut self.potential_weak_map_set_collisions_mut());
+            clear(&mut self.potential_reflect_collisions_mut());
 
             let node_ref = node.ref_(self);
             let node_as_source_file = node_ref.as_source_file();
@@ -656,7 +656,7 @@ impl TypeChecker {
             }
 
             {
-                let mut potential_this_collisions = self.potential_this_collisions();
+                let mut potential_this_collisions = self.potential_this_collisions_mut();
                 if !potential_this_collisions.is_empty() {
                     for_each(
                         &*potential_this_collisions,
@@ -672,7 +672,7 @@ impl TypeChecker {
             }
 
             {
-                let mut potential_new_target_collisions = self.potential_new_target_collisions();
+                let mut potential_new_target_collisions = self.potential_new_target_collisions_mut();
                 if !potential_new_target_collisions.is_empty() {
                     for_each(
                         &*potential_new_target_collisions,
@@ -689,7 +689,7 @@ impl TypeChecker {
 
             {
                 let mut potential_weak_map_set_collisions =
-                    self.potential_weak_map_set_collisions();
+                    self.potential_weak_map_set_collisions_mut();
                 if !potential_weak_map_set_collisions.is_empty() {
                     for_each(
                         &*potential_weak_map_set_collisions,
@@ -703,7 +703,7 @@ impl TypeChecker {
             }
 
             {
-                let mut potential_reflect_collisions = self.potential_reflect_collisions();
+                let mut potential_reflect_collisions = self.potential_reflect_collisions_mut();
                 if !potential_reflect_collisions.is_empty() {
                     for_each(
                         &*potential_reflect_collisions,

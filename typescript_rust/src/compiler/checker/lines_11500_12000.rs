@@ -36,13 +36,12 @@ impl TypeChecker {
                         self.get_type_from_type_node_(type_declaration_name_type)?,
                         type_.ref_(self).as_mapped_type().maybe_mapper(),
                     )?;
-                    *type_.ref_(self).as_mapped_type().maybe_name_type() = Some(name_type);
+                    type_.ref_(self).as_mapped_type().set_name_type(Some(name_type));
                 }
                 Ok(type_
                     .ref_(self)
                     .as_mapped_type()
                     .maybe_name_type()
-                    .clone()
                     .unwrap())
             })
     }
@@ -83,13 +82,12 @@ impl TypeChecker {
             } else {
                 self.error_type()
             };
-            *type_.ref_(self).as_mapped_type().maybe_template_type() = Some(template_type);
+            type_.ref_(self).as_mapped_type().set_template_type(Some(template_type));
         }
         Ok(type_
             .ref_(self)
             .as_mapped_type()
             .maybe_template_type()
-            .clone()
             .unwrap())
     }
 
@@ -130,7 +128,7 @@ impl TypeChecker {
             .is_none()
         {
             if self.is_mapped_type_with_keyof_constraint_declaration(type_) {
-                *type_.ref_(self).as_mapped_type().maybe_modifiers_type() = Some(
+                type_.ref_(self).as_mapped_type().set_modifiers_type(Some(
                     self.instantiate_type(
                         self.get_type_from_type_node_(
                             self
@@ -141,7 +139,7 @@ impl TypeChecker {
                         )?,
                         type_.ref_(self).as_mapped_type().maybe_mapper(),
                     )?,
-                );
+                ));
             } else {
                 let declared_type = self.get_type_from_mapped_type_node(
                     type_.ref_(self).as_mapped_type().declaration,
@@ -152,7 +150,7 @@ impl TypeChecker {
                 } else {
                     Some(constraint)
                 };
-                *type_.ref_(self).as_mapped_type().maybe_modifiers_type() = Some(
+                type_.ref_(self).as_mapped_type().set_modifiers_type(Some(
                     if let Some(extended_constraint) =
                         extended_constraint.filter(|&extended_constraint| {
                             extended_constraint
@@ -168,14 +166,13 @@ impl TypeChecker {
                     } else {
                         self.unknown_type()
                     },
-                );
+                ));
             }
         }
         Ok(type_
             .ref_(self)
             .as_mapped_type()
             .maybe_modifiers_type()
-            .clone()
             .unwrap())
     }
 
@@ -1033,16 +1030,15 @@ impl TypeChecker {
             .is_none()
         {
             let resolved = self.get_type_with_this_argument(type_, Some(type_), Some(true))?;
-            *type_
+            type_
                 .ref_(self)
                 .as_intersection_type()
-                .maybe_resolved_apparent_type() = Some(resolved);
+                .set_resolved_apparent_type(Some(resolved));
         }
         Ok(type_
             .ref_(self)
             .as_intersection_type()
             .maybe_resolved_apparent_type()
-            .clone()
             .unwrap())
     }
 
@@ -1169,16 +1165,15 @@ impl TypeChecker {
             .is_none()
         {
             let resolved = self.get_resolved_apparent_type_of_mapped_type(type_)?;
-            *type_
+            type_
                 .ref_(self)
                 .as_mapped_type()
-                .maybe_resolved_apparent_type() = Some(resolved);
+                .set_resolved_apparent_type(Some(resolved));
         }
         Ok(type_
             .ref_(self)
             .as_mapped_type()
             .maybe_resolved_apparent_type()
-            .clone()
             .unwrap())
     }
 

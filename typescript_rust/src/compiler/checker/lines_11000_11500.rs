@@ -1329,8 +1329,7 @@ impl TypeChecker {
             let value = type_
                 .ref_(self)
                 .as_mapped_type()
-                .maybe_type_parameter()
-                .clone();
+                .maybe_type_parameter();
             value
         }
         .try_unwrap_or_else(|| -> io::Result<_> {
@@ -1347,7 +1346,7 @@ impl TypeChecker {
                 })?
                 .unwrap(),
             );
-            *type_.ref_(self).as_mapped_type().maybe_type_parameter() = Some(ret.clone());
+            type_.ref_(self).as_mapped_type().set_type_parameter(Some(ret.clone()));
             Ok(ret)
         })
     }
@@ -1360,15 +1359,14 @@ impl TypeChecker {
             let value = type_
                 .ref_(self)
                 .as_mapped_type()
-                .maybe_constraint_type()
-                .clone();
+                .maybe_constraint_type();
             value
         }
         .try_unwrap_or_else(|| {
             let ret = self
                 .get_constraint_of_type_parameter(self.get_type_parameter_from_mapped_type(type_)?)?
                 .unwrap_or_else(|| self.error_type());
-            *type_.ref_(self).as_mapped_type().maybe_constraint_type() = Some(ret.clone());
+            type_.ref_(self).as_mapped_type().set_constraint_type(Some(ret.clone()));
             Ok(ret)
         })
     }

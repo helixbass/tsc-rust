@@ -589,22 +589,20 @@ impl TypeChecker {
             };
             {
                 let inferred_ref = inferred.ref_(self);
-                let mut inferred_exports = inferred_ref.maybe_exports_mut();
-                if inferred_exports.is_none() {
-                    *inferred_exports = Some(self.alloc_symbol_table(create_symbol_table(
+                if inferred_ref.maybe_exports().is_none() {
+                    inferred_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    )));
+                    ))));
                 }
             }
             {
                 let inferred_ref = inferred.ref_(self);
-                let mut inferred_members = inferred_ref.maybe_members_mut();
-                if inferred_members.is_none() {
-                    *inferred_members = Some(self.alloc_symbol_table(create_symbol_table(
+                if inferred_ref.maybe_members().is_none() {
+                    inferred_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    )));
+                    ))));
                 }
             }
             inferred.ref_(self).set_flags(

@@ -30,7 +30,7 @@ use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String, HasArena};
 )]
 pub struct IntersectionType {
     _union_or_intersection_type: BaseUnionOrIntersectionType,
-    resolved_apparent_type: GcCell<Option<Id<Type>>>,
+    resolved_apparent_type: Cell<Option<Id<Type>>>,
 }
 
 impl IntersectionType {
@@ -41,8 +41,12 @@ impl IntersectionType {
         }
     }
 
-    pub(crate) fn maybe_resolved_apparent_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_apparent_type.borrow_mut()
+    pub(crate) fn maybe_resolved_apparent_type(&self) -> Option<Id<Type>> {
+        self.resolved_apparent_type.get()
+    }
+
+    pub(crate) fn set_resolved_apparent_type(&self, resolved_apparent_type: Option<Id<Type>>) {
+        self.resolved_apparent_type.set(resolved_apparent_type);
     }
 }
 
@@ -54,12 +58,12 @@ impl IntersectionType {
 pub struct MappedType {
     _object_type: BaseObjectType,
     pub declaration: Id<Node /*MappedTypeNode*/>,
-    type_parameter: GcCell<Option<Id<Type /*TypeParameter*/>>>,
-    constraint_type: GcCell<Option<Id<Type>>>,
-    name_type: GcCell<Option<Id<Type>>>,
-    template_type: GcCell<Option<Id<Type>>>,
-    modifiers_type: GcCell<Option<Id<Type>>>,
-    resolved_apparent_type: GcCell<Option<Id<Type>>>,
+    type_parameter: Cell<Option<Id<Type /*TypeParameter*/>>>,
+    constraint_type: Cell<Option<Id<Type>>>,
+    name_type: Cell<Option<Id<Type>>>,
+    template_type: Cell<Option<Id<Type>>>,
+    modifiers_type: Cell<Option<Id<Type>>>,
+    resolved_apparent_type: Cell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     contains_error: Cell<Option<bool>>,
 }
@@ -79,28 +83,52 @@ impl MappedType {
         }
     }
 
-    pub fn maybe_type_parameter(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.type_parameter.borrow_mut()
+    pub fn maybe_type_parameter(&self) -> Option<Id<Type>> {
+        self.type_parameter.get()
     }
 
-    pub fn maybe_constraint_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.constraint_type.borrow_mut()
+    pub fn set_type_parameter(&self, type_parameter: Option<Id<Type>>) {
+        self.type_parameter.set(type_parameter);
     }
 
-    pub fn maybe_name_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.name_type.borrow_mut()
+    pub fn maybe_constraint_type(&self) -> Option<Id<Type>> {
+        self.constraint_type.get()
     }
 
-    pub fn maybe_template_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.template_type.borrow_mut()
+    pub fn set_constraint_type(&self, constraint_type: Option<Id<Type>>) {
+        self.constraint_type.set(constraint_type);
     }
 
-    pub fn maybe_modifiers_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.modifiers_type.borrow_mut()
+    pub fn maybe_name_type(&self) -> Option<Id<Type>> {
+        self.name_type.get()
     }
 
-    pub fn maybe_resolved_apparent_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_apparent_type.borrow_mut()
+    pub fn set_name_type(&self, name_type: Option<Id<Type>>) {
+        self.name_type.set(name_type);
+    }
+
+    pub fn maybe_template_type(&self) -> Option<Id<Type>> {
+        self.template_type.get()
+    }
+
+    pub fn set_template_type(&self, template_type: Option<Id<Type>>) {
+        self.template_type.set(template_type);
+    }
+
+    pub fn maybe_modifiers_type(&self) -> Option<Id<Type>> {
+        self.modifiers_type.get()
+    }
+
+    pub fn set_modifiers_type(&self, modifiers_type: Option<Id<Type>>) {
+        self.modifiers_type.set(modifiers_type);
+    }
+
+    pub fn maybe_resolved_apparent_type(&self) -> Option<Id<Type>> {
+        self.resolved_apparent_type.get()
+    }
+
+    pub fn set_resolved_apparent_type(&self, resolved_apparent_type: Option<Id<Type>>) {
+        self.resolved_apparent_type.set(resolved_apparent_type);
     }
 
     pub fn maybe_contains_error(&self) -> Option<bool> {
@@ -120,7 +148,7 @@ impl MappedType {
 pub struct EvolvingArrayType {
     _object_type: BaseObjectType,
     pub element_type: Id<Type>,
-    final_array_type: GcCell<Option<Id<Type>>>,
+    final_array_type: Cell<Option<Id<Type>>>,
 }
 
 impl EvolvingArrayType {
@@ -132,8 +160,12 @@ impl EvolvingArrayType {
         }
     }
 
-    pub fn maybe_final_array_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.final_array_type.borrow_mut()
+    pub fn maybe_final_array_type(&self) -> Option<Id<Type>> {
+        self.final_array_type.get()
+    }
+
+    pub fn set_final_array_type(&self, final_array_type: Option<Id<Type>>) {
+        self.final_array_type.set(final_array_type);
     }
 }
 
@@ -267,8 +299,8 @@ pub enum IterationTypeCacheKey {
 #[type_type]
 pub struct TypeParameter {
     _type: BaseType,
-    pub constraint: GcCell<Option<Id<Type>>>,
-    pub default: GcCell<Option<Id<Type>>>,
+    pub constraint: Cell<Option<Id<Type>>>,
+    pub default: Cell<Option<Id<Type>>>,
     pub target: Option<Id<Type /*TypeParameter*/>>,
     pub mapper: GcCell<Option<Id<TypeMapper>>>,
     pub is_this_type: Option<bool>,

@@ -315,7 +315,7 @@ impl TypeChecker {
             self.arena(),
             Some(&[target_property_symbol]),
         ));
-        *symbol.ref_(self).maybe_members_mut() = Some(members.clone());
+        symbol.ref_(self).set_members(Some(members.clone()));
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }
 

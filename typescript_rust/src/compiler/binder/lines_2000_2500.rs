@@ -70,14 +70,11 @@ impl Binder {
         ));
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let type_literal_symbol_ref = type_literal_symbol.ref_(self);
-        let mut type_literal_symbol_members = type_literal_symbol_ref.maybe_members_mut();
-        *type_literal_symbol_members = Some(self.alloc_symbol_table(create_symbol_table(
+        type_literal_symbol_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
-        )));
-        type_literal_symbol_members
-            .as_ref()
-            .unwrap()
+        ))));
+        type_literal_symbol_ref.members()
             .ref_mut(self)
             .insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
     }

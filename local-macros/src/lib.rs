@@ -2878,11 +2878,11 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.escaped_name()
                     }
 
-                    fn maybe_declarations(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
+                    fn maybe_declarations(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         self.#first_field_name.maybe_declarations()
                     }
 
-                    fn maybe_declarations_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
+                    fn maybe_declarations_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         self.#first_field_name.maybe_declarations_mut()
                     }
 
@@ -2898,32 +2898,36 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_value_declaration(node)
                     }
 
-                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_members(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         self.#first_field_name.maybe_members()
                     }
 
-                    fn maybe_members_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
-                        self.#first_field_name.maybe_members_mut()
+                    fn set_members(&self, members: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
+                        self.#first_field_name.set_members(members)
                     }
 
                     fn members(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         self.#first_field_name.members()
                     }
 
-                    fn maybe_exports(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_exports(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         self.#first_field_name.maybe_exports()
                     }
 
-                    fn maybe_exports_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
-                        self.#first_field_name.maybe_exports_mut()
+                    fn set_exports(&self, exports: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
+                        self.#first_field_name.set_exports(exports)
                     }
 
                     fn exports(&self) -> ::id_arena::Id<crate::SymbolTable> {
                         self.#first_field_name.exports()
                     }
 
-                    fn maybe_global_exports(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_global_exports(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         self.#first_field_name.maybe_global_exports()
+                    }
+
+                    fn set_global_exports(&self, global_exports: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
+                        self.#first_field_name.set_global_exports(global_exports)
                     }
 
                     fn maybe_id(&self) -> ::std::option::Option<crate::SymbolId> {
@@ -2994,7 +2998,7 @@ fn get_symbol_struct_interface_impl(
                         self.#first_field_name.set_is_assigned(is_assigned)
                     }
 
-                    fn maybe_assignment_declaration_members(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::id_arena::Id<crate::Node>>>> {
+                    fn maybe_assignment_declaration_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::id_arena::Id<crate::Node>>>> {
                         self.#first_field_name.maybe_assignment_declaration_members()
                     }
                 }
@@ -3048,13 +3052,13 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_declarations(&self) -> ::gc::GcCellRef<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
+                    fn maybe_declarations(&self) -> ::std::cell::Ref<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_declarations()),*
                         }
                     }
 
-                    fn maybe_declarations_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
+                    fn maybe_declarations_mut(&self) -> ::std::cell::RefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Node>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_declarations_mut()),*
                         }
@@ -3078,15 +3082,15 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_members(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_members(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_members()),*
                         }
                     }
 
-                    fn maybe_members_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn set_members(&self, members: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
                         match self {
-                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_members_mut()),*
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_members(members)),*
                         }
                     }
 
@@ -3096,15 +3100,15 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_exports(&self) -> ::gc::GcCellRef<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_exports(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_exports()),*
                         }
                     }
 
-                    fn maybe_exports_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn set_exports(&self, exports: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
                         match self {
-                            #(#symbol_type_name::#variant_names(nested) => nested.maybe_exports_mut()),*
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_exports(exports)),*
                         }
                     }
 
@@ -3114,9 +3118,15 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_global_exports(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::SymbolTable>>> {
+                    fn maybe_global_exports(&self) -> ::std::option::Option<::id_arena::Id<crate::SymbolTable>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_global_exports()),*
+                        }
+                    }
+
+                    fn set_global_exports(&self, global_exports: ::std::option::Option<::id_arena::Id<crate::SymbolTable>>) {
+                        match self {
+                            #(#symbol_type_name::#variant_names(nested) => nested.set_global_exports(global_exports)),*
                         }
                     }
 
@@ -3222,7 +3232,7 @@ fn get_symbol_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_assignment_declaration_members(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::id_arena::Id<crate::Node>>>> {
+                    fn maybe_assignment_declaration_members(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<crate::NodeId, ::id_arena::Id<crate::Node>>>> {
                         match self {
                             #(#symbol_type_name::#variant_names(nested) => nested.maybe_assignment_declaration_members()),*
                         }

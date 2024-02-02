@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, Ref},
+    cell::{Cell, RefCell, Ref, RefMut},
     collections::HashMap,
     fmt, io,
     rc::Rc,
@@ -361,28 +361,28 @@ pub struct TypeChecker {
     pub(crate) deferred_global_promise_constructor_like_type:
         Cell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_iterable_type: Cell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_iterator_type: GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_iterable_iterator_type: GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_generator_type: GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_iterator_yield_result_type: GcCell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_type: Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterable_iterator_type: Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_generator_type: Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_yield_result_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_iterator_return_result_type:
-        GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_async_iterable_type: GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_async_iterator_type: GcCell<Option<Id<Type /*GenericType*/>>>,
+        Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterable_type: Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterator_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_async_iterable_iterator_type:
-        GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_async_generator_type: GcCell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_template_strings_array_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_import_meta_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_import_meta_expression_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_import_call_options_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
-    pub(crate) deferred_global_extract_symbol: GcCell<Option<Id<Symbol>>>,
-    pub(crate) deferred_global_omit_symbol: GcCell<Option<Id<Symbol>>>,
-    pub(crate) deferred_global_awaited_symbol: GcCell<Option<Id<Symbol>>>,
-    pub(crate) deferred_global_big_int_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
+        Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_generator_type: Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_template_strings_array_type: Cell<Option<Id<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_type: Cell<Option<Id<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_meta_expression_type: Cell<Option<Id<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_import_call_options_type: Cell<Option<Id<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_extract_symbol: Cell<Option<Id<Symbol>>>,
+    pub(crate) deferred_global_omit_symbol: Cell<Option<Id<Symbol>>>,
+    pub(crate) deferred_global_awaited_symbol: Cell<Option<Id<Symbol>>>,
+    pub(crate) deferred_global_big_int_type: Cell<Option<Id<Type /*ObjectType*/>>>,
 
     pub(crate) all_potentially_unused_identifiers:
-        GcCell<HashMap<Path, Vec<Id<Node /*PotentiallyUnusedIdentifier*/>>>>,
+        RefCell<HashMap<Path, Vec<Id<Node /*PotentiallyUnusedIdentifier*/>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) flow_loop_start: Cell<usize>,
@@ -394,16 +394,16 @@ pub struct TypeChecker {
     pub(crate) flow_analysis_disabled: Cell<bool>,
     #[unsafe_ignore_trace]
     pub(crate) flow_invocation_count: Cell<usize>,
-    pub(crate) last_flow_node: GcCell<Option<Id<FlowNode>>>,
+    pub(crate) last_flow_node: Cell<Option<Id<FlowNode>>>,
     #[unsafe_ignore_trace]
     pub(crate) last_flow_node_reachable: Cell<bool>,
-    pub(crate) flow_type_cache: GcCell<Option<HashMap<NodeId, Id<Type>>>>,
+    pub(crate) flow_type_cache: RefCell<Option<HashMap<NodeId, Id<Type>>>>,
 
     pub(crate) empty_string_type: Option<Id<Type>>,
     pub(crate) zero_type: Option<Id<Type>>,
     pub(crate) zero_big_int_type: Option<Id<Type>>,
 
-    pub(crate) resolution_targets: GcCell<Vec<TypeSystemEntity>>,
+    pub(crate) resolution_targets: RefCell<Vec<TypeSystemEntity>>,
     #[unsafe_ignore_trace]
     pub(crate) resolution_results: RefCell<Vec<bool>>,
     #[unsafe_ignore_trace]
@@ -412,24 +412,24 @@ pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) suggestion_count: Cell<usize>,
     pub(crate) maximum_suggestion_count: usize,
-    pub(crate) merged_symbols: GcCell<HashMap<u32, Id<Symbol>>>,
-    pub(crate) symbol_links: GcCell<HashMap<SymbolId, Id<SymbolLinks>>>,
-    pub(crate) node_links: GcCell<HashMap<NodeId, Id<NodeLinks>>>,
-    pub(crate) flow_loop_caches: GcCell<HashMap<usize, Id<HashMap<String, Id<Type>>>>>,
-    pub(crate) flow_loop_nodes: GcCell<HashMap<usize, Id<FlowNode>>>,
+    pub(crate) merged_symbols: RefCell<HashMap<u32, Id<Symbol>>>,
+    pub(crate) symbol_links: RefCell<HashMap<SymbolId, Id<SymbolLinks>>>,
+    pub(crate) node_links: RefCell<HashMap<NodeId, Id<NodeLinks>>>,
+    pub(crate) flow_loop_caches: RefCell<HashMap<usize, Id<HashMap<String, Id<Type>>>>>,
+    pub(crate) flow_loop_nodes: RefCell<HashMap<usize, Id<FlowNode>>>,
     #[unsafe_ignore_trace]
     pub(crate) flow_loop_keys: RefCell<HashMap<usize, String>>,
-    pub(crate) flow_loop_types: GcCell<HashMap<usize, Vec<Id<Type>>>>,
-    pub(crate) shared_flow_nodes: GcCell<HashMap<usize, Id<FlowNode>>>,
-    pub(crate) shared_flow_types: GcCell<HashMap<usize, FlowType>>,
+    pub(crate) flow_loop_types: RefCell<HashMap<usize, Vec<Id<Type>>>>,
+    pub(crate) shared_flow_nodes: RefCell<HashMap<usize, Id<FlowNode>>>,
+    pub(crate) shared_flow_types: RefCell<HashMap<usize, FlowType>>,
     #[unsafe_ignore_trace]
     pub(crate) flow_node_reachable: RefCell<HashMap<usize, bool>>,
     #[unsafe_ignore_trace]
     pub(crate) flow_node_post_super: RefCell<HashMap<usize, bool>>,
-    pub(crate) potential_this_collisions: GcCell<Vec<Id<Node>>>,
-    pub(crate) potential_new_target_collisions: GcCell<Vec<Id<Node>>>,
-    pub(crate) potential_weak_map_set_collisions: GcCell<Vec<Id<Node>>>,
-    pub(crate) potential_reflect_collisions: GcCell<Vec<Id<Node>>>,
+    pub(crate) potential_this_collisions: RefCell<Vec<Id<Node>>>,
+    pub(crate) potential_new_target_collisions: RefCell<Vec<Id<Node>>>,
+    pub(crate) potential_weak_map_set_collisions: RefCell<Vec<Id<Node>>>,
+    pub(crate) potential_reflect_collisions: RefCell<Vec<Id<Node>>>,
     #[unsafe_ignore_trace]
     pub(crate) awaited_type_stack: RefCell<Vec<TypeId>>,
 
@@ -439,10 +439,10 @@ pub struct TypeChecker {
     pub(crate) typeof_types_by_name: Option<HashMap<&'static str, Id<Type>>>,
     pub(crate) typeof_type: Option<Id<Type>>,
 
-    pub(crate) _jsx_namespace: GcCell<Option<__String>>,
-    pub(crate) _jsx_factory_entity: GcCell<Option<Id<Node /*EntityName*/>>>,
+    pub(crate) _jsx_namespace: RefCell<Option<__String>>,
+    pub(crate) _jsx_factory_entity: Cell<Option<Id<Node /*EntityName*/>>>,
     pub(crate) outofband_variance_marker_handler:
-        GcCell<Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>>,
+        Cell<Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) subtype_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
@@ -457,7 +457,7 @@ pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) enum_relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
 
-    pub(crate) builtin_globals: GcCell<Option<SymbolTable>>,
+    pub(crate) builtin_globals: RefCell<Option<SymbolTable>>,
 
     #[unsafe_ignore_trace]
     pub(crate) suggested_extensions: Vec<(&'static str, &'static str)>,
@@ -948,18 +948,19 @@ pub trait SymbolInterface {
     fn flags(&self) -> SymbolFlags;
     fn set_flags(&self, flags: SymbolFlags);
     fn escaped_name(&self) -> &str /*__String*/;
-    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Id<Node>>>>;
-    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>>;
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Id<Node>>>>;
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>>;
     fn set_declarations(&self, declarations: Vec<Id<Node>>);
     fn maybe_value_declaration(&self) -> Option<Id<Node>>;
     fn set_value_declaration(&self, node: Id<Node>);
-    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>>;
-    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn maybe_members(&self) -> Option<Id<SymbolTable>>;
+    fn set_members(&self, members: Option<Id<SymbolTable>>);
     fn members(&self) -> Id<SymbolTable>;
-    fn maybe_exports(&self) -> GcCellRef<Option<Id<SymbolTable>>>;
-    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn maybe_exports(&self) -> Option<Id<SymbolTable>>;
+    fn set_exports(&self, exports: Option<Id<SymbolTable>>);
     fn exports(&self) -> Id<SymbolTable>;
-    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Id<SymbolTable>>>;
+    fn maybe_global_exports(&self) -> Option<Id<SymbolTable>>;
+    fn set_global_exports(&self, global_exports: Option<Id<SymbolTable>>);
     fn maybe_id(&self) -> Option<SymbolId>;
     fn id(&self) -> SymbolId;
     fn set_id(&self, id: SymbolId);
@@ -979,7 +980,7 @@ pub trait SymbolInterface {
     fn set_is_assigned(&self, is_assigned: Option<bool>);
     fn maybe_assignment_declaration_members(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node /*Declaration*/>>>>;
+    ) -> RefMut<Option<HashMap<NodeId, Id<Node /*Declaration*/>>>>;
 }
 
 #[derive(Debug, Finalize, Trace)]
@@ -1016,17 +1017,17 @@ pub struct BaseSymbol {
     flags: Cell<SymbolFlags>,
     #[unsafe_ignore_trace]
     escaped_name: __String,
-    declarations: GcCell<Option<Vec<Id<Node /*Declaration*/>>>>,
-    value_declaration: GcCell<Option<Id<Node>>>,
-    members: GcCell<Option<Id<SymbolTable>>>,
-    exports: GcCell<Option<Id<SymbolTable>>>,
-    global_exports: GcCell<Option<Id<SymbolTable>>>,
+    declarations: RefCell<Option<Vec<Id<Node /*Declaration*/>>>>,
+    value_declaration: Cell<Option<Id<Node>>>,
+    members: Cell<Option<Id<SymbolTable>>>,
+    exports: Cell<Option<Id<SymbolTable>>>,
+    global_exports: Cell<Option<Id<SymbolTable>>>,
     #[unsafe_ignore_trace]
     id: Cell<Option<SymbolId>>,
     #[unsafe_ignore_trace]
     merge_id: Cell<Option<u32>>,
-    parent: GcCell<Option<Id<Symbol>>>,
-    export_symbol: GcCell<Option<Id<Symbol>>>,
+    parent: Cell<Option<Id<Symbol>>>,
+    export_symbol: Cell<Option<Id<Symbol>>>,
     #[unsafe_ignore_trace]
     const_enum_only_module: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
@@ -1035,7 +1036,7 @@ pub struct BaseSymbol {
     is_replaceable_by_method: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     is_assigned: Cell<Option<bool>>,
-    assignment_declaration_members: GcCell<Option<HashMap<NodeId, Id<Node /*Declaration*/>>>>,
+    assignment_declaration_members: RefCell<Option<HashMap<NodeId, Id<Node /*Declaration*/>>>>,
 }
 
 impl BaseSymbol {
@@ -1043,20 +1044,20 @@ impl BaseSymbol {
         Self {
             flags: Cell::new(flags),
             escaped_name: name,
-            declarations: GcCell::new(None),
-            value_declaration: GcCell::new(None),
-            members: GcCell::new(None),
-            exports: GcCell::new(None),
-            global_exports: GcCell::new(None),
-            id: Cell::new(None),
-            merge_id: Cell::new(None),
-            parent: GcCell::new(None),
-            export_symbol: GcCell::new(None),
-            const_enum_only_module: Cell::new(None),
+            declarations: Default::default(),
+            value_declaration: Default::default(),
+            members: Default::default(),
+            exports: Default::default(),
+            global_exports: Default::default(),
+            id: Default::default(),
+            merge_id: Default::default(),
+            parent: Default::default(),
+            export_symbol: Default::default(),
+            const_enum_only_module: Default::default(),
             is_referenced: Cell::new(None),
-            is_replaceable_by_method: Cell::new(None),
-            is_assigned: Cell::new(None),
-            assignment_declaration_members: GcCell::new(None),
+            is_replaceable_by_method: Default::default(),
+            is_assigned: Default::default(),
+            assignment_declaration_members: Default::default(),
         }
     }
 }
@@ -1074,11 +1075,11 @@ impl SymbolInterface for BaseSymbol {
         &self.escaped_name
     }
 
-    fn maybe_declarations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    fn maybe_declarations(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.declarations.borrow()
     }
 
-    fn maybe_declarations_mut(&self) -> GcCellRefMut<Option<Vec<Id<Node>>>> {
+    fn maybe_declarations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
         self.declarations.borrow_mut()
     }
 
@@ -1087,39 +1088,43 @@ impl SymbolInterface for BaseSymbol {
     }
 
     fn maybe_value_declaration(&self) -> Option<Id<Node>> {
-        self.value_declaration.borrow().clone()
+        self.value_declaration.get()
     }
 
     fn set_value_declaration(&self, node: Id<Node>) {
-        *self.value_declaration.borrow_mut() = Some(node);
+        self.value_declaration.set(Some(node));
     }
 
-    fn maybe_members(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
-        self.members.borrow()
+    fn maybe_members(&self) -> Option<Id<SymbolTable>> {
+        self.members.get()
     }
 
-    fn maybe_members_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
-        self.members.borrow_mut()
+    fn set_members(&self, members: Option<Id<SymbolTable>>) {
+        self.members.set(members);
     }
 
     fn members(&self) -> Id<SymbolTable> {
-        self.members.borrow().as_ref().unwrap().clone()
+        self.members.get().unwrap()
     }
 
-    fn maybe_exports(&self) -> GcCellRef<Option<Id<SymbolTable>>> {
-        self.exports.borrow()
+    fn maybe_exports(&self) -> Option<Id<SymbolTable>> {
+        self.exports.get()
     }
 
-    fn maybe_exports_mut(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
-        self.exports.borrow_mut()
+    fn set_exports(&self, exports: Option<Id<SymbolTable>>) {
+        self.exports.set(exports);
     }
 
     fn exports(&self) -> Id<SymbolTable> {
-        self.exports.borrow().as_ref().unwrap().clone()
+        self.exports.get().unwrap()
     }
 
-    fn maybe_global_exports(&self) -> GcCellRefMut<Option<Id<SymbolTable>>> {
-        self.global_exports.borrow_mut()
+    fn maybe_global_exports(&self) -> Option<Id<SymbolTable>> {
+        self.global_exports.get()
+    }
+
+    fn set_global_exports(&self, global_exports: Option<Id<SymbolTable>>) {
+        self.global_exports.set(global_exports);
     }
 
     fn maybe_id(&self) -> Option<SymbolId> {
@@ -1143,19 +1148,19 @@ impl SymbolInterface for BaseSymbol {
     }
 
     fn maybe_parent(&self) -> Option<Id<Symbol>> {
-        self.parent.borrow().as_ref().map(Clone::clone)
+        self.parent.get()
     }
 
     fn set_parent(&self, parent: Option<Id<Symbol>>) {
-        *self.parent.borrow_mut() = parent;
+        self.parent.set(parent);
     }
 
     fn maybe_export_symbol(&self) -> Option<Id<Symbol>> {
-        self.export_symbol.borrow().as_ref().map(Clone::clone)
+        self.export_symbol.get()
     }
 
     fn set_export_symbol(&self, export_symbol: Option<Id<Symbol>>) {
-        *self.export_symbol.borrow_mut() = export_symbol;
+        self.export_symbol.set(export_symbol);
     }
 
     fn maybe_const_enum_only_module(&self) -> Option<bool> {
@@ -1192,7 +1197,7 @@ impl SymbolInterface for BaseSymbol {
 
     fn maybe_assignment_declaration_members(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<NodeId, Id<Node>>>> {
+    ) -> RefMut<Option<HashMap<NodeId, Id<Node>>>> {
         self.assignment_declaration_members.borrow_mut()
     }
 }

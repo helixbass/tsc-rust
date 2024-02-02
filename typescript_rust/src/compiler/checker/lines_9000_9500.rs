@@ -458,14 +458,14 @@ impl TypeChecker {
                         .set_value_declaration(file_symbol_value_declaration);
                 }
                 if let Some(file_symbol_members) = file_symbol.ref_(self).maybe_members().as_ref() {
-                    *result.ref_(self).maybe_members_mut() = Some(self.alloc_symbol_table(
+                    result.ref_(self).set_members(Some(self.alloc_symbol_table(
                         file_symbol_members.ref_(self).clone(),
-                    ));
+                    )));
                 }
                 if let Some(file_symbol_exports) = file_symbol.ref_(self).maybe_exports().as_ref() {
-                    *result.ref_(self).maybe_exports_mut() = Some(self.alloc_symbol_table(
+                    result.ref_(self).set_exports(Some(self.alloc_symbol_table(
                         file_symbol_exports.ref_(self).clone(),
-                    ));
+                    )));
                 }
                 let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);

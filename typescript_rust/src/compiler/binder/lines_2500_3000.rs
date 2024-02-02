@@ -595,15 +595,14 @@ impl Binder {
         } else {
             let file_symbol = self.file().ref_(self).symbol();
             let file_symbol_ref = file_symbol.ref_(self);
-            let mut global_exports = file_symbol_ref.maybe_global_exports();
-            if global_exports.is_none() {
-                *global_exports = Some(self.alloc_symbol_table(create_symbol_table(
+            if file_symbol_ref.maybe_global_exports().is_none() {
+                file_symbol_ref.set_global_exports(Some(self.alloc_symbol_table(create_symbol_table(
                     self.arena(),
                     Option::<&[Id<Symbol>]>::None,
-                )));
+                ))));
             }
             self.declare_symbol(
-                &mut global_exports.as_ref().unwrap().ref_mut(self),
+                &mut file_symbol_ref.maybe_global_exports().unwrap().ref_mut(self),
                 Some(self.file().ref_(self).symbol()),
                 node,
                 SymbolFlags::Alias,
@@ -917,18 +916,15 @@ impl Binder {
                     {
                         let constructor_symbol_members = {
                             let constructor_symbol_ref = constructor_symbol.ref_(self);
-                            let mut constructor_symbol_members =
-                                constructor_symbol_ref.maybe_members_mut();
-                            if constructor_symbol_members.is_none() {
-                                *constructor_symbol_members =
+                            if constructor_symbol_ref.maybe_members().is_none() {
+                                constructor_symbol_ref.set_members(
                                     Some(self.alloc_symbol_table(create_symbol_table(
                                         self.arena(),
                                         Option::<&[Id<Symbol>]>::None,
-                                    )));
+                                    )))
+                                );
                             }
-                            let constructor_symbol_members =
-                                constructor_symbol_members.clone().unwrap();
-                            constructor_symbol_members
+                            constructor_symbol_ref.members()
                         };
                         let mut constructor_symbol_members =
                             constructor_symbol_members.ref_mut(self);

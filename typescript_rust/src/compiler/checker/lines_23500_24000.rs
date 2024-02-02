@@ -364,9 +364,9 @@ impl GetFlowTypeOfReference {
             }
             if let Some(shared_flow) = shared_flow.as_ref() {
                 self.type_checker
-                    .ref_(self).shared_flow_nodes()
+                    .ref_(self).shared_flow_nodes_mut()
                     .insert(self.type_checker.ref_(self).shared_flow_count(), shared_flow.clone());
-                self.type_checker.ref_(self).shared_flow_types().insert(
+                self.type_checker.ref_(self).shared_flow_types_mut().insert(
                     self.type_checker.ref_(self).shared_flow_count(),
                     type_.clone().unwrap(),
                 );

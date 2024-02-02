@@ -166,7 +166,7 @@ impl TypeChecker {
             && (self.need_collision_check_for_identifier(node, Some(name), "WeakMap")
                 || self.need_collision_check_for_identifier(node, Some(name), "WeakSet"))
         {
-            self.potential_weak_map_set_collisions()
+            self.potential_weak_map_set_collisions_mut()
                 .push(node);
         }
     }
@@ -208,7 +208,7 @@ impl TypeChecker {
             && self.language_version <= ScriptTarget::ES2021
             && self.need_collision_check_for_identifier(node, Some(name), "Reflect")
         {
-            self.potential_reflect_collisions()
+            self.potential_reflect_collisions_mut()
                 .push(node);
         }
     }

@@ -1296,14 +1296,14 @@ impl TypeChecker {
                 .set_value_declaration(value_symbol_value_declaration);
         }
         if let Some(type_symbol_members) = type_symbol.ref_(self).maybe_members().as_ref() {
-            *result.ref_(self).maybe_members_mut() = Some(self.alloc_symbol_table(
+            result.ref_(self).set_members(Some(self.alloc_symbol_table(
                 type_symbol_members.ref_(self).clone(),
-            ));
+            )));
         }
         if let Some(value_symbol_exports) = value_symbol.ref_(self).maybe_exports().as_ref() {
-            *result.ref_(self).maybe_exports_mut() = Some(self.alloc_symbol_table(
+            result.ref_(self).set_exports(Some(self.alloc_symbol_table(
                 value_symbol_exports.ref_(self).clone(),
-            ));
+            )));
         }
         result
     }

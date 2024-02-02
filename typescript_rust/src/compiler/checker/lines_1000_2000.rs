@@ -115,19 +115,18 @@ impl TypeChecker {
         if _jsx_namespace.is_none() {
             *_jsx_namespace = Some("React".to_owned());
             if let Some(compiler_options_jsx_factory) = self.compiler_options.ref_(self).jsx_factory.as_ref() {
-                let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
-                *_jsx_factory_entity = parse_isolated_entity_name(
+                self._jsx_factory_entity.set(parse_isolated_entity_name(
                     compiler_options_jsx_factory.clone(),
                     self.language_version,
                     self,
-                );
+                ));
                 maybe_visit_node(
-                    _jsx_factory_entity.clone(),
+                    self._jsx_factory_entity.get(),
                     Some(|node: Id<Node>| self.mark_as_synthetic(node)),
                     Option::<fn(Id<Node>) -> bool>::None,
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                 );
-                if let Some(_jsx_factory_entity) = _jsx_factory_entity.clone() {
+                if let Some(_jsx_factory_entity) = self._jsx_factory_entity.get() {
                     *_jsx_namespace = Some(
                         get_first_identifier(_jsx_factory_entity, self)
                             .ref_(self).as_identifier()
@@ -143,13 +142,13 @@ impl TypeChecker {
             }
         }
         let _jsx_namespace = _jsx_namespace.clone().unwrap();
-        let mut _jsx_factory_entity = self._jsx_factory_entity.borrow_mut();
-        if _jsx_factory_entity.is_none() {
-            *_jsx_factory_entity =
+        if self._jsx_factory_entity.get().is_none() {
+            self._jsx_factory_entity.set(
                 Some(get_factory(self).create_qualified_name(
                     get_factory(self).create_identifier(&unescape_leading_underscores(&_jsx_namespace)),
                     "createElement",
-                ));
+                ))
+            );
         }
         _jsx_namespace
     }
@@ -515,12 +514,14 @@ impl TypeChecker {
             result.ref_(self).set_const_enum_only_module(Some(true));
         }
         if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
-            *result.ref_(self).maybe_members_mut() =
-                Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()));
+            result.ref_(self).set_members(
+                Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()))
+            );
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
-            *result.ref_(self).maybe_exports_mut() =
-                Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()));
+            result.ref_(self).set_exports(
+                Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()))
+            );
         }
         self.record_merged_symbol(result, symbol);
         result
@@ -586,30 +587,28 @@ impl TypeChecker {
             }
             if let Some(source_members) = source.ref_(self).maybe_members().as_ref() {
                 let target_ref = target.ref_(self);
-                let mut target_members = target_ref.maybe_members_mut();
-                if target_members.is_none() {
-                    *target_members = Some(self.alloc_symbol_table(create_symbol_table(
+                if target_ref.maybe_members().is_none() {
+                    target_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    )));
+                    ))));
                 }
                 self.merge_symbol_table(
-                    target_members.clone().unwrap(),
+                    target_ref.members(),
                     &source_members.ref_(self),
                     Some(unidirectional),
                 )?;
             }
             if let Some(source_exports) = source.ref_(self).maybe_exports().as_ref() {
                 let target_ref = target.ref_(self);
-                let mut target_exports = target_ref.maybe_exports_mut();
-                if target_exports.is_none() {
-                    *target_exports = Some(self.alloc_symbol_table(create_symbol_table(
+                if target_ref.maybe_exports().is_none() {
+                    target_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    )));
+                    ))));
                 }
                 self.merge_symbol_table(
-                    target_exports.clone().unwrap(),
+                    target_ref.exports(),
                     &source_exports.ref_(self),
                     Some(unidirectional),
                 )?;

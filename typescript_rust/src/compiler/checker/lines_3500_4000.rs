@@ -158,16 +158,17 @@ impl TypeChecker {
         merged
             .ref_(self)
             .set_flags(merged.ref_(self).flags() | SymbolFlags::ValueModule);
-        let merged_exports = merged
-            .ref_(self)
-            .maybe_exports_mut()
-            .get_or_insert_with(|| {
-                self.alloc_symbol_table(create_symbol_table(
-                    self.arena(),
-                    Option::<&[Id<Symbol>]>::None,
-                ))
-            })
-            .clone();
+        let merged_exports = {
+            if merged.ref_(self).maybe_exports().is_none() {
+                merged.ref_(self).set_exports(
+                    self.alloc_symbol_table(create_symbol_table(
+                        self.arena(),
+                        Option::<&[Id<Symbol>]>::None,
+                    ))
+                );
+            }
+            merged.ref_(self).exports()
+        };
         for (name, &s) in &*module_symbol.ref_(self).exports().ref_(self) {
             if name == InternalSymbolName::ExportEquals {
                 continue;
@@ -317,12 +318,14 @@ impl TypeChecker {
             result.ref_(self).set_const_enum_only_module(Some(true));
         }
         if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
-            *result.ref_(self).maybe_members_mut() =
-                Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()));
+            result.ref_(self).set_members(
+                Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()))
+            );
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
-            *result.ref_(self).maybe_exports_mut() =
-                Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()));
+            result.ref_(self).set_exports(
+                Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()))
+            );
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type)?;
         result_links.type_ = Some(

@@ -40,6 +40,7 @@ use crate::{
     TypePredicate, TypePredicateKind, VarianceFlags,
     static_arena,
     Program,
+    ref_unwrapped,
 };
 
 lazy_static! {
@@ -866,9 +867,7 @@ pub fn create_type_checker(
     );
     let global_this_symbol = type_checker.global_this_symbol();
     {
-        let global_this_symbol_ref = global_this_symbol.ref_(&type_checker);
-        let mut global_this_symbol_exports = global_this_symbol_ref.maybe_exports_mut();
-        *global_this_symbol_exports = Some(type_checker.globals_id());
+        global_this_symbol.ref_(&type_checker).set_exports(Some(type_checker.globals_id()));
     }
     global_this_symbol
         .ref_(&type_checker).set_declarations(vec![]);
@@ -1276,9 +1275,9 @@ pub fn create_type_checker(
         InternalSymbolName::Type.to_owned(),
         None,
     );
-    *empty_type_literal_symbol.maybe_members_mut() = Some(type_checker.alloc_symbol_table(
+    empty_type_literal_symbol.set_members(Some(type_checker.alloc_symbol_table(
         create_symbol_table(type_checker.arena(), Option::<&[Id<Symbol>]>::None),
-    ));
+    )));
     type_checker.empty_type_literal_symbol =
         Some(type_checker.alloc_symbol(empty_type_literal_symbol.into()));
     type_checker.empty_type_literal_type = Some(type_checker.create_anonymous_type(
@@ -3302,105 +3301,153 @@ impl TypeChecker {
             .set(deferred_global_promise_constructor_like_type)
     }
 
-    pub(super) fn maybe_deferred_global_iterable_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_iterable_type.borrow_mut()
+    pub(super) fn maybe_deferred_global_iterable_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_iterable_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_iterator_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_iterator_type.borrow_mut()
+    pub(super) fn set_deferred_global_iterable_type(&self, deferred_global_iterable_type: Option<Id<Type>>) {
+        self.deferred_global_iterable_type.set(deferred_global_iterable_type);
     }
 
-    pub(super) fn maybe_deferred_global_iterable_iterator_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_iterable_iterator_type.borrow_mut()
+    pub(super) fn maybe_deferred_global_iterator_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_iterator_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_generator_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_generator_type.borrow_mut()
+    pub(super) fn set_deferred_global_iterator_type(&self, deferred_global_iterator_type: Option<Id<Type>>) {
+        self.deferred_global_iterator_type.set(deferred_global_iterator_type);
     }
 
-    pub(super) fn maybe_deferred_global_iterator_yield_result_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_iterator_yield_result_type.borrow_mut()
+    pub(super) fn maybe_deferred_global_iterable_iterator_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_iterable_iterator_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_iterator_return_result_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_iterator_return_result_type
-            .borrow_mut()
+    pub(super) fn set_deferred_global_iterable_iterator_type(&self, deferred_global_iterable_iterator_type: Option<Id<Type>>) {
+        self.deferred_global_iterable_iterator_type.set(deferred_global_iterable_iterator_type);
     }
 
-    pub(super) fn maybe_deferred_global_async_iterable_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_async_iterable_type.borrow_mut()
+    pub(super) fn maybe_deferred_global_generator_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_generator_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_async_iterator_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_async_iterator_type.borrow_mut()
+    pub(super) fn set_deferred_global_generator_type(&self, deferred_global_generator_type: Option<Id<Type>>) {
+        self.deferred_global_generator_type.set(deferred_global_generator_type);
     }
 
-    pub(super) fn maybe_deferred_global_async_iterable_iterator_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_async_iterable_iterator_type
-            .borrow_mut()
+    pub(super) fn maybe_deferred_global_iterator_yield_result_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_iterator_yield_result_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_async_generator_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_async_generator_type.borrow_mut()
+    pub(super) fn set_deferred_global_iterator_yield_result_type(&self, deferred_global_iterator_yield_result_type: Option<Id<Type>>) {
+        self.deferred_global_iterator_yield_result_type.set(deferred_global_iterator_yield_result_type);
     }
 
-    pub(super) fn maybe_deferred_global_template_strings_array_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_template_strings_array_type
-            .borrow_mut()
+    pub(super) fn maybe_deferred_global_iterator_return_result_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_iterator_return_result_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_import_meta_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_import_meta_type.borrow_mut()
+    pub(super) fn set_deferred_global_iterator_return_result_type(&self, deferred_global_iterator_return_result_type: Option<Id<Type>>) {
+        self.deferred_global_iterator_return_result_type.set(deferred_global_iterator_return_result_type);
     }
 
-    pub(super) fn maybe_deferred_global_import_meta_expression_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_import_meta_expression_type
-            .borrow_mut()
+    pub(super) fn maybe_deferred_global_async_iterable_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_async_iterable_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_import_call_options_type(
-        &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_import_call_options_type.borrow_mut()
+    pub(super) fn set_deferred_global_async_iterable_type(&self, deferred_global_async_iterable_type: Option<Id<Type>>) {
+        self.deferred_global_async_iterable_type.set(deferred_global_async_iterable_type);
     }
 
-    pub(super) fn maybe_deferred_global_extract_symbol(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.deferred_global_extract_symbol.borrow_mut()
+    pub(super) fn maybe_deferred_global_async_iterator_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_async_iterator_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_omit_symbol(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.deferred_global_omit_symbol.borrow_mut()
+    pub(super) fn set_deferred_global_async_iterator_type(&self, deferred_global_async_iterator_type: Option<Id<Type>>) {
+        self.deferred_global_async_iterator_type.set(deferred_global_async_iterator_type);
     }
 
-    pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.deferred_global_awaited_symbol.borrow_mut()
+    pub(super) fn maybe_deferred_global_async_iterable_iterator_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_async_iterable_iterator_type.get()
     }
 
-    pub(super) fn maybe_deferred_global_big_int_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_big_int_type.borrow_mut()
+    pub(super) fn set_deferred_global_async_iterable_iterator_type(&self, deferred_global_async_iterable_iterator_type: Option<Id<Type>>) {
+        self.deferred_global_async_iterable_iterator_type.set(deferred_global_async_iterable_iterator_type);
+    }
+
+    pub(super) fn maybe_deferred_global_async_generator_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_async_generator_type.get()
+    }
+
+    pub(super) fn set_deferred_global_async_generator_type(&self, deferred_global_async_generator_type: Option<Id<Type>>) {
+        self.deferred_global_async_generator_type.set(deferred_global_async_generator_type);
+    }
+
+    pub(super) fn maybe_deferred_global_template_strings_array_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_template_strings_array_type.get()
+    }
+
+    pub(super) fn set_deferred_global_template_strings_array_type(&self, deferred_global_template_strings_array_type: Option<Id<Type>>) {
+        self.deferred_global_template_strings_array_type.set(deferred_global_template_strings_array_type);
+    }
+
+    pub(super) fn maybe_deferred_global_import_meta_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_import_meta_type.get()
+    }
+
+    pub(super) fn set_deferred_global_import_meta_type(&self, deferred_global_import_meta_type: Option<Id<Type>>) {
+        self.deferred_global_import_meta_type.set(deferred_global_import_meta_type);
+    }
+
+    pub(super) fn maybe_deferred_global_import_meta_expression_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_import_meta_expression_type.get()
+    }
+
+    pub(super) fn set_deferred_global_import_meta_expression_type(&self, deferred_global_import_meta_expression_type: Option<Id<Type>>) {
+        self.deferred_global_import_meta_expression_type.set(deferred_global_import_meta_expression_type);
+    }
+
+    pub(super) fn maybe_deferred_global_import_call_options_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_import_call_options_type.get()
+    }
+
+    pub(super) fn set_deferred_global_import_call_options_type(&self, deferred_global_import_call_options_type: Option<Id<Type>>) {
+        self.deferred_global_import_call_options_type.set(deferred_global_import_call_options_type);
+    }
+
+    pub(super) fn maybe_deferred_global_extract_symbol(&self) -> Option<Id<Symbol>> {
+        self.deferred_global_extract_symbol.get()
+    }
+
+    pub(super) fn set_deferred_global_extract_symbol(&self, deferred_global_extract_symbol: Option<Id<Symbol>>) {
+        self.deferred_global_extract_symbol.set(deferred_global_extract_symbol);
+    }
+
+    pub(super) fn maybe_deferred_global_omit_symbol(&self) -> Option<Id<Symbol>> {
+        self.deferred_global_omit_symbol.get()
+    }
+
+    pub(super) fn set_deferred_global_omit_symbol(&self, deferred_global_omit_symbol: Option<Id<Symbol>>) {
+        self.deferred_global_omit_symbol.set(deferred_global_omit_symbol);
+    }
+
+    pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> Option<Id<Symbol>> {
+        self.deferred_global_awaited_symbol.get()
+    }
+
+    pub(super) fn set_deferred_global_awaited_symbol(&self, deferred_global_awaited_symbol: Option<Id<Symbol>>) {
+        self.deferred_global_awaited_symbol.set(deferred_global_awaited_symbol);
+    }
+
+    pub(super) fn maybe_deferred_global_big_int_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_big_int_type.get()
+    }
+
+    pub(super) fn set_deferred_global_big_int_type(&self, deferred_global_big_int_type: Option<Id<Type>>) {
+        self.deferred_global_big_int_type.set(deferred_global_big_int_type);
     }
 
     pub(super) fn all_potentially_unused_identifiers(
         &self,
-    ) -> GcCellRefMut<HashMap<Path, Vec<Id<Node /*PotentiallyUnusedIdentifier*/>>>> {
+    ) -> RefMut<HashMap<Path, Vec<Id<Node /*PotentiallyUnusedIdentifier*/>>>> {
         self.all_potentially_unused_identifiers.borrow_mut()
     }
 
@@ -3444,8 +3491,12 @@ impl TypeChecker {
         self.flow_invocation_count.set(flow_invocation_count);
     }
 
-    pub(super) fn maybe_last_flow_node(&self) -> GcCellRefMut<Option<Id<FlowNode>>> {
-        self.last_flow_node.borrow_mut()
+    pub(super) fn maybe_last_flow_node(&self) -> Option<Id<FlowNode>> {
+        self.last_flow_node.get()
+    }
+
+    pub(super) fn set_last_flow_node(&self, last_flow_node: Option<Id<FlowNode>>) {
+        self.last_flow_node.set(last_flow_node);
     }
 
     pub(super) fn last_flow_node_reachable(&self) -> bool {
@@ -3456,7 +3507,7 @@ impl TypeChecker {
         self.last_flow_node_reachable.set(last_flow_node_reachable);
     }
 
-    pub(super) fn maybe_flow_type_cache(&self) -> GcCellRefMut<Option<HashMap<NodeId, Id<Type>>>> {
+    pub(super) fn maybe_flow_type_cache(&self) -> RefMut<Option<HashMap<NodeId, Id<Type>>>> {
         self.flow_type_cache.borrow_mut()
     }
 
@@ -3472,7 +3523,7 @@ impl TypeChecker {
         self.zero_big_int_type.clone().unwrap()
     }
 
-    pub(super) fn resolution_targets(&self) -> GcCellRefMut<Vec<TypeSystemEntity>> {
+    pub(super) fn resolution_targets(&self) -> RefMut<Vec<TypeSystemEntity>> {
         self.resolution_targets.borrow_mut()
     }
 
@@ -3492,7 +3543,7 @@ impl TypeChecker {
         self.suggestion_count.set(self.suggestion_count.get() + 1)
     }
 
-    pub(super) fn merged_symbols(&self) -> GcCellRefMut<HashMap<u32, Id<Symbol>>> {
+    pub(super) fn merged_symbols(&self) -> RefMut<HashMap<u32, Id<Symbol>>> {
         self.merged_symbols.borrow_mut()
     }
 
@@ -3502,11 +3553,11 @@ impl TypeChecker {
 
     pub(super) fn flow_loop_caches(
         &self,
-    ) -> GcCellRefMut<HashMap<usize, Id<HashMap<String, Id<Type>>>>> {
+    ) -> RefMut<HashMap<usize, Id<HashMap<String, Id<Type>>>>> {
         self.flow_loop_caches.borrow_mut()
     }
 
-    pub(super) fn flow_loop_nodes(&self) -> GcCellRefMut<HashMap<usize, Id<FlowNode>>> {
+    pub(super) fn flow_loop_nodes(&self) -> RefMut<HashMap<usize, Id<FlowNode>>> {
         self.flow_loop_nodes.borrow_mut()
     }
 
@@ -3514,15 +3565,23 @@ impl TypeChecker {
         self.flow_loop_keys.borrow_mut()
     }
 
-    pub(super) fn flow_loop_types(&self) -> GcCellRefMut<HashMap<usize, Vec<Id<Type>>>> {
+    pub(super) fn flow_loop_types(&self) -> RefMut<HashMap<usize, Vec<Id<Type>>>> {
         self.flow_loop_types.borrow_mut()
     }
 
-    pub(super) fn shared_flow_nodes(&self) -> GcCellRefMut<HashMap<usize, Id<FlowNode>>> {
+    pub(super) fn shared_flow_nodes(&self) -> Ref<HashMap<usize, Id<FlowNode>>> {
+        self.shared_flow_nodes.borrow()
+    }
+
+    pub(super) fn shared_flow_nodes_mut(&self) -> RefMut<HashMap<usize, Id<FlowNode>>> {
         self.shared_flow_nodes.borrow_mut()
     }
 
-    pub(super) fn shared_flow_types(&self) -> GcCellRefMut<HashMap<usize, FlowType>> {
+    pub(super) fn shared_flow_types(&self) -> Ref<HashMap<usize, FlowType>> {
+        self.shared_flow_types.borrow()
+    }
+
+    pub(super) fn shared_flow_types(&self) -> RefMut<HashMap<usize, FlowType>> {
         self.shared_flow_types.borrow_mut()
     }
 
@@ -3534,19 +3593,19 @@ impl TypeChecker {
         self.flow_node_post_super.borrow_mut()
     }
 
-    pub(super) fn potential_this_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
+    pub(super) fn potential_this_collisions_mut(&self) -> RefMut<Vec<Id<Node>>> {
         self.potential_this_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_new_target_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
+    pub(super) fn potential_new_target_collisions_mut(&self) -> RefMut<Vec<Id<Node>>> {
         self.potential_new_target_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_weak_map_set_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
+    pub(super) fn potential_weak_map_set_collisions_mut(&self) -> RefMut<Vec<Id<Node>>> {
         self.potential_weak_map_set_collisions.borrow_mut()
     }
 
-    pub(super) fn potential_reflect_collisions(&self) -> GcCellRefMut<Vec<Id<Node>>> {
+    pub(super) fn potential_reflect_collisions_mut(&self) -> RefMut<Vec<Id<Node>>> {
         self.potential_reflect_collisions.borrow_mut()
     }
 
@@ -3573,14 +3632,14 @@ impl TypeChecker {
     pub(super) fn maybe_outofband_variance_marker_handler(
         &self,
     ) -> Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>> {
-        self.outofband_variance_marker_handler.borrow().clone()
+        self.outofband_variance_marker_handler.get()
     }
 
     pub(super) fn set_outofband_variance_marker_handler(
         &self,
         outofband_variance_marker_handler: Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>,
     ) {
-        *self.outofband_variance_marker_handler.borrow_mut() = outofband_variance_marker_handler;
+        self.outofband_variance_marker_handler.set(outofband_variance_marker_handler);
     }
 
     pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {
@@ -3607,10 +3666,8 @@ impl TypeChecker {
         self.enum_relation.borrow_mut()
     }
 
-    pub(super) fn builtin_globals(&self) -> GcCellRef<SymbolTable> {
-        GcCellRef::map(self.builtin_globals.borrow(), |builtin_globals| {
-            builtin_globals.as_ref().unwrap()
-        })
+    pub(super) fn builtin_globals(&self) -> Ref<SymbolTable> {
+        ref_unwrapped(&self.builtin_globals)
     }
 }
 

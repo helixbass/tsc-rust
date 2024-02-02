@@ -621,7 +621,7 @@ impl TypeChecker {
         get_source_file_of_node(location, self)
             .ref_(self).as_source_file()
             .maybe_local_jsx_factory()
-            .or_else(|| self._jsx_factory_entity.borrow().clone())
+            .or_else(|| self._jsx_factory_entity.get())
         /*: _jsxFactoryEntity*/
     }
 
@@ -780,7 +780,7 @@ impl TypeChecker {
             }
             if let Some(file_symbol_global_exports) = file
                 .ref_(self).maybe_symbol()
-                .and_then(|file_symbol| file_symbol.ref_(self).maybe_global_exports().clone())
+                .and_then(|file_symbol| file_symbol.ref_(self).maybe_global_exports())
             {
                 let source = file_symbol_global_exports;
                 let mut globals = self.globals_mut();

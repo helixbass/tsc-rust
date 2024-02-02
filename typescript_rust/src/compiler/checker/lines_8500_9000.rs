@@ -1153,12 +1153,11 @@ impl TypeChecker {
             let initial_size = members.len();
             if let Some(resolved_symbol) = resolved_symbol {
                 let resolved_symbol_ref = resolved_symbol.ref_(self);
-                let mut resolved_symbol_exports = resolved_symbol_ref.maybe_exports_mut();
-                if resolved_symbol_exports.is_none() {
-                    *resolved_symbol_exports = Some(self.alloc_symbol_table(create_symbol_table(
+                if resolved_symbol_ref.maybe_exports().is_none() {
+                    resolved_symbol_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    )));
+                    ))));
                 }
             }
             for (name, &s) in &*resolved_symbol.unwrap_or(symbol).ref_(self).exports().ref_(self) {

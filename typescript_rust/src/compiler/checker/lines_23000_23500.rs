@@ -756,20 +756,17 @@ impl TypeChecker {
         evolving_array_type: Id<Type>, /*EvolvingArrayType*/
     ) -> io::Result<Id<Type>> {
         let evolving_array_type_ref = evolving_array_type.ref_(self);
-        let mut final_array_type = evolving_array_type_ref
-            .as_evolving_array_type()
-            .maybe_final_array_type();
-        if final_array_type.is_none() {
-            *final_array_type = Some(
+        if evolving_array_type_ref.as_evolving_array_type().maybe_final_array_type().is_none() {
+            evolving_array_type_ref.as_evolving_array_type().set_final_array_type(Some(
                 self.create_final_array_type(
                     evolving_array_type
                         .ref_(self)
                         .as_evolving_array_type()
                         .element_type,
                 )?,
-            );
+            ));
         }
-        Ok(final_array_type.clone().unwrap())
+        Ok(evolving_array_type_ref.as_evolving_array_type().maybe_final_array_type().unwrap())
     }
 
     pub(super) fn finalize_evolving_array_type(&self, type_: Id<Type>) -> io::Result<Id<Type>> {
@@ -1159,7 +1156,7 @@ impl TypeChecker {
 
     pub(super) fn is_reachable_flow_node(&self, flow: Id<FlowNode>) -> io::Result<bool> {
         let result = self.is_reachable_flow_node_worker(flow.clone(), false)?;
-        *self.maybe_last_flow_node() = Some(flow);
+        self.set_last_flow_node(Some(flow));
         self.set_last_flow_node_reachable(result);
         Ok(result)
     }
@@ -1186,7 +1183,7 @@ impl TypeChecker {
         mut no_cache_check: bool,
     ) -> io::Result<bool> {
         loop {
-            if *self.maybe_last_flow_node() == Some(flow) {
+            if self.maybe_last_flow_node() == Some(flow) {
                 return Ok(self.last_flow_node_reachable());
             }
             let flags = flow.ref_(self).flags();
@@ -1264,7 +1261,7 @@ impl TypeChecker {
                 }
                 flow = flow_as_flow_switch_clause.antecedent.clone();
             } else if flags.intersects(FlowFlags::ReduceLabel) {
-                *self.maybe_last_flow_node() = None;
+                self.set_last_flow_node(None);
                 let flow_ref = flow.ref_(self);
                 let flow_as_flow_reduce_label = flow_ref.as_flow_reduce_label();
                 let target = &flow_as_flow_reduce_label.target;
