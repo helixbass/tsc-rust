@@ -3194,54 +3194,112 @@ impl TypeChecker {
 
     pub(super) fn maybe_deferred_global_non_nullable_type_alias(
         &self,
-    ) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.deferred_global_non_nullable_type_alias.borrow_mut()
+    ) -> Option<Id<Symbol>> {
+        self.deferred_global_non_nullable_type_alias.get()
+    }
+
+    pub(super) fn set_deferred_global_non_nullable_type_alias(
+        &self,
+        deferred_global_non_nullable_type_alias: Option<Id<Symbol>>,
+    ) {
+        self.deferred_global_non_nullable_type_alias.set(deferred_global_non_nullable_type_alias);
     }
 
     pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(
         &self,
-    ) -> GcCellRefMut<Option<Id<Symbol>>> {
+    ) -> Option<Id<Symbol>> {
         self.deferred_global_es_symbol_constructor_symbol
-            .borrow_mut()
+            .get()
+    }
+
+    pub(super) fn set_deferred_global_es_symbol_constructor_symbol(
+        &self,
+        deferred_global_es_symbol_constructor_symbol: Option<Id<Symbol>>,
+    ) {
+        self.deferred_global_es_symbol_constructor_symbol
+            .set(deferred_global_es_symbol_constructor_symbol);
     }
 
     pub(super) fn maybe_deferred_global_es_symbol_constructor_type_symbol(
         &self,
-    ) -> GcCellRefMut<Option<Id<Symbol>>> {
+    ) -> Option<Id<Symbol>> {
         self.deferred_global_es_symbol_constructor_type_symbol
-            .borrow_mut()
+            .get()
     }
 
-    pub(super) fn maybe_deferred_global_es_symbol_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_es_symbol_type.borrow_mut()
+    pub(super) fn set_deferred_global_es_symbol_constructor_type_symbol(
+        &self,
+        deferred_global_es_symbol_constructor_type_symbol: Option<Id<Symbol>>,
+    ) {
+        self.deferred_global_es_symbol_constructor_type_symbol
+            .set(deferred_global_es_symbol_constructor_type_symbol);
+    }
+
+    pub(super) fn maybe_deferred_global_es_symbol_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_es_symbol_type.get()
+    }
+
+    pub(super) fn set_deferred_global_es_symbol_type(&self, deferred_global_es_symbol_type: Option<Id<Type>>) {
+        self.deferred_global_es_symbol_type.set(deferred_global_es_symbol_type);
     }
 
     pub(super) fn maybe_deferred_global_typed_property_descriptor_type(
         &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
+    ) -> Option<Id<Type>> {
         self.deferred_global_typed_property_descriptor_type
-            .borrow_mut()
+            .get()
     }
 
-    pub(super) fn maybe_deferred_global_promise_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_promise_type.borrow_mut()
+    pub(super) fn set_deferred_global_typed_property_descriptor_type(
+        &self,
+        deferred_global_typed_property_descriptor_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_typed_property_descriptor_type
+            .set(deferred_global_typed_property_descriptor_type);
     }
 
-    pub(super) fn maybe_deferred_global_promise_like_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.deferred_global_promise_like_type.borrow_mut()
+    pub(super) fn maybe_deferred_global_promise_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_promise_type.get()
+    }
+
+    pub(super) fn set_deferred_global_promise_type(&self, deferred_global_promise_type: Option<Id<Type>>) {
+        self.deferred_global_promise_type.set(deferred_global_promise_type);
+    }
+
+    pub(super) fn maybe_deferred_global_promise_like_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_promise_like_type.get()
+    }
+
+    pub(super) fn set_deferred_global_promise_like_type(&self, deferred_global_promise_like_type: Option<Id<Type>>) {
+        self.deferred_global_promise_like_type.set(deferred_global_promise_like_type)
     }
 
     pub(super) fn maybe_deferred_global_promise_constructor_symbol(
         &self,
-    ) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.deferred_global_promise_constructor_symbol.borrow_mut()
+    ) -> Option<Id<Symbol>> {
+        self.deferred_global_promise_constructor_symbol.get()
+    }
+
+    pub(super) fn set_deferred_global_promise_constructor_symbol(
+        &self,
+        deferred_global_promise_constructor_symbol: Option<Id<Symbol>>,
+    ) {
+        self.deferred_global_promise_constructor_symbol.set(deferred_global_promise_constructor_symbol);
     }
 
     pub(super) fn maybe_deferred_global_promise_constructor_like_type(
         &self,
-    ) -> GcCellRefMut<Option<Id<Type>>> {
+    ) -> Option<Id<Type>> {
         self.deferred_global_promise_constructor_like_type
-            .borrow_mut()
+            .get()
+    }
+
+    pub(super) fn set_deferred_global_promise_constructor_like_type(
+        &self,
+        deferred_global_promise_constructor_like_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_promise_constructor_like_type
+            .set(deferred_global_promise_constructor_like_type)
     }
 
     pub(super) fn maybe_deferred_global_iterable_type(&self) -> GcCellRefMut<Option<Id<Type>>> {

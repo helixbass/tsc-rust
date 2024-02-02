@@ -296,14 +296,13 @@ impl TypeChecker {
             .maybe_deferred_global_typed_property_descriptor_type()
             .is_none()
         {
-            *self.maybe_deferred_global_typed_property_descriptor_type() = Some(
+            self.set_deferred_global_typed_property_descriptor_type(Some(
                 self.get_global_type("TypedPropertyDescriptor", 1, true)?
                     .unwrap_or_else(|| self.empty_generic_type()),
-            );
+            ));
         }
         Ok(self
             .maybe_deferred_global_typed_property_descriptor_type()
-            .clone()
             .unwrap())
     }
 
@@ -405,12 +404,12 @@ impl TypeChecker {
             .maybe_deferred_global_es_symbol_constructor_symbol()
             .is_none()
         {
-            *self.maybe_deferred_global_es_symbol_constructor_symbol() =
-                self.get_global_value_symbol("Symbol", report_errors)?;
+            self.set_deferred_global_es_symbol_constructor_symbol(
+                self.get_global_value_symbol("Symbol", report_errors)?
+            );
         }
         Ok(self
-            .maybe_deferred_global_es_symbol_constructor_symbol()
-            .clone())
+            .maybe_deferred_global_es_symbol_constructor_symbol())
     }
 
     pub(super) fn get_global_es_symbol_constructor_type_symbol(
@@ -421,22 +420,22 @@ impl TypeChecker {
             .maybe_deferred_global_es_symbol_constructor_type_symbol()
             .is_none()
         {
-            *self.maybe_deferred_global_es_symbol_constructor_type_symbol() =
-                self.get_global_type_symbol("SymbolConstructor", report_errors)?;
+            self.set_deferred_global_es_symbol_constructor_type_symbol(
+                self.get_global_type_symbol("SymbolConstructor", report_errors)?
+            );
         }
         Ok(self
-            .maybe_deferred_global_es_symbol_constructor_type_symbol()
-            .clone())
+            .maybe_deferred_global_es_symbol_constructor_type_symbol())
     }
 
     pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_es_symbol_type().is_none() {
-            *self.maybe_deferred_global_es_symbol_type() =
-                self.get_global_type("Symbol", 0, report_errors)?;
+            self.set_deferred_global_es_symbol_type(
+                self.get_global_type("Symbol", 0, report_errors)?
+            );
         }
         Ok(self
             .maybe_deferred_global_es_symbol_type()
-            .clone()
             .unwrap_or_else(|| self.empty_object_type()))
     }
 
@@ -445,12 +444,12 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type /*GenericType*/>> {
         if self.maybe_deferred_global_promise_type().is_none() {
-            *self.maybe_deferred_global_promise_type() =
-                self.get_global_type("Promise", 1, report_errors)?;
+            self.set_deferred_global_promise_type(
+                self.get_global_type("Promise", 1, report_errors)?
+            );
         }
         Ok(self
             .maybe_deferred_global_promise_type()
-            .clone()
             .unwrap_or_else(|| self.empty_generic_type()))
     }
 
@@ -459,12 +458,12 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type /*GenericType*/>> {
         if self.maybe_deferred_global_promise_like_type().is_none() {
-            *self.maybe_deferred_global_promise_like_type() =
-                self.get_global_type("PromiseLike", 1, report_errors)?;
+            self.set_deferred_global_promise_like_type(
+                self.get_global_type("PromiseLike", 1, report_errors)?
+            );
         }
         Ok(self
             .maybe_deferred_global_promise_like_type()
-            .clone()
             .unwrap_or_else(|| self.empty_generic_type()))
     }
 
@@ -476,12 +475,12 @@ impl TypeChecker {
             .maybe_deferred_global_promise_constructor_symbol()
             .is_none()
         {
-            *self.maybe_deferred_global_promise_constructor_symbol() =
-                self.get_global_value_symbol("Promise", report_errors)?;
+            self.set_deferred_global_promise_constructor_symbol(
+                self.get_global_value_symbol("Promise", report_errors)?
+            );
         }
         Ok(self
-            .maybe_deferred_global_promise_constructor_symbol()
-            .clone())
+            .maybe_deferred_global_promise_constructor_symbol())
     }
 
     pub(super) fn get_global_promise_constructor_like_type(
@@ -492,12 +491,12 @@ impl TypeChecker {
             .maybe_deferred_global_promise_constructor_like_type()
             .is_none()
         {
-            *self.maybe_deferred_global_promise_constructor_like_type() =
-                self.get_global_type("PromiseConstructorLike", 0, report_errors)?;
+            self.set_deferred_global_promise_constructor_like_type(
+                self.get_global_type("PromiseConstructorLike", 0, report_errors)?
+            );
         }
         Ok(self
             .maybe_deferred_global_promise_constructor_like_type()
-            .clone()
             .unwrap_or_else(|| self.empty_object_type()))
     }
 

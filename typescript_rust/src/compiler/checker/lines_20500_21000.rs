@@ -1009,15 +1009,14 @@ impl TypeChecker {
             .maybe_deferred_global_non_nullable_type_alias()
             .is_none()
         {
-            *self.maybe_deferred_global_non_nullable_type_alias() = Some(
+            self.set_deferred_global_non_nullable_type_alias(Some(
                 self.get_global_symbol("NonNullable", SymbolFlags::TypeAlias, None)?
                     .unwrap_or_else(|| self.unknown_symbol()),
-            );
+            ));
         }
         Ok(
             if let Some(deferred_global_non_nullable_type_alias) = self
                 .maybe_deferred_global_non_nullable_type_alias()
-                .clone()
                 .filter(|&deferred_global_non_nullable_type_alias| {
                     deferred_global_non_nullable_type_alias != self.unknown_symbol()
                 })
