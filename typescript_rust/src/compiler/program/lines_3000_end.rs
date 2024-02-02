@@ -95,7 +95,7 @@ impl Program {
                     } else {
                         &*Diagnostics::Cannot_find_lib_definition_for_0
                     };
-                    self.maybe_file_processing_diagnostics().get_or_insert_default_().push(
+                    self.maybe_file_processing_diagnostics_mut().get_or_insert_default_().push(
                         self.alloc_file_preprocessing_diagnostics(FilePreprocessingDiagnostics::FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic {
                             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic,
                             reason: ReferencedFile {
@@ -1298,7 +1298,7 @@ impl Program {
         diagnostic: &'static DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        self.maybe_file_processing_diagnostics()
+        self.maybe_file_processing_diagnostics_mut()
             .get_or_insert_default_()
             .push(self.alloc_file_preprocessing_diagnostics(FilePreprocessingDiagnostics::FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic {
                 kind: FilePreprocessingDiagnosticsKind::FilePreprocessingFileExplainingDiagnostic,
@@ -1987,12 +1987,12 @@ impl Program {
             return host_symlink_cache;
         }
         if self.symlinks().is_none() {
-            *self.symlinks() = Some(self.alloc_symlink_cache(create_symlink_cache(
+            self.set_symlinks(Some(self.alloc_symlink_cache(create_symlink_cache(
                 &self.current_directory(),
                 self.alloc_get_canonical_file_name(Box::new(HostGetCanonicalFileName::new(self.host()))),
-            )));
+            ))));
         }
-        let symlinks = self.symlinks().clone().unwrap();
+        let symlinks = self.symlinks().unwrap();
         if
         /*files && resolvedTypeReferenceDirectives &&*/
         !symlinks.ref_(self).has_processed_resolutions() {

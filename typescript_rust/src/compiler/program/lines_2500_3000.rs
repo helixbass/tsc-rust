@@ -497,7 +497,7 @@ impl Program {
                     .push(dup_file.clone());
                 return Ok(Some(dup_file));
             } else if let Some(file) = file.as_ref() {
-                self.package_id_to_source_file()
+                self.package_id_to_source_file_mut()
                     .insert(package_id_key, file.clone());
                 self.source_file_to_package_name()
                     .insert(path.clone(), package_id.name.clone());
@@ -517,7 +517,6 @@ impl Program {
             file_as_source_file.set_implied_node_format(get_implied_node_format_for_file(
                 file_as_source_file.maybe_resolved_path().as_ref().unwrap(),
                 self.maybe_module_resolution_cache()
-                    .as_ref()
                     .map(|module_resolution_cache| {
                         module_resolution_cache.ref_(self).get_package_json_info_cache()
                     })
@@ -542,7 +541,7 @@ impl Program {
                         reason,
                     );
                 } else {
-                    self.files_by_name_ignore_case()
+                    self.files_by_name_ignore_case_mut()
                         .insert(path_lower_case, file.clone());
                 }
             }
@@ -1063,7 +1062,7 @@ impl Program {
                     .unwrap(),
             ),
             self.host().ref_(self).as_dyn_module_resolution_host(),
-            self.maybe_module_resolution_cache().clone(),
+            self.maybe_module_resolution_cache(),
             None,
             None,
             self,

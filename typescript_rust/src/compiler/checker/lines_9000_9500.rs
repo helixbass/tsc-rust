@@ -205,7 +205,7 @@ impl TypeChecker {
             .as_object_type()
             .set_object_flags(result.ref_(self).as_object_type().object_flags() | object_flags);
         if include_pattern_in_type {
-            *result.ref_(self).maybe_pattern() = Some(pattern);
+            result.ref_(self).set_pattern(Some(pattern));
             result.ref_(self).as_object_type().set_object_flags(
                 result.ref_(self).as_object_type().object_flags()
                     | ObjectFlags::ContainsObjectOrArrayLiteral,
@@ -271,7 +271,7 @@ impl TypeChecker {
             self.create_tuple_type(&element_types, Some(&element_flags), None, None)?;
         if include_pattern_in_type {
             result = self.clone_type_reference(result);
-            *result.ref_(self).maybe_pattern() = Some(pattern);
+            result.ref_(self).set_pattern(Some(pattern));
             result.ref_(self).as_object_type().set_object_flags(
                 result.ref_(self).as_object_type().object_flags()
                     | ObjectFlags::ContainsObjectOrArrayLiteral,

@@ -1141,8 +1141,9 @@ impl Program {
 
         self.set_files(Some(new_source_files));
         self.set_file_reasons(old_program.ref_(self).get_file_include_reasons());
-        *self.maybe_file_processing_diagnostics() =
-            old_program.ref_(self).maybe_file_processing_diagnostics().clone();
+        self.set_file_processing_diagnostics(
+            old_program.ref_(self).maybe_file_processing_diagnostics().clone()
+        );
         self.set_resolved_type_reference_directives(
             old_program.ref_(self).resolved_type_reference_directives(),
         );
@@ -1192,7 +1193,7 @@ impl Program {
 
     pub fn get_resolved_project_references(
         &self,
-    ) -> GcCellRef<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
+    ) -> Ref<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
     }
 
@@ -1242,16 +1243,14 @@ impl Program {
         //     self.diagnostics_producing_type_checker = Some(create_type_checker(self, true));
         //     self.diagnostics_producing_type_checker.as_ref().unwrap()
         // }
-        let mut diagnostics_producing_type_checker =
-            self.diagnostics_producing_type_checker.borrow_mut();
-        if diagnostics_producing_type_checker.is_none() {
-            *diagnostics_producing_type_checker = Some(create_type_checker(
+        if self.diagnostics_producing_type_checker.get().is_none() {
+            self.diagnostics_producing_type_checker.set(Some(create_type_checker(
                 &*static_arena(),
                 self.arena_id(),
                 true,
-            )?);
+            )?));
         }
-        Ok(diagnostics_producing_type_checker.as_ref().unwrap().clone())
+        Ok(self.diagnostics_producing_type_checker.get().unwrap())
     }
 
     pub(super) fn get_diagnostics_helper(

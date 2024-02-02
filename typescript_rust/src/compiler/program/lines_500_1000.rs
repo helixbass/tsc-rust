@@ -951,15 +951,15 @@ impl Program {
         *self.root_names.borrow_mut() = Some(root_names);
         *self.config_file_parsing_diagnostics.borrow_mut() = config_file_parsing_diagnostics;
         *self.project_references.borrow_mut() = project_references;
-        *self.old_program.borrow_mut() = old_program;
+        self.old_program.set(old_program);
 
         // tracing?.push(tracing.Phase.Program, "createProgram", { configFilePath: options.configFilePath, rootDir: options.rootDir }, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeProgram");
 
-        *self.host.borrow_mut() = Some(host.unwrap_or_else(|| {
+        self.host.set(Some(host.unwrap_or_else(|| {
             self.alloc_compiler_host(Box::new(create_compiler_host(self.options.clone(), None, self)))
-        }));
-        *self.config_parsing_host.borrow_mut() = Some(self.alloc_parse_config_file_host(Box::new(
+        })));
+        self.config_parsing_host.set(Some(self.alloc_parse_config_file_host(Box::new(
             parse_config_host_from_compiler_host_like(
                 self.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::new(
                     self.host(),
@@ -967,7 +967,7 @@ impl Program {
                 None,
                 self,
             ),
-        )));
+        ))));
 
         self.skip_default_lib.set(self.options.ref_(self).no_lib);
         *self.default_library_path.borrow_mut() =
@@ -991,12 +991,12 @@ impl Program {
         *self.has_emit_blocking_diagnostics.borrow_mut() = Some(HashMap::new());
 
         if self.host().ref_(self).is_resolve_module_names_supported() {
-            *self.actual_resolve_module_names_worker.borrow_mut() = Some(self.alloc_actual_resolve_module_names_worker(Box::new(
+            self.actual_resolve_module_names_worker.set(Some(self.alloc_actual_resolve_module_names_worker(Box::new(
                 ActualResolveModuleNamesWorkerHost::new(self.host(), self.options.clone()),
-            )));
-            *self.module_resolution_cache.borrow_mut() = self.host().ref_(self).get_module_resolution_cache();
+            ))));
+            self.module_resolution_cache.set(self.host().ref_(self).get_module_resolution_cache());
         } else {
-            *self.module_resolution_cache.borrow_mut() =
+            self.module_resolution_cache.set(
                 Some(self.alloc_module_resolution_cache(create_module_resolution_cache(
                     &self.current_directory(),
                     self.get_canonical_file_name_rc(),
@@ -1004,55 +1004,55 @@ impl Program {
                     None,
                     None,
                     self,
-                )));
+                )))
+            );
             let loader = LoadWithModeAwareCacheLoaderResolveModuleName::new(
                 self.options.clone(),
                 self.host(),
-                self.maybe_module_resolution_cache().clone(),
+                self.maybe_module_resolution_cache(),
             );
-            *self.actual_resolve_module_names_worker.borrow_mut() = Some(self.alloc_actual_resolve_module_names_worker(Box::new(
+            self.actual_resolve_module_names_worker.set(Some(self.alloc_actual_resolve_module_names_worker(Box::new(
                 ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(self.alloc_load_with_mode_aware_cache_loader(Box::new(
                     loader,
                 ))),
-            )));
+            ))));
         }
 
         if self.host().ref_(self).is_resolve_type_reference_directives_supported() {
-            *self
+            self
                 .actual_resolve_type_reference_directive_names_worker
-                .borrow_mut() = Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
+                .set(Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
                 ActualResolveTypeReferenceDirectiveNamesWorkerHost::new(
                     self.host(),
                     self.options.clone(),
                 ),
-            )));
+            ))));
         } else {
-            *self.type_reference_directive_resolution_cache.borrow_mut() =
+            self.type_reference_directive_resolution_cache.set(
                 Some(self.alloc_type_reference_directive_resolution_cache(create_type_reference_directive_resolution_cache(
                     &self.current_directory(),
                     self.get_canonical_file_name_rc(),
                     None,
                     self.maybe_module_resolution_cache()
-                        .as_ref()
                         .map(|module_resolution_cache| {
                             module_resolution_cache.ref_(self).get_package_json_info_cache()
                         }),
                     None,
                     self,
-                )));
+                )))
+            );
             let loader = LoadWithLocalCacheLoaderResolveTypeReferenceDirective::new(
                 self.options.clone(),
                 self.host(),
-                self.maybe_type_reference_directive_resolution_cache()
-                    .clone(),
+                self.maybe_type_reference_directive_resolution_cache(),
             );
-            *self
+            self
                 .actual_resolve_type_reference_directive_names_worker
-                .borrow_mut() = Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
+                .set(Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
                 ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(self.alloc_load_with_local_cache_loader(
                     Box::new(loader),
                 )),
-            )));
+            ))));
         }
 
         *self.package_id_to_source_file.borrow_mut() = Some(HashMap::new());
@@ -1089,8 +1089,8 @@ impl Program {
             },
             self,
         );
-        *self.file_exists_rc.borrow_mut() = Some(file_exists);
-        *self.directory_exists_rc.borrow_mut() = directory_exists;
+        self.file_exists_rc.set(Some(file_exists));
+        self.directory_exists_rc.set(directory_exists);
 
         // tracing?.push(tracing.Phase.Program, "shouldProgramCreateNewSourceFiles", { hasOldProgram: !!oldProgram });
         self.should_create_new_source_file
@@ -1351,7 +1351,7 @@ impl Program {
             }
         }
 
-        *self.type_reference_directive_resolution_cache.borrow_mut() = None;
+        self.type_reference_directive_resolution_cache.set(None);
 
         self.set_old_program(None);
 
@@ -1411,11 +1411,11 @@ impl Program {
     }
 
     pub fn set_arena_id(&self, id: Id<Self>) {
-        *self._arena_id.borrow_mut() = Some(id);
+        self._arena_id.set(Some(id));
     }
 
     pub fn arena_id(&self) -> Id<Self> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     pub(super) fn root_names(&self) -> Ref<Vec<String>> {
@@ -1426,7 +1426,7 @@ impl Program {
 
     pub(super) fn maybe_config_file_parsing_diagnostics(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<Diagnostic>>>> {
+    ) -> Ref<Option<Vec<Id<Diagnostic>>>> {
         self.config_file_parsing_diagnostics.borrow()
     }
 
@@ -1434,8 +1434,8 @@ impl Program {
         self.project_references.borrow()
     }
 
-    pub(super) fn files(&self) -> GcCellRef<Vec<Id<Node>>> {
-        GcCellRef::map(self.files.borrow(), |files| files.as_ref().unwrap())
+    pub(super) fn files(&self) -> Ref<Vec<Id<Node>>> {
+        ref_unwrapped(&self.files)
     }
 
     pub(super) fn set_files(&self, files: Option<Vec<Id<Node>>>) {
@@ -1501,23 +1501,27 @@ impl Program {
     }
 
     pub(super) fn maybe_old_program(&self) -> Option<Id<Program>> {
-        self.old_program.borrow().clone()
+        self.old_program.get()
     }
 
     pub(super) fn set_old_program(&self, old_program: Option<Id<Program>>) {
-        *self.old_program.borrow_mut() = old_program;
+        self.old_program.set(old_program);
     }
 
     pub(super) fn host(&self) -> Id<Box<dyn CompilerHost>> {
-        self.host.borrow().clone().unwrap()
+        self.host.get().unwrap()
     }
 
     pub(super) fn config_parsing_host(&self) -> Id<Box<dyn ParseConfigFileHost>> {
-        self.config_parsing_host.borrow().clone().unwrap()
+        self.config_parsing_host.get().unwrap()
     }
 
-    pub(super) fn symlinks(&self) -> GcCellRefMut<Option<Id<SymlinkCache>>> {
-        self.symlinks.borrow_mut()
+    pub(super) fn symlinks(&self) -> Option<Id<SymlinkCache>> {
+        self.symlinks.get()
+    }
+
+    pub(super) fn set_symlinks(&self, symlinks: Option<Id<SymlinkCache>>) {
+        self.symlinks.set(symlinks);
     }
 
     pub(super) fn ambient_module_name_to_unmodified_file_name(
@@ -1540,20 +1544,33 @@ impl Program {
 
     pub(super) fn cached_bind_and_check_diagnostics_for_file_mut(
         &self,
-    ) -> GcCellRefMut<DiagnosticCache> {
+    ) -> RefMut<DiagnosticCache> {
         self.cached_bind_and_check_diagnostics_for_file.borrow_mut()
     }
 
     pub(super) fn cached_declaration_diagnostics_for_file_mut(
         &self,
-    ) -> GcCellRefMut<DiagnosticCache> {
+    ) -> RefMut<DiagnosticCache> {
         self.cached_declaration_diagnostics_for_file.borrow_mut()
     }
 
     pub(super) fn maybe_file_processing_diagnostics(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<FilePreprocessingDiagnostics>>>> {
+    ) -> Ref<Option<Vec<Id<FilePreprocessingDiagnostics>>>> {
+        self.file_processing_diagnostics.borrow()
+    }
+
+    pub(super) fn maybe_file_processing_diagnostics_mut(
+        &self,
+    ) -> RefMut<Option<Vec<Id<FilePreprocessingDiagnostics>>>> {
         self.file_processing_diagnostics.borrow_mut()
+    }
+
+    pub(super) fn set_file_processing_diagnostics(
+        &self,
+        file_processing_diagnostics: Option<Vec<Id<FilePreprocessingDiagnostics>>>,
+    ) {
+        *self.file_processing_diagnostics.borrow_mut() = file_processing_diagnostics;
     }
 
     pub(super) fn resolved_type_reference_directives(
@@ -1569,18 +1586,15 @@ impl Program {
         self.resolved_type_reference_directives.set(resolved_type_reference_directives);
     }
 
-    pub(super) fn program_diagnostics(&self) -> GcCellRef<DiagnosticCollection> {
-        GcCellRef::map(self.program_diagnostics.borrow(), |program_diagnostics| {
-            program_diagnostics.as_ref().unwrap()
-        })
+    pub(super) fn program_diagnostics(&self) -> Ref<DiagnosticCollection> {
+        ref_unwrapped(&self.program_diagnostics)
     }
 
     pub(super) fn program_diagnostics_mut(
         &self,
-    ) -> GcCellRefMut<Option<DiagnosticCollection>, DiagnosticCollection> {
-        GcCellRefMut::map(
-            self.program_diagnostics.borrow_mut(),
-            |program_diagnostics| program_diagnostics.as_mut().unwrap(),
+    ) -> RefMut<DiagnosticCollection> {
+        ref_mut_unwrapped(
+            &self.program_diagnostics
         )
     }
 
@@ -1619,37 +1633,33 @@ impl Program {
     }
 
     pub(super) fn maybe_compiler_options_object_literal_syntax(&self) -> Option<Option<Id<Node>>> {
-        self._compiler_options_object_literal_syntax
-            .borrow()
-            .clone()
+        self._compiler_options_object_literal_syntax.get()
     }
 
     pub(super) fn set_compiler_options_object_literal_syntax(
         &self,
         compiler_options_object_literal_syntax: Option<Option<Id<Node>>>,
     ) {
-        *self._compiler_options_object_literal_syntax.borrow_mut() =
-            compiler_options_object_literal_syntax;
+        self._compiler_options_object_literal_syntax.set(compiler_options_object_literal_syntax);
     }
 
     pub(super) fn maybe_module_resolution_cache(
         &self,
-    ) -> GcCellRefMut<Option<Id<ModuleResolutionCache>>> {
-        self.module_resolution_cache.borrow_mut()
+    ) -> Option<Id<ModuleResolutionCache>> {
+        self.module_resolution_cache.get()
     }
 
     pub(super) fn maybe_type_reference_directive_resolution_cache(
         &self,
-    ) -> GcCellRefMut<Option<Id<TypeReferenceDirectiveResolutionCache>>> {
-        self.type_reference_directive_resolution_cache.borrow_mut()
+    ) -> Option<Id<TypeReferenceDirectiveResolutionCache>> {
+        self.type_reference_directive_resolution_cache.get()
     }
 
     pub(super) fn actual_resolve_module_names_worker(
         &self,
     ) -> Id<Box<dyn ActualResolveModuleNamesWorker>> {
         self.actual_resolve_module_names_worker
-            .borrow_mut()
-            .clone()
+            .get()
             .unwrap()
     }
 
@@ -1657,20 +1667,23 @@ impl Program {
         &self,
     ) -> Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>> {
         self.actual_resolve_type_reference_directive_names_worker
-            .borrow_mut()
-            .clone()
+            .get()
             .unwrap()
     }
 
     pub(super) fn package_id_to_source_file(
         &self,
-    ) -> GcCellRefMut<
-        Option<HashMap<String, Id<Node /*SourceFile*/>>>,
-        HashMap<String, Id<Node /*SourceFile*/>>,
-    > {
-        GcCellRefMut::map(
-            self.package_id_to_source_file.borrow_mut(),
-            |package_id_to_source_file| package_id_to_source_file.as_mut().unwrap(),
+    ) -> Ref<HashMap<String, Id<Node /*SourceFile*/>>> {
+        ref_unwrapped(
+            &self.package_id_to_source_file
+        )
+    }
+
+    pub(super) fn package_id_to_source_file_mut(
+        &self,
+    ) -> RefMut<HashMap<String, Id<Node /*SourceFile*/>>> {
+        ref_mut_unwrapped(
+            &self.package_id_to_source_file,
         )
     }
 
@@ -1704,19 +1717,15 @@ impl Program {
             .set(Some(uses_uri_style_node_core_modules));
     }
 
-    pub(super) fn files_by_name(&self) -> GcCellRef<HashMap<String, FilesByNameValue>> {
-        GcCellRef::map(self.files_by_name.borrow(), |files_by_name| {
-            files_by_name.as_ref().unwrap()
-        })
+    pub(super) fn files_by_name(&self) -> Ref<HashMap<String, FilesByNameValue>> {
+        ref_unwrapped(&self.files_by_name)
     }
 
     pub(super) fn files_by_name_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, FilesByNameValue>>, HashMap<String, FilesByNameValue>>
+    ) -> RefMut<HashMap<String, FilesByNameValue>>
     {
-        GcCellRefMut::map(self.files_by_name.borrow_mut(), |files_by_name| {
-            files_by_name.as_mut().unwrap()
-        })
+        ref_mut_unwrapped(&self.files_by_name)
     }
 
     pub(super) fn maybe_missing_file_paths(&self) -> RefMut<Option<Vec<Path>>> {
@@ -1725,44 +1734,50 @@ impl Program {
 
     pub(super) fn files_by_name_ignore_case(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, Id<Node>>>, HashMap<String, Id<Node>>> {
-        GcCellRefMut::map(
-            self.files_by_name_ignore_case.borrow_mut(),
-            |files_by_name_ignore_case| files_by_name_ignore_case.as_mut().unwrap(),
+    ) -> Ref<HashMap<String, Id<Node>>> {
+        ref_unwrapped(
+            &self.files_by_name_ignore_case
+        )
+    }
+
+    pub(super) fn files_by_name_ignore_case_mut(
+        &self,
+    ) -> RefMut<HashMap<String, Id<Node>>> {
+        ref_mut_unwrapped(
+            &self.files_by_name_ignore_case
         )
     }
 
     pub(super) fn maybe_resolved_project_references(
         &self,
-    ) -> GcCellRef<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
+    ) -> Ref<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow()
     }
 
     pub(super) fn maybe_resolved_project_references_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
+    ) -> RefMut<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.resolved_project_references.borrow_mut()
     }
 
     pub(super) fn maybe_project_reference_redirects(
         &self,
-    ) -> GcCellRef<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>> {
+    ) -> Ref<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>> {
         self.project_reference_redirects.borrow()
     }
 
     pub(super) fn maybe_project_reference_redirects_mut(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>> {
+    ) -> RefMut<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>> {
         self.project_reference_redirects.borrow_mut()
     }
 
     pub(super) fn project_reference_redirects_mut(
         &self,
-    ) -> GcCellRefMut<
-        Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>,
+    ) -> RefMut<
         HashMap<Path, Option<Id<ResolvedProjectReference>>>,
     > {
-        gc_cell_ref_mut_unwrapped(&self.project_reference_redirects)
+        ref_mut_unwrapped(&self.project_reference_redirects)
     }
 
     pub(super) fn maybe_map_from_file_to_project_reference_redirects(
@@ -1784,13 +1799,13 @@ impl Program {
     }
 
     pub(super) fn file_exists_rc(&self) -> Id<Box<dyn ModuleResolutionHostOverrider>> {
-        self.file_exists_rc.borrow().clone().unwrap()
+        self.file_exists_rc.get().unwrap()
     }
 
     pub(super) fn maybe_directory_exists_rc(
         &self,
     ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-        self.directory_exists_rc.borrow().clone()
+        self.directory_exists_rc.get()
     }
 
     pub(super) fn should_create_new_source_file(&self) -> bool {
@@ -1808,7 +1823,7 @@ impl Program {
     pub(super) fn maybe_get_program_build_info_id(
         &self,
     ) -> Option<Id<Box<dyn GetProgramBuildInfo>>> {
-        self.get_program_build_info.borrow().clone()
+        self.get_program_build_info.get()
     }
 }
 

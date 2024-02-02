@@ -80,7 +80,7 @@ impl TypeChecker {
             );
         }
         if in_destructuring_pattern {
-            *result.ref_(self).maybe_pattern() = Some(node);
+            result.ref_(self).set_pattern(Some(node));
         }
         Ok(result)
     }

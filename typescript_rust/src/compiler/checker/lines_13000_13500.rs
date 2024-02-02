@@ -434,8 +434,8 @@ impl TypeChecker {
         type_.mapper = mapper;
         let type_ = self.alloc_type(TypeReference::new(type_, target, None).into());
         *type_.ref_(self).as_type_reference().maybe_node_mut() = Some(node);
-        *type_.ref_(self).maybe_alias_symbol_mut() = alias_symbol;
-        *type_.ref_(self).maybe_alias_type_arguments_mut() = alias_type_arguments;
+        type_.ref_(self).set_alias_symbol(alias_symbol);
+        type_.ref_(self).set_alias_type_arguments(alias_type_arguments);
         Ok(type_)
     }
 
@@ -783,8 +783,8 @@ impl TypeChecker {
                     ),
                 );
                 let error_type = error_type.unwrap();
-                *error_type.ref_(self).maybe_alias_symbol_mut() = Some(symbol);
-                *error_type.ref_(self).maybe_alias_type_arguments_mut() = type_arguments;
+                error_type.ref_(self).set_alias_symbol(Some(symbol));
+                error_type.ref_(self).set_alias_type_arguments(type_arguments);
                 self.error_types().insert(id, error_type.clone());
             }
             return Ok(error_type.unwrap());

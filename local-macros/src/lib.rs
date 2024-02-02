@@ -1345,24 +1345,28 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_symbol(symbol)
                     }
 
-                    fn maybe_pattern(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
+                    fn maybe_pattern(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         self.#first_field_name.maybe_pattern()
+                    }
+
+                    fn set_pattern(&self, pattern: ::std::option::Option<::id_arena::Id<crate::Node>>) {
+                        self.#first_field_name.set_pattern(pattern);
                     }
 
                     fn maybe_alias_symbol(&self) -> ::std::option::Option<::id_arena::Id<crate::Symbol>> {
                         self.#first_field_name.maybe_alias_symbol()
                     }
 
-                    fn maybe_alias_symbol_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Symbol>>> {
-                        self.#first_field_name.maybe_alias_symbol_mut()
+                    fn set_alias_symbol(&self, alias_symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
+                        self.#first_field_name.set_alias_symbol(alias_symbol)
                     }
 
                     fn maybe_alias_type_arguments(&self) -> ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.maybe_alias_type_arguments()
                     }
 
-                    fn maybe_alias_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
-                        self.#first_field_name.maybe_alias_type_arguments_mut()
+                    fn set_alias_type_arguments(&self, alias_type_arguments: ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>) {
+                        self.#first_field_name.set_alias_type_arguments(alias_type_arguments);
                     }
 
                     fn maybe_alias_type_arguments_contains_marker(&self) -> ::std::option::Option<bool> {
@@ -1388,8 +1392,12 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.maybe_restrictive_instantiation()
                     }
 
-                    fn maybe_permissive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn maybe_permissive_instantiation(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_permissive_instantiation()
+                    }
+
+                    fn set_permissive_instantiation(&self, permissive_instantiation: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        self.#first_field_name.set_permissive_instantiation(permissive_instantiation)
                     }
 
                     fn maybe_resolved_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
@@ -1855,9 +1863,15 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_pattern(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Node>>> {
+                    fn maybe_pattern(&self) -> ::std::option::Option<::id_arena::Id<crate::Node>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_pattern()),*
+                        }
+                    }
+
+                    fn set_pattern(&self, pattern: ::std::option::Option<::id_arena::Id<crate::Node>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_pattern(pattern)),*
                         }
                     }
 
@@ -1867,9 +1881,9 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_alias_symbol_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Symbol>>> {
+                    fn set_alias_symbol(&self, alias_symbol: ::std::option::Option<::id_arena::Id<crate::Symbol>>) {
                         match self {
-                            #(#type_type_name::#variant_names(nested) => nested.maybe_alias_symbol_mut()),*
+                            #(#type_type_name::#variant_names(nested) => nested.set_alias_symbol(alias_symbol)),*
                         }
                     }
 
@@ -1879,9 +1893,9 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_alias_type_arguments_mut(&self) -> ::gc::GcCellRefMut<::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>> {
+                    fn set_alias_type_arguments(&self, alias_type_arguments: ::std::option::Option<::std::vec::Vec<::id_arena::Id<crate::Type>>>) {
                         match self {
-                            #(#type_type_name::#variant_names(nested) => nested.maybe_alias_type_arguments_mut()),*
+                            #(#type_type_name::#variant_names(nested) => nested.set_alias_type_arguments(alias_type_arguments)),*
                         }
                     }
 
@@ -1918,9 +1932,15 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_permissive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn maybe_permissive_instantiation(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_permissive_instantiation()),*
+                        }
+                    }
+
+                    fn set_permissive_instantiation(&self, permissive_instantiation: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_permissive_instantiation(permissive_instantiation)),*
                         }
                     }
 

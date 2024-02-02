@@ -1622,34 +1622,34 @@ impl FilePreprocessingDiagnostics {
 
 #[derive(Trace, Finalize)]
 pub struct Program {
-    pub(crate) _arena_id: GcCell<Option<Id<Program>>>,
+    pub(crate) _arena_id: Cell<Option<Id<Program>>>,
     pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
     #[unsafe_ignore_trace]
     pub(crate) root_names: RefCell<Option<Vec<String>>>,
     pub(crate) options: Id<CompilerOptions>,
-    pub(crate) config_file_parsing_diagnostics: GcCell<Option<Vec<Id<Diagnostic>>>>,
+    pub(crate) config_file_parsing_diagnostics: RefCell<Option<Vec<Id<Diagnostic>>>>,
     #[unsafe_ignore_trace]
     pub(crate) project_references: RefCell<Option<Vec<Rc<ProjectReference>>>>,
-    pub(crate) processing_default_lib_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
-    pub(crate) processing_other_files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
-    pub(crate) files: GcCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
-    pub(crate) symlinks: GcCell<Option<Id<SymlinkCache>>>,
+    pub(crate) processing_default_lib_files: RefCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
+    pub(crate) processing_other_files: RefCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
+    pub(crate) files: RefCell<Option<Vec<Id</*SourceFile*/ Node>>>>,
+    pub(crate) symlinks: Cell<Option<Id<SymlinkCache>>>,
     #[unsafe_ignore_trace]
     pub(crate) common_source_directory: RefCell<Option<String>>,
-    pub(crate) diagnostics_producing_type_checker: GcCell<Option<Id<TypeChecker>>>,
-    pub(crate) no_diagnostics_type_checker: GcCell<Option<Id<TypeChecker>>>,
+    pub(crate) diagnostics_producing_type_checker: Cell<Option<Id<TypeChecker>>>,
+    pub(crate) no_diagnostics_type_checker: Cell<Option<Id<TypeChecker>>>,
     #[allow(dead_code)]
     #[unsafe_ignore_trace]
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,
     #[unsafe_ignore_trace]
     pub(crate) ambient_module_name_to_unmodified_file_name: RefCell<HashMap<String, String>>,
     pub(crate) file_reasons: Cell<Id<MultiMap<Path, Id<FileIncludeReason>>>>,
-    pub(crate) cached_bind_and_check_diagnostics_for_file: GcCell<DiagnosticCache>,
-    pub(crate) cached_declaration_diagnostics_for_file: GcCell<DiagnosticCache>,
+    pub(crate) cached_bind_and_check_diagnostics_for_file: RefCell<DiagnosticCache>,
+    pub(crate) cached_declaration_diagnostics_for_file: RefCell<DiagnosticCache>,
 
     pub(crate) resolved_type_reference_directives:
         Cell<Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>>,
-    pub(crate) file_processing_diagnostics: GcCell<Option<Vec<Id<FilePreprocessingDiagnostics>>>>,
+    pub(crate) file_processing_diagnostics: RefCell<Option<Vec<Id<FilePreprocessingDiagnostics>>>>,
 
     pub(crate) max_node_module_js_depth: usize,
     #[unsafe_ignore_trace]
@@ -1661,9 +1661,9 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) source_files_found_searching_node_modules: RefCell<HashMap<String, bool>>,
 
-    pub(crate) old_program: GcCell<Option<Id<Program>>>,
-    pub(crate) host: GcCell<Option<Id<Box<dyn CompilerHost>>>>,
-    pub(crate) config_parsing_host: GcCell<Option<Id<Box<dyn ParseConfigFileHost>>>>,
+    pub(crate) old_program: Cell<Option<Id<Program>>>,
+    pub(crate) host: Cell<Option<Id<Box<dyn CompilerHost>>>>,
+    pub(crate) config_parsing_host: Cell<Option<Id<Box<dyn ParseConfigFileHost>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) skip_default_lib: Cell<Option<bool>>,
@@ -1671,7 +1671,7 @@ pub struct Program {
     pub(crate) get_default_library_file_name_memoized: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
     pub(crate) default_library_path: RefCell<Option<String>>,
-    pub(crate) program_diagnostics: GcCell<Option<DiagnosticCollection>>,
+    pub(crate) program_diagnostics: RefCell<Option<DiagnosticCollection>>,
     #[unsafe_ignore_trace]
     pub(crate) current_directory: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
@@ -1683,16 +1683,16 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) has_emit_blocking_diagnostics: RefCell<Option<HashMap<Path, bool>>>,
     pub(crate) _compiler_options_object_literal_syntax:
-        GcCell<Option<Option<Id<Node /*ObjectLiteralExpression*/>>>>,
-    pub(crate) module_resolution_cache: GcCell<Option<Id<ModuleResolutionCache>>>,
+        Cell<Option<Option<Id<Node /*ObjectLiteralExpression*/>>>>,
+    pub(crate) module_resolution_cache: Cell<Option<Id<ModuleResolutionCache>>>,
     pub(crate) type_reference_directive_resolution_cache:
-        GcCell<Option<Id<TypeReferenceDirectiveResolutionCache>>>,
+        Cell<Option<Id<TypeReferenceDirectiveResolutionCache>>>,
     pub(crate) actual_resolve_module_names_worker:
-        GcCell<Option<Id<Box<dyn ActualResolveModuleNamesWorker>>>>,
+        Cell<Option<Id<Box<dyn ActualResolveModuleNamesWorker>>>>,
     pub(crate) actual_resolve_type_reference_directive_names_worker:
-        GcCell<Option<Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
+        Cell<Option<Id<Box<dyn ActualResolveTypeReferenceDirectiveNamesWorker>>>>,
 
-    pub(crate) package_id_to_source_file: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
+    pub(crate) package_id_to_source_file: RefCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
     #[unsafe_ignore_trace]
     pub(crate) source_file_to_package_name: RefCell<Option<HashMap<Path, String>>>,
     #[unsafe_ignore_trace]
@@ -1700,15 +1700,15 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) uses_uri_style_node_core_modules: Cell<Option<bool>>,
 
-    pub(crate) files_by_name: GcCell<Option<HashMap<String, FilesByNameValue>>>,
+    pub(crate) files_by_name: RefCell<Option<HashMap<String, FilesByNameValue>>>,
     #[unsafe_ignore_trace]
     pub(crate) missing_file_paths: RefCell<Option<Vec<Path>>>,
-    pub(crate) files_by_name_ignore_case: GcCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
+    pub(crate) files_by_name_ignore_case: RefCell<Option<HashMap<String, Id<Node /*SourceFile*/>>>>,
 
     pub(crate) resolved_project_references:
-        GcCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
+        RefCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
     pub(crate) project_reference_redirects:
-        GcCell<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>>,
+        RefCell<Option<HashMap<Path, Option<Id<ResolvedProjectReference>>>>>,
     #[unsafe_ignore_trace]
     pub(crate) map_from_file_to_project_reference_redirects: RefCell<Option<HashMap<Path, Path>>>,
     #[unsafe_ignore_trace]
@@ -1717,15 +1717,15 @@ pub struct Program {
     #[unsafe_ignore_trace]
     pub(crate) use_source_of_project_reference_redirect: Cell<Option<bool>>,
 
-    pub(crate) file_exists_rc: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-    pub(crate) directory_exists_rc: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    pub(crate) file_exists_rc: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+    pub(crate) directory_exists_rc: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
 
     #[unsafe_ignore_trace]
     pub(crate) should_create_new_source_file: Cell<Option<bool>>,
     #[unsafe_ignore_trace]
     pub(crate) structure_is_reused: Cell<Option<StructureIsReused>>,
 
-    pub(crate) get_program_build_info: GcCell<Option<Id<Box<dyn GetProgramBuildInfo>>>>,
+    pub(crate) get_program_build_info: Cell<Option<Id<Box<dyn GetProgramBuildInfo>>>>,
 }
 
 impl fmt::Debug for Program {

@@ -159,9 +159,10 @@ impl TypeChecker {
         let type_ = self.alloc_type(
             IndexedAccessType::new(type_, object_type, index_type, access_flags).into(),
         );
-        *type_.ref_(self).maybe_alias_symbol_mut() = alias_symbol;
-        *type_.ref_(self).maybe_alias_type_arguments_mut() =
-            alias_type_arguments.map(ToOwned::to_owned);
+        type_.ref_(self).set_alias_symbol(alias_symbol);
+        type_.ref_(self).set_alias_type_arguments(
+            alias_type_arguments.map(ToOwned::to_owned)
+        );
         type_
     }
 

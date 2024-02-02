@@ -972,7 +972,7 @@ impl TypeChecker {
         let contextual_type_has_pattern = matches!(
             contextual_type,
             Some(contextual_type) if matches!(
-                *contextual_type.ref_(self).maybe_pattern(),
+                contextual_type.ref_(self).maybe_pattern(),
                 Some(contextual_type_pattern) if matches!(
                     contextual_type_pattern.ref_(self).kind(),
                     SyntaxKind::ObjectBindingPattern |

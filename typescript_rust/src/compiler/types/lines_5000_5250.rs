@@ -1,4 +1,4 @@
-use std::{cell::Cell, collections::HashMap, rc::Rc};
+use std::{cell::{Cell, RefCell}, collections::HashMap, rc::Rc};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
@@ -25,7 +25,7 @@ use crate::{
 pub struct MappedSymbol {
     _transient_symbol: BaseTransientSymbol,
     pub mapped_type: Id<Type /*MappedType*/>,
-    key_type: GcCell<Id<Type>>,
+    key_type: Cell<Id<Type>>,
 }
 
 impl MappedSymbol {
@@ -37,16 +37,16 @@ impl MappedSymbol {
         Self {
             _transient_symbol: transient_symbol,
             mapped_type,
-            key_type: GcCell::new(key_type),
+            key_type: Cell::new(key_type),
         }
     }
 
     pub fn key_type(&self) -> Id<Type> {
-        self.key_type.borrow().clone()
+        self.key_type.get()
     }
 
     pub fn set_key_type(&self, key_type: Id<Type>) {
-        *self.key_type.borrow_mut() = key_type;
+        self.key_type.set(key_type);
     }
 }
 
@@ -544,17 +544,19 @@ pub trait TypeInterface {
     fn maybe_symbol(&self) -> Option<Id<Symbol>>;
     fn symbol(&self) -> Id<Symbol>;
     fn set_symbol(&self, symbol: Option<Id<Symbol>>);
-    fn maybe_pattern(&self) -> GcCellRefMut<Option<Id<Node /*DestructuringPattern*/>>>;
+    fn maybe_pattern(&self) -> Option<Id<Node /*DestructuringPattern*/>>;
+    fn set_pattern(&self, pattern: Option<Id<Node /*DestructuringPattern*/>>);
     fn maybe_alias_symbol(&self) -> Option<Id<Symbol>>;
-    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Id<Symbol>>>;
+    fn set_alias_symbol(&self, alias_symbol: Option<Id<Symbol>>);
     fn maybe_alias_type_arguments(&self) -> Option<Vec<Id<Type>>>;
-    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>>;
+    fn set_alias_type_arguments(&self, alias_type_arguments: Option<Vec<Id<Type>>>);
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool>;
     fn set_alias_type_arguments_contains_marker(
         &self,
         alias_type_arguments_contains_marker: Option<bool>,
     );
-    fn maybe_permissive_instantiation(&self) -> GcCellRefMut<Option<Id<Type>>>;
+    fn maybe_permissive_instantiation(&self) -> Option<Id<Type>>;
+    fn set_permissive_instantiation(&self, permissive_instantiation: Option<Id<Type>>);
     fn maybe_restrictive_instantiation(&self) -> GcCellRefMut<Option<Id<Type>>>;
     fn maybe_immediate_base_constraint(&self) -> GcCellRefMut<Option<Id<Type>>>;
     fn maybe_widened(&self) -> GcCellRefMut<Option<Id<Type>>>;
@@ -594,18 +596,18 @@ pub trait TypeInterface {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct BaseType {
-    _arena_id: GcCell<Option<Id<Type>>>,
+    _arena_id: Cell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     flags: Cell<TypeFlags>,
     #[unsafe_ignore_trace]
     pub id: Option<TypeId>,
-    symbol: GcCell<Option<Id<Symbol>>>,
-    pattern: GcCell<Option<Id<Node>>>,
-    alias_symbol: GcCell<Option<Id<Symbol>>>,
-    alias_type_arguments: GcCell<Option<Vec<Id<Type>>>>,
+    symbol: Cell<Option<Id<Symbol>>>,
+    pattern: Cell<Option<Id<Node>>>,
+    alias_symbol: Cell<Option<Id<Symbol>>>,
+    alias_type_arguments: RefCell<Option<Vec<Id<Type>>>>,
     #[unsafe_ignore_trace]
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
-    permissive_instantiation: GcCell<Option<Id<Type>>>,
+    permissive_instantiation: Cell<Option<Id<Type>>>,
     restrictive_instantiation: GcCell<Option<Id<Type>>>,
     immediate_base_constraint: GcCell<Option<Id<Type>>>,
     widened: GcCell<Option<Id<Type>>>,
@@ -666,11 +668,11 @@ impl BaseType {
 
 impl TypeInterface for BaseType {
     fn arena_id(&self) -> Id<Type> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     fn set_arena_id(&self, id: Id<Type>) {
-        *self._arena_id.borrow_mut() = Some(id);
+        self._arena_id.set(Some(id));
     }
 
     fn flags(&self) -> TypeFlags {
@@ -686,35 +688,39 @@ impl TypeInterface for BaseType {
     }
 
     fn maybe_symbol(&self) -> Option<Id<Symbol>> {
-        self.symbol.borrow().as_ref().map(Clone::clone)
+        self.symbol.get()
     }
 
     fn symbol(&self) -> Id<Symbol> {
-        self.symbol.borrow().as_ref().unwrap().clone()
+        self.symbol.get().unwrap()
     }
 
     fn set_symbol(&self, symbol: Option<Id<Symbol>>) {
-        *self.symbol.borrow_mut() = symbol;
+        self.symbol.set(symbol);
     }
 
-    fn maybe_pattern(&self) -> GcCellRefMut<Option<Id<Node>>> {
-        self.pattern.borrow_mut()
+    fn maybe_pattern(&self) -> Option<Id<Node>> {
+        self.pattern.get()
+    }
+
+    fn set_pattern(&self, pattern: Option<Id<Node /*DestructuringPattern*/>>) {
+        self.pattern.set(pattern);
     }
 
     fn maybe_alias_symbol(&self) -> Option<Id<Symbol>> {
-        self.alias_symbol.borrow().clone()
+        self.alias_symbol.get()
     }
 
-    fn maybe_alias_symbol_mut(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.alias_symbol.borrow_mut()
+    fn set_alias_symbol(&self, alias_symbol: Option<Id<Symbol>>) {
+        self.alias_symbol.set(alias_symbol);
     }
 
     fn maybe_alias_type_arguments(&self) -> Option<Vec<Id<Type>>> {
-        self.alias_type_arguments.borrow().clone()
+        self.alias_type_arguments.get()
     }
 
-    fn maybe_alias_type_arguments_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
-        self.alias_type_arguments.borrow_mut()
+    fn set_alias_type_arguments(&self, alias_type_arguments: Option<Vec<Id<Type>>>) {
+        *self.alias_type_arguments.borrow_mut() = alias_type_arguments;
     }
 
     fn maybe_alias_type_arguments_contains_marker(&self) -> Option<bool> {
@@ -729,8 +735,12 @@ impl TypeInterface for BaseType {
             .set(alias_type_arguments_contains_marker);
     }
 
-    fn maybe_permissive_instantiation(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.permissive_instantiation.borrow_mut()
+    fn maybe_permissive_instantiation(&self) -> Option<Id<Type>> {
+        self.permissive_instantiation.get()
+    }
+
+    fn set_permissive_instantiation(&self, permissive_instantiation: Option<Id<Type>>) {
+        self.permissive_instantiation.set(permissive_instantiation);
     }
 
     fn maybe_restrictive_instantiation(&self) -> GcCellRefMut<Option<Id<Type>>> {

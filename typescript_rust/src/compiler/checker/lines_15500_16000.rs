@@ -73,9 +73,10 @@ impl TypeChecker {
             let type_ = self.create_object_type(ObjectFlags::Mapped, node.ref_(self).maybe_symbol());
             let type_ = self.alloc_type(MappedType::new(type_, node).into());
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
-            *type_.ref_(self).maybe_alias_symbol_mut() = alias_symbol.clone();
-            *type_.ref_(self).maybe_alias_type_arguments_mut() =
-                self.get_type_arguments_for_alias_symbol(alias_symbol)?;
+            type_.ref_(self).set_alias_symbol(alias_symbol);
+            type_.ref_(self).set_alias_type_arguments(
+                self.get_type_arguments_for_alias_symbol(alias_symbol)?
+            );
             links.ref_mut(self).resolved_type = Some(type_.clone());
             self.get_constraint_type_from_mapped_type(type_)?;
         }
@@ -353,17 +354,17 @@ impl TypeChecker {
                 )
                 .into(),
             );
-            *result.ref_(self).maybe_alias_symbol_mut() = alias_symbol
-                .clone()
-                .or_else(|| root.ref_(self).alias_symbol.clone());
-            *result.ref_(self).maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
+            result.ref_(self).set_alias_symbol(alias_symbol
+                .or_else(|| root.ref_(self).alias_symbol)
+            );
+            result.ref_(self).set_alias_type_arguments(if alias_symbol.is_some() {
                 alias_type_arguments.map(ToOwned::to_owned)
             } else {
                 self.instantiate_types(
                     root.ref_(self).alias_type_arguments.clone().as_deref(),
                     mapper.clone(),
                 )?
-            };
+            });
             break;
         }
         Ok(if let Some(mut extra_types) = extra_types {
@@ -885,9 +886,10 @@ impl TypeChecker {
                     self.create_object_type(ObjectFlags::Anonymous, node.ref_(self).maybe_symbol())
                         .into(),
                 );
-                *type_.ref_(self).maybe_alias_symbol_mut() = alias_symbol.clone();
-                *type_.ref_(self).maybe_alias_type_arguments_mut() =
-                    self.get_type_arguments_for_alias_symbol(alias_symbol)?;
+                type_.ref_(self).set_alias_symbol(alias_symbol);
+                type_.ref_(self).set_alias_type_arguments(
+                    self.get_type_arguments_for_alias_symbol(alias_symbol)?
+                );
                 if is_jsdoc_type_literal(&node.ref_(self)) && node.ref_(self).as_jsdoc_type_literal().is_array_type {
                     type_ = self.create_array_type(type_, None);
                 }

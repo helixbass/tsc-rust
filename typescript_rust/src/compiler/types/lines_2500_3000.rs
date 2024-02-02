@@ -95,7 +95,7 @@ impl HasPropertiesInterface for JsxAttributes {
 pub struct JsxOpeningElement {
     _node: BaseNode,
     pub tag_name: Id<Node /*JsxTagNameExpression*/>,
-    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub attributes: Id<Node /*JsxAttributes*/>,
 }
 
@@ -109,7 +109,7 @@ impl JsxOpeningElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
             attributes,
         }
     }
@@ -137,7 +137,7 @@ impl JsxOpeningLikeElementInterface for JsxOpeningElement {
 
 impl HasTypeArgumentsInterface for JsxOpeningElement {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 
@@ -146,7 +146,7 @@ impl HasTypeArgumentsInterface for JsxOpeningElement {
 pub struct JsxSelfClosingElement {
     _node: BaseNode,
     pub tag_name: Id<Node /*JsxTagNameExpression*/>,
-    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub attributes: Id<Node /*JsxAttributes*/>,
 }
 
@@ -160,7 +160,7 @@ impl JsxSelfClosingElement {
         Self {
             _node: base_node,
             tag_name,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
             attributes,
         }
     }
@@ -180,7 +180,7 @@ impl JsxOpeningLikeElementInterface for JsxSelfClosingElement {
 
 impl HasTypeArgumentsInterface for JsxSelfClosingElement {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 
@@ -960,7 +960,7 @@ pub struct CaseClause {
     _node: BaseNode,
     pub expression: Id<Node /*Expression*/>,
     pub statements: Id<NodeArray>, /*<Statement>*/
-    fallthrough_flow_node: GcCell<Option<Id<FlowNode>>>,
+    fallthrough_flow_node: Cell<Option<Id<FlowNode>>>,
 }
 
 impl CaseClause {
@@ -987,11 +987,11 @@ pub trait CaseOrDefaultClauseInterface: HasStatementsInterface {
 
 impl CaseOrDefaultClauseInterface for CaseClause {
     fn maybe_fallthrough_flow_node(&self) -> Option<Id<FlowNode>> {
-        self.fallthrough_flow_node.borrow().clone()
+        self.fallthrough_flow_node.get()
     }
 
     fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Id<FlowNode>>) {
-        *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
+        self.fallthrough_flow_node.set(fallthrough_flow_node);
     }
 }
 
@@ -1006,7 +1006,7 @@ impl HasExpressionInterface for CaseClause {
 pub struct DefaultClause {
     _node: BaseNode,
     pub statements: Id<NodeArray>, /*<Statement>*/
-    fallthrough_flow_node: GcCell<Option<Id<FlowNode>>>,
+    fallthrough_flow_node: Cell<Option<Id<FlowNode>>>,
 }
 
 impl DefaultClause {
@@ -1027,11 +1027,11 @@ impl HasStatementsInterface for DefaultClause {
 
 impl CaseOrDefaultClauseInterface for DefaultClause {
     fn maybe_fallthrough_flow_node(&self) -> Option<Id<FlowNode>> {
-        self.fallthrough_flow_node.borrow().clone()
+        self.fallthrough_flow_node.get()
     }
 
     fn set_fallthrough_flow_node(&self, fallthrough_flow_node: Option<Id<FlowNode>>) {
-        *self.fallthrough_flow_node.borrow_mut() = fallthrough_flow_node;
+        self.fallthrough_flow_node.set(fallthrough_flow_node);
     }
 }
 
@@ -1417,7 +1417,7 @@ pub trait GenericNamedDeclarationInterface:
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseGenericNamedDeclaration {
     _named_declaration: BaseNamedDeclaration,
-    type_parameters: GcCell<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>>,
+    type_parameters: Cell<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>>,
 }
 
 impl BaseGenericNamedDeclaration {
@@ -1427,18 +1427,18 @@ impl BaseGenericNamedDeclaration {
     ) -> Self {
         Self {
             _named_declaration: base_named_declaration,
-            type_parameters: GcCell::new(type_parameters),
+            type_parameters: Cell::new(type_parameters),
         }
     }
 }
 
 impl HasTypeParametersInterface for BaseGenericNamedDeclaration {
     fn maybe_type_parameters(&self) -> Option<Id<NodeArray>> {
-        self.type_parameters.borrow().clone()
+        self.type_parameters.get()
     }
 
     fn set_type_parameters(&self, type_parameters: Option<Id<NodeArray>>) {
-        self.type_parameters.borrow_mut()
+        self.type_parameters.set(type_parameters);
     }
 }
 

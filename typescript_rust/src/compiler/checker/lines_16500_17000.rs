@@ -445,17 +445,17 @@ impl TypeChecker {
         } else {
             self.alloc_type(result.into())
         };
-        *result.ref_(self).maybe_alias_symbol_mut() = alias_symbol
+        result.ref_(self).set_alias_symbol(alias_symbol
             .clone()
-            .or_else(|| type_.ref_(self).maybe_alias_symbol().clone());
-        *result.ref_(self).maybe_alias_type_arguments_mut() = if alias_symbol.is_some() {
+            .or_else(|| type_.ref_(self).maybe_alias_symbol().clone()));
+        result.ref_(self).set_alias_type_arguments(if alias_symbol.is_some() {
             alias_type_arguments.map(ToOwned::to_owned)
         } else {
             self.instantiate_types(
                 type_.ref_(self).maybe_alias_type_arguments().as_deref(),
                 Some(mapper),
             )?
-        };
+        });
         Ok(result)
     }
 
@@ -908,13 +908,13 @@ impl TypeChecker {
                 type_
             } else {
                 if type_.ref_(self).maybe_permissive_instantiation().is_none() {
-                    *type_.ref_(self).maybe_permissive_instantiation() =
-                        Some(self.instantiate_type(type_, self.permissive_mapper.clone())?);
+                    type_.ref_(self).set_permissive_instantiation(
+                        Some(self.instantiate_type(type_, self.permissive_mapper.clone())?)
+                    );
                 }
                 type_
                     .ref_(self)
                     .maybe_permissive_instantiation()
-                    .clone()
                     .unwrap()
             },
         )
