@@ -1141,9 +1141,8 @@ impl TypeChecker {
         node: Id<Node>, /*SourceFile*/
         error_node: Id<Node>,
     ) -> io::Result<Id<Symbol>> {
-        let mut external_helpers_module = self.maybe_external_helpers_module();
-        if external_helpers_module.is_none() {
-            *external_helpers_module = Some(
+        if self.maybe_external_helpers_module().is_none() {
+            self.set_external_helpers_module(Some(
                 self.resolve_external_module(
                     node,
                     external_helpers_module_name_text,
@@ -1151,9 +1150,9 @@ impl TypeChecker {
                     error_node,
                     None,
                 )?.unwrap_or_else(|| self.unknown_symbol())
-            );
+            ));
         }
-        Ok(external_helpers_module.clone().unwrap())
+        Ok(self.maybe_external_helpers_module().unwrap())
     }
 
     pub(super) fn check_grammar_decorators_and_modifiers(&self, node: Id<Node>) -> bool {

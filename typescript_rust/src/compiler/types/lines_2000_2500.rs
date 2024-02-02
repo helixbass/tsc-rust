@@ -556,7 +556,7 @@ pub struct CallExpression {
     _node: BaseNode,
     pub expression: Id<Node /*LeftHandSideExpression*/>,
     pub question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
-    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub arguments: Id<NodeArray>, /*<Expression>*/
 }
 
@@ -572,7 +572,7 @@ impl CallExpression {
             _node: base_node,
             expression,
             question_dot_token,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
             arguments,
         }
     }
@@ -598,7 +598,7 @@ impl HasArgumentsInterface for CallExpression {
 
 impl HasTypeArgumentsInterface for CallExpression {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 
@@ -606,7 +606,7 @@ impl HasTypeArgumentsInterface for CallExpression {
 #[ast_type]
 pub struct ExpressionWithTypeArguments {
     _node: BaseNode,
-    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub expression: Id<Node /*LeftHandSideExpression*/>,
 }
 
@@ -619,7 +619,7 @@ impl ExpressionWithTypeArguments {
         Self {
             _node: base_node,
             expression,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
         }
     }
 }
@@ -632,7 +632,7 @@ impl HasExpressionInterface for ExpressionWithTypeArguments {
 
 impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 
@@ -641,7 +641,7 @@ impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
 pub struct NewExpression {
     _node: BaseNode,
     pub expression: Id<Node /*LeftHandSideExpression*/>,
-    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub arguments: Option<Id<NodeArray> /*<Expression>*/>,
 }
 
@@ -655,7 +655,7 @@ impl NewExpression {
         Self {
             _node: base_node,
             expression,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
             arguments,
         }
     }
@@ -675,7 +675,7 @@ impl HasArgumentsInterface for NewExpression {
 
 impl HasTypeArgumentsInterface for NewExpression {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 
@@ -684,7 +684,7 @@ impl HasTypeArgumentsInterface for NewExpression {
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
     pub tag: Id<Node /*LeftHandSideExpression*/>,
-    type_arguments: GcCell<Option<Id<NodeArray> /*<TypeNode>*/>>,
+    type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode>*/>>,
     pub template: Id<Node /*TemplateLiteral*/>,
     pub(crate) question_dot_token: Option<Id<Node /*QuestionDotToken*/>>,
 }
@@ -700,7 +700,7 @@ impl TaggedTemplateExpression {
         Self {
             _node: base_node,
             tag,
-            type_arguments: GcCell::new(type_arguments),
+            type_arguments: Cell::new(type_arguments),
             template,
             question_dot_token,
         }
@@ -709,7 +709,7 @@ impl TaggedTemplateExpression {
 
 impl HasTypeArgumentsInterface for TaggedTemplateExpression {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>> {
-        self.type_arguments.borrow().clone()
+        self.type_arguments.get()
     }
 }
 

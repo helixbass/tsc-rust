@@ -794,10 +794,12 @@ pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>, arena: &imp
     if let Some(original) = original {
         let emit_node = original.ref_(arena).maybe_emit_node();
         if let Some(emit_node) = emit_node {
-            let node_emit_node = node
-                .ref_(arena).maybe_emit_node_mut()
-                .get_or_insert_with(|| arena.alloc_emit_node(Default::default()))
-                .clone();
+            let node_emit_node = {
+                if node.ref_(self).maybe_emit_node().is_none() {
+                    node.ref_(self).set_emit_node(arena.alloc_emit_node(Default::default()));
+                }
+                node.ref_(self).maybe_emit_node().unwrap()
+            };
             // looks like node and original can share the same Id<EmitNode> (eg from
             // clone_node(), which I believe is correctly mimicking the Typescript version in
             // cloning that field by reference) so we'd have a borrow error if we try

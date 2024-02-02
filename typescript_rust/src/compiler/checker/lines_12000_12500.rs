@@ -454,18 +454,16 @@ impl TypeChecker {
                 .maybe_resolved_reduced_type()
                 .is_none()
             {
-                *type_
+                type_
                     .ref_(self)
                     .as_union_type()
-                    .maybe_resolved_reduced_type() = Some(self.get_reduced_union_type(type_)?);
+                    .set_resolved_reduced_type(Some(self.get_reduced_union_type(type_)?));
             }
-            return Ok((*type_
+            return Ok(type_
                 .ref_(self)
                 .as_union_type()
-                .maybe_resolved_reduced_type())
-            .borrow()
-            .clone()
-            .unwrap());
+                .maybe_resolved_reduced_type()
+                .unwrap());
         } else if type_.ref_(self).flags().intersects(TypeFlags::Intersection) {
             if !type_
                 .ref_(self)
@@ -518,10 +516,10 @@ impl TypeChecker {
         }
         let reduced = self.get_union_type(&reduced_types, None, None, None, None)?;
         if reduced.ref_(self).flags().intersects(TypeFlags::Union) {
-            *reduced
+            reduced
                 .ref_(self)
                 .as_union_type()
-                .maybe_resolved_reduced_type() = Some(reduced.clone());
+                .set_resolved_reduced_type(Some(reduced.clone()));
         }
         Ok(reduced)
     }

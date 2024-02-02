@@ -591,10 +591,10 @@ impl TypeChecker {
         check_mode: CheckMode,
     ) -> io::Result<Id<Type>> {
         let context = self.get_context_node(node);
-        let save_contextual_type = context.ref_(self).maybe_contextual_type().clone();
+        let save_contextual_type = context.ref_(self).maybe_contextual_type();
         let save_inference_context = context.ref_(self).maybe_inference_context().clone();
         // try {
-        *context.ref_(self).maybe_contextual_type() = Some(contextual_type);
+        context.ref_(self).set_contextual_type(Some(contextual_type));
         *context.ref_(self).maybe_inference_context() = inference_context.clone();
         let type_ = self.check_expression(
             node,
@@ -620,7 +620,7 @@ impl TypeChecker {
         };
         // }
         // finally {
-        *context.ref_(self).maybe_contextual_type() = save_contextual_type;
+        context.ref_(self).set_contextual_type(save_contextual_type);
         *context.ref_(self).maybe_inference_context() = save_inference_context;
         // }
         Ok(result)

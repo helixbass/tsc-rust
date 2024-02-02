@@ -103,9 +103,9 @@ impl TypeChecker {
                     Some(reference),
                 );
                 set_parent(&reference.ref_(self), Some(static_block));
-                *reference.ref_(self).maybe_flow_node_mut() = static_block
+                reference.ref_(self).set_flow_node(static_block
                     .ref_(self).as_class_static_block_declaration()
-                    .maybe_return_flow_node();
+                    .maybe_return_flow_node());
                 let flow_type = self.get_flow_type_of_reference(
                     reference,
                     prop_type,
@@ -138,9 +138,9 @@ impl TypeChecker {
             Some(reference),
         );
         set_parent(&reference.ref_(self), Some(constructor));
-        *reference.ref_(self).maybe_flow_node_mut() = constructor
+        reference.ref_(self).set_flow_node(constructor
             .ref_(self).as_constructor_declaration()
-            .maybe_return_flow_node();
+            .maybe_return_flow_node());
         let flow_type = self.get_flow_type_of_reference(
             reference,
             prop_type,

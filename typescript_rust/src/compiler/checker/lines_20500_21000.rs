@@ -311,7 +311,6 @@ impl TypeChecker {
                         .ref_(self)
                         .as_type_reference_interface()
                         .maybe_cached_equivalent_base_type()
-                        .clone()
                 } else {
                     None
                 },
@@ -398,10 +397,10 @@ impl TypeChecker {
                     .object_flags()
                     | ObjectFlags::IdenticalBaseTypeExists,
             );
-        *type_
+        type_
             .ref_(self)
             .as_type_reference_interface()
-            .maybe_cached_equivalent_base_type() = Some(instantiated_base.clone());
+            .set_cached_equivalent_base_type(Some(instantiated_base.clone()));
         Ok(Some(instantiated_base))
     }
 

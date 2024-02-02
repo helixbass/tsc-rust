@@ -1,4 +1,4 @@
-use std::{io, ptr, any::Any};
+use std::{io, ptr, any::Any, cell::{Cell, RefCell}};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -190,8 +190,8 @@ pub struct NodeFactory {
     pub base_factory: Id<Box<dyn BaseNodeFactory>>,
     #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
-    pub parenthesizer_rules: GcCell<Option<Id<Box<dyn ParenthesizerRules>>>>,
-    pub converters: GcCell<Option<Box<dyn NodeConverters>>>,
+    pub parenthesizer_rules: Cell<Option<Id<Box<dyn ParenthesizerRules>>>>,
+    pub converters: RefCell<Option<Box<dyn NodeConverters>>>,
 }
 
 bitflags! {

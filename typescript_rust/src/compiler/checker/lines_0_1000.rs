@@ -1540,11 +1540,11 @@ pub(crate) struct DuplicateInfoForFiles {
 
 impl TypeChecker {
     pub fn arena_id(&self) -> Id<Self> {
-        self._arena_id.borrow().clone().unwrap()
+        self._arena_id.get().unwrap()
     }
 
     fn set_arena_id(&self, id: Id<Self>) {
-        *self._arena_id.borrow_mut() = Some(id);
+        self._arena_id.set(Some(id));
     }
 
     pub(super) fn get_packages_map(&self) -> Ref<HashMap<String, bool>> {
@@ -1583,14 +1583,14 @@ impl TypeChecker {
     pub(super) fn maybe_cancellation_token(
         &self,
     ) -> Option<Id<Box<dyn CancellationToken>>> {
-        self.cancellation_token.borrow().clone()
+        self.cancellation_token.get()
     }
 
     pub(super) fn set_cancellation_token(
         &self,
         cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) {
-        *self.cancellation_token.borrow_mut() = cancellation_token;
+        self.cancellation_token.set(cancellation_token);
     }
 
     pub(super) fn requested_external_emit_helpers(&self) -> ExternalEmitHelpers {
@@ -1605,8 +1605,12 @@ impl TypeChecker {
             .set(requested_external_emit_helpers);
     }
 
-    pub(super) fn maybe_external_helpers_module(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.external_helpers_module.borrow_mut()
+    pub(super) fn maybe_external_helpers_module(&self) -> Option<Id<Symbol>> {
+        self.external_helpers_module.get()
+    }
+
+    pub(super) fn set_external_helpers_module(&self, external_helpers_module: Option<Id<Symbol>>) {
+        self.external_helpers_module.set(external_helpers_module);
     }
 
     pub(super) fn type_count(&self) -> u32 {

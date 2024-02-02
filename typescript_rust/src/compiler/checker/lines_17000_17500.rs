@@ -440,14 +440,14 @@ impl TypeChecker {
         next: Id<Node>, /*Expression*/
         source_prop_type: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        *next.ref_(self).maybe_contextual_type() = Some(source_prop_type);
+        next.ref_(self).set_contextual_type(Some(source_prop_type));
         let ret = self.check_expression_for_mutable_location(
             next,
             Some(CheckMode::Contextual),
             Some(source_prop_type),
             None,
         )?;
-        *next.ref_(self).maybe_contextual_type() = None;
+        next.ref_(self).set_contextual_type(None);
         Ok(ret)
     }
 
@@ -1069,11 +1069,11 @@ impl TypeChecker {
                 error_output_container,
             );
         }
-        let old_context = node.ref_(self).maybe_contextual_type().clone();
-        *node.ref_(self).maybe_contextual_type() = Some(target);
+        let old_context = node.ref_(self).maybe_contextual_type();
+        node.ref_(self).set_contextual_type(Some(target));
         let tupleized_type =
             self.check_array_literal(node, Some(CheckMode::Contextual), Some(true))?;
-        *node.ref_(self).maybe_contextual_type() = old_context;
+        node.ref_(self).set_contextual_type(old_context);
         if self.is_tuple_like_type(tupleized_type)? {
             return self.elaborate_elementwise(
                 self.generate_limited_tuple_elements(node, target)?,

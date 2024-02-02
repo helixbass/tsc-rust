@@ -157,10 +157,12 @@ impl EmitHelperFactory {
         self.context.ref_(self).request_emit_helper(await_helper(self));
         self.context.ref_(self).request_emit_helper(async_generator_helper(self));
 
-        let generator_func_emit_node = generator_func
-            .ref_(self).maybe_emit_node_mut()
-            .get_or_insert_with(|| self.alloc_emit_node(Default::default()))
-            .clone();
+        let generator_func_emit_node = {
+            if generator_func.ref_(self).maybe_emit_node().is_none() {
+                generator_func.ref_(self).set_emit_node(self.alloc_emit_node(Default::default()));
+            }
+            generator_func.ref_(self).maybe_emit_node().unwrap()
+        };
         let mut generator_func_emit_node = generator_func_emit_node.ref_mut(self);
         generator_func_emit_node.flags = Some(
             generator_func_emit_node.flags.unwrap_or_default()
@@ -279,10 +281,12 @@ impl EmitHelperFactory {
             body,
         );
 
-        let generator_func_emit_node = generator_func
-            .ref_(self).maybe_emit_node_mut()
-            .get_or_insert_with(|| self.alloc_emit_node(Default::default()))
-            .clone();
+        let generator_func_emit_node = {
+            if generator_func.ref_(self).maybe_emit_node().is_none() {
+                generator_func.ref_(self).set_emit_node(self.alloc_emit_node(Default::default()));
+            }
+            generator_func.ref_(self).maybe_emit_node().unwrap()
+        };
         let mut generator_func_emit_node = generator_func_emit_node.ref_mut(self);
         generator_func_emit_node.flags = Some(
             generator_func_emit_node.flags.unwrap_or_default()

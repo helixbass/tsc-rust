@@ -78,8 +78,8 @@ impl TypeChecker {
         if kind >= SyntaxKind::FirstStatement
             && kind <= SyntaxKind::LastStatement
             && matches!(
-                node.ref_(self).maybe_flow_node().as_ref(),
-                Some(node_flow_node) if !self.is_reachable_flow_node(node_flow_node.clone())?
+                node.ref_(self).maybe_flow_node(),
+                Some(node_flow_node) if !self.is_reachable_flow_node(node_flow_node)?
             )
         {
             self.error_or_suggestion(

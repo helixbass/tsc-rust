@@ -868,7 +868,7 @@ impl TypeChecker {
         if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
             return Ok(None);
         }
-        if let Some(node_contextual_type) = node.ref_(self).maybe_contextual_type().clone() {
+        if let Some(node_contextual_type) = node.ref_(self).maybe_contextual_type() {
             return Ok(Some(node_contextual_type));
         }
         let parent = node.ref_(self).parent();
@@ -997,7 +997,7 @@ impl TypeChecker {
             && node.ref_(self).parent().ref_(self).maybe_contextual_type().is_some()
             && context_flags != Some(ContextFlags::Completions)
         {
-            return Ok(node.ref_(self).parent().ref_(self).maybe_contextual_type().clone().unwrap());
+            return Ok(node.ref_(self).parent().ref_(self).maybe_contextual_type().unwrap());
         }
         self.get_contextual_type_for_argument_at_index_(node, 0)
     }

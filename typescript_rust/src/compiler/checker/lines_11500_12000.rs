@@ -376,10 +376,10 @@ impl TypeChecker {
                     break;
                 }
             }
-            *type_
+            type_
                 .ref_(self)
                 .as_union_or_intersection_type_interface()
-                .maybe_resolved_properties_mut() = Some(self.alloc_vec_symbol(self.get_named_members(&members)?));
+                .set_resolved_properties(Some(self.alloc_vec_symbol(self.get_named_members(&members)?)));
         }
         Ok(type_
             .ref_(self)

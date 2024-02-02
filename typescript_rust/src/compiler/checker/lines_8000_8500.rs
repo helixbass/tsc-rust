@@ -900,7 +900,7 @@ impl TypeChecker {
         node: Id<Node>, /*BindingElement | PropertyAssignment | ShorthandPropertyAssignment | Expression*/
     ) -> io::Result<Option<Id<Node /*ElementAccessExpression*/>>> {
         let parent_access = return_ok_default_if_none!(self.get_parent_element_access(node)?);
-        let ret = parent_access.ref_(self).maybe_flow_node().clone().try_and_then(
+        let ret = parent_access.ref_(self).maybe_flow_node().try_and_then(
             |parent_access_flow_node| -> io::Result<_> {
                 let prop_name =
                     return_ok_default_if_none!(self.get_destructuring_property_name(node)?);

@@ -1,4 +1,4 @@
-use std::{borrow::{Borrow, Cow}, cell::RefCell, ptr};
+use std::{borrow::{Borrow, Cow}, cell::{RefCell, Ref}, ptr};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCellRef, Trace};
@@ -27,6 +27,7 @@ use crate::{
     ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral,
     StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
     HasArena, AllArenas, InArena, OptionInArena,
+    ref_unwrapped,
 };
 
 thread_local! {
@@ -100,11 +101,11 @@ impl NodeFactory {
         &self,
         parenthesizer_rules: Id<Box<dyn ParenthesizerRules>>,
     ) {
-        *self.parenthesizer_rules.borrow_mut() = Some(parenthesizer_rules);
+        self.parenthesizer_rules.set(Some(parenthesizer_rules));
     }
 
     pub(crate) fn parenthesizer_rules(&self) -> Id<Box<dyn ParenthesizerRules>> {
-        self.parenthesizer_rules.borrow().clone().unwrap()
+        self.parenthesizer_rules.get().unwrap()
     }
 
     pub fn parenthesizer(&self) -> Id<Box<dyn ParenthesizerRules>> {
@@ -118,8 +119,8 @@ impl NodeFactory {
         *self.converters.borrow_mut() = Some(node_converters);
     }
 
-    pub fn converters(&self) -> GcCellRef<Box<dyn NodeConverters>> {
-        GcCellRef::map(self.converters.borrow(), |option| option.as_ref().unwrap())
+    pub fn converters(&self) -> Ref<Box<dyn NodeConverters>> {
+        ref_unwrapped(&self.converters)
     }
 
     #[generate_node_factory_method_wrapper]

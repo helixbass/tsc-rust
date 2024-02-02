@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell},
+    cell::{Cell, RefCell, Ref},
     collections::HashMap,
     fmt, io,
     rc::Rc,
@@ -37,11 +37,11 @@ pub struct ResolvedProjectReference {
     pub command_line: Id<ParsedCommandLine>,
     pub source_file: Id<Node /*SourceFile*/>,
     #[builder(setter(skip))]
-    references: GcCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
+    references: RefCell<Option<Vec<Option<Id<ResolvedProjectReference>>>>>,
 }
 
 impl ResolvedProjectReference {
-    pub fn maybe_references(&self) -> GcCellRef<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
+    pub fn maybe_references(&self) -> Ref<Option<Vec<Option<Id<ResolvedProjectReference>>>>> {
         self.references.borrow()
     }
 
@@ -171,13 +171,13 @@ pub struct TypeChecker {
     pub(crate) arena: *const AllArenas,
     pub(crate) host: Id<Program /*TypeCheckerHostDebuggable*/>,
     pub(crate) produce_diagnostics: bool,
-    pub(crate) _arena_id: GcCell<Option<Id<Self>>>,
+    pub(crate) _arena_id: Cell<Option<Id<Self>>>,
     #[unsafe_ignore_trace]
     pub(crate) _packages_map: RefCell<Option<HashMap<String, bool>>>,
-    pub(crate) cancellation_token: GcCell<Option<Id<Box<dyn CancellationToken>>>>,
+    pub(crate) cancellation_token: Cell<Option<Id<Box<dyn CancellationToken>>>>,
     #[unsafe_ignore_trace]
     pub(crate) requested_external_emit_helpers: Cell<ExternalEmitHelpers>,
-    pub(crate) external_helpers_module: GcCell<Option<Id<Symbol>>>,
+    pub(crate) external_helpers_module: Cell<Option<Id<Symbol>>>,
     pub(crate) Symbol: fn(SymbolFlags, __String) -> BaseSymbol,
     pub(crate) Type: fn(TypeFlags) -> BaseType,
     pub(crate) Signature: fn(SignatureFlags) -> Signature,

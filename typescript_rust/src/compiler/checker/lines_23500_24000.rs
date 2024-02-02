@@ -209,7 +209,7 @@ impl GetFlowTypeOfReference {
             .ref_(self).set_flow_invocation_count(self.type_checker.ref_(self).flow_invocation_count() + 1);
         self.set_shared_flow_start(self.type_checker.ref_(self).shared_flow_count());
         let evolved_type = self.type_checker.ref_(self).get_type_from_flow_type(
-            &self.get_type_at_flow_node(self.reference.ref_(self).maybe_flow_node().clone().unwrap())?,
+            &self.get_type_at_flow_node(self.reference.ref_(self).maybe_flow_node().unwrap())?,
         );
         self.type_checker
             .ref_(self).set_shared_flow_count(self.shared_flow_start());
@@ -351,7 +351,7 @@ impl GetFlowTypeOfReference {
                             | SyntaxKind::ThisKeyword
                     )
                 }) {
-                    flow = container.ref_(self).maybe_flow_node().clone().unwrap();
+                    flow = container.ref_(self).maybe_flow_node().unwrap();
                     continue;
                 }
                 type_ = Some(self.initial_type.clone().into());

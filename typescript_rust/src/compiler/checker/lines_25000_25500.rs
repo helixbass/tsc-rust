@@ -283,8 +283,8 @@ impl TypeChecker {
         if base_type_node.is_some() {
             if !self.class_declaration_extends_null(containing_class_decl)? {
                 if matches!(
-                    node.ref_(self).maybe_flow_node().as_ref(),
-                    Some(node_flow_node) if !self.is_post_super_flow_node(node_flow_node.clone(), false)
+                    node.ref_(self).maybe_flow_node(),
+                    Some(node_flow_node) if !self.is_post_super_flow_node(node_flow_node, false)
                 ) {
                     self.error(Some(node), diagnostic_message, None);
                 }

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, io, iter::FromIterator, rc::Rc};
+use std::{borrow::Cow, cell::{RefCell, Cell}, cmp, collections::HashMap, io, iter::FromIterator, rc::Rc};
 
 use bitflags::bitflags;
 use gc::{Finalize, Gc, GcCell, Trace};
@@ -967,7 +967,7 @@ pub struct TypeReferenceDirectiveResolutionCache {
 
 #[derive(Clone, Debug, Trace, Finalize)]
 pub struct ModeAwareCache<TValue: Trace + Finalize + 'static> {
-    underlying: GcCell<HashMap<String, TValue>>,
+    underlying: RefCell<HashMap<String, TValue>>,
     #[unsafe_ignore_trace]
     memoized_reverse_keys: RefCell<HashMap<String, (String, Option<ModuleKind>)>>,
 }
@@ -1016,13 +1016,13 @@ pub trait PackageJsonInfoCache: Trace + Finalize {
 pub struct PerModuleNameCache {
     current_directory: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
-    directory_path_map: GcCell<HashMap<String, Id<ResolvedModuleWithFailedLookupLocations>>>,
+    directory_path_map: RefCell<HashMap<String, Id<ResolvedModuleWithFailedLookupLocations>>>,
 }
 
 #[derive(Trace, Finalize)]
 pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
-    options: GcCell<Option<Id<CompilerOptions>>>,
-    own_map: GcCell<Id<HashMap<String, Id<TCache>>>>,
+    options: Cell<Option<Id<CompilerOptions>>>,
+    own_map: Cell<Id<HashMap<String, Id<TCache>>>>,
     redirects_map: Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
 }
 
@@ -1035,14 +1035,14 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
 {
     pub fn new(options: Option<Id<CompilerOptions>>, arena: &impl HasArena) -> Self {
         Self {
-            options: GcCell::new(options),
-            own_map: GcCell::new(HashMap::<String, Id<TCache>>::new().alloc(arena)),
+            options: Cell::new(options),
+            own_map: Cell::new(HashMap::<String, Id<TCache>>::new().alloc(arena)),
             redirects_map: HashMap::<Path, Id<HashMap<String, Id<TCache>>>>::new().alloc(arena),
         }
     }
 
     pub fn get_own_map(&self) -> Id<HashMap<String, Id<TCache>>> {
-        self.own_map.borrow().clone()
+        self.own_map.get()
     }
 
     pub fn redirects_map(
@@ -1052,11 +1052,11 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
     }
 
     pub fn set_own_options(&self, new_options: Id<CompilerOptions>) {
-        *self.options.borrow_mut() = Some(new_options);
+        self.options.set(Some(new_options));
     }
 
     pub fn set_own_map(&self, new_own_map: Id<HashMap<String, Id<TCache>>>) {
-        *self.own_map.borrow_mut() = new_own_map;
+        self.own_map.set(new_own_map);
     }
 
     pub fn get_or_create_map_of_cache_redirects(
@@ -1064,7 +1064,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
         redirected_reference: Option<Id<ResolvedProjectReference>>,
     ) -> Id<HashMap<String, Id<TCache>>> {
         if redirected_reference.is_none() {
-            return self.own_map.borrow().clone();
+            return self.own_map.get();
         }
         let redirected_reference = redirected_reference.unwrap();
         let redirected_reference_source_file_ref = redirected_reference.ref_(self).source_file.ref_(self);
@@ -1072,7 +1072,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
         let mut redirects = self.redirects_map.ref_(self).get(&path).cloned();
         if redirects.is_none() {
             redirects = Some(
-                if match self.options.borrow().as_ref() {
+                if match self.options.get() {
                     None => true,
                     Some(options) => options_have_module_resolution_changes(
                         &options.ref_(self),
@@ -1082,7 +1082,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
                 } {
                     HashMap::<String, Id<TCache>>::new().alloc(self)
                 } else {
-                    self.own_map.borrow().clone()
+                    self.own_map.get()
                 },
             );
             self.redirects_map
@@ -1093,7 +1093,7 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
     }
 
     pub fn clear(&self) {
-        self.own_map.borrow().ref_mut(self).clear();
+        self.own_map.get().ref_mut(self).clear();
         self.redirects_map.ref_mut(self).clear();
     }
 }
@@ -1131,7 +1131,7 @@ pub fn create_package_json_info_cache(
 #[derive(Trace, Finalize)]
 pub struct PackageJsonInfoCacheConcrete {
     pub current_directory: String,
-    pub cache: GcCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
+    pub cache: RefCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
     pub get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
 }
 

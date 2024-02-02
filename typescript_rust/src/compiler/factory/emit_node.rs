@@ -33,7 +33,7 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> 
                         starts_on_new_line: Default::default(),
                         snippet_element: Default::default(),
                     });
-                    *node.ref_(arena).maybe_emit_node_mut() = Some(ret.clone());
+                    node.ref_(arena).set_emit_node(ome(ret.clone()));
                     return ret;
                 }
 
@@ -51,7 +51,7 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> 
                     .push(node);
             }
 
-            *node.ref_(arena).maybe_emit_node_mut() = Some(arena.alloc_emit_node(Default::default()));
+            node.ref_(arena).set_emit_node(Some(arena.alloc_emit_node(Default::default())));
         }
         Some(node_emit_node) => {
             Debug_.assert(
