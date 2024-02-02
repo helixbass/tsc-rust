@@ -12,6 +12,8 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub extern crate id_arena;
+
 mod compiler;
 mod execute_command_line;
 mod macros;

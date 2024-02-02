@@ -1,3 +1,4 @@
+use gc::{Trace, Finalize};
 use std::rc::Rc;
 
 use typescript_rust::{
@@ -22,7 +23,7 @@ pub struct RequireResultError {
 
 pub type TimeoutId = ();
 
-pub trait ServerHost: System {
+pub trait ServerHost: System + Trace + Finalize {
     fn watch_file(
         &self,
         path: &str,
