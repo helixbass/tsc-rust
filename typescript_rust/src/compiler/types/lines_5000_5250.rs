@@ -571,24 +571,42 @@ pub trait TypeInterface {
     fn maybe_resolved_string_index_type(&self) -> Option<Id<Type /*IndexType*/>>;
     fn set_resolved_string_index_type(&self, resolved_string_index_type: Option<Id<Type>>);
     // SyntheticDefaultModuleType fields
-    fn maybe_synthetic_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_default_only_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
+    fn maybe_synthetic_type(&self) -> Option<Id<Type>>;
+    fn set_synthetic_type(&self, synthetic_type: Option<Id<Type>>);
+    fn maybe_default_only_type(&self) -> Option<Id<Type>>;
+    fn set_default_only_type(&self, default_only_type: Option<Id<Type>>);
     // PromiseOrAwaitableType fields
-    fn maybe_promise_type_of_promise_constructor(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_promised_type_of_promise(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_awaited_type_of_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
+    fn maybe_promise_type_of_promise_constructor(&self) -> Option<Id<Type>>;
+    fn set_promise_type_of_promise_constructor(&self, promise_type_of_promise_constructor: Option<Id<Type>>);
+    fn maybe_promised_type_of_promise(&self) -> Option<Id<Type>>;
+    fn set_promised_type_of_promise(&self, promised_type_of_promise: Option<Id<Type>>);
+    fn maybe_awaited_type_of_type(&self) -> Option<Id<Type>>;
+    fn set_awaited_type_of_type(&self, awaited_type_of_type: Option<Id<Type>>);
     // IterableOrIteratorType fields
     fn maybe_iteration_types_of_generator_return_type(
         &self,
-    ) -> GcCellRefMut<Option<Id<IterationTypes>>>;
+    ) -> Option<Id<IterationTypes>>;
+    fn set_iteration_types_of_generator_return_type(
+        &self,
+        iteration_types_of_generator_return_type: Option<Id<IterationTypes>>,
+    );
     fn maybe_iteration_types_of_async_generator_return_type(
         &self,
-    ) -> GcCellRefMut<Option<Id<IterationTypes>>>;
-    fn maybe_iteration_types_of_iterable(&self) -> GcCellRefMut<Option<Id<IterationTypes>>>;
-    fn maybe_iteration_types_of_iterator(&self) -> GcCellRefMut<Option<Id<IterationTypes>>>;
-    fn maybe_iteration_types_of_async_iterable(&self) -> GcCellRefMut<Option<Id<IterationTypes>>>;
-    fn maybe_iteration_types_of_async_iterator(&self) -> GcCellRefMut<Option<Id<IterationTypes>>>;
-    fn maybe_iteration_types_of_iterator_result(&self) -> GcCellRefMut<Option<Id<IterationTypes>>>;
+    ) -> Option<Id<IterationTypes>>;
+    fn set_iteration_types_of_async_generator_return_type(
+        &self,
+        iteration_types_of_async_generator_return_type: Option<Id<IterationTypes>>,
+    );
+    fn maybe_iteration_types_of_iterable(&self) -> Option<Id<IterationTypes>>;
+    fn set_iteration_types_of_iterable(&self, iteration_types_of_iterable: Option<Id<IterationTypes>>);
+    fn maybe_iteration_types_of_iterator(&self) -> Option<Id<IterationTypes>>;
+    fn set_iteration_types_of_iterator(&self, iteration_types_of_iterator: Option<Id<IterationTypes>>);
+    fn maybe_iteration_types_of_async_iterable(&self) -> Option<Id<IterationTypes>>;
+    fn set_iteration_types_of_async_iterable(&self, iteration_types_of_async_iterable: Option<Id<IterationTypes>>);
+    fn maybe_iteration_types_of_async_iterator(&self) -> Option<Id<IterationTypes>>;
+    fn set_iteration_types_of_async_iterator(&self, iteration_types_of_async_iterator: Option<Id<IterationTypes>>);
+    fn maybe_iteration_types_of_iterator_result(&self) -> Option<Id<IterationTypes>>;
+    fn set_iteration_types_of_iterator_result(&self, iteration_types_of_iterator_result: Option<Id<IterationTypes>>);
     fn get_by_iteration_type_cache_key(
         &self,
         key: IterationTypeCacheKey,
@@ -622,20 +640,20 @@ pub struct BaseType {
     resolved_index_type: Cell<Option<Id<Type /*IndexType*/>>>,
     resolved_string_index_type: Cell<Option<Id<Type /*IndexType*/>>>,
     // SyntheticDefaultModuleType fields
-    synthetic_type: GcCell<Option<Id<Type>>>,
-    default_only_type: GcCell<Option<Id<Type>>>,
+    synthetic_type: Cell<Option<Id<Type>>>,
+    default_only_type: Cell<Option<Id<Type>>>,
     // PromiseOrAwaitableType fields
-    promise_type_of_promise_constructor: GcCell<Option<Id<Type>>>,
-    promised_type_of_promise: GcCell<Option<Id<Type>>>,
-    awaited_type_of_type: GcCell<Option<Id<Type>>>,
+    promise_type_of_promise_constructor: Cell<Option<Id<Type>>>,
+    promised_type_of_promise: Cell<Option<Id<Type>>>,
+    awaited_type_of_type: Cell<Option<Id<Type>>>,
     // IterableOrIteratorType fields
-    iteration_types_of_generator_return_type: GcCell<Option<Id<IterationTypes>>>,
-    iteration_types_of_async_generator_return_type: GcCell<Option<Id<IterationTypes>>>,
-    iteration_types_of_iterable: GcCell<Option<Id<IterationTypes>>>,
-    iteration_types_of_iterator: GcCell<Option<Id<IterationTypes>>>,
-    iteration_types_of_async_iterable: GcCell<Option<Id<IterationTypes>>>,
-    iteration_types_of_async_iterator: GcCell<Option<Id<IterationTypes>>>,
-    iteration_types_of_iterator_result: GcCell<Option<Id<IterationTypes>>>,
+    iteration_types_of_generator_return_type: Cell<Option<Id<IterationTypes>>>,
+    iteration_types_of_async_generator_return_type: Cell<Option<Id<IterationTypes>>>,
+    iteration_types_of_iterable: Cell<Option<Id<IterationTypes>>>,
+    iteration_types_of_iterator: Cell<Option<Id<IterationTypes>>>,
+    iteration_types_of_async_iterable: Cell<Option<Id<IterationTypes>>>,
+    iteration_types_of_async_iterator: Cell<Option<Id<IterationTypes>>>,
+    iteration_types_of_iterator_result: Cell<Option<Id<IterationTypes>>>,
 }
 
 impl BaseType {
@@ -797,57 +815,104 @@ impl TypeInterface for BaseType {
         self.resolved_string_index_type.set(resolved_string_index_type);
     }
 
-    fn maybe_synthetic_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.synthetic_type.borrow_mut()
+    fn maybe_synthetic_type(&self) -> Option<Id<Type>> {
+        self.synthetic_type.get()
     }
 
-    fn maybe_default_only_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.default_only_type.borrow_mut()
+    fn set_synthetic_type(&self, synthetic_type: Option<Id<Type>>) {
+        self.synthetic_type.set(synthetic_type);
     }
 
-    fn maybe_promise_type_of_promise_constructor(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.promise_type_of_promise_constructor.borrow_mut()
+    fn maybe_default_only_type(&self) -> Option<Id<Type>> {
+        self.default_only_type.get()
     }
 
-    fn maybe_promised_type_of_promise(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.promised_type_of_promise.borrow_mut()
+    fn set_default_only_type(&self, default_only_type: Option<Id<Type>>) {
+        self.default_only_type.set(default_only_type);
     }
 
-    fn maybe_awaited_type_of_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.awaited_type_of_type.borrow_mut()
+    fn maybe_promise_type_of_promise_constructor(&self) -> Option<Id<Type>> {
+        self.promise_type_of_promise_constructor.get()
+    }
+
+    fn set_promise_type_of_promise_constructor(&self, promise_type_of_promise_constructor: Option<Id<Type>>) {
+        self.promise_type_of_promise_constructor.set(promise_type_of_promise_constructor);
+    }
+
+    fn maybe_promised_type_of_promise(&self) -> Option<Id<Type>> {
+        self.promised_type_of_promise.get()
+    }
+
+    fn set_promised_type_of_promise(&self, promised_type_of_promise: Option<Id<Type>>) {
+        self.promised_type_of_promise.set(promised_type_of_promise);
+    }
+
+    fn maybe_awaited_type_of_type(&self) -> Option<Id<Type>> {
+        self.awaited_type_of_type.get()
+    }
+
+    fn set_awaited_type_of_type(&self, awaited_type_of_type: Option<Id<Type>>) {
+        self.awaited_type_of_type.set(awaited_type_of_type);
     }
 
     fn maybe_iteration_types_of_generator_return_type(
         &self,
-    ) -> GcCellRefMut<Option<Id<IterationTypes>>> {
-        self.iteration_types_of_generator_return_type.borrow_mut()
+    ) -> Option<Id<IterationTypes>> {
+        self.iteration_types_of_generator_return_type.get()
+    }
+
+    fn set_iteration_types_of_generator_return_type(
+        &self,
+        iteration_types_of_generator_return_type: Option<Id<IterationTypes>>,
+    ) {
+        self.iteration_types_of_generator_return_type.set(iteration_types_of_generator_return_type);
     }
 
     fn maybe_iteration_types_of_async_generator_return_type(
         &self,
-    ) -> GcCellRefMut<Option<Id<IterationTypes>>> {
+    ) -> Option<Id<IterationTypes>> {
         self.iteration_types_of_async_generator_return_type
-            .borrow_mut()
+            .get()
     }
 
-    fn maybe_iteration_types_of_iterable(&self) -> GcCellRefMut<Option<Id<IterationTypes>>> {
-        self.iteration_types_of_iterable.borrow_mut()
+    fn maybe_iteration_types_of_iterable(&self) -> Option<Id<IterationTypes>> {
+        self.iteration_types_of_iterable.get()
     }
 
-    fn maybe_iteration_types_of_iterator(&self) -> GcCellRefMut<Option<Id<IterationTypes>>> {
-        self.iteration_types_of_iterator.borrow_mut()
+    fn set_iteration_types_of_iterable(&self, iteration_types_of_iterable: Option<Id<IterationTypes>>) {
+        self.iteration_types_of_iterable.set(iteration_types_of_iterable);
     }
 
-    fn maybe_iteration_types_of_async_iterable(&self) -> GcCellRefMut<Option<Id<IterationTypes>>> {
-        self.iteration_types_of_async_iterable.borrow_mut()
+    fn maybe_iteration_types_of_iterator(&self) -> Option<Id<IterationTypes>> {
+        self.iteration_types_of_iterator.get()
     }
 
-    fn maybe_iteration_types_of_async_iterator(&self) -> GcCellRefMut<Option<Id<IterationTypes>>> {
-        self.iteration_types_of_async_iterator.borrow_mut()
+    fn set_iteration_types_of_iterator(&self, iteration_types_of_iterator: Option<Id<IterationTypes>>) {
+        self.iteration_types_of_iterator.set(iteration_types_of_iterator);
     }
 
-    fn maybe_iteration_types_of_iterator_result(&self) -> GcCellRefMut<Option<Id<IterationTypes>>> {
-        self.iteration_types_of_iterator_result.borrow_mut()
+    fn maybe_iteration_types_of_async_iterable(&self) -> Option<Id<IterationTypes>> {
+        self.iteration_types_of_async_iterable.get()
+    }
+
+    fn set_iteration_types_of_async_iterable(&self, iteration_types_of_async_iterable: Option<Id<IterationTypes>>) {
+        self.iteration_types_of_async_iterable.set(iteration_types_of_async_iterable);
+    }
+
+    fn maybe_iteration_types_of_async_iterator(&self) -> Option<Id<IterationTypes>> {
+        self.iteration_types_of_async_iterator.get()
+    }
+
+    fn set_iteration_types_of_async_iterator(&self, iteration_types_of_async_iterator: Option<Id<IterationTypes>>) {
+        self.iteration_types_of_async_iterator.set(iteration_types_of_async_iterator);
+    }
+
+    fn maybe_iteration_types_of_iterator_result(&self) -> Option<Id<IterationTypes>> {
+        self.iteration_types_of_iterator_result.get()
+    }
+
+    fn set_iteration_types_of_iterator_result(&self, iteration_types_of_iterator_result: Option<Id<IterationTypes>>) {
+        self.iteration_types_of_iterator_result.set(iteration_types_of_iterator_result);
     }
 
     fn get_by_iteration_type_cache_key(
@@ -856,25 +921,23 @@ impl TypeInterface for BaseType {
     ) -> Option<Id<IterationTypes>> {
         match key {
             IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => self
-                .maybe_iteration_types_of_generator_return_type()
-                .clone(),
+                .maybe_iteration_types_of_generator_return_type(),
             IterationTypeCacheKey::IterationTypesOfAsyncGeneratorReturnType => self
-                .maybe_iteration_types_of_async_generator_return_type()
-                .clone(),
+                .maybe_iteration_types_of_async_generator_return_type(),
             IterationTypeCacheKey::IterationTypesOfIterable => {
-                self.maybe_iteration_types_of_iterable().clone()
+                self.maybe_iteration_types_of_iterable()
             }
             IterationTypeCacheKey::IterationTypesOfIterator => {
-                self.maybe_iteration_types_of_iterator().clone()
+                self.maybe_iteration_types_of_iterator()
             }
             IterationTypeCacheKey::IterationTypesOfAsyncIterable => {
-                self.maybe_iteration_types_of_async_iterable().clone()
+                self.maybe_iteration_types_of_async_iterable()
             }
             IterationTypeCacheKey::IterationTypesOfAsyncIterator => {
-                self.maybe_iteration_types_of_async_iterator().clone()
+                self.maybe_iteration_types_of_async_iterator()
             }
             IterationTypeCacheKey::IterationTypesOfIteratorResult => {
-                self.maybe_iteration_types_of_iterator_result().clone()
+                self.maybe_iteration_types_of_iterator_result()
             }
         }
     }
@@ -886,25 +949,25 @@ impl TypeInterface for BaseType {
     ) {
         match key {
             IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => {
-                *self.maybe_iteration_types_of_generator_return_type() = value;
+                self.set_iteration_types_of_generator_return_type(value);
             }
             IterationTypeCacheKey::IterationTypesOfAsyncGeneratorReturnType => {
-                *self.maybe_iteration_types_of_async_generator_return_type() = value;
+                self.set_iteration_types_of_async_generator_return_type(value);
             }
             IterationTypeCacheKey::IterationTypesOfIterable => {
-                *self.maybe_iteration_types_of_iterable() = value;
+                self.set_iteration_types_of_iterable(value);
             }
             IterationTypeCacheKey::IterationTypesOfIterator => {
-                *self.maybe_iteration_types_of_iterator() = value;
+                self.set_iteration_types_of_iterator(value);
             }
             IterationTypeCacheKey::IterationTypesOfAsyncIterable => {
-                *self.maybe_iteration_types_of_async_iterable() = value;
+                self.set_iteration_types_of_async_iterable(value);
             }
             IterationTypeCacheKey::IterationTypesOfAsyncIterator => {
-                *self.maybe_iteration_types_of_async_iterator() = value;
+                self.set_iteration_types_of_async_iterator(value);
             }
             IterationTypeCacheKey::IterationTypesOfIteratorResult => {
-                *self.maybe_iteration_types_of_iterator_result() = value
+                self.set_iteration_types_of_iterator_result(value);
             }
         }
     }
@@ -969,8 +1032,8 @@ impl ObjectFlagsTypeInterface for BaseIntrinsicType {
 )]
 pub struct FreshableIntrinsicType {
     _intrinsic_type: BaseIntrinsicType,
-    pub fresh_type: GcCell<Option<Id<Type>>>,
-    pub regular_type: GcCell<Option<Id<Type>>>,
+    pub fresh_type: Cell<Option<Id<Type>>>,
+    pub regular_type: Cell<Option<Id<Type>>>,
 }
 
 impl FreshableIntrinsicType {
@@ -983,18 +1046,18 @@ impl FreshableIntrinsicType {
     }
 
     pub fn fresh_type(&self) -> Id<Type> {
-        self.fresh_type.borrow().clone().unwrap()
+        self.fresh_type.get().unwrap()
     }
 
     pub fn set_fresh_type(&self, fresh_type: Id<Type>) {
-        *self.fresh_type.borrow_mut() = Some(fresh_type);
+        self.fresh_type.set(Some(fresh_type));
     }
 
     pub fn regular_type(&self) -> Id<Type> {
-        self.regular_type.borrow().clone().unwrap()
+        self.regular_type.get().unwrap()
     }
 
     pub fn set_regular_type(&self, regular_type: Id<Type>) {
-        *self.regular_type.borrow_mut() = Some(regular_type);
+        self.regular_type.set(Some(regular_type));
     }
 }

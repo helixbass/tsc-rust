@@ -85,10 +85,10 @@ impl TypeChecker {
             .maybe_resolved_base_types()
             .is_none()
         {
-            *type_
+            type_
                 .ref_(self)
                 .as_interface_type()
-                .maybe_resolved_base_types() = Some(self.alloc_vec_type(vec![]));
+                .set_resolved_base_types(Some(self.alloc_vec_type(vec![])));
         }
         if let Some(type_symbol_declarations) = {
             let type_symbol_declarations = type_
@@ -118,16 +118,16 @@ impl TypeChecker {
                                             .ref_(self)
                                             .as_interface_type()
                                             .maybe_resolved_base_types()
-                                            .clone()
                                             .unwrap()
                                             .ref_(self)
                                             .clone();
                                     resolved_base_types.push(base_type);
-                                    *type_
+                                    type_
                                         .ref_(self)
                                         .as_interface_type()
-                                        .maybe_resolved_base_types() =
-                                        Some(self.alloc_vec_type(resolved_base_types));
+                                        .set_resolved_base_types(
+                                        Some(self.alloc_vec_type(resolved_base_types))
+                                    );
                                 } else {
                                     self.report_circular_base_type(declaration, type_)?;
                                 }
@@ -279,7 +279,7 @@ impl TypeChecker {
                 *type_
                     .ref_(self)
                     .as_interface_type()
-                    .maybe_this_type_mut()
+                    .maybe_this_type()
                     .unwrap()
                     .ref_(self)
                     .as_type_parameter()

@@ -170,13 +170,12 @@ pub trait ResolvedTypeInterface:
 {
     fn members(&self) -> Id<SymbolTable>;
     fn properties(&self) -> Id<Vec<Id<Symbol>>>;
-    fn properties_mut(&self) -> GcCellRefMut<Option<Id<Vec<Id<Symbol>>>>, Id<Vec<Id<Symbol>>>>;
     fn set_properties(&self, properties: Id<Vec<Id<Symbol>>>);
-    fn call_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;
+    fn call_signatures(&self) -> Ref<Vec<Id<Signature>>>;
     fn set_call_signatures(&self, call_signatures: Vec<Id<Signature>>);
-    fn construct_signatures(&self) -> GcCellRef<Vec<Id<Signature>>>;
+    fn construct_signatures(&self) -> Ref<Vec<Id<Signature>>>;
     fn set_construct_signatures(&self, construct_signatures: Vec<Id<Signature>>);
-    fn index_infos(&self) -> GcCellRef<Vec<Id<IndexInfo>>>;
+    fn index_infos(&self) -> Ref<Vec<Id<IndexInfo>>>;
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Id<Type>>;
     fn set_object_type_without_abstract_construct_signatures(
         &self,
@@ -185,7 +184,8 @@ pub trait ResolvedTypeInterface:
 }
 
 pub trait FreshObjectLiteralTypeInterface: ResolvedTypeInterface {
-    fn maybe_regular_type(&self) -> GcCellRefMut<Option<Id<Type /*ResolvedType*/>>>;
+    fn maybe_regular_type(&self) -> Option<Id<Type /*ResolvedType*/>>;
+    fn set_regular_type(&self, regular_type: Option<Id<Type /*ResolvedType*/>>);
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

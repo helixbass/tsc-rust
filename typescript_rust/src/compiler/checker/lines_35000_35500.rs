@@ -309,15 +309,15 @@ impl TypeChecker {
         }
 
         let type_as_promise = type_;
-        if let Some(type_as_promise_promised_type_of_promise) =
-            *type_as_promise.ref_(self).maybe_promised_type_of_promise()
+        if let Some(type_promised_type_of_promise) =
+            type_as_promise.ref_(self).maybe_promised_type_of_promise()
         {
-            return Ok(Some(type_as_promise_promised_type_of_promise.clone()));
+            return Ok(Some(type_promised_type_of_promise));
         }
 
         if self.is_reference_to_type(type_, self.get_global_promise_type(false)?) {
-            let ret = self.get_type_arguments(type_)?[0].clone();
-            *type_as_promise.ref_(self).maybe_promised_type_of_promise() = Some(ret.clone());
+            let ret = self.get_type_arguments(type_)?[0];
+            type_as_promise.ref_(self).set_promised_type_of_promise(Some(ret));
             return Ok(Some(ret));
         }
 
@@ -391,7 +391,7 @@ impl TypeChecker {
             None,
             None,
         )?;
-        *type_as_promise.ref_(self).maybe_promised_type_of_promise() = Some(ret.clone());
+        type_as_promise.ref_(self).set_promised_type_of_promise(Some(ret));
         Ok(Some(ret))
     }
 
@@ -538,9 +538,9 @@ impl TypeChecker {
 
         let type_as_awaitable = type_;
         if let Some(type_as_awaitable_awaited_type_of_type) =
-            *type_as_awaitable.ref_(self).maybe_awaited_type_of_type()
+            type_as_awaitable.ref_(self).maybe_awaited_type_of_type()
         {
-            return Ok(Some(type_as_awaitable_awaited_type_of_type.clone()));
+            return Ok(Some(type_as_awaitable_awaited_type_of_type));
         }
 
         if type_.ref_(self).flags().intersects(TypeFlags::Union) {
@@ -562,7 +562,7 @@ impl TypeChecker {
                 }
             };
             let ret = self.try_map_type(type_, &mut mapper, None)?;
-            *type_as_awaitable.ref_(self).maybe_awaited_type_of_type() = ret.clone();
+            type_as_awaitable.ref_(self).set_awaited_type_of_type(ret);
             return Ok(ret);
         }
 
@@ -597,7 +597,7 @@ impl TypeChecker {
 
             let awaited_type = return_ok_none_if_none!(awaited_type);
 
-            *type_as_awaitable.ref_(self).maybe_awaited_type_of_type() = Some(awaited_type.clone());
+            type_as_awaitable.ref_(self).set_awaited_type_of_type(Some(awaited_type));
             return Ok(Some(awaited_type));
         }
 
@@ -610,7 +610,7 @@ impl TypeChecker {
         }
 
         let ret = type_;
-        *type_as_awaitable.ref_(self).maybe_awaited_type_of_type() = Some(ret.clone());
+        type_as_awaitable.ref_(self).set_awaited_type_of_type(Some(ret));
         Ok(Some(ret))
     }
 }

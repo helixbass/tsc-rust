@@ -30,8 +30,7 @@ impl TypeChecker {
         let regular_type = type_
             .ref_(self)
             .as_fresh_object_literal_type()
-            .maybe_regular_type()
-            .clone();
+            .maybe_regular_type();
         if let Some(regular_type) = regular_type {
             return Ok(regular_type);
         }
@@ -78,10 +77,10 @@ impl TypeChecker {
                     | resolved.ref_(self).as_resolved_type().object_flags()
                         & !ObjectFlags::FreshLiteral,
             );
-        *type_
+        type_
             .ref_(self)
             .as_fresh_object_literal_type()
-            .maybe_regular_type() = Some(regular_new.clone());
+            .set_regular_type(Some(regular_new));
         Ok(regular_new)
     }
 

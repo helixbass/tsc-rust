@@ -200,9 +200,9 @@ impl TypeChecker {
                         original_symbol,
                         Option::<Id<Symbol>>::None,
                     )?;
-                    *synth_type.ref_(self).maybe_default_only_type() = Some(type_);
+                    synth_type.ref_(self).set_default_only_type(Some(type_));
                 }
-                return Ok(synth_type.ref_(self).maybe_default_only_type().clone());
+                return Ok(synth_type.ref_(self).maybe_default_only_type());
             }
         }
         Ok(None)
@@ -255,7 +255,7 @@ impl TypeChecker {
                         .symbol_links()
                         .ref_mut(self)
                         .type_ = Some(default_containing_object.clone());
-                    *synth_type.ref_(self).maybe_synthetic_type() =
+                    synth_type.ref_(self).set_synthetic_type(
                         Some(if self.is_valid_spread_type(type_)? {
                             self.get_spread_type(
                                 type_,
@@ -266,15 +266,15 @@ impl TypeChecker {
                             )?
                         } else {
                             default_containing_object
-                        });
+                        })
+                    );
                 } else {
-                    *synth_type.ref_(self).maybe_synthetic_type() = Some(type_);
+                    synth_type.ref_(self).set_synthetic_type(Some(type_));
                 }
             }
             return Ok(synth_type
                 .ref_(self)
                 .maybe_synthetic_type()
-                .clone()
                 .unwrap());
         }
         Ok(type_)
