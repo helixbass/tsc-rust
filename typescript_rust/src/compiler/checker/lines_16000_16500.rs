@@ -913,8 +913,9 @@ impl TypeChecker {
                     })
                     .into(),
                 );
-                *tp.ref_(self).maybe_restrictive_instantiation() =
-                    Some(restrictive_instantiation.clone());
+                tp.ref_(self).set_restrictive_instantiation(
+                    Some(restrictive_instantiation)
+                );
                 restrictive_instantiation
                     .ref_(self)
                     .as_type_parameter()
@@ -922,7 +923,6 @@ impl TypeChecker {
             }
             tp.ref_(self)
                 .maybe_restrictive_instantiation()
-                .clone()
                 .unwrap()
         }
     }

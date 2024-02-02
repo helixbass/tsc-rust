@@ -929,13 +929,13 @@ impl TypeChecker {
             return Ok(type_);
         }
         if let Some(type_restrictive_instantiation) =
-            type_.ref_(self).maybe_restrictive_instantiation().clone()
+            type_.ref_(self).maybe_restrictive_instantiation()
         {
             return Ok(type_restrictive_instantiation);
         }
         let ret = self.instantiate_type(type_, self.restrictive_mapper.clone())?;
-        *type_.ref_(self).maybe_restrictive_instantiation() = Some(ret.clone());
-        *ret.ref_(self).maybe_restrictive_instantiation() = Some(ret.clone());
+        type_.ref_(self).set_restrictive_instantiation(Some(ret));
+        ret.ref_(self).set_restrictive_instantiation(Some(ret));
         Ok(ret)
     }
 

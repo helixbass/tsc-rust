@@ -1380,16 +1380,28 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_alias_type_arguments_contains_marker(alias_type_arguments_contains_marker);
                     }
 
-                    fn maybe_immediate_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn maybe_immediate_base_constraint(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_immediate_base_constraint()
                     }
 
-                    fn maybe_widened(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_immediate_base_constraint(&self, immediate_base_constraint: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        self.#first_field_name.set_immediate_base_constraint(immediate_base_constraint)
+                    }
+
+                    fn maybe_widened(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_widened()
                     }
 
-                    fn maybe_restrictive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_widened(&self, widened: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        self.#first_field_name.set_widened(widened)
+                    }
+
+                    fn maybe_restrictive_instantiation(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_restrictive_instantiation()
+                    }
+
+                    fn set_restrictive_instantiation(&self, restrictive_instantiation: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        self.#first_field_name.set_restrictive_instantiation(restrictive_instantiation)
                     }
 
                     fn maybe_permissive_instantiation(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
@@ -1400,16 +1412,28 @@ fn get_type_struct_interface_impl(
                         self.#first_field_name.set_permissive_instantiation(permissive_instantiation)
                     }
 
-                    fn maybe_resolved_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn maybe_resolved_base_constraint(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_resolved_base_constraint()
                     }
 
-                    fn maybe_resolved_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_resolved_base_constraint(&self, resolved_base_constraint: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        self.#first_field_name.set_resolved_base_constraint(resolved_base_constraint)
+                    }
+
+                    fn maybe_resolved_index_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_resolved_index_type()
                     }
 
-                    fn maybe_resolved_string_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_resolved_index_type(&self, resolved_index_type: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        self.#first_field_name.set_resolved_index_type(resolved_index_type)
+                    }
+
+                    fn maybe_resolved_string_index_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         self.#first_field_name.maybe_resolved_string_index_type()
+                    }
+
+                    fn set_resolved_string_index_type(&self, resolved_string_index_type: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        self.#first_field_name.set_resolved_string_index_type(resolved_string_index_type)
                     }
 
                     fn maybe_synthetic_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
@@ -1914,21 +1938,39 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_immediate_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn maybe_immediate_base_constraint(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_immediate_base_constraint()),*
                         }
                     }
 
-                    fn maybe_widened(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_immediate_base_constraint(&self, immediate_base_constraint: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_immediate_base_constraint(immediate_base_constraint)),*
+                        }
+                    }
+
+                    fn maybe_widened(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_widened()),*
                         }
                     }
 
-                    fn maybe_restrictive_instantiation(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_widened(&self, widened: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_widened(widened)),*
+                        }
+                    }
+
+                    fn maybe_restrictive_instantiation(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_restrictive_instantiation()),*
+                        }
+                    }
+
+                    fn set_restrictive_instantiation(&self, restrictive_instantiation: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_restrictive_instantiation(restrictive_instantiation)),*
                         }
                     }
 
@@ -1944,21 +1986,39 @@ fn get_type_enum_interface_impl(
                         }
                     }
 
-                    fn maybe_resolved_base_constraint(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn maybe_resolved_base_constraint(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_base_constraint()),*
                         }
                     }
 
-                    fn maybe_resolved_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_resolved_base_constraint(&self, resolved_base_constraint: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_resolved_base_constraint(resolved_base_constraint)),*
+                        }
+                    }
+
+                    fn maybe_resolved_index_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_index_type()),*
                         }
                     }
 
-                    fn maybe_resolved_string_index_type(&self) -> ::gc::GcCellRefMut<::std::option::Option<::id_arena::Id<crate::Type>>> {
+                    fn set_resolved_index_type(&self, resolved_index_type: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_resolved_index_type(resolved_index_type)),*
+                        }
+                    }
+
+                    fn maybe_resolved_string_index_type(&self) -> ::std::option::Option<::id_arena::Id<crate::Type>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.maybe_resolved_string_index_type()),*
+                        }
+                    }
+
+                    fn set_resolved_string_index_type(&self, resolved_string_index_type: ::std::option::Option<::id_arena::Id<crate::Type>>) {
+                        match self {
+                            #(#type_type_name::#variant_names(nested) => nested.set_resolved_string_index_type(resolved_string_index_type)),*
                         }
                     }
 

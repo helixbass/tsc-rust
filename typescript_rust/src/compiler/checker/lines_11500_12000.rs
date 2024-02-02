@@ -639,10 +639,7 @@ impl TypeChecker {
         if type_.ref_(self).as_conditional_type().root
             .ref_(self)
             .is_distributive
-            && !matches!(
-                *type_.ref_(self).maybe_restrictive_instantiation(),
-                Some(restrictive_instantiation) if restrictive_instantiation == type_
-            )
+            && type_.ref_(self).maybe_restrictive_instantiation() != Some(type_)
         {
             let simplified =
                 self.get_simplified_type(type_.ref_(self).as_conditional_type().check_type, false)?;
@@ -792,7 +789,7 @@ impl TypeChecker {
         type_: Id<Type>, /*InstantiableType | UnionOrIntersectionType*/
     ) -> io::Result<Id<Type>> {
         if let Some(type_resolved_base_constraint) =
-            type_.ref_(self).maybe_resolved_base_constraint().clone()
+            type_.ref_(self).maybe_resolved_base_constraint()
         {
             return Ok(type_resolved_base_constraint);
         }
@@ -802,7 +799,7 @@ impl TypeChecker {
             Some(type_),
             None,
         )?;
-        *type_.ref_(self).maybe_resolved_base_constraint() = Some(ret.clone());
+        type_.ref_(self).set_resolved_base_constraint(Some(ret));
         Ok(ret)
     }
 
@@ -861,12 +858,12 @@ impl TypeChecker {
                 }
                 result = Some(self.circular_constraint_type());
             }
-            *t.ref_(self).maybe_immediate_base_constraint() =
-                Some(result.unwrap_or_else(|| self.no_constraint_type()));
+            t.ref_(self).set_immediate_base_constraint(
+                Some(result.unwrap_or_else(|| self.no_constraint_type()))
+            );
         }
         Ok(t.ref_(self)
             .maybe_immediate_base_constraint()
-            .clone()
             .unwrap())
     }
 

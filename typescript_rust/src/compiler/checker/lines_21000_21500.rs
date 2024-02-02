@@ -249,7 +249,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::RequiresWidening) {
             if context.is_none() {
-                if let Some(type_widened) = type_.ref_(self).maybe_widened().clone() {
+                if let Some(type_widened) = type_.ref_(self).maybe_widened() {
                     return Ok(type_widened);
                 }
             }
@@ -333,9 +333,9 @@ impl TypeChecker {
                 ));
             }
             if result.is_some() && context.is_none() {
-                *type_.ref_(self).maybe_widened() = result.clone();
+                type_.ref_(self).set_widened(result);
             }
-            return Ok(result.unwrap_or_else(|| type_));
+            return Ok(result.unwrap_or(type_));
         }
         Ok(type_)
     }

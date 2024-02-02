@@ -557,13 +557,19 @@ pub trait TypeInterface {
     );
     fn maybe_permissive_instantiation(&self) -> Option<Id<Type>>;
     fn set_permissive_instantiation(&self, permissive_instantiation: Option<Id<Type>>);
-    fn maybe_restrictive_instantiation(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_immediate_base_constraint(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_widened(&self) -> GcCellRefMut<Option<Id<Type>>>;
+    fn maybe_restrictive_instantiation(&self) -> Option<Id<Type>>;
+    fn set_restrictive_instantiation(&self, restrictive_instantiation: Option<Id<Type>>);
+    fn maybe_immediate_base_constraint(&self) -> Option<Id<Type>>;
+    fn set_immediate_base_constraint(&self, immediate_base_constraint: Option<Id<Type>>);
+    fn maybe_widened(&self) -> Option<Id<Type>>;
+    fn set_widened(&self, widened: Option<Id<Type>>);
     // InstantiableType fields
-    fn maybe_resolved_base_constraint(&self) -> GcCellRefMut<Option<Id<Type>>>;
-    fn maybe_resolved_index_type(&self) -> GcCellRefMut<Option<Id<Type /*IndexType*/>>>;
-    fn maybe_resolved_string_index_type(&self) -> GcCellRefMut<Option<Id<Type /*IndexType*/>>>;
+    fn maybe_resolved_base_constraint(&self) -> Option<Id<Type>>;
+    fn set_resolved_base_constraint(&self, resolved_base_constraint: Option<Id<Type>>);
+    fn maybe_resolved_index_type(&self) -> Option<Id<Type /*IndexType*/>>;
+    fn set_resolved_index_type(&self, resolved_index_type: Option<Id<Type>>);
+    fn maybe_resolved_string_index_type(&self) -> Option<Id<Type /*IndexType*/>>;
+    fn set_resolved_string_index_type(&self, resolved_string_index_type: Option<Id<Type>>);
     // SyntheticDefaultModuleType fields
     fn maybe_synthetic_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
     fn maybe_default_only_type(&self) -> GcCellRefMut<Option<Id<Type>>>;
@@ -608,13 +614,13 @@ pub struct BaseType {
     #[unsafe_ignore_trace]
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
     permissive_instantiation: Cell<Option<Id<Type>>>,
-    restrictive_instantiation: GcCell<Option<Id<Type>>>,
-    immediate_base_constraint: GcCell<Option<Id<Type>>>,
-    widened: GcCell<Option<Id<Type>>>,
+    restrictive_instantiation: Cell<Option<Id<Type>>>,
+    immediate_base_constraint: Cell<Option<Id<Type>>>,
+    widened: Cell<Option<Id<Type>>>,
     // InstantiableType fields
-    resolved_base_constraint: GcCell<Option<Id<Type>>>,
-    resolved_index_type: GcCell<Option<Id<Type /*IndexType*/>>>,
-    resolved_string_index_type: GcCell<Option<Id<Type /*IndexType*/>>>,
+    resolved_base_constraint: Cell<Option<Id<Type>>>,
+    resolved_index_type: Cell<Option<Id<Type /*IndexType*/>>>,
+    resolved_string_index_type: Cell<Option<Id<Type /*IndexType*/>>>,
     // SyntheticDefaultModuleType fields
     synthetic_type: GcCell<Option<Id<Type>>>,
     default_only_type: GcCell<Option<Id<Type>>>,
@@ -743,28 +749,52 @@ impl TypeInterface for BaseType {
         self.permissive_instantiation.set(permissive_instantiation);
     }
 
-    fn maybe_restrictive_instantiation(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.restrictive_instantiation.borrow_mut()
+    fn maybe_restrictive_instantiation(&self) -> Option<Id<Type>> {
+        self.restrictive_instantiation.get()
     }
 
-    fn maybe_immediate_base_constraint(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.immediate_base_constraint.borrow_mut()
+    fn set_restrictive_instantiation(&self, restrictive_instantiation: Option<Id<Type>>) {
+        self.restrictive_instantiation.set(restrictive_instantiation);
     }
 
-    fn maybe_widened(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.widened.borrow_mut()
+    fn maybe_immediate_base_constraint(&self) -> Option<Id<Type>> {
+        self.immediate_base_constraint.get()
     }
 
-    fn maybe_resolved_base_constraint(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_base_constraint.borrow_mut()
+    fn set_immediate_base_constraint(&self, immediate_base_constraint: Option<Id<Type>>) {
+        self.immediate_base_constraint.set(immediate_base_constraint);
     }
 
-    fn maybe_resolved_index_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_index_type.borrow_mut()
+    fn maybe_widened(&self) -> Option<Id<Type>> {
+        self.widened.get()
     }
 
-    fn maybe_resolved_string_index_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_string_index_type.borrow_mut()
+    fn set_widened(&self, widened: Option<Id<Type>>) {
+        self.widened.set(widened);
+    }
+
+    fn maybe_resolved_base_constraint(&self) -> Option<Id<Type>> {
+        self.resolved_base_constraint.get()
+    }
+
+    fn set_resolved_base_constraint(&self, resolved_base_constraint: Option<Id<Type>>) {
+        self.resolved_base_constraint.set(resolved_base_constraint);
+    }
+
+    fn maybe_resolved_index_type(&self) -> Option<Id<Type>> {
+        self.resolved_index_type.get()
+    }
+
+    fn set_resolved_index_type(&self, resolved_index_type: Option<Id<Type>>) {
+        self.resolved_index_type.set(resolved_index_type);
+    }
+
+    fn maybe_resolved_string_index_type(&self) -> Option<Id<Type>> {
+        self.resolved_string_index_type.get()
+    }
+
+    fn set_resolved_string_index_type(&self, resolved_string_index_type: Option<Id<Type>>) {
+        self.resolved_string_index_type.set(resolved_string_index_type);
     }
 
     fn maybe_synthetic_type(&self) -> GcCellRefMut<Option<Id<Type>>> {

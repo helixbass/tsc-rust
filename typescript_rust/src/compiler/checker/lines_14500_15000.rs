@@ -502,20 +502,19 @@ impl TypeChecker {
     ) -> Id<Type> {
         if strings_only {
             let type_ref = type_.ref_(self);
-            let mut type_resolved_string_index_type = type_ref.maybe_resolved_string_index_type();
-            if type_resolved_string_index_type.is_none() {
-                *type_resolved_string_index_type = Some(self.create_index_type(type_, true));
+            if type_ref.maybe_resolved_string_index_type().is_none() {
+                type_ref.set_resolved_string_index_type(Some(self.create_index_type(type_, true)));
             }
-            type_resolved_string_index_type.clone().unwrap()
+            type_ref.maybe_resolved_string_index_type().unwrap()
         } else {
             if type_.ref_(self).maybe_resolved_index_type().is_none() {
-                *type_.ref_(self).maybe_resolved_index_type() =
-                    Some(self.create_index_type(type_, false));
+                type_.ref_(self).set_resolved_index_type(
+                    Some(self.create_index_type(type_, false))
+                );
             }
             type_
                 .ref_(self)
                 .maybe_resolved_index_type()
-                .clone()
                 .unwrap()
         }
     }
