@@ -794,10 +794,10 @@ pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>, arena: &imp
         let emit_node = original.ref_(arena).maybe_emit_node();
         if let Some(emit_node) = emit_node {
             let node_emit_node = {
-                if node.ref_(self).maybe_emit_node().is_none() {
-                    node.ref_(self).set_emit_node(arena.alloc_emit_node(Default::default()));
+                if node.ref_(arena).maybe_emit_node().is_none() {
+                    node.ref_(arena).set_emit_node(arena.alloc_emit_node(Default::default()));
                 }
-                node.ref_(self).maybe_emit_node().unwrap()
+                node.ref_(arena).maybe_emit_node().unwrap()
             };
             // looks like node and original can share the same Id<EmitNode> (eg from
             // clone_node(), which I believe is correctly mimicking the Typescript version in

@@ -146,7 +146,7 @@ pub struct EmitResult {
 pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     fn get_compiler_options(&self) -> Id<CompilerOptions>;
 
-    fn get_source_files(&self) -> GcCellRef<Vec<Id<Node /*SourceFile*/>>>;
+    fn get_source_files(&self) -> Ref<Vec<Id<Node /*SourceFile*/>>>;
     fn get_source_file(&self, file_name: &str) -> Option<Id<Node /*SourceFile*/>>;
     fn get_resolved_type_reference_directives(
         &self,

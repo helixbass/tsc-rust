@@ -129,27 +129,27 @@ pub(crate) fn load_with_local_cache<TValue: Clone>(
 }
 
 pub(crate) trait SourceFileImportsList {
-    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>>;
-    fn imports(&self) -> GcCellRef<Vec<Id<Node>>>;
-    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Id<Node>>>>;
-    fn module_augmentations(&self) -> GcCellRef<Vec<Id<Node>>>;
+    fn maybe_imports(&self) -> Ref<Option<Vec<Id<Node>>>>;
+    fn imports(&self) -> Ref<Vec<Id<Node>>>;
+    fn maybe_module_augmentations(&self) -> Ref<Option<Vec<Id<Node>>>>;
+    fn module_augmentations(&self) -> Ref<Vec<Id<Node>>>;
     fn maybe_implied_node_format(&self) -> Option<ModuleKind>;
 }
 
 impl SourceFileImportsList for SourceFile {
-    fn maybe_imports(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    fn maybe_imports(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.maybe_imports()
     }
 
-    fn imports(&self) -> GcCellRef<Vec<Id<Node>>> {
+    fn imports(&self) -> Ref<Vec<Id<Node>>> {
         self.imports()
     }
 
-    fn maybe_module_augmentations(&self) -> GcCellRef<Option<Vec<Id<Node>>>> {
+    fn maybe_module_augmentations(&self) -> Ref<Option<Vec<Id<Node>>>> {
         self.maybe_module_augmentations()
     }
 
-    fn module_augmentations(&self) -> GcCellRef<Vec<Id<Node>>> {
+    fn module_augmentations(&self) -> Ref<Vec<Id<Node>>> {
         self.module_augmentations()
     }
 
@@ -2141,7 +2141,7 @@ impl TypeCheckerHost for Program {
         self.options.clone()
     }
 
-    fn get_source_files(&self) -> GcCellRef<Vec<Id<Node>>> {
+    fn get_source_files(&self) -> Ref<Vec<Id<Node>>> {
         self.files()
     }
 

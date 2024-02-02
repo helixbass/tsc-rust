@@ -3546,7 +3546,7 @@ impl TypeChecker {
         self.merged_symbols.borrow_mut()
     }
 
-    pub(super) fn node_links(&self) -> GcCellRefMut<HashMap<NodeId, Id<NodeLinks>>> {
+    pub(super) fn node_links(&self) -> RefMut<HashMap<NodeId, Id<NodeLinks>>> {
         self.node_links.borrow_mut()
     }
 

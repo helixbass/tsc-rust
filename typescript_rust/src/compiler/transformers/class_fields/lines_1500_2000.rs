@@ -1,3 +1,4 @@
+use std::cell::RefMut;
 use id_arena::Id;
 
 use super::{
@@ -117,7 +118,7 @@ impl TransformClassFields {
 
     pub(super) fn get_pending_expressions(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<Node>>>, Vec<Id<Node>>> {
+    ) -> RefMut<Vec<Id<Node>>> {
         self.maybe_pending_expressions_mut()
             .get_or_insert_default_();
         self.pending_expressions_mut()

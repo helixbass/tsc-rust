@@ -667,7 +667,7 @@ impl TypeChecker {
 
     pub(super) fn get_global_omit_symbol(&self) -> io::Result<Option<Id<Symbol>>> {
         if self.maybe_deferred_global_omit_symbol().is_none() {
-            self.set_deferred_global_omit_symbol(ome(
+            self.set_deferred_global_omit_symbol(Some(
                 self.get_global_type_alias_symbol("Omit", 2, true)?
                     .unwrap_or_else(|| self.unknown_symbol()),
             ));

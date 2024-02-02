@@ -784,7 +784,7 @@ impl TransformGenerators {
 
     pub(super) fn with_block_stack_mut(
         &self,
-    ) -> GcCellRefMut<
+    ) -> RefMut<
         Vec<Id<CodeBlock /*WithBlock*/>>,
     > {
         ref_mut_unwrapped(&self.with_block_stack)

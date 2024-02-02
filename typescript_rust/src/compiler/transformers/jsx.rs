@@ -89,7 +89,7 @@ impl TransformJsx {
 
     pub(super) fn current_file_state_mut(
         &self,
-    ) -> RefMut<Option<PerFileState>, PerFileState> {
+    ) -> RefMut<PerFileState> {
         ref_mut_unwrapped(&self.current_file_state)
     }
 

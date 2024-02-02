@@ -834,7 +834,7 @@ pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal,
     arena::{static_arena, AllArenas, HasArena, InArena, OptionInArena, downcast_transformer_ref, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ArenaAlloc},
     capitalize,
-    cell::{gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, ref_mut_unwrapped, ref_unwrapped},
+    cell::{ref_mut_unwrapped, ref_unwrapped},
     combinators::With,
     debugging::{if_debugging, is_logging, start_debugging, stop_debugging, while_debugging},
     default::_d,

@@ -333,7 +333,7 @@ impl TransformDeclarations {
 
     pub(super) fn late_marked_statements_mut(
         &self,
-    ) -> RefMut<Option<Vec<Id<Node>>>, Vec<Id<Node>>> {
+    ) -> RefMut<Vec<Id<Node>>> {
         ref_mut_unwrapped(&self.late_marked_statements)
     }
 

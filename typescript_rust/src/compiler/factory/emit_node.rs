@@ -32,7 +32,7 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> 
                         starts_on_new_line: Default::default(),
                         snippet_element: Default::default(),
                     });
-                    node.ref_(arena).set_emit_node(ome(ret.clone()));
+                    node.ref_(arena).set_emit_node(Some(ret.clone()));
                     return ret;
                 }
 
