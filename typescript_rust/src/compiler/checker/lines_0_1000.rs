@@ -1459,13 +1459,12 @@ pub fn create_type_checker(
     let ret = arena_ref.alloc_type_checker(type_checker);
     ret.ref_(arena_ref).set_arena_id(ret.clone());
 
-    *ret.ref_(arena_ref).node_builder.borrow_mut() = Some(ret.ref_(arena_ref).create_node_builder());
+    ret.ref_(arena_ref).node_builder.set(Some(ret.ref_(arena_ref).create_node_builder()));
 
     ret.ref_(arena_ref).initialize_type_checker()?;
 
-    *ret.ref_(arena_ref).check_binary_expression.borrow_mut() =
-        Some(ret.ref_(arena_ref).alloc_check_binary_expression(ret.ref_(arena_ref).create_check_binary_expression()));
-    *ret.ref_(arena_ref).emit_resolver.borrow_mut() = Some(ret.ref_(arena_ref).create_resolver());
+    ret.ref_(arena_ref).check_binary_expression.set(Some(ret.ref_(arena_ref).alloc_check_binary_expression(ret.ref_(arena_ref).create_check_binary_expression())));
+    ret.ref_(arena_ref).emit_resolver.set(Some(ret.ref_(arena_ref).create_resolver()));
 
     Ok(ret)
 }
@@ -1671,11 +1670,11 @@ impl TypeChecker {
     }
 
     pub(super) fn maybe_current_node(&self) -> Option<Id<Node>> {
-        self.current_node.borrow().clone()
+        self.current_node.get()
     }
 
     pub(super) fn set_current_node(&self, current_node: Option<Id<Node>>) {
-        *self.current_node.borrow_mut() = current_node;
+        self.current_node.set(current_node);
     }
 
     pub(super) fn empty_symbols(&self) -> Id<SymbolTable> {
@@ -1687,15 +1686,15 @@ impl TypeChecker {
     }
 
     pub(super) fn emit_resolver(&self) -> Id<Box<dyn EmitResolver>> {
-        self.emit_resolver.borrow().clone().unwrap()
+        self.emit_resolver.get().unwrap()
     }
 
     pub(super) fn check_binary_expression(&self) -> Id<CheckBinaryExpression> {
-        self.check_binary_expression.borrow().clone().unwrap()
+        self.check_binary_expression.get().unwrap()
     }
 
     pub(super) fn node_builder(&self) -> Id<NodeBuilder> {
-        self.node_builder.borrow().clone().unwrap()
+        self.node_builder.get().unwrap()
     }
 
     pub(super) fn globals(&self) -> debug_cell::Ref<SymbolTable> {
@@ -2766,75 +2765,75 @@ impl TypeChecker {
         Ok(res)
     }
 
-    pub(super) fn tuple_types(&self) -> GcCellRefMut<HashMap<String, Id</*GenericType*/ Type>>> {
+    pub(super) fn tuple_types(&self) -> RefMut<HashMap<String, Id</*GenericType*/ Type>>> {
         self.tuple_types.borrow_mut()
     }
 
-    pub(super) fn union_types(&self) -> GcCellRefMut<HashMap<String, Id</*UnionType*/ Type>>> {
+    pub(super) fn union_types(&self) -> RefMut<HashMap<String, Id</*UnionType*/ Type>>> {
         self.union_types.borrow_mut()
     }
 
-    pub(super) fn intersection_types(&self) -> GcCellRefMut<HashMap<String, Id<Type>>> {
+    pub(super) fn intersection_types(&self) -> RefMut<HashMap<String, Id<Type>>> {
         self.intersection_types.borrow_mut()
     }
 
     pub(super) fn string_literal_types(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id</*NumberLiteralType*/ Type>>> {
+    ) -> RefMut<HashMap<String, Id</*NumberLiteralType*/ Type>>> {
         self.string_literal_types.borrow_mut()
     }
 
     pub(super) fn number_literal_types(
         &self,
-    ) -> GcCellRefMut<HashMap<Number, Id</*NumberLiteralType*/ Type>>> {
+    ) -> RefMut<HashMap<Number, Id</*NumberLiteralType*/ Type>>> {
         self.number_literal_types.borrow_mut()
     }
 
     pub(super) fn big_int_literal_types(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id</*BigIntLiteralType*/ Type>>> {
+    ) -> RefMut<HashMap<String, Id</*BigIntLiteralType*/ Type>>> {
         self.big_int_literal_types.borrow_mut()
     }
 
     pub(super) fn enum_literal_types(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id</*LiteralType*/ Type>>> {
+    ) -> RefMut<HashMap<String, Id</*LiteralType*/ Type>>> {
         self.enum_literal_types.borrow_mut()
     }
 
     pub(super) fn string_mapping_types(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id<Type /*StringMappingType*/>>> {
+    ) -> RefMut<HashMap<String, Id<Type /*StringMappingType*/>>> {
         self.string_mapping_types.borrow_mut()
     }
 
     pub(super) fn indexed_access_types(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id<Type /*IndexedAccessType*/>>> {
+    ) -> RefMut<HashMap<String, Id<Type /*IndexedAccessType*/>>> {
         self.indexed_access_types.borrow_mut()
     }
 
     pub(super) fn template_literal_types(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id<Type /*TemplateLiteralType*/>>> {
+    ) -> RefMut<HashMap<String, Id<Type /*TemplateLiteralType*/>>> {
         self.template_literal_types.borrow_mut()
     }
 
     pub(super) fn substitution_types(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id<Type /*SubstitutionType*/>>> {
+    ) -> RefMut<HashMap<String, Id<Type /*SubstitutionType*/>>> {
         self.substitution_types.borrow_mut()
     }
 
-    pub(super) fn subtype_reduction_cache(&self) -> GcCellRefMut<HashMap<String, Vec<Id<Type>>>> {
+    pub(super) fn subtype_reduction_cache(&self) -> RefMut<HashMap<String, Vec<Id<Type>>>> {
         self.subtype_reduction_cache.borrow_mut()
     }
 
-    pub(super) fn evolving_array_types(&self) -> GcCellRefMut<HashMap<TypeId, Id<Type>>> {
+    pub(super) fn evolving_array_types(&self) -> RefMut<HashMap<TypeId, Id<Type>>> {
         self.evolving_array_types.borrow_mut()
     }
 
-    pub(super) fn undefined_properties(&self) -> GcCellRefMut<SymbolTable> {
+    pub(super) fn undefined_properties(&self) -> RefMut<SymbolTable> {
         self.undefined_properties.borrow_mut()
     }
 
@@ -2846,11 +2845,11 @@ impl TypeChecker {
         self.resolving_symbol.as_ref().unwrap().clone()
     }
 
-    pub(super) fn unresolved_symbols(&self) -> GcCellRefMut<HashMap<String, Id<Symbol>>> {
+    pub(super) fn unresolved_symbols(&self) -> RefMut<HashMap<String, Id<Symbol>>> {
         self.unresolved_symbols.borrow_mut()
     }
 
-    pub(super) fn error_types(&self) -> GcCellRefMut<HashMap<String, Id<Type>>> {
+    pub(super) fn error_types(&self) -> RefMut<HashMap<String, Id<Type>>> {
         self.error_types.borrow_mut()
     }
 
@@ -3072,7 +3071,7 @@ impl TypeChecker {
 
     pub(super) fn iteration_types_cache(
         &self,
-    ) -> GcCellRefMut<HashMap<String, Id<IterationTypes>>> {
+    ) -> RefMut<HashMap<String, Id<IterationTypes>>> {
         self.iteration_types_cache.borrow_mut()
     }
 
@@ -3094,11 +3093,11 @@ impl TypeChecker {
 
     pub(super) fn maybe_amalgamated_duplicates(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, DuplicateInfoForFiles>>> {
+    ) -> RefMut<Option<HashMap<String, DuplicateInfoForFiles>>> {
         self.amalgamated_duplicates.borrow_mut()
     }
 
-    pub(super) fn reverse_mapped_cache(&self) -> GcCellRefMut<HashMap<String, Option<Id<Type>>>> {
+    pub(super) fn reverse_mapped_cache(&self) -> RefMut<HashMap<String, Option<Id<Type>>>> {
         self.reverse_mapped_cache.borrow_mut()
     }
 
@@ -3116,90 +3115,81 @@ impl TypeChecker {
 
     pub(super) fn maybe_pattern_ambient_modules(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<PatternAmbientModule>>>> {
+    ) -> RefMut<Option<Vec<Id<PatternAmbientModule>>>> {
         self.pattern_ambient_modules.borrow_mut()
     }
 
     pub(super) fn maybe_pattern_ambient_module_augmentations(
         &self,
-    ) -> GcCellRefMut<Option<HashMap<String, Id<Symbol>>>> {
+    ) -> RefMut<Option<HashMap<String, Id<Symbol>>>> {
         self.pattern_ambient_module_augmentations.borrow_mut()
     }
 
     pub(super) fn maybe_global_object_type(&self) -> Option<Id<Type>> {
-        self.global_object_type.borrow().clone()
+        self.global_object_type.get()
     }
 
     pub(super) fn global_object_type(&self) -> Id<Type> {
-        self.global_object_type.borrow().clone().unwrap()
+        self.global_object_type.get().unwrap()
     }
 
     pub(super) fn global_function_type(&self) -> Id<Type> {
-        self.global_function_type.borrow().as_ref().unwrap().clone()
+        self.global_function_type.get().unwrap()
     }
 
     pub(super) fn global_callable_function_type(&self) -> Id<Type> {
         self.global_callable_function_type
-            .borrow()
-            .as_ref()
-            .unwrap()
-            .clone()
+            .get().unwrap()
     }
 
     pub(super) fn global_newable_function_type(&self) -> Id<Type> {
         self.global_newable_function_type
-            .borrow()
-            .as_ref()
+            .get()
             .unwrap()
-            .clone()
     }
 
     pub(super) fn global_array_type(&self) -> Id<Type> {
-        self.global_array_type.borrow().as_ref().unwrap().clone()
+        self.global_array_type.get().unwrap()
     }
 
     pub(super) fn global_readonly_array_type(&self) -> Id<Type> {
         self.global_readonly_array_type
-            .borrow()
-            .as_ref()
+            .get()
             .unwrap()
-            .clone()
     }
 
     pub(super) fn global_string_type(&self) -> Id<Type> {
-        self.global_string_type.borrow().as_ref().unwrap().clone()
+        self.global_string_type.get().unwrap()
     }
 
     pub(super) fn global_number_type(&self) -> Id<Type> {
-        self.global_number_type.borrow().as_ref().unwrap().clone()
+        self.global_number_type.get().unwrap()
     }
 
     pub(super) fn global_boolean_type(&self) -> Id<Type> {
-        self.global_boolean_type.borrow().as_ref().unwrap().clone()
+        self.global_boolean_type.get().unwrap()
     }
 
     pub(super) fn global_reg_exp_type(&self) -> Id<Type> {
-        self.global_reg_exp_type.borrow().as_ref().unwrap().clone()
+        self.global_reg_exp_type.get().unwrap()
     }
 
     pub(super) fn global_this_type(&self) -> Id<Type> {
-        self.global_this_type.borrow().as_ref().unwrap().clone()
+        self.global_this_type.get().unwrap()
     }
 
     pub(super) fn any_array_type(&self) -> Id<Type> {
-        self.any_array_type.borrow().as_ref().unwrap().clone()
+        self.any_array_type.get().unwrap()
     }
 
     pub(super) fn auto_array_type(&self) -> Id<Type> {
-        self.auto_array_type.borrow().as_ref().unwrap().clone()
+        self.auto_array_type.get().unwrap()
     }
 
     pub(super) fn any_readonly_array_type(&self) -> Id<Type> {
         self.any_readonly_array_type
-            .borrow()
-            .as_ref()
+            .get()
             .unwrap()
-            .clone()
     }
 
     pub(super) fn maybe_deferred_global_non_nullable_type_alias(

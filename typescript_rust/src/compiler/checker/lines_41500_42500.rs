@@ -827,47 +827,47 @@ impl TypeChecker {
             ),
         );
 
-        *self.global_array_type.borrow_mut() = self.get_global_type("Array", 1, true)?;
-        *self.global_object_type.borrow_mut() = self.get_global_type("Object", 0, true)?;
-        *self.global_function_type.borrow_mut() = self.get_global_type("Function", 0, true)?;
-        *self.global_callable_function_type.borrow_mut() = Some(
+        self.global_array_type.set(self.get_global_type("Array", 1, true)?);
+        self.global_object_type.set(self.get_global_type("Object", 0, true)?);
+        self.global_function_type.set(self.get_global_type("Function", 0, true)?);
+        self.global_callable_function_type.set(Some(
             if self.strict_bind_call_apply {
                 self.get_global_type("CallableFunction", 0, true)?
             } else {
                 None
             }
             .unwrap_or_else(|| self.global_function_type()),
-        );
-        *self.global_newable_function_type.borrow_mut() = Some(
+        ));
+        self.global_newable_function_type.set(Some(
             if self.strict_bind_call_apply {
                 self.get_global_type("NewableFunction", 0, true)?
             } else {
                 None
             }
             .unwrap_or_else(|| self.global_function_type()),
-        );
-        *self.global_string_type.borrow_mut() = self.get_global_type("String", 0, true)?;
-        *self.global_number_type.borrow_mut() = self.get_global_type("Number", 0, true)?;
-        *self.global_boolean_type.borrow_mut() = self.get_global_type("Boolean", 0, true)?;
-        *self.global_reg_exp_type.borrow_mut() = self.get_global_type("RegExp", 0, true)?;
-        *self.any_array_type.borrow_mut() = Some(self.create_array_type(self.any_type(), None));
+        ));
+        self.global_string_type.set(self.get_global_type("String", 0, true)?);
+        self.global_number_type.set(self.get_global_type("Number", 0, true)?);
+        self.global_boolean_type.set(self.get_global_type("Boolean", 0, true)?);
+        self.global_reg_exp_type.set(self.get_global_type("RegExp", 0, true)?);
+        self.any_array_type.set(Some(self.create_array_type(self.any_type(), None)));
 
-        *self.auto_array_type.borrow_mut() = Some(self.create_array_type(self.auto_type(), None));
+        self.auto_array_type.set(Some(self.create_array_type(self.auto_type(), None)));
         if self.auto_array_type() == self.empty_object_type() {
-            *self.auto_array_type.borrow_mut() = Some(self.create_anonymous_type(
+            self.auto_array_type.set(Some(self.create_anonymous_type(
                 Option::<Id<Symbol>>::None,
                 self.empty_symbols(),
                 vec![],
                 vec![],
                 vec![],
-            )?);
+            )?));
         }
 
-        *self.global_readonly_array_type.borrow_mut() = self
+        self.global_readonly_array_type.set(self
             .get_global_type_or_undefined("ReadonlyArray", Some(1))?
-            .or_else(|| self.global_array_type.borrow().clone());
-        *self.any_readonly_array_type.borrow_mut() = Some(
-            if let Some(global_readonly_array_type) = *self.global_readonly_array_type.borrow() {
+            .or_else(|| self.global_array_type.get()));
+        self.any_readonly_array_type.set(Some(
+            if let Some(global_readonly_array_type) = self.global_readonly_array_type.get() {
                 self.create_type_from_generic_global_type(
                     global_readonly_array_type,
                     vec![self.any_type()],
@@ -875,9 +875,8 @@ impl TypeChecker {
             } else {
                 self.any_array_type()
             },
-        );
-        *self.global_this_type.borrow_mut() =
-            self.get_global_type_or_undefined("ThisType", Some(1))?;
+        ));
+        self.global_this_type.set(self.get_global_type_or_undefined("ThisType", Some(1))?);
 
         if let Some(augmentations) = augmentations.as_ref() {
             for list in augmentations {
