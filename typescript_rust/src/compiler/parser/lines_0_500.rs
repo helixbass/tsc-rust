@@ -31,15 +31,10 @@ pub(super) enum SpeculationKind {
 #[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct ParseBaseNodeFactory {
-    #[unsafe_ignore_trace]
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
 }
 

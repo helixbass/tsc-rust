@@ -63,19 +63,12 @@ pub fn get_indent_size() -> usize {
 pub struct TextWriter {
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     new_line: String,
-    #[unsafe_ignore_trace]
     output: RefCell<String>,
-    #[unsafe_ignore_trace]
     indent: Cell<usize>,
-    #[unsafe_ignore_trace]
     line_start: Cell<bool>,
-    #[unsafe_ignore_trace]
     line_count: Cell<usize>,
-    #[unsafe_ignore_trace]
     line_pos: Cell<usize>,
-    #[unsafe_ignore_trace]
     has_trailing_comment: Cell<bool>,
-    #[unsafe_ignore_trace]
     output_as_chars: RefCell<Vec<char>>,
 }
 
@@ -502,11 +495,9 @@ pub fn get_trailing_semicolon_deferring_writer(
 }
 
 pub struct TrailingSemicolonDeferringWriter {
-    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     writer: Id<Box<dyn EmitTextWriter>>,
-    #[unsafe_ignore_trace]
     pending_trailing_semicolon: Cell<bool>,
 }
 

@@ -1706,27 +1706,19 @@ impl Node {
 }
 
 pub struct BaseNode {
-    #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Node>>>,
     _id_override: Cell<Option<Id<Box<dyn NodeIdOverride>>>>,
     _symbol_override: Cell<Option<Id<Box<dyn NodeSymbolOverride>>>>,
-    #[unsafe_ignore_trace]
     pub kind: SyntaxKind,
-    #[unsafe_ignore_trace]
     flags: Cell<NodeFlags>,
-    #[unsafe_ignore_trace]
     modifier_flags_cache: Cell<ModifierFlags>,
-    #[unsafe_ignore_trace]
     transform_flags: Cell<TransformFlags>,
     pub decorators: Cell<Option<Id<NodeArray> /*<Decorator>*/>>,
     pub modifiers: Cell<Option<ModifiersArray>>,
-    #[unsafe_ignore_trace]
     pub id: Cell<Option<NodeId>>,
     pub parent: Cell<Option<Id<Node>>>,
     pub original: Cell<Option<Id<Node>>>,
-    #[unsafe_ignore_trace]
     pub pos: Cell<isize>,
-    #[unsafe_ignore_trace]
     pub end: Cell<isize>,
     pub symbol: Cell<Option<Id<Symbol>>>,
     pub locals: Id<Option<Id<SymbolTable>>>,
@@ -1738,7 +1730,6 @@ pub struct BaseNode {
     flow_node: Cell<Option<Id<FlowNode>>>,
     js_doc: RefCell<Option<Vec<Id<Node>>>>,
     js_doc_cache: Cell<Option<Id<Vec<Id<Node>>>>>,
-    #[unsafe_ignore_trace]
     intersects_change: Cell<Option<bool>>,
 }
 

@@ -2125,7 +2125,6 @@ struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_to_path: Id<Box<dyn ToPath>>,
     pub host_get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
     pub host_for_each_resolved_project_reference: Id<Box<dyn ForEachResolvedProjectReference>>,
-    #[unsafe_ignore_trace]
     set_of_declaration_directories: RefCell<Option<HashSet<Path>>>,
 }
 

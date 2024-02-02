@@ -107,7 +107,6 @@ impl LiteralTypeInterface for BaseLiteralType {
 #[type_type]
 pub struct UniqueESSymbolType {
     _type: BaseType,
-    #[unsafe_ignore_trace]
     pub escaped_name: __String,
 }
 
@@ -201,7 +200,6 @@ impl LiteralTypeInterface for StringLiteralType {
 #[type_type(ancestors = "LiteralType")]
 pub struct NumberLiteralType {
     _literal_type: BaseLiteralType,
-    #[unsafe_ignore_trace]
     pub value: Number,
 }
 
@@ -273,7 +271,6 @@ impl LiteralTypeInterface for NumberLiteralType {
 #[type_type(ancestors = "LiteralType")]
 pub struct BigIntLiteralType {
     _literal_type: BaseLiteralType,
-    #[unsafe_ignore_trace]
     pub value: PseudoBigInt,
 }
 
@@ -430,7 +427,6 @@ pub enum ObjectType {
 #[type_type(ancestors = "ObjectType")]
 pub struct BaseObjectType {
     _type: BaseType,
-    #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
     members: Cell<Option<Id<SymbolTable>>>,
     properties: Cell<Option<Id<Vec<Id<Symbol>>>>>,
@@ -446,7 +442,6 @@ pub struct BaseObjectType {
     regular_type: Cell<Option<Id<Type /*ResolvedType*/>>>,
     // "not actually interface type" fields
     not_actually_interface_type_resolved_base_types: Cell<Option<Id<Vec<Id<Type>>>>>,
-    #[unsafe_ignore_trace]
     not_actually_interface_type_base_types_resolved: Cell<Option<bool>>,
     not_actually_interface_type_resolved_base_constructor_type: Cell<Option<Id<Type>>>,
 }
@@ -744,7 +739,6 @@ pub struct BaseInterfaceType {
     this_type: Cell<Option<Id<Type /*TypeParameter*/>>>,
     resolved_base_constructor_type: Cell<Option<Id<Type /*TypeParameter*/>>>,
     resolved_base_types: Cell<Option<Id<Vec<Id<Type /*BaseType*/>>>>>,
-    #[unsafe_ignore_trace]
     base_types_resolved: Cell<Option<bool>>,
     // InterfaceTypeWithDeclaredMembers fields
     declared_properties: RefCell<Option<Vec<Id<Symbol>>>>,
@@ -753,7 +747,6 @@ pub struct BaseInterfaceType {
     declared_index_infos: RefCell<Option<Vec<Id<IndexInfo>>>>,
     // GenericType fields
     instantiations: RefCell<Option<HashMap<String, Id<Type /*TypeReference*/>>>>,
-    #[unsafe_ignore_trace]
     variances: Rc<RefCell<Option<Vec<VarianceFlags>>>>,
     // TypeReference fields (for GenericType)
     pub target: Cell<Option<Id<Type /*GenericType*/>>>,
@@ -1112,12 +1105,10 @@ bitflags! {
 )]
 pub struct TupleType {
     _interface_type: BaseInterfaceType,
-    #[unsafe_ignore_trace]
     pub element_flags: Vec<ElementFlags>,
     pub min_length: usize,
     pub fixed_length: usize,
     pub has_rest_element: bool,
-    #[unsafe_ignore_trace]
     pub combined_flags: ElementFlags,
     pub readonly: bool,
     pub labeled_element_declarations:
@@ -1172,7 +1163,6 @@ pub enum UnionOrIntersectionType {
 pub struct BaseUnionOrIntersectionType {
     _type: BaseType,
     pub types: Vec<Id<Type>>,
-    #[unsafe_ignore_trace]
     pub object_flags: Cell<ObjectFlags>,
     property_cache: RefCell<Option<SymbolTable>>,
     property_cache_without_object_function_property_augment: RefCell<Option<SymbolTable>>,
@@ -1354,7 +1344,6 @@ pub struct UnionType {
     resolved_reduced_type: Cell<Option<Id<Type>>>,
     regular_type: Cell<Option<Id<Type /*UnionType*/>>>,
     pub(crate) origin: Option<Id<Type>>,
-    #[unsafe_ignore_trace]
     key_property_name: RefCell<Option<__String>>,
     constituent_map: RefCell<Option<HashMap<TypeId, Id<Type>>>>,
 }

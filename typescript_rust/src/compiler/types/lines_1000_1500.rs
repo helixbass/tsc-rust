@@ -19,14 +19,10 @@ mod _NodeArrayDeriveTraceScope {
     #[derive(Clone)]
     pub struct NodeArray {
         _nodes: Vec<Id<Node>>,
-        #[unsafe_ignore_trace]
         pos: Cell<isize>,
-        #[unsafe_ignore_trace]
         end: Cell<isize>,
         pub has_trailing_comma: bool,
-        #[unsafe_ignore_trace]
         transform_flags: Cell<Option<TransformFlags>>,
-        #[unsafe_ignore_trace]
         is_missing_list: Cell<bool>,
     }
 
@@ -302,18 +298,13 @@ bitflags! {
 #[ast_type]
 pub struct Identifier {
     _node: BaseNode,
-    #[unsafe_ignore_trace]
     pub escaped_text: __String,
-    #[unsafe_ignore_trace]
     pub original_keyword_kind: Option<SyntaxKind>,
-    #[unsafe_ignore_trace]
     pub(crate) auto_generate_flags: Cell<Option<GeneratedIdentifierFlags>>,
     pub(crate) auto_generate_id: Option<usize>,
     generated_import_reference: Cell<Option<Id<Node /*ImportSpecifier*/>>>,
-    #[unsafe_ignore_trace]
     is_in_jsdoc_namespace: Cell<Option<bool>>,
     type_arguments: Cell<Option<Id<NodeArray> /*<TypeNode | TypeParameterDeclaration>*/>>,
-    #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
@@ -404,7 +395,6 @@ pub struct QualifiedName {
     _node: BaseNode,
     pub left: Id<Node /*EntityName*/>,
     pub right: Id<Node /*Identifier*/>,
-    #[unsafe_ignore_trace]
     jsdoc_dot_pos: Cell<Option<isize>>,
 }
 
@@ -580,7 +570,6 @@ impl HasExpressionInterface for ComputedPropertyName {
 #[ast_type]
 pub struct PrivateIdentifier {
     _node: BaseNode,
-    #[unsafe_ignore_trace]
     pub escaped_text: __String,
 }
 

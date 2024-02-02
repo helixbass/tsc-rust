@@ -1165,9 +1165,7 @@ impl From<Id<ConditionalRoot>> for RecursionIdentity {
 }
 
 struct GetVariancesWorkerOutofbandVarianceMarkerHandler {
-    #[unsafe_ignore_trace]
     unmeasurable: Rc<Cell<bool>>,
-    #[unsafe_ignore_trace]
     unreliable: Rc<Cell<bool>>,
 }
 

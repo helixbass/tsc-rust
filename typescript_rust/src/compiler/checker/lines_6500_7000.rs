@@ -83,7 +83,6 @@ pub struct SymbolTableToDeclarationStatements {
     pub(super) deferred_privates_stack: RefCell<Vec<HashMap<SymbolId, Id<Symbol>>>>,
     pub(super) oldcontext: Id<NodeBuilderContext>,
     pub(super) symbol_table: Cell<Id<SymbolTable>>,
-    #[unsafe_ignore_trace]
     pub(super) adding_declare: Cell<bool>,
 }
 
@@ -1121,7 +1120,6 @@ impl SymbolTableToDeclarationStatements {
 }
 
 struct SymbolTableToDeclarationStatementsSymbolTracker {
-    #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
     oldcontext_tracker: Id<Box<dyn SymbolTracker>>,
     type_checker: Id<TypeChecker>,

@@ -31,36 +31,24 @@ pub struct CheckTypeRelatedTo {
     pub type_checker: Id<TypeChecker>,
     pub source: Id<Type>,
     pub target: Id<Type>,
-    #[unsafe_ignore_trace]
     pub relation: Rc<RefCell<HashMap<String, RelationComparisonResult>>>,
     pub error_node: Cell<Option<Id<Node>>>,
-    #[unsafe_ignore_trace]
     pub head_message: Option<Cow<'static, DiagnosticMessage>>,
     pub containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
     pub error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
-    #[unsafe_ignore_trace]
     pub error_info: RefCell<Option<Rc<DiagnosticMessageChain>>>,
     pub related_info: RefCell<Option<Vec<DiagnosticRelatedInformation>>>,
-    #[unsafe_ignore_trace]
     pub maybe_keys: RefCell<Option<Vec<String>>>,
     pub source_stack: RefCell<Option<Vec<Id<Type>>>>,
     pub target_stack: RefCell<Option<Vec<Id<Type>>>>,
-    #[unsafe_ignore_trace]
     pub maybe_count: Cell<usize>,
-    #[unsafe_ignore_trace]
     pub source_depth: Cell<usize>,
-    #[unsafe_ignore_trace]
     pub target_depth: Cell<usize>,
-    #[unsafe_ignore_trace]
     pub expanding_flags: Cell<ExpandingFlags>,
-    #[unsafe_ignore_trace]
     pub overflow: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub override_next_error_info: Cell<usize>,
     pub last_skipped_info: Cell<Option<(Id<Type>, Id<Type>)>>,
-    #[unsafe_ignore_trace]
     pub incompatible_stack: RefCell<Vec<(&'static DiagnosticMessage, Option<Vec<String>>)>>,
-    #[unsafe_ignore_trace]
     pub in_property_check: Cell<bool>,
 }
 

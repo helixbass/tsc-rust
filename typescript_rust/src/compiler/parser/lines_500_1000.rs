@@ -302,40 +302,25 @@ pub struct ParserType {
     pub(super) file_name: RefCell<Option<String>>,
     pub(super) source_flags: Cell<Option<NodeFlags>>,
     pub(super) source_text: RefCell<Option<String>>,
-    #[unsafe_ignore_trace]
     pub(super) source_text_as_chars: RefCell<Option<SourceTextAsChars>>,
-    #[unsafe_ignore_trace]
     pub(super) language_version: Cell<Option<ScriptTarget>>,
-    #[unsafe_ignore_trace]
     pub(super) script_kind: Cell<Option<ScriptKind>>,
-    #[unsafe_ignore_trace]
     pub(super) language_variant: Cell<Option<LanguageVariant>>,
     pub(super) parse_diagnostics:
         RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) js_doc_diagnostics:
         RefCell<Option<Vec<Id<Diagnostic /*DiagnosticWithDetachedLocation*/>>>>,
     pub(super) syntax_cursor: RefCell<Option<IncrementalParserSyntaxCursor>>,
-    #[unsafe_ignore_trace]
     pub(super) current_token: RefCell<Option<SyntaxKind>>,
-    #[unsafe_ignore_trace]
     pub(super) node_count: Cell<Option<usize>>,
-    #[unsafe_ignore_trace]
     pub(super) identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
-    #[unsafe_ignore_trace]
     pub(super) private_identifiers: RefCell<Option<Rc<RefCell<HashMap<String, String>>>>>,
-    #[unsafe_ignore_trace]
     pub(super) identifier_count: Cell<Option<usize>>,
-    #[unsafe_ignore_trace]
     pub(super) parsing_context: Cell<Option<ParsingContext>>,
-    #[unsafe_ignore_trace]
     pub(super) not_parenthesized_arrow: RefCell<Option<HashSet<usize>>>,
-    #[unsafe_ignore_trace]
     pub(super) context_flags: Cell<Option<NodeFlags>>,
-    #[unsafe_ignore_trace]
     pub(super) top_level: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub(super) parse_error_before_next_finished_node: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub(super) has_deprecated_tag: Cell<bool>,
 }
 

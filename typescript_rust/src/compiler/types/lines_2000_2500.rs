@@ -17,7 +17,6 @@ pub struct BinaryExpression {
     pub left: Id<Node>,
     pub operator_token: Id<Node>,
     pub right: Id<Node>,
-    #[unsafe_ignore_trace]
     cached_literal_kind: Cell<Option<SyntaxKind>>,
 }
 
@@ -145,11 +144,8 @@ impl ArrowFunction {
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
-    #[unsafe_ignore_trace]
     text: RefCell<String>,
-    #[unsafe_ignore_trace]
     is_unterminated: Cell<Option<bool>>,
-    #[unsafe_ignore_trace]
     has_extended_unicode_escape: Cell<Option<bool>>,
 }
 
@@ -205,7 +201,6 @@ pub trait LiteralLikeNodeInterface {
 pub struct TemplateLiteralLikeNode {
     _literal_like_node: BaseLiteralLikeNode,
     pub raw_text: Option<String>,
-    #[unsafe_ignore_trace]
     pub template_flags: Option<TokenFlags>,
 }
 
@@ -278,7 +273,6 @@ bitflags! {
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct NumericLiteral {
     _literal_like_node: BaseLiteralLikeNode,
-    #[unsafe_ignore_trace]
     pub(crate) numeric_literal_flags: TokenFlags,
 }
 

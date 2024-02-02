@@ -1320,7 +1320,6 @@ pub(super) struct GetDiagnosticSpanForCallNodeReturn {
 }
 
 pub(super) struct ResolveCallContainingMessageChain {
-    #[unsafe_ignore_trace]
     chain: Option<Rc<RefCell<DiagnosticMessageChain>>>,
 }
 
@@ -1338,7 +1337,6 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
 
 struct ResolveCallOverloadContainingMessageChain {
     type_checker: Id<TypeChecker>,
-    #[unsafe_ignore_trace]
     i: Rc<Cell<usize>>,
     candidates_len: usize,
     c: Id<Signature>,

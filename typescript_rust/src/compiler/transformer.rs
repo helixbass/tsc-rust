@@ -361,9 +361,7 @@ pub fn transform_nodes(
 }
 
 pub struct TransformNodesTransformationResult {
-    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
-    #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Self>>>,
     on_emit_node_outermost_override_or_original_method:
         Cell<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
@@ -374,30 +372,24 @@ pub struct TransformNodesTransformationResult {
     on_substitute_node_previous_override_or_original_method:
         Cell<Option<Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>>>,
     transformed: RefCell<Vec<Id<Node>>>,
-    #[unsafe_ignore_trace]
     state: Cell<TransformationState>,
     nodes: Vec<Id<Node>>,
-    #[unsafe_ignore_trace]
     enabled_syntax_kind_features: RefCell<HashMap<SyntaxKind, SyntaxKindFeatureFlags>>,
     lexical_environment_variable_declarations:
         RefCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
     lexical_environment_function_declarations:
         RefCell<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>,
     lexical_environment_statements: RefCell<Option<Vec<Id<Node /*Statement*/>>>>,
-    #[unsafe_ignore_trace]
     lexical_environment_flags: Cell<LexicalEnvironmentFlags>,
     lexical_environment_variable_declarations_stack:
         RefCell<Option<Vec<Option<Vec<Id<Node /*VariableDeclaration*/>>>>>>,
     lexical_environment_function_declarations_stack:
         RefCell<Option<Vec<Option<Vec<Id<Node /*FunctionDeclaration*/>>>>>>,
     lexical_environment_statements_stack: RefCell<Option<Vec<Option<Vec<Id<Node /*Statement*/>>>>>>,
-    #[unsafe_ignore_trace]
     lexical_environment_flags_stack: RefCell<Option<Vec<LexicalEnvironmentFlags>>>,
-    #[unsafe_ignore_trace]
     lexical_environment_suspended: Cell<bool>,
     block_scoped_variable_declarations_stack:
         RefCell<Option<Vec<Option<Vec<Id<Node /*Identifier*/>>>>>>,
-    #[unsafe_ignore_trace]
     block_scope_stack_offset: Cell<usize>,
     block_scoped_variable_declarations: RefCell<Option<Vec<Id<Node /*Identifier*/>>>>,
     emit_helpers: RefCell<Option<Vec<Id<EmitHelper>>>>,

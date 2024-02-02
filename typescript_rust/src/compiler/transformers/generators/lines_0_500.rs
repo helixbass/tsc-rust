@@ -209,9 +209,7 @@ impl From<WithBlock> for CodeBlock {
 }
 
 pub(super) struct ExceptionBlock {
-    #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Exception*/
-    #[unsafe_ignore_trace]
     pub state: ExceptionBlockState,
     pub start_label: Label,
     pub catch_variable: Option<Id<Node /*Identifier*/>>,
@@ -242,7 +240,6 @@ impl ExceptionBlock {
 }
 
 pub(super) struct LabeledBlock {
-    #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Labeled*/
     pub label_text: String,
     pub is_script: bool,
@@ -261,7 +258,6 @@ impl LabeledBlock {
 }
 
 pub(super) struct SwitchBlock {
-    #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Switch*/
     pub is_script: bool,
     pub break_label: Label,
@@ -278,7 +274,6 @@ impl SwitchBlock {
 }
 
 pub(super) struct LoopBlock {
-    #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Loop*/
     pub continue_label: Label,
     pub is_script: bool,
@@ -297,7 +292,6 @@ impl LoopBlock {
 }
 
 pub(super) struct WithBlock {
-    #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.With*/
     pub expression: Id<Node /*Identifier*/>,
     pub start_label: Label,
@@ -342,48 +336,33 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
 }
 
 pub(super) struct TransformGenerators {
-    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
-    #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) renamed_catch_variables: RefCell<Option<HashMap<String, bool>>>,
     pub(super) renamed_catch_variable_declarations:
         RefCell<HashMap<NodeId, Id<Node /*Identifier*/>>>,
-    #[unsafe_ignore_trace]
     pub(super) in_generator_function_body: Cell<Option<bool>>,
-    #[unsafe_ignore_trace]
     pub(super) in_statement_containing_yield: Cell<Option<bool>>,
     pub(super) blocks: RefCell<Option<Vec<Id<CodeBlock>>>>,
-    #[unsafe_ignore_trace]
     pub(super) block_offsets: RefCell<Option<Vec<usize>>>,
-    #[unsafe_ignore_trace]
     pub(super) block_actions: RefCell<Option<Vec<BlockAction>>>,
     pub(super) block_stack: RefCell<Option<Vec<Id<CodeBlock>>>>,
-    #[unsafe_ignore_trace]
     pub(super) label_offsets: RefCell<Option<HashMap<Label, Option<usize>>>>,
     pub(super) label_expressions:
         RefCell<Option<HashMap<Label, Vec<Id<Node /*Mutable<LiteralExpression>*/>>>>>,
-    #[unsafe_ignore_trace]
     pub(super) next_label_id: Cell<Label>,
-    #[unsafe_ignore_trace]
     pub(super) operations: RefCell<Option<Vec<OpCode>>>,
     pub(super) operation_arguments: RefCell<Option<Vec<Option<OperationArguments>>>>,
-    #[unsafe_ignore_trace]
     pub(super) operation_locations: RefCell<Option<Vec<Option<ReadonlyTextRangeConcrete>>>>,
     pub(super) state: Cell<Option<Id<Node /*Identifier*/>>>,
-    #[unsafe_ignore_trace]
     pub(super) block_index: Cell<usize>,
-    #[unsafe_ignore_trace]
     pub(super) label_number: Cell<u32>,
-    #[unsafe_ignore_trace]
     pub(super) label_numbers: RefCell<Option<HashMap<u32, Vec<Label>>>>,
-    #[unsafe_ignore_trace]
     pub(super) last_operation_was_abrupt: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub(super) last_operation_was_completion: Cell<bool>,
     pub(super) clauses: RefCell<Option<Vec<Id<Node /*CaseClause*/>>>>,
     pub(super) statements: RefCell<Option<Vec<Id<Node /*Statement*/>>>>,

@@ -60,10 +60,8 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
 pub struct IncrementalParserSyntaxCursorCreated {
     source_file: Id<Node /*SourceFile*/>,
     current_array: Cell<Option<Id<NodeArray>>>,
-    #[unsafe_ignore_trace]
     current_array_index: Cell<Option<usize>>,
     current: Cell<Option<Id<Node>>>,
-    #[unsafe_ignore_trace]
     last_queried_position: Cell<Option<usize>>,
 }
 

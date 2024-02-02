@@ -966,7 +966,6 @@ pub struct TypeReferenceDirectiveResolutionCache {
 #[derive(Clone, Debug)]
 pub struct ModeAwareCache<TValue: 'static> {
     underlying: RefCell<HashMap<String, TValue>>,
-    #[unsafe_ignore_trace]
     memoized_reverse_keys: RefCell<HashMap<String, (String, Option<ModuleKind>)>>,
 }
 
@@ -2915,11 +2914,8 @@ fn load_node_module_from_directory(
 }
 
 pub struct PackageJsonInfo {
-    #[unsafe_ignore_trace]
     pub package_directory: String,
-    #[unsafe_ignore_trace]
     pub package_json_content: Rc<PackageJson /*PackageJsonPathFields*/>,
-    #[unsafe_ignore_trace]
     pub version_paths: Option<Rc<VersionPaths>>,
 }
 

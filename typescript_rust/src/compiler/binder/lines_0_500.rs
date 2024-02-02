@@ -43,7 +43,6 @@ pub struct ActiveLabel {
     pub name: __String,
     break_target: Id<FlowNode /*FlowLabel*/>,
     continue_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
-    #[unsafe_ignore_trace]
     referenced: Cell<bool>,
 }
 
@@ -306,12 +305,10 @@ pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptio
 
 #[allow(non_snake_case)]
 pub struct Binder {
-    #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
     pub(super) _arena_id: Cell<Option<Id<Self>>>,
     pub(super) file: Cell<Option<Id</*SourceFile*/ Node>>>,
     pub(super) options: Cell<Option<Id<CompilerOptions>>>,
-    #[unsafe_ignore_trace]
     pub(super) language_version: Cell<Option<ScriptTarget>>,
     pub(super) parent: Cell<Option<Id<Node>>>,
     pub(super) container: Cell<Option<Id<Node>>>,
@@ -320,7 +317,6 @@ pub struct Binder {
     pub(super) last_container: Cell<Option<Id<Node>>>,
     pub(super) delayed_type_aliases:
         RefCell<Option<Vec<Id<Node /*JSDocTypedefTag | JSDocCallbackTag | JSDocEnumTag*/>>>>,
-    #[unsafe_ignore_trace]
     pub(super) seen_this_keyword: Cell<Option<bool>>,
 
     pub(super) current_flow: Cell<Option<Id<FlowNode>>>,
@@ -332,24 +328,17 @@ pub struct Binder {
     pub(super) current_exception_target: Cell<Option<Id<FlowNode /*FlowLabel*/>>>,
     pub(super) pre_switch_case_flow: Cell<Option<Id<FlowNode>>>,
     pub(super) active_label_list: Cell<Option<Id<ActiveLabel>>>,
-    #[unsafe_ignore_trace]
     pub(super) has_explicit_return: Cell<Option<bool>>,
 
-    #[unsafe_ignore_trace]
     pub(super) emit_flags: Cell<Option<NodeFlags>>,
 
-    #[unsafe_ignore_trace]
     pub(super) in_strict_mode: Cell<Option<bool>>,
 
-    #[unsafe_ignore_trace]
     pub(super) in_assignment_pattern: Cell<bool>,
 
-    #[unsafe_ignore_trace]
     pub(super) symbol_count: Cell<usize>,
 
-    #[unsafe_ignore_trace]
     pub(super) Symbol: RefCell<Option<fn(SymbolFlags, __String) -> BaseSymbol>>,
-    #[unsafe_ignore_trace]
     pub(super) classifiable_names: RefCell<Option<Rc<RefCell<HashSet<__String>>>>>,
 
     pub(super) unreachable_flow: Cell<Id<FlowNode>>,

@@ -71,28 +71,20 @@ bitflags! {
 }
 
 struct TransformES2018 {
-    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
     resolver: Id<Box<dyn EmitResolver>>,
     compiler_options: Id<CompilerOptions>,
-    #[unsafe_ignore_trace]
     language_version: ScriptTarget,
-    #[unsafe_ignore_trace]
     exported_variable_statement: Cell<bool>,
-    #[unsafe_ignore_trace]
     enabled_substitutions: Cell<ESNextSubstitutionFlags>,
-    #[unsafe_ignore_trace]
     enclosing_function_flags: Cell<Option<FunctionFlags>>,
-    #[unsafe_ignore_trace]
     enclosing_super_container_flags: Cell<NodeCheckFlags>,
-    #[unsafe_ignore_trace]
     hierarchy_facts: Cell<HierarchyFacts>,
     current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
     tagged_template_string_declarations: RefCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
     captured_super_properties: RefCell<Option<HashSet<__String>>>,
-    #[unsafe_ignore_trace]
     has_super_element_access: Cell<bool>,
     substituted_super_accessors: RefCell<HashMap<NodeId, bool>>,
 }

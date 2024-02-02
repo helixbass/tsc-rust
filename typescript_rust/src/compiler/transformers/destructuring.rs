@@ -503,7 +503,6 @@ pub struct PendingDeclaration {
     pending_expressions: Option<Vec<Id<Node /*Expression*/>>>,
     name: Id<Node /*BindingName*/>,
     value: Id<Node /*Expression*/>,
-    #[unsafe_ignore_trace]
     location: Option<ReadonlyTextRangeConcrete>,
     original: Option<Id<Node>>,
 }

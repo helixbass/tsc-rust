@@ -1985,7 +1985,6 @@ impl HasArena for TypeComparerIsRelatedToWorker {
 }
 
 struct RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
-    #[unsafe_ignore_trace]
     propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
     original_handler: Id<Box<dyn OutofbandVarianceMarkerHandler>>,
 }

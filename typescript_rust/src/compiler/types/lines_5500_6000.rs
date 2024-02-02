@@ -63,7 +63,6 @@ pub struct MappedType {
     template_type: Cell<Option<Id<Type>>>,
     modifiers_type: Cell<Option<Id<Type>>>,
     resolved_apparent_type: Cell<Option<Id<Type>>>,
-    #[unsafe_ignore_trace]
     contains_error: Cell<Option<bool>>,
 }
 
@@ -364,7 +363,6 @@ pub struct IndexedAccessType {
     _type: BaseType,
     pub object_type: Id<Type>,
     pub index_type: Id<Type>,
-    #[unsafe_ignore_trace]
     pub(crate) access_flags: AccessFlags,
     pub(crate) constraint: Option<Id<Type>>,
     simplified_for_reading: Cell<Option<Id<Type>>>,
@@ -575,7 +573,6 @@ impl StringMappingType {
 #[type_type]
 pub struct SubstitutionType {
     _type: BaseType,
-    #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
     pub base_type: Id<Type>,
     pub substitute: Id<Type>,
@@ -637,7 +634,6 @@ bitflags! {
 
 #[derive(Debug)]
 pub struct Signature {
-    #[unsafe_ignore_trace]
     pub flags: SignatureFlags,
     pub declaration: Option<Id<Node /*SignatureDeclaration | JSDocSignature*/>>,
     type_parameters: RefCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
@@ -646,12 +642,10 @@ pub struct Signature {
     resolved_return_type: Cell<Option<Id<Type>>>,
     resolved_type_predicate: Cell<Option<Id<TypePredicate>>>,
     min_argument_count: Option<usize>,
-    #[unsafe_ignore_trace]
     resolved_min_argument_count: Cell<Option<usize>>,
     pub target: Option<Id<Signature>>,
     pub mapper: Option<Id<TypeMapper>>,
     pub composite_signatures: Option<Vec<Id<Signature>>>,
-    #[unsafe_ignore_trace]
     pub composite_kind: Option<TypeFlags>,
     erased_signature_cache: Cell<Option<Id<Signature>>>,
     canonical_signature_cache: Cell<Option<Id<Signature>>>,
@@ -949,13 +943,9 @@ pub struct InferenceInfo {
     candidates: RefCell<Option<Vec<Id<Type>>>>,
     contra_candidates: RefCell<Option<Vec<Id<Type>>>>,
     inferred_type: Cell<Option<Id<Type>>>,
-    #[unsafe_ignore_trace]
     priority: Cell<Option<InferencePriority>>,
-    #[unsafe_ignore_trace]
     top_level: Cell<bool>,
-    #[unsafe_ignore_trace]
     is_fixed: Cell<bool>,
-    #[unsafe_ignore_trace]
     implied_arity: Cell<Option<usize>>,
 }
 
@@ -1097,7 +1087,6 @@ pub trait TypeComparer {
 pub struct InferenceContext {
     inferences: RefCell<Vec<Id<InferenceInfo>>>,
     pub signature: Option<Id<Signature>>,
-    #[unsafe_ignore_trace]
     flags: Cell<InferenceFlags>,
     pub compare_types: Id<Box<dyn TypeComparer>>,
     mapper: Cell<Option<Id<TypeMapper>>>,
@@ -1316,7 +1305,6 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
     related_information: RefCell<Option<Vec<Id<DiagnosticRelatedInformation>>>>,
-    #[unsafe_ignore_trace]
     skipped_on: RefCell<Option<String /*keyof CompilerOptions*/>>,
 }
 
@@ -1736,18 +1724,14 @@ impl From<Diagnostic> for DiagnosticRelatedInformation {
 #[derive(Builder, Clone, Debug)]
 #[builder(setter(into))]
 pub struct BaseDiagnosticRelatedInformation {
-    #[unsafe_ignore_trace]
     category: Cell<DiagnosticCategory>,
     code: u32,
     #[builder(default)]
     file: Option<Id<Node /*SourceFile*/>>,
     #[builder(default, setter(custom))]
-    #[unsafe_ignore_trace]
     start: Cell<Option<isize>>,
     #[builder(default, setter(custom))]
-    #[unsafe_ignore_trace]
     length: Cell<Option<isize>>,
-    #[unsafe_ignore_trace]
     message_text: DiagnosticMessageText,
 }
 

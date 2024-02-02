@@ -12,7 +12,6 @@ use crate::{
 };
 
 struct TransformNodeModule {
-    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     esm_transform: Transformer,

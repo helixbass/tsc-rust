@@ -32,23 +32,19 @@ pub(super) struct AsynchronousDependencies {
 }
 
 pub(super) struct TransformModule {
-    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) host: Id<Box<dyn EmitHost>>,
     pub(super) compiler_options: Id<CompilerOptions>,
-    #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
-    #[unsafe_ignore_trace]
     pub(super) module_kind: ModuleKind,
     pub(super) module_info_map: RefCell<HashMap<NodeId, Id<ExternalModuleInfo>>>,
     pub(super) deferred_exports: RefCell<HashMap<NodeId, Option<Vec<Id<Node /*Statement*/>>>>>,
     pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
     pub(super) current_module_info: Cell<Option<Id<ExternalModuleInfo>>>,
     pub(super) no_substitution: RefCell<HashMap<NodeId, bool>>,
-    #[unsafe_ignore_trace]
     pub(super) need_umd_dynamic_import_helper: Cell<bool>,
 }
 

@@ -568,22 +568,15 @@ pub(super) struct InferTypes {
     pub type_checker: Id<TypeChecker>,
     pub inferences: Vec<Id<InferenceInfo>>,
     pub original_target: Id<Type>,
-    #[unsafe_ignore_trace]
     priority: Cell<InferencePriority>,
-    #[unsafe_ignore_trace]
     contravariant: Cell<bool>,
-    #[unsafe_ignore_trace]
     bivariant: Cell<bool>,
     propagation_type: Cell<Option<Id<Type>>>,
-    #[unsafe_ignore_trace]
     inference_priority: Cell<InferencePriority>,
-    #[unsafe_ignore_trace]
     allow_complex_constraint_inference: Cell<bool>,
-    #[unsafe_ignore_trace]
     visited: RefCell<Option<HashMap<String, InferencePriority>>>,
     source_stack: RefCell<Option<Vec<RecursionIdentity>>>,
     target_stack: RefCell<Option<Vec<RecursionIdentity>>>,
-    #[unsafe_ignore_trace]
     expanding_flags: Cell<ExpandingFlags>,
 }
 

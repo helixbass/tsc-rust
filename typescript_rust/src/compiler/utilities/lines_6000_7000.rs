@@ -849,13 +849,9 @@ pub struct SymlinkedDirectory {
 pub struct SymlinkCache {
     cwd: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
-    #[unsafe_ignore_trace]
     symlinked_files: RefCell<Option<HashMap<Path, String>>>,
-    #[unsafe_ignore_trace]
     symlinked_directories: RefCell<Option<HashMap<Path, Option<SymlinkedDirectory>>>>,
-    #[unsafe_ignore_trace]
     symlinked_directories_by_realpath: RefCell<Option<MultiMap<Path, String>>>,
-    #[unsafe_ignore_trace]
     has_processed_resolutions: Cell<bool>,
 }
 

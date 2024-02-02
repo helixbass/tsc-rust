@@ -13,7 +13,6 @@ use crate::{
 };
 
 struct TransformES2016 {
-    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,

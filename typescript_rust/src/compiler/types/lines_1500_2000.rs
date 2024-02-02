@@ -238,7 +238,6 @@ impl From<BaseNode> for KeywordTypeNode {
 pub struct ImportTypeNode {
     _node: BaseNode,
     type_arguments: Cell<Option<Id<NodeArray /*<TypeNode>*/>>>,
-    #[unsafe_ignore_trace]
     is_type_of: Cell<bool>,
     pub argument: Id<Node /*<TypeNode>*/>,
     pub qualifier: Option<Id<Node /*<EntityName>*/>>,
@@ -691,7 +690,6 @@ impl HasTypeInterface for ParenthesizedTypeNode {
 #[ast_type]
 pub struct TypeOperatorNode {
     _node: BaseNode,
-    #[unsafe_ignore_trace]
     pub operator: SyntaxKind, /*SyntaxKind.KeyOfKeyword | SyntaxKind.UniqueKeyword | SyntaxKind.ReadonlyKeyword*/
     pub type_: Id<Node /*TypeNode*/>,
 }
@@ -908,7 +906,6 @@ pub trait UnaryExpressionInterface {
 #[ast_type]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
-    #[unsafe_ignore_trace]
     pub operator: SyntaxKind, /*PrefixUnaryOperator*/
     pub operand: Id<Node /*UnaryExpression*/>,
 }
@@ -938,7 +935,6 @@ impl UnaryExpressionInterface for PrefixUnaryExpression {
 pub struct PostfixUnaryExpression {
     pub _node: BaseNode,
     pub operand: Id<Node /*LeftHandSideExpression*/>,
-    #[unsafe_ignore_trace]
     pub operator: SyntaxKind, /*PostfixUnaryOperator*/
 }
 

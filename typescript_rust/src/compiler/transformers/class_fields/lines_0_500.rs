@@ -62,7 +62,6 @@ pub(super) struct PrivateIdentifierAccessorInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
-    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Accessor*/
     pub getter_name: Option<Id<Node /*Identifier*/>>,
     pub setter_name: Option<Id<Node /*Identifier*/>>,
@@ -113,7 +112,6 @@ pub(super) struct PrivateIdentifierMethodInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
-    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Method*/
     pub method_name: Id<Node /*Identifier*/>,
 }
@@ -161,7 +159,6 @@ pub(super) struct PrivateIdentifierInstanceFieldInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
-    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Field*/
 }
 
@@ -202,7 +199,6 @@ pub(super) struct PrivateIdentifierStaticFieldInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
-    #[unsafe_ignore_trace]
     kind: PrivateIdentifierKind, /*PrivateIdentifierKind.Field*/
     pub variable_name: Id<Node /*Identifier*/>,
 }
@@ -348,7 +344,6 @@ pub struct PrivateIdentifierEnvironment {
 
 #[derive(Default)]
 pub struct ClassLexicalEnvironment {
-    #[unsafe_ignore_trace]
     pub facts: ClassFacts,
     pub class_constructor: Option<Id<Node /*Identifier*/>>,
     pub super_class_reference: Option<Id<Node /*Identifier*/>>,
@@ -367,19 +362,16 @@ bitflags! {
 }
 
 pub(super) struct TransformClassFields {
-    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) compiler_options: Id<CompilerOptions>,
-    #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
     pub(super) use_define_for_class_fields: bool,
     pub(super) should_transform_private_elements_or_class_static_blocks: bool,
     pub(super) should_transform_super_in_static_initializers: bool,
     pub(super) should_transform_this_in_static_initializers: bool,
-    #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ClassPropertySubstitutionFlags>>,
     pub(super) class_aliases: RefCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
     pub(super) pending_expressions: RefCell<Option<Vec<Id<Node /*Expression*/>>>>,

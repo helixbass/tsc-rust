@@ -153,12 +153,10 @@ struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
     system: Id<Box<dyn System>>,
     existing_directories: RefCell<HashMap<String, bool>>,
-    #[unsafe_ignore_trace]
     output_fingerprints: RefCell<Option<HashMap<String, OutputFingerprint>>>,
     options: Id<CompilerOptions>,
     new_line: String,
     current_directory: RefCell<Option<String>>,
-    #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
     read_file_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
     file_exists_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
@@ -717,11 +715,8 @@ struct ChangeCompilerHostLikeToUseCacheOverrider {
     host: Id<Box<dyn CompilerHost>>,
     to_path: Id<Box<dyn ToPath>>,
     get_source_file: Option<Id<Box<dyn GetSourceFile>>>,
-    #[unsafe_ignore_trace]
     read_file_cache: RefCell<HashMap<String, Option<String>>>,
-    #[unsafe_ignore_trace]
     file_exists_cache: RefCell<HashMap<String, bool>>,
-    #[unsafe_ignore_trace]
     directory_exists_cache: RefCell<HashMap<String, bool>>,
     source_file_cache: RefCell<HashMap<String, Id<Node /*SourceFile*/>>>,
     has_get_source_file_with_cache: bool,

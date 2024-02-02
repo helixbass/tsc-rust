@@ -119,7 +119,6 @@ fn create_single_line_string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTex
 
 struct SingleLineStringWriter {
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
-    #[unsafe_ignore_trace]
     str: RefCell<String>,
 }
 

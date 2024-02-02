@@ -41,53 +41,29 @@ struct SourceMapGeneratorConcrete {
     file: String,
     source_root: String,
     host: Id<Box<dyn EmitHost>>,
-    #[unsafe_ignore_trace]
     raw_sources: RefCell<Vec<String>>,
-    #[unsafe_ignore_trace]
     sources: RefCell<Vec<String>>,
-    #[unsafe_ignore_trace]
     source_to_source_index_map: RefCell<HashMap<String, usize>>,
-    #[unsafe_ignore_trace]
     sources_content: RefCell<Option<Vec<Option<String>>>>,
-    #[unsafe_ignore_trace]
     names: RefCell<Vec<String>>,
-    #[unsafe_ignore_trace]
     name_to_name_index_map: RefCell<Option<HashMap<String, usize>>>,
-    #[unsafe_ignore_trace]
     mapping_char_codes: RefCell<Vec<char>>,
-    #[unsafe_ignore_trace]
     mappings: RefCell<String>,
-    #[unsafe_ignore_trace]
     last_generated_line: Cell<usize>,
-    #[unsafe_ignore_trace]
     last_generated_character: Cell<usize>,
-    #[unsafe_ignore_trace]
     last_source_index: Cell<usize>,
-    #[unsafe_ignore_trace]
     last_source_line: Cell<usize>,
-    #[unsafe_ignore_trace]
     last_source_character: Cell<usize>,
-    #[unsafe_ignore_trace]
     last_name_index: Cell<usize>,
-    #[unsafe_ignore_trace]
     has_last: Cell<bool>,
-    #[unsafe_ignore_trace]
     pending_generated_line: Cell<usize>,
-    #[unsafe_ignore_trace]
     pending_generated_character: Cell<usize>,
-    #[unsafe_ignore_trace]
     pending_source_index: Cell<usize>,
-    #[unsafe_ignore_trace]
     pending_source_line: Cell<usize>,
-    #[unsafe_ignore_trace]
     pending_source_character: Cell<usize>,
-    #[unsafe_ignore_trace]
     pending_name_index: Cell<usize>,
-    #[unsafe_ignore_trace]
     has_pending: Cell<bool>,
-    #[unsafe_ignore_trace]
     has_pending_source: Cell<bool>,
-    #[unsafe_ignore_trace]
     has_pending_name: Cell<bool>,
 }
 

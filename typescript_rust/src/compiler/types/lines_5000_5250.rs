@@ -103,7 +103,6 @@ pub type SymbolTable = IndexMap<__String, Id<Symbol>>;
 
 #[derive(Clone, Debug)]
 pub struct PatternAmbientModule {
-    #[unsafe_ignore_trace]
     pub pattern: Rc<Pattern>,
     pub symbol: Id<Symbol>,
 }
@@ -154,19 +153,16 @@ pub struct NodeLinksSerializedType {
 
 #[derive(Debug)]
 pub struct NodeLinks {
-    #[unsafe_ignore_trace]
     pub flags: NodeCheckFlags,
     pub resolved_type: Option<Id<Type>>,
     pub resolved_enum_type: Option<Id<Type>>,
     pub resolved_signature: Option<Id<Signature>>,
     pub resolved_symbol: Option<Id<Symbol>>,
     pub effects_signature: Option<Id<Signature>>,
-    #[unsafe_ignore_trace]
     pub enum_member_value: Option<StringOrNumber>,
     pub is_visible: Option<bool>,
     pub contains_arguments_reference: Option<bool>,
     pub has_reported_statement_in_ambient_context: Option<bool>,
-    #[unsafe_ignore_trace]
     pub jsx_flags: JsxFlags,
     pub resolved_jsx_element_attributes_type: Option<Id<Type>>,
     pub resolved_jsdoc_type: Option<Id<Type>>,
@@ -620,15 +616,12 @@ pub trait TypeInterface {
 #[derive(Clone, Debug)]
 pub struct BaseType {
     _arena_id: Cell<Option<Id<Type>>>,
-    #[unsafe_ignore_trace]
     flags: Cell<TypeFlags>,
-    #[unsafe_ignore_trace]
     pub id: Option<TypeId>,
     symbol: Cell<Option<Id<Symbol>>>,
     pattern: Cell<Option<Id<Node>>>,
     alias_symbol: Cell<Option<Id<Symbol>>>,
     alias_type_arguments: RefCell<Option<Vec<Id<Type>>>>,
-    #[unsafe_ignore_trace]
     alias_type_arguments_contains_marker: Cell<Option<bool>>,
     permissive_instantiation: Cell<Option<Id<Type>>>,
     restrictive_instantiation: Cell<Option<Id<Type>>>,
@@ -994,7 +987,6 @@ pub enum IntrinsicType {
 pub struct BaseIntrinsicType {
     _type: BaseType,
     intrinsic_name: String,
-    #[unsafe_ignore_trace]
     object_flags: Cell<ObjectFlags>,
 }
 

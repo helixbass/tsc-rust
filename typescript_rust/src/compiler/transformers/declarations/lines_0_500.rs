@@ -160,22 +160,15 @@ pub(super) fn declaration_emit_node_builder_flags() -> NodeBuilderFlags {
 }
 
 pub(super) struct TransformDeclarations {
-    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) get_symbol_accessibility_diagnostic: Cell<GetSymbolAccessibilityDiagnostic>,
-    #[unsafe_ignore_trace]
     pub(super) needs_declare: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub(super) is_bundled_emit: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub(super) result_has_external_module_indicator: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub(super) needs_scope_fix_marker: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub(super) result_has_scope_marker: Cell<bool>,
     pub(super) enclosing_declaration: Cell<Option<Id<Node>>>,
-    #[unsafe_ignore_trace]
     pub(super) necessary_type_references: RefCell<Option<HashSet<String>>>,
     pub(super) late_marked_statements:
         RefCell<Option<Vec<Id<Node /*LateVisibilityPaintedStatement*/>>>>,
@@ -187,7 +180,6 @@ pub(super) struct TransformDeclarations {
             >,
         >,
     >,
-    #[unsafe_ignore_trace]
     pub(super) suppress_new_diagnostic_contexts: Cell<Option<bool>>,
     pub(super) exported_modules_from_declaration_emit: RefCell<Option<Vec<Id<Symbol>>>>,
     pub(super) factory: Id<NodeFactory>,
@@ -1258,7 +1250,6 @@ impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
 }
 
 pub(super) struct TransformDeclarationsSymbolTracker {
-    #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
     pub(super) transform_declarations: Transformer,
     pub(super) host: Id<Box<dyn EmitHost>>,

@@ -17,7 +17,6 @@ use crate::HasDotDotDotTokenInterface;
 #[ast_type]
 pub struct MetaProperty {
     _node: BaseNode,
-    #[unsafe_ignore_trace]
     pub keyword_token: SyntaxKind, /*SyntaxKind.NewKeyword | SyntaxKind.ImportKeyword*/
     pub name: Id<Node /*Identifier*/>,
 }
@@ -360,11 +359,8 @@ impl HasExpressionInterface for JsxExpression {
 #[ast_type]
 pub struct JsxText {
     _node: BaseNode,
-    #[unsafe_ignore_trace]
     text: RefCell<String>,
-    #[unsafe_ignore_trace]
     pub is_unterminated: Cell<Option<bool>>,
-    #[unsafe_ignore_trace]
     pub has_extended_unicode_escape: Cell<Option<bool>>,
     pub contains_only_trivia_white_spaces: bool,
 }
@@ -912,7 +908,6 @@ pub struct SwitchStatement {
     _node: BaseNode,
     pub expression: Id<Node /*Expression*/>,
     pub case_block: Id<Node /*CaseBlock*/>,
-    #[unsafe_ignore_trace]
     possibly_exhaustive: Cell<Option<bool>>,
 }
 
@@ -1575,7 +1570,6 @@ impl HasMembersInterface for InterfaceDeclaration {
 #[ast_type]
 pub struct HeritageClause {
     _node: BaseNode,
-    #[unsafe_ignore_trace]
     pub token: SyntaxKind, /*SyntaxKind.ExtendsKeyword | SyntaxKind.ImplementsKeyword*/
     pub types: Id<NodeArray>, /*<ExpressionWithTypeArguments>*/
 }

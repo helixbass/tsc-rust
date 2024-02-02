@@ -189,10 +189,8 @@ pub struct ResolvedModuleFull {
     #[builder(default)]
     pub original_path: Option<String>,
     #[builder(default)]
-    #[unsafe_ignore_trace]
     pub extension: Option<Extension>,
     #[builder(default)]
-    #[unsafe_ignore_trace]
     pub package_id: Option<PackageId>,
 }
 
@@ -282,7 +280,6 @@ impl AsRef<str> for Extension {
 #[derive(Debug)]
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<Id<ResolvedModuleFull>>,
-    #[unsafe_ignore_trace]
     failed_lookup_locations: RefCell<Vec<String>>,
 }
 
@@ -311,7 +308,6 @@ pub struct ResolvedTypeReferenceDirective {
     pub primary: bool,
     pub resolved_file_name: Option<String>,
     pub original_path: Option<String>,
-    #[unsafe_ignore_trace]
     pub package_id: Option<PackageId>,
     pub is_external_library_import: Option<bool>,
 }
@@ -551,9 +547,7 @@ bitflags! {
 
 #[derive(Debug)]
 pub struct SourceMapRange {
-    #[unsafe_ignore_trace]
     pos: Cell<isize>,
-    #[unsafe_ignore_trace]
     end: Cell<isize>,
     pub source: Option<Id<SourceMapSource>>,
 }
@@ -706,11 +700,8 @@ impl<'a> From<&'a SourceMapSourceConcrete> for SourceMapSourceRef<'a> {
 
 pub struct SourceMapSourceConcrete {
     pub file_name: String,
-    #[unsafe_ignore_trace]
     text: RefCell<String>,
-    #[unsafe_ignore_trace]
     text_as_chars: RefCell<SourceTextAsChars>,
-    #[unsafe_ignore_trace]
     line_map: RefCell<Option<Vec<usize>>>,
     pub skip_trivia: Option<Id<Box<dyn SkipTrivia>>>,
 }
@@ -773,23 +764,17 @@ impl SourceFileLike for SourceMapSourceConcrete {
 #[derive(Debug, Default)]
 pub struct EmitNode {
     pub annotated_nodes: Option<Vec<Id<Node>>>,
-    #[unsafe_ignore_trace]
     pub flags: Option<EmitFlags>,
-    #[unsafe_ignore_trace]
     pub leading_comments: Option<Vec<Rc<SynthesizedComment>>>,
-    #[unsafe_ignore_trace]
     pub trailing_comments: Option<Vec<Rc<SynthesizedComment>>>,
-    #[unsafe_ignore_trace]
     pub comment_range: Option<BaseTextRange>,
     pub source_map_range: Option<Id<SourceMapRange>>,
     pub token_source_map_ranges: Option<HashMap<SyntaxKind, Option<Id<SourceMapRange>>>>,
-    #[unsafe_ignore_trace]
     pub constant_value: Option<StringOrNumber>,
     pub external_helpers_module_name: Option<Id<Node /*Identifier*/>>,
     pub external_helpers: Option<bool>,
     pub helpers: Option<Vec<Id<EmitHelper>>>,
     pub starts_on_new_line: Option<bool>,
-    #[unsafe_ignore_trace]
     pub snippet_element: Option<SnippetElement>,
 }
 

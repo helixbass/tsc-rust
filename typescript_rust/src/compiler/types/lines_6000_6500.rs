@@ -438,13 +438,11 @@ mod _CompilerOptionsDeriveTraceScope {
         pub generate_trace: Option<String>,
         pub help: Option<bool>,
         pub import_helpers: Option<bool>,
-        #[unsafe_ignore_trace]
         pub imports_not_used_as_values: Option<ImportsNotUsedAsValues>,
         pub init: Option<bool>,
         pub inline_source_map: Option<bool>,
         pub inline_sources: Option<bool>,
         pub isolated_modules: Option<bool>,
-        #[unsafe_ignore_trace]
         pub jsx: Option<JsxEmit>,
         pub keyof_strings_only: Option<bool>,
         pub lib: Option<Vec<String>>,
@@ -455,11 +453,8 @@ mod _CompilerOptionsDeriveTraceScope {
         pub locale: Option<String>,
         pub map_root: Option<String>,
         pub max_node_module_js_depth: Option<usize>,
-        #[unsafe_ignore_trace]
         pub module: Option<ModuleKind>,
-        #[unsafe_ignore_trace]
         pub module_resolution: Option<ModuleResolutionKind>,
-        #[unsafe_ignore_trace]
         pub new_line: Option<NewLineKind>,
         pub no_emit: Option<bool>,
         pub no_emit_for_js_files: Option<bool>,
@@ -484,7 +479,6 @@ mod _CompilerOptionsDeriveTraceScope {
         pub out_file: Option<String>,
         pub paths: Option<MapLike<Vec<String>>>,
         pub paths_base_path: Option<String>,
-        #[unsafe_ignore_trace]
         pub plugins: Option<Vec<PluginImport>>,
         pub preserve_const_enums: Option<bool>,
         pub no_implicit_override: Option<bool>,
@@ -516,7 +510,6 @@ mod _CompilerOptionsDeriveTraceScope {
         pub suppress_excess_property_errors: Option<bool>,
         pub suppress_implicit_any_index_errors: Option<bool>,
         pub suppress_output_path_check: Option<bool>,
-        #[unsafe_ignore_trace]
         pub target: Option<ScriptTarget>,
         pub trace_resolution: Option<bool>,
         pub use_unknown_in_catch_variables: Option<bool>,
@@ -2070,23 +2063,18 @@ mod _ParsedCommandLineDeriveTraceScope {
     #[builder(setter(into, strip_option))]
     pub struct ParsedCommandLine {
         pub options: Id<CompilerOptions>,
-        #[unsafe_ignore_trace]
         #[builder(default)]
         pub type_acquisition: Option<Rc<TypeAcquisition>>,
         #[builder(default)]
         pub file_names: Vec<String>,
-        #[unsafe_ignore_trace]
         #[builder(default)]
         pub project_references: Option<Vec<Rc<ProjectReference>>>,
-        #[unsafe_ignore_trace]
         #[builder(default)]
         pub watch_options: Option<Rc<WatchOptions>>,
-        #[unsafe_ignore_trace]
         #[builder(default)]
         pub raw: Option<serde_json::Value>,
         #[builder(setter(custom))]
         pub errors: Id<Vec<Id<Diagnostic>>>,
-        #[unsafe_ignore_trace]
         #[builder(default)]
         pub wildcard_directories: Option<HashMap<String, WatchDirectoryFlags>>,
         #[builder(default)]
@@ -2134,11 +2122,9 @@ mod _CreateProgramOptionsDeriveTraceScope {
     #[derive(Builder)]
     #[builder(setter(into))]
     pub struct CreateProgramOptions {
-        #[unsafe_ignore_trace]
         #[builder(default)]
         pub root_names: Vec<String>,
         pub options: Id<CompilerOptions>,
-        #[unsafe_ignore_trace]
         #[builder(default)]
         pub project_references: Option<Vec<Rc<ProjectReference>>>,
         #[builder(default, setter(strip_option))]

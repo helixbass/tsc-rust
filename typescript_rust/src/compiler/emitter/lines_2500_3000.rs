@@ -1395,10 +1395,8 @@ impl HasArena for EmitBinaryExpressionStateMachine {
 }
 
 struct MaybeEmitExpressionCurrentParenthesizerRule {
-    #[unsafe_ignore_trace]
     side: LeftOrRight,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
-    #[unsafe_ignore_trace]
     parent_operator_token_kind: SyntaxKind,
 }
 

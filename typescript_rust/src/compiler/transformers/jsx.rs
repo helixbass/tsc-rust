@@ -46,7 +46,6 @@ pub(super) struct PerFileState {
 }
 
 pub(super) struct TransformJsx {
-    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     compiler_options: Id<CompilerOptions>,

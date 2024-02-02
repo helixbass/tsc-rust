@@ -1433,9 +1433,7 @@ impl FlowNodeBase for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowStart {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     node: Cell<
         Option<
@@ -1492,9 +1490,7 @@ impl From<FlowStart> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowLabel {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     antecedents: RefCell<Option<Vec<Id<FlowNode>>>>,
 }
@@ -1551,9 +1547,7 @@ pub trait HasAntecedentInterface {
 
 #[derive(Debug)]
 pub struct FlowAssignment {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*Expression | VariableDeclaration | BindingElement*/>,
     pub antecedent: Id<FlowNode>,
@@ -1602,9 +1596,7 @@ impl From<FlowAssignment> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowCall {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*CallExpression*/>,
     pub antecedent: Id<FlowNode>,
@@ -1653,9 +1645,7 @@ impl From<FlowCall> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowCondition {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*Expression*/>,
     pub antecedent: Id<FlowNode>,
@@ -1704,9 +1694,7 @@ impl From<FlowCondition> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowSwitchClause {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub switch_statement: Id<Node /*SwitchStatement*/>,
     pub clause_start: usize,
@@ -1765,9 +1753,7 @@ impl From<FlowSwitchClause> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowArrayMutation {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub node: Id<Node /*CallExpression | BinaryExpression*/>,
     pub antecedent: Id<FlowNode>,
@@ -1816,9 +1802,7 @@ impl From<FlowArrayMutation> for FlowNode {
 
 #[derive(Debug)]
 pub struct FlowReduceLabel {
-    #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
-    #[unsafe_ignore_trace]
     id: Cell<Option<isize>>,
     pub target: Id<FlowNode /*FlowLabel*/>,
     pub antecedents: Vec<Id<FlowNode>>,

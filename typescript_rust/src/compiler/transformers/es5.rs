@@ -16,7 +16,6 @@ use crate::{
 };
 
 struct TransformES5 {
-    #[unsafe_ignore_trace]
     _arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,

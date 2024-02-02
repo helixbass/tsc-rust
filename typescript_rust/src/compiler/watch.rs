@@ -33,7 +33,6 @@ fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Id<SysFo
 
 pub struct SysFormatDiagnosticsHost {
     system: Id<Box<dyn System>>,
-    #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
 }
 

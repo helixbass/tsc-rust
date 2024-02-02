@@ -34,7 +34,6 @@ bitflags! {
 
 #[derive(Clone)]
 pub(super) struct LoopOutParameter {
-    #[unsafe_ignore_trace]
     pub flags: LoopOutParameterFlags,
     pub original_name: Id<Node /*Identifier*/>,
     pub out_param_name: Id<Node /*Identifier*/>,
@@ -74,10 +73,8 @@ pub struct ConvertedLoopState {
     #[builder(default)]
     pub labeled_non_local_continues: Option<IndexMap<String, String>>,
     #[builder(default)]
-    #[unsafe_ignore_trace]
     pub non_local_jumps: Option<Jump>,
     #[builder(default)]
-    #[unsafe_ignore_trace]
     pub allowed_non_labeled_jumps: Option<Jump>,
     #[builder(default)]
     pub arguments_name: Option<Id<Node /*Identifier*/>>,
@@ -182,9 +179,7 @@ pub(super) fn create_spread_segment(
 }
 
 pub(super) struct TransformES2015 {
-    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
-    #[unsafe_ignore_trace]
     pub(super) _arena_id: Cell<Option<Transformer>>,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
@@ -192,12 +187,10 @@ pub(super) struct TransformES2015 {
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
     pub(super) current_text: RefCell<Option<SourceTextAsChars>>,
-    #[unsafe_ignore_trace]
     pub(super) hierarchy_facts: Cell<Option<HierarchyFacts>>,
     pub(super) tagged_template_string_declarations:
         RefCell<Option<Vec<Id<Node /*VariableDeclaration*/>>>>,
     pub(super) converted_loop_state: Cell<Option<Id<ConvertedLoopState>>>,
-    #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<Option<ES2015SubstitutionFlags>>,
 }
 

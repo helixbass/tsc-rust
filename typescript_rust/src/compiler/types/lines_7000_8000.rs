@@ -186,7 +186,6 @@ pub trait NodeConverters {
 
 pub struct NodeFactory {
     pub base_factory: Id<Box<dyn BaseNodeFactory>>,
-    #[unsafe_ignore_trace]
     pub flags: NodeFactoryFlags,
     pub parenthesizer_rules: Cell<Option<Id<Box<dyn ParenthesizerRules>>>>,
     pub converters: RefCell<Option<Box<dyn NodeConverters>>>,

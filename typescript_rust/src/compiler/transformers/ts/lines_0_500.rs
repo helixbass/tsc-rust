@@ -56,16 +56,13 @@ bitflags! {
 }
 
 pub(super) struct TransformTypeScript {
-    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) strict_null_checks: bool,
-    #[unsafe_ignore_trace]
     pub(super) language_version: ScriptTarget,
-    #[unsafe_ignore_trace]
     pub(super) module_kind: ModuleKind,
     pub(super) current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
     pub(super) current_namespace: Cell<Option<Id<Node /*ModuleDeclaration*/>>>,
@@ -75,12 +72,9 @@ pub(super) struct TransformTypeScript {
     pub(super) current_name_scope: Cell<Option<Id<Node /*ClassDeclaration*/>>>,
     pub(super) current_scope_first_declarations_of_name:
         RefCell<Option<UnderscoreEscapedMap<Id<Node>>>>,
-    #[unsafe_ignore_trace]
     pub(super) current_class_has_parameter_properties: Cell<Option<bool>>,
-    #[unsafe_ignore_trace]
     pub(super) enabled_substitutions: Cell<TypeScriptSubstitutionFlags>,
     pub(super) class_aliases: RefCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
-    #[unsafe_ignore_trace]
     pub(super) applicable_substitutions: Cell<TypeScriptSubstitutionFlags>,
 }
 

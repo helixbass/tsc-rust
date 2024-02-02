@@ -23,73 +23,47 @@ use crate::{
 };
 
 pub struct Printer {
-    #[unsafe_ignore_trace]
     pub arena: *const AllArenas,
     pub _arena_id: Cell<Option<Id<Printer>>>,
     pub printer_options: PrinterOptions,
     pub handlers: Id<Box<dyn PrintHandlers>>,
     pub extended_diagnostics: bool,
     pub new_line: String,
-    #[unsafe_ignore_trace]
     pub module_kind: ModuleKind,
     pub current_source_file: Cell<Option<Id<Node /*SourceFile*/>>>,
-    #[unsafe_ignore_trace]
     pub bundled_helpers: RefCell<HashMap<String, bool>>,
-    #[unsafe_ignore_trace]
     pub node_id_to_generated_name: RefCell<HashMap<NodeId, String>>,
-    #[unsafe_ignore_trace]
     pub auto_generated_id_to_generated_name: RefCell<HashMap<usize, String>>,
-    #[unsafe_ignore_trace]
     pub generated_names: RefCell<HashSet<String>>,
-    #[unsafe_ignore_trace]
     pub temp_flags_stack: RefCell<Vec<TempFlags>>,
-    #[unsafe_ignore_trace]
     pub temp_flags: Cell<TempFlags>,
-    #[unsafe_ignore_trace]
     pub reserved_names_stack: RefCell<Vec<Option<Rc<RefCell<HashSet<String>>>>>>,
-    #[unsafe_ignore_trace]
     pub reserved_names: RefCell<Option<Rc<RefCell<HashSet<String>>>>>,
-    #[unsafe_ignore_trace]
     pub preserve_source_newlines: Cell<Option<bool>>,
-    #[unsafe_ignore_trace]
     pub next_list_element_pos: Cell<Option<isize>>,
 
     pub writer: Cell<Option<Id<Box<dyn EmitTextWriter>>>>,
     pub own_writer: OnceCell<Id<Box<dyn EmitTextWriter>>>,
-    #[unsafe_ignore_trace]
     pub write: Cell<fn(&Printer, &str)>,
-    #[unsafe_ignore_trace]
     pub is_own_file_emit: Cell<bool>,
     pub bundle_file_info: Cell<Option<Id<BundleFileInfo>>>,
     pub relative_to_build_info: Option<Id<Box<dyn RelativeToBuildInfo>>>,
     pub record_internal_section: Option<bool>,
-    #[unsafe_ignore_trace]
     pub source_file_text_pos: Cell<usize>,
-    #[unsafe_ignore_trace]
     pub source_file_text_kind: Cell<BundleFileSectionKind>,
 
-    #[unsafe_ignore_trace]
     pub source_maps_disabled: Cell<bool>,
     pub source_map_generator: Cell<Option<Id<Box<dyn SourceMapGenerator>>>>,
     pub source_map_source: Cell<Option<Id<SourceMapSource>>>,
-    #[unsafe_ignore_trace]
     pub source_map_source_index: Cell<isize>,
     pub most_recently_added_source_map_source: Cell<Option<Id<SourceMapSource>>>,
-    #[unsafe_ignore_trace]
     pub most_recently_added_source_map_source_index: Cell<isize>,
-    #[unsafe_ignore_trace]
     pub container_pos: Cell<isize>,
-    #[unsafe_ignore_trace]
     pub container_end: Cell<isize>,
-    #[unsafe_ignore_trace]
     pub declaration_list_container_end: Cell<isize>,
-    #[unsafe_ignore_trace]
     pub current_line_map: RefCell<Option<Vec<usize>>>,
-    #[unsafe_ignore_trace]
     pub detached_comments_info: RefCell<Option<Vec<DetachedCommentInfo>>>,
-    #[unsafe_ignore_trace]
     pub has_written_comment: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub comments_disabled: Cell<bool>,
     pub last_substitution: Cell<Option<Id<Node>>>,
     pub current_parenthesizer_rule: Cell<Option<Id<Box<dyn CurrentParenthesizerRule>>>>,
@@ -147,11 +121,8 @@ impl BundleFileSectionKind {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct BundleFileSectionBase {
-    #[unsafe_ignore_trace]
     pos: Cell<isize>,
-    #[unsafe_ignore_trace]
     end: Cell<isize>,
-    #[unsafe_ignore_trace]
     kind: BundleFileSectionKind,
     data: Option<String>,
 }
@@ -779,13 +750,10 @@ mod _PrinterOptionsDeriveTraceScope {
     #[builder(default)]
     pub struct PrinterOptions {
         pub remove_comments: Option<bool>,
-        #[unsafe_ignore_trace]
         pub new_line: Option<NewLineKind>,
         pub omit_trailing_semicolon: Option<bool>,
         pub no_emit_helpers: Option<bool>,
-        #[unsafe_ignore_trace]
         pub(crate) module: Option<ModuleKind>,
-        #[unsafe_ignore_trace]
         pub(crate) target: Option<ScriptTarget>,
         pub(crate) source_map: Option<bool>,
         pub(crate) inline_source_map: Option<bool>,
@@ -1014,12 +982,10 @@ pub struct TextChangeRange {
 
 #[derive(Debug)]
 pub struct DiagnosticCollection {
-    #[unsafe_ignore_trace]
     pub arena: *const AllArenas,
     pub non_file_diagnostics: SortedArray<Id<Diagnostic>>,
     pub files_with_diagnostics: SortedArray<String>,
     pub file_diagnostics: HashMap<String, SortedArray<Id<Diagnostic /*DiagnosticWithLocation*/>>>,
-    #[unsafe_ignore_trace]
     pub has_read_non_file_diagnostics: Cell<bool>,
 }
 
