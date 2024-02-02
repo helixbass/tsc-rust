@@ -11,7 +11,6 @@ use std::{
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::{enum_unwrapped, type_type};
 use serde::Serialize;
@@ -23,7 +22,7 @@ use super::{
 };
 use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String, HasArena};
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "UnionOrIntersectionType",
     interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -50,7 +49,7 @@ impl IntersectionType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -140,7 +139,7 @@ impl MappedType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -169,7 +168,7 @@ impl EvolvingArrayType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -227,7 +226,7 @@ pub enum IterationTypesKey {
     NextType,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct IterationTypes {
     yield_type: Option<Id<Type>>,
     return_type: Option<Id<Type>>,
@@ -295,7 +294,7 @@ pub enum IterationTypeCacheKey {
     IterationTypesOfIteratorResult,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct TypeParameter {
     _type: BaseType,
@@ -359,7 +358,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct IndexedAccessType {
     _type: BaseType,
@@ -407,7 +406,7 @@ impl IndexedAccessType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct IndexType {
     _type: BaseType,
@@ -425,7 +424,7 @@ impl IndexType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct ConditionalRoot {
     pub node: Id<Node /*ConditionalTypeNode*/>,
     pub check_type: Id<Type>,
@@ -467,7 +466,7 @@ impl ConditionalRoot {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct ConditionalType {
     _type: BaseType,
@@ -538,7 +537,7 @@ impl ConditionalType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct TemplateLiteralType {
     _type: BaseType,
@@ -556,7 +555,7 @@ impl TemplateLiteralType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct StringMappingType {
     _type: BaseType,
@@ -572,7 +571,7 @@ impl StringMappingType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct SubstitutionType {
     _type: BaseType,
@@ -636,7 +635,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct Signature {
     #[unsafe_ignore_trace]
     pub flags: SignatureFlags,
@@ -804,7 +803,7 @@ impl Signature {
     }
 }
 
-#[derive(Copy, Clone, Debug, Trace, Finalize)]
+#[derive(Copy, Clone, Debug)]
 pub struct SignatureOptionalCallSignatureCache {
     pub inner: Option<Id<Signature>>,
     pub outer: Option<Id<Signature>>,
@@ -825,7 +824,7 @@ pub enum IndexKind {
     Number,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct IndexInfo {
     pub key_type: Id<Type>,
     pub type_: Id<Type>,
@@ -833,7 +832,7 @@ pub struct IndexInfo {
     pub declaration: Option<Id<Node /*IndexSignatureDeclaration*/>>,
 }
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Debug)]
 pub enum TypeMapper {
     Simple(TypeMapperSimple),
     Array(TypeMapperArray),
@@ -865,24 +864,24 @@ impl TypeMapper {
     }
 }
 
-#[derive(Clone, Debug, Finalize, Trace)]
+#[derive(Clone, Debug)]
 pub struct TypeMapperSimple {
     pub source: Id<Type>,
     pub target: Id<Type>,
 }
 
-#[derive(Clone, Debug, Finalize, Trace)]
+#[derive(Clone, Debug)]
 pub struct TypeMapperArray {
     pub sources: Vec<Id<Type>>,
     pub targets: Option<Vec<Id<Type>>>,
 }
 
-pub trait TypeMapperCallback: Trace + Finalize {
+pub trait TypeMapperCallback {
     // TODO: now that TypeChecker is wrapped in Rc should remove the checker argument here?
     fn call(&self, checker: &TypeChecker, type_: Id<Type>) -> io::Result<Id<Type>>;
 }
 
-#[derive(Clone, Finalize, Trace)]
+#[derive(Clone)]
 pub struct TypeMapperFunction {
     pub func: Id<Box<dyn TypeMapperCallback>>,
 }
@@ -893,7 +892,7 @@ impl fmt::Debug for TypeMapperFunction {
     }
 }
 
-#[derive(Clone, Debug, Finalize, Trace)]
+#[derive(Clone, Debug)]
 pub struct TypeMapperCompositeOrMerged {
     pub mapper1: Id<TypeMapper>,
     pub mapper2: Id<TypeMapper>,
@@ -944,7 +943,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct InferenceInfo {
     pub type_parameter: Id<Type /*TypeParameter*/>,
     candidates: RefCell<Option<Vec<Id<Type>>>>,
@@ -1091,11 +1090,10 @@ impl BitAndAssign for Ternary {
     }
 }
 
-pub trait TypeComparer: Trace + Finalize {
+pub trait TypeComparer {
     fn call(&self, s: Id<Type>, t: Id<Type>, report_errors: Option<bool>) -> io::Result<Ternary>;
 }
 
-#[derive(Trace, Finalize)]
 pub struct InferenceContext {
     inferences: RefCell<Vec<Id<InferenceInfo>>>,
     pub signature: Option<Id<Signature>>,
@@ -1291,7 +1289,7 @@ impl DiagnosticMessageChain {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Diagnostic {
     DiagnosticWithLocation(DiagnosticWithLocation),
     DiagnosticWithDetachedLocation(DiagnosticWithDetachedLocation),
@@ -1314,7 +1312,7 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
     fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
     related_information: RefCell<Option<Vec<Id<DiagnosticRelatedInformation>>>>,
@@ -1596,7 +1594,7 @@ pub trait DiagnosticRelatedInformationInterface {
     fn message_text(&self) -> &DiagnosticMessageText;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DiagnosticRelatedInformation {
     BaseDiagnosticRelatedInformation(BaseDiagnosticRelatedInformation),
     Diagnostic(Diagnostic),
@@ -1735,7 +1733,7 @@ impl From<Diagnostic> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Builder, Clone, Debug, Trace, Finalize)]
+#[derive(Builder, Clone, Debug)]
 #[builder(setter(into))]
 pub struct BaseDiagnosticRelatedInformation {
     #[unsafe_ignore_trace]
@@ -1850,7 +1848,7 @@ impl BaseDiagnosticRelatedInformationBuilder {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiagnosticWithLocation {
     _diagnostic: BaseDiagnostic,
 }
@@ -1953,7 +1951,7 @@ impl From<DiagnosticWithLocation> for DiagnosticRelatedInformation {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiagnosticWithDetachedLocation {
     _diagnostic: BaseDiagnostic,
     pub file_name: String,

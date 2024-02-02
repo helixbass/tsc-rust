@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use regex::{Captures, Regex};
 
@@ -34,7 +33,6 @@ pub trait IncrementalParserSyntaxCursorInterface {
     fn current_node(&self, parser: &ParserType, position: usize) -> Option<Id<Node>>;
 }
 
-#[derive(Trace, Finalize)]
 pub enum IncrementalParserSyntaxCursor {
     Created(IncrementalParserSyntaxCursorCreated),
     ReparseTopLevelAwait(IncrementalParserSyntaxCursorReparseTopLevelAwait),
@@ -59,7 +57,6 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorCreated {
     source_file: Id<Node /*SourceFile*/>,
     current_array: Cell<Option<Id<NodeArray>>>,

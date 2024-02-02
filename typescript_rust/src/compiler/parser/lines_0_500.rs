@@ -1,7 +1,6 @@
 use std::{borrow::Borrow, cell::RefCell};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -29,7 +28,7 @@ pub(super) enum SpeculationKind {
     Reparse,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct ParseBaseNodeFactory {
     #[unsafe_ignore_trace]

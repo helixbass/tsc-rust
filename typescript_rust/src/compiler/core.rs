@@ -10,7 +10,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, Trace};
 use indexmap::IndexMap;
 use regex::{Captures, Regex};
 
@@ -814,7 +813,7 @@ pub fn deduplicate_rc<TItem>(array: &[Rc<TItem>]) -> Vec<Rc<TItem>> {
     }
 }
 
-fn deduplicate_sorted<TItem: Clone + Trace + Finalize>(
+fn deduplicate_sorted<TItem: Clone>(
     array: &SortedArray<TItem>,
     comparer: ComparerOrEqualityComparer<TItem>,
 ) -> SortedArray<TItem> {
@@ -851,7 +850,7 @@ fn deduplicate_sorted<TItem: Clone + Trace + Finalize>(
 }
 
 pub fn insert_sorted<
-    TItem: Trace + Finalize, /*, TComparer: Comparer<&'array_or_item TItem>*/
+    TItem, /*, TComparer: Comparer<&'array_or_item TItem>*/
 >(
     array: &mut SortedArray<TItem>,
     insert: TItem,
@@ -871,7 +870,7 @@ pub fn insert_sorted<
 }
 
 pub fn sort_and_deduplicate<
-    TItem: Clone + Trace + Finalize,
+    TItem: Clone,
     TComparer: Fn(&TItem, &TItem) -> Comparison,
     TEqualityComparer: Fn(&TItem, &TItem) -> bool,
 >(
@@ -1130,7 +1129,7 @@ pub fn stable_sort_indices<TItem, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     });
 }
 
-pub fn sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -1173,7 +1172,7 @@ pub fn range_equals_rc<TItem>(
     true
 }
 
-pub fn stable_sort<TItem: Clone + Trace + Finalize, TComparer: Fn(&TItem, &TItem) -> Comparison>(
+pub fn stable_sort<TItem: Clone, TComparer: Fn(&TItem, &TItem) -> Comparison>(
     array: &[TItem],
     comparer: TComparer,
 ) -> SortedArray<TItem> {
@@ -1576,8 +1575,8 @@ pub fn array_to_map<TItem, TKey: hash::Hash + Eq, TValue>(
 
 pub fn array_to_multi_map<
     TItem,
-    TKey: hash::Hash + Eq + Trace + Finalize,
-    TValue: Clone + Trace + Finalize,
+    TKey: hash::Hash + Eq,
+    TValue: Clone,
 >(
     values: &[TItem],
     mut make_key: impl FnMut(&TItem) -> TKey,
@@ -1590,7 +1589,7 @@ pub fn array_to_multi_map<
     result
 }
 
-pub fn group<TItem: Clone + Trace + Finalize, TKey: hash::Hash + Eq + Trace + Finalize, TResult>(
+pub fn group<TItem: Clone, TKey: hash::Hash + Eq, TResult>(
     values: &[TItem],
     get_group_id: impl FnMut(&TItem) -> TKey,
     mut result_selector: impl FnMut(Vec<TItem>) -> TResult,
@@ -1613,17 +1612,15 @@ pub fn clone<TValue: Cloneable>(object: &TValue) -> TValue {
 mod _MultiMapDeriveTraceScope {
     use std::collections::hash_map::{IntoValues, Values};
 
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Debug, Trace, Finalize)]
-    pub struct MultiMap<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+    #[derive(Debug)]
+    pub struct MultiMap<TKey, TValue>(
         // TODO: make the nested hash map private and implement iteration on the wrapper
         pub HashMap<TKey, Vec<TValue>>,
     );
 
-    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> MultiMap<TKey, TValue> {
+    impl<TKey: Hash + Eq, TValue: Clone> MultiMap<TKey, TValue> {
         pub fn add(&mut self, key: TKey, value: TValue) {
             let values = self.0.entry(key).or_insert(vec![]);
             values.push(value);
@@ -1666,7 +1663,7 @@ mod _MultiMapDeriveTraceScope {
         }
     }
 
-    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> IntoIterator
+    impl<TKey: Hash + Eq, TValue: Clone> IntoIterator
         for MultiMap<TKey, TValue>
     {
         type Item = (TKey, Vec<TValue>);
@@ -1679,31 +1676,30 @@ mod _MultiMapDeriveTraceScope {
 }
 pub use _MultiMapDeriveTraceScope::MultiMap;
 
-pub fn create_multi_map<TKey: Trace + Finalize, TValue: Trace + Finalize>() -> MultiMap<TKey, TValue>
+pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue>
 {
     MultiMap(Default::default())
 }
 
 pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
 
-pub fn create_underscore_escaped_multi_map<TValue: Trace + Finalize>(
+pub fn create_underscore_escaped_multi_map<TValue>(
 ) -> UnderscoreEscapedMultiMap<TValue> {
     create_multi_map()
 }
 
 mod _MultiMapOrderedDeriveTraceScope {
     use indexmap::map::{Entry, IntoValues, Values};
-    use local_macros::Trace;
 
     use super::*;
 
-    #[derive(Debug, Trace, Finalize)]
-    pub struct MultiMapOrdered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+    #[derive(Debug)]
+    pub struct MultiMapOrdered<TKey, TValue>(
         // TODO: make the nested hash map private and implement iteration on the wrapper
         pub IndexMap<TKey, Vec<TValue>>,
     );
 
-    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize>
+    impl<TKey: Hash + Eq, TValue: Clone>
         MultiMapOrdered<TKey, TValue>
     {
         pub fn add(&mut self, key: TKey, value: TValue) {
@@ -1748,7 +1744,7 @@ mod _MultiMapOrderedDeriveTraceScope {
         }
     }
 
-    impl<TKey: Hash + Eq + Trace + Finalize, TValue: Clone + Trace + Finalize> IntoIterator
+    impl<TKey: Hash + Eq, TValue: Clone> IntoIterator
         for MultiMapOrdered<TKey, TValue>
     {
         type Item = (TKey, Vec<TValue>);
@@ -1764,7 +1760,7 @@ use id_arena::Id;
 
 use crate::{SingleNodeOrVecNode, _d};
 
-pub fn create_multi_map_ordered<TKey: Trace + Finalize, TValue: Trace + Finalize>(
+pub fn create_multi_map_ordered<TKey, TValue>(
 ) -> MultiMapOrdered<TKey, TValue> {
     MultiMapOrdered(Default::default())
 }
@@ -2128,7 +2124,7 @@ pub fn identity_str_to_owned(str_: &str) -> String {
     str_.to_owned()
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct Pattern {
     pub prefix: String,
     pub suffix: String,

@@ -5,7 +5,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -48,7 +47,6 @@ bitflags! {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2017 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -1354,7 +1352,6 @@ impl HasArena for TransformES2017 {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2017OnEmitNodeOverrider {
     transform_es2017: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -1435,7 +1432,6 @@ impl HasArena for TransformES2017OnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2017OnSubstituteNodeOverrider {
     transform_es2017: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1478,7 +1474,6 @@ impl HasArena for TransformES2017OnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2017Factory {}
 
 impl TransformES2017Factory {

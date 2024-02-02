@@ -7,7 +7,6 @@ use std::{
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{Finalize, Gc, GcCellRef, Trace};
 use local_macros::enum_unwrapped;
 
 use super::{
@@ -158,7 +157,7 @@ impl<THost: ParseConfigHost> ModuleResolutionHost for THost {
     }
 }
 
-pub trait ModuleResolutionHostOverrider: Trace + Finalize {
+pub trait ModuleResolutionHostOverrider {
     fn file_exists(&self, file_name: &str) -> bool;
     fn read_file(&self, file_name: &str) -> io::Result<Option<String>>;
     fn write_file(
@@ -181,7 +180,7 @@ pub trait ModuleResolutionHostOverrider: Trace + Finalize {
     }
 }
 
-#[derive(Builder, Clone, Debug, Trace, Finalize)]
+#[derive(Builder, Clone, Debug)]
 #[builder(setter(into, strip_option))]
 pub struct ResolvedModuleFull {
     pub resolved_file_name: String,
@@ -280,7 +279,7 @@ impl AsRef<str> for Extension {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct ResolvedModuleWithFailedLookupLocations {
     pub resolved_module: Option<Id<ResolvedModuleFull>>,
     #[unsafe_ignore_trace]
@@ -307,7 +306,7 @@ impl ResolvedModuleWithFailedLookupLocations {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct ResolvedTypeReferenceDirective {
     pub primary: bool,
     pub resolved_file_name: Option<String>,
@@ -317,13 +316,12 @@ pub struct ResolvedTypeReferenceDirective {
     pub is_external_library_import: Option<bool>,
 }
 
-#[derive(Trace, Finalize)]
 pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
     pub resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
     pub failed_lookup_locations: Vec<String>,
 }
 
-pub trait CompilerHost: ModuleResolutionHost + Trace + Finalize {
+pub trait CompilerHost: ModuleResolutionHost {
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
     fn get_source_file(
         &self,
@@ -551,7 +549,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct SourceMapRange {
     #[unsafe_ignore_trace]
     pos: Cell<isize>,
@@ -600,7 +598,7 @@ impl From<&BaseTextRange> for SourceMapRange {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub enum SourceMapSource {
     SourceFile(Id<Node /*SourceFile*/>),
     SourceMapSourceConcrete(SourceMapSourceConcrete),
@@ -706,7 +704,6 @@ impl<'a> From<&'a SourceMapSourceConcrete> for SourceMapSourceRef<'a> {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct SourceMapSourceConcrete {
     pub file_name: String,
     #[unsafe_ignore_trace]
@@ -736,7 +733,7 @@ impl SourceMapSourceConcrete {
     }
 }
 
-pub trait SkipTrivia: Trace + Finalize {
+pub trait SkipTrivia {
     fn call(&self, pos: isize) -> isize;
 }
 
@@ -773,7 +770,7 @@ impl SourceFileLike for SourceMapSourceConcrete {
     }
 }
 
-#[derive(Debug, Default, Trace, Finalize)]
+#[derive(Debug, Default)]
 pub struct EmitNode {
     pub annotated_nodes: Option<Vec<Id<Node>>>,
     #[unsafe_ignore_trace]
@@ -819,11 +816,9 @@ pub trait EmitHelperBase {
 }
 
 mod _EmitHelperTextDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub enum EmitHelperText {
         String(String),
         Callback(Id<Box<dyn EmitHelperTextCallback>>),
@@ -832,7 +827,7 @@ mod _EmitHelperTextDeriveTraceScope {
 pub use _EmitHelperTextDeriveTraceScope::EmitHelperText;
 use id_arena::Id;
 
-pub trait EmitHelperTextCallback: Trace + Finalize {
+pub trait EmitHelperTextCallback {
     fn call(&self, callback: &dyn Fn(&str) -> String) -> String;
 }
 
@@ -854,7 +849,7 @@ impl From<Id<Box<dyn EmitHelperTextCallback>>> for EmitHelperText {
     }
 }
 
-#[derive(Builder, Debug, Trace, Finalize)]
+#[derive(Builder, Debug)]
 #[builder(setter(strip_option, into))]
 pub struct ScopedEmitHelper {
     name: String,
@@ -907,7 +902,7 @@ impl EmitHelperBase for ScopedEmitHelper {
     }
 }
 
-#[derive(Builder, Debug, Trace, Finalize)]
+#[derive(Builder, Debug)]
 #[builder(setter(strip_option, into))]
 pub struct UnscopedEmitHelper {
     name: String,
@@ -944,7 +939,7 @@ impl EmitHelperBase for UnscopedEmitHelper {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub enum EmitHelper {
     ScopedEmitHelper(ScopedEmitHelper),
     UnscopedEmitHelper(UnscopedEmitHelper),
@@ -1112,8 +1107,6 @@ pub trait EmitHost:
     + ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
     + SourceFileMayBeEmittedHost
     + ResolveModuleNameResolutionHost
-    + Trace
-    + Finalize
 {
     // fn get_source_files(&self) -> &[Id<Node /*SourceFile*/>];
     fn get_source_files(&self) -> Vec<Id<Node /*SourceFile*/>>;

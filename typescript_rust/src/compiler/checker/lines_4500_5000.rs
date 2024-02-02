@@ -6,7 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use super::SignatureToSignatureDeclarationOptions;
@@ -551,7 +550,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct NodeBuilder {
     pub(super) _arena_id: Cell<Option<Id<Self>>>,
     pub type_checker: Id<TypeChecker>,
@@ -1438,7 +1437,6 @@ impl NodeBuilder {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct DefaultNodeBuilderContextSymbolTracker {
     pub module_resolver_host:
         Option<Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
@@ -1528,7 +1526,6 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
     pub host: Id<Program /*TypeCheckerHost*/>,
 }
@@ -1615,9 +1612,7 @@ pub(super) fn wrap_symbol_tracker_to_report_for_context(
     NodeBuilderContextWrappedSymbolTracker::new(tracker, context)
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct NodeBuilderContextWrappedSymbolTracker {
-    #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
     tracker: Id<Box<dyn SymbolTracker>>,
     context: Id<NodeBuilderContext>,
@@ -1812,38 +1807,24 @@ impl HasArena for NodeBuilderContextWrappedSymbolTracker {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct NodeBuilderContext {
     pub(super) _arena_id: Cell<Option<Id<NodeBuilderContext>>>,
-    #[unsafe_ignore_trace]
     pub(super) enclosing_declaration: Cell<Option<Id<Node>>>,
-    #[unsafe_ignore_trace]
     pub flags: Cell<NodeBuilderFlags>,
     pub(super) tracker: Cell<Id<Box<dyn SymbolTracker>>>,
 
-    #[unsafe_ignore_trace]
     pub encountered_error: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub reported_diagnostic: Cell<bool>,
-    #[unsafe_ignore_trace]
     pub visited_types: Rc<RefCell<Option<HashSet<TypeId>>>>,
-    #[unsafe_ignore_trace]
     pub symbol_depth: Rc<RefCell<Option<HashMap<String, usize>>>>,
     pub infer_type_parameters: Id<Option<Vec<Id<Type /*TypeParameter*/>>>>,
-    #[unsafe_ignore_trace]
     pub approximate_length: Cell<usize>,
-    #[unsafe_ignore_trace]
     pub truncating: Cell<Option<bool>>,
-    #[unsafe_ignore_trace]
     pub type_parameter_symbol_list: Rc<RefCell<Option<HashSet<SymbolId>>>>,
     pub type_parameter_names: Id<Option<HashMap<TypeId, Id<Node /*Identifier*/>>>>,
-    #[unsafe_ignore_trace]
     pub type_parameter_names_by_text: Rc<RefCell<Option<HashSet<String>>>>,
-    #[unsafe_ignore_trace]
     pub type_parameter_names_by_text_next_name_count: Rc<RefCell<Option<HashMap<String, usize>>>>,
-    #[unsafe_ignore_trace]
     pub used_symbol_names: Rc<RefCell<Option<HashSet<String>>>>,
-    #[unsafe_ignore_trace]
     pub remapped_symbol_names: Rc<RefCell<Option<HashMap<SymbolId, String>>>>,
     pub reverse_mapped_stack: Id<Option<Vec<Id<Symbol /*ReverseMappedSymbol*/>>>>,
 }

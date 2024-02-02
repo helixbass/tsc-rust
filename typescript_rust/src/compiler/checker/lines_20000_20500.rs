@@ -6,7 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use itertools::Itertools;
 
@@ -1118,7 +1117,6 @@ impl From<Id<Type>> for GetVariancesCache {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) enum RecursionIdentity {
     Node(Id<Node>),
     Symbol(Id<Symbol>),
@@ -1166,7 +1164,6 @@ impl From<Id<ConditionalRoot>> for RecursionIdentity {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetVariancesWorkerOutofbandVarianceMarkerHandler {
     #[unsafe_ignore_trace]
     unmeasurable: Rc<Cell<bool>>,

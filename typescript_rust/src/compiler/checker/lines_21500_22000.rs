@@ -5,7 +5,6 @@ use std::{
     io, ptr,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use super::{ExpandingFlags, RecursionIdentity};
@@ -565,7 +564,6 @@ impl TypeChecker {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct InferTypes {
     pub type_checker: Id<TypeChecker>,
     pub inferences: Vec<Id<InferenceInfo>>,

@@ -6,7 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use super::{
@@ -27,7 +26,6 @@ use crate::{
     UnionOrIntersectionTypeInterface,
 };
 
-#[derive(Trace, Finalize)]
 pub struct CheckTypeRelatedTo {
     _arena_id: Cell<Option<Id<CheckTypeRelatedTo>>>,
     pub type_checker: Id<TypeChecker>,

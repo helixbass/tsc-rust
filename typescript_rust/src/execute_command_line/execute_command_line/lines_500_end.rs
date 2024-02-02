@@ -1,6 +1,5 @@
 use std::{collections::HashMap, io, ptr, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{
@@ -261,7 +260,6 @@ pub(super) fn perform_build(
     sys.ref_(arena).exit(Some(exit_status));
 }
 
-#[derive(Trace, Finalize)]
 struct BuilderProgramDummy {}
 
 impl BuilderProgram for BuilderProgramDummy {
@@ -377,12 +375,8 @@ pub(super) fn perform_compilation(
     sys.ref_(arena).exit(Some(exit_status));
 }
 
-#[derive(Trace, Finalize)]
 struct PerformCompilationToPath {
     current_directory: String,
-    // TODO: this wasn't compiling but seems like it should've been if fn implementations of Trace
-    // (included in `gc`) were working as expected?
-    #[unsafe_ignore_trace]
     get_canonical_file_name: fn(&str) -> String,
 }
 

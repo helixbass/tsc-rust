@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, collections::HashMap, io};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -35,7 +34,6 @@ pub fn maybe_get_original_node_id(node: Option<Id<Node>>, arena: &impl HasArena)
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct ExternalModuleInfo {
     pub external_imports:
         Vec<Id<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
@@ -56,7 +54,6 @@ pub struct ExternalModuleInfo {
 //     transform_source_file: Transformer,
 // ) -> Transformer {
 
-#[derive(Trace, Finalize)]
 struct ChainBundle;
 
 impl WrapCustomTransformerFactoryHandleDefault for ChainBundle {

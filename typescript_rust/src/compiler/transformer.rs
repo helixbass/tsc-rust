@@ -5,7 +5,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -193,7 +192,6 @@ fn wrap_custom_transformer(transformer: CustomTransformer, arena: &impl HasArena
     arena.alloc_transformer(Box::new(WrapCustomTransformer::new(transformer)))
 }
 
-#[derive(Trace, Finalize)]
 pub struct WrapCustomTransformer {
     transformer: CustomTransformer,
 }
@@ -224,7 +222,7 @@ impl HasArena for WrapCustomTransformer {
     }
 }
 
-pub trait WrapCustomTransformerFactoryHandleDefault: Trace + Finalize {
+pub trait WrapCustomTransformerFactoryHandleDefault {
     fn call(
         &self,
         context: Id<TransformNodesTransformationResult>,
@@ -243,7 +241,6 @@ fn wrap_custom_transformer_factory(
     )))
 }
 
-#[derive(Trace, Finalize)]
 pub struct WrapCustomTransformerFactory {
     transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
     handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
@@ -296,7 +293,6 @@ fn wrap_declaration_transformer_factory(
     wrap_custom_transformer_factory(transformer, passthrough_transformer(arena), arena)
 }
 
-#[derive(Trace, Finalize)]
 struct PassthroughTransformer;
 
 impl WrapCustomTransformerFactoryHandleDefault for PassthroughTransformer {
@@ -364,7 +360,6 @@ pub fn transform_nodes(
     Ok(transformation_result)
 }
 
-#[derive(Trace, Finalize)]
 pub struct TransformNodesTransformationResult {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -1216,7 +1211,6 @@ impl HasArena for TransformNodesTransformationResult {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct NoEmitNotificationTransformationContextOnEmitNodeOverrider;
 
 impl TransformationContextOnEmitNodeOverrider
@@ -1232,7 +1226,6 @@ impl TransformationContextOnEmitNodeOverrider
     }
 }
 
-#[derive(Trace, Finalize)]
 struct NoEmitNotificationTransformationContextOnSubstituteNodeOverrider;
 
 impl TransformationContextOnSubstituteNodeOverrider
@@ -1320,7 +1313,6 @@ lazy_static! {
         TransformationContextNull::new();
 }
 
-#[derive(Trace, Finalize)]
 pub struct TransformationContextNull {}
 
 impl TransformationContextNull {

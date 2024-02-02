@@ -7,7 +7,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use super::{
@@ -1563,11 +1562,11 @@ pub(super) struct ElaborationIteratorItem {
 pub(super) type ErrorReporter<'a> =
     &'a mut dyn FnMut(Cow<'static, DiagnosticMessage>, Option<Vec<String>>) -> io::Result<()>;
 
-pub trait CheckTypeContainingMessageChain: Trace + Finalize {
+pub trait CheckTypeContainingMessageChain {
     fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>>;
 }
 
-pub trait CheckTypeErrorOutputContainer: Trace + Finalize {
+pub trait CheckTypeErrorOutputContainer {
     fn push_error(&self, error: Id<Diagnostic>);
     fn set_errors(&self, errors: Vec<Id<Diagnostic>>);
     fn get_error(&self, index: usize) -> Option<Id<Diagnostic>>;
@@ -1576,7 +1575,6 @@ pub trait CheckTypeErrorOutputContainer: Trace + Finalize {
     fn errors(&self) -> Vec<Id<Diagnostic>>;
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct CheckTypeErrorOutputContainerConcrete {
     errors: RefCell<Vec<Id<Diagnostic>>>,
     skip_logging: Option<bool>,

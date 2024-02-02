@@ -8,7 +8,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -278,7 +277,7 @@ lazy_static! {
         ]));
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub(crate) enum TypeSystemEntity {
     Node(Id<Node>),
     Symbol(Id<Symbol>),
@@ -1468,7 +1467,7 @@ pub fn create_type_checker(
     Ok(ret)
 }
 
-#[derive(Default, Trace, Finalize)]
+#[derive(Default)]
 struct RestrictiveMapperFunc {}
 
 impl TypeMapperCallback for RestrictiveMapperFunc {
@@ -1487,7 +1486,7 @@ impl TypeMapperCallback for RestrictiveMapperFunc {
     }
 }
 
-#[derive(Default, Trace, Finalize)]
+#[derive(Default)]
 struct PermissiveMapperFunc {}
 
 impl TypeMapperCallback for PermissiveMapperFunc {
@@ -1522,14 +1521,14 @@ fn sync_iteration_types_resolver_resolve_iteration_type(
     Ok(Some(type_))
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub(crate) struct DuplicateInfoForSymbol {
     pub first_file_locations: Vec<Id<Node /*Declaration*/>>,
     pub second_file_locations: Vec<Id<Node /*Declaration*/>>,
     pub is_block_scoped: bool,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub(crate) struct DuplicateInfoForFiles {
     pub first_file: Id<Node /*SourceFile*/>,
     pub second_file: Id<Node /*SourceFile*/>,

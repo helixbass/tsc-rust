@@ -4,7 +4,6 @@ use std::{
     io, mem,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use super::is_static;
@@ -60,7 +59,7 @@ pub fn get_indent_size() -> usize {
     indent_strings.with(|indent_strings_| indent_strings_.borrow()[1].len())
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Clone)]
 pub struct TextWriter {
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     new_line: String,
@@ -432,7 +431,6 @@ impl HasArena for TextWriter {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TextWriterSymbolTracker;
 
 impl SymbolTracker for TextWriterSymbolTracker {
@@ -503,7 +501,6 @@ pub fn get_trailing_semicolon_deferring_writer(
     TrailingSemicolonDeferringWriter::new(writer, arena)
 }
 
-#[derive(Trace, Finalize)]
 pub struct TrailingSemicolonDeferringWriter {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -738,7 +735,6 @@ impl HasArena for TrailingSemicolonDeferringWriter {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TrailingSemicolonDeferringWriterSymbolTracker;
 
 impl SymbolTracker for TrailingSemicolonDeferringWriterSymbolTracker {

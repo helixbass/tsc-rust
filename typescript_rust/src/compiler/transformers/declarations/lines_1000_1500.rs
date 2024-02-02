@@ -1,6 +1,5 @@
 use std::{io, ptr};
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use super::{
@@ -1045,7 +1044,6 @@ impl TransformDeclarations {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
     input: Id<Node>,
 }
@@ -1080,7 +1078,6 @@ impl HasArena for VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
     extends_clause: Id<Node>,
     input: Id<Node>,

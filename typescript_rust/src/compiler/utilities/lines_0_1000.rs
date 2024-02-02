@@ -11,7 +11,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -118,7 +117,6 @@ fn create_single_line_string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTex
     SingleLineStringWriter::new(arena)
 }
 
-#[derive(Trace, Finalize)]
 struct SingleLineStringWriter {
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     #[unsafe_ignore_trace]
@@ -352,7 +350,6 @@ impl HasArena for SingleLineStringWriter {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct SingleLineStringWriterSymbolTracker;
 
 impl SymbolTracker for SingleLineStringWriterSymbolTracker {
@@ -721,7 +718,7 @@ pub fn type_directive_is_equal_to(
         && old_resolution.original_path == new_resolution.original_path
 }
 
-pub fn has_changes_in_resolutions<TValue: Clone + Trace + Finalize>(
+pub fn has_changes_in_resolutions<TValue: Clone>(
     names: &[impl AsRef<str>],
     new_resolutions: &[TValue],
     old_resolutions: Option<&ModeAwareCache<TValue>>,

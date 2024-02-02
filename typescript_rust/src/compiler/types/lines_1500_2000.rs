@@ -1,6 +1,5 @@
 use std::cell::Cell;
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use local_macros::ast_type;
 
@@ -11,7 +10,7 @@ use super::{
     Node, NodeArray, SyntaxKind, Type,
 };
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -27,7 +26,7 @@ impl ConstructorDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct SemicolonClassElement {
     _node: BaseNode,
@@ -53,7 +52,7 @@ impl NamedDeclarationInterface for SemicolonClassElement {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -69,7 +68,7 @@ impl GetAccessorDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -85,7 +84,7 @@ impl SetAccessorDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -101,7 +100,7 @@ impl IndexSignatureDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
 )]
@@ -139,7 +138,7 @@ impl ClassStaticBlockDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
@@ -160,7 +159,7 @@ impl VariableDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct VariableDeclarationList {
     _node: BaseNode,
@@ -176,7 +175,7 @@ impl VariableDeclarationList {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface, HasTypeInterface, VariableLikeDeclarationInterface"
 )]
@@ -216,7 +215,7 @@ impl HasQuestionTokenInterface for ParameterDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct KeywordTypeNode {
     _node: BaseNode,
@@ -234,7 +233,7 @@ impl From<BaseNode> for KeywordTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ImportTypeNode {
     _node: BaseNode,
@@ -277,7 +276,7 @@ impl HasTypeArgumentsInterface for ImportTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ThisTypeNode {
     _node: BaseNode,
@@ -289,7 +288,7 @@ impl ThisTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
 )]
@@ -305,7 +304,7 @@ impl FunctionTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, SignatureDeclarationInterface"
 )]
@@ -325,7 +324,7 @@ pub trait HasTypeArgumentsInterface {
     fn maybe_type_arguments(&self) -> Option<Id<NodeArray>>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TypeReferenceNode {
     _node: BaseNode,
@@ -353,7 +352,7 @@ impl HasTypeArgumentsInterface for TypeReferenceNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TypePredicateNode {
     _node: BaseNode,
@@ -388,7 +387,7 @@ impl HasTypeInterface for TypePredicateNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TypeQueryNode {
     _node: BaseNode,
@@ -408,7 +407,7 @@ pub trait HasMembersInterface {
     fn members(&self) -> Id<NodeArray>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TypeLiteralNode {
     _node: BaseNode,
@@ -430,7 +429,7 @@ impl HasMembersInterface for TypeLiteralNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ArrayTypeNode {
     _node: BaseNode,
@@ -446,7 +445,7 @@ impl ArrayTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TupleTypeNode {
     _node: BaseNode,
@@ -468,7 +467,7 @@ impl HasElementsInterface for TupleTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct NamedTupleMember {
     _node: BaseNode,
@@ -518,7 +517,7 @@ impl HasQuestionTokenInterface for NamedTupleMember {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct OptionalTypeNode {
     _node: BaseNode,
@@ -544,7 +543,7 @@ impl HasTypeInterface for OptionalTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct RestTypeNode {
     _node: BaseNode,
@@ -574,7 +573,7 @@ pub trait UnionOrIntersectionTypeNodeInterface {
     fn types(&self) -> Id<NodeArray>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct UnionTypeNode {
     _node: BaseNode,
@@ -596,7 +595,7 @@ impl UnionOrIntersectionTypeNodeInterface for UnionTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct IntersectionTypeNode {
     _node: BaseNode,
@@ -618,7 +617,7 @@ impl UnionOrIntersectionTypeNodeInterface for IntersectionTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ConditionalTypeNode {
     _node: BaseNode,
@@ -646,7 +645,7 @@ impl ConditionalTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct InferTypeNode {
     _node: BaseNode,
@@ -662,7 +661,7 @@ impl InferTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ParenthesizedTypeNode {
     _node: BaseNode,
@@ -688,7 +687,7 @@ impl HasTypeInterface for ParenthesizedTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TypeOperatorNode {
     _node: BaseNode,
@@ -717,7 +716,7 @@ impl HasTypeInterface for TypeOperatorNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct IndexedAccessTypeNode {
     _node: BaseNode,
@@ -735,7 +734,7 @@ impl IndexedAccessTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct MappedTypeNode {
     _node: BaseNode,
@@ -785,7 +784,7 @@ impl HasQuestionTokenInterface for MappedTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct LiteralTypeNode {
     _node: BaseNode,
@@ -801,7 +800,7 @@ impl LiteralTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct StringLiteral {
     _literal_like_node: BaseLiteralLikeNode,
@@ -820,7 +819,7 @@ impl StringLiteral {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TemplateLiteralTypeNode {
     pub _node: BaseNode,
@@ -838,7 +837,7 @@ impl TemplateLiteralTypeNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TemplateLiteralTypeSpan {
     pub _node: BaseNode,
@@ -866,7 +865,7 @@ impl HasTypeInterface for TemplateLiteralTypeSpan {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct OmittedExpression {
     pub _node: BaseNode,
@@ -878,7 +877,7 @@ impl OmittedExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct PartiallyEmittedExpression {
     pub _node: BaseNode,
@@ -905,7 +904,7 @@ pub trait UnaryExpressionInterface {
     fn operand(&self) -> Id<Node>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct PrefixUnaryExpression {
     pub _node: BaseNode,
@@ -934,7 +933,7 @@ impl UnaryExpressionInterface for PrefixUnaryExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct PostfixUnaryExpression {
     pub _node: BaseNode,
@@ -962,7 +961,7 @@ impl UnaryExpressionInterface for PostfixUnaryExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct DeleteExpression {
     _node: BaseNode,
@@ -984,7 +983,7 @@ impl HasExpressionInterface for DeleteExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TypeOfExpression {
     _node: BaseNode,
@@ -1006,7 +1005,7 @@ impl HasExpressionInterface for TypeOfExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct VoidExpression {
     _node: BaseNode,
@@ -1028,7 +1027,7 @@ impl HasExpressionInterface for VoidExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct AwaitExpression {
     _node: BaseNode,
@@ -1050,7 +1049,7 @@ impl HasExpressionInterface for AwaitExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct YieldExpression {
     _node: BaseNode,
@@ -1082,7 +1081,7 @@ impl HasExpressionInterface for YieldExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct SyntheticExpression {
     _node: BaseNode,

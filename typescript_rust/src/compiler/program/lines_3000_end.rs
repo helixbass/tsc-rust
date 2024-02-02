@@ -8,7 +8,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{
@@ -2009,7 +2008,6 @@ impl Program {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct HostGetCanonicalFileName {
     host: Id<Box<dyn CompilerHost>>,
 }
@@ -2032,7 +2030,6 @@ impl HasArena for HostGetCanonicalFileName {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct ProgramGetSymlinkCache {
     program: Id<Program>,
 }
@@ -2122,7 +2119,6 @@ pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
     pub file_exists: Id<Box<dyn ModuleResolutionHostOverrider>>,
 }
 
-#[derive(Trace, Finalize)]
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     pub host_compiler_host: Id<Box<dyn CompilerHost>>,
     pub host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
@@ -2278,15 +2274,15 @@ impl HasArena for UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
     }
 }
 
-pub trait GetSymlinkCache: Trace + Finalize {
+pub trait GetSymlinkCache {
     fn call(&self) -> Id<SymlinkCache>;
 }
 
-pub trait GetResolvedProjectReferences: Trace + Finalize {
+pub trait GetResolvedProjectReferences {
     fn call(&self) -> Option<Vec<Option<Id<ResolvedProjectReference>>>>;
 }
 
-pub trait ForEachResolvedProjectReference: Trace + Finalize {
+pub trait ForEachResolvedProjectReference {
     fn call(&self, callback: &mut dyn FnMut(Id<ResolvedProjectReference>));
 }
 
@@ -2385,7 +2381,7 @@ pub(super) fn filter_semantic_diagnostics(
         .collect()
 }
 
-pub trait CompilerHostLike: Trace + Finalize {
+pub trait CompilerHostLike {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn get_current_directory(&self) -> io::Result<String>;
     fn file_exists(&self, file_name: &str) -> bool;
@@ -2418,7 +2414,6 @@ pub trait CompilerHostLike: Trace + Finalize {
     fn get_directories(&self, path: &str) -> Option<Vec<String>>;
 }
 
-#[derive(Trace, Finalize)]
 pub struct CompilerHostLikeRcDynCompilerHost {
     host: Id<Box<dyn CompilerHost>>,
 }
@@ -2510,7 +2505,6 @@ impl From<Id<Box<dyn CompilerHost>>> for CompilerHostLikeRcDynCompilerHost {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct DirectoryStructureHostRcDynCompilerHostLike {
     host: Id<Box<dyn CompilerHostLike>>,
 }
@@ -2591,7 +2585,6 @@ pub fn parse_config_host_from_compiler_host_like(
     ParseConfigHostFromCompilerHostLike::new(host, directory_structure_host)
 }
 
-#[derive(Trace, Finalize)]
 pub struct ParseConfigHostFromCompilerHostLike {
     host: Id<Box<dyn CompilerHostLike>>,
     directory_structure_host: Id<Box<dyn DirectoryStructureHost>>,
@@ -2809,7 +2802,6 @@ pub(crate) fn get_module_name_string_literal_at(
     ));
 }
 
-#[derive(Trace, Finalize)]
 struct CompilerHostGetCanonicalFileName {
     host: Id<Box<dyn CompilerHost>>,
 }

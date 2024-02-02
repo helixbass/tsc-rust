@@ -8,7 +8,6 @@ use std::{
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 use serde::Serialize;
@@ -23,7 +22,6 @@ use crate::{
     HasArena, InArena,
 };
 
-#[derive(Trace, Finalize)]
 pub struct Printer {
     #[unsafe_ignore_trace]
     pub arena: *const AllArenas,
@@ -99,7 +97,7 @@ pub struct Printer {
     pub emit_binary_expression: Cell<Option<Id<EmitBinaryExpression>>>,
 }
 
-pub trait CurrentParenthesizerRule: Trace + Finalize {
+pub trait CurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node>;
 }
 
@@ -147,7 +145,7 @@ impl BundleFileSectionKind {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BundleFileSectionBase {
     #[unsafe_ignore_trace]
     pos: Cell<isize>,
@@ -202,7 +200,7 @@ impl BundleFileSectionInterface for BundleFileSectionBase {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BundleFilePrologue {
     #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
@@ -242,7 +240,7 @@ impl BundleFileSectionInterface for BundleFilePrologue {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BundleFileEmitHelpers {
     #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
@@ -282,7 +280,7 @@ impl BundleFileSectionInterface for BundleFileEmitHelpers {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BundleFileHasNoDefaultLib {
     #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
@@ -316,7 +314,7 @@ impl BundleFileSectionInterface for BundleFileHasNoDefaultLib {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BundleFileReference {
     #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
@@ -356,7 +354,7 @@ impl BundleFileSectionInterface for BundleFileReference {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct BundleFilePrepend {
     _bundle_file_section_base: BundleFileSectionBase,
     pub texts: Vec<Id<BundleFileSection /*BundleFileTextLike*/>>,
@@ -410,7 +408,7 @@ pub struct BundleFilePrependSerializable {
     pub texts: Vec<BundleFileSectionSerializable /*BundleFileTextLike*/>,
 }
 
-#[derive(Clone, Debug, Serialize, Trace, Finalize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct BundleFileTextLike {
     #[serde(flatten)]
     _bundle_file_section_base: BundleFileSectionBase,
@@ -444,7 +442,7 @@ impl BundleFileSectionInterface for BundleFileTextLike {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub enum BundleFileSection {
     BundleFilePrologue(BundleFilePrologue),
     BundleFileEmitHelpers(BundleFileEmitHelpers),
@@ -620,34 +618,33 @@ pub enum BundleFileSectionSerializable {
     BundleFileTextLike(BundleFileTextLike),
 }
 
-#[derive(Clone, Serialize, Trace, Finalize)]
+#[derive(Clone, Serialize)]
 pub struct SourceFilePrologueDirectiveExpression {
     pub pos: isize,
     pub end: isize,
     pub text: String,
 }
 
-#[derive(Clone, Serialize, Trace, Finalize)]
+#[derive(Clone, Serialize)]
 pub struct SourceFilePrologueDirective {
     pub pos: isize,
     pub end: isize,
     pub expression: SourceFilePrologueDirectiveExpression,
 }
 
-#[derive(Clone, Serialize, Trace, Finalize)]
+#[derive(Clone, Serialize)]
 pub struct SourceFilePrologueInfo {
     pub file: usize,
     pub text: String,
     pub directives: Vec<SourceFilePrologueDirective>,
 }
 
-#[derive(Clone, Default, Serialize, Trace, Finalize)]
+#[derive(Clone, Default, Serialize)]
 pub struct SourceFileInfo {
     pub helpers: Option<Vec<String>>,
     pub prologues: Option<Vec<SourceFilePrologueInfo>>,
 }
 
-#[derive(Trace, Finalize)]
 pub struct BundleFileInfo {
     pub sections: Vec<Id<BundleFileSection>>,
     pub sources: Option<SourceFileInfo>,
@@ -668,7 +665,7 @@ pub struct BundleFileInfoSerializable {
     pub sources: Option<SourceFileInfo>,
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Clone)]
 pub struct BundleBuildInfo {
     pub js: Option<Id<BundleFileInfo>>,
     pub dts: Option<Id<BundleFileInfo>>,
@@ -695,7 +692,6 @@ pub struct BundleBuildInfoSerializable {
     pub source_files: Vec<String>,
 }
 
-#[derive(Trace, Finalize)]
 pub struct BuildInfo {
     pub bundle: Option<Id<BundleBuildInfo>>,
     pub program: Option<Id<ProgramBuildInfo>>,
@@ -729,7 +725,7 @@ pub struct BuildInfoSerializable {
     pub version: String,
 }
 
-pub trait PrintHandlers: Trace + Finalize {
+pub trait PrintHandlers {
     fn has_global_name(&self, _name: &str) -> Option<bool> {
         None
     }
@@ -777,11 +773,9 @@ pub trait PrintHandlers: Trace + Finalize {
 }
 
 mod _PrinterOptionsDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Builder, Default, Trace, Finalize)]
+    #[derive(Builder, Default)]
     #[builder(default)]
     pub struct PrinterOptions {
         pub remove_comments: Option<bool>,
@@ -809,7 +803,7 @@ mod _PrinterOptionsDeriveTraceScope {
 }
 pub use _PrinterOptionsDeriveTraceScope::{PrinterOptions, PrinterOptionsBuilder};
 
-pub trait RelativeToBuildInfo: Trace + Finalize {
+pub trait RelativeToBuildInfo {
     fn call(&self, file_name: &str) -> String;
 }
 
@@ -824,7 +818,7 @@ pub struct RawSourceMap {
     pub names: Option<Vec<String>>,
 }
 
-pub trait SourceMapGenerator: Trace + Finalize {
+pub trait SourceMapGenerator {
     fn get_sources(&self) -> Vec<String>;
     fn add_source(&self, file_name: &str) -> usize;
     fn set_source_content(&self, source_index: usize, content: Option<String>);
@@ -851,7 +845,7 @@ pub trait SourceMapGenerator: Trace + Finalize {
     fn to_string(&self) -> String;
 }
 
-pub trait EmitTextWriter: SymbolWriter + Trace + Finalize {
+pub trait EmitTextWriter: SymbolWriter {
     fn write(&self, s: &str);
     fn write_trailing_semicolon(&self, text: &str);
     fn write_comment(&self, text: &str);
@@ -949,7 +943,7 @@ pub trait ModuleSpecifierCache {
     );
 }
 
-pub trait SymbolTracker: Trace + Finalize {
+pub trait SymbolTracker {
     fn track_symbol(
         &self,
         _symbol: Id<Symbol>,
@@ -1000,7 +994,7 @@ pub trait SymbolTracker: Trace + Finalize {
 }
 
 pub trait ModuleSpecifierResolutionHostAndGetCommonSourceDirectory:
-    ModuleSpecifierResolutionHost + Trace + Finalize
+    ModuleSpecifierResolutionHost
 {
     fn get_common_source_directory(&self) -> String;
     fn as_dyn_module_specifier_resolution_host(&self) -> &dyn ModuleSpecifierResolutionHost;
@@ -1018,7 +1012,7 @@ pub struct TextChangeRange {
     pub new_length: isize,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct DiagnosticCollection {
     #[unsafe_ignore_trace]
     pub arena: *const AllArenas,
@@ -1029,7 +1023,7 @@ pub struct DiagnosticCollection {
     pub has_read_non_file_diagnostics: Cell<bool>,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct SyntaxList {
     _node: BaseNode,

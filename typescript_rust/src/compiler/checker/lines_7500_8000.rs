@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, io};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use regex::Regex;
 
@@ -658,7 +657,7 @@ impl SymbolTableToDeclarationStatements {
     }
 }
 
-#[derive(Copy, Clone, Trace, Finalize)]
+#[derive(Copy, Clone)]
 pub(super) struct MakeSerializePropertySymbol {
     type_checker: Id<TypeChecker>,
     node_builder: Id<NodeBuilder>,
@@ -1028,7 +1027,7 @@ impl MakeSerializePropertySymbol {
     }
 }
 
-pub trait MakeSerializePropertySymbolCreateProperty: Trace + Finalize {
+pub trait MakeSerializePropertySymbolCreateProperty {
     fn call(
         &self,
         decorators: Option<NodeArrayOrVec /*Decorator*/>,

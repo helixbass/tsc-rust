@@ -1,7 +1,6 @@
 use std::cell::{Cell, RefCell, Ref, RefMut};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -11,7 +10,7 @@ use super::{
     SignatureDeclarationInterface, SyntaxKind, TextRange,
 };
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ExternalModuleReference {
     _node: BaseNode,
@@ -33,7 +32,7 @@ impl HasExpressionInterface for ExternalModuleReference {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ImportDeclaration {
     _node: BaseNode,
@@ -74,7 +73,7 @@ impl HasModuleSpecifierInterface for ImportDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ImportClause {
     _node: BaseNode,
@@ -119,7 +118,7 @@ impl HasIsTypeOnlyInterface for ImportClause {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct AssertEntry {
     _node: BaseNode,
@@ -137,7 +136,7 @@ impl AssertEntry {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct AssertClause {
     _node: BaseNode,
@@ -161,7 +160,7 @@ impl HasElementsInterface for AssertClause {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct NamespaceImport {
     _node: BaseNode,
@@ -191,7 +190,7 @@ impl NamedDeclarationInterface for NamespaceImport {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct NamespaceExport {
     _node: BaseNode,
@@ -207,7 +206,7 @@ impl NamespaceExport {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct NamespaceExportDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -225,7 +224,7 @@ pub trait HasAssertClauseInterface {
     fn maybe_assert_clause(&self) -> Option<Id<Node>>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ExportDeclaration {
     _node: BaseNode,
@@ -271,7 +270,7 @@ impl HasModuleSpecifierInterface for ExportDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct NamedImports {
     _node: BaseNode,
@@ -293,7 +292,7 @@ impl HasElementsInterface for NamedImports {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct NamedExports {
     _node: BaseNode,
@@ -319,7 +318,7 @@ pub trait HasPropertyNameInterface {
     fn maybe_property_name(&self) -> Option<Id<Node>>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ImportSpecifier {
     _node: BaseNode,
@@ -370,7 +369,7 @@ impl HasPropertyNameInterface for ImportSpecifier {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ExportSpecifier {
     _node: BaseNode,
@@ -421,7 +420,7 @@ impl HasPropertyNameInterface for ExportSpecifier {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ExportAssignment {
     _node: BaseNode,
@@ -587,7 +586,7 @@ impl TextRange for SynthesizedComment {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocTypeExpression {
     _node: BaseNode,
@@ -613,7 +612,7 @@ impl HasTypeInterface for JSDocTypeExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocNameReference {
     _node: BaseNode,
@@ -643,7 +642,7 @@ impl NamedDeclarationInterface for JSDocNameReference {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocMemberName {
     _node: BaseNode,
@@ -671,7 +670,7 @@ impl HasLeftAndRightInterface for JSDocMemberName {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct BaseJSDocUnaryType {
     _node: BaseNode,
@@ -697,7 +696,7 @@ impl HasTypeInterface for BaseJSDocUnaryType {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -713,7 +712,7 @@ impl JSDocFunctionType {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDoc {
     _node: BaseNode,
@@ -745,7 +744,7 @@ pub trait JSDocLinkLikeInterface {
     fn text(&self) -> &str;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocLink {
     _node: BaseNode,
@@ -773,7 +772,7 @@ impl JSDocLinkLikeInterface for JSDocLink {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocLinkCode {
     _node: BaseNode,
@@ -801,7 +800,7 @@ impl JSDocLinkLikeInterface for JSDocLinkCode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocLinkPlain {
     _node: BaseNode,
@@ -829,7 +828,7 @@ impl JSDocLinkLikeInterface for JSDocLinkPlain {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocText {
     _node: BaseNode,
@@ -846,11 +845,9 @@ impl JSDocText {
 }
 
 mod _StringOrNodeArrayDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Debug, Trace, Finalize)]
+    #[derive(Clone, Debug)]
     pub enum StringOrNodeArray {
         String(String),
         NodeArray(Id<NodeArray>),
@@ -871,7 +868,7 @@ impl From<Id<NodeArray>> for StringOrNodeArray {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct BaseJSDocTag {
     _node: BaseNode,
@@ -903,7 +900,7 @@ impl JSDocTagInterface for BaseJSDocTag {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocAugmentsTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -931,7 +928,7 @@ impl JSDocHeritageTagInterface for JSDocAugmentsTag {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocImplementsTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -960,7 +957,7 @@ pub trait JSDocTypeLikeTagInterface: JSDocTagInterface {
     fn type_expression(&self) -> Id<Node>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct BaseJSDocTypeLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -986,7 +983,7 @@ impl JSDocTypeLikeTagInterface for BaseJSDocTypeLikeTag {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocTemplateTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -1022,7 +1019,7 @@ impl HasTypeParametersInterface for JSDocTemplateTag {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocSeeTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -1044,7 +1041,7 @@ pub trait JSDocTypedefOrCallbackTagInterface:
     fn maybe_full_name(&self) -> Option<Id<Node>>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocTypedefTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -1099,7 +1096,7 @@ impl JSDocTypeLikeTagInterface for JSDocTypedefTag {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocCallbackTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -1154,7 +1151,7 @@ impl JSDocTypeLikeTagInterface for JSDocCallbackTag {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocSignature {
     _node: BaseNode,
@@ -1219,7 +1216,7 @@ impl HasTypeParametersInterface for JSDocSignature {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "JSDocTagInterface")]
 pub struct JSDocPropertyLikeTag {
     _base_jsdoc_tag: BaseJSDocTag,
@@ -1271,7 +1268,7 @@ impl JSDocTypeLikeTagInterface for JSDocPropertyLikeTag {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct JSDocTypeLiteral {
     _node: BaseNode,
@@ -1315,7 +1312,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub enum FlowNode {
     FlowStart(FlowStart),
     FlowLabel(FlowLabel),
@@ -1434,7 +1431,7 @@ impl FlowNodeBase for FlowNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowStart {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
@@ -1493,7 +1490,7 @@ impl From<FlowStart> for FlowNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowLabel {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
@@ -1552,7 +1549,7 @@ pub trait HasAntecedentInterface {
     fn antecedent(&self) -> Id<FlowNode>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowAssignment {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
@@ -1603,7 +1600,7 @@ impl From<FlowAssignment> for FlowNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowCall {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
@@ -1654,7 +1651,7 @@ impl From<FlowCall> for FlowNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowCondition {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
@@ -1705,7 +1702,7 @@ impl From<FlowCondition> for FlowNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowSwitchClause {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
@@ -1766,7 +1763,7 @@ impl From<FlowSwitchClause> for FlowNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowArrayMutation {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,
@@ -1817,7 +1814,7 @@ impl From<FlowArrayMutation> for FlowNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct FlowReduceLabel {
     #[unsafe_ignore_trace]
     flags: Cell<FlowFlags>,

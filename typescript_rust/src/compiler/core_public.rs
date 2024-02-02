@@ -4,7 +4,6 @@ use std::{
     ops::Deref,
 };
 
-use gc::{Finalize, Trace};
 use indexmap::IndexMap;
 
 pub const version_major_minor: &str = "4.5";
@@ -14,16 +13,14 @@ pub const version: &str = "4.5.2";
 pub type MapLike<TValue> = HashMap<String, TValue>;
 
 mod _SortedArrayDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Debug, Trace, Finalize)]
-    pub struct SortedArray<TItem: Trace + Finalize> {
+    #[derive(Clone, Debug)]
+    pub struct SortedArray<TItem> {
         _vec: Vec<TItem>,
     }
 
-    impl<TItem: Trace + Finalize> SortedArray<TItem> {
+    impl<TItem> SortedArray<TItem> {
         pub fn new(vec: Vec<TItem>) -> Self {
             Self { _vec: vec }
         }
@@ -41,7 +38,7 @@ mod _SortedArrayDeriveTraceScope {
         }
     }
 
-    impl<TItem: Trace + Finalize> Deref for SortedArray<TItem> {
+    impl<TItem> Deref for SortedArray<TItem> {
         type Target = [TItem];
 
         fn deref(&self) -> &Self::Target {
@@ -49,25 +46,25 @@ mod _SortedArrayDeriveTraceScope {
         }
     }
 
-    impl<TItem: Clone + Trace + Finalize> SortedArray<TItem> {
+    impl<TItem: Clone> SortedArray<TItem> {
         pub fn to_vec(&self) -> Vec<TItem> {
             self._vec.clone()
         }
     }
 
-    impl<TItem: Clone + Trace + Finalize> From<SortedArray<TItem>> for Vec<TItem> {
+    impl<TItem: Clone> From<SortedArray<TItem>> for Vec<TItem> {
         fn from(sorted_array: SortedArray<TItem>) -> Self {
             sorted_array._vec
         }
     }
 
-    impl<TItem: Clone + Trace + Finalize> From<&SortedArray<TItem>> for Vec<TItem> {
+    impl<TItem: Clone> From<&SortedArray<TItem>> for Vec<TItem> {
         fn from(sorted_array: &SortedArray<TItem>) -> Self {
             sorted_array._vec.clone()
         }
     }
 
-    impl<TItem: Trace + Finalize> From<Vec<TItem>> for SortedArray<TItem> {
+    impl<TItem> From<Vec<TItem>> for SortedArray<TItem> {
         fn from(value: Vec<TItem>) -> Self {
             Self::new(value)
         }

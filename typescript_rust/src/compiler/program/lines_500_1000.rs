@@ -6,7 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
@@ -44,7 +43,7 @@ use crate::{
     HasArena, AllArenas, InArena, static_arena, OptionInArena,
 };
 
-pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
+pub trait LoadWithLocalCacheLoader<TValue> {
     fn call(
         &self,
         name: &str,
@@ -53,7 +52,6 @@ pub trait LoadWithLocalCacheLoader<TValue>: Trace + Finalize {
     ) -> io::Result<TValue>;
 }
 
-#[derive(Trace, Finalize)]
 pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
     options: Id<CompilerOptions>,
     host: Id<Box<dyn CompilerHost>>,
@@ -204,7 +202,7 @@ pub(crate) fn get_mode_for_usage_location(
     )
 }
 
-pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
+pub trait LoadWithModeAwareCacheLoader<TValue> {
     fn call(
         &self,
         name: &str,
@@ -214,7 +212,6 @@ pub trait LoadWithModeAwareCacheLoader<TValue>: Trace + Finalize {
     ) -> io::Result<TValue>;
 }
 
-#[derive(Trace, Finalize)]
 pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
     options: Id<CompilerOptions>,
     host: Id<Box<dyn CompilerHost>>,
@@ -569,7 +566,6 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
 
 pub(crate) const inferred_types_containing_file: &str = "__inferred type names__.ts";
 
-#[derive(Trace, Finalize)]
 pub(crate) struct DiagnosticCache {
     pub per_file: Option<HashMap<Path, Vec<Id<Diagnostic>>>>,
     pub all_diagnostics: Option<Vec<Id<Diagnostic>>>,
@@ -1833,7 +1829,6 @@ impl HasArena for Program {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct ProgramGetResolvedProjectReferences {
     program: Id<Program>,
 }
@@ -1857,11 +1852,9 @@ impl HasArena for ProgramGetResolvedProjectReferences {
 }
 
 mod _FilesByNameValueDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub enum FilesByNameValue {
         SourceFile(Id<Node /*SourceFile*/>),
         False,
@@ -1884,7 +1877,7 @@ pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
 
 use crate::try_for_each;
 
-pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
+pub trait ActualResolveModuleNamesWorker {
     fn call(
         &self,
         module_names: &[String],
@@ -1895,7 +1888,6 @@ pub trait ActualResolveModuleNamesWorker: Trace + Finalize {
     ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>>;
 }
 
-#[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerHost {
     host: Id<Box<dyn CompilerHost>>,
     options: Id<CompilerOptions>,
@@ -1950,7 +1942,6 @@ impl HasArena for ActualResolveModuleNamesWorkerHost {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     loader: Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
 }
@@ -1989,7 +1980,7 @@ impl HasArena for ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     }
 }
 
-pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
+pub trait ActualResolveTypeReferenceDirectiveNamesWorker {
     fn call(
         &self,
         type_directive_names: &[String],
@@ -1998,7 +1989,6 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker: Trace + Finalize {
     ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>>;
 }
 
-#[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerHost {
     host: Id<Box<dyn CompilerHost>>,
     options: Id<CompilerOptions>,
@@ -2037,7 +2027,6 @@ impl HasArena for ActualResolveTypeReferenceDirectiveNamesWorkerHost {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
     loader: Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
 }

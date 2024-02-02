@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, io};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{ClassFacts, TransformTypeScript};
@@ -572,7 +571,6 @@ impl TransformTypeScript {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct AllDecorators {
     pub decorators: Option<NodeArrayOrVec /*Decorator*/>,
     pub parameters: Option<Vec<Option<NodeArrayOrVec /*Decorator*/>>>,

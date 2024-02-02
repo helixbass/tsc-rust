@@ -1,7 +1,6 @@
 use std::{borrow::{Borrow, Cow}, cell::{RefCell, Ref}, ptr};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCellRef, Trace};
 use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 

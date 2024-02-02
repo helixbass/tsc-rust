@@ -1,9 +1,8 @@
 use std::{fmt, hash, ops};
 
-use gc::{unsafe_empty_trace, Finalize, Trace};
 use serde::Serialize;
 
-#[derive(Clone, Copy, Debug, PartialOrd, Serialize, Finalize)]
+#[derive(Clone, Copy, Debug, PartialOrd, Serialize)]
 pub struct Number(f64);
 
 // TODO: need to include NaN and Infinity?
@@ -27,10 +26,6 @@ impl Number {
         // TODO: should check that we're an "integer"?
         self.value() as i64
     }
-}
-
-unsafe impl Trace for Number {
-    unsafe_empty_trace!();
 }
 
 impl hash::Hash for Number {

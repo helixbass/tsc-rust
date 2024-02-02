@@ -6,7 +6,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use super::{
@@ -69,7 +68,6 @@ impl NodeBuilder {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct SymbolTableToDeclarationStatements {
     pub(super) _arena_id: Cell<Option<Id<Self>>>,
     pub(super) bundled: Option<bool>,
@@ -1122,7 +1120,6 @@ impl SymbolTableToDeclarationStatements {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct SymbolTableToDeclarationStatementsSymbolTracker {
     #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
@@ -1320,7 +1317,6 @@ impl HasArena for SymbolTableToDeclarationStatementsSymbolTracker {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct MakeSerializePropertySymbolCreatePropertyDeclaration;
 
 impl MakeSerializePropertySymbolCreatePropertyDeclaration {
@@ -1358,7 +1354,6 @@ impl HasArena for MakeSerializePropertySymbolCreatePropertyDeclaration {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct MakeSerializePropertySymbolCreatePropertySignature;
 
 impl MakeSerializePropertySymbolCreatePropertySignature {

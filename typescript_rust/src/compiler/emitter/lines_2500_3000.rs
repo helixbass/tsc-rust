@@ -1,6 +1,5 @@
 use std::{cell::RefCell, io, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::PipelinePhase;
@@ -1133,7 +1132,6 @@ impl Printer {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct EmitBinaryExpression {
     trampoline: BinaryExpressionTrampoline<EmitBinaryExpressionStateMachine>,
 }
@@ -1160,7 +1158,6 @@ pub struct WorkArea {
     pub should_emit_source_maps_stack: Vec<bool>,
 }
 
-#[derive(Trace, Finalize)]
 pub struct EmitBinaryExpressionStateMachine {
     printer: Id<Printer>,
 }
@@ -1397,7 +1394,6 @@ impl HasArena for EmitBinaryExpressionStateMachine {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct MaybeEmitExpressionCurrentParenthesizerRule {
     #[unsafe_ignore_trace]
     side: LeftOrRight,
@@ -1441,7 +1437,6 @@ impl HasArena for MaybeEmitExpressionCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1465,7 +1460,6 @@ impl HasArena for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1489,7 +1483,6 @@ impl HasArena for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1512,7 +1505,6 @@ impl HasArena for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfNewCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1535,7 +1527,6 @@ impl HasArena for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1558,7 +1549,6 @@ impl HasArena for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1582,7 +1572,6 @@ impl HasArena for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1606,7 +1595,6 @@ impl HasArena for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1632,7 +1620,6 @@ impl HasArena for ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesiz
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1656,7 +1643,6 @@ impl HasArena for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRu
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1680,7 +1666,6 @@ impl HasArena for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule 
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1704,7 +1689,6 @@ impl HasArena for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1728,7 +1712,6 @@ impl HasArena for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1754,7 +1737,6 @@ impl HasArena for ParenthesizeExpressionOfExpressionStatementCurrentParenthesize
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
@@ -1780,7 +1762,6 @@ impl HasArena for ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerR
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }

@@ -12,7 +12,6 @@ use std::{
     collections::HashMap,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -54,7 +53,7 @@ pub(crate) enum FileSystemEntryKind {
 
 pub type Buffer = Vec<u8>;
 
-pub trait System: ConvertToTSConfigHost + Trace + Finalize {
+pub trait System: ConvertToTSConfigHost {
     fn args(&self) -> &[String];
     fn new_line(&self) -> &str;
     fn write(&self, s: &str);
@@ -183,7 +182,6 @@ pub trait FileWatcher {
 
 const byte_order_mark_indicator: &str = "\u{FEFF}";
 
-#[derive(Trace, Finalize)]
 pub struct SystemConcrete {
     args: Vec<String>,
     use_case_sensitive_file_names: bool,

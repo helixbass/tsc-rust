@@ -10,7 +10,6 @@ use std::{
 };
 
 use fancy_regex::{Captures, Regex};
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
@@ -847,7 +846,6 @@ pub struct SymlinkedDirectory {
     pub real_path: Path,
 }
 
-#[derive(Trace, Finalize)]
 pub struct SymlinkCache {
     cwd: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,

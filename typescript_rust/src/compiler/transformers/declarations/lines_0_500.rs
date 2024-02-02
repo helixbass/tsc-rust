@@ -6,7 +6,6 @@ use std::{
     rc::Rc, any::Any,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use super::{can_have_literal_initializer, mask_modifiers};
@@ -160,7 +159,6 @@ pub(super) fn declaration_emit_node_builder_flags() -> NodeBuilderFlags {
         | NodeBuilderFlags::NoTruncation
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarations {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
@@ -1248,7 +1246,6 @@ pub(super) fn throw_diagnostic(arena: &impl HasArena) -> GetSymbolAccessibilityD
     )
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ThrowDiagnostic;
 
 impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
@@ -1260,7 +1257,6 @@ impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarationsSymbolTracker {
     #[unsafe_ignore_trace]
     is_track_symbol_disabled: Cell<bool>,
@@ -1632,7 +1628,6 @@ impl HasArena for TransformDeclarationsSymbolTracker {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
     pub(super) source_file: Id<Node /*SourceFile*/>,
 }
@@ -1675,7 +1670,6 @@ impl HasArena for TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformDeclarationsFactory {}
 
 impl TransformDeclarationsFactory {

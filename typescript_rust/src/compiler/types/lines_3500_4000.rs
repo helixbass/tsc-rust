@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -30,7 +29,7 @@ use crate::{
     ref_unwrapped, ref_mut_unwrapped,
 };
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub enum FlowType {
     Type(Id<Type>),
     IncompleteType(IncompleteType),
@@ -65,7 +64,7 @@ impl From<IncompleteType> for FlowType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct IncompleteType {
     #[unsafe_ignore_trace]
     pub flags: TypeFlags,
@@ -123,7 +122,7 @@ pub trait SourceFileLike {
     ) -> Option<usize>;
 }
 
-#[derive(Copy, Clone, Debug, Trace, Finalize)]
+#[derive(Copy, Clone, Debug)]
 pub struct RedirectInfo {
     pub redirect_target: Id<Node /*SourceFile*/>,
     pub unredirected: Id<Node /*SourceFile*/>,
@@ -133,14 +132,14 @@ pub trait HasStatementsInterface {
     fn statements(&self) -> Id<NodeArray>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct SourceFile {
     _node: BaseNode,
     contents: Box<SourceFileContents>,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct SourceFileContents {
     statements: Id<NodeArray>,
     end_of_file_token: Id<Node /*Token<SyntaxFile.EndOfFileToken>*/>,
@@ -867,7 +866,7 @@ pub enum CommentDirectiveType {
 
 pub(crate) type ExportedModulesFromDeclarationEmit = Vec<Id<Symbol>>;
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct Bundle {
     _node: BaseNode,
@@ -900,7 +899,7 @@ impl Bundle {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct InputFiles {
     _node: BaseNode,
@@ -1091,7 +1090,7 @@ impl HasArena for InputFiles {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub enum InputFilesInitializedState {
     Uninitialized,
     InitializedWithReadFileCallback(InputFilesInitializedWithReadFileCallback),
@@ -1104,7 +1103,7 @@ impl Default for InputFilesInitializedState {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 struct InputFilesInitializedWithReadFileCallback {
     read_file_callback: Id<Box<dyn ReadFileCallback>>,
     #[unsafe_ignore_trace]
@@ -1184,7 +1183,7 @@ impl HasArena for InputFilesInitializedWithReadFileCallback {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 struct InputFilesInitializedWithString {
     javascript_text: String,
     javascript_map_text: Option<String>,
@@ -1211,7 +1210,7 @@ impl InputFilesInitializedWithString {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct UnparsedSource {
     _node: BaseNode,
@@ -1330,7 +1329,7 @@ pub trait UnparsedSectionInterface {
     fn maybe_data(&self) -> Option<&str>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct BaseUnparsedNode {
     _node: BaseNode,
@@ -1352,7 +1351,7 @@ impl UnparsedSectionInterface for BaseUnparsedNode {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedPrologue {
     _unparsed_node: BaseUnparsedNode,
@@ -1366,7 +1365,7 @@ impl UnparsedPrologue {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedPrepend {
     _unparsed_node: BaseUnparsedNode,
@@ -1392,7 +1391,7 @@ impl HasTextsInterface for UnparsedPrepend {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedTextLike {
     _unparsed_node: BaseUnparsedNode,
@@ -1406,7 +1405,7 @@ impl UnparsedTextLike {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "UnparsedSectionInterface")]
 pub struct UnparsedSyntheticReference {
     _unparsed_node: BaseUnparsedNode,
@@ -1449,7 +1448,7 @@ pub trait ParseConfigHost {
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
 }
 
-pub trait WriteFileCallback: Trace + Finalize {
+pub trait WriteFileCallback {
     fn call(
         &self,
         file_name: &str,
@@ -1460,7 +1459,7 @@ pub trait WriteFileCallback: Trace + Finalize {
     ) -> io::Result<()>;
 }
 
-pub trait CancellationToken: Trace + Finalize {
+pub trait CancellationToken {
     fn is_cancellation_requested(&self) -> bool;
 
     fn throw_if_cancellation_requested(&self);
@@ -1479,28 +1478,28 @@ pub enum FileIncludeKind {
     AutomaticTypeDirectiveFile,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RootFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.RootFile*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LibFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.LibFile*/
     pub index: Option<usize>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProjectReferenceFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ProjectReferenceFileKind*/
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReferencedFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*ReferencedFileKind*/
@@ -1509,7 +1508,7 @@ pub struct ReferencedFile {
     pub index: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AutomaticTypeDirectiveFile {
     #[unsafe_ignore_trace]
     pub kind: FileIncludeKind, /*FileIncludeKind.AutomaticTypeDirectiveFile*/
@@ -1518,7 +1517,7 @@ pub struct AutomaticTypeDirectiveFile {
     pub package_id: Option<PackageId>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FileIncludeReason {
     RootFile(RootFile),
     LibFile(LibFile),
@@ -1565,7 +1564,6 @@ pub enum FilePreprocessingDiagnosticsKind {
     FilePreprocessingFileExplainingDiagnostic,
 }
 
-#[derive(Trace, Finalize)]
 pub struct FilePreprocessingReferencedDiagnostic {
     #[unsafe_ignore_trace]
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingReferencedDiagnostic*/
@@ -1574,7 +1572,6 @@ pub struct FilePreprocessingReferencedDiagnostic {
     pub args: Option<Vec<String>>,
 }
 
-#[derive(Trace, Finalize)]
 pub struct FilePreprocessingFileExplainingDiagnostic {
     #[unsafe_ignore_trace]
     pub kind: FilePreprocessingDiagnosticsKind, /*FilePreprocessingDiagnosticsKind.FilePreprocessingFileExplainingDiagnostic*/
@@ -1585,7 +1582,6 @@ pub struct FilePreprocessingFileExplainingDiagnostic {
     pub args: Option<Vec<String>>,
 }
 
-#[derive(Trace, Finalize)]
 pub enum FilePreprocessingDiagnostics {
     FilePreprocessingReferencedDiagnostic(FilePreprocessingReferencedDiagnostic),
     FilePreprocessingFileExplainingDiagnostic(FilePreprocessingFileExplainingDiagnostic),
@@ -1620,7 +1616,6 @@ impl FilePreprocessingDiagnostics {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct Program {
     pub(crate) _arena_id: Cell<Option<Id<Program>>>,
     pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
@@ -1734,6 +1729,6 @@ impl fmt::Debug for Program {
     }
 }
 
-pub trait GetProgramBuildInfo: Trace + Finalize {
+pub trait GetProgramBuildInfo {
     fn call(&self) -> Option<Id<ProgramBuildInfo>>;
 }

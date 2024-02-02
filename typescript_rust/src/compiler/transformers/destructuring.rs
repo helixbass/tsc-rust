@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use itertools::Itertools;
 
@@ -500,7 +499,6 @@ pub fn flatten_destructuring_binding(
     .unwrap()
 }
 
-#[derive(Trace, Finalize)]
 pub struct PendingDeclaration {
     pending_expressions: Option<Vec<Id<Node /*Expression*/>>>,
     name: Id<Node /*BindingName*/>,

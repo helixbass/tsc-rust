@@ -1,6 +1,5 @@
 use std::{cell::Cell, io, ptr, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use regex::{Captures, Regex};
 
@@ -1915,7 +1914,6 @@ impl CheckTypeRelatedTo {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ReportUnmeasurableMarkers;
 impl TypeMapperCallback for ReportUnmeasurableMarkers {
     fn call(
@@ -1937,7 +1935,6 @@ impl TypeMapperCallback for ReportUnmeasurableMarkers {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ReportUnreliableMarkers;
 impl TypeMapperCallback for ReportUnreliableMarkers {
     fn call(
@@ -1959,7 +1956,6 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TypeComparerIsRelatedToWorker {
     check_type_related_to: Id<CheckTypeRelatedTo>,
 }
@@ -1988,7 +1984,6 @@ impl HasArena for TypeComparerIsRelatedToWorker {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
     #[unsafe_ignore_trace]
     propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,

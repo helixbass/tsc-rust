@@ -3,7 +3,6 @@ use std::{
     collections::HashMap,
 };
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -37,7 +36,6 @@ pub fn create_source_map_generator(
     SourceMapGeneratorConcrete::new(sources_directory_path, file, source_root, host, arena)
 }
 
-#[derive(Trace, Finalize)]
 struct SourceMapGeneratorConcrete {
     sources_directory_path: String,
     file: String,

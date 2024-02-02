@@ -7,7 +7,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{
@@ -1119,7 +1118,6 @@ impl TypeChecker {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct CheckTypeArgumentsErrorInfo;
 
 impl CheckTypeContainingMessageChain for CheckTypeArgumentsErrorInfo {

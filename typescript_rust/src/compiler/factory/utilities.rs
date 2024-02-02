@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::RefCell, io, ptr, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -1684,7 +1683,7 @@ fn binary_expression_state_check_circularity(
     }
 }
 
-pub trait BinaryExpressionStateMachine: Trace + Finalize + HasArena {
+pub trait BinaryExpressionStateMachine: HasArena {
     type TResult: Clone;
     type TOuterState: Clone;
     type TState: Clone;
@@ -1756,7 +1755,7 @@ pub fn create_binary_expression_trampoline<TMachine: BinaryExpressionStateMachin
     BinaryExpressionTrampoline::new(machine)
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct BinaryExpressionTrampoline<TMachine: BinaryExpressionStateMachine> {
     machine: TMachine,
 }

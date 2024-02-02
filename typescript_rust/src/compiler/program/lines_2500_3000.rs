@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, collections::HashMap, io};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{
@@ -1081,7 +1080,7 @@ impl Program {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 struct RedirectSourceFileIdOverride {
     redirect_source_file: Id<Node>,
 }
@@ -1122,7 +1121,7 @@ impl HasArena for RedirectSourceFileIdOverride {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 struct RedirectSourceFileSymbolOverride {
     redirect_source_file: Id<Node>,
 }
@@ -1163,7 +1162,6 @@ impl HasArena for RedirectSourceFileSymbolOverride {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct ProgramForEachResolvedProjectReference {
     program: Id<Program>,
 }

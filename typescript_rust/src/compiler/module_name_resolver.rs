@@ -1,7 +1,6 @@
 use std::{borrow::Cow, cell::{RefCell, Cell}, cmp, collections::HashMap, io, iter::FromIterator, rc::Rc};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -957,7 +956,6 @@ pub fn get_automatic_type_directive_names(
     Ok(result)
 }
 
-#[derive(Trace, Finalize)]
 pub struct TypeReferenceDirectiveResolutionCache {
     pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
         Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
@@ -965,14 +963,14 @@ pub struct TypeReferenceDirectiveResolutionCache {
     pub package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>>,
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
-pub struct ModeAwareCache<TValue: Trace + Finalize + 'static> {
+#[derive(Clone, Debug)]
+pub struct ModeAwareCache<TValue: 'static> {
     underlying: RefCell<HashMap<String, TValue>>,
     #[unsafe_ignore_trace]
     memoized_reverse_keys: RefCell<HashMap<String, (String, Option<ModuleKind>)>>,
 }
 
-pub trait PerDirectoryResolutionCache<TValue: Trace + Finalize + 'static>
+pub trait PerDirectoryResolutionCache<TValue: 'static>
 where
     ModeAwareCache<TValue>: ArenaAlloc 
 {
@@ -985,7 +983,6 @@ where
     fn update(&self, options: &CompilerOptions);
 }
 
-#[derive(Trace, Finalize)]
 pub struct ModuleResolutionCache {
     current_directory: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
@@ -1005,28 +1002,26 @@ pub trait NonRelativeModuleNameResolutionCache: PackageJsonInfoCache {
     fn as_dyn_package_json_info_cache(&self) -> &dyn PackageJsonInfoCache;
 }
 
-pub trait PackageJsonInfoCache: Trace + Finalize {
+pub trait PackageJsonInfoCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool>;
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool);
     fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)>;
     fn clear(&self);
 }
 
-#[derive(Trace, Finalize)]
 pub struct PerModuleNameCache {
     current_directory: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     directory_path_map: RefCell<HashMap<String, Id<ResolvedModuleWithFailedLookupLocations>>>,
 }
 
-#[derive(Trace, Finalize)]
-pub struct CacheWithRedirects<TCache: Trace + Finalize + 'static> {
+pub struct CacheWithRedirects<TCache: 'static> {
     options: Cell<Option<Id<CompilerOptions>>>,
     own_map: Cell<Id<HashMap<String, Id<TCache>>>>,
     redirects_map: Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
 }
 
-impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
+impl<TCache> CacheWithRedirects<TCache>
     where
         HashMap<String, Id<TCache>>: ArenaAlloc,
         HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
@@ -1098,13 +1093,13 @@ impl<TCache: Trace + Finalize> CacheWithRedirects<TCache>
     }
 }
 
-impl<TCache: Trace + Finalize> HasArena for CacheWithRedirects<TCache> {
+impl<TCache> HasArena for CacheWithRedirects<TCache> {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
 
-pub(crate) fn create_cache_with_redirects<TCache: Trace + Finalize>(
+pub(crate) fn create_cache_with_redirects<TCache>(
     options: Option<Id<CompilerOptions>>,
     arena: &impl HasArena,
 ) -> CacheWithRedirects<TCache>
@@ -1128,7 +1123,6 @@ pub fn create_package_json_info_cache(
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct PackageJsonInfoCacheConcrete {
     pub current_directory: String,
     pub cache: RefCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
@@ -1180,7 +1174,7 @@ impl HasArena for PackageJsonInfoCacheConcrete {
     }
 }
 
-fn get_or_create_cache<TCache: Trace + Finalize>(
+fn get_or_create_cache<TCache>(
     cache_with_redirects: &CacheWithRedirects<TCache>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
     key: &str,
@@ -1204,7 +1198,7 @@ fn get_or_create_cache<TCache: Trace + Finalize>(
     result.unwrap()
 }
 
-fn create_per_directory_resolution_cache<TValue: Trace + Finalize>(
+fn create_per_directory_resolution_cache<TValue>(
     current_directory: &str,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     directory_to_module_name_map: Id<CacheWithRedirects<ModeAwareCache<TValue>>>,
@@ -1216,18 +1210,17 @@ fn create_per_directory_resolution_cache<TValue: Trace + Finalize>(
     }
 }
 
-#[derive(Trace, Finalize)]
-pub struct PerDirectoryResolutionCacheConcrete<TValue: Trace + Finalize + 'static> {
+pub struct PerDirectoryResolutionCacheConcrete<TValue: 'static> {
     pub current_directory: String,
     pub get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     pub directory_to_module_name_map: Id<CacheWithRedirects<ModeAwareCache<TValue>>>,
 }
 
-pub trait GetCanonicalFileName: Trace + Finalize {
+pub trait GetCanonicalFileName {
     fn call(&self, file_name: &str) -> String;
 }
 
-impl<TValue: Clone + Trace + Finalize + 'static> PerDirectoryResolutionCache<TValue>
+impl<TValue: Clone + 'static> PerDirectoryResolutionCache<TValue>
     for PerDirectoryResolutionCacheConcrete<TValue>
 where
     ModeAwareCache<TValue>: ArenaAlloc,
@@ -1263,18 +1256,18 @@ where
     }
 }
 
-impl<TValue: Clone + Trace + Finalize> HasArena for PerDirectoryResolutionCacheConcrete<TValue> {
+impl<TValue: Clone> HasArena for PerDirectoryResolutionCacheConcrete<TValue> {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
 }
 
-pub(crate) fn create_mode_aware_cache<TValue: Clone + Trace + Finalize>() -> ModeAwareCache<TValue>
+pub(crate) fn create_mode_aware_cache<TValue: Clone>() -> ModeAwareCache<TValue>
 {
     ModeAwareCache::new()
 }
 
-impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
+impl<TValue: Clone> ModeAwareCache<TValue> {
     pub fn new() -> Self {
         Self {
             underlying: Default::default(),
@@ -1334,7 +1327,7 @@ impl<TValue: Clone + Trace + Finalize> ModeAwareCache<TValue> {
     }
 }
 
-pub(crate) fn zip_to_mode_aware_cache<TValue: Clone + Trace + Finalize>(
+pub(crate) fn zip_to_mode_aware_cache<TValue: Clone>(
     file: Id<Node>, /*SourceFile*/
     keys: &[String],
     values: &[TValue],
@@ -2921,7 +2914,6 @@ fn load_node_module_from_directory(
     ))
 }
 
-#[derive(Trace, Finalize)]
 pub struct PackageJsonInfo {
     #[unsafe_ignore_trace]
     pub package_directory: String,
@@ -4092,11 +4084,9 @@ fn load_module_from_specific_node_modules_directory(
 }
 
 mod _PackageJsonInfoOrBoolDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub enum PackageJsonInfoOrBool {
         PackageJsonInfo(Id<PackageJsonInfo>),
         Bool(bool),

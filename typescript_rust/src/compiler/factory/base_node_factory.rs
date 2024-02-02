@@ -1,10 +1,9 @@
 use std::cell::RefCell;
 
-use gc::{Trace, Finalize};
 
 use crate::{object_allocator, BaseNode, NodeInterface, SyntaxKind, AllArenas, HasArena};
 
-pub trait BaseNodeFactory: Trace + Finalize {
+pub trait BaseNodeFactory {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode;
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode;
@@ -17,18 +16,13 @@ pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
     BaseNodeFactoryConcrete::new()
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct BaseNodeFactoryConcrete {
-    #[unsafe_ignore_trace]
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
 }
 

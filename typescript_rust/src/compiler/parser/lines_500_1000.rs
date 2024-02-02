@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use super::{Parser, ParsingContext};
@@ -291,28 +290,17 @@ pub fn parse_jsdoc_type_expression_for_tests(
 }
 
 #[allow(non_snake_case)]
-#[derive(Trace, Finalize)]
 pub struct ParserType {
-    #[unsafe_ignore_trace]
     pub(super) scanner: RefCell<Scanner>,
-    #[unsafe_ignore_trace]
     pub(super) disallow_in_and_decorator_context: NodeFlags,
-    #[unsafe_ignore_trace]
     pub(super) NodeConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     pub(super) IdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     pub(super) PrivateIdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    #[unsafe_ignore_trace]
     pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     pub(super) factory: Cell<Option<Id<NodeFactory>>>,
-    #[unsafe_ignore_trace]
     pub(super) file_name: RefCell<Option<String>>,
-    #[unsafe_ignore_trace]
     pub(super) source_flags: Cell<Option<NodeFlags>>,
-    #[unsafe_ignore_trace]
     pub(super) source_text: RefCell<Option<String>>,
     #[unsafe_ignore_trace]
     pub(super) source_text_as_chars: RefCell<Option<SourceTextAsChars>>,

@@ -1,6 +1,5 @@
 use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut, Cell}};
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -28,9 +27,7 @@ pub(super) struct DependencyGroup {
         Vec<Id<Node /*ImportDeclaration | ImportEqualsDeclaration | ExportDeclaration*/>>,
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformSystemModule {
-    #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
@@ -866,7 +863,6 @@ impl HasArena for TransformSystemModule {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformSystemModuleOnEmitNodeOverrider {
     transform_system_module: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -957,7 +953,6 @@ impl HasArena for TransformSystemModuleOnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformSystemModuleOnSubstituteNodeOverrider {
     transform_system_module: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1238,7 +1233,6 @@ impl HasArena for TransformSystemModuleOnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformSystemModuleFactory {}
 
 impl TransformSystemModuleFactory {

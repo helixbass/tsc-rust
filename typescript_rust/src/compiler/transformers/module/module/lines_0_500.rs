@@ -1,6 +1,5 @@
 use std::{cell::{Cell, RefCell, Ref, RefMut}, cmp, collections::HashMap, io, mem, any::Any};
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use super::dynamic_import_umd_helper;
@@ -32,7 +31,6 @@ pub(super) struct AsynchronousDependencies {
     pub import_alias_names: Vec<Id<Node /*ParameterDeclaration*/>>,
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformModule {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
@@ -908,7 +906,6 @@ impl HasArena for TransformModule {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformModuleOnEmitNodeOverrider {
     transform_module: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -970,7 +967,6 @@ impl HasArena for TransformModuleOnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformModuleOnSubstituteNodeOverrider {
     transform_module: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1254,7 +1250,6 @@ impl HasArena for TransformModuleOnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformModuleFactory {}
 
 impl TransformModuleFactory {

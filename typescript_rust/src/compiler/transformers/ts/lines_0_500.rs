@@ -1,7 +1,6 @@
 use std::{cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, ptr, any::Any};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -56,7 +55,6 @@ bitflags! {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformTypeScript {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
@@ -645,7 +643,6 @@ impl HasArena for TransformTypeScript {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformTypeScriptOnEmitNodeOverrider {
     transform_type_script: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -732,7 +729,6 @@ impl HasArena for TransformTypeScriptOnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformTypeScriptOnSubstituteNodeOverrider {
     transform_type_script: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1010,7 +1006,6 @@ impl HasArena for TransformTypeScriptOnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformTypeScriptFactory {}
 
 impl TransformTypeScriptFactory {

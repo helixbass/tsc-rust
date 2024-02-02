@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::RefCell, convert::TryInto, io, ptr, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{CheckMode, IterationUse, TypeFacts};
@@ -967,7 +966,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct CheckBinaryExpression {
     trampoline: BinaryExpressionTrampoline<CheckBinaryExpressionStateMachine>,
 }
@@ -995,7 +994,7 @@ pub struct WorkArea {
     pub type_stack: Vec<Option<Id<Type>>>,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct CheckBinaryExpressionStateMachine {
     type_checker: Id<TypeChecker>,
 }

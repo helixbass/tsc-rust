@@ -3,7 +3,6 @@ use std::{
     time::SystemTime,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use regex::Regex;
 
@@ -150,7 +149,6 @@ pub fn create_compiler_host_worker(
     }
 }
 
-#[derive(Trace, Finalize)]
 struct CompilerHostConcrete {
     set_parent_nodes: Option<bool>,
     system: Id<Box<dyn System>>,
@@ -715,7 +713,6 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
     // };
 }
 
-#[derive(Trace, Finalize)]
 struct ChangeCompilerHostLikeToUseCacheOverrider {
     host: Id<Box<dyn CompilerHost>>,
     to_path: Id<Box<dyn ToPath>>,
@@ -895,11 +892,11 @@ impl HasArena for ChangeCompilerHostLikeToUseCacheOverrider {
     }
 }
 
-pub trait ToPath: Trace + Finalize {
+pub trait ToPath {
     fn call(&self, file_name: &str) -> Path;
 }
 
-pub trait GetSourceFile: Trace + Finalize {
+pub trait GetSourceFile {
     fn call(
         &self,
         file_name: &str,

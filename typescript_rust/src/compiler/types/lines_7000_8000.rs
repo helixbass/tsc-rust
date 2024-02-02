@@ -2,7 +2,6 @@ use std::{io, ptr, any::Any, cell::{Cell, RefCell}};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{Finalize, Gc, GcCell, Trace};
 use local_macros::enum_unwrapped;
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
@@ -65,7 +64,7 @@ pub struct CallBinding {
     pub this_arg: Id<Node /*Expression*/>,
 }
 
-pub trait ParenthesizerRules: Trace + Finalize {
+pub trait ParenthesizerRules {
     // fn get_parenthesize_left_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     // fn get_parenthesize_right_side_of_binary_for_operator(&self, binary_operator: SyntaxKind) ->
     fn parenthesize_left_side_of_binary(
@@ -149,7 +148,7 @@ pub trait ParenthesizerRules: Trace + Finalize {
     ) -> Option<Id<NodeArray> /*<TypeNode>*/>;
 }
 
-pub trait NodeConverters: Trace + Finalize {
+pub trait NodeConverters {
     fn convert_to_function_block(
         &self,
         node: Id<Node>, /*ConciseBody*/
@@ -185,7 +184,6 @@ pub trait NodeConverters: Trace + Finalize {
     ) -> Id<Node /*Expression*/>;
 }
 
-#[derive(Trace, Finalize)]
 pub struct NodeFactory {
     pub base_factory: Id<Box<dyn BaseNodeFactory>>,
     #[unsafe_ignore_trace]
@@ -202,7 +200,7 @@ bitflags! {
     }
 }
 
-pub trait CoreTransformationContext: Trace + Finalize {
+pub trait CoreTransformationContext {
     fn factory(&self) -> Id<NodeFactory>;
 
     fn get_compiler_options(&self) -> Id<CompilerOptions>;
@@ -277,7 +275,7 @@ pub trait TransformationContext: CoreTransformationContext + HasArena {
     fn add_diagnostic(&self, diag: Id<Diagnostic /*DiagnosticWithLocation*/>);
 }
 
-pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
+pub trait TransformationContextOnEmitNodeOverrider {
     fn on_emit_node(
         &self,
         hint: EmitHint,
@@ -286,7 +284,7 @@ pub trait TransformationContextOnEmitNodeOverrider: Trace + Finalize {
     ) -> io::Result<()>;
 }
 
-pub trait TransformationContextOnSubstituteNodeOverrider: Trace + Finalize {
+pub trait TransformationContextOnSubstituteNodeOverrider {
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>>;
 }
 
@@ -311,13 +309,13 @@ pub trait TransformationResult {
 
 pub type TransformerFactory = Id<Box<dyn TransformerFactoryInterface>>;
 
-pub trait TransformerFactoryInterface: Trace + Finalize {
+pub trait TransformerFactoryInterface {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer;
 }
 
 pub type Transformer = Id<Box<dyn TransformerInterface>>;
 
-pub trait TransformerInterface: Trace + Finalize {
+pub trait TransformerInterface {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>>;
     fn as_dyn_any(&self) -> &dyn Any;
 }
@@ -343,11 +341,9 @@ impl VisitResultInterface for VisitResult {
 }
 
 mod _SingleNodeOrVecNodeDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub enum SingleNodeOrVecNode {
         SingleNode(Id<Node>),
         VecNode(Vec<Id<Node>>),

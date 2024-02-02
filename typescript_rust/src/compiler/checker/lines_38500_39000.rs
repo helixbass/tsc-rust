@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use itertools::Either;
 
@@ -857,7 +856,6 @@ impl TypeChecker {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct IssueMemberSpecificErrorContainingMessageChain {
     type_checker: Id<TypeChecker>,
     declared_prop: Id<Symbol>,

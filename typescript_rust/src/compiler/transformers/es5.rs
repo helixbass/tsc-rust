@@ -1,6 +1,5 @@
 use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut}};
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -16,7 +15,6 @@ use crate::{
     ref_mut_unwrapped,
 };
 
-#[derive(Trace, Finalize)]
 struct TransformES5 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -96,7 +94,6 @@ impl HasArena for TransformES5 {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES5OnEmitNodeOverrider {
     transform_es5: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -148,7 +145,6 @@ impl HasArena for TransformES5OnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES5OnSubstituteNodeOverrider {
     transform_es5: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -260,7 +256,6 @@ impl HasArena for TransformES5OnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES5Factory {}
 
 impl TransformES5Factory {

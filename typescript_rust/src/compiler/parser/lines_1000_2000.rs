@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, convert::TryInto};
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use super::{ParserType, ParsingContext, SpeculationKind};
@@ -1426,7 +1425,6 @@ lazy_static! {
         .collect();
 }
 
-#[derive(Trace, Finalize)]
 pub struct IncrementalParserSyntaxCursorReparseTopLevelAwait {
     base_syntax_cursor: Id<IncrementalParserSyntaxCursor>,
 }

@@ -9,7 +9,6 @@ use std::{
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{unsafe_empty_trace, Finalize, Gc, GcCell, Trace};
 use indexmap::IndexMap;
 use local_macros::{command_line_option_type, enum_unwrapped};
 use serde::Serialize;
@@ -26,7 +25,7 @@ pub struct PluginImport {
     pub name: String,
 }
 
-#[derive(Debug, Builder, Serialize, Trace, Finalize)]
+#[derive(Debug, Builder, Serialize)]
 #[builder(setter(strip_option, into))]
 pub struct ProjectReference {
     pub path: String,
@@ -397,11 +396,9 @@ impl From<Option<PollingWatchKind>> for CompilerOptionsValue {
 }
 
 mod _CompilerOptionsDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Builder, Clone, Debug, Default, Serialize, Trace, Finalize)]
+    #[derive(Builder, Clone, Debug, Default, Serialize)]
     #[builder(setter(into, strip_option), default)]
     #[serde(rename_all = "camelCase")]
     pub struct CompilerOptions {
@@ -2067,11 +2064,9 @@ impl ParsedCommandLineWithBaseOptions {
 }
 
 mod _ParsedCommandLineDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Builder, Debug, Trace, Finalize)]
+    #[derive(Builder, Debug)]
     #[builder(setter(into, strip_option))]
     pub struct ParsedCommandLine {
         pub options: Id<CompilerOptions>,
@@ -2134,11 +2129,9 @@ impl ConfigFileSpecs {
 pub type RequireResult = ();
 
 mod _CreateProgramOptionsDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Builder, Trace, Finalize)]
+    #[derive(Builder)]
     #[builder(setter(into))]
     pub struct CreateProgramOptions {
         #[unsafe_ignore_trace]
@@ -2875,11 +2868,6 @@ impl HasArena for CommandLineOption {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
-}
-
-impl Finalize for CommandLineOption {}
-unsafe impl Trace for CommandLineOption {
-    unsafe_empty_trace!();
 }
 
 #[non_exhaustive]

@@ -1,6 +1,5 @@
-use std::{io, mem, any::Any};
+use std::{io, mem, any::Any, cell::Cell};
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -12,7 +11,6 @@ use crate::{
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
-#[derive(Trace, Finalize)]
 struct TransformNodeModule {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -142,7 +140,6 @@ impl HasArena for TransformNodeModule {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformNodeModuleOnEmitNodeOverrider {
     transform_node_module: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -203,7 +200,6 @@ impl HasArena for TransformNodeModuleOnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformNodeModuleOnSubstituteNodeOverrider {
     transform_node_module: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -265,7 +261,6 @@ impl HasArena for TransformNodeModuleOnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformNodeModuleFactory {}
 
 impl TransformNodeModuleFactory {

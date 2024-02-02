@@ -1,7 +1,6 @@
 use std::{cell::{Cell, RefCell}, fmt};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
@@ -235,17 +234,17 @@ pub trait NodeInterface: ReadonlyTextRange {
     // hasBeenIncrementallyParsed: boolean;
 }
 
-pub trait NodeIdOverride: fmt::Debug + Trace + Finalize {
+pub trait NodeIdOverride: fmt::Debug {
     fn maybe_id(&self) -> Option<NodeId>;
     fn set_id(&self, id: NodeId);
 }
 
-pub trait NodeSymbolOverride: fmt::Debug + Trace + Finalize {
+pub trait NodeSymbolOverride: fmt::Debug {
     fn maybe_symbol(&self) -> Option<Id<Symbol>>;
     fn set_symbol(&self, symbol: Id<Symbol>);
 }
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Debug)]
 #[ast_type]
 pub enum Node {
     BaseNode(BaseNode),
@@ -1706,7 +1705,6 @@ impl Node {
     }
 }
 
-#[derive(Finalize, Trace)]
 pub struct BaseNode {
     #[unsafe_ignore_trace]
     _arena_id: Cell<Option<Id<Node>>>,

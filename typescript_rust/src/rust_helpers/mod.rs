@@ -4,8 +4,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, Trace};
-
 pub mod arena;
 pub mod cell;
 pub mod combinators;

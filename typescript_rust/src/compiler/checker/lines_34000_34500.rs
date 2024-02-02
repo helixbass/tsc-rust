@@ -1,6 +1,5 @@
 use std::{cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{
@@ -908,7 +907,6 @@ impl TypeChecker {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct CheckTypePredicateContainingMessageChain;
 
 impl CheckTypeContainingMessageChain for CheckTypePredicateContainingMessageChain {

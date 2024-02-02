@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -20,7 +19,6 @@ pub fn create_node_converters(
     NodeConvertersConcrete::new(factory)
 }
 
-#[derive(Trace, Finalize)]
 pub struct NodeConvertersConcrete {
     factory: Id<NodeFactory>,
 }
@@ -255,7 +253,6 @@ pub fn null_node_converters() -> NullNodeConverters {
     NullNodeConverters::new()
 }
 
-#[derive(Trace, Finalize)]
 pub struct NullNodeConverters;
 
 impl NullNodeConverters {

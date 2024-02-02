@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::OnceCell};
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -15,7 +14,6 @@ use crate::{
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
-#[derive(Trace, Finalize)]
 pub struct EmitHelperFactory {
     factory: Id<NodeFactory>,
     context: Id<TransformNodesTransformationResult>,
@@ -610,7 +608,6 @@ pub fn helper_string(
     }))
 }
 
-#[derive(Trace, Finalize)]
 struct HelperString {
     input: Vec<&'static str>,
     args: Vec<&'static str>,

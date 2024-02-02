@@ -1,7 +1,6 @@
 use std::cell::{Cell, Ref, RefCell};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use local_macros::ast_type;
 
@@ -11,7 +10,7 @@ use super::{
     NamedDeclarationInterface, Node, NodeArray, SyntaxKind,
 };
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct BinaryExpression {
     pub _node: BaseNode,
@@ -62,7 +61,7 @@ impl HasLeftAndRightInterface for BinaryExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ConditionalExpression {
     _node: BaseNode,
@@ -105,7 +104,7 @@ impl HasQuestionTokenInterface for ConditionalExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -121,7 +120,7 @@ impl FunctionExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -142,7 +141,7 @@ impl ArrowFunction {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct BaseLiteralLikeNode {
     _node: BaseNode,
@@ -201,7 +200,7 @@ pub trait LiteralLikeNodeInterface {
     fn set_has_extended_unicode_escape(&self, has_extended_unicode_escape: Option<bool>);
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct TemplateLiteralLikeNode {
     _literal_like_node: BaseLiteralLikeNode,
@@ -239,7 +238,7 @@ pub trait TemplateLiteralLikeNodeInterface: LiteralLikeNodeInterface {
     fn maybe_template_flags(&self) -> Option<TokenFlags>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct RegularExpressionLiteral {
     _literal_like_node: BaseLiteralLikeNode,
@@ -275,7 +274,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct NumericLiteral {
     _literal_like_node: BaseLiteralLikeNode,
@@ -295,7 +294,7 @@ impl NumericLiteral {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "LiteralLikeNodeInterface")]
 pub struct BigIntLiteral {
     _literal_like_node: BaseLiteralLikeNode,
@@ -309,7 +308,7 @@ impl BigIntLiteral {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TemplateExpression {
     _node: BaseNode,
@@ -327,7 +326,7 @@ impl TemplateExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TemplateSpan {
     _node: BaseNode,
@@ -358,7 +357,7 @@ pub trait HasExpressionInterface {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ParenthesizedExpression {
     _node: BaseNode,
@@ -380,7 +379,7 @@ impl HasExpressionInterface for ParenthesizedExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ArrayLiteralExpression {
     _node: BaseNode,
@@ -404,7 +403,7 @@ impl HasElementsInterface for ArrayLiteralExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct SpreadElement {
     _node: BaseNode,
@@ -426,7 +425,7 @@ impl HasExpressionInterface for SpreadElement {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ObjectLiteralExpression {
     _node: BaseNode,
@@ -458,7 +457,7 @@ pub trait HasQuestionDotTokenInterface {
     fn maybe_question_dot_token(&self) -> Option<Id<Node>>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct PropertyAccessExpression {
     _node: BaseNode,
@@ -509,7 +508,7 @@ impl HasQuestionDotTokenInterface for PropertyAccessExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ElementAccessExpression {
     _node: BaseNode,
@@ -550,7 +549,7 @@ pub trait HasArgumentsInterface {
     fn maybe_arguments(&self) -> Option<Id<NodeArray>>;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct CallExpression {
     _node: BaseNode,
@@ -602,7 +601,7 @@ impl HasTypeArgumentsInterface for CallExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ExpressionWithTypeArguments {
     _node: BaseNode,
@@ -636,7 +635,7 @@ impl HasTypeArgumentsInterface for ExpressionWithTypeArguments {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct NewExpression {
     _node: BaseNode,
@@ -679,7 +678,7 @@ impl HasTypeArgumentsInterface for NewExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TaggedTemplateExpression {
     _node: BaseNode,
@@ -713,7 +712,7 @@ impl HasTypeArgumentsInterface for TaggedTemplateExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct AsExpression {
     _node: BaseNode,
@@ -747,7 +746,7 @@ impl HasTypeInterface for AsExpression {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct TypeAssertion {
     _node: BaseNode,
@@ -781,7 +780,7 @@ impl HasTypeInterface for TypeAssertion {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct NonNullExpression {
     _node: BaseNode,

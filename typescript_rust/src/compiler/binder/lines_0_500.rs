@@ -6,7 +6,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -38,7 +37,7 @@ pub enum ModuleInstanceState {
     ConstEnumOnly = 2,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct ActiveLabel {
     pub next: Option<Id<ActiveLabel>>,
     pub name: __String,
@@ -306,7 +305,6 @@ pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptio
 }
 
 #[allow(non_snake_case)]
-#[derive(Trace, Finalize)]
 pub struct Binder {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,

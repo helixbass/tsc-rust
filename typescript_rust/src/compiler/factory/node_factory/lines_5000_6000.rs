@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;
 

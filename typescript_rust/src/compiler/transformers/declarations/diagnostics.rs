@@ -1,4 +1,3 @@
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -15,7 +14,7 @@ use crate::{
     InArena,
 };
 
-pub trait GetSymbolAccessibilityDiagnosticInterface: Trace + Finalize {
+pub trait GetSymbolAccessibilityDiagnosticInterface {
     fn call(
         &self,
         symbol_accessibility_result: &SymbolAccessibilityResult,
@@ -24,7 +23,6 @@ pub trait GetSymbolAccessibilityDiagnosticInterface: Trace + Finalize {
 
 pub type GetSymbolAccessibilityDiagnostic = Id<Box<dyn GetSymbolAccessibilityDiagnosticInterface>>;
 
-#[derive(Trace, Finalize)]
 pub struct SymbolAccessibilityDiagnostic {
     pub error_node: Id<Node>,
     pub diagnostic_message: &'static DiagnosticMessage,
@@ -193,7 +191,6 @@ fn get_variable_declaration_type_visibility_diagnostic_message(
     None
 }
 
-#[derive(Trace, Finalize)]
 struct GetVariableDeclarationTypeVisibilityError {
     node: Id<Node>,
 }
@@ -232,7 +229,6 @@ impl HasArena for GetVariableDeclarationTypeVisibilityError {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetAccessorDeclarationTypeVisibilityError {
     node: Id<Node>,
 }
@@ -326,7 +322,6 @@ impl HasArena for GetAccessorDeclarationTypeVisibilityError {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetReturnTypeVisibilityError {
     node: Id<Node>,
 }
@@ -472,7 +467,6 @@ impl HasArena for GetReturnTypeVisibilityError {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetParameterDeclarationTypeVisibilityError {
     node: Id<Node>,
 }
@@ -656,7 +650,6 @@ fn get_parameter_declaration_type_visibility_diagnostic_message(
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetTypeParameterConstraintVisibilityError {
     node: Id<Node>,
 }
@@ -727,7 +720,6 @@ impl HasArena for GetTypeParameterConstraintVisibilityError {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetHeritageClauseVisibilityError {
     node: Id<Node>,
 }
@@ -782,7 +774,6 @@ impl HasArena for GetHeritageClauseVisibilityError {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetImportEntityNameVisibilityError {
     node: Id<Node>,
 }
@@ -814,7 +805,6 @@ impl HasArena for GetImportEntityNameVisibilityError {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct GetTypeAliasDeclarationVisibilityError {
     node: Id<Node>,
 }

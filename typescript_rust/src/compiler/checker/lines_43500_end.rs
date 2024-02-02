@@ -1,6 +1,5 @@
 use std::{collections::HashMap, convert::TryInto, io};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use itertools::Itertools;
 
@@ -959,7 +958,7 @@ impl TypeChecker {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub(super) struct EmitResolverCreateResolver {
     type_checker: Id<TypeChecker>,
     file_to_directive: Option<HashMap<String, String>>,

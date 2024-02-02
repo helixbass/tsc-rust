@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, collections::HashMap, io, ptr};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
@@ -1275,7 +1274,6 @@ impl TypeChecker {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct BackreferenceMapperCallback {
     context_inferences: Vec<Id<InferenceInfo>>,
     index: usize,

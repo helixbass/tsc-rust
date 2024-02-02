@@ -1,6 +1,5 @@
 use std::{cell::RefCell, io, rc::Rc};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{Binder, ContainerFlags, ModuleInstanceState};
@@ -666,7 +665,6 @@ impl Binder {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(crate) struct BindBinaryExpressionFlow {
     trampoline: BinaryExpressionTrampoline<BindBinaryExpressionFlowStateMachine>,
 }
@@ -690,7 +688,6 @@ pub struct WorkArea {
     pub parent_stack: Vec<Option<Id<Node>>>,
 }
 
-#[derive(Trace, Finalize)]
 pub(crate) struct BindBinaryExpressionFlowStateMachine {
     binder: Id<Binder>,
 }

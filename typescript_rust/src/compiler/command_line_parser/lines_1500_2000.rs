@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use indexmap::IndexMap;
 use local_macros::enum_unwrapped;
@@ -514,7 +513,7 @@ pub(crate) fn get_diagnostic_text(
     enum_unwrapped!(diagnostic.message_text(), [DiagnosticMessageText, String]).clone()
 }
 
-pub trait DiagnosticReporter: Trace + Finalize {
+pub trait DiagnosticReporter {
     fn call(&self, diagnostic: Id<Diagnostic>) -> io::Result<()>;
 }
 
@@ -523,7 +522,7 @@ pub trait ConfigFileDiagnosticsReporter {
 }
 
 pub trait ParseConfigFileHost:
-    ParseConfigHost + ConfigFileDiagnosticsReporter + Trace + Finalize
+    ParseConfigHost + ConfigFileDiagnosticsReporter
 {
     fn get_current_directory(&self) -> io::Result<String>;
 }

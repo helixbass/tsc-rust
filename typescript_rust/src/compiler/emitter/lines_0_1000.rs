@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use super::{create_brackets_map, TempFlags};
@@ -767,7 +766,6 @@ fn emit_source_file_or_bundle(
     Ok(())
 }
 
-#[derive(Trace, Finalize)]
 struct EmitSourceFileOrBundleRelativeToBuildInfo {
     build_info_directory: Option<String>,
     host: Id<Box<dyn EmitHost>>,
@@ -935,7 +933,6 @@ fn emit_js_file_or_bundle(
     Ok(())
 }
 
-#[derive(Trace, Finalize)]
 struct EmitJsFileOrBundlePrintHandlers {
     resolver: Id<Box<dyn EmitResolver>>,
     transform: Id<TransformNodesTransformationResult>,
@@ -1159,7 +1156,6 @@ fn emit_declaration_file_or_bundle(
     Ok(())
 }
 
-#[derive(Trace, Finalize)]
 struct EmitDeclarationFileOrBundlePrintHandlers {
     resolver: Id<Box<dyn EmitResolver>>,
     declaration_transform: Id<TransformNodesTransformationResult>,
@@ -1503,7 +1499,6 @@ pub(crate) fn not_implemented_resolver(arena: &impl HasArena) -> Id<Box<dyn Emit
     )
 }
 
-#[derive(Trace, Finalize)]
 struct NotImplementedResolver;
 
 impl EmitResolver for NotImplementedResolver {
@@ -1834,7 +1829,6 @@ pub fn create_printer(
     printer
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct DummyPrintHandlers;
 
 impl PrintHandlers for DummyPrintHandlers {

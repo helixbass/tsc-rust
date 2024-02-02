@@ -6,7 +6,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use super::create_super_access_variable_statement;
@@ -71,7 +70,6 @@ bitflags! {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2018 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -2181,7 +2179,6 @@ impl HasArena for TransformES2018 {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2018OnEmitNodeOverrider {
     transform_es2018: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -2274,7 +2271,6 @@ impl HasArena for TransformES2018OnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2018OnSubstituteNodeOverrider {
     transform_es2018: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -2433,7 +2429,6 @@ impl HasArena for TransformES2018OnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2018Factory {}
 
 impl TransformES2018Factory {

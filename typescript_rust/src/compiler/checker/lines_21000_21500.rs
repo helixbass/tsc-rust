@@ -1,6 +1,5 @@
 use std::{cell::RefCell, cmp, collections::HashMap, io, ptr, rc::Rc};
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 
 use super::{MappedTypeModifiers, WideningKind};
@@ -1185,7 +1184,6 @@ impl TypeChecker {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerMapperCallback {
     inference_context: Id<InferenceContext>,
 }
@@ -1202,7 +1200,6 @@ impl TypeMapperCallback for CreateInferenceContextWorkerMapperCallback {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct CreateInferenceContextWorkerNonFixingMapperCallback {
     inference_context: Id<InferenceContext>,
 }
@@ -1219,7 +1216,6 @@ impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback 
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TypeComparerCompareTypesAssignable {
     type_checker: Id<TypeChecker>,
 }

@@ -1,7 +1,6 @@
 use std::{cell::{Cell, RefCell}, collections::HashMap, rc::Rc};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use id_arena::Id;
 use indexmap::IndexMap;
 use local_macros::{enum_unwrapped, symbol_type, type_type};
@@ -20,7 +19,7 @@ use crate::{
     NotActuallyInterfaceType, ObjectFlags, Pattern, StringOrNumber, TypeReferenceInterface, _d,
 };
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
 pub struct MappedSymbol {
     _transient_symbol: BaseTransientSymbol,
@@ -50,7 +49,7 @@ impl MappedSymbol {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[symbol_type(ancestors = "TransientSymbol", interfaces = "TransientSymbolInterface")]
 pub struct ReverseMappedSymbol {
     _transient_symbol: BaseTransientSymbol,
@@ -102,7 +101,7 @@ pub type UnderscoreEscapedMap<TValue> = HashMap<__String, TValue>;
 
 pub type SymbolTable = IndexMap<__String, Id<Symbol>>;
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct PatternAmbientModule {
     #[unsafe_ignore_trace]
     pub pattern: Rc<Pattern>,
@@ -146,14 +145,14 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct NodeLinksSerializedType {
     pub truncating: Option<bool>,
     pub added_length: usize,
     pub node: Id<Node /*TypeNode*/>,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct NodeLinks {
     #[unsafe_ignore_trace]
     pub flags: NodeCheckFlags,
@@ -289,7 +288,7 @@ bitflags! {
 
 pub type TypeId = u32;
 
-#[derive(Clone, Debug, Finalize, Trace)]
+#[derive(Clone, Debug)]
 #[type_type(impl_from = false)]
 pub enum Type {
     BaseType(BaseType),
@@ -618,7 +617,7 @@ pub trait TypeInterface {
     );
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 pub struct BaseType {
     _arena_id: Cell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
@@ -983,14 +982,14 @@ pub trait IntrinsicTypeInterface: TypeInterface {
     fn intrinsic_name(&self) -> &str;
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(interfaces = "IntrinsicTypeInterface, ObjectFlagsTypeInterface")]
 pub enum IntrinsicType {
     BaseIntrinsicType(BaseIntrinsicType),
     FreshableIntrinsicType(FreshableIntrinsicType),
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(ancestors = "IntrinsicType")]
 pub struct BaseIntrinsicType {
     _type: BaseType,
@@ -1025,7 +1024,7 @@ impl ObjectFlagsTypeInterface for BaseIntrinsicType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "IntrinsicType",
     interfaces = "IntrinsicTypeInterface, ObjectFlagsTypeInterface"

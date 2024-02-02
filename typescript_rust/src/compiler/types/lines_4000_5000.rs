@@ -7,7 +7,6 @@ use std::{
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::{enum_unwrapped, symbol_type};
 
@@ -31,7 +30,7 @@ use crate::{
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
 
-#[derive(Builder, Trace, Finalize)]
+#[derive(Builder)]
 #[builder(setter(into, strip_option))]
 pub struct ResolvedProjectReference {
     pub command_line: Id<ParsedCommandLine>,
@@ -59,18 +58,17 @@ pub enum StructureIsReused {
 
 pub type CustomTransformerFactory = Id<Box<dyn CustomTransformerFactoryInterface>>;
 
-pub trait CustomTransformerFactoryInterface: Trace + Finalize {
+pub trait CustomTransformerFactoryInterface {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> CustomTransformer;
 }
 
 pub type CustomTransformer = Id<Box<dyn CustomTransformerInterface>>;
 
-pub trait CustomTransformerInterface: Trace + Finalize {
+pub trait CustomTransformerInterface {
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node /*SourceFile*/>;
     fn transform_bundle(&self, node: Id<Node> /*Bundle*/) -> Id<Node /*Bundle*/>;
 }
 
-#[derive(Trace, Finalize)]
 pub enum TransformerFactoryOrCustomTransformerFactory {
     TransformerFactory(TransformerFactory),
     CustomTransformerFactory(CustomTransformerFactory),
@@ -162,10 +160,9 @@ pub trait TypeCheckerHost: ModuleSpecifierResolutionHost {
     }
 }
 
-pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug + Trace + Finalize {}
+pub trait TypeCheckerHostDebuggable: TypeCheckerHost + fmt::Debug {}
 
 #[allow(non_snake_case)]
-#[derive(Trace, Finalize)]
 pub struct TypeChecker {
     #[unsafe_ignore_trace]
     pub(crate) arena: *const AllArenas,
@@ -469,7 +466,7 @@ impl fmt::Debug for TypeChecker {
     }
 }
 
-pub(crate) trait OutofbandVarianceMarkerHandler: Trace + Finalize {
+pub(crate) trait OutofbandVarianceMarkerHandler {
     fn call(&self, value: bool);
 }
 
@@ -617,7 +614,7 @@ pub enum TypePredicateKind {
     AssertsIdentifier,
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct TypePredicate {
     #[unsafe_ignore_trace]
     pub kind: TypePredicateKind,
@@ -692,7 +689,7 @@ pub enum TypeReferenceSerializationKind {
     ObjectType,
 }
 
-pub trait EmitResolver: Trace + Finalize {
+pub trait EmitResolver {
     fn has_global_name(&self, name: &str) -> bool;
     fn get_referenced_export_container(
         &self,
@@ -983,7 +980,7 @@ pub trait SymbolInterface {
     ) -> RefMut<Option<HashMap<NodeId, Id<Node /*Declaration*/>>>>;
 }
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Debug)]
 #[symbol_type(impl_from = false)]
 pub enum Symbol {
     BaseSymbol(BaseSymbol),
@@ -1011,7 +1008,7 @@ impl Symbol {
     }
 }
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Debug)]
 pub struct BaseSymbol {
     #[unsafe_ignore_trace]
     flags: Cell<SymbolFlags>,
@@ -1208,7 +1205,7 @@ impl From<BaseSymbol> for Symbol {
     }
 }
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Debug)]
 pub struct SymbolLinks {
     pub immediate_target: Option<Id<Symbol>>,
     pub target: Option<Id<Symbol>>,
@@ -1343,12 +1340,11 @@ pub trait TransientSymbolInterface: SymbolInterface {
 }
 
 mod _TransientSymbolTraceDeriveScope {
-    use gc::Finalize;
-    use local_macros::{symbol_type, Trace};
+    use local_macros::symbol_type;
 
     use super::{BaseTransientSymbol, Id, MappedSymbol, ReverseMappedSymbol, Type};
 
-    #[derive(Debug, Finalize, Trace)]
+    #[derive(Debug)]
     #[symbol_type(interfaces = "TransientSymbolInterface")]
     pub enum TransientSymbol {
         BaseTransientSymbol(BaseTransientSymbol),
@@ -1383,7 +1379,7 @@ mod _TransientSymbolTraceDeriveScope {
 }
 pub use _TransientSymbolTraceDeriveScope::TransientSymbol;
 
-#[derive(Debug, Finalize, Trace)]
+#[derive(Debug)]
 #[symbol_type(ancestors = "TransientSymbol")]
 pub struct BaseTransientSymbol {
     _symbol: BaseSymbol,

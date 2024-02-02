@@ -1,6 +1,5 @@
 use std::{borrow::Cow, collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc, cell::RefCell};
 
-use gc::{Finalize, Gc, GcCell, Trace};
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
@@ -32,7 +31,6 @@ fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Id<SysFo
     /*sys ?*/ arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
 }
 
-#[derive(Trace, Finalize)]
 pub struct SysFormatDiagnosticsHost {
     system: Id<Box<dyn System>>,
     #[unsafe_ignore_trace]
@@ -89,7 +87,6 @@ pub fn create_diagnostic_reporter(
     )))
 }
 
-#[derive(Trace, Finalize)]
 struct DiagnosticReporterConcrete {
     host: Id<SysFormatDiagnosticsHost>,
     pretty: bool,
@@ -277,7 +274,6 @@ pub fn parse_config_file_with_system(
     )
 }
 
-#[derive(Trace, Finalize)]
 struct ParseConfigFileWithSystemHost {
     system: Id<Box<dyn System>>,
     report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
@@ -384,7 +380,6 @@ pub fn get_error_summary_text(error_count: usize, new_line: &str) -> String {
     )
 }
 
-#[derive(Trace, Finalize)]
 pub enum ProgramOrBuilderProgram {
     Program(Id<Program>),
     BuilderProgram(Id<Box<dyn BuilderProgram>>),

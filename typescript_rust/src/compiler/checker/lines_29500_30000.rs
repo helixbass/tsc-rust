@@ -7,7 +7,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
@@ -1320,7 +1319,6 @@ pub(super) struct GetDiagnosticSpanForCallNodeReturn {
     pub source_file: Id<Node /*SourceFile*/>,
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ResolveCallContainingMessageChain {
     #[unsafe_ignore_trace]
     chain: Option<Rc<RefCell<DiagnosticMessageChain>>>,
@@ -1338,7 +1336,6 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct ResolveCallOverloadContainingMessageChain {
     type_checker: Id<TypeChecker>,
     #[unsafe_ignore_trace]

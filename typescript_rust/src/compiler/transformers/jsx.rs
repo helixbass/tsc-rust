@@ -6,7 +6,6 @@ use std::{
 };
 
 use derive_builder::Builder;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -34,7 +33,7 @@ use crate::{
     ref_unwrapped, ref_mut_unwrapped,
 };
 
-#[derive(Builder, Default, Trace, Finalize)]
+#[derive(Builder, Default)]
 #[builder(setter(into))]
 pub(super) struct PerFileState {
     #[builder(default)]
@@ -46,7 +45,6 @@ pub(super) struct PerFileState {
         Option<HashMap<String, HashMap<String, Id<Node /*ImportSpecifier*/>>>>,
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformJsx {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -1087,7 +1085,6 @@ impl HasArena for TransformJsx {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformJsxFactory {}
 
 impl TransformJsxFactory {

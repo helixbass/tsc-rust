@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, marker::PhantomData};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -21,7 +20,6 @@ pub fn create_parenthesizer_rules(
     ParenthesizerRulesConcrete::new(factory)
 }
 
-#[derive(Trace, Finalize)]
 pub struct ParenthesizerRulesConcrete {
     factory: Id<NodeFactory>,
 }
@@ -512,7 +510,6 @@ pub fn null_parenthesizer_rules() -> NullParenthesizerRules {
     NullParenthesizerRules::new()
 }
 
-#[derive(Trace, Finalize)]
 pub struct NullParenthesizerRules;
 
 impl NullParenthesizerRules {

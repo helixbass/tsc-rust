@@ -1,8 +1,7 @@
 use std::{cell::Cell, ops::Deref};
 
-use gc::{unsafe_empty_trace, Finalize, Trace};
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Finalize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Path(String);
 
 impl Path {
@@ -13,10 +12,6 @@ impl Path {
     pub fn into_string(self) -> String {
         self.0
     }
-}
-
-unsafe impl Trace for Path {
-    unsafe_empty_trace!();
 }
 
 impl ToString for Path {
@@ -570,9 +565,4 @@ impl SyntaxKind {
     pub const LastJSDocTagNode: SyntaxKind = SyntaxKind::JSDocPropertyTag;
     pub(crate) const FirstContextualKeyword: SyntaxKind = SyntaxKind::AbstractKeyword;
     pub(crate) const LastContextualKeyword: SyntaxKind = SyntaxKind::OfKeyword;
-}
-
-impl Finalize for SyntaxKind {}
-unsafe impl Trace for SyntaxKind {
-    unsafe_empty_trace!();
 }

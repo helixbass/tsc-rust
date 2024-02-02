@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{CheckMode, CheckTypeContainingMessageChain, JsxNames};
@@ -897,7 +896,6 @@ impl TypeChecker {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct GenerateInitialErrorChain {
     opening_like_element: Id<Node>,
 }

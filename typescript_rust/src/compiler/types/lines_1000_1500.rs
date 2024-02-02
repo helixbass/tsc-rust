@@ -1,7 +1,6 @@
 use std::{cell::Cell, ops::Deref};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -15,11 +14,9 @@ use crate::{set_text_range_node_array, HasArena};
 mod _NodeArrayDeriveTraceScope {
     use std::slice;
 
-    use local_macros::Trace;
-
     use super::*;
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub struct NodeArray {
         _nodes: Vec<Id<Node>>,
         #[unsafe_ignore_trace]
@@ -167,12 +164,10 @@ impl NodeArrayExt for Id<NodeArray> {
 }
 
 mod _NodeArrayOrVecDeriveTraceScope {
-    use local_macros::Trace;
-
     use super::*;
     use crate::InArena;
 
-    #[derive(Clone, Debug, Trace, Finalize)]
+    #[derive(Clone, Debug)]
     pub enum NodeArrayOrVec {
         NodeArray(Id<NodeArray>),
         Vec(Vec<Id<Node>>),
@@ -303,7 +298,7 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct Identifier {
     _node: BaseNode,
@@ -403,7 +398,7 @@ impl HasTypeArgumentsInterface for Identifier {
 
 pub type ModifiersArray = Id<NodeArray>; /*<Modifier>*/
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct QualifiedName {
     _node: BaseNode,
@@ -454,7 +449,7 @@ pub trait NamedDeclarationInterface: NodeInterface {
     fn set_name(&mut self, name: Id<Node>);
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(impl_from = false)]
 pub struct BaseNamedDeclaration {
     _node: BaseNode,
@@ -489,7 +484,7 @@ pub trait BindingLikeDeclarationInterface:
 {
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(impl_from = false, interfaces = "NamedDeclarationInterface")]
 pub struct BaseBindingLikeDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -525,7 +520,7 @@ pub trait VariableLikeDeclarationInterface:
 {
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     impl_from = false,
     interfaces = "NamedDeclarationInterface, HasInitializerInterface, BindingLikeDeclarationInterface"
@@ -559,7 +554,7 @@ impl HasTypeInterface for BaseVariableLikeDeclaration {
 
 impl VariableLikeDeclarationInterface for BaseVariableLikeDeclaration {}
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct ComputedPropertyName {
     _node: BaseNode,
@@ -581,7 +576,7 @@ impl HasExpressionInterface for ComputedPropertyName {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct PrivateIdentifier {
     _node: BaseNode,
@@ -604,7 +599,7 @@ impl MemberNameInterface for PrivateIdentifier {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type]
 pub struct Decorator {
     _node: BaseNode,
@@ -626,7 +621,7 @@ impl HasExpressionInterface for Decorator {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(interfaces = "NamedDeclarationInterface")]
 pub struct TypeParameterDeclaration {
     _named_declaration: BaseNamedDeclaration,
@@ -660,7 +655,7 @@ impl HasExpressionInterface for TypeParameterDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, HasTypeParametersInterface"
 )]
@@ -674,7 +669,7 @@ pub trait SignatureDeclarationInterface:
     fn parameters(&self) -> Id<NodeArray> /*<ParameterDeclaration>*/;
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     impl_from = false,
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface"
@@ -717,7 +712,7 @@ impl SignatureDeclarationInterface for BaseSignatureDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -733,7 +728,7 @@ impl CallSignatureDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -749,7 +744,7 @@ impl ConstructSignatureDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     ancestors = "SignatureDeclarationBase",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
@@ -771,7 +766,7 @@ pub trait FunctionLikeDeclarationInterface:
     fn set_return_flow_node(&self, return_flow_node: Option<Id<FlowNode>>);
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     ancestors = "FunctionLikeDeclarationBase, SignatureDeclarationBase",
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
@@ -840,7 +835,7 @@ impl HasQuestionTokenInterface for BaseFunctionLikeDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]
@@ -856,7 +851,7 @@ impl FunctionDeclaration {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface"
 )]
@@ -883,7 +878,7 @@ impl HasQuestionTokenInterface for MethodSignature {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 #[ast_type(
     interfaces = "NamedDeclarationInterface, HasTypeParametersInterface, GenericNamedDeclarationInterface, HasTypeInterface, SignatureDeclarationInterface, FunctionLikeDeclarationInterface, HasQuestionTokenInterface"
 )]

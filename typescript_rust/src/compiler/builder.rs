@@ -1,5 +1,4 @@
-use gc::{Finalize, Trace};
 use serde::Serialize;
 
-#[derive(Clone, Serialize, Trace, Finalize)]
+#[derive(Clone, Serialize)]
 pub struct ProgramBuildInfo {}

@@ -1,7 +1,6 @@
 use std::{borrow::Borrow, cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, any::Any};
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
@@ -59,7 +58,6 @@ pub(super) trait PrivateIdentifierInfoInterface {
     fn maybe_variable_name(&self) -> Option<Id<Node>>;
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierAccessorInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
@@ -111,7 +109,6 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierAccessorInfo {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierMethodInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
@@ -160,7 +157,6 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierMethodInfo {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierInstanceFieldInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
@@ -202,7 +198,6 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInstanceFieldInfo {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct PrivateIdentifierStaticFieldInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
@@ -250,7 +245,6 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierStaticFieldInfo {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub enum PrivateIdentifierInfo {
     PrivateIdentifierMethodInfo(PrivateIdentifierMethodInfo),
     PrivateIdentifierInstanceFieldInfo(PrivateIdentifierInstanceFieldInfo),
@@ -345,14 +339,14 @@ impl From<PrivateIdentifierAccessorInfo> for PrivateIdentifierInfo {
     }
 }
 
-#[derive(Default, Trace, Finalize)]
+#[derive(Default)]
 pub struct PrivateIdentifierEnvironment {
     pub class_name: String,
     pub weak_set_name: Option<Id<Node /*Identifier*/>>,
     pub identifiers: UnderscoreEscapedMap<Id<PrivateIdentifierInfo>>,
 }
 
-#[derive(Default, Trace, Finalize)]
+#[derive(Default)]
 pub struct ClassLexicalEnvironment {
     #[unsafe_ignore_trace]
     pub facts: ClassFacts,
@@ -372,7 +366,6 @@ bitflags! {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformClassFields {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
@@ -1166,7 +1159,6 @@ impl HasArena for TransformClassFields {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsOnEmitNodeOverrider {
     transform_class_fields: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -1325,7 +1317,6 @@ impl HasArena for TransformClassFieldsOnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsOnSubstituteNodeOverrider {
     transform_class_fields: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1469,7 +1460,6 @@ impl HasArena for TransformClassFieldsOnSubstituteNodeOverrider {
 }
 
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformClassFieldsFactory {}
 
 impl TransformClassFieldsFactory {

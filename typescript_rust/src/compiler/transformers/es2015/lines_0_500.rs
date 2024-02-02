@@ -2,7 +2,6 @@ use std::{cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, ptr
 
 use bitflags::bitflags;
 use derive_builder::Builder;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use indexmap::IndexMap;
 
@@ -33,7 +32,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Clone)]
 pub(super) struct LoopOutParameter {
     #[unsafe_ignore_trace]
     pub flags: LoopOutParameterFlags,
@@ -65,7 +64,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Builder, Trace, Finalize)]
+#[derive(Clone, Builder)]
 #[builder(setter(strip_option))]
 pub struct ConvertedLoopState {
     #[builder(default)]
@@ -182,7 +181,6 @@ pub(super) fn create_spread_segment(
     SpreadSegment { kind, expression }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformES2015 {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
@@ -587,7 +585,6 @@ impl HasArena for TransformES2015 {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2015OnEmitNodeOverrider {
     transform_es2015: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -652,7 +649,6 @@ impl HasArena for TransformES2015OnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2015OnSubstituteNodeOverrider {
     transform_es2015: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -849,7 +845,6 @@ impl HasArena for TransformES2015OnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2015Factory {}
 
 impl TransformES2015Factory {

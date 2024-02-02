@@ -1,6 +1,5 @@
 use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut, Cell}};
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -23,7 +22,6 @@ use crate::{
     ref_unwrapped, ref_mut_unwrapped,
 };
 
-#[derive(Trace, Finalize)]
 struct TransformEcmascriptModule {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -539,7 +537,6 @@ impl HasArena for TransformEcmascriptModule {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformEcmascriptModuleOnEmitNodeOverrider {
     transform_ecmascript_module: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
@@ -603,7 +600,6 @@ impl HasArena for TransformEcmascriptModuleOnEmitNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformEcmascriptModuleOnSubstituteNodeOverrider {
     transform_ecmascript_module: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -675,7 +671,6 @@ impl HasArena for TransformEcmascriptModuleOnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformEcmascriptModuleFactory {}
 
 impl TransformEcmascriptModuleFactory {

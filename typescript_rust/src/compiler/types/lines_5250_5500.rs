@@ -5,7 +5,6 @@ use std::{
 };
 
 use bitflags::bitflags;
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::type_type;
 
@@ -27,7 +26,7 @@ pub trait LiteralTypeInterface: TypeInterface {
     fn set_regular_type(&self, regular_type: Id<Type>);
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(interfaces = "LiteralTypeInterface")]
 pub enum LiteralType {
     StringLiteralType(StringLiteralType),
@@ -68,7 +67,7 @@ impl LiteralType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(impl_from = false)]
 pub struct BaseLiteralType {
     _type: BaseType,
@@ -104,7 +103,7 @@ impl LiteralTypeInterface for BaseLiteralType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type]
 pub struct UniqueESSymbolType {
     _type: BaseType,
@@ -123,7 +122,7 @@ impl UniqueESSymbolType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(ancestors = "LiteralType")]
 pub struct StringLiteralType {
     _literal_type: BaseLiteralType,
@@ -198,7 +197,7 @@ impl LiteralTypeInterface for StringLiteralType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(ancestors = "LiteralType")]
 pub struct NumberLiteralType {
     _literal_type: BaseLiteralType,
@@ -270,7 +269,7 @@ impl LiteralTypeInterface for NumberLiteralType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(ancestors = "LiteralType")]
 pub struct BigIntLiteralType {
     _literal_type: BaseLiteralType,
@@ -414,7 +413,7 @@ pub trait ObjectTypeInterface: ObjectFlagsTypeInterface {
     fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Id<Type>>>>;
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
@@ -427,7 +426,7 @@ pub enum ObjectType {
     ReverseMappedType(ReverseMappedType),
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(ancestors = "ObjectType")]
 pub struct BaseObjectType {
     _type: BaseType,
@@ -722,7 +721,7 @@ impl NotActuallyInterfaceType<'_> {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, InterfaceTypeInterface, TypeReferenceInterface, GenericTypeInterface, GenericableTypeInterface, FreshObjectLiteralTypeInterface"
@@ -732,7 +731,7 @@ pub enum InterfaceType {
     TupleType(TupleType),
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "InterfaceType, ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -972,7 +971,7 @@ impl TypeReferenceInterface for BaseInterfaceType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
@@ -1106,7 +1105,7 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "InterfaceType, ObjectType",
     interfaces = "ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, InterfaceTypeWithDeclaredMembersInterface, GenericableTypeInterface, GenericTypeInterface, InterfaceTypeInterface, TypeReferenceInterface, FreshObjectLiteralTypeInterface"
@@ -1159,7 +1158,7 @@ pub trait UnionOrIntersectionTypeInterface: TypeInterface {
     fn set_resolved_properties(&self, resolved_properties: Option<Id<Vec<Id<Symbol>>>>);
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"
 )]
@@ -1168,7 +1167,7 @@ pub enum UnionOrIntersectionType {
     IntersectionType(IntersectionType),
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(impl_from = false)]
 pub struct BaseUnionOrIntersectionType {
     _type: BaseType,
@@ -1345,7 +1344,7 @@ impl ObjectTypeInterface for BaseUnionOrIntersectionType {
     }
 }
 
-#[derive(Clone, Debug, Trace, Finalize)]
+#[derive(Clone, Debug)]
 #[type_type(
     ancestors = "UnionOrIntersectionType",
     interfaces = "UnionOrIntersectionTypeInterface, ObjectFlagsTypeInterface, ObjectTypeInterface, ResolvableTypeInterface, ResolvedTypeInterface, FreshObjectLiteralTypeInterface"

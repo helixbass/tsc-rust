@@ -5,7 +5,6 @@ use std::{
     rc::Rc,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
 use id_arena::Id;
 use itertools::Itertools;
 
@@ -1399,7 +1398,7 @@ impl Program {
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 struct GetPrependNodesReadFileCallback {
     program: Id<Program>,
 }
@@ -1430,7 +1429,6 @@ impl HasArena for GetPrependNodesReadFileCallback {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct ProgramEmitHost {
     program: Id<Program>,
     write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
@@ -1657,7 +1655,6 @@ impl HasArena for ProgramEmitHost {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub struct EmitHostWriteFileCallback {
     host: Id<Box<dyn EmitHost>>,
 }
@@ -1699,7 +1696,6 @@ pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
     PredictedToResolveToAmbientModuleMarker,
 }
 
-#[derive(Trace, Finalize)]
 pub struct ProgramToPath {
     program: Id<Program>,
 }

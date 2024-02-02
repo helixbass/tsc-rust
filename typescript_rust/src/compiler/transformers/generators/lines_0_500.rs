@@ -4,7 +4,6 @@ use std::{
     io, mem, any::Any,
 };
 
-use gc::{Finalize, Gc, GcCell, GcCellRef, GcCellRefMut, Trace};
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
@@ -40,7 +39,7 @@ pub(super) enum OpCode {
     Endfinally,
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Clone)]
 pub(super) enum OperationArguments {
     Label(Label),
     LabelAndNode((Label, Id<Node /*Expression*/>)),
@@ -125,7 +124,6 @@ pub(super) enum ExceptionBlockState {
     Done,
 }
 
-#[derive(Trace, Finalize)]
 pub enum CodeBlock {
     ExceptionBlock(ExceptionBlock),
     LabeledBlock(LabeledBlock),
@@ -210,7 +208,6 @@ impl From<WithBlock> for CodeBlock {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct ExceptionBlock {
     #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Exception*/
@@ -244,7 +241,6 @@ impl ExceptionBlock {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct LabeledBlock {
     #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Labeled*/
@@ -264,7 +260,6 @@ impl LabeledBlock {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct SwitchBlock {
     #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Switch*/
@@ -282,7 +277,6 @@ impl SwitchBlock {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct LoopBlock {
     #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.Loop*/
@@ -302,7 +296,6 @@ impl LoopBlock {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct WithBlock {
     #[unsafe_ignore_trace]
     pub kind: CodeBlockKind, /*CodeBlockKind.With*/
@@ -348,7 +341,6 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformGenerators {
     #[unsafe_ignore_trace]
     pub(super) _arena: *const AllArenas,
@@ -1063,7 +1055,6 @@ impl HasArena for TransformGenerators {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformGeneratorsOnSubstituteNodeOverrider {
     transform_generators: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
@@ -1157,7 +1148,6 @@ impl HasArena for TransformGeneratorsOnSubstituteNodeOverrider {
     }
 }
 
-#[derive(Trace, Finalize)]
 pub(super) struct TransformGeneratorsFactory {}
 
 impl TransformGeneratorsFactory {

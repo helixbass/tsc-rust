@@ -1,6 +1,5 @@
 use std::{io, any::Any};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use crate::{
@@ -13,7 +12,6 @@ use crate::{
     TransformNodesTransformationResult, CoreTransformationContext,
 };
 
-#[derive(Trace, Finalize)]
 struct TransformES2016 {
     #[unsafe_ignore_trace]
     _arena: *const AllArenas,
@@ -228,7 +226,6 @@ impl HasArena for TransformES2016 {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct TransformES2016Factory {}
 
 impl TransformES2016Factory {

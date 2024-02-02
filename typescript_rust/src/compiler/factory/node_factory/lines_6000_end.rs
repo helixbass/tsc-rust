@@ -1,6 +1,5 @@
 use std::{borrow::Borrow, cell::RefCell, collections::HashMap, fmt, ptr};
 
-use gc::{Finalize, Gc, Trace};
 use id_arena::Id;
 
 use super::{create_node_factory, NodeFactoryFlags};
@@ -637,7 +636,7 @@ pub fn get_synthetic_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactor
     )
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Debug)]
 pub struct BaseNodeFactorySynthetic {}
 
 impl BaseNodeFactorySynthetic {
@@ -768,7 +767,7 @@ pub fn create_input_files(
     arena.alloc_node(node.into())
 }
 
-pub trait ReadFileCallback: fmt::Debug + Trace + Finalize {
+pub trait ReadFileCallback: fmt::Debug {
     fn call(&self, path: &str) -> Option<String>;
 }
 
