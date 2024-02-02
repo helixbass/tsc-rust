@@ -264,7 +264,7 @@ fn get_ast_struct_interface_impl(
                         self.#first_field_name.set_inference_context(inference_context)
                     }
 
-                    fn maybe_flow_node(&self) -> <::std::option::Option<::id_arena::Id<crate::FlowNode>> {
+                    fn maybe_flow_node(&self) -> ::std::option::Option<::id_arena::Id<crate::FlowNode>> {
                         self.#first_field_name.maybe_flow_node()
                     }
 
@@ -1775,7 +1775,7 @@ fn get_type_struct_interface_impl(
         "GenericTypeInterface" => {
             quote! {
                 impl crate::GenericTypeInterface for #type_type_name {
-                    fn instantiations(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>>, ::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>> {
+                    fn instantiations(&self) -> ::std::cell::RefMut<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>> {
                         self.#first_field_name.instantiations()
                     }
 
@@ -2551,7 +2551,7 @@ fn get_type_enum_interface_impl(
         "GenericTypeInterface" => {
             quote! {
                 impl crate::GenericTypeInterface for #type_type_name {
-                    fn instantiations(&self) -> ::std::cell::RefMut<::std::option::Option<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>>, ::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>> {
+                    fn instantiations(&self) -> ::std::cell::RefMut<::std::collections::HashMap<String, ::id_arena::Id<crate::Type>>> {
                         match self {
                             #(#type_type_name::#variant_names(nested) => nested.instantiations()),*
                         }
