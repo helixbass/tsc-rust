@@ -171,14 +171,14 @@ impl SymbolTableToDeclarationStatements {
         self.context.set(context);
     }
 
-    pub fn serialize_property_symbol_for_class(&self) -> Ref<MakeSerializePropertySymbol> {
-        ref_unwrapped(&self.serialize_property_symbol_for_class)
+    pub fn serialize_property_symbol_for_class(&self) -> MakeSerializePropertySymbol {
+        self.serialize_property_symbol_for_class.get()
     }
 
     pub fn serialize_property_symbol_for_interface_worker(
         &self,
-    ) -> Ref<MakeSerializePropertySymbol> {
-        ref_unwrapped(&self.serialize_property_symbol_for_interface_worker)
+    ) -> MakeSerializePropertySymbol {
+        self.serialize_property_symbol_for_interface_worker.get()
     }
 
     pub fn results(&self) -> Ref<Vec<Id<Node>>> {

@@ -795,7 +795,7 @@ pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>, arena: &imp
         if let Some(emit_node) = emit_node {
             let node_emit_node = {
                 if node.ref_(arena).maybe_emit_node().is_none() {
-                    node.ref_(arena).set_emit_node(arena.alloc_emit_node(Default::default()));
+                    node.ref_(arena).set_emit_node(Some(arena.alloc_emit_node(Default::default())));
                 }
                 node.ref_(arena).maybe_emit_node().unwrap()
             };

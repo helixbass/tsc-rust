@@ -594,7 +594,7 @@ impl TypeChecker {
         let save_inference_context = context.ref_(self).maybe_inference_context().clone();
         // try {
         context.ref_(self).set_contextual_type(Some(contextual_type));
-        *context.ref_(self).maybe_inference_context() = inference_context.clone();
+        context.ref_(self).set_inference_context(inference_context.clone());
         let type_ = self.check_expression(
             node,
             Some(
@@ -620,7 +620,7 @@ impl TypeChecker {
         // }
         // finally {
         context.ref_(self).set_contextual_type(save_contextual_type);
-        *context.ref_(self).maybe_inference_context() = save_inference_context;
+        context.ref_(self).set_inference_context(save_inference_context);
         // }
         Ok(result)
     }

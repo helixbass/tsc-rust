@@ -924,7 +924,7 @@ impl GenericTypeInterface for BaseInterfaceType {
 
 impl TypeReferenceInterface for BaseInterfaceType {
     fn target(&self) -> Id<Type> {
-        self.target.get.unwrap()
+        self.target.get().unwrap()
     }
 
     fn set_target(&self, target: Id<Type>) {
@@ -1251,7 +1251,7 @@ impl ResolvableTypeInterface for BaseUnionOrIntersectionType {
 
 impl ResolvedTypeInterface for BaseUnionOrIntersectionType {
     fn members(&self) -> Id<SymbolTable> {
-        self.members.get().clone()
+        self.members.get().unwrap()
     }
 
     fn properties(&self) -> Id<Vec<Id<Symbol>>> {

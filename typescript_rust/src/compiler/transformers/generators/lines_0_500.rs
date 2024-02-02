@@ -767,7 +767,7 @@ impl TransformGenerators {
         &self,
         current_exception_block: Option<Id<CodeBlock /*ExceptionBlock*/>>,
     ) {
-        *self.current_exception_block.borrow_mut() = current_exception_block;
+        self.current_exception_block.set(current_exception_block);
     }
 
     pub(super) fn maybe_with_block_stack(

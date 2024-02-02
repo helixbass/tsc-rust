@@ -181,8 +181,8 @@ impl TypeChecker {
         let declaration = left.ref_(self).declaration.clone();
         let params = self.combine_union_parameters(left, right, param_mapper.clone())?;
         let this_param = self.combine_union_this_param(
-            *left.ref_(self).maybe_this_parameter(),
-            *right.ref_(self).maybe_this_parameter(),
+            left.ref_(self).maybe_this_parameter(),
+            right.ref_(self).maybe_this_parameter(),
             param_mapper.clone(),
         )?;
         let min_arg_count = cmp::max(left.ref_(self).min_argument_count(), right.ref_(self).min_argument_count());

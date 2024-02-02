@@ -98,12 +98,12 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if let Some(context_type_parameters) = context.ref_(self).maybe_type_parameters().as_ref() {
             if signature.ref_(self).maybe_type_parameters().is_none() {
-                signature.ref_(self).maybe_type_parameters_mut() = Some(context_type_parameters.clone());
+                signature.ref_(self).set_type_parameters(Some(context_type_parameters.clone()));
             } else {
                 return Ok(());
             }
         }
-        if let Some(context_this_parameter) = *context.ref_(self).maybe_this_parameter() {
+        if let Some(context_this_parameter) = context.ref_(self).maybe_this_parameter() {
             let parameter = signature.ref_(self).maybe_this_parameter().clone();
             if match parameter {
                 None => true,
@@ -162,7 +162,7 @@ impl TypeChecker {
         &self,
         signature: Id<Signature>,
     ) -> io::Result<()> {
-        if let Some(signature_this_parameter) = *signature.ref_(self).maybe_this_parameter() {
+        if let Some(signature_this_parameter) = signature.ref_(self).maybe_this_parameter() {
             self.assign_parameter_type(signature_this_parameter, None)?;
         }
         for &parameter in signature.ref_(self).parameters() {

@@ -320,8 +320,8 @@ impl TypeParameter {
         self.constraint.get()
     }
 
-    pub fn set_constraint(&self, constraint: Id<Type>) {
-        self.constraint.set(Some(constraint));
+    pub fn set_constraint(&self, constraint: Option<Id<Type>>) {
+        self.constraint.set(constraint);
     }
 
     pub fn maybe_default(&self) -> Option<Id<Type>> {

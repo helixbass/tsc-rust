@@ -160,10 +160,10 @@ impl TypeChecker {
         let merged_exports = {
             if merged.ref_(self).maybe_exports().is_none() {
                 merged.ref_(self).set_exports(
-                    self.alloc_symbol_table(create_symbol_table(
+                    Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
-                    ))
+                    )))
                 );
             }
             merged.ref_(self).exports()

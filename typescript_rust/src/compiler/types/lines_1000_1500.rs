@@ -805,7 +805,7 @@ impl FunctionLikeDeclarationInterface for BaseFunctionLikeDeclaration {
     }
 
     fn set_end_flow_node(&self, end_flow_node: Option<Id<FlowNode>>) {
-        *self.end_flow_node.b = end_flow_node;
+        self.end_flow_node.set(end_flow_node);
     }
 
     fn maybe_return_flow_node(&self) -> Option<Id<FlowNode>> {

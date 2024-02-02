@@ -502,7 +502,7 @@ impl TransformNodesTransformationResult {
     }
 
     fn lexical_environment_function_declarations(&self) -> Ref<Option<Vec<Id<Node>>>> {
-        self.lexical_environment_function_declarations.borrow_mut()
+        self.lexical_environment_function_declarations.borrow()
     }
 
     fn lexical_environment_function_declarations_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
@@ -518,7 +518,7 @@ impl TransformNodesTransformationResult {
     }
 
     fn lexical_environment_statements(&self) -> Ref<Option<Vec<Id<Node>>>> {
-        self.lexical_environment_statements.borrow_mut()
+        self.lexical_environment_statements.borrow()
     }
 
     fn lexical_environment_statements_mut(&self) -> RefMut<Option<Vec<Id<Node>>>> {
@@ -1029,7 +1029,7 @@ impl CoreTransformationContext for TransformNodesTransformationResult {
             Some("Cannot modify the lexical environment after transformation has completed."),
         );
         set_emit_flags(node, EmitFlags::CustomPrologue, self);
-        self.lexical_environment_statements_mut().get_or_insert_with(|| Default::default).push(node);
+        self.lexical_environment_statements_mut().get_or_insert_with(|| Default::default()).push(node);
     }
 }
 

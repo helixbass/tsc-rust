@@ -1860,7 +1860,7 @@ impl NodeInterface for BaseNode {
     }
 
     fn set_decorators(&self, decorators: Option<Id<NodeArray>>) {
-        *self.decorators.borrow_mut() = decorators;
+        self.decorators.set(decorators);
     }
 
     fn maybe_modifiers(&self) -> Option<Id<NodeArray>> {

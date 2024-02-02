@@ -248,7 +248,7 @@ impl TransformES2015 {
         &self,
         current_source_file: Option<Id<Node /*SourceFile*/>>,
     ) {
-        *self.current_source_file.borrow_mut() = current_source_file;
+        self.current_source_file.set(current_source_file);
     }
 
     pub(super) fn current_text(&self) -> Ref<SourceTextAsChars> {

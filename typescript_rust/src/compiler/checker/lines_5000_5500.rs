@@ -298,7 +298,7 @@ impl NodeBuilder {
             && type_
                 .ref_(self)
                 .maybe_as_type_reference()
-                .and_then(|type_| type_.node.borrow().clone())
+                .and_then(|type_| type_.node.get())
                 .is_some()
         {
             Some(format!(
@@ -308,9 +308,7 @@ impl NodeBuilder {
                         .ref_(self)
                         .as_type_reference()
                         .node
-                        .borrow()
-                        .as_ref()
-                        .copied()
+                        .get()
                         .unwrap()
                         .ref_(self)
                 )

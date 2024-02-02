@@ -732,7 +732,7 @@ impl TypeInterface for BaseType {
     }
 
     fn maybe_alias_type_arguments(&self) -> Option<Vec<Id<Type>>> {
-        self.alias_type_arguments.get()
+        self.alias_type_arguments.borrow().clone()
     }
 
     fn set_alias_type_arguments(&self, alias_type_arguments: Option<Vec<Id<Type>>>) {
@@ -865,6 +865,14 @@ impl TypeInterface for BaseType {
     ) -> Option<Id<IterationTypes>> {
         self.iteration_types_of_async_generator_return_type
             .get()
+    }
+
+    fn set_iteration_types_of_async_generator_return_type(
+        &self,
+        iteration_types_of_async_generator_return_type: Option<Id<IterationTypes>>,
+    ) {
+        self.iteration_types_of_async_generator_return_type
+            .set(iteration_types_of_async_generator_return_type);
     }
 
     fn maybe_iteration_types_of_iterable(&self) -> Option<Id<IterationTypes>> {

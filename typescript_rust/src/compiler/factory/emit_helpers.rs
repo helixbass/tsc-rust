@@ -157,7 +157,7 @@ impl EmitHelperFactory {
 
         let generator_func_emit_node = {
             if generator_func.ref_(self).maybe_emit_node().is_none() {
-                generator_func.ref_(self).set_emit_node(self.alloc_emit_node(Default::default()));
+                generator_func.ref_(self).set_emit_node(Some(self.alloc_emit_node(Default::default())));
             }
             generator_func.ref_(self).maybe_emit_node().unwrap()
         };
@@ -281,7 +281,7 @@ impl EmitHelperFactory {
 
         let generator_func_emit_node = {
             if generator_func.ref_(self).maybe_emit_node().is_none() {
-                generator_func.ref_(self).set_emit_node(self.alloc_emit_node(Default::default()));
+                generator_func.ref_(self).set_emit_node(Some(self.alloc_emit_node(Default::default())));
             }
             generator_func.ref_(self).maybe_emit_node().unwrap()
         };

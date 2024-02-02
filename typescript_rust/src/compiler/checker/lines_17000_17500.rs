@@ -1215,7 +1215,7 @@ impl TypeChecker {
     pub(super) fn is_any_signature(&self, s: Id<Signature>) -> io::Result<bool> {
         let s_type_parameters_is_none = s.ref_(self).maybe_type_parameters().is_none();
         Ok(s_type_parameters_is_none
-            && match *s.ref_(self).maybe_this_parameter() {
+            && match s.ref_(self).maybe_this_parameter() {
                 None => true,
                 Some(s_this_parameter) => {
                     self.is_type_any(Some(self.get_type_of_parameter(s_this_parameter)?))

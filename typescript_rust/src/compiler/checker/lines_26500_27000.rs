@@ -370,8 +370,8 @@ impl TypeChecker {
         let declaration = left.ref_(self).declaration;
         let params = self.combine_intersection_parameters(left, right, param_mapper.clone())?;
         let this_param = self.combine_intersection_this_param(
-            *left.ref_(self).maybe_this_parameter(),
-            *right.ref_(self).maybe_this_parameter(),
+            left.ref_(self).maybe_this_parameter(),
+            right.ref_(self).maybe_this_parameter(),
             param_mapper.clone(),
         )?;
         let min_arg_count = cmp::max(left.ref_(self).min_argument_count(), right.ref_(self).min_argument_count());
@@ -745,10 +745,10 @@ impl TypeChecker {
                         | ObjectFlags::ContainsObjectOrArrayLiteral,
                 );
             }
-            *type_
+            type_
                 .ref_(self)
                 .as_type_reference_interface()
-                .maybe_literal_type_mut() = Some(literal_type);
+                .set_literal_type(Some(literal_type));
         }
         type_
             .ref_(self)
