@@ -302,7 +302,7 @@ pub struct TypeParameter {
     pub constraint: Cell<Option<Id<Type>>>,
     pub default: Cell<Option<Id<Type>>>,
     pub target: Option<Id<Type /*TypeParameter*/>>,
-    pub mapper: GcCell<Option<Id<TypeMapper>>>,
+    pub mapper: Cell<Option<Id<TypeMapper>>>,
     pub is_this_type: Option<bool>,
 }
 
@@ -319,23 +319,27 @@ impl TypeParameter {
     }
 
     pub fn maybe_constraint(&self) -> Option<Id<Type>> {
-        self.constraint.borrow().clone()
+        self.constraint.get()
     }
 
     pub fn set_constraint(&self, constraint: Id<Type>) {
-        *self.constraint.borrow_mut() = Some(constraint);
+        self.constraint.set(Some(constraint));
     }
 
-    pub fn maybe_default(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.default.borrow_mut()
+    pub fn maybe_default(&self) -> Option<Id<Type>> {
+        self.default.get()
+    }
+
+    pub fn set_default(&self, default: Option<Id<Type>>) {
+        self.default.set(default);
     }
 
     pub fn maybe_mapper(&self) -> Option<Id<TypeMapper>> {
-        self.mapper.borrow().clone()
+        self.mapper.get()
     }
 
     pub fn set_mapper(&self, mapper: Id<TypeMapper>) {
-        *self.mapper.borrow_mut() = Some(mapper);
+        self.mapper.set(Some(mapper));
     }
 }
 
@@ -364,8 +368,8 @@ pub struct IndexedAccessType {
     #[unsafe_ignore_trace]
     pub(crate) access_flags: AccessFlags,
     pub(crate) constraint: Option<Id<Type>>,
-    simplified_for_reading: GcCell<Option<Id<Type>>>,
-    simplified_for_writing: GcCell<Option<Id<Type>>>,
+    simplified_for_reading: Cell<Option<Id<Type>>>,
+    simplified_for_writing: Cell<Option<Id<Type>>>,
 }
 
 impl IndexedAccessType {
@@ -386,12 +390,20 @@ impl IndexedAccessType {
         }
     }
 
-    pub fn maybe_simplified_for_reading(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.simplified_for_reading.borrow_mut()
+    pub fn maybe_simplified_for_reading(&self) -> Option<Id<Type>> {
+        self.simplified_for_reading.get()
     }
 
-    pub fn maybe_simplified_for_writing(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.simplified_for_writing.borrow_mut()
+    pub fn set_simplified_for_reading(&self, simplified_for_reading: Option<Id<Type>>) {
+        self.simplified_for_reading.set(simplified_for_reading);
+    }
+
+    pub fn maybe_simplified_for_writing(&self) -> Option<Id<Type>> {
+        self.simplified_for_writing.get()
+    }
+
+    pub fn set_simplified_for_writing(&self, simplified_for_writing: Option<Id<Type>>) {
+        self.simplified_for_writing.set(simplified_for_writing);
     }
 }
 
@@ -421,7 +433,7 @@ pub struct ConditionalRoot {
     pub is_distributive: bool,
     pub infer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
     pub outer_type_parameters: Option<Vec<Id<Type /*TypeParameter*/>>>,
-    instantiations: GcCell<Option<HashMap<String, Id<Type>>>>,
+    instantiations: RefCell<Option<HashMap<String, Id<Type>>>>,
     pub alias_symbol: Option<Id<Symbol>>,
     pub alias_type_arguments: Option<Vec<Id<Type>>>,
 }
@@ -450,7 +462,7 @@ impl ConditionalRoot {
         }
     }
 
-    pub fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Type>>>> {
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Id<Type>>>> {
         self.instantiations.borrow_mut()
     }
 }
@@ -462,10 +474,10 @@ pub struct ConditionalType {
     pub root: Id<ConditionalRoot>,
     pub check_type: Id<Type>,
     pub extends_type: Id<Type>,
-    resolved_true_type: GcCell<Option<Id<Type>>>,
-    resolved_false_type: GcCell<Option<Id<Type>>>,
-    resolved_inferred_true_type: GcCell<Option<Id<Type>>>,
-    resolved_default_constraint: GcCell<Option<Id<Type>>>,
+    resolved_true_type: Cell<Option<Id<Type>>>,
+    resolved_false_type: Cell<Option<Id<Type>>>,
+    resolved_inferred_true_type: Cell<Option<Id<Type>>>,
+    resolved_default_constraint: Cell<Option<Id<Type>>>,
     pub(crate) mapper: Option<Id<TypeMapper>>,
     pub(crate) combined_mapper: Option<Id<TypeMapper>>,
 }
@@ -493,20 +505,36 @@ impl ConditionalType {
         }
     }
 
-    pub(crate) fn maybe_resolved_true_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_true_type.borrow_mut()
+    pub(crate) fn maybe_resolved_true_type(&self) -> Option<Id<Type>> {
+        self.resolved_true_type.get()
     }
 
-    pub(crate) fn maybe_resolved_false_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_false_type.borrow_mut()
+    pub(crate) fn set_resolved_true_type(&self, resolved_true_type: Option<Id<Type>>) {
+        self.resolved_true_type.set(resolved_true_type)
     }
 
-    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_inferred_true_type.borrow_mut()
+    pub(crate) fn maybe_resolved_false_type(&self) -> Option<Id<Type>> {
+        self.resolved_false_type.get()
     }
 
-    pub(crate) fn maybe_resolved_default_constraint(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_default_constraint.borrow_mut()
+    pub(crate) fn set_resolved_false_type(&self, resolved_false_type: Option<Id<Type>>) {
+        self.resolved_false_type.set(resolved_false_type);
+    }
+
+    pub(crate) fn maybe_resolved_inferred_true_type(&self) -> Option<Id<Type>> {
+        self.resolved_inferred_true_type.get()
+    }
+
+    pub(crate) fn set_resolved_inferred_true_type(&self, resolved_inferred_true_type: Option<Id<Type>>) {
+        self.resolved_inferred_true_type.set(resolved_inferred_true_type);
+    }
+
+    pub(crate) fn maybe_resolved_default_constraint(&self) -> Option<Id<Type>> {
+        self.resolved_default_constraint.get()
+    }
+
+    pub(crate) fn set_resolved_default_constraint(&self, resolved_default_constraint: Option<Id<Type>>) {
+        self.resolved_default_constraint.set(resolved_default_constraint);
     }
 }
 
@@ -613,11 +641,11 @@ pub struct Signature {
     #[unsafe_ignore_trace]
     pub flags: SignatureFlags,
     pub declaration: Option<Id<Node /*SignatureDeclaration | JSDocSignature*/>>,
-    type_parameters: GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
+    type_parameters: RefCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
     parameters: Option<Vec<Id<Symbol>>>,
-    this_parameter: GcCell<Option<Id<Symbol>>>,
-    resolved_return_type: GcCell<Option<Id<Type>>>,
-    resolved_type_predicate: GcCell<Option<Id<TypePredicate>>>,
+    this_parameter: Cell<Option<Id<Symbol>>>,
+    resolved_return_type: Cell<Option<Id<Type>>>,
+    resolved_type_predicate: Cell<Option<Id<TypePredicate>>>,
     min_argument_count: Option<usize>,
     #[unsafe_ignore_trace]
     resolved_min_argument_count: Cell<Option<usize>>,
@@ -626,12 +654,12 @@ pub struct Signature {
     pub composite_signatures: Option<Vec<Id<Signature>>>,
     #[unsafe_ignore_trace]
     pub composite_kind: Option<TypeFlags>,
-    erased_signature_cache: GcCell<Option<Id<Signature>>>,
-    canonical_signature_cache: GcCell<Option<Id<Signature>>>,
-    base_signature_cache: GcCell<Option<Id<Signature>>>,
-    optional_call_signature_cache: GcCell<Option<SignatureOptionalCallSignatureCache>>,
-    isolated_signature_type: GcCell<Option<Id<Type /*ObjectType*/>>>,
-    instantiations: GcCell<Option<HashMap<String, Id<Signature>>>>,
+    erased_signature_cache: Cell<Option<Id<Signature>>>,
+    canonical_signature_cache: Cell<Option<Id<Signature>>>,
+    base_signature_cache: Cell<Option<Id<Signature>>>,
+    optional_call_signature_cache: RefCell<Option<SignatureOptionalCallSignatureCache>>,
+    isolated_signature_type: Cell<Option<Id<Type /*ObjectType*/>>>,
+    instantiations: RefCell<Option<HashMap<String, Id<Signature>>>>,
 }
 
 impl Signature {
@@ -659,11 +687,11 @@ impl Signature {
         }
     }
 
-    pub fn maybe_type_parameters(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
+    pub fn maybe_type_parameters(&self) -> Ref<Option<Vec<Id<Type>>>> {
         self.type_parameters.borrow()
     }
 
-    pub fn maybe_type_parameters_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
+    pub fn maybe_type_parameters_mut(&self) -> RefMut<Option<Vec<Id<Type>>>> {
         self.type_parameters.borrow_mut()
     }
 
@@ -675,28 +703,28 @@ impl Signature {
         self.parameters = Some(parameters);
     }
 
-    pub fn maybe_this_parameter(&self) -> GcCellRef<Option<Id<Symbol>>> {
-        self.this_parameter.borrow()
+    pub fn maybe_this_parameter(&self) -> Option<Id<Symbol>> {
+        self.this_parameter.get()
     }
 
-    pub fn maybe_this_parameter_mut(&self) -> GcCellRefMut<Option<Id<Symbol>>> {
-        self.this_parameter.borrow_mut()
+    pub fn set_this_parameter(&self, this_parameter: Option<Id<Symbol>>) {
+        self.this_parameter.set(this_parameter);
     }
 
     pub fn maybe_resolved_return_type(&self) -> Option<Id<Type>> {
-        self.resolved_return_type.borrow().clone()
+        self.resolved_return_type.get()
     }
 
-    pub fn maybe_resolved_return_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.resolved_return_type.borrow_mut()
+    pub fn set_resolved_return_type(&self, resolved_return_type: Option<Id<Type>>) {
+        self.resolved_return_type.set(resolved_return_type)
     }
 
     pub fn maybe_resolved_type_predicate(&self) -> Option<Id<TypePredicate>> {
-        self.resolved_type_predicate.borrow().clone()
+        self.resolved_type_predicate.get()
     }
 
-    pub fn maybe_resolved_type_predicate_mut(&self) -> GcCellRefMut<Option<Id<TypePredicate>>> {
-        self.resolved_type_predicate.borrow_mut()
+    pub fn set_resolved_type_predicate(&self, resolved_type_predicate: Option<Id<TypePredicate>>) {
+        self.resolved_type_predicate.set(resolved_type_predicate);
     }
 
     pub fn min_argument_count(&self) -> usize {
@@ -720,34 +748,63 @@ impl Signature {
             .set(Some(min_argument_count));
     }
 
-    pub fn maybe_erased_signature_cache(&self) -> GcCellRefMut<Option<Id<Signature>>> {
-        self.erased_signature_cache.borrow_mut()
+    pub fn maybe_erased_signature_cache(&self) -> Option<Id<Signature>> {
+        self.erased_signature_cache.get()
     }
 
-    pub fn maybe_canonical_signature_cache(&self) -> GcCellRefMut<Option<Id<Signature>>> {
-        self.canonical_signature_cache.borrow_mut()
+    pub fn set_erased_signature_cache(&self, erased_signature_cache: Option<Id<Signature>>) {
+        self.erased_signature_cache.set(erased_signature_cache);
     }
 
-    pub fn maybe_base_signature_cache(&self) -> GcCellRefMut<Option<Id<Signature>>> {
-        self.base_signature_cache.borrow_mut()
+    pub fn maybe_canonical_signature_cache(&self) -> Option<Id<Signature>> {
+        self.canonical_signature_cache.get()
+    }
+
+    pub fn set_canonical_signature_cache(&self, canonical_signature_cache: Option<Id<Signature>>) {
+        self.canonical_signature_cache.set(canonical_signature_cache)
+    }
+
+    pub fn maybe_base_signature_cache(&self) -> Option<Id<Signature>> {
+        self.base_signature_cache.get()
+    }
+
+    pub fn set_base_signature_cache(&self, base_signature_cache: Option<Id<Signature>>) {
+        self.base_signature_cache.set(base_signature_cache)
     }
 
     pub fn maybe_optional_call_signature_cache(
         &self,
-    ) -> GcCellRefMut<Option<SignatureOptionalCallSignatureCache>> {
+    ) -> Ref<Option<SignatureOptionalCallSignatureCache>> {
+        self.optional_call_signature_cache.borrow()
+    }
+
+    pub fn maybe_optional_call_signature_cache_mut(
+        &self,
+    ) -> RefMut<Option<SignatureOptionalCallSignatureCache>> {
         self.optional_call_signature_cache.borrow_mut()
     }
 
-    pub fn maybe_isolated_signature_type(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.isolated_signature_type.borrow_mut()
+    pub fn set_optional_call_signature_cache(
+        &self,
+        optional_call_signature_cache: Option<SignatureOptionalCallSignatureCache>,
+    ) {
+        *self.optional_call_signature_cache.borrow_mut() = optional_call_signature_cache;
     }
 
-    pub fn maybe_instantiations(&self) -> GcCellRefMut<Option<HashMap<String, Id<Signature>>>> {
+    pub fn maybe_isolated_signature_type(&self) -> Option<Id<Type>> {
+        self.isolated_signature_type.get()
+    }
+
+    pub fn set_isolated_signature_type(&self, isolated_signature_type: Option<Id<Type>>) {
+        self.isolated_signature_type.set(isolated_signature_type);
+    }
+
+    pub fn maybe_instantiations(&self) -> RefMut<Option<HashMap<String, Id<Signature>>>> {
         self.instantiations.borrow_mut()
     }
 }
 
-#[derive(Debug, Trace, Finalize)]
+#[derive(Copy, Clone, Debug, Trace, Finalize)]
 pub struct SignatureOptionalCallSignatureCache {
     pub inner: Option<Id<Signature>>,
     pub outer: Option<Id<Signature>>,
@@ -890,9 +947,9 @@ bitflags! {
 #[derive(Debug, Trace, Finalize)]
 pub struct InferenceInfo {
     pub type_parameter: Id<Type /*TypeParameter*/>,
-    candidates: GcCell<Option<Vec<Id<Type>>>>,
-    contra_candidates: GcCell<Option<Vec<Id<Type>>>>,
-    inferred_type: GcCell<Option<Id<Type>>>,
+    candidates: RefCell<Option<Vec<Id<Type>>>>,
+    contra_candidates: RefCell<Option<Vec<Id<Type>>>>,
+    inferred_type: Cell<Option<Id<Type>>>,
     #[unsafe_ignore_trace]
     priority: Cell<Option<InferencePriority>>,
     #[unsafe_ignore_trace]
@@ -916,9 +973,9 @@ impl InferenceInfo {
     ) -> Self {
         Self {
             type_parameter,
-            candidates: GcCell::new(candidates),
-            contra_candidates: GcCell::new(contra_candidates),
-            inferred_type: GcCell::new(inferred_type),
+            candidates: RefCell::new(candidates),
+            contra_candidates: RefCell::new(contra_candidates),
+            inferred_type: Cell::new(inferred_type),
             priority: Cell::new(priority),
             top_level: Cell::new(top_level),
             is_fixed: Cell::new(is_fixed),
@@ -926,28 +983,28 @@ impl InferenceInfo {
         }
     }
 
-    pub fn maybe_candidates(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
+    pub fn maybe_candidates(&self) -> Ref<Option<Vec<Id<Type>>>> {
         self.candidates.borrow()
     }
 
-    pub fn maybe_candidates_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
+    pub fn maybe_candidates_mut(&self) -> RefMut<Option<Vec<Id<Type>>>> {
         self.candidates.borrow_mut()
     }
 
-    pub fn maybe_contra_candidates(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
+    pub fn maybe_contra_candidates(&self) -> Ref<Option<Vec<Id<Type>>>> {
         self.contra_candidates.borrow()
     }
 
-    pub fn maybe_contra_candidates_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
+    pub fn maybe_contra_candidates_mut(&self) -> RefMut<Option<Vec<Id<Type>>>> {
         self.contra_candidates.borrow_mut()
     }
 
     pub fn maybe_inferred_type(&self) -> Option<Id<Type>> {
-        self.inferred_type.borrow().clone()
+        self.inferred_type.get()
     }
 
-    pub fn maybe_inferred_type_mut(&self) -> GcCellRefMut<Option<Id<Type>>> {
-        self.inferred_type.borrow_mut()
+    pub fn set_inferred_type(&self, inferred_type: Option<Id<Type>>) {
+        self.inferred_type.set(inferred_type);
     }
 
     pub fn maybe_priority(&self) -> Option<InferencePriority> {
@@ -1040,15 +1097,15 @@ pub trait TypeComparer: Trace + Finalize {
 
 #[derive(Trace, Finalize)]
 pub struct InferenceContext {
-    inferences: GcCell<Vec<Id<InferenceInfo>>>,
+    inferences: RefCell<Vec<Id<InferenceInfo>>>,
     pub signature: Option<Id<Signature>>,
     #[unsafe_ignore_trace]
     flags: Cell<InferenceFlags>,
     pub compare_types: Id<Box<dyn TypeComparer>>,
-    mapper: GcCell<Option<Id<TypeMapper>>>,
-    non_fixing_mapper: GcCell<Option<Id<TypeMapper>>>,
-    return_mapper: GcCell<Option<Id<TypeMapper>>>,
-    inferred_type_parameters: GcCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
+    mapper: Cell<Option<Id<TypeMapper>>>,
+    non_fixing_mapper: Cell<Option<Id<TypeMapper>>>,
+    return_mapper: Cell<Option<Id<TypeMapper>>>,
+    inferred_type_parameters: RefCell<Option<Vec<Id<Type /*TypeParameter*/>>>>,
 }
 
 impl InferenceContext {
@@ -1063,22 +1120,22 @@ impl InferenceContext {
         inferred_type_parameters: Option<Vec<Id<Type>>>,
     ) -> Self {
         Self {
-            inferences: GcCell::new(inferences),
+            inferences: RefCell::new(inferences),
             signature,
             flags: Cell::new(flags),
             compare_types,
-            mapper: GcCell::new(mapper),
-            non_fixing_mapper: GcCell::new(non_fixing_mapper),
-            return_mapper: GcCell::new(return_mapper),
-            inferred_type_parameters: GcCell::new(inferred_type_parameters),
+            mapper: Cell::new(mapper),
+            non_fixing_mapper: Cell::new(non_fixing_mapper),
+            return_mapper: Cell::new(return_mapper),
+            inferred_type_parameters: RefCell::new(inferred_type_parameters),
         }
     }
 
-    pub fn inferences(&self) -> GcCellRef<Vec<Id<InferenceInfo>>> {
+    pub fn inferences(&self) -> Ref<Vec<Id<InferenceInfo>>> {
         self.inferences.borrow()
     }
 
-    pub fn inferences_mut(&self) -> GcCellRefMut<Vec<Id<InferenceInfo>>> {
+    pub fn inferences_mut(&self) -> RefMut<Vec<Id<InferenceInfo>>> {
         self.inferences.borrow_mut()
     }
 
@@ -1091,34 +1148,34 @@ impl InferenceContext {
     }
 
     pub fn mapper(&self) -> Id<TypeMapper> {
-        self.mapper.borrow().clone().unwrap()
+        self.mapper.get().unwrap()
     }
 
     pub fn set_mapper(&self, mapper: Id<TypeMapper>) {
-        *self.mapper.borrow_mut() = Some(mapper);
+        self.mapper.set(Some(mapper));
     }
 
     pub fn non_fixing_mapper(&self) -> Id<TypeMapper> {
-        self.non_fixing_mapper.borrow().clone().unwrap()
+        self.non_fixing_mapper.get().unwrap()
     }
 
     pub fn set_non_fixing_mapper(&self, non_fixing_mapper: Id<TypeMapper>) {
-        *self.non_fixing_mapper.borrow_mut() = Some(non_fixing_mapper);
+        self.non_fixing_mapper.set(Some(non_fixing_mapper));
     }
 
     pub fn maybe_return_mapper(&self) -> Option<Id<TypeMapper>> {
-        self.return_mapper.borrow().clone()
+        self.return_mapper.get()
     }
 
     pub fn set_return_mapper(&self, return_mapper: Option<Id<TypeMapper>>) {
-        *self.return_mapper.borrow_mut() = return_mapper;
+        self.return_mapper.set(return_mapper);
     }
 
-    pub fn maybe_inferred_type_parameters(&self) -> GcCellRef<Option<Vec<Id<Type>>>> {
+    pub fn maybe_inferred_type_parameters(&self) -> Ref<Option<Vec<Id<Type>>>> {
         self.inferred_type_parameters.borrow()
     }
 
-    pub fn maybe_inferred_type_parameters_mut(&self) -> GcCellRefMut<Option<Vec<Id<Type>>>> {
+    pub fn maybe_inferred_type_parameters_mut(&self) -> RefMut<Option<Vec<Id<Type>>>> {
         self.inferred_type_parameters.borrow_mut()
     }
 }
@@ -1249,10 +1306,10 @@ impl Diagnostic {
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
     fn maybe_related_information(&self)
-        -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
+        -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
+    ) -> RefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
     fn maybe_skipped_on(&self) -> Ref<Option<String>>;
     fn maybe_skipped_on_mut(&self) -> RefMut<Option<String>>;
 }
@@ -1260,7 +1317,7 @@ pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
 #[derive(Clone, Debug, Eq, PartialEq, Trace, Finalize)]
 pub struct BaseDiagnostic {
     _diagnostic_related_information: BaseDiagnosticRelatedInformation,
-    related_information: GcCell<Option<Vec<Id<DiagnosticRelatedInformation>>>>,
+    related_information: RefCell<Option<Vec<Id<DiagnosticRelatedInformation>>>>,
     #[unsafe_ignore_trace]
     skipped_on: RefCell<Option<String /*keyof CompilerOptions*/>>,
 }
@@ -1272,7 +1329,7 @@ impl BaseDiagnostic {
     ) -> Self {
         Self {
             _diagnostic_related_information: diagnostic_related_information,
-            related_information: GcCell::new(related_information),
+            related_information: RefCell::new(related_information),
             skipped_on: Default::default(),
         }
     }
@@ -1331,13 +1388,13 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 impl DiagnosticInterface for BaseDiagnostic {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> RefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow_mut()
     }
 
@@ -1461,7 +1518,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 impl DiagnosticInterface for Diagnostic {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => {
                 diagnostic.maybe_related_information()
@@ -1475,7 +1532,7 @@ impl DiagnosticInterface for Diagnostic {
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> RefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => {
                 diagnostic.maybe_related_information_mut()
@@ -1863,13 +1920,13 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 impl DiagnosticInterface for DiagnosticWithLocation {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> RefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information_mut()
     }
 
@@ -1964,13 +2021,13 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
     fn maybe_related_information(
         &self,
-    ) -> GcCellRef<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 
     fn maybe_related_information_mut(
         &self,
-    ) -> GcCellRefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    ) -> RefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information_mut()
     }
 

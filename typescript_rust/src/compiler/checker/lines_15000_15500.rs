@@ -1190,26 +1190,24 @@ impl TypeChecker {
                     .ref_(self)
                     .as_indexed_access_type()
                     .maybe_simplified_for_writing()
-                    .clone()
             } else {
                 type_
                     .ref_(self)
                     .as_indexed_access_type()
                     .maybe_simplified_for_reading()
-                    .clone()
             }
         };
         let write_cache = |simplified_type: Id<Type>| {
             if writing {
-                *type_
+                type_
                     .ref_(self)
                     .as_indexed_access_type()
-                    .maybe_simplified_for_writing() = Some(simplified_type);
+                    .set_simplified_for_writing(Some(simplified_type));
             } else {
-                *type_
+                type_
                     .ref_(self)
                     .as_indexed_access_type()
-                    .maybe_simplified_for_reading() = Some(simplified_type);
+                    .set_simplified_for_reading(Some(simplified_type));
             }
         };
         if let Some(type_cache) = read_cache() {

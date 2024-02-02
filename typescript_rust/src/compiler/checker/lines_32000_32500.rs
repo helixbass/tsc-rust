@@ -168,7 +168,7 @@ impl TypeChecker {
                 {
                     let return_type = self.get_return_type_from_body(node, check_mode)?;
                     if signature.ref_(self).maybe_resolved_return_type().is_none() {
-                        *signature.ref_(self).maybe_resolved_return_type_mut() = Some(return_type);
+                        signature.ref_(self).set_resolved_return_type(Some(return_type));
                     }
                 }
                 self.check_signature_declaration(node)?;

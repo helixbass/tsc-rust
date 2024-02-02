@@ -276,15 +276,14 @@ impl TypeChecker {
                 .into(),
             );
             if need_to_set_constraint {
-                *type_
+                type_
                     .ref_(self)
                     .as_interface_type()
                     .maybe_this_type()
                     .unwrap()
                     .ref_(self)
                     .as_type_parameter()
-                    .constraint
-                    .borrow_mut() = Some(type_.clone());
+                    .set_constraint(Some(type_.clone()));
             }
             let mut instantiations: HashMap<String, Id<Type /*TypeReference*/>> = HashMap::new();
             instantiations.insert(

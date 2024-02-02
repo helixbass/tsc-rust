@@ -980,12 +980,13 @@ impl TypeChecker {
                 inferred_type = self.get_type_from_inference(&inference.ref_(self))?;
             }
 
-            *inference.ref_(self).maybe_inferred_type_mut() =
+            inference.ref_(self).set_inferred_type(
                 Some(inferred_type.clone().unwrap_or_else(|| {
                     self.get_default_type_argument_type(
                         context.ref_(self).flags().intersects(InferenceFlags::AnyDefault),
                     )
-                }));
+                }))
+            );
 
             let constraint = self.get_constraint_of_type_parameter(inference.ref_(self).type_parameter)?;
             if let Some(constraint) = constraint {
@@ -1009,7 +1010,7 @@ impl TypeChecker {
                     {
                         inferred_type = Some(instantiated_constraint.clone());
                     }
-                    *inference.ref_(self).maybe_inferred_type_mut() = Some(instantiated_constraint);
+                    inference.ref_(self).set_inferred_type(Some(instantiated_constraint));
                 }
             }
         }

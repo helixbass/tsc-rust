@@ -797,7 +797,7 @@ impl TypeChecker {
     pub(super) fn clear_cached_inferences(&self, inferences: &[Id<InferenceInfo>]) {
         for inference in inferences {
             if !inference.ref_(self).is_fixed() {
-                *inference.ref_(self).maybe_inferred_type_mut() = None;
+                inference.ref_(self).set_inferred_type(None);
             }
         }
     }

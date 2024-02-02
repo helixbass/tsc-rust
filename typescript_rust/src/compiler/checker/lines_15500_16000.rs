@@ -452,10 +452,10 @@ impl TypeChecker {
             .maybe_resolved_true_type()
             .is_none()
         {
-            *type_
+            type_
                 .ref_(self)
                 .as_conditional_type()
-                .maybe_resolved_true_type() = Some(
+                .set_resolved_true_type(Some(
                 self.instantiate_type(
                     self.get_type_from_type_node_(
                         {
@@ -472,13 +472,12 @@ impl TypeChecker {
                         mapper
                     },
                 )?,
-            );
+            ));
         }
         Ok(type_
             .ref_(self)
             .as_conditional_type()
             .maybe_resolved_true_type()
-            .clone()
             .unwrap())
     }
 
@@ -492,10 +491,10 @@ impl TypeChecker {
             .maybe_resolved_false_type()
             .is_none()
         {
-            *type_
+            type_
                 .ref_(self)
                 .as_conditional_type()
-                .maybe_resolved_false_type() = Some(
+                .set_resolved_false_type(Some(
                 self.instantiate_type(
                     self.get_type_from_type_node_(
                         {
@@ -512,13 +511,12 @@ impl TypeChecker {
                         mapper
                     },
                 )?,
-            );
+            ));
         }
         Ok(type_
             .ref_(self)
             .as_conditional_type()
             .maybe_resolved_false_type()
-            .clone()
             .unwrap())
     }
 
@@ -532,10 +530,10 @@ impl TypeChecker {
             .maybe_resolved_inferred_true_type()
             .is_none()
         {
-            *type_
+            type_
                 .ref_(self)
                 .as_conditional_type()
-                .maybe_resolved_inferred_true_type() = Some(
+                .set_resolved_inferred_true_type(Some(
                 if let Some(type_combined_mapper) = type_
                     .ref_(self)
                     .as_conditional_type()
@@ -556,13 +554,12 @@ impl TypeChecker {
                 } else {
                     self.get_true_type_from_conditional_type(type_)?
                 },
-            );
+            ));
         }
         Ok(type_
             .ref_(self)
             .as_conditional_type()
             .maybe_resolved_inferred_true_type()
-            .clone()
             .unwrap())
     }
 

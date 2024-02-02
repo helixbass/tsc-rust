@@ -603,10 +603,10 @@ impl TypeChecker {
         {
             let true_constraint = self.get_inferred_true_type_from_conditional_type(type_)?;
             let false_constraint = self.get_false_type_from_conditional_type(type_)?;
-            *type_
+            type_
                 .ref_(self)
                 .as_conditional_type()
-                .maybe_resolved_default_constraint() =
+                .set_resolved_default_constraint(
                 Some(if self.is_type_any(Some(true_constraint)) {
                     false_constraint
                 } else if self.is_type_any(Some(false_constraint)) {
@@ -619,13 +619,12 @@ impl TypeChecker {
                         None,
                         None,
                     )?
-                });
+                }));
         }
         Ok(type_
             .ref_(self)
             .as_conditional_type()
             .maybe_resolved_default_constraint()
-            .clone()
             .unwrap())
     }
 
@@ -1057,22 +1056,22 @@ impl TypeChecker {
             {
                 let target_default =
                     self.get_resolved_type_parameter_default(type_parameter_target)?;
-                *type_parameter
+                type_parameter
                     .ref_(self)
                     .as_type_parameter()
-                    .maybe_default() = Some(if let Some(target_default) = target_default {
+                    .set_default(Some(if let Some(target_default) = target_default {
                     self.instantiate_type(
                         target_default,
                         type_parameter.ref_(self).as_type_parameter().maybe_mapper(),
                     )?
                 } else {
                     self.no_constraint_type()
-                });
+                }));
             } else {
-                *type_parameter
+                type_parameter
                     .ref_(self)
                     .as_type_parameter()
-                    .maybe_default() = Some(self.resolving_default_type());
+                    .set_default(Some(self.resolving_default_type()));
                 let default_declaration =
                     type_parameter.ref_(self).maybe_symbol().and_then(|symbol| {
                         maybe_for_each(
@@ -1092,13 +1091,13 @@ impl TypeChecker {
                     self.no_constraint_type()
                 };
                 if matches!(
-                    *type_parameter.ref_(self).as_type_parameter().maybe_default(),
+                    type_parameter.ref_(self).as_type_parameter().maybe_default(),
                     Some(default) if default == self.resolving_default_type()
                 ) {
-                    *type_parameter
+                    type_parameter
                         .ref_(self)
                         .as_type_parameter()
-                        .maybe_default() = Some(default_type);
+                        .set_default(Some(default_type));
                 }
             }
         } else if type_parameter
@@ -1108,16 +1107,15 @@ impl TypeChecker {
             .unwrap()
             == self.resolving_default_type()
         {
-            *type_parameter
+            type_parameter
                 .ref_(self)
                 .as_type_parameter()
-                .maybe_default() = Some(self.circular_constraint_type());
+                .set_default(Some(self.circular_constraint_type()));
         }
         Ok(type_parameter
             .ref_(self)
             .as_type_parameter()
-            .maybe_default()
-            .clone())
+            .maybe_default())
     }
 
     pub(super) fn get_default_from_type_parameter_(

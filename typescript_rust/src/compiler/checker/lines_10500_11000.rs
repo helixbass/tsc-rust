@@ -707,9 +707,9 @@ impl TypeChecker {
         sig.declaration = declaration;
         *sig.maybe_type_parameters_mut() = type_parameters;
         sig.set_parameters(parameters);
-        *sig.maybe_this_parameter_mut() = this_parameter;
-        *sig.maybe_resolved_return_type_mut() = resolved_return_type;
-        *sig.maybe_resolved_type_predicate_mut() = resolved_type_predicate;
+        sig.set_this_parameter(this_parameter);
+        sig.set_resolved_return_type(resolved_return_type);
+        sig.set_resolved_type_predicate(resolved_type_predicate);
         sig.set_min_argument_count(min_argument_count);
         sig
     }
@@ -754,8 +754,9 @@ impl TypeChecker {
             return signature;
         }
         if signature.ref_(self).maybe_optional_call_signature_cache().is_none() {
-            *signature.ref_(self).maybe_optional_call_signature_cache() =
-                Some(SignatureOptionalCallSignatureCache::new());
+            signature.ref_(self).set_optional_call_signature_cache(
+                Some(SignatureOptionalCallSignatureCache::new())
+            );
         }
         let key = if call_chain_flags == SignatureFlags::IsInnerCallChain {
             "inner"
@@ -765,17 +766,13 @@ impl TypeChecker {
         let existing = if key == "inner" {
             signature
                 .ref_(self).maybe_optional_call_signature_cache()
-                .as_ref()
                 .unwrap()
                 .inner
-                .clone()
         } else {
             signature
                 .ref_(self).maybe_optional_call_signature_cache()
-                .as_ref()
                 .unwrap()
                 .outer
-                .clone()
         };
         if let Some(existing) = existing {
             return existing;
@@ -783,13 +780,13 @@ impl TypeChecker {
         let ret = self.alloc_signature(self.create_optional_call_signature(signature, call_chain_flags));
         if key == "inner" {
             signature
-                .ref_(self).maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache_mut()
                 .as_mut()
                 .unwrap()
                 .inner = Some(ret.clone());
         } else {
             signature
-                .ref_(self).maybe_optional_call_signature_cache()
+                .ref_(self).maybe_optional_call_signature_cache_mut()
                 .as_mut()
                 .unwrap()
                 .outer = Some(ret.clone());
@@ -964,7 +961,7 @@ impl TypeChecker {
                     .as_interface_type()
                     .maybe_local_type_parameters()
                     .map(ToOwned::to_owned);
-                *sig.maybe_resolved_return_type_mut() = Some(class_type);
+                sig.set_resolved_return_type(Some(class_type));
                 sig.flags = if is_abstract {
                     sig.flags | SignatureFlags::Abstract
                 } else {
@@ -1103,7 +1100,7 @@ impl TypeChecker {
                             }
                             let s_not_wrapped =
                                 self.create_union_signature(signature, union_signatures);
-                            *s_not_wrapped.maybe_this_parameter_mut() = this_parameter;
+                            s_not_wrapped.set_this_parameter(this_parameter);
                             s = self.alloc_signature(s_not_wrapped);
                         }
                         if result.is_none() {

@@ -379,12 +379,12 @@ impl TypeChecker {
                 if !signatures.is_empty() && mixin_count > 0 {
                     signatures = try_map(&signatures, |&s: &Id<Signature>, _| -> io::Result<_> {
                         let clone = self.clone_signature(s);
-                        *clone.maybe_resolved_return_type_mut() = Some(self.include_mixin_type(
+                        clone.set_resolved_return_type(Some(self.include_mixin_type(
                             self.get_return_type_of_signature(s.clone())?,
                             types,
                             mixin_flags.as_ref(),
                             i,
-                        )?);
+                        )?));
                         Ok(self.alloc_signature(clone))
                     })?;
                 }

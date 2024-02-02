@@ -461,7 +461,7 @@ impl TypeChecker {
             if let Some(signature_target) = signature.ref_(self).target {
                 let target_type_predicate =
                     self.get_type_predicate_of_signature(signature_target)?;
-                *signature.ref_(self).maybe_resolved_type_predicate_mut() =
+                signature.ref_(self).set_resolved_type_predicate(
                     Some(if let Some(target_type_predicate) = target_type_predicate {
                         self.alloc_type_predicate(self.instantiate_type_predicate(
                             target_type_predicate,
@@ -469,17 +469,18 @@ impl TypeChecker {
                         )?)
                     } else {
                         self.no_type_predicate()
-                    });
+                    })
+                );
             } else if let Some(signature_composite_signatures) =
                 signature.ref_(self).composite_signatures.as_ref()
             {
-                *signature.ref_(self).maybe_resolved_type_predicate_mut() = Some(
+                signature.ref_(self).set_resolved_type_predicate(Some(
                     self.get_union_or_intersection_type_predicate(
                         signature_composite_signatures,
                         signature.ref_(self).composite_kind,
                     )?
                     .map_or_else(|| self.no_type_predicate(), |type_predicate| self.alloc_type_predicate(type_predicate)),
-                );
+                ));
             } else {
                 let type_ = signature
                     .ref_(self).declaration
@@ -494,7 +495,7 @@ impl TypeChecker {
                         jsdoc_predicate = self.get_type_predicate_of_signature(jsdoc_signature)?;
                     }
                 }
-                *signature.ref_(self).maybe_resolved_type_predicate_mut() = Some(
+                signature.ref_(self).set_resolved_type_predicate(Some(
                     if let Some(type_) = type_.filter(|type_| is_type_predicate_node(&type_.ref_(self))) {
                         self.alloc_type_predicate(
                             self.create_type_predicate_from_type_predicate_node(type_, signature)?,
@@ -502,7 +503,7 @@ impl TypeChecker {
                     } else {
                         jsdoc_predicate.unwrap_or_else(|| self.no_type_predicate())
                     },
-                );
+                ));
             }
             Debug_.assert(signature.ref_(self).maybe_resolved_type_predicate().is_some(), None);
         }
@@ -669,7 +670,7 @@ impl TypeChecker {
                 }
                 type_ = self.any_type();
             }
-            *signature.ref_(self).maybe_resolved_return_type_mut() = Some(type_);
+            signature.ref_(self).set_resolved_return_type(Some(type_));
         }
         Ok(signature.ref_(self).maybe_resolved_return_type().clone().unwrap())
     }
@@ -785,8 +786,9 @@ impl TypeChecker {
                 *new_return_signature.maybe_type_parameters_mut() =
                     Some(inferred_type_parameters.to_owned());
                 let new_instantiated_signature = self.clone_signature(instantiated_signature);
-                *new_instantiated_signature.maybe_resolved_return_type_mut() =
-                    Some(self.get_or_create_type_from_signature(self.alloc_signature(new_return_signature)));
+                new_instantiated_signature.set_resolved_return_type(
+                    Some(self.get_or_create_type_from_signature(self.alloc_signature(new_return_signature)))
+                );
                 return Ok(self.alloc_signature(new_instantiated_signature));
             }
         }
@@ -844,10 +846,11 @@ impl TypeChecker {
     ) -> io::Result<Id<Signature>> {
         Ok(if signature.ref_(self).maybe_type_parameters().is_some() {
             if signature.ref_(self).maybe_erased_signature_cache().is_none() {
-                *signature.ref_(self).maybe_erased_signature_cache() =
-                    Some(self.alloc_signature(self.create_erased_signature(signature.clone())?));
+                signature.ref_(self).set_erased_signature_cache(
+                    Some(self.alloc_signature(self.create_erased_signature(signature.clone())?))
+                );
             }
-            signature.ref_(self).maybe_erased_signature_cache().clone().unwrap()
+            signature.ref_(self).maybe_erased_signature_cache().unwrap()
         } else {
             signature
         })
@@ -870,10 +873,11 @@ impl TypeChecker {
     ) -> io::Result<Id<Signature>> {
         Ok(if signature.ref_(self).maybe_type_parameters().is_some() {
             if signature.ref_(self).maybe_canonical_signature_cache().is_none() {
-                *signature.ref_(self).maybe_canonical_signature_cache() =
-                    Some(self.create_canonical_signature(signature.clone())?);
+                signature.ref_(self).set_canonical_signature_cache(
+                    Some(self.create_canonical_signature(signature.clone())?)
+                );
             }
-            signature.ref_(self).maybe_canonical_signature_cache().clone().unwrap()
+            signature.ref_(self).maybe_canonical_signature_cache().unwrap()
         } else {
             signature
         })
@@ -909,7 +913,7 @@ impl TypeChecker {
         let type_parameters = signature.ref_(self).maybe_type_parameters().clone();
         if let Some(ref type_parameters) = type_parameters {
             if let Some(signature_base_signature_cache) =
-                signature.ref_(self).maybe_base_signature_cache().clone()
+                signature.ref_(self).maybe_base_signature_cache()
             {
                 return Ok(signature_base_signature_cache);
             }
@@ -947,7 +951,7 @@ impl TypeChecker {
                 self.create_type_mapper(type_parameters.clone(), Some(base_constraints)),
                 Some(true),
             )?);
-            *signature.ref_(self).maybe_base_signature_cache() = Some(ret.clone());
+            signature.ref_(self).set_base_signature_cache(Some(ret.clone()));
             return Ok(ret);
         }
         Ok(signature)
@@ -986,9 +990,9 @@ impl TypeChecker {
                 },
                 vec![],
             );
-            *signature.ref_(self).maybe_isolated_signature_type() = Some(type_);
+            signature.ref_(self).set_isolated_signature_type(Some(type_));
         }
-        signature.ref_(self).maybe_isolated_signature_type().clone().unwrap()
+        signature.ref_(self).maybe_isolated_signature_type().unwrap()
     }
 
     pub(super) fn get_index_symbol(&self, symbol: Id<Symbol>) -> Option<Id<Symbol>> {
