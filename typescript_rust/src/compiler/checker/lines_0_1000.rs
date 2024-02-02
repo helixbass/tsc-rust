@@ -3580,7 +3580,7 @@ impl TypeChecker {
         self.shared_flow_types.borrow()
     }
 
-    pub(super) fn shared_flow_types(&self) -> RefMut<HashMap<usize, FlowType>> {
+    pub(super) fn shared_flow_types_mut(&self) -> RefMut<HashMap<usize, FlowType>> {
         self.shared_flow_types.borrow_mut()
     }
 

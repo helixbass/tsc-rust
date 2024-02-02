@@ -224,7 +224,7 @@ impl Program {
         })
     }
 
-    pub fn get_source_files(&self) -> GcCellRef<Vec<Id<Node>>> {
+    pub fn get_source_files(&self) -> Ref<Vec<Id<Node>>> {
         self.files()
     }
 
@@ -236,7 +236,7 @@ impl Program {
         ref_unwrapped(&self.missing_file_paths)
     }
 
-    pub fn get_files_by_name_map(&self) -> GcCellRef<HashMap<String, FilesByNameValue>> {
+    pub fn get_files_by_name_map(&self) -> Ref<HashMap<String, FilesByNameValue>> {
         self.files_by_name()
     }
 

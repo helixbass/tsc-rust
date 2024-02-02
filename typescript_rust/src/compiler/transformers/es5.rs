@@ -3,7 +3,7 @@ use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut}}
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, gc_cell_ref_mut_unwrapped, get_original_node_id, id_text, is_identifier,
+    chain_bundle, get_original_node_id, id_text, is_identifier,
     is_private_identifier, is_property_access_expression, is_property_assignment,
     node_is_synthesized, string_to_token, BaseNodeFactorySynthetic, BoolExt, CompilerOptions,
     EmitHint, JsxEmit, Matches, NamedDeclarationInterface, Node, NodeExt, NodeFactory, NodeId,

@@ -13,7 +13,7 @@ use crate::{
     add_related_info_rc, can_produce_diagnostics, contains_comparer,
     create_diagnostic_for_node, create_empty_exports,
     create_get_symbol_accessibility_diagnostic_for_node, create_unparsed_source_file,
-    declaration_name_to_string, filter, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped,
+    declaration_name_to_string, filter,
     get_directory_path, get_factory, get_leading_comment_ranges,
     get_leading_comment_ranges_of_node, get_name_of_declaration, get_original_node_id,
     get_output_paths_for, get_parse_tree_node, get_relative_path_to_directory_or_url,

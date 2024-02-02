@@ -9,7 +9,7 @@ use id_arena::Id;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
-    gc_cell_ref_unwrapped, get_emit_flags, get_emit_module_kind, get_emit_script_target,
+    get_emit_flags, get_emit_module_kind, get_emit_script_target,
     get_factory, get_jsx_transform_enabled, get_parse_tree_node, get_synthetic_factory, is_bundle,
     is_source_file, maybe_get_source_file_of_node, maybe_map, not_implemented, set_emit_flags,
     some, transform_class_fields, transform_declarations, transform_ecmascript_module,

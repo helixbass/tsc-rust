@@ -15,7 +15,7 @@ use crate::{
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, __String,
     add_emit_helper, add_emit_helpers, add_range, advanced_async_super_helper, async_super_helper,
     chain_bundle, create_for_of_binding_statement, flatten_destructuring_assignment,
-    flatten_destructuring_binding, gc_cell_ref_unwrapped, get_emit_script_target, get_node_id,
+    flatten_destructuring_binding, get_emit_script_target, get_node_id,
     has_syntactic_modifier, insert_statements_after_standard_prologue, is_binding_pattern,
     is_block, is_destructuring_assignment, is_effective_strict_mode_source_file, is_identifier,
     is_modifier, is_object_literal_element_like, is_property_access_expression, is_property_name,

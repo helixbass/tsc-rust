@@ -12,7 +12,7 @@ use crate::{
     TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VecExt, VisitResult,
-    _d, gc_cell_ref_mut_unwrapped, gc_cell_ref_unwrapped, get_emit_flags, get_original_node,
+    _d, get_emit_flags, get_original_node,
     is_arrow_function, is_get_accessor, is_identifier, is_modifier, is_set_accessor,
     is_simple_inlineable_expression, is_static_modifier, is_super_property, maybe_filter,
     maybe_visit_nodes, move_range_pos, set_comment_range, visit_function_body,

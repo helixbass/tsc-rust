@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper,
-    __String, gc_cell_ref_mut_unwrapped, HasArena,
+    __String, HasArena,
     InArena,
     ref_unwrapped, ref_mut_unwrapped,
 };

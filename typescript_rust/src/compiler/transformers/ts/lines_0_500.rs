@@ -5,8 +5,8 @@ use id_arena::Id;
 
 use crate::{
     add_emit_helpers, add_synthetic_trailing_comment,
-    create_unparsed_source_file, declaration_name_to_string, gc_cell_ref_mut_unwrapped,
-    gc_cell_ref_unwrapped, get_emit_module_kind, get_emit_script_target, get_original_node,
+    create_unparsed_source_file, declaration_name_to_string,
+    get_emit_module_kind, get_emit_script_target, get_original_node,
     get_parse_tree_node, get_strict_option_value, get_text_of_node, has_syntactic_modifier,
     is_access_expression, is_class_declaration, is_element_access_expression,
     is_generated_identifier, is_local_name, is_property_access_expression,

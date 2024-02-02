@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     cast, continue_if_none, create_empty_exports, create_symbol_table, every, filter,
-    find_ancestor, find_index, flat_map, for_each_entry, gc_cell_ref_unwrapped,
+    find_ancestor, find_index, flat_map, for_each_entry,
     get_effective_modifier_flags, get_factory, get_name_of_declaration, get_symbol_id, group,
     has_scope_marker, has_syntactic_modifier, id_text, indices_of, is_binary_expression,
     is_class_declaration, is_class_expression, is_enum_declaration, is_export_assignment,

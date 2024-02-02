@@ -10,7 +10,7 @@ use id_arena::Id;
 use super::{Parser, ParsingContext};
 use crate::{
 HasArena, InArena,    attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
-    ensure_script_kind, for_each_child, gc_cell_ref_unwrapped, get_language_variant, is_logging,
+    ensure_script_kind, for_each_child, get_language_variant, is_logging,
     normalize_path, object_allocator, ref_unwrapped, BaseNode, Debug_, Diagnostic, Diagnostics,
     HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
     JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,

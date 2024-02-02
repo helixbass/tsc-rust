@@ -6,7 +6,7 @@ use id_arena::Id;
 use indexmap::IndexMap;
 
 use crate::{
-    chain_bundle, gc_cell_ref_unwrapped, get_emit_flags, get_enclosing_block_scope_container,
+    chain_bundle, get_emit_flags, get_enclosing_block_scope_container,
     get_name_of_declaration, get_original_node, get_parse_tree_node, has_static_modifier, is_block,
     is_case_block, is_case_clause, is_catch_clause, is_class_element, is_class_like,
     is_default_clause, is_function_like, is_identifier, is_if_statement, is_internal_name,
