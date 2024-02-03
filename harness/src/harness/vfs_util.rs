@@ -176,7 +176,7 @@ pub mod vfs {
                 Some(cwd) => cwd.is_empty() || !vpath::is_root(cwd),
             } {
                 if let Some(lazy_links) = ret._lazy.links.borrow().as_ref() {
-                    for name in lazy_links.borrow().keys() {
+                    for name in lazy_links.ref_(arena).keys() {
                         cwd = Some(if let Some(cwd_present) = cwd {
                             vpath::resolve(name, &[Some(&cwd_present)])
                         } else {
@@ -469,7 +469,7 @@ pub mod vfs {
             node.as_directory_inode().set_resolver(Some(resolver));
             self._add_link(
                 parent.refed(self).as_deref(),
-                &mut links.borrow_mut(),
+                &mut links.ref_mut(self),
                 &basename,
                 self.alloc_inode(node),
                 Some(time),
@@ -581,7 +581,7 @@ pub mod vfs {
             }
             Ok(self
                 ._get_links(&node.ref_(self))
-                .borrow()
+                .ref_(self)
                 .keys()
                 .map(ToOwned::to_owned)
                 .collect())
@@ -613,7 +613,7 @@ pub mod vfs {
             );
             self._add_link(
                 parent.refed(self).as_deref(),
-                &mut links.borrow_mut(),
+                &mut links.ref_mut(self),
                 &basename,
                 self.alloc_inode(node),
                 Some(time),
@@ -663,7 +663,7 @@ pub mod vfs {
             ));
             self._add_link(
                 Some(&parent.ref_(self)),
-                &mut links.borrow_mut(),
+                &mut links.ref_mut(self),
                 &basename,
                 self.alloc_inode(node),
                 Some(time),
@@ -755,7 +755,7 @@ pub mod vfs {
                 ));
                 self._add_link(
                     Some(&parent.ref_(self)),
-                    &mut links.borrow_mut(),
+                    &mut links.ref_mut(self),
                     &basename,
                     node.clone(),
                     Some(time),
@@ -832,7 +832,7 @@ pub mod vfs {
             }
         }
 
-        fn _get_root_links(&self) -> Gc<GcCell<collections::SortedMap<String, Id<Inode>>>> {
+        fn _get_root_links(&self) -> Id<collections::SortedMap<String, Id<Inode>>> {
             self._lazy
                 .links
                 .borrow_mut()
@@ -850,11 +850,15 @@ pub mod vfs {
                     );
                     if let Some(_shadow_root) = self._shadow_root.as_ref() {
                         self._copy_shadow_links(
-                            _shadow_root.ref_(self)._get_root_links().borrow().entries(),
+                            _shadow_root
+                                .ref_(self)
+                                ._get_root_links()
+                                .ref_(self)
+                                .entries(),
                             &mut _lazy_links,
                         );
                     }
-                    Gc::new(GcCell::new(_lazy_links))
+                    self.alloc_links(_lazy_links)
                 })
                 .clone()
         }
@@ -862,7 +866,7 @@ pub mod vfs {
         fn _get_links(
             &self,
             node: &Inode, /*DirectoryInode*/
-        ) -> Gc<GcCell<collections::SortedMap<String, Id<Inode>>>> {
+        ) -> Id<collections::SortedMap<String, Id<Inode>>> {
             let node_as_directory_inode = node.as_directory_inode();
             if node_as_directory_inode.maybe_links().is_none() {
                 let mut links = collections::SortedMap::new(
@@ -926,12 +930,12 @@ pub mod vfs {
                         _shadow_root
                             .ref_(self)
                             ._get_links(&node_shadow_root.ref_(self))
-                            .borrow()
+                            .ref_(self)
                             .entries(),
                         &mut links,
                     );
                 }
-                node_as_directory_inode.set_links(Some(Gc::new(GcCell::new(links))));
+                node_as_directory_inode.set_links(Some(self.alloc_links(links)));
             }
             node_as_directory_inode.maybe_links().unwrap()
         }
@@ -1056,7 +1060,7 @@ pub mod vfs {
                 let last_step = step == components.len() - 1;
                 let mut basename = components[step].clone();
                 let node = {
-                    let links = links.borrow();
+                    let links = links.ref_(self);
                     let link_entry = links.get_entry(&basename);
                     if let Some(link_entry) = link_entry {
                         components[step] = link_entry.0.clone();
@@ -1139,7 +1143,7 @@ pub mod vfs {
                 &mut impl FnMut(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>,
             >,
             parent: Option<Id<Inode /*DirectoryInode*/>>,
-            links: Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>,
+            links: Id<collections::SortedMap<String, Id<Inode>>>,
             error: NodeJSErrnoException,
             node: Option<Id<Inode>>,
         ) -> io::Result<bool> {
@@ -1390,7 +1394,7 @@ pub mod vfs {
 
     #[derive(Default, Trace, Finalize)]
     struct FileSystemLazy {
-        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>>>,
+        links: GcCell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
         shadows: GcCell<Option<HashMap<u32, Id<Inode>>>>,
         meta: Gc<GcCell<Option<Id<collections::Metadata<String>>>>>,
     }
@@ -2259,7 +2263,7 @@ pub mod vfs {
         pub birthtime_ms: u128,
         #[unsafe_ignore_trace]
         nlink: Cell<usize>,
-        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>>>,
+        links: GcCell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
         #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
         resolver: GcCell<Option<Id<FileSystemResolver>>>,
@@ -2320,14 +2324,11 @@ pub mod vfs {
             self.nlink.set(self.nlink.get() + 1);
         }
 
-        pub fn maybe_links(&self) -> Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>> {
+        pub fn maybe_links(&self) -> Option<Id<collections::SortedMap<String, Id<Inode>>>> {
             self.links.borrow().clone()
         }
 
-        pub fn set_links(
-            &self,
-            links: Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>>,
-        ) {
+        pub fn set_links(&self, links: Option<Id<collections::SortedMap<String, Id<Inode>>>>) {
             *self.links.borrow_mut() = links;
         }
 
@@ -2455,7 +2456,7 @@ pub mod vfs {
         pub realpath: String,
         pub basename: String,
         pub parent: Option<Id<Inode>>,
-        pub links: Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>,
+        pub links: Id<collections::SortedMap<String, Id<Inode>>>,
         pub node: Option<Id<Inode>>,
     }
 

@@ -5,7 +5,7 @@ use typescript_rust::{
 };
 
 use crate::{
-    collections::{Metadata, SortOptionsComparer},
+    collections::{Metadata, SortOptionsComparer, SortedMap},
     compiler::CompilationOutput,
     documents::TextDocument,
     fakes::{ParseConfigHost, System},
@@ -35,6 +35,7 @@ pub struct AllArenasHarness {
     string_comparers: RefCell<Arena<Box<dyn StringComparer>>>,
     file_system_resolvers: RefCell<Arena<FileSystemResolver>>,
     inodes: RefCell<Arena<Inode>>,
+    links: RefCell<Arena<SortedMap<String, Id<Inode>>>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -255,6 +256,21 @@ pub trait HasArenaHarness: HasArena {
 
     fn alloc_inode(&self, inode: Inode) -> Id<Inode> {
         self.arena_harness().alloc_inode(inode)
+    }
+
+    fn links(&self, links: Id<SortedMap<String, Id<Inode>>>) -> Ref<SortedMap<String, Id<Inode>>> {
+        self.arena_harness().links(links)
+    }
+
+    fn links_mut(
+        &self,
+        links: Id<SortedMap<String, Id<Inode>>>,
+    ) -> RefMut<SortedMap<String, Id<Inode>>> {
+        self.arena_harness().links_mut(links)
+    }
+
+    fn alloc_links(&self, links: SortedMap<String, Id<Inode>>) -> Id<SortedMap<String, Id<Inode>>> {
+        self.arena_harness().alloc_links(links)
     }
 }
 
@@ -549,6 +565,22 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.inodes.borrow_mut().alloc(inode);
         id
     }
+
+    fn links(&self, links: Id<SortedMap<String, Id<Inode>>>) -> Ref<SortedMap<String, Id<Inode>>> {
+        Ref::map(self.links.borrow(), |links_| &links_[links])
+    }
+
+    fn links_mut(
+        &self,
+        links: Id<SortedMap<String, Id<Inode>>>,
+    ) -> RefMut<SortedMap<String, Id<Inode>>> {
+        RefMut::map(self.links.borrow_mut(), |links_| &mut links_[links])
+    }
+
+    fn alloc_links(&self, links: SortedMap<String, Id<Inode>>) -> Id<SortedMap<String, Id<Inode>>> {
+        let id = self.links.borrow_mut().alloc(links);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -707,6 +739,24 @@ impl InArenaHarness for Id<Inode> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Inode> {
         has_arena.inode(*self)
+    }
+}
+
+impl InArenaHarness for Id<SortedMap<String, Id<Inode>>> {
+    type Item = SortedMap<String, Id<Inode>>;
+
+    fn ref_<'a>(
+        &self,
+        has_arena: &'a impl HasArenaHarness,
+    ) -> Ref<'a, SortedMap<String, Id<Inode>>> {
+        has_arena.links(*self)
+    }
+
+    fn ref_mut<'a>(
+        &self,
+        has_arena: &'a impl HasArenaHarness,
+    ) -> RefMut<'a, SortedMap<String, Id<Inode>>> {
+        has_arena.links_mut(*self)
     }
 }
 
