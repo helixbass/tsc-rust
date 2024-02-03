@@ -10,7 +10,7 @@ use crate::{
     documents::TextDocument,
     harness::harness_io::NodeIO,
     vfs::{FileSystem, FileSystemResolverHost},
-    MetaValue,
+    MetaValue, RunnerBaseSub,
 };
 
 pub struct AllArenasHarness {
@@ -23,6 +23,7 @@ pub struct AllArenasHarness {
     sort_options_comparer_strings: RefCell<Arena<Box<dyn SortOptionsComparer<String>>>>,
     metadata_strings: RefCell<Arena<Metadata<String>>>,
     metadata_metavalues: RefCell<Arena<Metadata<MetaValue>>>,
+    runner_base_subs: RefCell<Arena<Box<dyn RunnerBaseSub>>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -135,6 +136,20 @@ pub trait HasArenaHarness: HasArena {
     ) -> Id<Metadata<MetaValue>> {
         self.arena_harness()
             .alloc_metadata_metavalue(metadata_metavalue)
+    }
+
+    fn runner_base_sub(
+        &self,
+        runner_base_sub: Id<Box<dyn RunnerBaseSub>>,
+    ) -> Ref<Box<dyn RunnerBaseSub>> {
+        self.arena_harness().runner_base_sub(runner_base_sub)
+    }
+
+    fn alloc_runner_base_sub(
+        &self,
+        runner_base_sub: Box<dyn RunnerBaseSub>,
+    ) -> Id<Box<dyn RunnerBaseSub>> {
+        self.arena_harness().alloc_runner_base_sub(runner_base_sub)
     }
 }
 
@@ -293,6 +308,23 @@ impl HasArenaHarness for AllArenasHarness {
             .alloc(metadata_metavalue);
         id
     }
+
+    fn runner_base_sub(
+        &self,
+        runner_base_sub: Id<Box<dyn RunnerBaseSub>>,
+    ) -> Ref<Box<dyn RunnerBaseSub>> {
+        Ref::map(self.runner_base_subs.borrow(), |runner_base_subs| {
+            &runner_base_subs[runner_base_sub]
+        })
+    }
+
+    fn alloc_runner_base_sub(
+        &self,
+        runner_base_sub: Box<dyn RunnerBaseSub>,
+    ) -> Id<Box<dyn RunnerBaseSub>> {
+        let id = self.runner_base_subs.borrow_mut().alloc(runner_base_sub);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -379,6 +411,14 @@ impl InArenaHarness for Id<Metadata<MetaValue>> {
 
     fn ref_mut<'a>(&self, has_arena: &'a impl HasArenaHarness) -> RefMut<'a, Metadata<MetaValue>> {
         has_arena.metadata_metavalue_mut(*self)
+    }
+}
+
+impl InArenaHarness for Id<Box<dyn RunnerBaseSub>> {
+    type Item = Box<dyn RunnerBaseSub>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Box<dyn RunnerBaseSub>> {
+        has_arena.runner_base_sub(*self)
     }
 }
 

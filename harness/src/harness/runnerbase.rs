@@ -1,11 +1,11 @@
 use std::cell::Cell;
 
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Trace};
 use regex::Regex;
-use typescript_rust::{map, normalize_slashes, AllArenas, HasArena};
+use typescript_rust::{id_arena::Id, map, normalize_slashes, AllArenas, HasArena};
 
 use crate::{
-    get_io, user_specified_root, AllArenasHarness, FileBasedTest, HasArenaHarness,
+    get_io, user_specified_root, AllArenasHarness, FileBasedTest, HasArenaHarness, InArenaHarness,
     ListFilesOptions, IO,
 };
 
@@ -56,12 +56,12 @@ fn get_shard_id() -> usize {
 
 #[derive(Trace, Finalize)]
 pub struct RunnerBase {
-    sub: Gc<Box<dyn RunnerBaseSub>>,
+    sub: Id<Box<dyn RunnerBaseSub>>,
     pub tests: Vec<StringOrFileBasedTest>,
 }
 
 impl RunnerBase {
-    pub fn new(sub: Gc<Box<dyn RunnerBaseSub>>) -> Self {
+    pub fn new(sub: Id<Box<dyn RunnerBaseSub>>) -> Self {
         Self { sub, tests: vec![] }
     }
 
@@ -92,11 +92,11 @@ impl RunnerBase {
     }
 
     pub fn kind(&self) -> TestRunnerKind {
-        self.sub.kind(self)
+        self.sub.ref_(self).kind(self)
     }
 
     pub fn enumerate_test_files(&self) -> Vec<StringOrFileBasedTest> {
-        self.sub.enumerate_test_files(self)
+        self.sub.ref_(self).enumerate_test_files(self)
     }
 
     pub fn get_test_files(&self) -> Vec<StringOrFileBasedTest> {
@@ -114,7 +114,7 @@ impl RunnerBase {
     }
 
     pub fn initialize_tests(&self) {
-        self.sub.initialize_tests(self)
+        self.sub.ref_(self).initialize_tests(self)
     }
 }
 
