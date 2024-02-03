@@ -16,6 +16,7 @@ use typescript_rust::{
     normalize_slashes, option_declarations, ordered_remove_item_at, path_join, starts_with,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Extension, FileSystemEntries, StatLike,
+    HasArena, AllArenas,
 };
 
 use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
@@ -131,15 +132,15 @@ impl IO for NodeIO {
     }
 
     fn get_current_directory(&self) -> io::Result<String> {
-        get_sys().get_current_directory()
+        get_sys(self).get_current_directory()
     }
 
     fn read_file(&self, path: &StdPath) -> Option<String> {
-        get_sys().read_file(path.to_str().unwrap()).unwrap()
+        get_sys(self).read_file(path.to_str().unwrap()).unwrap()
     }
 
     fn write_file(&self, path: &StdPath, content: &str) {
-        get_sys()
+        get_sys(self)
             .write_file(path.to_str().unwrap(), content, None)
             .unwrap()
     }
@@ -183,7 +184,7 @@ impl vfs::FileSystemResolverHost for NodeIO {
             .into_iter()
             .map(|os_string| os_string.into_string().unwrap())
             .collect::<Vec<_>>();
-        let use_case_sensitive_file_names = get_sys().use_case_sensitive_file_names();
+        let use_case_sensitive_file_names = get_sys(self).use_case_sensitive_file_names();
         entries.sort_by(|a: &String, b: &String| {
             comparison_to_ordering(if use_case_sensitive_file_names {
                 compare_strings_case_sensitive(a, b)
@@ -220,23 +221,29 @@ impl vfs::FileSystemResolverHost for NodeIO {
     }
 
     fn get_file_size(&self, path: &str) -> usize {
-        get_sys().get_file_size(path).unwrap()
+        get_sys(self).get_file_size(path).unwrap()
     }
 
     fn read_file(&self, path: &str) -> Option<String> {
-        get_sys().read_file(path).ok().flatten()
+        get_sys(self).read_file(path).ok().flatten()
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        get_sys().file_exists(path)
+        get_sys(self).file_exists(path)
     }
 
     fn directory_exists(&self, path: &str) -> bool {
-        get_sys().directory_exists(path)
+        get_sys(self).directory_exists(path)
     }
 
     fn get_workspace_root(&self) -> String {
         "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/".to_owned()
+    }
+}
+
+impl HasArena for NodeIO {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
     }
 }
 
@@ -279,7 +286,7 @@ pub mod Compiler {
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
         DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
         GetOrInsertDefault, NewLineKind, ScriptKind, ScriptReferenceHost,
-        StringOrDiagnosticMessage, TextSpan,
+        StringOrDiagnosticMessage, TextSpan, HasArena,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
@@ -495,6 +502,7 @@ pub mod Compiler {
     fn set_compiler_options_from_harness_setting(
         settings: &HashMap<String, String>,
         options: &mut CompilerOptionsAndHarnessOptions,
+        arena: &impl HasArena,
     ) {
         for (name, value) in settings {
             let option = get_command_line_option(name);
@@ -503,12 +511,12 @@ pub mod Compiler {
                 if HarnessOptions::is_harness_option(name) {
                     options.harness_options.set_value_from_command_line_option(
                         option,
-                        option_value(option, value, &mut errors),
+                        option_value(option, value, &mut errors, arena),
                     );
                 } else {
                     options.compiler_options.set_value_from_command_line_option(
                         option,
-                        option_value(option, value, &mut errors),
+                        option_value(option, value, &mut errors, arena),
                     );
                 }
                 if !errors.is_empty() {
@@ -524,6 +532,7 @@ pub mod Compiler {
         option: &CommandLineOption,
         value: &str,
         errors: &mut Vec<Gc<Diagnostic>>,
+        arena: &impl HasArena,
     ) -> CompilerOptionsValue {
         match option.type_() {
             CommandLineOptionType::Boolean => Some(value.to_lowercase() == "true").into(),
@@ -548,9 +557,9 @@ pub mod Compiler {
             }
             CommandLineOptionType::Object => unimplemented!(),
             CommandLineOptionType::List => {
-                CompilerOptionsValue::VecString(parse_list_type_option(option, Some(value), errors))
+                CompilerOptionsValue::VecString(parse_list_type_option(option, Some(value), errors, arena))
             }
-            CommandLineOptionType::Map(_) => parse_custom_type_option(option, Some(value), errors),
+            CommandLineOptionType::Map(_) => parse_custom_type_option(option, Some(value), errors, arena),
         }
     }
 
@@ -568,6 +577,7 @@ pub mod Compiler {
         compiler_options: Option<&CompilerOptions>,
         current_directory: Option<&str>,
         symlinks: Option<&vfs::FileSet>,
+        arena: &impl HasArena,
     ) -> io::Result<compiler::CompilationResult> {
         let mut options: CompilerOptionsAndHarnessOptions =
             if let Some(compiler_options) = compiler_options {
@@ -602,7 +612,7 @@ pub mod Compiler {
         let current_directory = current_directory.unwrap_or(vfs::src_folder);
 
         if let Some(harness_settings) = harness_settings {
-            set_compiler_options_from_harness_setting(harness_settings, &mut options);
+            set_compiler_options_from_harness_setting(harness_settings, &mut options, arena);
         }
         if let Some(options_root_dirs) = options.compiler_options.root_dirs.clone().as_ref() {
             options.compiler_options.root_dirs = Some(map(options_root_dirs, |d: &String, _| {
@@ -851,12 +861,13 @@ pub mod Compiler {
     pub fn minimal_diagnostics_to_string(
         diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
+        arena: &impl HasArena,
     ) -> io::Result<String> {
         let host = MinimalDiagnosticsToStringFormatDiagnosticsHost;
         if pretty == Some(true) {
-            format_diagnostics_with_color_and_context(diagnostics, &host)
+            format_diagnostics_with_color_and_context(diagnostics, &host, arena)
         } else {
-            format_diagnostics(diagnostics, &host)
+            format_diagnostics(diagnostics, &host, arena)
         }
     }
 
@@ -880,6 +891,7 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
+        arena: &impl HasArena,
     ) -> io::Result<String> {
         let mut output_lines = "".to_owned();
         for value in iterate_error_baseline(
@@ -890,13 +902,14 @@ pub mod Compiler {
                 case_sensitive: None,
                 current_directory: None,
             }),
+            arena,
         )? {
             let (_, content, _) = value;
             output_lines.push_str(&content);
         }
         if pretty == Some(true) {
             output_lines.push_str(&get_error_summary_text(
-                get_error_count_for_summary(diagnostics),
+                get_error_count_for_summary(diagnostics, arena),
                 with_io(|IO| IO.new_line()),
             ));
         }
@@ -910,9 +923,10 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         diagnostics: &[Gc<Diagnostic>],
         options: Option<IterateErrorBaselineOptions>,
+        arena: &impl HasArena,
     ) -> io::Result<Vec<(String, String, usize)>> {
         let diagnostics: Vec<_> = sort(diagnostics, |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| {
-            compare_diagnostics(&**a, &**b)
+            compare_diagnostics(&**a, &**b, arena)
         })
         .into();
         let mut output_lines = "".to_owned();
@@ -933,6 +947,7 @@ pub mod Compiler {
                     &*minimal_diagnostics_to_string(
                         &diagnostics,
                         options.as_ref().and_then(|options| options.pretty)
+                        arena,
                     )?,
                     None,
                 ),
@@ -951,6 +966,7 @@ pub mod Compiler {
                 &mut errors_reported,
                 &mut total_errors_reported_in_non_library_files,
                 diagnostic,
+                arena,
             )
         })?;
         ret.push((
@@ -1062,6 +1078,7 @@ pub mod Compiler {
                                 &mut errors_reported,
                                 &mut total_errors_reported_in_non_library_files,
                                 err_diagnostic,
+                                arena,
                             )?;
                             marked_error_count += 1;
                         }
@@ -1173,6 +1190,7 @@ pub mod Compiler {
         errors_reported: &mut usize,
         total_errors_reported_in_non_library_files: &mut usize,
         error: &Diagnostic,
+        arena: &impl HasArena,
     ) -> io::Result<()> {
         let message = flatten_diagnostic_message_text(
             Some(error.message_text()),
@@ -1212,6 +1230,7 @@ pub mod Compiler {
                                 info.start(),
                                 format_diagnsotic_host,
                                 Some(|a: &str, _b: &str| a.to_owned()),
+                                arena,
                             )?
                         )
                     } else {
@@ -1252,6 +1271,7 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         errors: &[Gc<Diagnostic>],
         pretty: Option<bool>,
+        arena: &impl HasArena,
     ) -> io::Result<()> {
         lazy_static! {
             static ref ts_extension_regex: Regex = Regex::new(r"\.tsx?$").unwrap();
@@ -1261,7 +1281,7 @@ pub mod Compiler {
             if
             /* !errors ||*/
             !errors.is_empty() {
-                Some(get_error_baseline(input_files, errors, pretty)?)
+                Some(get_error_baseline(input_files, errors, pretty, arena)?)
             } else {
                 None
             }
@@ -1281,6 +1301,7 @@ pub mod Compiler {
         to_be_compiled: &[Gc<TestFile>],
         other_files: &[Gc<TestFile>],
         harness_settings: &TestCaseParser::CompilerSettings,
+        arena: &impl HasArena,
     ) -> io::Result<()> {
         if options.no_emit != Some(true)
             && options.emit_declaration_only != Some(true)
@@ -1325,6 +1346,7 @@ pub mod Compiler {
                     } else {
                         ScriptKind::JS
                     }),
+                    arena,
                 )?;
                 let file_parse_result_parse_diagnostics =
                     file_parse_result.as_source_file().parse_diagnostics();
@@ -1335,6 +1357,7 @@ pub mod Compiler {
                         &[file.as_test_file()],
                         &file_parse_result_parse_diagnostics,
                         None,
+                        arena,
                     )?);
                     return Ok(());
                 }
@@ -1381,6 +1404,7 @@ pub mod Compiler {
                 .concat(),
                 &decl_file_compilation_result.decl_result.diagnostics,
                 None,
+                arena,
             )?);
         }
 
@@ -1711,6 +1735,7 @@ pub mod TestCaseParser {
         for_each, get_base_file_name, get_directory_path, get_normalized_absolute_path,
         normalize_path, ordered_remove_item_at, parse_json_source_file_config_file_content,
         parse_json_text, ModuleResolutionHost, ParseConfigHost, ParsedCommandLine,
+        HasArena,
     };
 
     use super::get_config_name_from_file_name;
@@ -1784,6 +1809,7 @@ pub mod TestCaseParser {
         file_name: &str,
         root_dir: Option<&str>,
         settings: Option<CompilerSettings>,
+        arena: &impl HasArena,
     ) -> io::Result<TestCaseContent> {
         let settings = settings.unwrap_or_else(|| extract_compiler_settings(code));
         let mut test_unit_data: Vec<TestUnitData> = vec![];
@@ -1869,7 +1895,7 @@ pub mod TestCaseParser {
         let mut indexes_to_remove: Vec<usize> = vec![];
         for (i, data) in test_unit_data.iter().enumerate() {
             if get_config_name_from_file_name(&data.name).is_some() {
-                let config_json = parse_json_text(&data.name, data.content.clone().unwrap());
+                let config_json = parse_json_text(&data.name, data.content.clone().unwrap(), arena);
                 // assert!(config_json.as_source_file().end_of_file_token().is_some());
                 let mut base_dir = normalize_path(&get_directory_path(&data.name));
                 if let Some(root_dir) = root_dir.filter(|root_dir| !root_dir.is_empty()) {
@@ -1885,6 +1911,7 @@ pub mod TestCaseParser {
                     None,
                     None,
                     None,
+                    arena,
                 )?);
                 let mut options = (*ts_config.as_ref().unwrap().options).clone();
                 options.config_file_path = Some(data.name.clone());
