@@ -4,11 +4,12 @@ pub mod compiler {
     use gc::{Finalize, Gc, Trace};
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
-        file_extension_is, filter, get_declaration_emit_extension_for_path, get_output_extension,
-        get_pre_emit_diagnostics, id_arena::Id, is_option_str_empty, length, some, AllArenas,
-        Comparison, CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticCategory,
-        DiagnosticMessage, DiagnosticRelatedInformation, EmitResult, Extension, HasArena, InArena,
-        ModuleKind, NewLineKind, Node, NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike,
+        debug_cell, file_extension_is, filter, get_declaration_emit_extension_for_path,
+        get_output_extension, get_pre_emit_diagnostics, id_arena::Id, is_option_str_empty, length,
+        some, AllArenas, Comparison, CompilerOptions, CreateProgramOptions, Diagnostic,
+        DiagnosticCategory, DiagnosticMessage, DiagnosticRelatedInformation, EmitResult, Extension,
+        HasArena, InArena, ModuleKind, NewLineKind, Node, NonEmpty, OptionTry, Program,
+        ScriptTarget, SourceFileLike,
     };
 
     use crate::{
@@ -49,8 +50,8 @@ pub mod compiler {
             diagnostics: Vec<Id<Diagnostic>>,
             arena: &impl HasArena,
         ) -> io::Result<Self> {
-            let host_as_fakes_compiler_host = host
-                .ref_(arena)
+            let host_ref = host.ref_(arena);
+            let host_as_fakes_compiler_host = host_ref
                 .as_dyn_any()
                 .downcast_ref::<fakes::CompilerHost>()
                 .unwrap();
@@ -123,17 +124,15 @@ pub mod compiler {
                 if !is_option_str_empty(options.ref_(arena).out.as_deref())
                     || !is_option_str_empty(options.ref_(arena).out_file.as_deref())
                 {
+                    let options_ref = options.ref_(arena);
                     let out_file = vpath::resolve(
                         &ret.vfs().cwd()?,
                         &[Some(
-                            options
-                                .ref_(arena)
+                            options_ref
                                 .out
                                 .as_deref()
                                 .filter(|options_out| !options_out.is_empty())
-                                .unwrap_or_else(|| {
-                                    options.ref_(arena).out_file.as_deref().unwrap()
-                                }),
+                                .unwrap_or_else(|| options_ref.out_file.as_deref().unwrap()),
                         )],
                     );
                     let mut inputs: Vec<Gc<documents::TextDocument>> = vec![];
@@ -254,20 +253,20 @@ pub mod compiler {
             Ok(ret)
         }
 
-        fn host_as_fakes_compiler_host(&self) -> &fakes::CompilerHost {
-            self.host
-                .ref_(self)
-                .as_dyn_any()
-                .downcast_ref::<fakes::CompilerHost>()
-                .unwrap()
+        fn host_as_fakes_compiler_host(&self) -> debug_cell::Ref<fakes::CompilerHost> {
+            debug_cell::Ref::map(self.host.ref_(self), |host| {
+                host.as_dyn_any()
+                    .downcast_ref::<fakes::CompilerHost>()
+                    .unwrap()
+            })
         }
 
         pub fn vfs(&self) -> Gc<vfs::FileSystem> {
             self.host_as_fakes_compiler_host().vfs()
         }
 
-        pub fn traces(&self) -> Ref<Vec<String>> {
-            self.host_as_fakes_compiler_host().traces()
+        pub fn traces(&self) -> Vec<String> {
+            self.host_as_fakes_compiler_host().traces().clone()
         }
 
         pub fn common_source_directory(&self) -> io::Result<String> {
@@ -305,28 +304,28 @@ pub mod compiler {
             if !is_option_str_empty(self.options.ref_(self).out_file.as_deref())
                 || !is_option_str_empty(self.options.ref_(self).out.as_deref())
             {
+                let options_ref = self.options.ref_(self);
                 path = vpath::resolve(
                     &self.vfs().cwd()?,
                     &[Some(
-                        self.options
-                            .ref_(self)
+                        options_ref
                             .out_file
                             .as_deref()
                             .filter(|options_out_file| !options_out_file.is_empty())
-                            .unwrap_or_else(|| self.options.ref_(self).out.as_deref().unwrap()),
+                            .unwrap_or_else(|| options_ref.out.as_deref().unwrap()),
                     )],
                 );
             } else {
                 path = vpath::resolve(&self.vfs().cwd()?, &[Some(&path)]);
+                let options_ref = self.options.ref_(self);
                 let out_dir = if matches!(ext, ".d.ts" | ".json.d.ts" | ".d.mts" | ".d.cts") {
-                    self.options
-                        .ref_(self)
+                    options_ref
                         .declaration_dir
                         .as_deref()
                         .filter(|options_declaration_dir| !options_declaration_dir.is_empty())
-                        .or_else(|| self.options.ref_(self).out_dir.as_deref())
+                        .or_else(|| options_ref.out_dir.as_deref())
                 } else {
-                    self.options.ref_(self).out_dir.as_deref()
+                    options_ref.out_dir.as_deref()
                 };
                 if out_dir.is_non_empty() {
                     let common = self.common_source_directory()?;

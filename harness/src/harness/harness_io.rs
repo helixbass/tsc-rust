@@ -551,6 +551,7 @@ pub mod Compiler {
                 ),
             ])
         )
+        .ref_(arena)
     }
 
     thread_local! {
