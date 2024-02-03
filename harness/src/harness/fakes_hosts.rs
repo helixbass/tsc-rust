@@ -22,7 +22,7 @@ pub mod fakes {
 
     use crate::{
         collections, documents, get_light_mode, vfs, vfs::SortOptionsComparerFromStringComparer,
-        vpath, Utils,
+        vpath, AllArenasHarness, HasArenaHarness, InArenaHarness, Utils,
     };
 
     // const processExitSentinel = new Error("System exit");
@@ -407,7 +407,7 @@ pub mod fakes {
     pub struct CompilerHost {
         pub sys: Gc<System>,
         pub default_lib_location: String,
-        outputs: GcCell<Vec<Gc<documents::TextDocument>>>,
+        outputs: GcCell<Vec<Id<documents::TextDocument>>>,
         _outputs_map: GcCell<collections::SortedMap<String, usize>>,
         #[unsafe_ignore_trace]
         traces: RefCell<Vec<String>>,
@@ -490,7 +490,7 @@ pub mod fakes {
             })))
         }
 
-        pub fn outputs(&self) -> GcCellRef<Vec<Gc<documents::TextDocument>>> {
+        pub fn outputs(&self) -> GcCellRef<Vec<Id<documents::TextDocument>>> {
             self.outputs.borrow()
         }
 
@@ -653,18 +653,18 @@ pub mod fakes {
             document
                 .meta
                 .insert("fileName".to_owned(), file_name.to_owned());
-            let document = Gc::new(document);
+            let document = self.alloc_text_document(document);
             self.vfs()
                 .filemeta(file_name)?
                 .borrow_mut()
                 .set("document", document.clone().into());
             let mut _outputs_map = self._outputs_map.borrow_mut();
             let mut outputs = self.outputs.borrow_mut();
-            if !_outputs_map.has(&document.file) {
-                _outputs_map.set(document.file.clone(), outputs.len());
+            if !_outputs_map.has(&document.ref_(self).file) {
+                _outputs_map.set(document.ref_(self).file.clone(), outputs.len());
                 outputs.push(document.clone());
             }
-            let index = *_outputs_map.get(&document.file).unwrap();
+            let index = *_outputs_map.get(&document.ref_(self).file).unwrap();
             outputs[index] = document;
             Ok(())
         }
@@ -997,6 +997,12 @@ pub mod fakes {
 
     impl HasArena for CompilerHost {
         fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for CompilerHost {
+        fn arena_harness(&self) -> &AllArenasHarness {
             unimplemented!()
         }
     }

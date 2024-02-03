@@ -2,12 +2,12 @@ pub mod SourceMapRecorder {
     use gc::Gc;
     use typescript_rust::{
         Node, Program, SourceMapEmitResult, _d, compute_line_starts, decode_mappings, ends_with,
-        get_line_info, id_arena::Id, is_source_mapping, try_get_source_mapping_url, BoolExt,
-        Debug_, Extension, HasArena, InArena, Mapping, MappingsDecoder, RawSourceMap,
+        get_line_info, id_arena::Id, is_source_mapping, try_get_source_mapping_url, AllArenas,
+        BoolExt, Debug_, Extension, HasArena, InArena, Mapping, MappingsDecoder, RawSourceMap,
         ScriptReferenceHost, SourceFileLike, SourceTextAsChars,
     };
 
-    use crate::{documents, Compiler, Utils};
+    use crate::{documents, AllArenasHarness, Compiler, HasArenaHarness, InArenaHarness, Utils};
 
     struct SourceMapSpanWithDecodeErrors {
         pub source_map_span: Mapping,
@@ -47,7 +47,7 @@ pub mod SourceMapRecorder {
         source_map_sources: &'a [String],
         #[allow(dead_code)]
         source_map_names: Option<&'a [String]>,
-        js_file: Gc<documents::TextDocument>,
+        js_file: Id<documents::TextDocument>,
         js_line_map: Vec<usize>,
         ts_code: Option<SourceTextAsChars>,
         ts_line_map: Option<Vec<usize>>,
@@ -63,14 +63,15 @@ pub mod SourceMapRecorder {
         pub fn initialize_source_map_span_writer(
             source_map_record_writer: &'a mut Compiler::WriterAggregator,
             source_map: &'a RawSourceMap,
-            current_js_file: Gc<documents::TextDocument>,
+            current_js_file: Id<documents::TextDocument>,
+            arena: &impl HasArenaHarness,
         ) -> Self {
             let ret = Self {
                 source_map_recorder: source_map_record_writer,
                 source_map_sources: &source_map.sources,
                 source_map_names: source_map.names.as_deref(),
                 js_file: current_js_file.clone(),
-                js_line_map: current_js_file.line_starts().clone(),
+                js_line_map: current_js_file.ref_(arena).line_starts().clone(),
                 ts_code: _d(),
                 ts_line_map: _d(),
                 spans_on_single_line: _d(),
@@ -87,7 +88,7 @@ pub mod SourceMapRecorder {
             ret.source_map_recorder.write_line(&format!(
                 "mapUrl: {}",
                 try_get_source_mapping_url(&get_line_info(
-                    ret.js_file.text_as_chars.clone(),
+                    ret.js_file.ref_(arena).text_as_chars.clone(),
                     ret.js_line_map.clone()
                 ))
                 .as_deref()
@@ -139,7 +140,7 @@ pub mod SourceMapRecorder {
                 .write_line("-------------------------------------------------------------------");
             self.source_map_recorder.write_line(&format!(
                 "emittedFile:{}{}",
-                self.js_file.file,
+                self.js_file.ref_(self).file,
                 if continues_line {
                     format!(
                         " ({}, {})",
@@ -207,7 +208,7 @@ pub mod SourceMapRecorder {
                     self.get_text_of_line(
                         self.next_js_line_to_write,
                         &self.js_line_map,
-                        &self.js_file.text_as_chars
+                        &self.js_file.ref_(self).text_as_chars
                     )
                 ));
                 self.next_js_line_to_write += 1;
@@ -219,18 +220,30 @@ pub mod SourceMapRecorder {
         }
     }
 
+    impl HasArena for SourceMapSpanWriter<'_> {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for SourceMapSpanWriter<'_> {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
+        }
+    }
+
     pub fn get_source_map_record(
         source_map_data_list: &[SourceMapEmitResult],
         program: &Program,
-        js_files: &[Gc<documents::TextDocument>],
-        declaration_files: &[Gc<documents::TextDocument>],
-        arena: &impl HasArena,
+        js_files: &[Id<documents::TextDocument>],
+        declaration_files: &[Id<documents::TextDocument>],
+        arena: &impl HasArenaHarness,
     ) -> String {
         let mut source_map_recorder = Compiler::WriterAggregator::default();
 
         for (i, source_map_data) in source_map_data_list.into_iter().enumerate() {
             let mut prev_source_file: Option<Id<Node /*SourceFile*/>> = _d();
-            let current_file: Gc<documents::TextDocument>;
+            let current_file: Id<documents::TextDocument>;
             if ends_with(&source_map_data.source_map.file, Extension::Dts.to_str()) {
                 if source_map_data_list.len() > js_files.len() {
                     current_file = declaration_files[i / 2].clone();
@@ -249,6 +262,7 @@ pub mod SourceMapRecorder {
                 &mut source_map_recorder,
                 &source_map_data.source_map,
                 current_file,
+                arena,
             );
             let mapper = decode_mappings(&source_map_data.source_map.mappings);
             for decoded_source_mapping in mapper {

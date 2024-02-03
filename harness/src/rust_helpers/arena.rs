@@ -4,12 +4,13 @@ use typescript_rust::{
     AllArenas, HasArena,
 };
 
-use crate::{harness::harness_io::NodeIO, vfs::FileSystemResolverHost};
+use crate::{documents::TextDocument, harness::harness_io::NodeIO, vfs::FileSystemResolverHost};
 
 pub struct AllArenasHarness {
     all_arenas: AllArenas,
     node_ios: RefCell<Arena<NodeIO>>,
     file_system_resolver_hosts: RefCell<Arena<Box<dyn FileSystemResolverHost>>>,
+    text_documents: RefCell<Arena<TextDocument>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -37,6 +38,14 @@ pub trait HasArenaHarness: HasArena {
     ) -> Id<Box<dyn FileSystemResolverHost>> {
         self.arena_harness()
             .alloc_file_system_resolver_host(file_system_resolver_host)
+    }
+
+    fn text_document(&self, text_document: Id<TextDocument>) -> Ref<TextDocument> {
+        self.arena_harness().text_document(text_document)
+    }
+
+    fn alloc_text_document(&self, text_document: TextDocument) -> Id<TextDocument> {
+        self.arena_harness().alloc_text_document(text_document)
     }
 }
 
@@ -80,6 +89,17 @@ impl HasArenaHarness for AllArenasHarness {
             .alloc(file_system_resolver_host);
         id
     }
+
+    fn text_document(&self, text_document: Id<TextDocument>) -> Ref<TextDocument> {
+        Ref::map(self.text_documents.borrow(), |text_documents| {
+            &text_documents[text_document]
+        })
+    }
+
+    fn alloc_text_document(&self, text_document: TextDocument) -> Id<TextDocument> {
+        let id = self.text_documents.borrow_mut().alloc(text_document);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -107,6 +127,14 @@ impl InArenaHarness for Id<Box<dyn FileSystemResolverHost>> {
         has_arena: &'a impl HasArenaHarness,
     ) -> Ref<'a, Box<dyn FileSystemResolverHost>> {
         has_arena.file_system_resolver_host(*self)
+    }
+}
+
+impl InArenaHarness for Id<TextDocument> {
+    type Item = TextDocument;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, TextDocument> {
+        has_arena.text_document(*self)
     }
 }
 

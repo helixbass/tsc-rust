@@ -277,8 +277,8 @@ pub mod Compiler {
 
     use super::{get_io_id, is_built_file, is_default_library_file, Baseline, TestCaseParser};
     use crate::{
-        compiler, documents, fakes, get_io, vfs, vpath, AllArenasHarness, HasArenaHarness, Utils,
-        IO,
+        compiler, documents, fakes, get_io, vfs, vpath, AllArenasHarness, HasArenaHarness,
+        InArenaHarness, Utils, IO,
     };
 
     #[derive(Default)]
@@ -729,7 +729,7 @@ pub mod Compiler {
         let docs = input_files
             .into_iter()
             .chain(other_files.into_iter())
-            .map(|file| Gc::new(documents::TextDocument::from_test_file(file)))
+            .map(|file| arena.alloc_text_document(documents::TextDocument::from_test_file(file)))
             .collect::<Vec<_>>();
         let fs = Gc::new(vfs::create_from_file_system(
             get_io_id(arena),
@@ -780,7 +780,7 @@ pub mod Compiler {
         harness_settings: &TestCaseParser::CompilerSettings, /*& HarnessOptions*/
         options: Id<CompilerOptions>,
         current_directory: Option<&str>,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<Option<DeclarationCompilationContext>> {
         if options.ref_(arena).declaration == Some(true) && result.diagnostics.is_empty() {
             if options.ref_(arena).emit_declaration_only == Some(true) {
@@ -845,7 +845,7 @@ pub mod Compiler {
         decl_other_files: &[Gc<TestFile>],
         file: Gc<TestFile>,
         dts_files: &mut Vec<Gc<TestFile>>,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
         if vpath::is_declaration(&file.unit_name) || vpath::is_json(&file.unit_name) {
             dts_files.push(file);
@@ -854,12 +854,12 @@ pub mod Compiler {
         {
             let decl_file = find_result_code_file(result, options, &file.unit_name, arena)?;
             if let Some(decl_file) = decl_file.filter(|decl_file| {
-                find_unit(&decl_file.file, decl_input_files).is_none()
-                    && find_unit(&decl_file.file, decl_other_files).is_none()
+                find_unit(&decl_file.ref_(arena).file, decl_input_files).is_none()
+                    && find_unit(&decl_file.ref_(arena).file, decl_other_files).is_none()
             }) {
                 dts_files.push(Gc::new(TestFile {
-                    unit_name: decl_file.file.clone(),
-                    content: Utils::remove_byte_order_mark(decl_file.text.clone()),
+                    unit_name: decl_file.ref_(arena).file.clone(),
+                    content: Utils::remove_byte_order_mark(decl_file.ref_(arena).text.clone()),
                     file_options: None,
                 }));
             }
@@ -873,7 +873,7 @@ pub mod Compiler {
         options: &CompilerOptions,
         file_name: &str,
         arena: &impl HasArena,
-    ) -> io::Result<Option<Gc<documents::TextDocument>>> {
+    ) -> io::Result<Option<Id<documents::TextDocument>>> {
         let source_file = result
             .program
             .unwrap()
@@ -1464,13 +1464,15 @@ pub mod Compiler {
             if !js_code.is_empty() && !js_code.ends_with("\n") {
                 js_code.push_str("\r\n");
             }
-            if result.diagnostics.is_empty() && !file.file.ends_with(Extension::Json.to_str()) {
+            if result.diagnostics.is_empty()
+                && !file.ref_(arena).file.ends_with(Extension::Json.to_str())
+            {
                 let file_parse_result = create_source_file(
-                    &file.file,
-                    file.text.clone(),
+                    &file.ref_(arena).file,
+                    file.ref_(arena).text.clone(),
                     get_emit_script_target(&options.ref_(arena)),
                     Some(false),
-                    Some(if file.file.ends_with("x") {
+                    Some(if file.ref_(arena).file.ends_with("x") {
                         ScriptKind::JSX
                     } else {
                         ScriptKind::JS
@@ -1484,7 +1486,7 @@ pub mod Compiler {
                     .ref_(arena);
                 if !file_parse_result_parse_diagnostics.is_empty() {
                     js_code.push_str(&get_error_baseline(
-                        &[file.as_test_file()],
+                        &[file.ref_(arena).as_test_file()],
                         &file_parse_result_parse_diagnostics,
                         None,
                         arena,
@@ -1492,7 +1494,7 @@ pub mod Compiler {
                     return Ok(());
                 }
             }
-            js_code.push_str(&file_output(file, harness_settings));
+            js_code.push_str(&file_output(&file.ref_(arena), harness_settings));
 
             Ok(())
         })?;
@@ -1500,7 +1502,7 @@ pub mod Compiler {
         if !result.dts.is_empty() {
             js_code.push_str("\r\n\r\n");
             result.dts.for_each(|decl_file, _, _| {
-                js_code.push_str(&file_output(decl_file, harness_settings));
+                js_code.push_str(&file_output(&decl_file.ref_(arena), harness_settings));
             });
         }
 

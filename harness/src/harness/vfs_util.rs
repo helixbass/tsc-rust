@@ -1158,7 +1158,7 @@ pub mod vfs {
         fn _apply_file_extended_options(
             &self,
             path: &str,
-            entry_meta: Option<&HashMap<String, Gc<documents::TextDocument>>>,
+            entry_meta: Option<&HashMap<String, Id<documents::TextDocument>>>,
         ) -> io::Result<()> {
             if let Some(meta) = entry_meta {
                 let filemeta = self.filemeta(path)?;
@@ -1234,7 +1234,7 @@ pub mod vfs {
 
     #[derive(Clone, Trace, Finalize)]
     pub enum MetaValue {
-        RcTextDocument(Gc<documents::TextDocument>),
+        RcTextDocument(Id<documents::TextDocument>),
         Node(Id<Node>),
     }
 
@@ -1244,8 +1244,8 @@ pub mod vfs {
         }
     }
 
-    impl From<Gc<documents::TextDocument>> for MetaValue {
-        fn from(value: Gc<documents::TextDocument>) -> Self {
+    impl From<Id<documents::TextDocument>> for MetaValue {
+        fn from(value: Id<documents::TextDocument>) -> Self {
             Self::RcTextDocument(value)
         }
     }
@@ -1382,7 +1382,7 @@ pub mod vfs {
         pub files: Option<FileSet>,
         pub cwd: Option<String>,
         pub meta: Option<HashMap<String, String>>,
-        pub documents: Option<Vec<Gc<documents::TextDocument>>>,
+        pub documents: Option<Vec<Id<documents::TextDocument>>>,
     }
 
     #[derive(Trace, Finalize)]
@@ -1489,17 +1489,22 @@ pub mod vfs {
         }
         if let Some(documents) = documents {
             for document in documents {
-                fs.mkdirp_sync(&vpath::dirname(&document.file))?;
-                fs.write_file_sync(&document.file, document.text.clone(), Some("utf8"))?;
-                fs.filemeta(&document.file)?
+                fs.mkdirp_sync(&vpath::dirname(&document.ref_(arena).file))?;
+                fs.write_file_sync(
+                    &document.ref_(arena).file,
+                    document.ref_(arena).text.clone(),
+                    Some("utf8"),
+                )?;
+                fs.filemeta(&document.ref_(arena).file)?
                     .borrow_mut()
                     .set("document", document.clone().into());
-                let symlink = document.meta.get("symlink");
+                let document_ref = document.ref_(arena);
+                let symlink = document_ref.meta.get("symlink");
                 if let Some(symlink) = symlink {
                     for link in symlink.split(",").map(|link| link.trim()) {
                         fs.mkdirp_sync(&vpath::dirname(link))?;
                         fs.symlink_sync(
-                            &vpath::resolve(&fs.cwd()?, &[Some(&document.file)]),
+                            &vpath::resolve(&fs.cwd()?, &[Some(&document.ref_(arena).file)]),
                             link,
                         )?;
                     }
@@ -1724,7 +1729,7 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Directory {
         pub files: FileSet,
-        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     impl Directory {
@@ -1737,14 +1742,14 @@ pub mod vfs {
 
     #[derive(Default)]
     pub struct DirectoryOptions {
-        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
     pub struct File {
         pub data: String, /*Buffer | string*/
         pub encoding: Option<String>,
-        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     impl File {
@@ -1762,7 +1767,7 @@ pub mod vfs {
     #[derive(Default)]
     pub struct FileOptions {
         pub encoding: Option<String>,
-        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
@@ -1785,7 +1790,7 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Symlink {
         pub symlink: String,
-        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     impl Symlink {
@@ -1798,14 +1803,14 @@ pub mod vfs {
     }
 
     pub struct SymlinkNewOptions {
-        meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     #[derive(Clone)]
     pub struct Mount {
         pub source: String,
         pub resolver: Gc<FileSystemResolver>,
-        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     impl Mount {
@@ -1826,7 +1831,7 @@ pub mod vfs {
 
     #[derive(Default)]
     pub struct MountOptions {
-        pub meta: Option<HashMap<String, Gc<documents::TextDocument>>>,
+        pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     #[derive(Clone, Trace, Finalize)]

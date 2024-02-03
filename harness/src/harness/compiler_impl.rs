@@ -15,15 +15,15 @@ pub mod compiler {
     use crate::{
         collections, documents, fakes,
         vfs::{self, SortOptionsComparerFromStringComparer},
-        vpath, SourceMapRecorder,
+        vpath, AllArenasHarness, HasArenaHarness, InArenaHarness, SourceMapRecorder,
     };
 
     #[derive(Trace, Finalize)]
     pub struct CompilationOutput {
-        pub inputs: Vec<Gc<documents::TextDocument>>,
-        pub js: Option<Gc<documents::TextDocument>>,
-        pub dts: Option<Gc<documents::TextDocument>>,
-        pub map: Option<Gc<documents::TextDocument>>,
+        pub inputs: Vec<Id<documents::TextDocument>>,
+        pub js: Option<Id<documents::TextDocument>>,
+        pub dts: Option<Id<documents::TextDocument>>,
+        pub map: Option<Id<documents::TextDocument>>,
     }
 
     pub struct CompilationResult {
@@ -32,12 +32,12 @@ pub mod compiler {
         pub result: Option<EmitResult>,
         pub options: Id<CompilerOptions>,
         pub diagnostics: Vec<Id<Diagnostic>>,
-        pub js: collections::SortedMap<String, Gc<documents::TextDocument>>,
-        pub dts: collections::SortedMap<String, Gc<documents::TextDocument>>,
-        pub maps: collections::SortedMap<String, Gc<documents::TextDocument>>,
+        pub js: collections::SortedMap<String, Id<documents::TextDocument>>,
+        pub dts: collections::SortedMap<String, Id<documents::TextDocument>>,
+        pub maps: collections::SortedMap<String, Id<documents::TextDocument>>,
         pub symlinks: Option<vfs::FileSet>,
 
-        _inputs: Vec<Gc<documents::TextDocument>>,
+        _inputs: Vec<Id<documents::TextDocument>>,
         _inputs_and_outputs: collections::SortedMap<String, Gc<CompilationOutput>>,
     }
 
@@ -48,7 +48,7 @@ pub mod compiler {
             program: Option<Id<Program>>,
             result: Option<EmitResult>,
             diagnostics: Vec<Id<Diagnostic>>,
-            arena: &impl HasArena,
+            arena: &impl HasArenaHarness,
         ) -> io::Result<Self> {
             let host_ref = host.ref_(arena);
             let host_as_fakes_compiler_host = host_ref
@@ -68,7 +68,7 @@ pub mod compiler {
                     ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
-                Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
+                Option::<HashMap<String, Id<documents::TextDocument>>>::None,
             );
             let mut dts = collections::SortedMap::new(
                 collections::SortOptions {
@@ -77,7 +77,7 @@ pub mod compiler {
                     ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
-                Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
+                Option::<HashMap<String, Id<documents::TextDocument>>>::None,
             );
             let mut maps = collections::SortedMap::new(
                 collections::SortOptions {
@@ -86,17 +86,17 @@ pub mod compiler {
                     ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
-                Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
+                Option::<HashMap<String, Id<documents::TextDocument>>>::None,
             );
             for document in &*host_as_fakes_compiler_host.outputs() {
-                if vpath::is_java_script(&document.file)
-                    || file_extension_is(&document.file, Extension::Json.to_str())
+                if vpath::is_java_script(&document.ref_(arena).file)
+                    || file_extension_is(&document.ref_(arena).file, Extension::Json.to_str())
                 {
-                    js.set(document.file.clone(), document.clone());
-                } else if vpath::is_declaration(&document.file) {
-                    dts.set(document.file.clone(), document.clone());
-                } else if vpath::is_source_map(&document.file) {
-                    maps.set(document.file.clone(), document.clone());
+                    js.set(document.ref_(arena).file.clone(), document.clone());
+                } else if vpath::is_declaration(&document.ref_(arena).file) {
+                    dts.set(document.ref_(arena).file.clone(), document.clone());
+                } else if vpath::is_source_map(&document.ref_(arena).file) {
+                    maps.set(document.ref_(arena).file.clone(), document.clone());
                 }
             }
             let mut ret = Self {
@@ -135,12 +135,12 @@ pub mod compiler {
                                 .unwrap_or_else(|| options_ref.out_file.as_deref().unwrap()),
                         )],
                     );
-                    let mut inputs: Vec<Gc<documents::TextDocument>> = vec![];
+                    let mut inputs: Vec<Id<documents::TextDocument>> = vec![];
                     for &source_file in &*program.ref_(arena).get_source_files() {
                         // if (sourceFile) {
                         let source_file_ref = source_file.ref_(arena);
                         let source_file_as_source_file = source_file_ref.as_source_file();
-                        let input = Gc::new(documents::TextDocument::new(
+                        let input = arena.alloc_text_document(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
                             source_file_as_source_file.text_as_chars().clone(),
@@ -170,27 +170,27 @@ pub mod compiler {
 
                     if let Some(outputs_js) = outputs.js.as_ref() {
                         ret._inputs_and_outputs
-                            .set(outputs_js.file.clone(), outputs.clone());
+                            .set(outputs_js.ref_(arena).file.clone(), outputs.clone());
                     }
                     if let Some(outputs_dts) = outputs.dts.as_ref() {
                         ret._inputs_and_outputs
-                            .set(outputs_dts.file.clone(), outputs.clone());
+                            .set(outputs_dts.ref_(arena).file.clone(), outputs.clone());
                     }
                     if let Some(outputs_map) = outputs.map.as_ref() {
                         ret._inputs_and_outputs
-                            .set(outputs_map.file.clone(), outputs.clone());
+                            .set(outputs_map.ref_(arena).file.clone(), outputs.clone());
                     }
 
                     for input in inputs {
                         ret._inputs_and_outputs
-                            .set(input.file.clone(), outputs.clone());
+                            .set(input.ref_(arena).file.clone(), outputs.clone());
                     }
                 } else {
                     for source_file in &*program.ref_(arena).get_source_files() {
                         // if (sourceFile) {
                         let source_file_ref = source_file.ref_(arena);
                         let source_file_as_source_file = source_file_ref.as_source_file();
-                        let input = Gc::new(documents::TextDocument::new(
+                        let input = arena.alloc_text_document(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
                             source_file_as_source_file.text_as_chars().clone(),
@@ -235,15 +235,15 @@ pub mod compiler {
                             );
                             if let Some(outputs_js) = outputs.js.as_ref() {
                                 ret._inputs_and_outputs
-                                    .set(outputs_js.file.clone(), outputs.clone());
+                                    .set(outputs_js.ref_(arena).file.clone(), outputs.clone());
                             }
                             if let Some(outputs_dts) = outputs.dts.as_ref() {
                                 ret._inputs_and_outputs
-                                    .set(outputs_dts.file.clone(), outputs.clone());
+                                    .set(outputs_dts.ref_(arena).file.clone(), outputs.clone());
                             }
                             if let Some(outputs_map) = outputs.map.as_ref() {
                                 ret._inputs_and_outputs
-                                    .set(outputs_map.file.clone(), outputs.clone());
+                                    .set(outputs_map.ref_(arena).file.clone(), outputs.clone());
                             }
                         }
                         // }
@@ -290,7 +290,9 @@ pub mod compiler {
                     &self
                         .js
                         .values()
-                        .filter(|d| !file_extension_is(&d.file, Extension::Json.to_str()))
+                        .filter(|d| {
+                            !file_extension_is(&d.ref_(self).file, Extension::Json.to_str())
+                        })
                         .cloned()
                         .collect::<Vec<_>>(),
                     &self.dts.values().cloned().collect::<Vec<_>>(),
@@ -360,7 +362,7 @@ pub mod compiler {
             } else {
                 let mut count = self.js.len();
                 self.js.for_each(|document, _, _| {
-                    if file_extension_is(&document.file, Extension::Json.to_str()) {
+                    if file_extension_is(&document.ref_(self).file, Extension::Json.to_str()) {
                         count -= 1;
                     }
                 });
@@ -375,11 +377,17 @@ pub mod compiler {
         }
     }
 
+    impl HasArenaHarness for CompilationResult {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
+        }
+    }
+
     pub fn compile_files(
         host: Id<Box<dyn typescript_rust::CompilerHost>>,
         root_files: Option<&[String]>,
         compiler_options: &CompilerOptions,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<CompilationResult> {
         let mut compiler_options = compiler_options.clone();
         if compiler_options
