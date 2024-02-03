@@ -9,7 +9,6 @@ pub mod fakes {
         time::SystemTime,
     };
 
-    use gc::{Finalize, GcCell, GcCellRef, Trace};
     use typescript_rust::{
         continue_if_err, create_source_file, debug_cell, generate_djb2_hash,
         get_default_lib_file_name, get_new_line_character, id_arena::Id, match_files,
@@ -35,11 +34,9 @@ pub mod fakes {
         pub env: Option<HashMap<String, String>>,
     }
 
-    #[derive(Trace, Finalize)]
     pub struct System {
         pub vfs: Id<vfs::FileSystem>,
         pub args: Vec<String>,
-        #[unsafe_ignore_trace]
         output: RefCell<Vec<String>>,
         pub new_line: &'static str,
         pub use_case_sensitive_file_names: bool,
@@ -47,7 +44,6 @@ pub mod fakes {
 
         _executing_file_path: Option<String>,
         _env: Option<HashMap<String, String>>,
-        #[unsafe_ignore_trace]
         test_terminal_width: Cell<Option<Option<usize>>>,
     }
 
@@ -371,7 +367,6 @@ pub mod fakes {
         }
     }
 
-    #[derive(Trace, Finalize)]
     pub struct ParseConfigHost {
         pub sys: Id<System>,
     }
@@ -451,36 +446,24 @@ pub mod fakes {
         }
     }
 
-    #[derive(Trace, Finalize)]
     pub struct CompilerHost {
         pub sys: Id<System>,
         pub default_lib_location: String,
-        #[unsafe_ignore_trace]
         outputs: RefCell<Vec<Id<documents::TextDocument>>>,
-        #[unsafe_ignore_trace]
         _outputs_map: RefCell<collections::SortedMap<String, usize>>,
-        #[unsafe_ignore_trace]
         traces: RefCell<Vec<String>>,
         pub should_assert_invariants: bool,
 
         _set_parent_nodes: bool,
-        #[unsafe_ignore_trace]
         _source_files: RefCell<collections::SortedMap<String, Id<Node /*SourceFile*/>>>,
-        #[unsafe_ignore_trace]
         _parse_config_host: Cell<Option<Id<ParseConfigHost>>>,
         _new_line: String,
 
-        #[unsafe_ignore_trace]
         file_exists_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        #[unsafe_ignore_trace]
         directory_exists_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        #[unsafe_ignore_trace]
         read_file_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        #[unsafe_ignore_trace]
         write_file_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        #[unsafe_ignore_trace]
         realpath_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        #[unsafe_ignore_trace]
         get_directories_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
     }
 

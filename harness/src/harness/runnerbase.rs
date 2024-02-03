@@ -1,6 +1,5 @@
 use std::cell::Cell;
 
-use gc::{Finalize, Trace};
 use regex::Regex;
 use typescript_rust::{id_arena::Id, map, normalize_slashes, AllArenas, HasArena};
 
@@ -54,7 +53,6 @@ fn get_shard_id() -> usize {
     shard_id_.with(|shard_id| shard_id.get())
 }
 
-#[derive(Trace, Finalize)]
 pub struct RunnerBase {
     sub: Id<Box<dyn RunnerBaseSub>>,
     pub tests: Vec<StringOrFileBasedTest>,
@@ -130,7 +128,7 @@ impl HasArenaHarness for RunnerBase {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Clone)]
 pub enum StringOrFileBasedTest {
     String(String),
     FileBasedTest(FileBasedTest),
@@ -152,7 +150,7 @@ pub struct EnumerateFilesOptions {
     pub recursive: bool,
 }
 
-pub trait RunnerBaseSub: Trace + Finalize {
+pub trait RunnerBaseSub {
     fn kind(&self, runner_base: &RunnerBase) -> TestRunnerKind;
     fn initialize_tests(&self, runner_base: &RunnerBase);
     fn enumerate_test_files(&self, runner_base: &RunnerBase) -> Vec<StringOrFileBasedTest>;

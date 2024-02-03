@@ -1,7 +1,6 @@
 pub mod compiler {
     use std::{collections::HashMap, io, ptr};
 
-    use gc::{Finalize, Trace};
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
         debug_cell, file_extension_is, filter, get_declaration_emit_extension_for_path,
@@ -18,7 +17,6 @@ pub mod compiler {
         vpath, AllArenasHarness, HasArenaHarness, InArenaHarness, SourceMapRecorder,
     };
 
-    #[derive(Trace, Finalize)]
     pub struct CompilationOutput {
         pub inputs: Vec<Id<documents::TextDocument>>,
         pub js: Option<Id<documents::TextDocument>>,

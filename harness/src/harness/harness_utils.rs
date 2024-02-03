@@ -1,6 +1,5 @@
 use std::cell::{Cell, RefCell};
 
-use gc::{Finalize, GcCell, Trace};
 use once_cell::sync::Lazy;
 use typescript_rust::{
     create_get_canonical_file_name, for_each_child, id_arena::Id, HasArena, InArena, Node,
@@ -141,7 +140,6 @@ fn assert_invariants_worker(
     }
 }
 
-#[derive(Trace, Finalize)]
 enum RcNodeOrNodeArray {
     RcNode(Id<Node>),
     NodeArray(Id<NodeArray>),

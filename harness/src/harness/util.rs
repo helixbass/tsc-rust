@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 
-use gc::{Finalize, Trace};
 use itertools::Itertools;
 use regex::{Captures, Regex, SubCaptureMatches};
 use typescript_rust::{
@@ -102,7 +101,7 @@ impl HasArenaHarness for DiagnosticMessageReplacer {
     }
 }
 
-pub trait Replacer: Trace + Finalize {
+pub trait Replacer {
     fn call(&self, message_args: SubCaptureMatches<'_, '_>, args: Vec<String>) -> Vec<String>;
 }
 
@@ -119,7 +118,6 @@ fn replace_types_version_message(arena: &impl HasArenaHarness) -> Id<DiagnosticM
     )
 }
 
-#[derive(Trace, Finalize)]
 struct ReplaceTypesVersionMessageReplacer;
 
 impl ReplaceTypesVersionMessageReplacer {

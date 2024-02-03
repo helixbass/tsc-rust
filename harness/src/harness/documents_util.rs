@@ -4,7 +4,6 @@ pub mod documents {
         collections::HashMap,
     };
 
-    use gc::{Finalize, GcCell, Trace};
     use typescript_rust::{
         _d, compute_line_starts, id_arena::Id, ref_unwrapped, AllArenas, HasArena,
         SourceTextAsChars,
@@ -12,16 +11,13 @@ pub mod documents {
 
     use crate::{AllArenasHarness, Compiler, HasArenaHarness};
 
-    #[derive(Trace, Finalize)]
     pub struct TextDocument {
         pub meta: HashMap<String, String>,
         pub file: String,
         pub text: String,
         pub text_as_chars: SourceTextAsChars,
 
-        #[unsafe_ignore_trace]
         _line_starts: RefCell<Option<Vec<usize>>>,
-        #[unsafe_ignore_trace]
         _test_file: OnceCell<Id<Compiler::TestFile>>,
     }
 

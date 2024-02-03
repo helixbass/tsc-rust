@@ -8,12 +8,11 @@ pub mod collections {
         io,
     };
 
-    use gc::{Finalize, Trace};
     use typescript_rust::{binary_search, id_arena::Id, AllArenas, Comparison, HasArena};
 
     use crate::{AllArenasHarness, HasArenaHarness, InArenaHarness};
 
-    pub trait SortOptionsComparer<TKey>: Trace + Finalize {
+    pub trait SortOptionsComparer<TKey> {
         fn call(&self, a: &TKey, b: &TKey) -> Comparison;
     }
 
@@ -28,18 +27,16 @@ pub mod collections {
         Comparison,
     }
 
-    #[derive(Trace, Finalize)]
-    pub struct SortedMap<TKey: Trace + Finalize + 'static, TValue: Trace + Finalize> {
+    pub struct SortedMap<TKey: 'static, TValue> {
         _comparer: Id<Box<dyn SortOptionsComparer<TKey>>>,
         _keys: Vec<TKey>,
         _values: Vec<TValue>,
         _order: Option<Vec<usize>>,
         _version: usize,
-        #[unsafe_ignore_trace]
         _copy_on_write: Cell<bool>,
     }
 
-    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> SortedMap<TKey, TValue>
+    impl<TKey, TValue> SortedMap<TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -262,19 +259,19 @@ pub mod collections {
         }
     }
 
-    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> HasArena for SortedMap<TKey, TValue> {
+    impl<TKey, TValue> HasArena for SortedMap<TKey, TValue> {
         fn arena(&self) -> &AllArenas {
             unimplemented!()
         }
     }
 
-    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> HasArenaHarness for SortedMap<TKey, TValue> {
+    impl<TKey, TValue> HasArenaHarness for SortedMap<TKey, TValue> {
         fn arena_harness(&self) -> &AllArenasHarness {
             unimplemented!()
         }
     }
 
-    pub struct Keys<'a, TKey: Trace + Finalize + 'static, TValue: 'a + Trace + Finalize>
+    pub struct Keys<'a, TKey: 'static, TValue: 'a>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -286,7 +283,7 @@ pub mod collections {
         current_index: usize,
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Keys<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Keys<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -307,8 +304,7 @@ pub mod collections {
         }
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Iterator
-        for Keys<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Iterator for Keys<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -329,7 +325,7 @@ pub mod collections {
         }
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Drop for Keys<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Drop for Keys<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -341,7 +337,7 @@ pub mod collections {
         }
     }
 
-    pub struct Values<'a, TKey: Trace + Finalize + 'static, TValue: 'a + Trace + Finalize>
+    pub struct Values<'a, TKey: 'static, TValue: 'a>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -353,7 +349,7 @@ pub mod collections {
         current_index: usize,
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Values<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Values<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -374,8 +370,7 @@ pub mod collections {
         }
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Iterator
-        for Values<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Iterator for Values<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -396,8 +391,7 @@ pub mod collections {
         }
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Drop
-        for Values<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Drop for Values<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -409,7 +403,7 @@ pub mod collections {
         }
     }
 
-    pub struct Entries<'a, TKey: Trace + Finalize + 'static, TValue: 'a + Trace + Finalize>
+    pub struct Entries<'a, TKey: 'static, TValue: 'a>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -422,7 +416,7 @@ pub mod collections {
         current_index: usize,
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Entries<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Entries<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -445,8 +439,7 @@ pub mod collections {
         }
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Iterator
-        for Entries<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Iterator for Entries<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -473,8 +466,7 @@ pub mod collections {
         }
     }
 
-    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Drop
-        for Entries<'a, TKey, TValue>
+    impl<'a, TKey: 'a, TValue: 'a> Drop for Entries<'a, TKey, TValue>
     where
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
@@ -496,8 +488,7 @@ pub mod collections {
         }
     }
 
-    // #[derive(Trace, Finalize)]
-    pub struct Metadata<TValue: Trace + Finalize + 'static> {
+    pub struct Metadata<TValue: 'static> {
         _parent: Option<Id<Metadata<TValue>>>,
         _map: HashMap<String, TValue>,
         _version: usize,
@@ -506,16 +497,8 @@ pub mod collections {
         // #[unsafe_ignore_trace]
         _parent_version: Cell<Option<usize>>,
     }
-    // TODO: did this to avoid a compiler overflow trying to resolve traits
-    unsafe impl<TValue: Trace + Finalize + 'static> Trace for Metadata<TValue> {
-        gc::custom_trace!(this, {
-            mark(&this._parent);
-            mark(&this._map);
-        });
-    }
-    impl<TValue: Trace + Finalize + 'static> Finalize for Metadata<TValue> {}
 
-    impl<TValue: Clone + Trace + Finalize + 'static> Metadata<TValue>
+    impl<TValue: Clone + 'static> Metadata<TValue>
     where
         Id<Metadata<TValue>>: InArenaHarness<Item = Metadata<TValue>>,
     {
@@ -631,13 +614,13 @@ pub mod collections {
         }
     }
 
-    impl<TValue: Clone + Trace + Finalize + 'static> HasArena for Metadata<TValue> {
+    impl<TValue: Clone + 'static> HasArena for Metadata<TValue> {
         fn arena(&self) -> &AllArenas {
             unimplemented!()
         }
     }
 
-    impl<TValue: Clone + Trace + Finalize + 'static> HasArenaHarness for Metadata<TValue> {
+    impl<TValue: Clone + 'static> HasArenaHarness for Metadata<TValue> {
         fn arena_harness(&self) -> &AllArenasHarness {
             unimplemented!()
         }

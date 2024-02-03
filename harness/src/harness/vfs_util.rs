@@ -9,7 +9,6 @@ pub mod vfs {
     };
 
     use derive_builder::Builder;
-    use gc::{Finalize, Trace};
     use local_macros::enum_unwrapped;
     use typescript_rust::{
         debug_cell, get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
@@ -63,11 +62,10 @@ pub mod vfs {
         })
     }
 
-    pub trait StringComparer: Trace + Finalize {
+    pub trait StringComparer {
         fn call(&self, a: &str, b: &str) -> Comparison;
     }
 
-    #[derive(Trace, Finalize)]
     pub struct StringComparerFileSystem {
         ignore_case: bool,
     }
@@ -88,7 +86,6 @@ pub mod vfs {
         }
     }
 
-    #[derive(Trace, Finalize)]
     pub struct SortOptionsComparerFromStringComparer {
         string_comparer: Id<Box<dyn StringComparer>>,
     }
@@ -117,20 +114,15 @@ pub mod vfs {
         }
     }
 
-    #[derive(Trace, Finalize)]
     pub struct FileSystem {
         pub ignore_case: bool,
         pub string_comparer: Id<Box<dyn StringComparer>>,
         _lazy: FileSystemLazy,
 
-        #[unsafe_ignore_trace]
         _cwd: RefCell<Option<String>>,
-        #[unsafe_ignore_trace]
         _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
         _shadow_root: Option<Id<FileSystem>>,
-        #[unsafe_ignore_trace]
         _dir_stack: RefCell<Option<Vec<String>>>,
-        #[unsafe_ignore_trace]
         _is_readonly: Cell<bool>,
     }
 
@@ -1324,7 +1316,7 @@ pub mod vfs {
         }
     }
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub enum MetaValue {
         RcTextDocument(Id<documents::TextDocument>),
         Node(Id<Node>),
@@ -1395,32 +1387,22 @@ pub mod vfs {
         Throw,
     }
 
-    #[derive(Default, Trace, Finalize)]
+    #[derive(Default)]
     struct FileSystemLazy {
-        #[unsafe_ignore_trace]
         links: Cell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
-        #[unsafe_ignore_trace]
         shadows: RefCell<Option<HashMap<u32, Id<Inode>>>>,
-        #[unsafe_ignore_trace]
         meta: Cell<Option<Id<collections::Metadata<String>>>>,
     }
 
-    // TODO: revisit this, SystemTime Trace wasn't implemented and unsafe_ignore_trace didn't seem
-    // to work I guess on an enum variant?
-    #[derive(Clone /*, Trace, Finalize*/)]
+    #[derive(Clone)]
     pub enum TimestampOrNowOrSystemTimeOrCallback {
         Timestamp(u128),
         Now,
-        // #[unsafe_ignore_trace]
         SystemTime(SystemTime),
         Callback(Id<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>),
     }
-    unsafe impl Trace for TimestampOrNowOrSystemTimeOrCallback {
-        gc::unsafe_empty_trace!();
-    }
-    impl Finalize for TimestampOrNowOrSystemTimeOrCallback {}
 
-    pub trait TimestampOrNowOrSystemTimeOrCallbackCallback: Trace + Finalize {
+    pub trait TimestampOrNowOrSystemTimeOrCallbackCallback {
         fn call(&self) -> TimestampOrNowOrSystemTime;
     }
 
@@ -1480,9 +1462,7 @@ pub mod vfs {
         pub documents: Option<Vec<Id<documents::TextDocument>>>,
     }
 
-    #[derive(Trace, Finalize)]
     pub struct FileSystemResolver {
-        #[unsafe_ignore_trace]
         pub host: IdForFileSystemResolverHost,
     }
 
@@ -1540,7 +1520,7 @@ pub mod vfs {
         pub size: usize,
     }
 
-    pub trait FileSystemResolverHost: Trace + Finalize {
+    pub trait FileSystemResolverHost {
         fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries;
         fn directory_exists(&self, path: &str) -> bool;
         fn file_exists(&self, path: &str) -> bool;
@@ -1927,7 +1907,7 @@ pub mod vfs {
         pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub enum Inode {
         FileInode(FileInode),
         DirectoryInode(DirectoryInode),
@@ -2153,29 +2133,21 @@ pub mod vfs {
         }
     }
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub struct FileInode {
         pub dev: u32,
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
-        #[unsafe_ignore_trace]
         pub mtime_ms: Cell<u128>,
-        #[unsafe_ignore_trace]
         pub ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
-        #[unsafe_ignore_trace]
         nlink: Cell<usize>,
-        #[unsafe_ignore_trace]
         size: Cell<Option<usize>>,
-        #[unsafe_ignore_trace]
         buffer: RefCell<Option<Buffer>>,
-        #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        #[unsafe_ignore_trace]
         resolver: Cell<Option<Id<FileSystemResolver>>>,
         pub shadow_root: Option<Id<Inode /*FileInode*/>>,
-        #[unsafe_ignore_trace]
         meta: Cell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
@@ -2270,27 +2242,20 @@ pub mod vfs {
         }
     }
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub struct DirectoryInode {
         pub dev: u32,
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
-        #[unsafe_ignore_trace]
         pub mtime_ms: Cell<u128>,
-        #[unsafe_ignore_trace]
         pub ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
-        #[unsafe_ignore_trace]
         nlink: Cell<usize>,
-        #[unsafe_ignore_trace]
         links: Cell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
-        #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        #[unsafe_ignore_trace]
         resolver: Cell<Option<Id<FileSystemResolver>>>,
         pub shadow_root: Option<Id<Inode /*DirectoryInode*/>>,
-        #[unsafe_ignore_trace]
         meta: Cell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
@@ -2380,22 +2345,18 @@ pub mod vfs {
         }
     }
 
-    #[derive(Clone, Trace, Finalize)]
+    #[derive(Clone)]
     pub struct SymlinkInode {
         pub dev: u32,
         pub ino: u32,
         pub mode: u32,
         pub atime_ms: u128,
-        #[unsafe_ignore_trace]
         pub mtime_ms: Cell<u128>,
-        #[unsafe_ignore_trace]
         ctime_ms: Cell<u128>,
         pub birthtime_ms: u128,
-        #[unsafe_ignore_trace]
         nlink: Cell<usize>,
         pub symlink: Option<String>,
         pub shadow_root: Option<Id<Inode /*SymlinkInode*/>>,
-        #[unsafe_ignore_trace]
         meta: Cell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
@@ -2549,7 +2510,7 @@ pub mod vfs {
 
     fn maybe_built_local_cs(arena: &impl HasArenaHarness) -> Option<Id<FileSystem>> {
         BUILT_LOCAL_CS_PER_ARENA.with(|per_arena| {
-            let per_arena = per_arena.borrow(;
+            let per_arena = per_arena.borrow();
             let arena_ptr: *const AllArenasHarness = arena.arena_harness();
             per_arena.get(&arena_ptr).copied()
         })

@@ -467,7 +467,6 @@ dependencies = [
  "derive_builder",
  "fancy-regex",
  "futures",
- "gc",
  "itertools",
  "lazy_static",
  "local-macros",

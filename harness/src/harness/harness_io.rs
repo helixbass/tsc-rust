@@ -6,7 +6,6 @@ use std::{
     path::{Path as StdPath, PathBuf},
 };
 
-use gc::{Finalize, Trace};
 use regex::Regex;
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
@@ -57,8 +56,6 @@ fn create_node_io(arena: &impl HasArenaHarness) -> Id<NodeIO> {
     NodeIO::new(arena)
 }
 
-#[derive(Trace, Finalize)]
-// struct NodeIO {
 pub struct NodeIO;
 
 impl NodeIO {
@@ -255,7 +252,6 @@ pub fn set_light_mode(flag: bool) {
 pub mod Compiler {
     use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io};
 
-    use gc::{Finalize, Trace};
     use regex::Regex;
     use typescript_rust::{
         NonEmpty, _d, combine_paths, compare_diagnostics, compare_paths, compute_line_starts,
@@ -644,7 +640,6 @@ pub mod Compiler {
         }
     }
 
-    #[derive(Trace, Finalize)]
     pub struct TestFile {
         pub unit_name: String,
         pub content: String,
@@ -1613,7 +1608,7 @@ pub mod Compiler {
     }
 }
 
-#[derive(Clone, Trace, Finalize)]
+#[derive(Clone)]
 pub struct FileBasedTest {
     pub file: String, /*PathBuf*/
     pub configurations: Option<Vec<FileBasedTestConfiguration>>,
