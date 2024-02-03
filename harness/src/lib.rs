@@ -13,8 +13,8 @@ pub use harness::{
     documents_util::documents,
     fakes_hosts::fakes,
     harness_io::{
-        get_file_based_test_configuration_description, get_file_based_test_configurations, get_io, get_io_id,
-        get_light_mode, user_specified_root, Baseline, Compiler, FileBasedTest,
+        get_file_based_test_configuration_description, get_file_based_test_configurations, get_io,
+        get_io_id, get_light_mode, user_specified_root, Baseline, Compiler, FileBasedTest,
         FileBasedTestConfiguration, ListFilesOptions, TestCaseParser, IO,
     },
     runnerbase::{
@@ -26,7 +26,9 @@ pub use harness::{
     vpath_util::vpath,
 };
 pub use mocha::{after, before, describe, it, MochaArgs};
-pub use rust_helpers::arena::{AllArenasHarness, HasArenaHarness, InArenaHarness};
+pub use rust_helpers::arena::{
+    AllArenasHarness, HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
+};
 
 pub mod Utils {
     pub use super::harness::{harness_utils::*, util::*};

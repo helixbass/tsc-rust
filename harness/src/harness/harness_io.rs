@@ -276,7 +276,7 @@ pub mod Compiler {
         StringOrDiagnosticMessage, TextSpan,
     };
 
-    use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
+    use super::{get_io_id, is_built_file, is_default_library_file, Baseline, TestCaseParser};
     use crate::{
         compiler, documents, fakes, get_io, vfs, vpath, AllArenasHarness, HasArenaHarness, Utils,
         IO,
@@ -732,13 +732,14 @@ pub mod Compiler {
             .map(|file| Gc::new(documents::TextDocument::from_test_file(file)))
             .collect::<Vec<_>>();
         let fs = Gc::new(vfs::create_from_file_system(
-            get_io(arena).as_file_system_resolver_host(),
+            get_io_id(arena),
             !use_case_sensitive_file_names,
             Some(vfs::FileSystemCreateOptions {
                 documents: Some(docs),
                 cwd: Some(current_directory.to_owned()),
                 ..Default::default()
             }),
+            arena,
         )?);
         if let Some(symlinks) = symlinks {
             fs.apply(symlinks)?;

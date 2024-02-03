@@ -18,8 +18,8 @@ pub mod vfs {
     };
 
     use crate::{
-        collections, collections::SortOptionsComparer, documents, vpath, AllArenasHarness,
-        HasArenaHarness,
+        collections, collections::SortOptionsComparer, documents, harness::harness_io::NodeIO,
+        vpath, AllArenasHarness, HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
     };
 
     pub const built_folder: &'static str = "/.ts";
@@ -1387,20 +1387,21 @@ pub mod vfs {
 
     #[derive(Trace, Finalize)]
     pub struct FileSystemResolver {
-        pub host: Gc<Box<dyn FileSystemResolverHost>>,
+        #[unsafe_ignore_trace]
+        pub host: IdForFileSystemResolverHost,
     }
 
     impl FileSystemResolver {
         pub fn stat_sync(&self, path: &str) -> FileSystemResolverStats {
-            if self.host.directory_exists(path) {
+            if self.host.ref_(self).directory_exists(path) {
                 FileSystemResolverStats {
                     mode: S_IFDIR | 0o777,
                     size: 0,
                 }
-            } else if self.host.file_exists(path) {
+            } else if self.host.ref_(self).file_exists(path) {
                 FileSystemResolverStats {
                     mode: S_IFREG | 0o666,
-                    size: self.host.get_file_size(path),
+                    size: self.host.ref_(self).get_file_size(path),
                 }
             } else {
                 panic!("ENOENT: path does not exist");
@@ -1411,7 +1412,10 @@ pub mod vfs {
             let FileSystemEntries {
                 mut files,
                 mut directories,
-            } = self.host.get_accessible_file_system_entries(path);
+            } = self
+                .host
+                .ref_(self)
+                .get_accessible_file_system_entries(path);
             directories.append(&mut files);
             directories
         }
@@ -1419,13 +1423,19 @@ pub mod vfs {
         pub fn read_file_sync(&self, path: &str) -> Buffer {
             get_sys(self)
                 .ref_(self)
-                .buffer_from(self.host.read_file(path).unwrap(), Some("utf8"))
+                .buffer_from(self.host.ref_(self).read_file(path).unwrap(), Some("utf8"))
                 .unwrap()
         }
     }
 
     impl HasArena for FileSystemResolver {
         fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for FileSystemResolver {
+        fn arena_harness(&self) -> &AllArenasHarness {
             unimplemented!()
         }
     }
@@ -1444,15 +1454,17 @@ pub mod vfs {
         fn get_workspace_root(&self) -> String;
     }
 
-    pub fn create_resolver(host: Gc<Box<dyn FileSystemResolverHost>>) -> FileSystemResolver {
+    pub fn create_resolver(host: IdForFileSystemResolverHost) -> FileSystemResolver {
         FileSystemResolver { host }
     }
 
     pub fn create_from_file_system(
-        host: Gc<Box<dyn FileSystemResolverHost>>,
+        host: impl Into<IdForFileSystemResolverHost>,
         ignore_case: bool,
         options: Option<FileSystemCreateOptions>,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<FileSystem> {
+        let host: IdForFileSystemResolverHost = host.into();
         let FileSystemCreateOptions {
             documents,
             files,
@@ -1460,7 +1472,7 @@ pub mod vfs {
             time,
             meta,
         } = options.unwrap_or_default();
-        let fs = FileSystem::shadow(get_built_local(host, ignore_case)?, None)?;
+        let fs = FileSystem::shadow(get_built_local(host, ignore_case, arena)?, None)?;
         if let Some(meta) = meta {
             for key in meta.keys() {
                 fs.meta()
@@ -2368,16 +2380,16 @@ pub mod vfs {
     }
 
     thread_local! {
-        static built_local_host_: GcCell<Option<Gc<Box<dyn FileSystemResolverHost>>>> = Default::default();
+        static built_local_host_: RefCell<Option<IdForFileSystemResolverHost>> = Default::default();
         static built_local_ci_: GcCell<Option<Gc<FileSystem>>> = Default::default();
         static built_local_cs_: GcCell<Option<Gc<FileSystem>>> = Default::default();
     }
 
-    fn maybe_built_local_host() -> Option<Gc<Box<dyn FileSystemResolverHost>>> {
+    fn maybe_built_local_host() -> Option<IdForFileSystemResolverHost> {
         built_local_host_.with(|built_local_host| built_local_host.borrow().clone())
     }
 
-    fn set_built_local_host(value: Option<Gc<Box<dyn FileSystemResolverHost>>>) {
+    fn set_built_local_host(value: Option<IdForFileSystemResolverHost>) {
         built_local_host_.with(|built_local_host| {
             *built_local_host.borrow_mut() = value;
         })
@@ -2404,22 +2416,20 @@ pub mod vfs {
     }
 
     fn get_built_local(
-        host: Gc<Box<dyn FileSystemResolverHost>>,
+        host: IdForFileSystemResolverHost,
         ignore_case: bool,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<Gc<FileSystem>> {
         if !matches!(
-            maybe_built_local_host().as_ref(),
-            Some(built_local_host) if Gc::ptr_eq(
-                built_local_host,
-                &host,
-            )
+            maybe_built_local_host(),
+            Some(built_local_host) if built_local_host == host
         ) {
             set_built_local_ci(None);
             set_built_local_cs(None);
             set_built_local_host(Some(host.clone()));
         }
         if maybe_built_local_ci().is_none() {
-            let resolver = Gc::new(create_resolver(host.clone()));
+            let resolver = Gc::new(create_resolver(host));
             set_built_local_ci(Some(Gc::new(FileSystem::new(
                 true,
                 Some(FileSystemOptions {
@@ -2459,7 +2469,7 @@ pub mod vfs {
                             Some(
                                 Mount::new(
                                     vpath::resolve(
-                                        &host.get_workspace_root(),
+                                        &host.ref_(arena).get_workspace_root(),
                                         &[Some("tests/projects")],
                                     ),
                                     resolver.clone(),
