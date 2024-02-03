@@ -1,6 +1,6 @@
 use id_arena::Id;
 
-use crate::{set_text_range_pos_end, Node, NodeArray, ReadonlyTextRange, HasArena, InArena};
+use crate::{set_text_range_pos_end, HasArena, InArena, Node, NodeArray, ReadonlyTextRange};
 
 pub fn set_text_range<'a, TRange: ReadonlyTextRange + ?Sized>(
     range: &'a TRange,

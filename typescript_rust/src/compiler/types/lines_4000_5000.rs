@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, Ref, RefMut},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
     fmt, io,
     rc::Rc,
@@ -20,12 +20,10 @@ use super::{
 };
 use crate::{
     AllArenas, CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType,
-    IndexInfo, IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap, NodeBuilder, Number,
-    PatternAmbientModule, ResolvedTypeReferenceDirective, ReverseMappedSymbol, StringOrNumber,
-    TypeId, TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
-    TransformNodesTransformationResult,
-    Program,
-    HasArena,
+    HasArena, IndexInfo, IterationTypes, IterationTypesResolver, MappedSymbol, MultiMap,
+    NodeBuilder, Number, PatternAmbientModule, Program, ResolvedTypeReferenceDirective,
+    ReverseMappedSymbol, StringOrNumber, TransformNodesTransformationResult, TypeId,
+    TypeSystemEntity, TypeSystemPropertyName, VarianceFlags, _d,
 };
 
 pub type RedirectTargetsMap = MultiMap<Path, String>;
@@ -338,19 +336,16 @@ pub struct TypeChecker {
     pub(crate) deferred_global_promise_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_promise_like_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_promise_constructor_symbol: Cell<Option<Id<Symbol>>>,
-    pub(crate) deferred_global_promise_constructor_like_type:
-        Cell<Option<Id<Type /*ObjectType*/>>>,
+    pub(crate) deferred_global_promise_constructor_like_type: Cell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_iterable_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_iterator_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_iterable_iterator_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_generator_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_iterator_yield_result_type: Cell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_iterator_return_result_type:
-        Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_iterator_return_result_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_async_iterable_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_async_iterator_type: Cell<Option<Id<Type /*GenericType*/>>>,
-    pub(crate) deferred_global_async_iterable_iterator_type:
-        Cell<Option<Id<Type /*GenericType*/>>>,
+    pub(crate) deferred_global_async_iterable_iterator_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_async_generator_type: Cell<Option<Id<Type /*GenericType*/>>>,
     pub(crate) deferred_global_template_strings_array_type: Cell<Option<Id<Type /*ObjectType*/>>>,
     pub(crate) deferred_global_import_meta_type: Cell<Option<Id<Type /*ObjectType*/>>>,
@@ -1146,9 +1141,7 @@ impl SymbolInterface for BaseSymbol {
         self.is_assigned.set(is_assigned);
     }
 
-    fn maybe_assignment_declaration_members(
-        &self,
-    ) -> RefMut<Option<HashMap<NodeId, Id<Node>>>> {
+    fn maybe_assignment_declaration_members(&self) -> RefMut<Option<HashMap<NodeId, Id<Node>>>> {
         self.assignment_declaration_members.borrow_mut()
     }
 }

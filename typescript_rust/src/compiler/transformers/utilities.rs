@@ -13,11 +13,9 @@ use crate::{
     is_expression_statement, is_generated_identifier, is_identifier, is_keyword,
     is_method_or_accessor, is_named_exports, is_named_imports, is_omitted_expression,
     is_private_identifier, is_property_declaration, is_statement, is_static,
-    is_string_literal_like, is_super_call, return_default_if_none, try_visit_node,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, InternalSymbolName, Matches,
-    ModifierFlags, MultiMap,
-    HasArena, InArena, per_arena,
-    TransformNodesTransformationResult,
+    is_string_literal_like, is_super_call, per_arena, return_default_if_none, try_visit_node,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, InArena,
+    InternalSymbolName, Matches, ModifierFlags, MultiMap, TransformNodesTransformationResult,
 };
 
 pub fn get_original_node_id(node: Id<Node>, arena: &impl HasArena) -> NodeId {
@@ -66,14 +64,19 @@ impl WrapCustomTransformerFactoryHandleDefault for ChainBundle {
     }
 }
 
-fn contains_default_reference(node: Option<Id<Node /*NamedImportBindings*/>>, arena: &impl HasArena) -> bool {
+fn contains_default_reference(
+    node: Option<Id<Node /*NamedImportBindings*/>>,
+    arena: &impl HasArena,
+) -> bool {
     let node = return_default_if_none!(node);
     if !is_named_imports(&node.ref_(arena)) {
         return false;
     }
-    node.ref_(arena).as_named_imports()
+    node.ref_(arena)
+        .as_named_imports()
         .elements
-        .ref_(arena).iter()
+        .ref_(arena)
+        .iter()
         .any(|&element| is_named_default_reference(element, arena))
 }
 
@@ -87,7 +90,9 @@ fn is_named_default_reference(e: Id<Node> /*ImportSpecifier*/, arena: &impl HasA
         })
 }
 
-pub fn chain_bundle(arena: &impl HasArena) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
+pub fn chain_bundle(
+    arena: &impl HasArena,
+) -> Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>> {
     per_arena!(
         Box<dyn WrapCustomTransformerFactoryHandleDefault>,
         arena,
@@ -95,20 +100,28 @@ pub fn chain_bundle(arena: &impl HasArena) -> Id<Box<dyn WrapCustomTransformerFa
     )
 }
 
-pub fn get_export_needs_import_star_helper(node: Id<Node> /*ExportDeclaration*/, arena: &impl HasArena) -> bool {
+pub fn get_export_needs_import_star_helper(
+    node: Id<Node>, /*ExportDeclaration*/
+    arena: &impl HasArena,
+) -> bool {
     get_namespace_declaration_node(node, arena).is_some()
 }
 
-pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/, arena: &impl HasArena) -> bool {
+pub fn get_import_needs_import_star_helper(
+    node: Id<Node>, /*ImportDeclaration*/
+    arena: &impl HasArena,
+) -> bool {
     let node_ref = node.ref_(arena);
     let node_as_import_declaration = node_ref.as_import_declaration();
     if get_namespace_declaration_node(node, arena).is_some() {
         return true;
     }
-    let bindings =
-        return_default_if_none!(node_as_import_declaration.import_clause.and_then(
-            |node_import_clause| node_import_clause.ref_(arena).as_import_clause().named_bindings
-        ));
+    let bindings = return_default_if_none!(node_as_import_declaration.import_clause.and_then(
+        |node_import_clause| node_import_clause
+            .ref_(arena)
+            .as_import_clause()
+            .named_bindings
+    ));
     if !is_named_imports(&bindings.ref_(arena)) {
         return false;
     }
@@ -121,12 +134,16 @@ pub fn get_import_needs_import_star_helper(node: Id<Node> /*ImportDeclaration*/,
         }
     }
 
-    default_ref_count > 0 && default_ref_count != bindings_as_named_imports.elements.ref_(arena).len()
+    default_ref_count > 0
+        && default_ref_count != bindings_as_named_imports.elements.ref_(arena).len()
         || (bindings_as_named_imports.elements.ref_(arena).len() - default_ref_count) != 0
             && is_default_import(node, arena)
 }
 
-pub fn get_import_needs_import_default_helper(node: Id<Node> /*ImportDeclaration*/, arena: &impl HasArena) -> bool {
+pub fn get_import_needs_import_default_helper(
+    node: Id<Node>, /*ImportDeclaration*/
+    arena: &impl HasArena,
+) -> bool {
     let node_ref = node.ref_(arena);
     let node_as_import_declaration = node_ref.as_import_declaration();
     !get_import_needs_import_star_helper(node, arena)
@@ -136,11 +153,15 @@ pub fn get_import_needs_import_default_helper(node: Id<Node> /*ImportDeclaration
                 .as_ref()
                 .matches(|node_import_clause| {
                     let node_import_clause_named_bindings = node_import_clause
-                        .ref_(arena).as_import_clause()
+                        .ref_(arena)
+                        .as_import_clause()
                         .named_bindings
                         .unwrap();
                     is_named_imports(&node_import_clause_named_bindings.ref_(arena))
-                        && contains_default_reference(Some(node_import_clause_named_bindings), arena)
+                        && contains_default_reference(
+                            Some(node_import_clause_named_bindings),
+                            arena,
+                        )
                 }))
 }
 
@@ -180,7 +201,10 @@ pub fn collect_external_module_info(
             SyntaxKind::ImportEqualsDeclaration => {
                 let node_ref = node.ref_(arena);
                 let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
-                if node_as_import_equals_declaration.module_reference.ref_(arena).kind()
+                if node_as_import_equals_declaration
+                    .module_reference
+                    .ref_(arena)
+                    .kind()
                     == SyntaxKind::ExternalModuleReference
                 {
                     external_imports.push(node);
@@ -208,13 +232,17 @@ pub fn collect_external_module_info(
                                     arena,
                                 )?;
                             } else {
-                                let name = node_export_clause.ref_(arena).as_namespace_export().name;
-                                if unique_exports.get(id_text(&name.ref_(arena))).copied() != Some(true) {
+                                let name =
+                                    node_export_clause.ref_(arena).as_namespace_export().name;
+                                if unique_exports.get(id_text(&name.ref_(arena))).copied()
+                                    != Some(true)
+                                {
                                     exported_bindings
                                         .entry(get_original_node_id(node, arena))
                                         .or_default()
                                         .push(name);
-                                    unique_exports.insert(id_text(&name.ref_(arena)).to_owned(), true);
+                                    unique_exports
+                                        .insert(id_text(&name.ref_(arena)).to_owned(), true);
                                     exported_names.get_or_insert_default_().push(name.clone());
                                 }
                                 has_import_star = true;
@@ -245,10 +273,13 @@ pub fn collect_external_module_info(
             SyntaxKind::VariableStatement => {
                 if has_syntactic_modifier(node, ModifierFlags::Export, arena) {
                     for &decl in &*node
-                        .ref_(arena).as_variable_statement()
+                        .ref_(arena)
+                        .as_variable_statement()
                         .declaration_list
-                        .ref_(arena).as_variable_declaration_list()
-                        .declarations.ref_(arena)
+                        .ref_(arena)
+                        .as_variable_declaration_list()
+                        .declarations
+                        .ref_(arena)
                     {
                         collect_exported_variable_info(
                             decl,
@@ -302,9 +333,9 @@ pub fn collect_external_module_info(
                         }
                     } else {
                         let name = node.ref_(arena).as_class_declaration().maybe_name();
-                        if let Some(name) = name
-                            .filter(|name| unique_exports.get(id_text(&name.ref_(arena))).copied() != Some(true))
-                        {
+                        if let Some(name) = name.filter(|name| {
+                            unique_exports.get(id_text(&name.ref_(arena))).copied() != Some(true)
+                        }) {
                             exported_bindings
                                 .entry(get_original_node_id(node, arena))
                                 .or_default()
@@ -359,8 +390,10 @@ fn add_exported_names_for_export_declaration(
         node_as_export_declaration.export_clause,
         |node: &Id<Node>| is_named_exports(&node.ref_(arena)),
     )
-    .ref_(arena).as_named_exports()
-    .elements.ref_(arena)
+    .ref_(arena)
+    .as_named_exports()
+    .elements
+    .ref_(arena)
     {
         let specifier_ref = specifier.ref_(arena);
         let specifier_as_export_specifier = specifier_ref.as_export_specifier();
@@ -408,7 +441,12 @@ fn collect_exported_variable_info(
 ) {
     let decl_name = decl.ref_(arena).as_named_declaration().name();
     if is_binding_pattern(Some(&*decl_name.ref_(arena))) {
-        for &element in &*decl_name.ref_(arena).as_has_elements().elements().ref_(arena) {
+        for &element in &*decl_name
+            .ref_(arena)
+            .as_has_elements()
+            .elements()
+            .ref_(arena)
+        {
             if !is_omitted_expression(&element.ref_(arena)) {
                 collect_exported_variable_info(element, unique_exports, exported_names, arena);
             }
@@ -468,11 +506,16 @@ pub fn add_prologue_directives_and_initial_super_call(
     factory: &NodeFactory,
     ctor: Id<Node>, /*ConstructorDeclaration*/
     result: &mut Vec<Id<Node /*Statement*/>>,
-    mut visitor: impl FnMut(Id<Node>) -> VisitResult, arena: &impl HasArena,
+    mut visitor: impl FnMut(Id<Node>) -> VisitResult,
+    arena: &impl HasArena,
 ) -> usize {
-    try_add_prologue_directives_and_initial_super_call(factory, ctor, result, |node: Id<Node>| {
-        Ok(visitor(node))
-    }, arena)
+    try_add_prologue_directives_and_initial_super_call(
+        factory,
+        ctor,
+        result,
+        |node: Id<Node>| Ok(visitor(node)),
+        arena,
+    )
     .unwrap()
 }
 
@@ -499,14 +542,21 @@ pub fn try_add_prologue_directives_and_initial_super_call(
         }
 
         let super_index = statements
-            .ref_(arena).iter()
+            .ref_(arena)
+            .iter()
             .skip(index)
             .position(|s| {
-                is_expression_statement(&s.ref_(arena)) && is_super_call(s.ref_(arena).as_expression_statement().expression, arena)
+                is_expression_statement(&s.ref_(arena))
+                    && is_super_call(s.ref_(arena).as_expression_statement().expression, arena)
             })
             .map(|found| found + index);
         if let Some(super_index) = super_index {
-            for &statement in statements.ref_(arena).iter().skip(index).take(super_index - index + 1) {
+            for &statement in statements
+                .ref_(arena)
+                .iter()
+                .skip(index)
+                .take(super_index - index + 1)
+            {
                 result.push(try_visit_node(
                     statement,
                     Some(|node: Id<Node>| visitor(node)),
@@ -529,27 +579,36 @@ pub fn get_properties(
     is_static: bool,
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*PropertyDeclaration*/>> {
-    node.ref_(arena).as_class_like_declaration()
+    node.ref_(arena)
+        .as_class_like_declaration()
         .members()
-        .ref_(arena).iter()
+        .ref_(arena)
+        .iter()
         .filter(|&&m| is_initialized_or_static_property(m, require_initializer, is_static, arena))
         .cloned()
         .collect()
 }
 
 pub fn is_static_property_declaration_or_class_static_block_declaration(
-    element: Id<Node> /*ClassElement*/, arena: &impl HasArena
+    element: Id<Node>, /*ClassElement*/
+    arena: &impl HasArena,
 ) -> bool {
-    is_static_property_declaration(element, arena) || is_class_static_block_declaration(&element.ref_(arena))
+    is_static_property_declaration(element, arena)
+        || is_class_static_block_declaration(&element.ref_(arena))
 }
 
 pub fn get_static_properties_and_class_static_block(
-    node: Id<Node> /*ClassExpression | ClassDeclaration*/, arena: &impl HasArena
+    node: Id<Node>, /*ClassExpression | ClassDeclaration*/
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>> {
-    node.ref_(arena).as_class_like_declaration()
+    node.ref_(arena)
+        .as_class_like_declaration()
         .members()
-        .ref_(arena).iter()
-        .filter(|&&member| is_static_property_declaration_or_class_static_block_declaration(member, arena))
+        .ref_(arena)
+        .iter()
+        .filter(|&&member| {
+            is_static_property_declaration_or_class_static_block_declaration(member, arena)
+        })
         .cloned()
         .collect()
 }
@@ -562,14 +621,18 @@ fn is_initialized_or_static_property(
 ) -> bool {
     is_property_declaration(&member.ref_(arena))
         && (member
-            .ref_(arena).as_property_declaration()
+            .ref_(arena)
+            .as_property_declaration()
             .maybe_initializer()
             .is_some()
             || !require_initializer)
         && has_static_modifier(member, arena) == is_static
 }
 
-pub fn is_static_property_declaration(member: Id<Node> /*ClassElement*/, arena: &impl HasArena) -> bool {
+pub fn is_static_property_declaration(
+    member: Id<Node>, /*ClassElement*/
+    arena: &impl HasArena,
+) -> bool {
     is_property_declaration(&member.ref_(arena)) && has_static_modifier(member, arena)
 }
 
@@ -582,7 +645,8 @@ pub fn is_initialized_property(member: &Node /*ClassElement*/) -> bool {
 }
 
 pub fn is_non_static_method_or_accessor_with_private_name(
-    member: Id<Node>, /*ClassElement*/ arena: &impl HasArena
+    member: Id<Node>,
+    /*ClassElement*/ arena: &impl HasArena,
 ) -> bool {
     !is_static(member, arena)
         && is_method_or_accessor(&member.ref_(arena))

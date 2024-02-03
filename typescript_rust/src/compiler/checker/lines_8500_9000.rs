@@ -8,9 +8,9 @@ use crate::{
     every, filter, get_assigned_expando_initializer, get_assignment_declaration_kind,
     get_assignment_declaration_property_access_kind, get_combined_modifier_flags,
     get_combined_node_flags, get_declaration_of_kind, get_declared_expando_initializer,
-    get_effective_modifier_flags, get_effective_type_annotation_node, get_jsdoc_type,
+    get_effective_modifier_flags, get_effective_type_annotation_node, get_factory, get_jsdoc_type,
     get_jsdoc_type_tag, get_object_flags, get_source_file_of_node, get_this_container,
-    has_only_expression_initializer, has_static_modifier, is_access_expression,
+    has_only_expression_initializer, has_static_modifier, index_of_eq, is_access_expression,
     is_binary_expression, is_binding_pattern, is_call_expression,
     is_class_static_block_declaration, is_function_type_node, is_in_js_file, is_jsx_attribute,
     is_module_exports_access_expression, is_named_declaration, is_object_literal_expression,
@@ -21,11 +21,9 @@ use crate::{
     walk_up_binding_elements_and_patterns, AccessFlags, AssignmentDeclarationKind, Debug_,
     Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
     LiteralType, ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Number,
-    ObjectFlags, ObjectFlagsTypeInterface, OptionTry, StrOrRcNode, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction,
-    index_of_eq, OptionInArena,
-    get_factory,
+    ObjectFlags, ObjectFlagsTypeInterface, OptionInArena, OptionTry, StrOrRcNode, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -41,9 +39,10 @@ impl TypeChecker {
             SyntaxKind::ArrayLiteralExpression => {
                 self.get_synthetic_element_access(node.ref_(self).parent())?
             }
-            SyntaxKind::VariableDeclaration => {
-                ancestor.ref_(self).as_variable_declaration().maybe_initializer()
-            }
+            SyntaxKind::VariableDeclaration => ancestor
+                .ref_(self)
+                .as_variable_declaration()
+                .maybe_initializer(),
             SyntaxKind::BinaryExpression => Some(ancestor.ref_(self).as_binary_expression().right),
             _ => None,
         })
@@ -69,11 +68,15 @@ impl TypeChecker {
             node.ref_(self).kind(),
             SyntaxKind::PropertyAssignment | SyntaxKind::ShorthandPropertyAssignment
         ) {
-            return self.get_literal_property_name_text(node.ref_(self).as_named_declaration().name());
+            return self
+                .get_literal_property_name_text(node.ref_(self).as_named_declaration().name());
         }
         Ok(Some(format!(
             "{}",
-            index_of_eq(&parent.ref_(self).as_has_elements().elements().ref_(self), &node)
+            index_of_eq(
+                &parent.ref_(self).as_has_elements().elements().ref_(self),
+                &node
+            )
         )))
     }
 
@@ -111,13 +114,17 @@ impl TypeChecker {
         declaration: Id<Node>, /*BindingElement*/
     ) -> io::Result<Option<Id<Type>>> {
         let pattern = declaration.ref_(self).parent();
-        let mut parent_type =
-            return_ok_none_if_none!(self.get_type_for_binding_element_parent(pattern.ref_(self).parent())?);
+        let mut parent_type = return_ok_none_if_none!(
+            self.get_type_for_binding_element_parent(pattern.ref_(self).parent())?
+        );
         if self.is_type_any(Some(parent_type)) {
             return Ok(Some(parent_type));
         }
         if self.strict_null_checks
-            && declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
+            && declaration
+                .ref_(self)
+                .flags()
+                .intersects(NodeFlags::Ambient)
             && is_parameter_declaration(declaration, self)
         {
             parent_type = self.get_non_nullable_type(parent_type)?;
@@ -152,7 +159,12 @@ impl TypeChecker {
                     return Ok(Some(self.error_type()));
                 }
                 let mut literal_members: Vec<Id<Node /*PropertyName*/>> = vec![];
-                for element in &*pattern.ref_(self).as_object_binding_pattern().elements.ref_(self) {
+                for element in &*pattern
+                    .ref_(self)
+                    .as_object_binding_pattern()
+                    .elements
+                    .ref_(self)
+                {
                     let element_ref = element.ref_(self);
                     let element_as_binding_element = element_ref.as_binding_element();
                     if element_as_binding_element.dot_dot_dot_token.is_none() {
@@ -198,7 +210,11 @@ impl TypeChecker {
                 Some(pattern),
             )?;
             let index: usize = index_of_eq(
-                &pattern.ref_(self).as_array_binding_pattern().elements.ref_(self),
+                &pattern
+                    .ref_(self)
+                    .as_array_binding_pattern()
+                    .elements
+                    .ref_(self),
                 &declaration,
             )
             .try_into()
@@ -242,8 +258,11 @@ impl TypeChecker {
             return Ok(type_);
         }
         let type_ = type_.unwrap();
-        if get_effective_type_annotation_node(walk_up_binding_elements_and_patterns(declaration, self), self)
-            .is_some()
+        if get_effective_type_annotation_node(
+            walk_up_binding_elements_and_patterns(declaration, self),
+            self,
+        )
+        .is_some()
         {
             return Ok(Some(
                 if self.strict_null_checks
@@ -295,7 +314,12 @@ impl TypeChecker {
     pub(super) fn is_empty_array_literal(&self, node: Id<Node> /*Expression*/) -> bool {
         let expr = skip_parentheses(node, Some(true), self);
         expr.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression
-            && expr.ref_(self).as_array_literal_expression().elements.ref_(self).is_empty()
+            && expr
+                .ref_(self)
+                .as_array_literal_expression()
+                .elements
+                .ref_(self)
+                .is_empty()
     }
 
     pub(super) fn add_optionality(
@@ -319,15 +343,25 @@ impl TypeChecker {
         include_optionality: bool,
     ) -> io::Result<Option<Id<Type>>> {
         if is_variable_declaration(&declaration.ref_(self))
-            && declaration.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::ForInStatement
+            && declaration
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::ForInStatement
         {
             let index_type = self.get_index_type(
                 self.get_non_nullable_type_if_needed(
                     self.check_expression(
                         declaration
-                            .ref_(self).parent()
-                            .ref_(self).parent()
-                            .ref_(self).as_for_in_statement()
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .as_for_in_statement()
                             .expression,
                         None,
                         None,
@@ -350,7 +384,14 @@ impl TypeChecker {
         }
 
         if is_variable_declaration(&declaration.ref_(self))
-            && declaration.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::ForOfStatement
+            && declaration
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::ForOfStatement
         {
             let for_of_statement = declaration.ref_(self).parent().ref_(self).parent();
             return Ok(Some(
@@ -363,17 +404,19 @@ impl TypeChecker {
             return self.get_type_for_binding_element(declaration);
         }
 
-        let is_property =
-            is_property_declaration(&declaration.ref_(self)) || is_property_signature(&declaration.ref_(self));
+        let is_property = is_property_declaration(&declaration.ref_(self))
+            || is_property_signature(&declaration.ref_(self));
         let is_optional = include_optionality
             && (is_property
                 && declaration
-                    .ref_(self).as_has_question_token()
+                    .ref_(self)
+                    .as_has_question_token()
                     .maybe_question_token()
                     .is_some()
                 || is_parameter(&declaration.ref_(self))
                     && (declaration
-                        .ref_(self).as_parameter_declaration()
+                        .ref_(self)
+                        .as_parameter_declaration()
                         .question_token
                         .is_some()
                         || self.is_jsdoc_optional_parameter(declaration))
@@ -390,9 +433,19 @@ impl TypeChecker {
 
         if (self.no_implicit_any || is_in_js_file(Some(&declaration.ref_(self))))
             && is_variable_declaration(&declaration.ref_(self))
-            && !is_binding_pattern(declaration.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
+            && !is_binding_pattern(
+                declaration
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .maybe_name()
+                    .refed(self)
+                    .as_deref(),
+            )
             && !get_combined_modifier_flags(declaration, self).intersects(ModifierFlags::Export)
-            && !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
+            && !declaration
+                .ref_(self)
+                .flags()
+                .intersects(NodeFlags::Ambient)
         {
             let declaration_ref = declaration.ref_(self);
             let declaration_as_variable_declaration = declaration_ref.as_variable_declaration();
@@ -417,8 +470,7 @@ impl TypeChecker {
             let func = declaration.ref_(self).parent();
             if func.ref_(self).kind() == SyntaxKind::SetAccessor && self.has_bindable_name(func)? {
                 let getter = get_declaration_of_kind(
-                    self
-                        .get_symbol_of_node(declaration.ref_(self).parent())?
+                    self.get_symbol_of_node(declaration.ref_(self).parent())?
                         .unwrap(),
                     SyntaxKind::GetAccessor,
                     self,
@@ -430,7 +482,8 @@ impl TypeChecker {
                         if declaration == this_parameter {
                             Debug_.assert(
                                 this_parameter
-                                    .ref_(self).as_parameter_declaration()
+                                    .ref_(self)
+                                    .as_parameter_declaration()
                                     .maybe_type()
                                     .is_none(),
                                 None,
@@ -449,14 +502,19 @@ impl TypeChecker {
                     if is_function_type_node(&type_tag.ref_(self)) {
                         let signature = self.get_signature_from_declaration_(type_tag)?;
                         let pos: usize = index_of_eq(
-                            &func.ref_(self).as_function_like_declaration().parameters().ref_(self),
+                            &func
+                                .ref_(self)
+                                .as_function_like_declaration()
+                                .parameters()
+                                .ref_(self),
                             &declaration,
                         )
                         .try_into()
                         .unwrap();
                         return Ok(Some(
                             if declaration
-                                .ref_(self).as_parameter_declaration()
+                                .ref_(self)
+                                .as_parameter_declaration()
                                 .dot_dot_dot_token
                                 .is_some()
                             {
@@ -468,12 +526,13 @@ impl TypeChecker {
                     }
                 }
             }
-            let type_ =
-                if declaration.ref_(self).symbol().ref_(self).escaped_name() == InternalSymbolName::This {
-                    self.get_contextual_this_parameter_type(func)?
-                } else {
-                    self.get_contextually_typed_parameter_type(declaration)?
-                };
+            let type_ = if declaration.ref_(self).symbol().ref_(self).escaped_name()
+                == InternalSymbolName::This
+            {
+                self.get_contextual_this_parameter_type(func)?
+            } else {
+                self.get_contextually_typed_parameter_type(declaration)?
+            };
             if let Some(type_) = type_ {
                 return Ok(Some(self.add_optionality(
                     type_,
@@ -485,11 +544,14 @@ impl TypeChecker {
 
         if has_only_expression_initializer(&declaration.ref_(self))
             && declaration
-                .ref_(self).as_has_initializer()
+                .ref_(self)
+                .as_has_initializer()
                 .maybe_initializer()
                 .is_some()
         {
-            if is_in_js_file(Some(&declaration.ref_(self))) && !is_parameter(&declaration.ref_(self)) {
+            if is_in_js_file(Some(&declaration.ref_(self)))
+                && !is_parameter(&declaration.ref_(self))
+            {
                 let container_object_type = self.get_js_container_object_type(
                     declaration,
                     self.get_symbol_of_node(declaration)?,
@@ -514,7 +576,8 @@ impl TypeChecker {
             && (self.no_implicit_any || is_in_js_file(Some(&declaration.ref_(self))))
         {
             if !has_static_modifier(declaration, self) {
-                let constructor = self.find_constructor_declaration(declaration.ref_(self).parent());
+                let constructor =
+                    self.find_constructor_declaration(declaration.ref_(self).parent());
                 let type_ = if let Some(constructor) = constructor {
                     self.get_flow_type_in_constructor(declaration.ref_(self).symbol(), constructor)?
                 } else if get_effective_modifier_flags(declaration, self)
@@ -528,11 +591,20 @@ impl TypeChecker {
                     .try_map(|type_| self.add_optionality(type_, Some(true), Some(is_optional)));
             } else {
                 let static_blocks = filter(
-                    &declaration.ref_(self).parent().ref_(self).as_class_like_declaration().members().ref_(self),
+                    &declaration
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_class_like_declaration()
+                        .members()
+                        .ref_(self),
                     |member: &Id<Node>| is_class_static_block_declaration(&member.ref_(self)),
                 );
                 let type_ = if !static_blocks.is_empty() {
-                    self.get_flow_type_in_static_blocks(declaration.ref_(self).symbol(), &static_blocks)?
+                    self.get_flow_type_in_static_blocks(
+                        declaration.ref_(self).symbol(),
+                        &static_blocks,
+                    )?
                 } else if get_effective_modifier_flags(declaration, self)
                     .intersects(ModifierFlags::Ambient)
                 {
@@ -549,7 +621,14 @@ impl TypeChecker {
             return Ok(Some(self.true_type()));
         }
 
-        if is_binding_pattern(declaration.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref()) {
+        if is_binding_pattern(
+            declaration
+                .ref_(self)
+                .as_named_declaration()
+                .maybe_name()
+                .refed(self)
+                .as_deref(),
+        ) {
             return Ok(Some(self.get_type_from_binding_pattern(
                 declaration.ref_(self).as_named_declaration().name(),
                 Some(false),
@@ -577,14 +656,17 @@ impl TypeChecker {
                                     && self.is_possibly_aliased_this_property(declaration, None)?
                                     && {
                                         let declaration_ref = declaration.ref_(self);
-                                        let declaration_as_binary_expression = declaration_ref.as_binary_expression();
+                                        let declaration_as_binary_expression =
+                                            declaration_ref.as_binary_expression();
                                         declaration_as_binary_expression.left.ref_(self).kind()
                                             != SyntaxKind::ElementAccessExpression
                                             || is_string_or_numeric_literal_like(
                                                 &declaration_as_binary_expression
                                                     .left
-                                                    .ref_(self).as_element_access_expression()
-                                                    .argument_expression.ref_(self),
+                                                    .ref_(self)
+                                                    .as_element_access_expression()
+                                                    .argument_expression
+                                                    .ref_(self),
                                             )
                                     }
                                     && self
@@ -678,19 +760,33 @@ impl TypeChecker {
         if are_all_module_exports {
             set_parent(
                 &reference
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression
-                    .ref_(self).as_property_access_expression()
-                    .expression.ref_(self),
-                Some(reference.ref_(self).as_property_access_expression().expression),
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .expression
+                    .ref_(self),
+                Some(
+                    reference
+                        .ref_(self)
+                        .as_property_access_expression()
+                        .expression,
+                ),
             );
         }
         set_parent(
-            &reference.ref_(self).as_property_access_expression().expression.ref_(self),
+            &reference
+                .ref_(self)
+                .as_property_access_expression()
+                .expression
+                .ref_(self),
             Some(reference),
         );
         set_parent(&reference.ref_(self), Some(file));
-        reference.ref_(self).set_flow_node(file.ref_(self).as_source_file().maybe_end_flow_node());
+        reference
+            .ref_(self)
+            .set_flow_node(file.ref_(self).as_source_file().maybe_end_flow_node());
         self.get_flow_type_of_reference(
             reference,
             self.auto_type(),
@@ -718,15 +814,23 @@ impl TypeChecker {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
         for &static_block in static_blocks {
-            let reference = get_factory(self).create_property_access_expression(get_factory(self).create_this(), access_name.clone());
+            let reference = get_factory(self).create_property_access_expression(
+                get_factory(self).create_this(),
+                access_name.clone(),
+            );
             set_parent(
-                &reference.ref_(self).as_property_access_expression().expression.ref_(self),
+                &reference
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .expression
+                    .ref_(self),
                 Some(reference),
             );
             set_parent(&reference.ref_(self), Some(static_block));
             reference.ref_(self).set_flow_node(
                 static_block
-                    .ref_(self).as_class_static_block_declaration()
+                    .ref_(self)
+                    .as_class_static_block_declaration()
                     .maybe_return_flow_node(),
             );
             let flow_type = self.get_flow_type_of_property(reference, Some(symbol))?;
@@ -768,15 +872,21 @@ impl TypeChecker {
         } else {
             unescape_leading_underscores(symbol_ref.escaped_name()).into()
         };
-        let reference = get_factory(self).create_property_access_expression(get_factory(self).create_this(), access_name);
+        let reference = get_factory(self)
+            .create_property_access_expression(get_factory(self).create_this(), access_name);
         set_parent(
-            &reference.ref_(self).as_property_access_expression().expression.ref_(self),
+            &reference
+                .ref_(self)
+                .as_property_access_expression()
+                .expression
+                .ref_(self),
             Some(reference),
         );
         set_parent(&reference.ref_(self), Some(constructor));
         reference.ref_(self).set_flow_node(
             constructor
-                .ref_(self).as_function_like_declaration()
+                .ref_(self)
+                .as_function_like_declaration()
                 .maybe_return_flow_node(),
         );
         let flow_type = self.get_flow_type_of_property(reference, Some(symbol))?;
@@ -837,8 +947,9 @@ impl TypeChecker {
             if let Some(tag) = tag
             /*&& tag.typeExpression*/
             {
-                return self
-                    .get_type_from_type_node_(tag.ref_(self).as_jsdoc_type_like_tag().type_expression());
+                return self.get_type_from_type_node_(
+                    tag.ref_(self).as_jsdoc_type_like_tag().type_expression(),
+                );
             }
             let container_object_type =
                 symbol
@@ -869,18 +980,21 @@ impl TypeChecker {
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 let mut jsdoc_type: Option<Id<Type>> = None;
                 for &declaration in symbol_declarations {
-                    let Some(expression) =
-                        (if is_binary_expression(&declaration.ref_(self)) || is_call_expression(&declaration.ref_(self)) {
-                            Some(declaration)
-                        } else if is_access_expression(&declaration.ref_(self)) {
-                            Some(if is_binary_expression(&declaration.ref_(self).parent().ref_(self)) {
+                    let Some(expression) = (if is_binary_expression(&declaration.ref_(self))
+                        || is_call_expression(&declaration.ref_(self))
+                    {
+                        Some(declaration)
+                    } else if is_access_expression(&declaration.ref_(self)) {
+                        Some(
+                            if is_binary_expression(&declaration.ref_(self).parent().ref_(self)) {
                                 declaration.ref_(self).parent()
                             } else {
                                 declaration
-                            })
-                        } else {
-                            None
-                        }) else {
+                            },
+                        )
+                    } else {
+                        None
+                    }) else {
                         continue;
                     };
 
@@ -912,7 +1026,8 @@ impl TypeChecker {
                             types = Some(vec![]);
                         }
                         types.as_mut().unwrap().push(
-                            if is_binary_expression(&expression.ref_(self)) || is_call_expression(&expression.ref_(self))
+                            if is_binary_expression(&expression.ref_(self))
+                                || is_call_expression(&expression.ref_(self))
                             {
                                 self.get_initializer_type_from_assignment_declaration(
                                     symbol,
@@ -1003,7 +1118,12 @@ impl TypeChecker {
         }
         let init = return_ok_default_if_none!(init);
         if !is_object_literal_expression(&init.ref_(self))
-            || !init.ref_(self).as_object_literal_expression().properties.ref_(self).is_empty()
+            || !init
+                .ref_(self)
+                .as_object_literal_expression()
+                .properties
+                .ref_(self)
+                .is_empty()
         {
             return Ok(None);
         }
@@ -1011,7 +1131,9 @@ impl TypeChecker {
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
         ));
-        while is_binary_expression(&decl.ref_(self)) || is_property_access_expression(&decl.ref_(self)) {
+        while is_binary_expression(&decl.ref_(self))
+            || is_property_access_expression(&decl.ref_(self))
+        {
             let s = self.get_symbol_of_node(decl)?;
             if let Some(s) = s {
                 if let Some(s_exports) = s.ref_(self).maybe_exports().as_ref() {
@@ -1103,8 +1225,14 @@ impl TypeChecker {
             if let Some(resolved_symbol) = resolved_symbol {
                 return self.get_type_of_symbol(resolved_symbol);
             }
-            let object_lit_type =
-                self.check_expression_cached(expression.ref_(self).as_call_expression().arguments.ref_(self)[2], None)?;
+            let object_lit_type = self.check_expression_cached(
+                expression
+                    .ref_(self)
+                    .as_call_expression()
+                    .arguments
+                    .ref_(self)[2],
+                None,
+            )?;
             let value_type = self.get_type_of_property_of_type_(object_lit_type, "value")?;
             if let Some(value_type) = value_type {
                 return Ok(value_type);
@@ -1147,20 +1275,28 @@ impl TypeChecker {
             let exported_type = self.resolve_structured_type_members(type_)?;
             let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
             copy_entries(
-                &*exported_type.ref_(self).as_resolved_type().members().ref_(self),
+                &*exported_type
+                    .ref_(self)
+                    .as_resolved_type()
+                    .members()
+                    .ref_(self),
                 &mut members,
             );
             let initial_size = members.len();
             if let Some(resolved_symbol) = resolved_symbol {
                 let resolved_symbol_ref = resolved_symbol.ref_(self);
                 if resolved_symbol_ref.maybe_exports().is_none() {
-                    resolved_symbol_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
-                        Option::<&[Id<Symbol>]>::None,
-                    ))));
+                    resolved_symbol_ref.set_exports(Some(self.alloc_symbol_table(
+                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                    )));
                 }
             }
-            for (name, &s) in &*resolved_symbol.unwrap_or(symbol).ref_(self).exports().ref_(self) {
+            for (name, &s) in &*resolved_symbol
+                .unwrap_or(symbol)
+                .ref_(self)
+                .exports()
+                .ref_(self)
+            {
                 let exported_member = members.get(name).cloned();
                 if let Some(exported_member) =
                     exported_member.filter(|&exported_member| exported_member != s)
@@ -1175,8 +1311,11 @@ impl TypeChecker {
                             if let Some(exported_member_value_declaration) =
                                 exported_member.ref_(self).maybe_value_declaration()
                             {
-                                if get_source_file_of_node(s_value_declaration, self) !=
-                                    get_source_file_of_node(exported_member_value_declaration, self)
+                                if get_source_file_of_node(s_value_declaration, self)
+                                    != get_source_file_of_node(
+                                        exported_member_value_declaration,
+                                        self,
+                                    )
                                 {
                                     let s_ref = s.ref_(self);
                                     let unescaped_name =
@@ -1186,36 +1325,47 @@ impl TypeChecker {
                                         |node: &Id<Node>| is_named_declaration(&node.ref_(self)),
                                     )
                                     .and_then(|named_declaration: Id<Node>| {
-                                        named_declaration.ref_(self).as_named_declaration().maybe_name()
+                                        named_declaration
+                                            .ref_(self)
+                                            .as_named_declaration()
+                                            .maybe_name()
                                     })
                                     .unwrap_or(exported_member_value_declaration);
                                     add_related_info(
-                                        &self.error(
-                                            Some(s_value_declaration),
-                                            &Diagnostics::Duplicate_identifier_0,
-                                            Some(vec![unescaped_name.to_owned()]),
-                                        ).ref_(self),
-                                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
-                                            exported_member_name,
-                                            &Diagnostics::_0_was_also_declared_here,
-                                            Some(vec![unescaped_name.to_owned()]),
-                                            self,
-                                        )
-                                        .into())],
+                                        &self
+                                            .error(
+                                                Some(s_value_declaration),
+                                                &Diagnostics::Duplicate_identifier_0,
+                                                Some(vec![unescaped_name.to_owned()]),
+                                            )
+                                            .ref_(self),
+                                        vec![self.alloc_diagnostic_related_information(
+                                            create_diagnostic_for_node(
+                                                exported_member_name,
+                                                &Diagnostics::_0_was_also_declared_here,
+                                                Some(vec![unescaped_name.to_owned()]),
+                                                self,
+                                            )
+                                            .into(),
+                                        )],
                                     );
                                     add_related_info(
-                                        &self.error(
-                                            Some(exported_member_name),
-                                            &Diagnostics::Duplicate_identifier_0,
-                                            Some(vec![unescaped_name.to_owned()]),
-                                        ).ref_(self),
-                                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
-                                            s_value_declaration,
-                                            &Diagnostics::_0_was_also_declared_here,
-                                            Some(vec![unescaped_name.to_owned()]),
-                                            self,
-                                        )
-                                        .into())],
+                                        &self
+                                            .error(
+                                                Some(exported_member_name),
+                                                &Diagnostics::Duplicate_identifier_0,
+                                                Some(vec![unescaped_name.to_owned()]),
+                                            )
+                                            .ref_(self),
+                                        vec![self.alloc_diagnostic_related_information(
+                                            create_diagnostic_for_node(
+                                                s_value_declaration,
+                                                &Diagnostics::_0_was_also_declared_here,
+                                                Some(vec![unescaped_name.to_owned()]),
+                                                self,
+                                            )
+                                            .into(),
+                                        )],
                                     );
                                 }
                             }

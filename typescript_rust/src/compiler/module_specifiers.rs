@@ -22,12 +22,11 @@ use crate::{
     remove_trailing_directory_separator, resolve_path, return_ok_default_if_none, some,
     starts_with, starts_with_directory, to_path, try_get_extension_from_path, try_map_defined,
     CharacterCodes, Comparison, CompilerOptions, CompilerOptionsBuilder, Debug_, Extension,
-    FileExtensionInfo, FileIncludeKind, FileIncludeReason, GetOrInsertDefault, HasArena, JsxEmit,
-    LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
+    FileExtensionInfo, FileIncludeKind, FileIncludeReason, GetOrInsertDefault, HasArena, InArena,
+    JsxEmit, LiteralLikeNodeInterface, ModuleKind, ModulePath, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierCache,
     ModuleSpecifierResolutionHost, Node, NodeFlags, NodeInterface, NonEmpty, OptionTry, Path,
     ScriptKind, StringOrBool, Symbol, SymbolFlags, SymbolInterface, TypeChecker, UserPreferences,
-    InArena,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -482,7 +481,8 @@ fn compute_module_specifiers(
                     reason.ref_(arena).as_referenced_file().index,
                     arena,
                 )
-                .ref_(arena).as_literal_like_node()
+                .ref_(arena)
+                .as_literal_like_node()
                 .text()
                 .clone();
                 if preferences.relative_preference != RelativePreference::NonRelative
@@ -509,8 +509,13 @@ fn compute_module_specifiers(
     let mut paths_specifiers: Option<Vec<String>> = None;
     let mut relative_specifiers: Option<Vec<String>> = None;
     for module_path in module_paths {
-        let specifier =
-            try_get_module_name_as_node_module(module_path, &info, host, &compiler_options.ref_(arena), None);
+        let specifier = try_get_module_name_as_node_module(
+            module_path,
+            &info,
+            host,
+            &compiler_options.ref_(arena),
+            None,
+        );
         if let Some(specifier) = specifier.as_ref() {
             append(
                 node_modules_specifiers.get_or_insert_default_(),
@@ -730,7 +735,10 @@ pub fn count_path_components(path: &str) -> usize {
     count
 }
 
-fn uses_js_extensions_on_imports(node: Id<Node> /*SourceFile*/, arena: &impl HasArena) -> bool {
+fn uses_js_extensions_on_imports(
+    node: Id<Node>, /*SourceFile*/
+    arena: &impl HasArena,
+) -> bool {
     let node_ref = node.ref_(arena);
     let imports = node_ref.as_source_file().maybe_imports();
     imports
@@ -834,9 +842,12 @@ pub fn for_each_file_name_of_module<TReturn>(
 
     let symlink_cache = host.get_symlink_cache();
     let ref full_imported_file_name = get_normalized_absolute_path(imported_file_name, Some(&cwd));
-    let result = symlink_cache
-        .and_then(|symlink_cache| {
-            symlink_cache.ref_(arena).get_symlinked_directories_by_realpath().as_ref().and_then(|symlinked_directories| {
+    let result = symlink_cache.and_then(|symlink_cache| {
+        symlink_cache
+            .ref_(arena)
+            .get_symlinked_directories_by_realpath()
+            .as_ref()
+            .and_then(|symlinked_directories| {
                 for_each_ancestor_directory(
                     &get_directory_path(full_imported_file_name).into(),
                     |real_path_directory: &Path| -> Option<Option<TReturn>> {
@@ -891,7 +902,7 @@ pub fn for_each_file_name_of_module<TReturn>(
                 )
                 .flatten()
             })
-        });
+    });
     result.or_else(|| {
         if prefer_sym_links {
             for_each(&targets, |p: &String, _| {
@@ -936,7 +947,8 @@ fn get_all_module_paths(
             return cached_module_paths;
         }
     }
-    let module_paths = get_all_module_paths_worker(importing_file_path, imported_file_name, host, arena);
+    let module_paths =
+        get_all_module_paths_worker(importing_file_path, imported_file_name, host, arena);
     if let Some(cache) = cache.as_ref() {
         cache.set_module_paths(
             importing_file_path,
@@ -1039,7 +1051,8 @@ fn try_get_module_name_from_ambient_module(
     checker: &TypeChecker,
 ) -> io::Result<Option<String>> {
     let decl = module_symbol
-        .ref_(checker).maybe_declarations()
+        .ref_(checker)
+        .maybe_declarations()
         .as_ref()
         .and_then(|module_symbol_declarations| {
             module_symbol_declarations
@@ -1048,16 +1061,20 @@ fn try_get_module_name_from_ambient_module(
                     is_non_global_ambient_module(d, checker)
                         && (!is_external_module_augmentation(d, checker)
                             || !is_external_module_name_relative(
-                                &get_text_of_identifier_or_literal(&d.ref_(checker).as_module_declaration().name.ref_(checker)),
+                                &get_text_of_identifier_or_literal(
+                                    &d.ref_(checker).as_module_declaration().name.ref_(checker),
+                                ),
                             ))
                 })
                 .cloned()
         });
     if let Some(decl) = decl {
         return Ok(Some(
-            decl.ref_(checker).as_module_declaration()
+            decl.ref_(checker)
+                .as_module_declaration()
                 .name
-                .ref_(checker).as_string_literal()
+                .ref_(checker)
+                .as_string_literal()
                 .text()
                 .clone(),
         ));
@@ -1081,8 +1098,13 @@ fn try_get_module_name_from_ambient_module(
             )) {
                 return Ok(None);
             }
-            let export_assignment = return_ok_default_if_none!(
-                top_namespace.ref_(checker).parent().ref_(checker).parent().ref_(checker).symbol()
+            let export_assignment = return_ok_default_if_none!(top_namespace
+                .ref_(checker)
+                .parent()
+                .ref_(checker)
+                .parent()
+                .ref_(checker)
+                .symbol()
                 .ref_(checker)
                 .maybe_exports()
                 .as_ref()
@@ -1094,19 +1116,20 @@ fn try_get_module_name_from_ambient_module(
                 })
                 .and_then(|top_namespace_parent_parent_symbol_exports_got| {
                     top_namespace_parent_parent_symbol_exports_got
-                        .ref_(checker).maybe_value_declaration()
+                        .ref_(checker)
+                        .maybe_value_declaration()
                 })
                 .map(
                     |top_namespace_parent_parent_symbol_exports_got_value_declaration| {
                         top_namespace_parent_parent_symbol_exports_got_value_declaration
-                            .ref_(checker).as_export_assignment()
+                            .ref_(checker)
+                            .as_export_assignment()
                             .expression
                     },
                 ));
             let export_symbol =
                 return_ok_default_if_none!(checker.get_symbol_at_location(export_assignment)?);
-            let original_export_symbol = if
-                export_symbol
+            let original_export_symbol = if export_symbol
                 .ref_(checker)
                 .flags()
                 .intersects(SymbolFlags::Alias)
@@ -1119,7 +1142,9 @@ fn try_get_module_name_from_ambient_module(
                 d.ref_(checker).maybe_symbol(),
                 Some(d_symbol) if original_export_symbol == d_symbol
             ) {
-                return Ok(Some(top_namespace.ref_(checker).parent().ref_(checker).parent()));
+                return Ok(Some(
+                    top_namespace.ref_(checker).parent().ref_(checker).parent(),
+                ));
             }
             Ok(None)
         },
@@ -1128,9 +1153,11 @@ fn try_get_module_name_from_ambient_module(
     if let Some(ambient_module_declare) = ambient_module_declare {
         return Ok(Some(
             ambient_module_declare
-                .ref_(checker).as_module_declaration()
+                .ref_(checker)
+                .as_module_declaration()
                 .name
-                .ref_(checker).as_string_literal()
+                .ref_(checker)
+                .as_string_literal()
                 .text()
                 .clone(),
         ));
@@ -1170,9 +1197,13 @@ fn try_get_module_name_from_paths(
     None
 }
 
-fn get_top_namespace(mut namespace_declaration: Id<Node> /*ModuleDeclaration*/, arena: &impl HasArena) -> Id<Node> {
+fn get_top_namespace(
+    mut namespace_declaration: Id<Node>, /*ModuleDeclaration*/
+    arena: &impl HasArena,
+) -> Id<Node> {
     while namespace_declaration
-        .ref_(arena).flags()
+        .ref_(arena)
+        .flags()
         .intersects(NodeFlags::NestedNamespace)
     {
         namespace_declaration = namespace_declaration.ref_(arena).parent();

@@ -1,4 +1,9 @@
-use std::{cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, ptr, any::Any};
+use std::{
+    any::Any,
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::HashMap,
+    io, mem, ptr,
+};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -6,21 +11,20 @@ use id_arena::Id;
 use indexmap::IndexMap;
 
 use crate::{
-    chain_bundle, get_emit_flags, get_enclosing_block_scope_container,
+    chain_bundle, downcast_transformer_ref, get_emit_flags, get_enclosing_block_scope_container,
     get_name_of_declaration, get_original_node, get_parse_tree_node, has_static_modifier, is_block,
     is_case_block, is_case_clause, is_catch_clause, is_class_element, is_class_like,
     is_default_clause, is_function_like, is_identifier, is_if_statement, is_internal_name,
     is_iteration_statement, is_labeled_statement, is_property_declaration, is_return_statement,
-    is_switch_statement, is_try_statement, is_with_statement, try_maybe_visit_each_child,
-    BaseNodeFactorySynthetic, CompilerOptions, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitResolver, GeneratedIdentifierFlags, GetOrInsertDefault, Matches, Node, NodeExt,
+    is_switch_statement, is_try_statement, is_with_statement, ref_unwrapped, static_arena,
+    try_maybe_visit_each_child, AllArenas, BaseNodeFactorySynthetic, CompilerOptions,
+    CoreTransformationContext, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver,
+    GeneratedIdentifierFlags, GetOrInsertDefault, HasArena, InArena, Matches, Node, NodeExt,
     NodeFactory, NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars,
-    SyntaxKind, TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
-    ref_unwrapped,
+    SyntaxKind, TransformFlags, TransformNodesTransformationResult, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    VisitResult,
 };
 
 bitflags! {
@@ -195,7 +199,10 @@ pub(super) struct TransformES2015 {
 }
 
 impl TransformES2015 {
-    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    pub(super) fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let ret = arena_ref.alloc_transformer(Box::new(Self {
@@ -214,16 +221,14 @@ impl TransformES2015 {
         }));
         downcast_transformer_ref::<Self>(ret, arena_ref).set_arena_id(ret);
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformES2015OnEmitNodeOverrider::new(
-                ret,
-                previous_on_emit_node,
-            )))
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+                TransformES2015OnEmitNodeOverrider::new(ret, previous_on_emit_node),
+            ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformES2015OnSubstituteNodeOverrider::new(
-                ret,
-                previous_on_substitute_node,
-            )))
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
+                TransformES2015OnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+            ))
         });
         ret
     }
@@ -390,7 +395,8 @@ impl TransformES2015 {
     }
 
     pub(super) fn is_or_may_contain_return_completion(&self, node: Id<Node>) -> bool {
-        node.ref_(self).transform_flags()
+        node.ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsHoistedDeclarationOrCompletion)
             && (is_return_statement(&node.ref_(self))
                 || is_if_statement(&node.ref_(self))
@@ -407,7 +413,8 @@ impl TransformES2015 {
     }
 
     pub(super) fn should_visit_node(&self, node: Id<Node>) -> bool {
-        node.ref_(self).transform_flags()
+        node.ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsES2015)
             || self.maybe_converted_loop_state().is_some()
             || self
@@ -415,7 +422,8 @@ impl TransformES2015 {
                 .unwrap_or_default()
                 .intersects(HierarchyFacts::ConstructorWithCapturedSuper)
                 && self.is_or_may_contain_return_completion(node)
-            || is_iteration_statement(node, false, self) && self.should_convert_iteration_statement(node)
+            || is_iteration_statement(node, false, self)
+                && self.should_convert_iteration_statement(node)
             || get_emit_flags(node, self).intersects(EmitFlags::TypeScriptClassWrapper)
     }
 
@@ -444,7 +452,8 @@ impl TransformES2015 {
     ) -> io::Result<VisitResult> /*<Node>*/ {
         if self.should_visit_node(node) {
             let original = get_original_node(node, self);
-            if is_property_declaration(&original.ref_(self)) && has_static_modifier(original, self) {
+            if is_property_declaration(&original.ref_(self)) && has_static_modifier(original, self)
+            {
                 let ancestor_facts = self.enter_subtree(
                     HierarchyFacts::StaticInitializerExcludes,
                     HierarchyFacts::StaticInitializerIncludes,
@@ -622,7 +631,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
                 },
             );
             self.previous_on_emit_node
-                .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                .ref_(self)
+                .on_emit_node(hint, node, emit_callback)?;
             self.transform_es2015().exit_subtree(
                 ancestor_facts,
                 HierarchyFacts::None,
@@ -631,7 +641,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2015OnEmitNodeOverr
             return Ok(());
         }
         self.previous_on_emit_node
-            .ref_(self).on_emit_node(hint, node, emit_callback)?;
+            .ref_(self)
+            .on_emit_node(hint, node, emit_callback)?;
         return Ok(());
     }
 }
@@ -673,14 +684,19 @@ impl TransformES2015OnSubstituteNodeOverrider {
             .intersects(ES2015SubstitutionFlags::BlockScopedBindings)
             && !is_internal_name(node, self)
         {
-            let original = get_parse_tree_node(Some(node), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), self);
+            let original = get_parse_tree_node(
+                Some(node),
+                Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
+                self,
+            );
             if let Some(original) = original
                 .try_filter(|&original| self.is_name_of_declaration_with_colliding_name(original))?
             {
                 return Ok(self
                     .transform_es2015()
                     .factory
-                    .ref_(self).get_generated_name_for_node(Some(original), None)
+                    .ref_(self)
+                    .get_generated_name_for_node(Some(original), None)
                     .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
@@ -697,11 +713,17 @@ impl TransformES2015OnSubstituteNodeOverrider {
             | SyntaxKind::ClassDeclaration
             | SyntaxKind::EnumDeclaration
             | SyntaxKind::VariableDeclaration => {
-                node.ref_(self).parent().ref_(self).as_named_declaration().name() == node
+                node.ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_named_declaration()
+                    .name()
+                    == node
                     && self
                         .transform_es2015()
                         .resolver
-                        .ref_(self).is_declaration_with_colliding_name(node.ref_(self).parent())?
+                        .ref_(self)
+                        .is_declaration_with_colliding_name(node.ref_(self).parent())?
             }
             _ => false,
         })
@@ -738,14 +760,20 @@ impl TransformES2015OnSubstituteNodeOverrider {
             let declaration = self
                 .transform_es2015()
                 .resolver
-                .ref_(self).get_referenced_declaration_with_colliding_name(node)?;
+                .ref_(self)
+                .get_referenced_declaration_with_colliding_name(node)?;
             if let Some(declaration) = declaration.filter(|&declaration| {
-                !(is_class_like(&declaration.ref_(self)) && self.is_part_of_class_body(declaration, node))
+                !(is_class_like(&declaration.ref_(self))
+                    && self.is_part_of_class_body(declaration, node))
             }) {
                 return Ok(self
                     .transform_es2015()
                     .factory
-                    .ref_(self).get_generated_name_for_node(get_name_of_declaration(Some(declaration), self), None)
+                    .ref_(self)
+                    .get_generated_name_for_node(
+                        get_name_of_declaration(Some(declaration), self),
+                        None,
+                    )
                     .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
@@ -769,9 +797,7 @@ impl TransformES2015OnSubstituteNodeOverrider {
         }
         let block_scope = get_enclosing_block_scope_container(declaration, self).unwrap();
         while let Some(current_node_present) = current_node {
-            if current_node_present == block_scope
-                || current_node_present == declaration
-            {
+            if current_node_present == block_scope || current_node_present == declaration {
                 return false;
             }
             if is_class_element(&current_node_present.ref_(self))
@@ -802,7 +828,8 @@ impl TransformES2015OnSubstituteNodeOverrider {
             return self
                 .transform_es2015()
                 .factory
-                .ref_(self).create_unique_name(
+                .ref_(self)
+                .create_unique_name(
                     "_this",
                     Some(
                         GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel,
@@ -818,7 +845,8 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2015OnSubstit
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .ref_(self).on_substitute_node(hint, node)?;
+            .ref_(self)
+            .on_substitute_node(hint, node)?;
 
         if hint == EmitHint::Expression {
             return self.substitute_expression(node);
@@ -848,10 +876,9 @@ impl TransformES2015Factory {
 
 impl TransformerFactoryInterface for TransformES2015Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle(self).ref_(self).call(
-            context,
-            TransformES2015::new(context, &*static_arena()),
-        )
+        chain_bundle(self)
+            .ref_(self)
+            .call(context, TransformES2015::new(context, &*static_arena()))
     }
 }
 

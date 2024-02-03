@@ -13,34 +13,31 @@ use crate::{
     compute_common_source_directory_of_filenames, create_diagnostic_collection,
     create_get_canonical_file_name, create_source_map_generator, create_text_writer,
     directory_separator_str, encode_uri, ensure_path_is_non_module_name,
-    ensure_trailing_directory_separator, file_extension_is, file_extension_is_one_of,
-    filter, get_are_declaration_maps_enabled, get_base_file_name,
-    get_declaration_emit_extension_for_path, get_declaration_emit_output_file_path,
-    get_directory_path, get_emit_declarations, get_emit_module_kind_from_module_and_target,
-    get_factory, get_new_line_character, get_normalized_absolute_path,
-    get_own_emit_output_file_path, get_relative_path_from_directory,
-    get_relative_path_to_directory_or_url, get_root_length, get_source_file_path_in_new_dir,
-    get_source_files_to_emit, get_synthetic_factory, get_sys, is_bundle, is_export_assignment,
-    is_export_specifier, is_expression, is_identifier, is_incremental_compilation,
-    is_json_source_file, is_option_str_empty, is_source_file, is_source_file_not_json,
-    last_or_undefined, length, no_emit_notification, no_emit_substitution, normalize_path,
-    normalize_slashes, out_file, remove_file_extension, resolve_path, static_arena,
-    supported_js_extensions_flat, transform_nodes, try_for_each_child, version, write_file,
-    AllAccessorDeclarations, AllArenas, BaseNodeFactorySynthetic, BuildInfo, BundleBuildInfo,
-    BundleFileInfo, BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind,
-    Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo,
-    DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost,
-    EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter, EmitTransformers,
-    ExportedModulesFromDeclarationEmit, Extension, HasArena, JsxEmit, ListFormat,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
-    NodeInterface, NonEmpty, ParenthesizerRules, ParsedCommandLine, PrintHandlers, Printer,
-    PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
+    ensure_trailing_directory_separator, file_extension_is, file_extension_is_one_of, filter,
+    get_are_declaration_maps_enabled, get_base_file_name, get_declaration_emit_extension_for_path,
+    get_declaration_emit_output_file_path, get_directory_path, get_emit_declarations,
+    get_emit_module_kind_from_module_and_target, get_factory, get_factory_id,
+    get_new_line_character, get_normalized_absolute_path, get_own_emit_output_file_path,
+    get_relative_path_from_directory, get_relative_path_to_directory_or_url, get_root_length,
+    get_source_file_path_in_new_dir, get_source_files_to_emit, get_synthetic_factory, get_sys,
+    is_bundle, is_export_assignment, is_export_specifier, is_expression, is_identifier,
+    is_incremental_compilation, is_json_source_file, is_option_str_empty, is_source_file,
+    is_source_file_not_json, last_or_undefined, length, no_emit_notification, no_emit_substitution,
+    normalize_path, normalize_slashes, out_file, per_arena, remove_file_extension, resolve_path,
+    static_arena, supported_js_extensions_flat, transform_nodes, try_for_each_child, version,
+    write_file, AllAccessorDeclarations, AllArenas, BaseNodeFactorySynthetic, BuildInfo,
+    BundleBuildInfo, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
+    BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
+    DetachedCommentInfo, DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint,
+    EmitHost, EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter,
+    EmitTransformers, ExportedModulesFromDeclarationEmit, Extension, HasArena, InArena, JsxEmit,
+    ListFormat, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
+    NodeInterface, NonEmpty, OptionInArena, ParenthesizerRules, ParsedCommandLine, PrintHandlers,
+    Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
     SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol, SymbolAccessibilityResult,
-    SymbolVisibilityResult, SyntaxKind, TextRange, TransformNodesTransformationResult,
-    TransformationResult, TransformerFactory, TypeReferenceSerializationKind,
-    InArena, OptionInArena, SymbolTracker,
-    get_factory_id,
-    per_arena,
+    SymbolTracker, SymbolVisibilityResult, SyntaxKind, TextRange,
+    TransformNodesTransformationResult, TransformationResult, TransformerFactory,
+    TypeReferenceSerializationKind,
 };
 
 lazy_static! {
@@ -113,7 +110,9 @@ pub fn try_for_each_emitted_file_returns<TReturn>(
             Some(force_dts_emit),
             arena,
         ),
-        None => get_source_files_to_emit(host, Option::<Id<Node>>::None, Some(force_dts_emit), arena),
+        None => {
+            get_source_files_to_emit(host, Option::<Id<Node>>::None, Some(force_dts_emit), arena)
+        }
     };
     let options = ScriptReferenceHost::get_compiler_options(host);
     if out_file(&options.ref_(arena))
@@ -318,7 +317,11 @@ pub(crate) fn get_output_paths_for(
         let own_output_file_path = get_own_emit_output_file_path(
             &source_file_as_source_file.file_name(),
             host,
-            get_output_extension(&source_file_as_source_file.file_name(), &options.ref_(arena)).to_str(),
+            get_output_extension(
+                &source_file_as_source_file.file_name(),
+                &options.ref_(arena),
+            )
+            .to_str(),
             arena,
         );
         let is_json_file = is_json_source_file(&source_file.ref_(arena));
@@ -329,12 +332,13 @@ pub(crate) fn get_output_paths_for(
                 Some(ScriptReferenceHost::get_current_directory(host)),
                 Some(!EmitHost::use_case_sensitive_file_names(host)),
             ) == Comparison::EqualTo;
-        let js_file_path =
-            if options.ref_(arena).emit_declaration_only == Some(true) || is_json_emitted_to_same_location {
-                None
-            } else {
-                Some(own_output_file_path)
-            };
+        let js_file_path = if options.ref_(arena).emit_declaration_only == Some(true)
+            || is_json_emitted_to_same_location
+        {
+            None
+        } else {
+            Some(own_output_file_path)
+        };
         let source_map_file_path = if js_file_path
             .as_ref()
             .filter(|js_file_path| !js_file_path.is_empty())
@@ -358,7 +362,8 @@ pub(crate) fn get_output_paths_for(
         let declaration_map_path = declaration_file_path
             .as_ref()
             .filter(|declaration_file_path| {
-                !declaration_file_path.is_empty() && get_are_declaration_maps_enabled(&options.ref_(arena))
+                !declaration_file_path.is_empty()
+                    && get_are_declaration_maps_enabled(&options.ref_(arena))
             })
             .map(|declaration_file_path| format!("{declaration_file_path}.map"));
         EmitFileNames {
@@ -531,15 +536,15 @@ pub(crate) fn emit_files(
     arena: &impl HasArena,
 ) -> io::Result<EmitResult> {
     let compiler_options = ScriptReferenceHost::get_compiler_options(&**host.ref_(arena));
-    let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> = if compiler_options.ref_(arena).source_map
-        == Some(true)
-        || compiler_options.ref_(arena).inline_source_map == Some(true)
-        || get_are_declaration_maps_enabled(&compiler_options.ref_(arena))
-    {
-        Some(vec![])
-    } else {
-        None
-    };
+    let mut source_map_data_list: Option<Vec<SourceMapEmitResult>> =
+        if compiler_options.ref_(arena).source_map == Some(true)
+            || compiler_options.ref_(arena).inline_source_map == Some(true)
+            || get_are_declaration_maps_enabled(&compiler_options.ref_(arena))
+        {
+            Some(vec![])
+        } else {
+            None
+        };
     let mut emitted_files_list: Option<Vec<String>> =
         if compiler_options.ref_(arena).list_emitted_files == Some(true) {
             Some(vec![])
@@ -547,7 +552,11 @@ pub(crate) fn emit_files(
             None
         };
     let mut emitter_diagnostics = create_diagnostic_collection(&*static_arena());
-    let new_line = get_new_line_character(compiler_options.ref_(arena).new_line, Some(|| host.ref_(arena).get_new_line()), arena);
+    let new_line = get_new_line_character(
+        compiler_options.ref_(arena).new_line,
+        Some(|| host.ref_(arena).get_new_line()),
+        arena,
+    );
     let writer = create_text_writer(&new_line, arena);
     // const { enter, exit } = performance.createTimer("printTime", "beforePrint", "afterPrint");
     let mut bundle_build_info: Option<Id<BundleBuildInfo>> = None;
@@ -635,38 +644,45 @@ fn emit_source_file_or_bundle(
     if let Some(build_info_path) =
         build_info_path.filter(|build_info_path| !build_info_path.is_empty())
     {
-        if let Some(source_file_or_bundle) =
-            source_file_or_bundle.filter(|source_file_or_bundle| is_bundle(&source_file_or_bundle.ref_(arena)))
+        if let Some(source_file_or_bundle) = source_file_or_bundle
+            .filter(|source_file_or_bundle| is_bundle(&source_file_or_bundle.ref_(arena)))
         {
             build_info_directory = Some(get_directory_path(&get_normalized_absolute_path(
                 build_info_path,
-                Some(&ScriptReferenceHost::get_current_directory(&**host.ref_(arena))),
-            )));
-            *bundle_build_info = Some(arena.alloc_bundle_build_info(BundleBuildInfo {
-                common_source_directory: relative_to_build_info(
-                    build_info_directory.as_ref().unwrap(),
+                Some(&ScriptReferenceHost::get_current_directory(
                     &**host.ref_(arena),
-                    &ScriptReferenceHost::get_current_directory(&**host.ref_(arena)),
-                ),
-                source_files: source_file_or_bundle
-                    .ref_(arena).as_bundle()
-                    .source_files
-                    .iter()
-                    .map(|file: &Option<Id<Node>>| {
-                        let file = file.as_ref().unwrap();
-                        relative_to_build_info(
-                            build_info_directory.as_ref().unwrap(),
-                            &**host.ref_(arena),
-                            &get_normalized_absolute_path(
-                                &file.ref_(arena).as_source_file().file_name(),
-                                Some(&ScriptReferenceHost::get_current_directory(&**host.ref_(arena))),
-                            ),
-                        )
-                    })
-                    .collect(),
-                js: Default::default(),
-                dts: Default::default(),
-            }));
+                )),
+            )));
+            *bundle_build_info = Some(
+                arena.alloc_bundle_build_info(BundleBuildInfo {
+                    common_source_directory: relative_to_build_info(
+                        build_info_directory.as_ref().unwrap(),
+                        &**host.ref_(arena),
+                        &ScriptReferenceHost::get_current_directory(&**host.ref_(arena)),
+                    ),
+                    source_files: source_file_or_bundle
+                        .ref_(arena)
+                        .as_bundle()
+                        .source_files
+                        .iter()
+                        .map(|file: &Option<Id<Node>>| {
+                            let file = file.as_ref().unwrap();
+                            relative_to_build_info(
+                                build_info_directory.as_ref().unwrap(),
+                                &**host.ref_(arena),
+                                &get_normalized_absolute_path(
+                                    &file.ref_(arena).as_source_file().file_name(),
+                                    Some(&ScriptReferenceHost::get_current_directory(
+                                        &**host.ref_(arena),
+                                    )),
+                                ),
+                            )
+                        })
+                        .collect(),
+                    js: Default::default(),
+                    dts: Default::default(),
+                }),
+            );
         }
     }
     // tracing?.push(tracing.Phase.Emit, "emitJsFileOrBundle", { jsFilePath });
@@ -685,10 +701,12 @@ fn emit_source_file_or_bundle(
         source_file_or_bundle,
         js_file_path,
         source_map_file_path,
-        arena.alloc_relative_to_build_info(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
-            build_info_directory.clone(),
-            host.clone(),
-        ))),
+        arena.alloc_relative_to_build_info(Box::new(
+            EmitSourceFileOrBundleRelativeToBuildInfo::new(
+                build_info_directory.clone(),
+                host.clone(),
+            ),
+        )),
         arena,
     )?;
     // tracing?.pop();
@@ -711,10 +729,12 @@ fn emit_source_file_or_bundle(
         source_file_or_bundle,
         declaration_file_path,
         declaration_map_path,
-        arena.alloc_relative_to_build_info(Box::new(EmitSourceFileOrBundleRelativeToBuildInfo::new(
-            build_info_directory.clone(),
-            host.clone(),
-        ))),
+        arena.alloc_relative_to_build_info(Box::new(
+            EmitSourceFileOrBundleRelativeToBuildInfo::new(
+                build_info_directory.clone(),
+                host.clone(),
+            ),
+        )),
         arena,
     )?;
     // tracing?.pop();
@@ -827,11 +847,14 @@ fn emit_build_info(
         &EmitHostWriteFileCallback::new(host.clone()),
         emitter_diagnostics,
         build_info_path,
-        &get_build_info_text(&BuildInfo {
-            bundle: bundle.clone(),
-            program: program.clone(),
-            version: version.to_owned(),
-        }, arena),
+        &get_build_info_text(
+            &BuildInfo {
+                bundle: bundle.clone(),
+                program: program.clone(),
+                version: version.to_owned(),
+            },
+            arena,
+        ),
         false,
         None,
         arena,
@@ -867,7 +890,9 @@ fn emit_js_file_or_bundle(
     let source_file_or_bundle = source_file_or_bundle.unwrap();
     let js_file_path = js_file_path.unwrap();
 
-    if host.ref_(arena).is_emit_blocked(js_file_path) || compiler_options.ref_(arena).no_emit == Some(true) {
+    if host.ref_(arena).is_emit_blocked(js_file_path)
+        || compiler_options.ref_(arena).no_emit == Some(true)
+    {
         *emit_skipped = true;
         return Ok(());
     }
@@ -899,10 +924,12 @@ fn emit_js_file_or_bundle(
 
     let printer = create_printer(
         printer_options,
-        Some(arena.alloc_print_handlers(Box::new(EmitJsFileOrBundlePrintHandlers::new(
-            resolver.clone(),
-            transform.clone(),
-        )))),
+        Some(
+            arena.alloc_print_handlers(Box::new(EmitJsFileOrBundlePrintHandlers::new(
+                resolver.clone(),
+                transform.clone(),
+            ))),
+        ),
         arena,
     );
 
@@ -966,7 +993,8 @@ impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         self.transform
-            .ref_(self).emit_node_with_notification(hint, node, emit_callback)?;
+            .ref_(self)
+            .emit_node_with_notification(hint, node, emit_callback)?;
 
         Ok(())
     }
@@ -1015,7 +1043,8 @@ fn emit_declaration_file_or_bundle(
     }
     let source_file_or_bundle = source_file_or_bundle.unwrap();
     if !declaration_file_path.is_non_empty() {
-        if emit_only_dts_files == Some(true) || compiler_options.ref_(arena).emit_declaration_only == Some(true)
+        if emit_only_dts_files == Some(true)
+            || compiler_options.ref_(arena).emit_declaration_only == Some(true)
         {
             *emit_skipped = true;
         }
@@ -1026,7 +1055,8 @@ fn emit_declaration_file_or_bundle(
         vec![source_file_or_bundle]
     } else {
         source_file_or_bundle
-            .ref_(arena).as_bundle()
+            .ref_(arena)
+            .as_bundle()
             .source_files
             .iter()
             .cloned()
@@ -1044,7 +1074,13 @@ fn emit_declaration_file_or_bundle(
         vec![get_factory(arena).create_bundle(
             files_for_emit.iter().cloned().map(Option::Some).collect(),
             if !is_source_file(&source_file_or_bundle.ref_(arena)) {
-                Some(source_file_or_bundle.ref_(arena).as_bundle().prepends.clone())
+                Some(
+                    source_file_or_bundle
+                        .ref_(arena)
+                        .as_bundle()
+                        .prepends
+                        .clone(),
+                )
             } else {
                 None
             },
@@ -1096,15 +1132,18 @@ fn emit_declaration_file_or_bundle(
 
     let declaration_printer = create_printer(
         printer_options,
-        Some(arena.alloc_print_handlers(Box::new(
-            EmitDeclarationFileOrBundlePrintHandlers::new(
+        Some(
+            arena.alloc_print_handlers(Box::new(EmitDeclarationFileOrBundlePrintHandlers::new(
                 resolver.clone(),
                 declaration_transform.clone(),
-            ),
-        ))),
+            ))),
+        ),
         arena,
     );
-    let decl_blocked = declaration_transform.ref_(arena).diagnostics().is_non_empty()
+    let decl_blocked = declaration_transform
+        .ref_(arena)
+        .diagnostics()
+        .is_non_empty()
         || host.ref_(arena).is_emit_blocked(declaration_file_path)
         || compiler_options.ref_(arena).no_emit == Some(true);
     *emit_skipped = *emit_skipped || decl_blocked;
@@ -1139,18 +1178,25 @@ fn emit_declaration_file_or_bundle(
             arena,
         )?;
         if force_dts_emit == Some(true)
-            && declaration_transform.ref_(arena).transformed()[0].ref_(arena).kind() == SyntaxKind::SourceFile
+            && declaration_transform.ref_(arena).transformed()[0]
+                .ref_(arena)
+                .kind()
+                == SyntaxKind::SourceFile
         {
             let source_file = declaration_transform.ref_(arena).transformed()[0].clone();
             *exported_modules_from_declaration_emit = source_file
-                .ref_(arena).as_source_file()
+                .ref_(arena)
+                .as_source_file()
                 .maybe_exported_modules_from_declaration_emit()
                 .clone();
         }
     }
     declaration_transform.ref_(arena).dispose();
     if let Some(bundle_build_info) = bundle_build_info.clone() {
-        bundle_build_info.ref_mut(arena).js = declaration_printer.ref_(arena).maybe_bundle_file_info().clone();
+        bundle_build_info.ref_mut(arena).js = declaration_printer
+            .ref_(arena)
+            .maybe_bundle_file_info()
+            .clone();
     }
 
     Ok(())
@@ -1189,14 +1235,16 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         self.declaration_transform
-            .ref_(self).emit_node_with_notification(hint, node, emit_callback)?;
+            .ref_(self)
+            .emit_node_with_notification(hint, node, emit_callback)?;
 
         Ok(())
     }
 
     fn is_emit_notification_enabled(&self, node: Id<Node>) -> Option<bool> {
         self.declaration_transform
-            .ref_(self).is_emit_notification_enabled(node)
+            .ref_(self)
+            .is_emit_notification_enabled(node)
     }
 
     fn is_substitute_node_supported(&self) -> bool {
@@ -1205,7 +1253,9 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
 
     fn substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Option<Id<Node>>> {
         Ok(Some(
-            self.declaration_transform.ref_(self).substitute_node(hint, node)?,
+            self.declaration_transform
+                .ref_(self)
+                .substitute_node(hint, node)?,
         ))
     }
 }
@@ -1216,7 +1266,11 @@ impl HasArena for EmitDeclarationFileOrBundlePrintHandlers {
     }
 }
 
-fn collect_linked_aliases(resolver: &dyn EmitResolver, node: Id<Node>, arena: &impl HasArena) -> io::Result<()> {
+fn collect_linked_aliases(
+    resolver: &dyn EmitResolver,
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> io::Result<()> {
     if is_export_assignment(&node.ref_(arena)) {
         let node_ref = node.ref_(arena);
         let node_as_export_assignment = node_ref.as_export_assignment();
@@ -1271,7 +1325,8 @@ fn print_source_file_or_bundle(
     };
     let source_files = if let Some(bundle) = bundle.as_ref() {
         bundle
-            .ref_(arena).as_bundle()
+            .ref_(arena)
+            .as_bundle()
             .source_files
             .iter()
             .cloned()
@@ -1287,14 +1342,21 @@ fn print_source_file_or_bundle(
             host.clone(),
             get_base_file_name(&normalize_slashes(js_file_path), None, None),
             get_source_root(map_options),
-            get_source_map_directory(&**host.ref_(arena), map_options, js_file_path, source_file.refed(arena).as_deref()),
+            get_source_map_directory(
+                &**host.ref_(arena),
+                map_options,
+                js_file_path,
+                source_file.refed(arena).as_deref(),
+            ),
             &map_options.into(),
             arena,
         ));
     }
 
     if let Some(bundle) = bundle {
-        printer.ref_(arena).write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
+        printer
+            .ref_(arena)
+            .write_bundle(bundle, writer.clone(), source_map_generator.clone())?;
     } else {
         printer.ref_(arena).write_file(
             source_file.unwrap(),
@@ -1325,7 +1387,9 @@ fn print_source_file_or_bundle(
             if !writer.ref_(arena).is_at_start_of_line() {
                 writer.ref_(arena).raw_write(new_line);
             }
-            writer.ref_(arena).write_comment(&format!("//# sourceMappingUrl={source_mapping_url}"));
+            writer
+                .ref_(arena)
+                .write_comment(&format!("//# sourceMappingUrl={source_mapping_url}"));
         }
 
         if let Some(source_map_file_path) = source_map_file_path.non_empty() {
@@ -1818,14 +1882,15 @@ pub fn create_printer(
     handlers: Option<Id<Box<dyn PrintHandlers>>>,
     arena: &impl HasArena,
 ) -> Id<Printer> {
-    let handlers = handlers.unwrap_or_else(|| arena.alloc_print_handlers(Box::new(DummyPrintHandlers)));
+    let handlers =
+        handlers.unwrap_or_else(|| arena.alloc_print_handlers(Box::new(DummyPrintHandlers)));
     let printer = arena.alloc_printer(Printer::new(&*static_arena(), printer_options, handlers));
     // TODO: move this into the arena alloc_*() method like other types
     printer.ref_(arena)._arena_id.set(Some(printer.clone()));
     printer.ref_(arena).reset();
-    printer.ref_(arena).emit_binary_expression.set(
-        Some(arena.alloc_emit_binary_expression(printer.ref_(arena).create_emit_binary_expression()))
-    );
+    printer.ref_(arena).emit_binary_expression.set(Some(
+        arena.alloc_emit_binary_expression(printer.ref_(arena).create_emit_binary_expression()),
+    ));
     printer
 }
 
@@ -1849,8 +1914,11 @@ impl Printer {
     ) -> Self {
         let arena_ref = unsafe { &*arena };
         let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
-        let new_line =
-            get_new_line_character(printer_options.new_line, Option::<fn() -> String>::None, arena_ref);
+        let new_line = get_new_line_character(
+            printer_options.new_line,
+            Option::<fn() -> String>::None,
+            arena_ref,
+        );
         let module_kind = get_emit_module_kind_from_module_and_target(
             printer_options.module,
             printer_options.target,
@@ -2060,7 +2128,9 @@ impl Printer {
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
         Ok(if self.handlers.ref_(self).is_on_emit_node_supported() {
-            self.handlers.ref_(self).on_emit_node(hint, node, emit_callback)?
+            self.handlers
+                .ref_(self)
+                .on_emit_node(hint, node, emit_callback)?
         } else {
             no_emit_notification(hint, node, emit_callback)?
         })
@@ -2079,11 +2149,16 @@ impl Printer {
         hint: EmitHint,
         node: Id<Node>,
     ) -> io::Result<Option<Id<Node>>> {
-        Ok(Some(if self.handlers.ref_(self).is_substitute_node_supported() {
-            self.handlers.ref_(self).substitute_node(hint, node)?.unwrap()
-        } else {
-            no_emit_substitution(hint, node)
-        }))
+        Ok(Some(
+            if self.handlers.ref_(self).is_substitute_node_supported() {
+                self.handlers
+                    .ref_(self)
+                    .substitute_node(hint, node)?
+                    .unwrap()
+            } else {
+                no_emit_substitution(hint, node)
+            },
+        ))
     }
 
     pub(super) fn is_substitute_node_no_emit_substitution(&self) -> bool {
@@ -2135,7 +2210,11 @@ impl Printer {
     }
 
     pub(super) fn relative_to_build_info(&self, value: &str) -> String {
-        self.relative_to_build_info.clone().unwrap().ref_(self).call(value)
+        self.relative_to_build_info
+            .clone()
+            .unwrap()
+            .ref_(self)
+            .call(value)
     }
 
     pub(super) fn source_file_text_pos(&self) -> usize {
@@ -2207,7 +2286,8 @@ impl Printer {
         &self,
         most_recently_added_source_map_source: Option<Id<SourceMapSource>>,
     ) {
-        self.most_recently_added_source_map_source.set(most_recently_added_source_map_source);
+        self.most_recently_added_source_map_source
+            .set(most_recently_added_source_map_source);
     }
 
     pub(super) fn most_recently_added_source_map_source_index(&self) -> isize {
@@ -2326,12 +2406,11 @@ impl Printer {
         &self,
         current_parenthesizer_rule: Option<Id<Box<dyn CurrentParenthesizerRule>>>,
     ) {
-        self.current_parenthesizer_rule.set(current_parenthesizer_rule);
+        self.current_parenthesizer_rule
+            .set(current_parenthesizer_rule);
     }
 
-    pub(super) fn parenthesizer(
-        &self,
-    ) -> Id<Box<dyn ParenthesizerRules>> {
+    pub(super) fn parenthesizer(&self) -> Id<Box<dyn ParenthesizerRules>> {
         self.parenthesizer.clone()
     }
 
@@ -2349,7 +2428,8 @@ impl Printer {
 
     pub(super) fn emit_binary_expression(&self, node: Id<Node> /*BinaryExpression*/) {
         self.emit_binary_expression_id()
-            .ref_(self).call(node)
+            .ref_(self)
+            .call(node)
             .expect("Don't _think_ this is actually fallible?")
     }
 
@@ -2361,13 +2441,22 @@ impl Printer {
     ) -> io::Result<String> {
         match hint {
             EmitHint::SourceFile => {
-                Debug_.assert(is_source_file(&node.ref_(self)), Some("Expected a SourceFile node."));
+                Debug_.assert(
+                    is_source_file(&node.ref_(self)),
+                    Some("Expected a SourceFile node."),
+                );
             }
             EmitHint::IdentifierName => {
-                Debug_.assert(is_identifier(&node.ref_(self)), Some("Expected an Identifier node."));
+                Debug_.assert(
+                    is_identifier(&node.ref_(self)),
+                    Some("Expected an Identifier node."),
+                );
             }
             EmitHint::Expression => {
-                Debug_.assert(is_expression(node, self), Some("Expected an Expression node."));
+                Debug_.assert(
+                    is_expression(node, self),
+                    Some("Expected an Expression node."),
+                );
             }
             _ => (),
         }
@@ -2475,11 +2564,11 @@ impl Printer {
         if let Some(last) = last.filter(|last| last.ref_(self).kind() == kind) {
             last.ref_(self).set_end(end);
         } else {
-            bundle_file_info
-                .sections
-                .push(self.alloc_bundle_file_section(BundleFileSection::new_text_like(
+            bundle_file_info.sections.push(
+                self.alloc_bundle_file_section(BundleFileSection::new_text_like(
                     kind, None, pos, end,
-                )));
+                )),
+            );
         }
     }
 }

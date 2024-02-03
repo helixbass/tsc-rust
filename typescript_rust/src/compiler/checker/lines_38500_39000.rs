@@ -13,12 +13,12 @@ use crate::{
     has_ambient_modifier, has_effective_modifier, has_override_modifier, has_syntactic_modifier,
     is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
     is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
-    maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, CheckFlags,
-    Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasArena,
+    maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, AllArenas,
+    CheckFlags, Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasArena,
     HasInitializerInterface, InArena, InterfaceTypeInterface, Matches, MemberOverrideStatus,
     ModifierFlags, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
     SignatureDeclarationInterface, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeInterface, AllArenas,
+    TransientSymbolInterface, Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -47,14 +47,23 @@ impl TypeChecker {
             })?;
         let base_static_type = self.get_base_constructor_type_of_class(type_)?;
 
-        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
+        for &member in &*node
+            .ref_(self)
+            .as_class_like_declaration()
+            .members()
+            .ref_(self)
+        {
             if has_ambient_modifier(member, self) {
                 continue;
             }
 
             if is_constructor_declaration(&member.ref_(self)) {
                 try_for_each(
-                    &*member.ref_(self).as_constructor_declaration().parameters().ref_(self),
+                    &*member
+                        .ref_(self)
+                        .as_constructor_declaration()
+                        .parameters()
+                        .ref_(self),
                     |&param: &Id<Node>, _| -> io::Result<Option<()>> {
                         if is_parameter_property_declaration(param, member, self) {
                             self.check_existing_member_for_override_modifier(
@@ -102,11 +111,13 @@ impl TypeChecker {
         report_errors: Option<bool>,
     ) -> io::Result<MemberOverrideStatus> {
         let report_errors = report_errors.unwrap_or(true);
-        let Some(declared_prop) = (if let Some(member_name) = member.ref_(self).as_named_declaration().maybe_name() {
-            self.get_symbol_at_location_(member_name, None)?
-        } else {
-            self.get_symbol_at_location_(member, None)?
-        }) else {
+        let Some(declared_prop) =
+            (if let Some(member_name) = member.ref_(self).as_named_declaration().maybe_name() {
+                self.get_symbol_at_location_(member_name, None)?
+            } else {
+                self.get_symbol_at_location_(member, None)?
+            })
+        else {
             return Ok(MemberOverrideStatus::Ok);
         };
 
@@ -144,7 +155,8 @@ impl TypeChecker {
         let is_js = is_in_js_file(Some(&node.ref_(self)));
         let node_in_ambient_context = node.ref_(self).flags().intersects(NodeFlags::Ambient);
         if let Some(base_with_this) = base_with_this.filter(|_| {
-            member_has_override_modifier || self.compiler_options.ref_(self).no_implicit_override == Some(true)
+            member_has_override_modifier
+                || self.compiler_options.ref_(self).no_implicit_override == Some(true)
         }) {
             let member_escaped_name = escape_leading_underscores(member_name);
             let this_type = if member_is_static {
@@ -298,11 +310,7 @@ impl TypeChecker {
             self.check_type_assignable_to(
                 type_with_this,
                 base_with_this,
-                Some(
-                    node_as_class_like_declaration
-                        .maybe_name()
-                        .unwrap_or(node),
-                ),
+                Some(node_as_class_like_declaration.maybe_name().unwrap_or(node)),
                 Some(broad_diag),
                 None,
                 None,
@@ -325,8 +333,7 @@ impl TypeChecker {
                 Some(declaration) if has_effective_modifier(declaration, ModifierFlags::Private, self)
             ) {
                 let type_class_declaration =
-                    get_class_like_declaration_of_symbol(type_.ref_(self).symbol(), self)
-                        .unwrap();
+                    get_class_like_declaration_of_symbol(type_.ref_(self).symbol(), self).unwrap();
                 if !self.is_node_within_class(node, type_class_declaration) {
                     self.error(
                         Some(node),
@@ -452,8 +459,7 @@ impl TypeChecker {
 
             if derived == base {
                 let derived_class_decl =
-                    get_class_like_declaration_of_symbol(type_.ref_(self).symbol(), self)
-                        .unwrap();
+                    get_class_like_declaration_of_symbol(type_.ref_(self).symbol(), self).unwrap();
 
                 if base_declaration_flags.intersects(ModifierFlags::Abstract) &&
                     /* !derivedClassDecl ||*/ !has_syntactic_modifier(derived_class_decl, ModifierFlags::Abstract, self)
@@ -518,11 +524,8 @@ impl TypeChecker {
                     }
                 }
             } else {
-                let derived_declaration_flags = get_declaration_modifier_flags_from_symbol(
-                    derived,
-                    None,
-                    self,
-                );
+                let derived_declaration_flags =
+                    get_declaration_modifier_flags_from_symbol(derived, None, self);
                 if base_declaration_flags.intersects(ModifierFlags::Private)
                     || derived_declaration_flags.intersects(ModifierFlags::Private)
                 {
@@ -565,8 +568,11 @@ impl TypeChecker {
                             &*Diagnostics::_0_is_defined_as_a_property_in_class_1_but_is_overridden_here_in_2_as_an_accessor
                         };
                         self.error(
-                            get_name_of_declaration(derived.ref_(self).maybe_value_declaration(), self)
-                                .or_else(|| derived.ref_(self).maybe_value_declaration()),
+                            get_name_of_declaration(
+                                derived.ref_(self).maybe_value_declaration(),
+                                self,
+                            )
+                            .or_else(|| derived.ref_(self).maybe_value_declaration()),
                             error_message,
                             Some(vec![
                                 self.symbol_to_string_(
@@ -593,7 +599,8 @@ impl TypeChecker {
                                         .into_iter()
                                         .find(|d| {
                                             d.ref_(self).kind() == SyntaxKind::PropertyDeclaration
-                                                && d.ref_(self).as_property_declaration()
+                                                && d.ref_(self)
+                                                    .as_property_declaration()
                                                     .maybe_initializer()
                                                     .is_none()
                                         })
@@ -620,7 +627,8 @@ impl TypeChecker {
                                     .unwrap(),
                                 );
                                 let uninitialized_ref = uninitialized.ref_(self);
-                                let uninitialized_as_property_declaration = uninitialized_ref.as_property_declaration();
+                                let uninitialized_as_property_declaration =
+                                    uninitialized_ref.as_property_declaration();
                                 let prop_name = uninitialized_as_property_declaration.name();
                                 if uninitialized_as_property_declaration
                                     .exclamation_token
@@ -711,9 +719,9 @@ impl TypeChecker {
     {
         let properties = properties.into_iter();
         if length(Some(base_types)) == 0 {
-            return Ok(
-                properties.map(|property| property.borrow().clone()).collect(),
-            );
+            return Ok(properties
+                .map(|property| property.borrow().clone())
+                .collect());
         }
         let mut seen: HashMap<__String, Id<Symbol>> = Default::default();
         for_each(properties, |p, _| -> Option<()> {
@@ -840,12 +848,14 @@ impl TypeChecker {
                                     type_name2,
                                 ])
                             );
-                            self.diagnostics().add(self.alloc_diagnostic(
-                                create_diagnostic_for_node_from_message_chain(
-                                    type_node, error_info, None, self,
-                                )
-                                .into(),
-                            ));
+                            self.diagnostics().add(
+                                self.alloc_diagnostic(
+                                    create_diagnostic_for_node_from_message_chain(
+                                        type_node, error_info, None, self,
+                                    )
+                                    .into(),
+                                ),
+                            );
                         }
                     }
                 }

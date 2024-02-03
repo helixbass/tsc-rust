@@ -24,9 +24,9 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
     node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
     FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, HasArena, InArena,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
-    OptionInArena,
+    InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena,
+    OptionTry, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TypeChecker,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -46,7 +46,11 @@ impl TypeChecker {
         location: Id<Node>,
         meaning: SymbolFlags,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        if location.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
+        if location
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::InWithStatement)
+        {
             return Ok(vec![]);
         }
 
@@ -114,7 +118,10 @@ impl TypeChecker {
                     );
                 }
                 SyntaxKind::ClassExpression => {
-                    let class_name = location_present.ref_(self).as_class_expression().maybe_name();
+                    let class_name = location_present
+                        .ref_(self)
+                        .as_class_expression()
+                        .maybe_name();
                     if class_name.is_some() {
                         self.copy_symbol(symbols, location_present.ref_(self).symbol(), meaning);
                     }
@@ -122,9 +129,11 @@ impl TypeChecker {
                     if !*is_static_symbol {
                         self.copy_symbols(
                             symbols,
-                            &self.get_members_of_symbol(
-                                self.get_symbol_of_node(location_present)?.unwrap(),
-                            )?.ref_(self),
+                            &self
+                                .get_members_of_symbol(
+                                    self.get_symbol_of_node(location_present)?.unwrap(),
+                                )?
+                                .ref_(self),
                             meaning & SymbolFlags::Type,
                         );
                     }
@@ -133,15 +142,20 @@ impl TypeChecker {
                     if !*is_static_symbol {
                         self.copy_symbols(
                             symbols,
-                            &self.get_members_of_symbol(
-                                self.get_symbol_of_node(location_present)?.unwrap(),
-                            )?.ref_(self),
+                            &self
+                                .get_members_of_symbol(
+                                    self.get_symbol_of_node(location_present)?.unwrap(),
+                                )?
+                                .ref_(self),
                             meaning & SymbolFlags::Type,
                         );
                     }
                 }
                 SyntaxKind::FunctionExpression => {
-                    let func_name = location_present.ref_(self).as_function_expression().maybe_name();
+                    let func_name = location_present
+                        .ref_(self)
+                        .as_function_expression()
+                        .maybe_name();
                     if func_name.is_some() {
                         self.copy_symbol(symbols, location_present.ref_(self).symbol(), meaning);
                     }
@@ -198,10 +212,8 @@ impl TypeChecker {
     ) {
         if meaning != SymbolFlags::None {
             for &symbol in source.values() {
-                if get_declaration_of_kind(symbol, SyntaxKind::ExportSpecifier, self)
-                    .is_none()
-                    && get_declaration_of_kind(symbol, SyntaxKind::NamespaceExport, self)
-                        .is_none()
+                if get_declaration_of_kind(symbol, SyntaxKind::ExportSpecifier, self).is_none()
+                    && get_declaration_of_kind(symbol, SyntaxKind::NamespaceExport, self).is_none()
                 {
                     self.copy_symbol(symbols, symbol, meaning);
                 }
@@ -226,14 +238,22 @@ impl TypeChecker {
             | SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocEnumTag => true,
             SyntaxKind::ImportClause => node.ref_(self).as_import_clause().is_type_only,
-            SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => {
-                node.ref_(self).parent().ref_(self).parent().ref_(self).as_has_is_type_only().is_type_only()
-            }
+            SyntaxKind::ImportSpecifier | SyntaxKind::ExportSpecifier => node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_has_is_type_only()
+                .is_type_only(),
             _ => false,
         }
     }
 
-    pub(super) fn is_type_reference_identifier(&self, mut node: Id<Node> /*EntityName*/) -> bool {
+    pub(super) fn is_type_reference_identifier(
+        &self,
+        mut node: Id<Node>, /*EntityName*/
+    ) -> bool {
         while node.ref_(self).parent().ref_(self).kind() == SyntaxKind::QualifiedName {
             node = node.ref_(self).parent();
         }
@@ -306,18 +326,31 @@ impl TypeChecker {
     }
 
     pub(super) fn is_node_used_during_class_initialization(&self, node: Id<Node>) -> bool {
-        find_ancestor(Some(node), |element| {
-            if is_constructor_declaration(&element.ref_(self))
-                && node_is_present(element.ref_(self).as_constructor_declaration().maybe_body().refed(self).as_deref())
-                || is_property_declaration(&element.ref_(self))
-            {
-                return true.into();
-            } else if is_class_like(&element.ref_(self)) || is_function_like_declaration(&element.ref_(self)) {
-                return FindAncestorCallbackReturn::Quit;
-            }
+        find_ancestor(
+            Some(node),
+            |element| {
+                if is_constructor_declaration(&element.ref_(self))
+                    && node_is_present(
+                        element
+                            .ref_(self)
+                            .as_constructor_declaration()
+                            .maybe_body()
+                            .refed(self)
+                            .as_deref(),
+                    )
+                    || is_property_declaration(&element.ref_(self))
+                {
+                    return true.into();
+                } else if is_class_like(&element.ref_(self))
+                    || is_function_like_declaration(&element.ref_(self))
+                {
+                    return FindAncestorCallbackReturn::Quit;
+                }
 
-            false.into()
-        }, self)
+                false.into()
+            },
+            self,
+        )
         .is_some()
     }
 
@@ -333,15 +366,21 @@ impl TypeChecker {
         &self,
         mut node_on_right_side: Id<Node>, /*EntityName*/
     ) -> Option<Id<Node /*ImportEqualsDeclaration | ExportAssignment*/>> {
-        while node_on_right_side.ref_(self).parent().ref_(self).kind() == SyntaxKind::QualifiedName {
+        while node_on_right_side.ref_(self).parent().ref_(self).kind() == SyntaxKind::QualifiedName
+        {
             node_on_right_side = node_on_right_side.ref_(self).parent();
         }
 
-        if node_on_right_side.ref_(self).parent().ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration {
+        if node_on_right_side.ref_(self).parent().ref_(self).kind()
+            == SyntaxKind::ImportEqualsDeclaration
+        {
             return if node_on_right_side
-                .ref_(self).parent()
-                .ref_(self).as_import_equals_declaration()
-                .module_reference == node_on_right_side
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_import_equals_declaration()
+                .module_reference
+                == node_on_right_side
             {
                 node_on_right_side.ref_(self).maybe_parent()
             } else {
@@ -349,11 +388,15 @@ impl TypeChecker {
             };
         }
 
-        if node_on_right_side.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment {
+        if node_on_right_side.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment
+        {
             return if node_on_right_side
-                .ref_(self).parent()
-                .ref_(self).as_export_assignment()
-                .expression == node_on_right_side
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_export_assignment()
+                .expression
+                == node_on_right_side
             {
                 node_on_right_side.ref_(self).maybe_parent()
             } else {
@@ -376,8 +419,10 @@ impl TypeChecker {
         &self,
         entity_name: Id<Node>, /*EntityName | PropertyAccessExpression*/
     ) -> io::Result<Option<Id<Symbol>>> {
-        let special_property_assignment_kind =
-            get_assignment_declaration_kind(entity_name.ref_(self).parent().ref_(self).parent(), self);
+        let special_property_assignment_kind = get_assignment_declaration_kind(
+            entity_name.ref_(self).parent().ref_(self).parent(),
+            self,
+        );
         Ok(match special_property_assignment_kind {
             AssignmentDeclarationKind::ExportsProperty
             | AssignmentDeclarationKind::PrototypeProperty => {
@@ -421,7 +466,15 @@ impl TypeChecker {
 
         if is_in_js_file(Some(&name.ref_(self)))
             && name.ref_(self).parent().ref_(self).kind() == SyntaxKind::PropertyAccessExpression
-            && name.ref_(self).parent() == name.ref_(self).parent().ref_(self).parent().ref_(self).as_binary_expression().left
+            && name.ref_(self).parent()
+                == name
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_binary_expression()
+                    .left
         {
             if !is_private_identifier(&name.ref_(self)) && !is_jsdoc_member_name(&name.ref_(self)) {
                 let special_property_assignment_symbol =
@@ -432,7 +485,9 @@ impl TypeChecker {
             }
         }
 
-        if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment && is_entity_name_expression(name, self) {
+        if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExportAssignment
+            && is_entity_name_expression(name, self)
+        {
             let success = self.resolve_entity_name(
                 name,
                 SymbolFlags::Value
@@ -449,7 +504,8 @@ impl TypeChecker {
             ) {
                 return Ok(success);
             }
-        } else if is_entity_name(&name.ref_(self)) && self.is_in_right_side_of_import_or_export_assignment(name)
+        } else if is_entity_name(&name.ref_(self))
+            && self.is_in_right_side_of_import_or_export_assignment(name)
         {
             let import_equals_declaration =
                 get_ancestor(Some(name), SyntaxKind::ImportEqualsDeclaration, self);
@@ -461,10 +517,7 @@ impl TypeChecker {
             let possible_import_node = self.is_import_type_qualifier_part(name);
             if let Some(possible_import_node) = possible_import_node {
                 self.get_type_from_type_node_(possible_import_node)?;
-                let sym = self.get_node_links(name)
-                    .ref_(self)
-                    .resolved_symbol
-                    .clone();
+                let sym = self.get_node_links(name).ref_(self).resolved_symbol.clone();
                 return Ok(sym.filter(|&sym| sym != self.unknown_symbol()));
             }
         }
@@ -475,10 +528,14 @@ impl TypeChecker {
 
         if self.is_heritage_clause_element_identifier(name) {
             let mut meaning;
-            if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionWithTypeArguments {
+            if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionWithTypeArguments
+            {
                 meaning = SymbolFlags::Type;
 
-                if is_expression_with_type_arguments_in_class_extends_clause(name.ref_(self).parent(), self) {
+                if is_expression_with_type_arguments_in_class_extends_clause(
+                    name.ref_(self).parent(),
+                    self,
+                ) {
                     meaning |= SymbolFlags::Value;
                 }
             } else {
@@ -497,15 +554,27 @@ impl TypeChecker {
         }
 
         if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::JSDocParameterTag {
-            return Ok(get_parameter_symbol_from_jsdoc(name.ref_(self).parent(), self));
+            return Ok(get_parameter_symbol_from_jsdoc(
+                name.ref_(self).parent(),
+                self,
+            ));
         }
 
         if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeParameter
-            && name.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::JSDocTemplateTag
+            && name
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::JSDocTemplateTag
         {
             Debug_.assert(!is_in_js_file(Some(&name.ref_(self))), None);
             let type_parameter = get_type_parameter_from_js_doc(name.ref_(self).parent(), self);
-            return Ok(type_parameter.and_then(|type_parameter| type_parameter.ref_(self).maybe_symbol()));
+            return Ok(
+                type_parameter.and_then(|type_parameter| type_parameter.ref_(self).maybe_symbol())
+            );
         }
 
         if is_expression_node(name, self) {
@@ -513,11 +582,15 @@ impl TypeChecker {
                 return Ok(None);
             }
 
-            let is_jsdoc = find_ancestor(Some(name), |ancestor| {
-                is_jsdoc_link_like(&ancestor.ref_(self))
-                    || is_jsdoc_name_reference(&ancestor.ref_(self))
-                    || is_jsdoc_member_name(&ancestor.ref_(self))
-            }, self)
+            let is_jsdoc = find_ancestor(
+                Some(name),
+                |ancestor| {
+                    is_jsdoc_link_like(&ancestor.ref_(self))
+                        || is_jsdoc_name_reference(&ancestor.ref_(self))
+                        || is_jsdoc_member_name(&ancestor.ref_(self))
+                },
+                self,
+            )
             .is_some();
             let meaning = if is_jsdoc {
                 SymbolFlags::Type | SymbolFlags::Namespace | SymbolFlags::Value
@@ -541,9 +614,14 @@ impl TypeChecker {
                     get_host_signature_from_jsdoc(name, self),
                 )?;
                 if result.is_none() && is_jsdoc {
-                    let container = find_ancestor(Some(name), |ancestor| {
-                        is_class_like(&ancestor.ref_(self)) || is_interface_declaration(&ancestor.ref_(self))
-                    }, self);
+                    let container = find_ancestor(
+                        Some(name),
+                        |ancestor| {
+                            is_class_like(&ancestor.ref_(self))
+                                || is_interface_declaration(&ancestor.ref_(self))
+                        },
+                        self,
+                    );
                     if let Some(container) = container {
                         return self
                             .resolve_jsdoc_member_name(name, self.get_symbol_of_node(container)?);
@@ -578,7 +656,8 @@ impl TypeChecker {
                 return self.resolve_jsdoc_member_name(name, Option::<Id<Symbol>>::None);
             }
         } else if self.is_type_reference_identifier(name) {
-            let meaning = if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeReference {
+            let meaning = if name.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeReference
+            {
                 SymbolFlags::Type
             } else {
                 SymbolFlags::Namespace
@@ -652,9 +731,11 @@ impl TypeChecker {
         let right = if is_identifier(&name.ref_(self)) {
             name.ref_(self).as_identifier().escaped_text.clone()
         } else {
-            name.ref_(self).as_has_left_and_right()
+            name.ref_(self)
+                .as_has_left_and_right()
                 .right()
-                .ref_(self).as_identifier()
+                .ref_(self)
+                .as_identifier()
                 .escaped_text
                 .clone()
         };
@@ -689,7 +770,11 @@ impl TypeChecker {
         let parent = node.ref_(self).parent();
         let grand_parent = parent.ref_(self).parent();
 
-        if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
+        if node
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::InWithStatement)
+        {
             return Ok(None);
         }
 
@@ -697,7 +782,13 @@ impl TypeChecker {
             let parent_symbol = self.get_symbol_of_node(parent)?;
             return Ok(
                 if is_import_or_export_specifier(&node.ref_(self).parent().ref_(self))
-                    && node.ref_(self).parent().ref_(self).as_has_property_name().maybe_property_name() == Some(node)
+                    && node
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_has_property_name()
+                        .maybe_property_name()
+                        == Some(node)
                 {
                     self.get_immediate_aliased_symbol(parent_symbol.unwrap())?
                 } else {
@@ -785,31 +876,54 @@ impl TypeChecker {
             SyntaxKind::ConstructorKeyword => {
                 let constructor_declaration = node.ref_(self).maybe_parent();
                 if let Some(constructor_declaration) =
-                    constructor_declaration
-                        .filter(|constructor_declaration| {
-                            constructor_declaration.ref_(self).kind() == SyntaxKind::Constructor
-                        })
+                    constructor_declaration.filter(|constructor_declaration| {
+                        constructor_declaration.ref_(self).kind() == SyntaxKind::Constructor
+                    })
                 {
-                    return Ok(constructor_declaration.ref_(self).parent().ref_(self).maybe_symbol());
+                    return Ok(constructor_declaration
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .maybe_symbol());
                 }
                 None
             }
 
             SyntaxKind::StringLiteral | SyntaxKind::NoSubstitutionTemplateLiteral => {
-                if is_external_module_import_equals_declaration(node.ref_(self).parent().ref_(self).parent(), self)
-                    && get_external_module_import_equals_declaration_expression(
-                        node.ref_(self).parent().ref_(self).parent(),
-                        self,
-                    ) == node
+                if is_external_module_import_equals_declaration(
+                    node.ref_(self).parent().ref_(self).parent(),
+                    self,
+                ) && get_external_module_import_equals_declaration_expression(
+                    node.ref_(self).parent().ref_(self).parent(),
+                    self,
+                ) == node
                     || matches!(
                         node.ref_(self).parent().ref_(self).kind(),
                         SyntaxKind::ImportDeclaration | SyntaxKind::ExportDeclaration
-                    ) && node.ref_(self).parent().ref_(self).as_has_module_specifier().maybe_module_specifier() == Some(node)
-                    || (is_in_js_file(Some(&node.ref_(self))) && is_require_call(node.ref_(self).parent(), false, self)
+                    ) && node
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_has_module_specifier()
+                        .maybe_module_specifier()
+                        == Some(node)
+                    || (is_in_js_file(Some(&node.ref_(self)))
+                        && is_require_call(node.ref_(self).parent(), false, self)
                         || is_import_call(node.ref_(self).parent(), self))
                     || is_literal_type_node(&node.ref_(self).parent().ref_(self))
-                        && is_literal_import_type_node(node.ref_(self).parent().ref_(self).parent(), self)
-                        && node.ref_(self).parent().ref_(self).parent().ref_(self).as_import_type_node().argument == node.ref_(self).parent()
+                        && is_literal_import_type_node(
+                            node.ref_(self).parent().ref_(self).parent(),
+                            self,
+                        )
+                        && node
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .as_import_type_node()
+                            .argument
+                            == node.ref_(self).parent()
                 {
                     return self.resolve_external_module_name_(node, node, ignore_errors);
                 }
@@ -822,20 +936,26 @@ impl TypeChecker {
 
                 let object_type = if is_element_access_expression(&parent.ref_(self)) {
                     let parent_ref = parent.ref_(self);
-                    let parent_as_element_access_expression = parent_ref.as_element_access_expression();
-                    if parent_as_element_access_expression.argument_expression == node
-                     {
+                    let parent_as_element_access_expression =
+                        parent_ref.as_element_access_expression();
+                    if parent_as_element_access_expression.argument_expression == node {
                         Some(self.get_type_of_expression(
                             parent_as_element_access_expression.expression,
                         )?)
                     } else {
                         None
                     }
-                } else if is_literal_type_node(&parent.ref_(self)) && is_indexed_access_type_node(&grand_parent.ref_(self))
+                } else if is_literal_type_node(&parent.ref_(self))
+                    && is_indexed_access_type_node(&grand_parent.ref_(self))
                 {
-                    Some(self.get_type_from_type_node_(
-                        grand_parent.ref_(self).as_indexed_access_type_node().object_type,
-                    )?)
+                    Some(
+                        self.get_type_from_type_node_(
+                            grand_parent
+                                .ref_(self)
+                                .as_indexed_access_type_node()
+                                .object_type,
+                        )?,
+                    )
                 } else {
                     None
                 };
@@ -851,7 +971,8 @@ impl TypeChecker {
             SyntaxKind::NumericLiteral => {
                 let object_type = if is_element_access_expression(&parent.ref_(self)) {
                     let parent_ref = parent.ref_(self);
-                    let parent_as_element_access_expression = parent_ref.as_element_access_expression();
+                    let parent_as_element_access_expression =
+                        parent_ref.as_element_access_expression();
                     if parent_as_element_access_expression.argument_expression == node {
                         Some(self.get_type_of_expression(
                             parent_as_element_access_expression.expression,
@@ -859,11 +980,17 @@ impl TypeChecker {
                     } else {
                         None
                     }
-                } else if is_literal_type_node(&parent.ref_(self)) && is_indexed_access_type_node(&grand_parent.ref_(self))
+                } else if is_literal_type_node(&parent.ref_(self))
+                    && is_indexed_access_type_node(&grand_parent.ref_(self))
                 {
-                    Some(self.get_type_from_type_node_(
-                        grand_parent.ref_(self).as_indexed_access_type_node().object_type,
-                    )?)
+                    Some(
+                        self.get_type_from_type_node_(
+                            grand_parent
+                                .ref_(self)
+                                .as_indexed_access_type_node()
+                                .object_type,
+                        )?,
+                    )
                 } else {
                     None
                 };
@@ -883,10 +1010,11 @@ impl TypeChecker {
             SyntaxKind::ImportType => {
                 if is_literal_import_type_node(node, self) {
                     self.get_symbol_at_location_(
-                        node
-                            .ref_(self).as_import_type_node()
+                        node.ref_(self)
+                            .as_import_type_node()
                             .argument
-                            .ref_(self).as_literal_type_node()
+                            .ref_(self)
+                            .as_literal_type_node()
                             .literal,
                         None,
                     )?
@@ -897,7 +1025,12 @@ impl TypeChecker {
 
             SyntaxKind::ExportKeyword => {
                 if is_export_assignment(&node.ref_(self).parent().ref_(self)) {
-                    Some(Debug_.check_defined(node.ref_(self).parent().ref_(self).maybe_symbol(), None))
+                    Some(
+                        Debug_.check_defined(
+                            node.ref_(self).parent().ref_(self).maybe_symbol(),
+                            None,
+                        ),
+                    )
                 } else {
                     None
                 }

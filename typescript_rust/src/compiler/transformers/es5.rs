@@ -1,18 +1,21 @@
-use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut}};
+use std::{
+    any::Any,
+    cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
+    io, mem,
+};
 
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, get_original_node_id, id_text, is_identifier,
+    chain_bundle, downcast_transformer_ref, get_original_node_id, id_text, is_identifier,
     is_private_identifier, is_property_access_expression, is_property_assignment,
-    node_is_synthesized, string_to_token, BaseNodeFactorySynthetic, BoolExt, CompilerOptions,
-    EmitHint, JsxEmit, Matches, NamedDeclarationInterface, Node, NodeExt, NodeFactory, NodeId,
-    NodeInterface, SyntaxKind, TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface,
-    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
-    ref_mut_unwrapped,
+    node_is_synthesized, ref_mut_unwrapped, static_arena, string_to_token, AllArenas,
+    BaseNodeFactorySynthetic, BoolExt, CompilerOptions, CoreTransformationContext, EmitHint,
+    HasArena, InArena, JsxEmit, Matches, NamedDeclarationInterface, Node, NodeExt, NodeFactory,
+    NodeId, NodeInterface, SyntaxKind, TransformNodesTransformationResult, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
 };
 
 struct TransformES5 {
@@ -24,7 +27,10 @@ struct TransformES5 {
 }
 
 impl TransformES5 {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -40,21 +46,21 @@ impl TransformES5 {
             Some(JsxEmit::Preserve) | Some(JsxEmit::ReactNative)
         ) {
             context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-                arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformES5OnEmitNodeOverrider::new(
-                    ret,
-                    previous_on_emit_node,
-                )))
+                arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+                    TransformES5OnEmitNodeOverrider::new(ret, previous_on_emit_node),
+                ))
             });
             context_ref.enable_emit_notification(SyntaxKind::JsxOpeningElement);
             context_ref.enable_emit_notification(SyntaxKind::JsxClosingElement);
             context_ref.enable_emit_notification(SyntaxKind::JsxSelfClosingElement);
-            *downcast_transformer_ref::<TransformES5>(ret, arena_ref).no_substitution.borrow_mut() = Some(Default::default());
+            *downcast_transformer_ref::<TransformES5>(ret, arena_ref)
+                .no_substitution
+                .borrow_mut() = Some(Default::default());
         }
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformES5OnSubstituteNodeOverrider::new(
-                ret,
-                previous_on_substitute_node,
-            )))
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
+                TransformES5OnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+            ))
         });
         context_ref.enable_emit_notification(SyntaxKind::PropertyAccessExpression);
         context_ref.enable_emit_notification(SyntaxKind::PropertyAssignment);
@@ -66,9 +72,7 @@ impl TransformES5 {
         self.no_substitution.borrow()
     }
 
-    fn no_substitution_mut(
-        &self,
-    ) -> RefMut<HashMap<NodeId, bool>> {
+    fn no_substitution_mut(&self) -> RefMut<HashMap<NodeId, bool>> {
         ref_mut_unwrapped(&self.no_substitution)
     }
 
@@ -134,7 +138,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformES5OnEmitNodeOverride
         }
 
         self.previous_on_emit_node
-            .ref_(self).on_emit_node(hint, node, emit_callback)
+            .ref_(self)
+            .on_emit_node(hint, node, emit_callback)
     }
 }
 
@@ -179,7 +184,8 @@ impl TransformES5OnSubstituteNodeOverrider {
             return self
                 .transform_es5()
                 .factory
-                .ref_(self).create_element_access_expression(
+                .ref_(self)
+                .create_element_access_expression(
                     node_as_property_access_expression.expression.clone(),
                     literal_name,
                 )
@@ -197,11 +203,15 @@ impl TransformES5OnSubstituteNodeOverrider {
         let literal_name = is_identifier(&node_as_property_assignment.name().ref_(self))
             .then_and(|| self.try_substitute_reserved_name(node_as_property_assignment.name()));
         if let Some(literal_name) = literal_name {
-            return self.transform_es5().factory.ref_(self).update_property_assignment(
-                node,
-                literal_name,
-                node_as_property_assignment.initializer.clone(),
-            );
+            return self
+                .transform_es5()
+                .factory
+                .ref_(self)
+                .update_property_assignment(
+                    node,
+                    literal_name,
+                    node_as_property_assignment.initializer.clone(),
+                );
         }
         node
     }
@@ -209,16 +219,18 @@ impl TransformES5OnSubstituteNodeOverrider {
     fn try_substitute_reserved_name(&self, name: Id<Node> /*Identifier*/) -> Option<Id<Node>> {
         let name_ref = name.ref_(self);
         let name_as_identifier = name_ref.as_identifier();
-        let token = name_as_identifier
-            .original_keyword_kind
-            .or_else(|| node_is_synthesized(&*name.ref_(self)).then_and(|| string_to_token(id_text(&name.ref_(self)))));
+        let token = name_as_identifier.original_keyword_kind.or_else(|| {
+            node_is_synthesized(&*name.ref_(self))
+                .then_and(|| string_to_token(id_text(&name.ref_(self))))
+        });
         if token.matches(|token| {
             token >= SyntaxKind::FirstReservedWord && token <= SyntaxKind::LastReservedWord
         }) {
             return Some(
                 self.transform_es5()
                     .factory
-                    .ref_(self).create_string_literal_from_node(name)
+                    .ref_(self)
+                    .create_string_literal_from_node(name)
                     .set_text_range(Some(&*name.ref_(self)), self),
             );
         }
@@ -234,12 +246,14 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES5OnSubstitute
         ) {
             return self
                 .previous_on_substitute_node
-                .ref_(self).on_substitute_node(hint, node);
+                .ref_(self)
+                .on_substitute_node(hint, node);
         }
 
         let node = self
             .previous_on_substitute_node
-            .ref_(self).on_substitute_node(hint, node)?;
+            .ref_(self)
+            .on_substitute_node(hint, node)?;
         if is_property_access_expression(&node.ref_(self)) {
             return Ok(self.substitute_property_access_expression(node));
         } else if is_property_assignment(&node.ref_(self)) {
@@ -265,7 +279,10 @@ impl TransformES5Factory {
 
 impl TransformerFactoryInterface for TransformES5Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle(self).ref_(self).call(context.clone(), TransformES5::new(context, &*static_arena()))
+        chain_bundle(self).ref_(self).call(
+            context.clone(),
+            TransformES5::new(context, &*static_arena()),
+        )
     }
 }
 

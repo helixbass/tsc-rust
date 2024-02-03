@@ -9,9 +9,8 @@ use id_arena::Id;
 use itertools::Itertools;
 
 use crate::{
-    HasArena, GetOrInsertDefault, Node, NodeExt, NodeInterface, NonEmpty, ReadonlyTextRange,
-    TransformationContext, VisitResult, _d, get_elements_of_binding_or_assignment_pattern,
-    get_factory, get_initializer_of_binding_or_assignment_element,
+    get_elements_of_binding_or_assignment_pattern, get_factory,
+    get_initializer_of_binding_or_assignment_element,
     get_property_name_of_binding_or_assignment_element,
     get_rest_indicator_of_binding_or_assignment_element,
     get_target_of_binding_or_assignment_element, id_text, is_array_binding_element,
@@ -22,10 +21,11 @@ use crate::{
     is_omitted_expression, is_property_name_literal, is_simple_inlineable_expression,
     is_string_or_numeric_literal_like, is_variable_declaration, node_is_synthesized,
     set_text_range, try_get_property_name_of_binding_or_assignment_element, try_maybe_visit_node,
-    try_visit_node, BaseNodeFactory, Debug_, Matches, NamedDeclarationInterface, NodeFactory,
-    Number, OptionTry, ReadonlyTextRangeConcrete, TransformFlags, VecExt,
-    InArena, AllArenas,
-    TransformNodesTransformationResult, CoreTransformationContext,
+    try_visit_node, AllArenas, BaseNodeFactory, CoreTransformationContext, Debug_,
+    GetOrInsertDefault, HasArena, InArena, Matches, NamedDeclarationInterface, Node, NodeExt,
+    NodeFactory, NodeInterface, NonEmpty, Number, OptionTry, ReadonlyTextRange,
+    ReadonlyTextRangeConcrete, TransformFlags, TransformNodesTransformationResult,
+    TransformationContext, VecExt, VisitResult, _d,
 };
 
 trait FlattenContext {
@@ -191,10 +191,12 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
     ) -> io::Result<()> {
         Debug_.assert_node(
             Some(target),
-            Some(|node: Id<Node>| if self.create_assignment_callback.is_some() {
-                is_identifier(&node.ref_(self))
-            } else {
-                is_expression(node, self)
+            Some(|node: Id<Node>| {
+                if self.create_assignment_callback.is_some() {
+                    is_identifier(&node.ref_(self))
+                } else {
+                    is_expression(node, self)
+                }
             }),
             None,
         );
@@ -205,8 +207,10 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
                 || -> io::Result<_> {
                     Ok(self
                         .context
-                        .ref_(self).factory()
-                        .ref_(self).create_assignment(
+                        .ref_(self)
+                        .factory()
+                        .ref_(self)
+                        .create_assignment(
                             try_visit_node(
                                 target,
                                 self.visitor
@@ -354,7 +358,12 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
     let flatten_context = FlattenDestructuringAssignmentFlattenContext::new(
         context.clone(),
         level,
-        context.ref_(arena).get_compiler_options().ref_(arena).downlevel_iteration == Some(true),
+        context
+            .ref_(arena)
+            .get_compiler_options()
+            .ref_(arena)
+            .downlevel_iteration
+            == Some(true),
         expressions.clone(),
         create_assignment_callback.clone(),
         visitor.clone(),
@@ -456,7 +465,13 @@ fn binding_or_assignment_element_contains_non_literal_computed_name(
     let property_name = try_get_property_name_of_binding_or_assignment_element(element, arena);
     if property_name.matches(|property_name| {
         is_computed_property_name(&property_name.ref_(arena))
-            && !is_literal_expression(&property_name.ref_(arena).as_computed_property_name().expression.ref_(arena))
+            && !is_literal_expression(
+                &property_name
+                    .ref_(arena)
+                    .as_computed_property_name()
+                    .expression
+                    .ref_(arena),
+            )
     }) {
         return true;
     }
@@ -471,9 +486,11 @@ fn binding_or_assignment_pattern_contains_non_literal_computed_name(
     pattern: Id<Node>, /*BindingOrAssignmentPattern*/
     arena: &impl HasArena,
 ) -> bool {
-    get_elements_of_binding_or_assignment_pattern(pattern, arena).into_iter().any(|element| {
-        binding_or_assignment_element_contains_non_literal_computed_name(element, arena)
-    })
+    get_elements_of_binding_or_assignment_pattern(pattern, arena)
+        .into_iter()
+        .any(|element| {
+            binding_or_assignment_element_contains_non_literal_computed_name(element, arena)
+        })
 }
 
 pub fn flatten_destructuring_binding(
@@ -518,8 +535,10 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     arena: &impl HasArena,
 ) -> io::Result<Vec<Id<Node /*VariableDeclaration*/>>> {
     let hoist_temp_variables = hoist_temp_variables.unwrap_or(false);
-    let pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>> = arena.alloc_option_vec_node(_d());
-    let pending_declarations: Id<Vec<PendingDeclaration>> = arena.alloc_vec_pending_declaration(_d());
+    let pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>> =
+        arena.alloc_option_vec_node(_d());
+    let pending_declarations: Id<Vec<PendingDeclaration>> =
+        arena.alloc_vec_pending_declaration(_d());
     let mut declarations: Vec<Id<Node /*VariableDeclaration*/>> = _d();
     let visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>> =
         Rc::new(RefCell::new(visitor));
@@ -527,7 +546,12 @@ pub fn try_flatten_destructuring_binding<'visitor>(
     let flatten_context = FlattenDestructuringBindingFlattenContext::new(
         context.clone(),
         level,
-        context.ref_(arena).get_compiler_options().ref_(arena).downlevel_iteration == Some(true),
+        context
+            .ref_(arena)
+            .get_compiler_options()
+            .ref_(arena)
+            .downlevel_iteration
+            == Some(true),
         hoist_temp_variables,
         pending_expressions.clone(),
         pending_declarations.clone(),
@@ -557,25 +581,40 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 &*initializer.ref_(arena),
                 arena,
             )?;
-            node = context.ref_(arena).factory().ref_(arena).update_variable_declaration(
-                node,
-                node.ref_(arena).as_variable_declaration().maybe_name(),
-                None,
-                None,
-                Some(initializer),
-            );
+            node = context
+                .ref_(arena)
+                .factory()
+                .ref_(arena)
+                .update_variable_declaration(
+                    node,
+                    node.ref_(arena).as_variable_declaration().maybe_name(),
+                    None,
+                    None,
+                    Some(initializer),
+                );
         }
     }
 
-    flatten_binding_or_assignment_element(&flatten_context, node, rval, &*node.ref_(arena), skip_initializer, arena)?;
+    flatten_binding_or_assignment_element(
+        &flatten_context,
+        node,
+        rval,
+        &*node.ref_(arena),
+        skip_initializer,
+        arena,
+    )?;
     if pending_expressions.ref_(arena).is_some() {
         let temp = context
-            .ref_(arena).factory()
-            .ref_(arena).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+            .ref_(arena)
+            .factory()
+            .ref_(arena)
+            .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         if hoist_temp_variables {
             let value = context
-                .ref_(arena).factory()
-                .ref_(arena).inline_expressions(pending_expressions.ref_(arena).as_ref().unwrap());
+                .ref_(arena)
+                .factory()
+                .ref_(arena)
+                .inline_expressions(pending_expressions.ref_(arena).as_ref().unwrap());
             *pending_expressions.ref_mut(arena) = None;
             emit_binding_or_assignment(
                 &mut pending_expressions.ref_mut(arena),
@@ -597,8 +636,10 @@ pub fn try_flatten_destructuring_binding<'visitor>(
                 .get_or_insert_default_()
                 .push(
                     context
-                        .ref_(arena).factory()
-                        .ref_(arena).create_assignment(temp.clone(), pending_declaration.value.clone()),
+                        .ref_(arena)
+                        .factory()
+                        .ref_(arena)
+                        .create_assignment(temp.clone(), pending_declaration.value.clone()),
                 );
             pending_declaration
                 .pending_expressions
@@ -623,19 +664,27 @@ pub fn try_flatten_destructuring_binding<'visitor>(
         original,
     } in pending_declarations.ref_(arena).iter()
     {
-        let variable = context.ref_(arena).factory().ref_(arena).create_variable_declaration(
-            Some(name.clone()),
-            None,
-            None,
-            Some(pending_expressions.as_ref().map_or_else(
-                || value.clone(),
-                |pending_expressions| {
-                    context
-                        .ref_(arena).factory()
-                        .ref_(arena).inline_expressions(&pending_expressions.clone().and_push(value.clone()))
-                },
-            )),
-        );
+        let variable = context
+            .ref_(arena)
+            .factory()
+            .ref_(arena)
+            .create_variable_declaration(
+                Some(name.clone()),
+                None,
+                None,
+                Some(pending_expressions.as_ref().map_or_else(
+                    || value.clone(),
+                    |pending_expressions| {
+                        context
+                            .ref_(arena)
+                            .factory()
+                            .ref_(arena)
+                            .inline_expressions(
+                                &pending_expressions.clone().and_push(value.clone()),
+                            )
+                    },
+                )),
+            );
         variable.ref_(arena).set_original(original.clone());
         set_text_range(&*variable.ref_(arena), location.as_ref());
         declarations.push(variable);
@@ -647,18 +696,23 @@ fn emit_binding_or_assignment(
     pending_expressions: &mut Option<Vec<Id<Node /*Expression*/>>>,
     context: &dyn TransformationContext,
     pending_declarations: &mut Vec<PendingDeclaration>,
-    target: Id<Node>, /*BindingOrAssignmentElementTarget*/
-    mut value: Id<Node>,  /*Expression*/
+    target: Id<Node>,    /*BindingOrAssignmentElementTarget*/
+    mut value: Id<Node>, /*Expression*/
     location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     original: Option<Id<Node>>,
     arena: &impl HasArena,
 ) {
-    Debug_.assert_node(Some(target), Some(|node: Id<Node>| is_binding_name(&node.ref_(arena))), None);
+    Debug_.assert_node(
+        Some(target),
+        Some(|node: Id<Node>| is_binding_name(&node.ref_(arena))),
+        None,
+    );
     if pending_expressions.is_some() {
         pending_expressions.as_mut().unwrap().push(value);
         value = context
             .factory()
-            .ref_(arena).inline_expressions(pending_expressions.as_ref().unwrap());
+            .ref_(arena)
+            .inline_expressions(pending_expressions.as_ref().unwrap());
         *pending_expressions = None;
     }
     pending_declarations.push(PendingDeclaration {
@@ -753,14 +807,22 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
         &self,
         elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     ) -> Id<Node /*ArrayBindingOrAssignmentPattern*/> {
-        make_array_binding_pattern(&self.context.ref_(self).factory().ref_(self), elements, self)
+        make_array_binding_pattern(
+            &self.context.ref_(self).factory().ref_(self),
+            elements,
+            self,
+        )
     }
 
     fn create_object_binding_or_assignment_pattern(
         &self,
         elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     ) -> Id<Node /*ObjectBindingOrAssignmentPattern*/> {
-        make_object_binding_pattern(&self.context.ref_(self).factory().ref_(self), elements, self)
+        make_object_binding_pattern(
+            &self.context.ref_(self).factory().ref_(self),
+            elements,
+            self,
+        )
     }
 
     fn create_array_binding_or_assignment_element(
@@ -836,7 +898,14 @@ fn flatten_binding_or_assignment_element(
                 value = Some(initializer);
             }
         } else if value.is_none() {
-            value = Some(flatten_context.context().ref_(arena).factory().ref_(arena).create_void_zero());
+            value = Some(
+                flatten_context
+                    .context()
+                    .ref_(arena)
+                    .factory()
+                    .ref_(arena)
+                    .create_void_zero(),
+            );
         }
     }
     if is_object_binding_or_assigment_pattern(&binding_target.ref_(arena)) {
@@ -871,9 +940,9 @@ fn flatten_binding_or_assignment_element(
 
 fn flatten_object_binding_or_assignment_pattern(
     flatten_context: &impl FlattenContext,
-    parent: Id<Node>,  /*BindingOrAssignmentElement*/
-    pattern: Id<Node>, /*ObjectBindingOrAssignmentPattern*/
-    mut value: Id<Node>,   /*Expression*/
+    parent: Id<Node>,    /*BindingOrAssignmentElement*/
+    pattern: Id<Node>,   /*ObjectBindingOrAssignmentPattern*/
+    mut value: Id<Node>, /*Expression*/
     location: &impl ReadonlyTextRange,
     arena: &impl HasArena,
 ) -> io::Result<()> {
@@ -895,7 +964,8 @@ fn flatten_object_binding_or_assignment_pattern(
     for (i, element) in elements.iter().enumerate() {
         let element = *element;
         if get_rest_indicator_of_binding_or_assignment_element(&element.ref_(arena)).is_none() {
-            let property_name = get_property_name_of_binding_or_assignment_element(element, arena).unwrap();
+            let property_name =
+                get_property_name_of_binding_or_assignment_element(element, arena).unwrap();
             if flatten_context.level() >= FlattenLevel::ObjectRest
                 && !element.ref_(arena).transform_flags().intersects(
                     TransformFlags::ContainsRestOrSpread
@@ -903,7 +973,8 @@ fn flatten_object_binding_or_assignment_pattern(
                 )
                 && !get_target_of_binding_or_assignment_element(element, arena)
                     .unwrap()
-                    .ref_(arena).transform_flags()
+                    .ref_(arena)
+                    .transform_flags()
                     .intersects(
                         TransformFlags::ContainsRestOrSpread
                             | TransformFlags::ContainsObjectRestOrSpread,
@@ -932,12 +1003,18 @@ fn flatten_object_binding_or_assignment_pattern(
                     )?;
                     binding_elements = None;
                 }
-                let rhs_value = create_destructuring_property_access(flatten_context, value, property_name, arena)?;
+                let rhs_value = create_destructuring_property_access(
+                    flatten_context,
+                    value,
+                    property_name,
+                    arena,
+                )?;
                 if is_computed_property_name(&property_name.ref_(arena)) {
                     computed_temp_variables.get_or_insert_default_().push(
                         rhs_value
-                            .ref_(arena).as_element_access_expression()
-                            .argument_expression
+                            .ref_(arena)
+                            .as_element_access_expression()
+                            .argument_expression,
                     );
                 }
                 flatten_binding_or_assignment_element(
@@ -963,8 +1040,10 @@ fn flatten_object_binding_or_assignment_pattern(
             }
             let rhs_value = flatten_context
                 .context()
-                .ref_(arena).get_emit_helper_factory()
-                .ref_(arena).create_rest_helper(
+                .ref_(arena)
+                .get_emit_helper_factory()
+                .ref_(arena)
+                .create_rest_helper(
                     value,
                     &elements,
                     computed_temp_variables.as_deref(),
@@ -994,9 +1073,9 @@ fn flatten_object_binding_or_assignment_pattern(
 
 fn flatten_array_binding_or_assignment_pattern(
     flatten_context: &impl FlattenContext,
-    parent: Id<Node>,  /*BindingOrAssignmentElement*/
-    pattern: Id<Node>, /*ArrayBindingOrAssignmentPattern*/
-    mut value: Id<Node>,   /*Expression*/
+    parent: Id<Node>,    /*BindingOrAssignmentElement*/
+    pattern: Id<Node>,   /*ArrayBindingOrAssignmentPattern*/
+    mut value: Id<Node>, /*Expression*/
     location: &impl ReadonlyTextRange,
     arena: &impl HasArena,
 ) -> io::Result<()> {
@@ -1007,8 +1086,10 @@ fn flatten_array_binding_or_assignment_pattern(
             flatten_context,
             flatten_context
                 .context()
-                .ref_(arena).get_emit_helper_factory()
-                .ref_(arena).create_read_helper(
+                .ref_(arena)
+                .get_emit_helper_factory()
+                .ref_(arena)
+                .create_read_helper(
                     value,
                     (!(num_elements > 0
                         && get_rest_indicator_of_binding_or_assignment_element(
@@ -1049,7 +1130,8 @@ fn flatten_array_binding_or_assignment_pattern(
         let element = *element;
         if flatten_context.level() >= FlattenLevel::ObjectRest {
             if element
-                .ref_(arena).transform_flags()
+                .ref_(arena)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsObjectRestOrSpread)
                 || flatten_context.has_transformed_prior_element() == Some(true)
                     && !is_simple_binding_or_assignment_element(element, arena)
@@ -1057,10 +1139,15 @@ fn flatten_array_binding_or_assignment_pattern(
                 flatten_context.set_has_transformed_prior_element(Some(true));
                 let temp = flatten_context
                     .context()
-                    .ref_(arena).factory()
-                    .ref_(arena).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+                    .ref_(arena)
+                    .factory()
+                    .ref_(arena)
+                    .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
                 if flatten_context.hoist_temp_variables() {
-                    flatten_context.context().ref_(arena).hoist_variable_declaration(temp);
+                    flatten_context
+                        .context()
+                        .ref_(arena)
+                        .hoist_variable_declaration(temp);
                 }
 
                 rest_containing_elements
@@ -1070,17 +1157,19 @@ fn flatten_array_binding_or_assignment_pattern(
                     .get_or_insert_default_()
                     .push(flatten_context.create_array_binding_or_assignment_element(temp));
             } else {
-                binding_elements
-                    .get_or_insert_default_()
-                    .push(element);
+                binding_elements.get_or_insert_default_().push(element);
             }
         } else if is_omitted_expression(&element.ref_(arena)) {
             continue;
-        } else if get_rest_indicator_of_binding_or_assignment_element(&element.ref_(arena)).is_none() {
+        } else if get_rest_indicator_of_binding_or_assignment_element(&element.ref_(arena))
+            .is_none()
+        {
             let rhs_value = flatten_context
                 .context()
-                .ref_(arena).factory()
-                .ref_(arena).create_element_access_expression(value, Number::new(i as f64));
+                .ref_(arena)
+                .factory()
+                .ref_(arena)
+                .create_element_access_expression(value, Number::new(i as f64));
             flatten_binding_or_assignment_element(
                 flatten_context,
                 element,
@@ -1092,8 +1181,10 @@ fn flatten_array_binding_or_assignment_pattern(
         } else if i == num_elements - 1 {
             let rhs_value = flatten_context
                 .context()
-                .ref_(arena).factory()
-                .ref_(arena).create_array_slice_call(value, Some(Number::new(i as f64)));
+                .ref_(arena)
+                .factory()
+                .ref_(arena)
+                .create_array_slice_call(value, Some(Number::new(i as f64)));
             flatten_binding_or_assignment_element(
                 flatten_context,
                 element,
@@ -1139,11 +1230,13 @@ fn is_simple_binding_or_assignment_element(
         return true;
     }
     let property_name = try_get_property_name_of_binding_or_assignment_element(element, arena);
-    if property_name.matches(|property_name| !is_property_name_literal(&property_name.ref_(arena))) {
+    if property_name.matches(|property_name| !is_property_name_literal(&property_name.ref_(arena)))
+    {
         return false;
     }
     let initializer = get_initializer_of_binding_or_assignment_element(element, arena);
-    if initializer.matches(|initializer| !is_simple_inlineable_expression(&initializer.ref_(arena))) {
+    if initializer.matches(|initializer| !is_simple_inlineable_expression(&initializer.ref_(arena)))
+    {
         return false;
     }
     if is_binding_or_assigment_pattern(&target.ref_(arena)) {
@@ -1164,12 +1257,16 @@ fn create_default_value_check(
     let value = ensure_identifier(flatten_context, value, true, location, arena)?;
     Ok(flatten_context
         .context()
-        .ref_(arena).factory()
-        .ref_(arena).create_conditional_expression(
+        .ref_(arena)
+        .factory()
+        .ref_(arena)
+        .create_conditional_expression(
             flatten_context
                 .context()
-                .ref_(arena).factory()
-                .ref_(arena).create_type_check(value, "undefined"),
+                .ref_(arena)
+                .factory()
+                .ref_(arena)
+                .create_type_check(value, "undefined"),
             None,
             default_value,
             None,
@@ -1187,7 +1284,10 @@ fn create_destructuring_property_access(
         let argument_expression = ensure_identifier(
             flatten_context,
             try_visit_node(
-                property_name.ref_(arena).as_computed_property_name().expression,
+                property_name
+                    .ref_(arena)
+                    .as_computed_property_name()
+                    .expression,
                 flatten_context
                     .is_visitor_supported()
                     .then(|| |node: Id<Node>| flatten_context.visitor(node).unwrap()),
@@ -1196,27 +1296,35 @@ fn create_destructuring_property_access(
             )?,
             false,
             &*property_name.ref_(arena),
-            arena
+            arena,
         )?;
         flatten_context
             .context()
-            .ref_(arena).factory()
-            .ref_(arena).create_element_access_expression(value, argument_expression)
+            .ref_(arena)
+            .factory()
+            .ref_(arena)
+            .create_element_access_expression(value, argument_expression)
     } else if is_string_or_numeric_literal_like(&property_name.ref_(arena)) {
         let argument_expression = get_factory(arena).clone_node(property_name);
         flatten_context
             .context()
-            .ref_(arena).factory()
-            .ref_(arena).create_element_access_expression(value, argument_expression)
+            .ref_(arena)
+            .factory()
+            .ref_(arena)
+            .create_element_access_expression(value, argument_expression)
     } else {
         let name = flatten_context
             .context()
-            .ref_(arena).factory()
-            .ref_(arena).create_identifier(id_text(&property_name.ref_(arena)));
+            .ref_(arena)
+            .factory()
+            .ref_(arena)
+            .create_identifier(id_text(&property_name.ref_(arena)));
         flatten_context
             .context()
-            .ref_(arena).factory()
-            .ref_(arena).create_property_access_expression(value, name)
+            .ref_(arena)
+            .factory()
+            .ref_(arena)
+            .create_property_access_expression(value, name)
     })
 }
 
@@ -1227,32 +1335,41 @@ fn ensure_identifier(
     location: &impl ReadonlyTextRange,
     arena: &impl HasArena,
 ) -> io::Result<Id<Node>> {
-    Ok(if is_identifier(&value.ref_(arena)) && reuse_identifier_expressions {
-        value
-    } else {
-        let temp = flatten_context
-            .context()
-            .ref_(arena).factory()
-            .ref_(arena).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
-        if flatten_context.hoist_temp_variables() {
-            flatten_context.context().ref_(arena).hoist_variable_declaration(temp);
-            flatten_context.emit_expression(
+    Ok(
+        if is_identifier(&value.ref_(arena)) && reuse_identifier_expressions {
+            value
+        } else {
+            let temp = flatten_context
+                .context()
+                .ref_(arena)
+                .factory()
+                .ref_(arena)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+            if flatten_context.hoist_temp_variables() {
                 flatten_context
                     .context()
-                    .ref_(arena).factory()
-                    .ref_(arena).create_assignment(temp, value)
-                    .set_text_range(Some(location), arena),
-            );
-        } else {
-            flatten_context.emit_binding_or_assignment(
-                temp,
-                value,
-                location,
-                Option::<Id<Node>>::None,
-            )?;
-        }
-        temp
-    })
+                    .ref_(arena)
+                    .hoist_variable_declaration(temp);
+                flatten_context.emit_expression(
+                    flatten_context
+                        .context()
+                        .ref_(arena)
+                        .factory()
+                        .ref_(arena)
+                        .create_assignment(temp, value)
+                        .set_text_range(Some(location), arena),
+                );
+            } else {
+                flatten_context.emit_binding_or_assignment(
+                    temp,
+                    value,
+                    location,
+                    Option::<Id<Node>>::None,
+                )?;
+            }
+            temp
+        },
+    )
 }
 
 fn make_array_binding_pattern(
@@ -1260,7 +1377,11 @@ fn make_array_binding_pattern(
     elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     arena: &impl HasArena,
 ) -> Id<Node> {
-    Debug_.assert_each_node(elements, |node: Id<Node>| is_array_binding_element(&node.ref_(arena)), None);
+    Debug_.assert_each_node(
+        elements,
+        |node: Id<Node>| is_array_binding_element(&node.ref_(arena)),
+        None,
+    );
     factory.create_array_binding_pattern(elements.to_owned())
 }
 
@@ -1288,7 +1409,11 @@ fn make_object_binding_pattern(
     elements: &[Id<Node /*BindingOrAssignmentElement*/>],
     arena: &impl HasArena,
 ) -> Id<Node> {
-    Debug_.assert_each_node(elements, |node: Id<Node>| is_binding_element(&node.ref_(arena)), None);
+    Debug_.assert_each_node(
+        elements,
+        |node: Id<Node>| is_binding_element(&node.ref_(arena)),
+        None,
+    );
     factory.create_object_binding_pattern(elements.to_owned())
 }
 
@@ -1311,10 +1436,7 @@ fn make_object_assignment_pattern(
     )
 }
 
-fn make_binding_element(
-    factory: &NodeFactory,
-    name: Id<Node>, /*Identifier*/
-) -> Id<Node> {
+fn make_binding_element(factory: &NodeFactory, name: Id<Node> /*Identifier*/) -> Id<Node> {
     factory.create_binding_element(None, Option::<Id<Node>>::None, name, None)
 }
 

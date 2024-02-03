@@ -14,11 +14,11 @@ use super::{
     ErrorReporter, IntersectionState,
 };
 use crate::{
-    get_object_flags, get_symbol_id, symbol_name, try_every, try_some,
-    DiagnosticMessage, Diagnostics, HasArena, InArena, IntrinsicType, LiteralTypeInterface, Node,
-    NodeInterface, ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol,
-    SymbolFlags, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags,
-    TypeInterface, TypePredicate, TypePredicateKind,
+    get_object_flags, get_symbol_id, symbol_name, try_every, try_some, DiagnosticMessage,
+    Diagnostics, HasArena, InArena, IntrinsicType, LiteralTypeInterface, Node, NodeInterface,
+    ObjectFlags, ObjectTypeInterface, RelationComparisonResult, Signature, Symbol, SymbolFlags,
+    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
+    TypePredicate, TypePredicateKind,
 };
 
 impl TypeChecker {
@@ -147,7 +147,11 @@ impl TypeChecker {
 
     pub(super) fn is_empty_resolved_type(&self, t: Id<Type> /*ResolvedType*/) -> bool {
         t != self.any_function_type() && {
-            t.ref_(self).as_resolved_type().properties().ref_(self).is_empty()
+            t.ref_(self)
+                .as_resolved_type()
+                .properties()
+                .ref_(self)
+                .is_empty()
                 && t.ref_(self).as_resolved_type().call_signatures().is_empty()
                 && t.ref_(self)
                     .as_resolved_type()
@@ -601,7 +605,8 @@ impl TypeChecker {
             head_message,
             containing_message_chain,
             error_output_container,
-        ).ref_(self)
+        )
+        .ref_(self)
         .call()
     }
 }

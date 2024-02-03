@@ -13,10 +13,10 @@ use crate::{
     get_trailing_semicolon_deferring_writer, is_bundle_file_text_like, is_declaration,
     is_empty_statement, is_expression, is_identifier, is_in_json_file, is_internal_declaration,
     is_keyword, is_source_file, is_string_literal, is_token_kind, is_type_parameter_declaration,
-    is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
-    BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
-    GetOrInsertDefault, Node, NodeInterface, Printer, SourceMapGenerator, SyntaxKind, TempFlags,
-    HasArena, InArena, static_arena,
+    is_unparsed_prepend, is_unparsed_source, is_variable_statement, static_arena,
+    BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags,
+    EmitHint, EmitTextWriter, GetOrInsertDefault, HasArena, InArena, Node, NodeInterface, Printer,
+    SourceMapGenerator, SyntaxKind, TempFlags,
 };
 
 impl Printer {
@@ -102,7 +102,8 @@ impl Printer {
                 let mut new_sections = bundle_file_info.sections.clone();
                 bundle_file_info.sections = saved_sections.unwrap();
                 if prepend
-                    .ref_(self).as_has_old_file_of_current_emit()
+                    .ref_(self)
+                    .as_has_old_file_of_current_emit()
                     .maybe_old_file_of_current_emit()
                     == Some(true)
                 {
@@ -113,12 +114,16 @@ impl Printer {
                     }
                     bundle_file_info
                         .sections
-                        .push(self.alloc_bundle_file_section(BundleFileSection::new_prepend(
-                            self.relative_to_build_info(&prepend.ref_(self).as_unparsed_source().file_name),
-                            new_sections,
-                            pos.try_into().unwrap(),
-                            self.writer().get_text_pos().try_into().unwrap(),
-                        )))
+                        .push(
+                            self.alloc_bundle_file_section(BundleFileSection::new_prepend(
+                                self.relative_to_build_info(
+                                    &prepend.ref_(self).as_unparsed_source().file_name,
+                                ),
+                                new_sections,
+                                pos.try_into().unwrap(),
+                                self.writer().get_text_pos().try_into().unwrap(),
+                            )),
+                        )
                 }
             }
         }
@@ -193,7 +198,8 @@ impl Printer {
     }
 
     pub(super) fn begin_print(&self) -> Id<Box<dyn EmitTextWriter>> {
-        *self.own_writer
+        *self
+            .own_writer
             .get_or_init(|| create_text_writer(&self.new_line, self))
     }
 
@@ -388,16 +394,16 @@ impl Printer {
             PipelinePhase::Notification | PipelinePhase::Substitution
         ) {
             if !self.is_substitute_node_no_emit_substitution() {
-                let last_substitution = self
-                    .substitute_node(emit_hint, node)?
-                    .unwrap_or(node);
+                let last_substitution = self.substitute_node(emit_hint, node)?.unwrap_or(node);
                 self.set_last_substitution(Some(last_substitution.clone()));
                 if last_substitution != node {
                     if let Some(current_parenthesizer_rule) =
                         self.maybe_current_parenthesizer_rule().as_ref()
                     {
                         self.set_last_substitution(Some(
-                            current_parenthesizer_rule.ref_(self).call(last_substitution),
+                            current_parenthesizer_rule
+                                .ref_(self)
+                                .call(last_substitution),
                         ));
                     }
                     return Ok(Printer::pipeline_emit_with_substitution);
@@ -489,11 +495,14 @@ impl Printer {
             }
         }
         if hint == EmitHint::SourceFile {
-            return self
-                .emit_source_file(cast_present(node, |node: &Id<Node>| is_source_file(&node.ref_(self))));
+            return self.emit_source_file(cast_present(node, |node: &Id<Node>| {
+                is_source_file(&node.ref_(self))
+            }));
         }
         if hint == EmitHint::IdentifierName {
-            return self.emit_identifier(cast_present(node, |node: &Id<Node>| is_identifier(&node.ref_(self))));
+            return self.emit_identifier(cast_present(node, |node: &Id<Node>| {
+                is_identifier(&node.ref_(self))
+            }));
         }
         if hint == EmitHint::JsxAttributeValue {
             return Ok(self.emit_literal(
@@ -507,7 +516,11 @@ impl Printer {
             }));
         }
         if hint == EmitHint::EmbeddedStatement {
-            Debug_.assert_node(Some(node), Some(|node: Id<Node>| is_empty_statement(&node.ref_(self))), None);
+            Debug_.assert_node(
+                Some(node),
+                Some(|node: Id<Node>| is_empty_statement(&node.ref_(self))),
+                None,
+            );
             return Ok(self.emit_empty_statement(true));
         }
         if hint == EmitHint::Unspecified {
@@ -681,9 +694,7 @@ impl Printer {
                 SyntaxKind::JSDocAllType => return Ok(self.write_punctuation("*")),
                 SyntaxKind::JSDocUnknownType => return Ok(self.write_punctuation("?")),
                 SyntaxKind::JSDocNullableType => return self.emit_jsdoc_nullable_type(node),
-                SyntaxKind::JSDocNonNullableType => {
-                    return self.emit_jsdoc_non_nullable_type(node)
-                }
+                SyntaxKind::JSDocNonNullableType => return self.emit_jsdoc_non_nullable_type(node),
                 SyntaxKind::JSDocOptionalType => return self.emit_jsdoc_optional_type(node),
                 SyntaxKind::JSDocFunctionType => return self.emit_jsdoc_function_type(node),
                 SyntaxKind::RestType | SyntaxKind::JSDocVariadicType => {
@@ -725,9 +736,7 @@ impl Printer {
             if is_expression(node, self) {
                 hint = EmitHint::Expression;
                 if !self.is_substitute_node_no_emit_substitution() {
-                    let substitute = self
-                        .substitute_node(hint, node)?
-                        .unwrap_or(node);
+                    let substitute = self.substitute_node(hint, node)?.unwrap_or(node);
                     if substitute != node {
                         node = substitute;
                         if let Some(current_parenthesizer_rule) =
@@ -790,9 +799,7 @@ impl Printer {
                     return self.emit_postfix_unary_expression(node)
                 }
                 SyntaxKind::BinaryExpression => return Ok(self.emit_binary_expression(node)),
-                SyntaxKind::ConditionalExpression => {
-                    return self.emit_conditional_expression(node)
-                }
+                SyntaxKind::ConditionalExpression => return self.emit_conditional_expression(node),
                 SyntaxKind::TemplateExpression => return self.emit_template_expression(node),
                 SyntaxKind::YieldExpression => return self.emit_yield_expression(node),
                 SyntaxKind::SpreadElement => return self.emit_spread_element(node),
@@ -833,6 +840,9 @@ impl Printer {
         if is_token_kind(node.ref_(self).kind()) {
             return Ok(self.write_token_node(node, Printer::write_punctuation));
         }
-        Debug_.fail(Some(&format!("Unhandled SyntaxKind: {:?}", node.ref_(self).kind())));
+        Debug_.fail(Some(&format!(
+            "Unhandled SyntaxKind: {:?}",
+            node.ref_(self).kind()
+        )));
     }
 }

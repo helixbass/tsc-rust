@@ -1,14 +1,13 @@
-use std::{io, mem, any::Any};
+use std::{any::Any, io, mem};
 
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, is_block, maybe_visit_each_child, visit_each_child, visit_node,
-    BaseNodeFactorySynthetic, Node, NodeFactory, NodeInterface, SyntaxKind, TransformFlags,
+    chain_bundle, is_block, maybe_visit_each_child, static_arena, visit_each_child, visit_node,
+    AllArenas, BaseNodeFactorySynthetic, CoreTransformationContext, HasArena, InArena, Node,
+    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 struct TransformES2019 {
@@ -18,7 +17,10 @@ struct TransformES2019 {
 }
 
 impl TransformES2019 {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         arena_ref.alloc_transformer(Box::new(Self {
@@ -33,12 +35,18 @@ impl TransformES2019 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         if !node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsES2019)
         {
             return Some(node.into());
@@ -65,7 +73,8 @@ impl TransformES2019 {
                     self.factory.ref_(self).create_variable_declaration(
                         Some(
                             self.factory
-                                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None),
+                                .ref_(self)
+                                .create_temp_variable(Option::<fn(Id<Node>)>::None, None),
                         ),
                         None,
                         None,
@@ -80,7 +89,12 @@ impl TransformES2019 {
                 ),
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 }
 

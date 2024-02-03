@@ -1,4 +1,8 @@
-use std::{borrow::{Borrow, Cow}, cell::{RefCell, Ref}, ptr};
+use std::{
+    borrow::{Borrow, Cow},
+    cell::{Ref, RefCell},
+    ptr,
+};
 
 use bitflags::bitflags;
 use id_arena::Id;
@@ -12,21 +16,20 @@ use super::{
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
     get_text_of_identifier_or_literal, id_text, is_identifier, null_node_converters,
-    null_parenthesizer_rules, pseudo_big_int_to_string, starts_with, string_to_token,
-    BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration, BaseGenericNamedDeclaration,
-    BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType,
-    BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode, BaseNodeFactory, BaseSignatureDeclaration,
-    BaseVariableLikeDeclaration, BigIntLiteral, BinaryExpression, BoolOrRcNode,
-    ClassLikeDeclarationBase, ClassLikeDeclarationInterface, Debug_,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Identifier,
-    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNodeInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
-    ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier,
-    ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral,
-    StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
-    HasArena, AllArenas, InArena, OptionInArena,
-    ref_unwrapped,
+    null_parenthesizer_rules, pseudo_big_int_to_string, ref_unwrapped, starts_with,
+    string_to_token, AllArenas, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
+    BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag,
+    BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
+    BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral,
+    BinaryExpression, BoolOrRcNode, ClassLikeDeclarationBase, ClassLikeDeclarationInterface,
+    Debug_, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena,
+    HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, Identifier, InArena, InterfaceOrClassLikeDeclarationInterface,
+    LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
+    NodeInterface, Number, NumericLiteral, OptionInArena, ParenthesizerRules,
+    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange,
+    RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral, StringOrNodeArray,
+    SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {
@@ -62,7 +65,11 @@ pub fn create_node_factory(
 }
 
 impl NodeFactory {
-    pub fn new(flags: NodeFactoryFlags, base_factory: Id<Box<dyn BaseNodeFactory>>, arena: &impl HasArena) -> Id<Self> {
+    pub fn new(
+        flags: NodeFactoryFlags,
+        base_factory: Id<Box<dyn BaseNodeFactory>>,
+        arena: &impl HasArena,
+    ) -> Id<Self> {
         let factory_ = arena.alloc_node_factory(Self {
             base_factory,
             flags,
@@ -111,10 +118,7 @@ impl NodeFactory {
         self.parenthesizer_rules()
     }
 
-    pub(crate) fn set_converters(
-        &self,
-        node_converters: Box<dyn NodeConverters>,
-    ) {
+    pub(crate) fn set_converters(&self, node_converters: Box<dyn NodeConverters>) {
         *self.converters.borrow_mut() = Some(node_converters);
     }
 
@@ -596,7 +600,9 @@ impl NodeFactory {
             NodeArrayOrVec::NodeArray(elements) => {
                 if match has_trailing_comma {
                     None => true,
-                    Some(has_trailing_comma) => elements.ref_(self).has_trailing_comma == has_trailing_comma,
+                    Some(has_trailing_comma) => {
+                        elements.ref_(self).has_trailing_comma == has_trailing_comma
+                    }
                 } {
                     if elements.ref_(self).maybe_transform_flags().is_none() {
                         aggregate_children_flags(elements, self);
@@ -619,8 +625,14 @@ impl NodeFactory {
             NodeArrayOrVec::Vec(elements) => {
                 // let length = elements.len();
                 let array = /*length >= 1 && length <= 4 ? elements.slice() :*/ elements;
-                let array =
-                    NodeArray::new(array, -1, -1, has_trailing_comma.unwrap_or(false), None, self);
+                let array = NodeArray::new(
+                    array,
+                    -1,
+                    -1,
+                    has_trailing_comma.unwrap_or(false),
+                    None,
+                    self,
+                );
                 aggregate_children_flags(array, self);
                 Debug_.attach_node_array_debug_info(array);
                 array
@@ -802,10 +814,11 @@ impl NodeFactory {
         let updated_as_function_like_declaration = updated_ref.as_function_like_declaration();
         let original_ref = original.ref_(self);
         let original_as_function_like_declaration = original_ref.as_function_like_declaration();
-        if let Some(original_exclamation_token) = original_as_function_like_declaration
-            .maybe_exclamation_token()
+        if let Some(original_exclamation_token) =
+            original_as_function_like_declaration.maybe_exclamation_token()
         {
-            updated_as_function_like_declaration.set_exclamation_token(Some(original_exclamation_token));
+            updated_as_function_like_declaration
+                .set_exclamation_token(Some(original_exclamation_token));
         }
         // TODO: haven't added maybe_type_arguments() on SignatureDeclarationInterface yet
         // if let Some(original_type_arguments) = original_as_function_like_declaration.maybe_type_arguments().clone() {
@@ -1045,7 +1058,8 @@ impl NodeFactory {
         }
         let node = self
             .base_factory
-            .ref_(self).create_base_identifier_node(SyntaxKind::Identifier);
+            .ref_(self)
+            .create_base_identifier_node(SyntaxKind::Identifier);
         let mut node = Identifier::new(node, escape_leading_underscores(text).into_owned());
         node.original_keyword_kind = original_keyword_kind;
         node
@@ -1121,7 +1135,9 @@ impl NodeFactory {
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
         }
-        let name = self.create_base_generated_identifier("", flags).alloc(self.arena());
+        let name = self
+            .create_base_generated_identifier("", flags)
+            .alloc(self.arena());
         if let Some(mut record_temp_variable) = record_temp_variable {
             record_temp_variable(name);
         }
@@ -1136,7 +1152,8 @@ impl NodeFactory {
         if reserved_in_nested_scopes == Some(true) {
             flags |= GeneratedIdentifierFlags::ReservedInNestedScopes;
         }
-        self.create_base_generated_identifier("", flags).alloc(self.arena())
+        self.create_base_generated_identifier("", flags)
+            .alloc(self.arena())
     }
 
     pub fn create_unique_name(
@@ -1191,7 +1208,8 @@ impl NodeFactory {
         }
         let node = self
             .base_factory
-            .ref_(self).create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
+            .ref_(self)
+            .create_base_private_identifier_node(SyntaxKind::PrivateIdentifier);
         let node = PrivateIdentifier::new(node, escape_leading_underscores(text).into_owned());
         node.add_transform_flags(TransformFlags::ContainsClassFields);
         node
@@ -1297,9 +1315,7 @@ pub fn has_option_str_or_node_changed(
 ) -> bool {
     match (existing, maybe_changed) {
         (None, None) => false,
-        (Some(existing), Some(StrOrRcNode::RcNode(maybe_changed))) => {
-            *existing != *maybe_changed
-        }
+        (Some(existing), Some(StrOrRcNode::RcNode(maybe_changed))) => *existing != *maybe_changed,
         _ => true,
     }
 }

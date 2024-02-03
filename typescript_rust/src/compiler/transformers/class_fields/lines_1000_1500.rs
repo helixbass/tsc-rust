@@ -21,12 +21,11 @@ use crate::{
     is_private_identifier_class_element_declaration, is_simple_inlineable_expression, is_statement,
     is_static, maybe_map, maybe_visit_node, maybe_visit_nodes, move_range_past_modifiers,
     set_emit_flags, set_original_node, skip_outer_expressions, unescape_leading_underscores,
-    visit_each_child, visit_function_body, visit_nodes, visit_parameter_list, Debug_, EmitFlags,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasInitializerInterface,
-    ModifierFlags, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt,
-    PrivateIdentifierKind, PropertyDescriptorAttributesBuilder, ScriptTarget, SyntaxKind,
-    HasArena, InArena, OptionInArena,
-    CoreTransformationContext, TransformationContext,
+    visit_each_child, visit_function_body, visit_nodes, visit_parameter_list,
+    CoreTransformationContext, Debug_, EmitFlags, FunctionLikeDeclarationInterface,
+    GeneratedIdentifierFlags, HasArena, HasInitializerInterface, InArena, ModifierFlags, NodeArray,
+    NodeArrayExt, NodeArrayOrVec, NodeCheckFlags, NodeExt, OptionInArena, PrivateIdentifierKind,
+    PropertyDescriptorAttributesBuilder, ScriptTarget, SyntaxKind, TransformationContext,
 };
 
 impl TransformClassFields {
@@ -57,22 +56,24 @@ impl TransformClassFields {
             self.get_class_lexical_environment()
                 .ref_mut(self)
                 .class_constructor = Some(self.factory.ref_(self).clone_node(temp));
-            pending_class_reference_assignment = Some(
-                self.factory
-                    .ref_(self).create_assignment(temp, self.factory.ref_(self).get_internal_name(node, None, None)),
-            );
+            pending_class_reference_assignment = Some(self.factory.ref_(self).create_assignment(
+                temp,
+                self.factory.ref_(self).get_internal_name(node, None, None),
+            ));
         }
 
         let extends_clause_element = get_effective_base_type_node(node, self);
         let is_derived_class = extends_clause_element.matches(|extends_clause_element| {
             skip_outer_expressions(
                 extends_clause_element
-                    .ref_(self).as_expression_with_type_arguments()
+                    .ref_(self)
+                    .as_expression_with_type_arguments()
                     .expression,
                 None,
                 self,
             )
-            .ref_(self).kind()
+            .ref_(self)
+            .kind()
                 != SyntaxKind::NullKeyword
         });
 
@@ -84,8 +85,7 @@ impl TransformClassFields {
                 node_as_class_declaration.maybe_name(),
                 Option::<Id<NodeArray>>::None,
                 maybe_visit_nodes(
-                    node_as_class_declaration
-                        .maybe_heritage_clauses(),
+                    node_as_class_declaration.maybe_heritage_clauses(),
                     Some(|node: Id<Node>| self.heritage_clause_visitor(node)),
                     Some(|node: Id<Node>| is_heritage_clause(&node.ref_(self))),
                     None,
@@ -103,7 +103,9 @@ impl TransformClassFields {
         if let Some(pending_expressions) = self.maybe_pending_expressions().as_ref().non_empty() {
             statements.push(
                 self.factory.ref_(self).create_expression_statement(
-                    self.factory.ref_(self).inline_expressions(pending_expressions),
+                    self.factory
+                        .ref_(self)
+                        .inline_expressions(pending_expressions),
                 ),
             );
         }
@@ -143,18 +145,21 @@ impl TransformClassFields {
         let is_derived_class = extends_clause_element.matches(|extends_clause_element| {
             skip_outer_expressions(
                 extends_clause_element
-                    .ref_(self).as_expression_with_type_arguments()
+                    .ref_(self)
+                    .as_expression_with_type_arguments()
                     .expression,
                 None,
                 self,
             )
-            .ref_(self).kind()
+            .ref_(self)
+            .kind()
                 != SyntaxKind::NullKeyword
         });
 
         let is_class_with_constructor_reference = self
             .resolver
-            .ref_(self).get_node_check_flags(node)
+            .ref_(self)
+            .get_node_check_flags(node)
             .intersects(NodeCheckFlags::ClassWithConstructorReference);
         let mut temp: Option<Id<Node /*Identifier*/>> = _d();
 
@@ -208,10 +213,13 @@ impl TransformClassFields {
                 if
                 /*pendingStatements &&*/
                 let Some(pending_expressions) = self.maybe_pending_expressions().as_ref() {
-                    self.pending_statements_mut()
-                        .push(self.factory.ref_(self).create_expression_statement(
-                            self.factory.ref_(self).inline_expressions(pending_expressions),
-                        ));
+                    self.pending_statements_mut().push(
+                        self.factory.ref_(self).create_expression_statement(
+                            self.factory
+                                .ref_(self)
+                                .inline_expressions(pending_expressions),
+                        ),
+                    );
                 }
 
                 if
@@ -226,7 +234,8 @@ impl TransformClassFields {
                 if let Some(temp) = temp {
                     return self.factory.ref_(self).inline_expressions(&[
                         self.factory
-                            .ref_(self).create_assignment(temp.clone(), class_expression),
+                            .ref_(self)
+                            .create_assignment(temp.clone(), class_expression),
                         temp,
                     ]);
                 }
@@ -238,13 +247,17 @@ impl TransformClassFields {
                 if is_class_with_constructor_reference {
                     self.enable_substitution_for_class_aliases();
                     let alias = self.factory.ref_(self).clone_node(temp);
-                    alias.ref_(self).as_identifier().set_auto_generate_flags(Some(
-                        alias
-                            .ref_(self).as_identifier()
-                            .maybe_auto_generate_flags()
-                            .unwrap_or_default()
-                            & !GeneratedIdentifierFlags::ReservedInNestedScopes,
-                    ));
+                    alias
+                        .ref_(self)
+                        .as_identifier()
+                        .set_auto_generate_flags(Some(
+                            alias
+                                .ref_(self)
+                                .as_identifier()
+                                .maybe_auto_generate_flags()
+                                .unwrap_or_default()
+                                & !GeneratedIdentifierFlags::ReservedInNestedScopes,
+                        ));
                     self.class_aliases_mut()
                         .insert(get_original_node_id(node, self), alias);
                 }
@@ -256,7 +269,8 @@ impl TransformClassFields {
                 );
                 expressions.push(
                     self.factory
-                        .ref_(self).create_assignment(temp, class_expression)
+                        .ref_(self)
+                        .create_assignment(temp, class_expression)
                         .start_on_new_line(self),
                 );
                 add_range(
@@ -356,20 +370,27 @@ impl TransformClassFields {
         }
         add_range(
             &mut members,
-            Some(&visit_nodes(
-                node_as_class_like_declaration.members(),
-                Some(|node: Id<Node>| self.class_element_visitor(node)),
-                Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
-                None,
-                None,
-                self,
-            ).ref_(self)),
+            Some(
+                &visit_nodes(
+                    node_as_class_like_declaration.members(),
+                    Some(|node: Id<Node>| self.class_element_visitor(node)),
+                    Some(|node: Id<Node>| is_class_element(&node.ref_(self))),
+                    None,
+                    None,
+                    self,
+                )
+                .ref_(self),
+            ),
             None,
             None,
         );
         self.factory
-            .ref_(self).create_node_array(Some(members), None)
-            .set_text_range(Some(&*node_as_class_like_declaration.members().ref_(self)), self)
+            .ref_(self)
+            .create_node_array(Some(members), None)
+            .set_text_range(
+                Some(&*node_as_class_like_declaration.members().ref_(self)),
+                self,
+            )
     }
 
     pub(super) fn create_brand_check_weak_set_for_private_methods(&self) {
@@ -398,7 +419,11 @@ impl TransformClassFields {
         member: Id<Node>, /*ClassElement*/
     ) -> bool {
         if is_static(member, self)
-            || has_syntactic_modifier(get_original_node(member, self), ModifierFlags::Abstract, self)
+            || has_syntactic_modifier(
+                get_original_node(member, self),
+                ModifierFlags::Abstract,
+                self,
+            )
         {
             return false;
         }
@@ -425,7 +450,8 @@ impl TransformClassFields {
         );
         let elements = node_as_class_like_declaration
             .members()
-            .ref_(self).iter()
+            .ref_(self)
+            .iter()
             .filter(|&&member| self.is_class_element_that_requires_constructor_statement(member))
             .copied()
             .collect_vec();
@@ -433,17 +459,21 @@ impl TransformClassFields {
             return constructor;
         }
         let parameters = visit_parameter_list(
-            constructor
-                .map(|constructor| constructor.ref_(self).as_signature_declaration().parameters()),
+            constructor.map(|constructor| {
+                constructor
+                    .ref_(self)
+                    .as_signature_declaration()
+                    .parameters()
+            }),
             |node: Id<Node>| self.visitor(node),
             &*self.context.ref_(self),
             self,
         );
-        let body =
-            self.transform_constructor_body(node, constructor, is_derived_class)?;
+        let body = self.transform_constructor_body(node, constructor, is_derived_class)?;
         Some(
             self.factory
-                .ref_(self).create_constructor_declaration(
+                .ref_(self)
+                .create_constructor_declaration(
                     Option::<Id<NodeArray>>::None,
                     Option::<Id<NodeArray>>::None,
                     Some(parameters.map_or_else(|| vec![].into(), NodeArrayOrVec::from)),
@@ -480,7 +510,12 @@ impl TransformClassFields {
             !properties.is_empty() || !private_methods_and_accessors.is_empty();
 
         if constructor.is_none() && !needs_constructor_body {
-            return visit_function_body(None, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+            return visit_function_body(
+                None,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            );
         }
 
         self.context.ref_(self).resume_lexical_environment();
@@ -511,29 +546,43 @@ impl TransformClassFields {
         }
         if let Some(constructor) = constructor {
             let constructor_ref = constructor.ref_(self);
-            let constructor_as_constructor_declaration = constructor_ref.as_constructor_declaration();
+            let constructor_as_constructor_declaration =
+                constructor_ref.as_constructor_declaration();
             if let Some(constructor_body) = constructor_as_constructor_declaration.maybe_body() {
                 let after_parameter_properties = find_index(
                     &constructor_body.ref_(self).as_block().statements.ref_(self),
                     |&s: &Id<Node>, _| {
-                        !is_parameter_property_declaration(get_original_node(s, self), constructor, self)
+                        !is_parameter_property_declaration(
+                            get_original_node(s, self),
+                            constructor,
+                            self,
+                        )
                     },
                     Some(index_of_first_statement),
                 );
-                let after_parameter_properties = after_parameter_properties
-                    .unwrap_or_else(|| constructor_body.ref_(self).as_block().statements.ref_(self).len());
+                let after_parameter_properties = after_parameter_properties.unwrap_or_else(|| {
+                    constructor_body
+                        .ref_(self)
+                        .as_block()
+                        .statements
+                        .ref_(self)
+                        .len()
+                });
                 if after_parameter_properties > index_of_first_statement {
                     if !self.use_define_for_class_fields {
                         add_range(
                             &mut statements,
-                            Some(&visit_nodes(
-                                constructor_body.ref_(self).as_block().statements,
-                                Some(|node: Id<Node>| self.visitor(node)),
-                                Some(|node| is_statement(node, self)),
-                                Some(index_of_first_statement),
-                                Some(after_parameter_properties - index_of_first_statement),
-                                self,
-                            ).ref_(self)),
+                            Some(
+                                &visit_nodes(
+                                    constructor_body.ref_(self).as_block().statements,
+                                    Some(|node: Id<Node>| self.visitor(node)),
+                                    Some(|node| is_statement(node, self)),
+                                    Some(index_of_first_statement),
+                                    Some(after_parameter_properties - index_of_first_statement),
+                                    self,
+                                )
+                                .ref_(self),
+                            ),
                             None,
                             None,
                         );
@@ -549,19 +598,24 @@ impl TransformClassFields {
         if let Some(constructor) = constructor {
             add_range(
                 &mut statements,
-                Some(&visit_nodes(
-                    constructor
-                        .ref_(self).as_constructor_declaration()
-                        .maybe_body()
-                        .unwrap()
-                        .ref_(self).as_block()
-                        .statements,
-                    Some(|node: Id<Node>| self.visitor(node)),
-                    Some(|node| is_statement(node, self)),
-                    Some(index_of_first_statement),
-                    None,
-                    self,
-                ).ref_(self)),
+                Some(
+                    &visit_nodes(
+                        constructor
+                            .ref_(self)
+                            .as_constructor_declaration()
+                            .maybe_body()
+                            .unwrap()
+                            .ref_(self)
+                            .as_block()
+                            .statements,
+                        Some(|node: Id<Node>| self.visitor(node)),
+                        Some(|node| is_statement(node, self)),
+                        Some(index_of_first_statement),
+                        None,
+                        self,
+                    )
+                    .ref_(self),
+                ),
                 None,
                 None,
             );
@@ -569,7 +623,8 @@ impl TransformClassFields {
 
         statements = self
             .factory
-            .ref_(self).merge_lexical_environment(
+            .ref_(self)
+            .merge_lexical_environment(
                 statements,
                 self.context.ref_(self).end_lexical_environment().as_deref(),
             )
@@ -577,29 +632,45 @@ impl TransformClassFields {
 
         Some(
             self.factory
-                .ref_(self).create_block(
+                .ref_(self)
+                .create_block(
                     self.factory
-                        .ref_(self).create_node_array(Some(statements), None)
-                        .set_text_range(Some(&*constructor.as_ref().map_or_else(
-                            || node_as_class_like_declaration.members(),
-                            |constructor| {
-                                constructor
-                                    .ref_(self).as_constructor_declaration()
-                                    .maybe_body()
-                                    .unwrap()
-                                    .ref_(self).as_block()
-                                    .statements
-                                    .clone()
-                            },
-                        ).ref_(self)), self),
+                        .ref_(self)
+                        .create_node_array(Some(statements), None)
+                        .set_text_range(
+                            Some(
+                                &*constructor
+                                    .as_ref()
+                                    .map_or_else(
+                                        || node_as_class_like_declaration.members(),
+                                        |constructor| {
+                                            constructor
+                                                .ref_(self)
+                                                .as_constructor_declaration()
+                                                .maybe_body()
+                                                .unwrap()
+                                                .ref_(self)
+                                                .as_block()
+                                                .statements
+                                                .clone()
+                                        },
+                                    )
+                                    .ref_(self),
+                            ),
+                            self,
+                        ),
                     Some(true),
                 )
                 .set_text_range(
                     constructor
                         .and_then(|constructor| {
-                            constructor.ref_(self).as_constructor_declaration().maybe_body()
+                            constructor
+                                .ref_(self)
+                                .as_constructor_declaration()
+                                .maybe_body()
                         })
-                        .refed(self).as_deref(),
+                        .refed(self)
+                        .as_deref(),
                     self,
                 ),
         )
@@ -612,15 +683,22 @@ impl TransformClassFields {
         receiver: Id<Node>, /*LeftHandSideExpression*/
     ) {
         for &property in properties {
-            let expression = continue_if_none!(if is_class_static_block_declaration(&property.ref_(self)) {
-                self.transform_class_static_block_declaration(property)
-            } else {
-                self.transform_property(property, receiver)
-            });
+            let expression =
+                continue_if_none!(if is_class_static_block_declaration(&property.ref_(self)) {
+                    self.transform_class_static_block_declaration(property)
+                } else {
+                    self.transform_property(property, receiver)
+                });
             let statement = self
                 .factory
-                .ref_(self).create_expression_statement(expression)
-                .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_modifiers(property, self)).into())), self)
+                .ref_(self)
+                .create_expression_statement(expression)
+                .set_source_map_range(
+                    Some(self.alloc_source_map_range(
+                        (&move_range_past_modifiers(property, self)).into(),
+                    )),
+                    self,
+                )
                 .set_comment_range(&*property.ref_(self), self)
                 .set_original_node(Some(property), self);
             statements.push(statement);
@@ -636,15 +714,21 @@ impl TransformClassFields {
     ) -> Vec<Id<Node>> {
         let mut expressions: Vec<Id<Node /*Expression*/>> = _d();
         for &property in properties_or_class_static_blocks {
-            let expression = continue_if_none!(if is_class_static_block_declaration(&property.ref_(self)) {
-                self.transform_class_static_block_declaration(property)
-            } else {
-                self.transform_property(property, receiver)
-            })
-            .start_on_new_line(self)
-            .set_source_map_range(Some(self.alloc_source_map_range((&move_range_past_modifiers(property, self)).into())), self)
-            .set_comment_range(&*property.ref_(self), self)
-            .set_original_node(Some(property), self);
+            let expression =
+                continue_if_none!(if is_class_static_block_declaration(&property.ref_(self)) {
+                    self.transform_class_static_block_declaration(property)
+                } else {
+                    self.transform_property(property, receiver)
+                })
+                .start_on_new_line(self)
+                .set_source_map_range(
+                    Some(self.alloc_source_map_range(
+                        (&move_range_past_modifiers(property, self)).into(),
+                    )),
+                    self,
+                )
+                .set_comment_range(&*property.ref_(self), self)
+                .set_original_node(Some(property), self);
             expressions.push(expression);
         }
 
@@ -695,8 +779,10 @@ impl TransformClassFields {
                 && !is_simple_inlineable_expression(
                     &property_as_property_declaration
                         .name()
-                        .ref_(self).as_computed_property_name()
-                        .expression.ref_(self),
+                        .ref_(self)
+                        .as_computed_property_name()
+                        .expression
+                        .ref_(self),
                 )
             {
                 self.factory.ref_(self).update_computed_property_name(
@@ -711,9 +797,7 @@ impl TransformClassFields {
             };
 
         if has_static_modifier(property, self) {
-            self.set_current_static_property_declaration_or_static_block(Some(
-                property,
-            ));
+            self.set_current_static_property_declaration_or_static_block(Some(property));
         }
 
         if self.should_transform_private_elements_or_class_static_blocks
@@ -790,43 +874,50 @@ impl TransformClassFields {
             self.factory.ref_(self).create_void_zero()
         };
 
-        Some(if emit_assignment || is_private_identifier(&property_name.ref_(self)) {
-            let member_access = create_member_access_for_property_name(
-                &self.factory.ref_(self),
-                receiver,
-                property_name,
-                Some(&*property_name.ref_(self)),
-            );
-            self.factory.ref_(self).create_assignment(member_access, initializer)
-        } else {
-            let name = if is_computed_property_name(&property_name.ref_(self)) {
-                property_name.ref_(self).as_computed_property_name().expression
-            } else if is_identifier(&property_name.ref_(self)) {
-                self.factory.ref_(self).create_string_literal(
-                    unescape_leading_underscores(&property_name.ref_(self).as_identifier().escaped_text)
-                        .to_owned(),
-                    None,
-                    None,
-                )
+        Some(
+            if emit_assignment || is_private_identifier(&property_name.ref_(self)) {
+                let member_access = create_member_access_for_property_name(
+                    &self.factory.ref_(self),
+                    receiver,
+                    property_name,
+                    Some(&*property_name.ref_(self)),
+                );
+                self.factory
+                    .ref_(self)
+                    .create_assignment(member_access, initializer)
             } else {
-                property_name
-            };
-            let descriptor = self.factory.ref_(self).create_property_descriptor(
-                PropertyDescriptorAttributesBuilder::default()
-                    .value(initializer)
-                    .configurable(true)
-                    .writable(true)
-                    .enumerable(true)
-                    .build()
-                    .unwrap(),
-                None,
-            );
-            self.factory.ref_(self).create_object_define_property_call(
-                receiver,
-                name,
-                descriptor,
-            )
-        })
+                let name = if is_computed_property_name(&property_name.ref_(self)) {
+                    property_name
+                        .ref_(self)
+                        .as_computed_property_name()
+                        .expression
+                } else if is_identifier(&property_name.ref_(self)) {
+                    self.factory.ref_(self).create_string_literal(
+                        unescape_leading_underscores(
+                            &property_name.ref_(self).as_identifier().escaped_text,
+                        )
+                        .to_owned(),
+                        None,
+                        None,
+                    )
+                } else {
+                    property_name
+                };
+                let descriptor = self.factory.ref_(self).create_property_descriptor(
+                    PropertyDescriptorAttributesBuilder::default()
+                        .value(initializer)
+                        .configurable(true)
+                        .writable(true)
+                        .enumerable(true)
+                        .build()
+                        .unwrap(),
+                    None,
+                );
+                self.factory
+                    .ref_(self)
+                    .create_object_define_property_call(receiver, name, descriptor)
+            },
+        )
     }
 
     pub(super) fn enable_substitution_for_class_aliases(&self) {
@@ -840,7 +931,9 @@ impl TransformClassFields {
                     | ClassPropertySubstitutionFlags::ClassAliases,
             ));
 
-            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
+            self.context
+                .ref_(self)
+                .enable_substitution(SyntaxKind::Identifier);
 
             self.set_class_aliases(Some(_d()));
         }
@@ -857,26 +950,36 @@ impl TransformClassFields {
                     | ClassPropertySubstitutionFlags::ClassStaticThisOrSuperReference,
             ));
 
-            self.context.ref_(self).enable_substitution(SyntaxKind::ThisKeyword);
+            self.context
+                .ref_(self)
+                .enable_substitution(SyntaxKind::ThisKeyword);
 
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::FunctionDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::FunctionDeclaration);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::FunctionExpression);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::FunctionExpression);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::Constructor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::Constructor);
 
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::GetAccessor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::GetAccessor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::SetAccessor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::SetAccessor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::MethodDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::MethodDeclaration);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::PropertyDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::PropertyDeclaration);
 
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::ComputedPropertyName);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::ComputedPropertyName);
         }
     }
 
@@ -899,11 +1002,7 @@ impl TransformClassFields {
         );
         let weak_set_name = weak_set_name.unwrap();
         statements.push(self.factory.ref_(self).create_expression_statement(
-            create_private_instance_method_initializer(
-                receiver,
-                weak_set_name,
-                self,
-            ),
+            create_private_instance_method_initializer(receiver, weak_set_name, self),
         ));
     }
 }

@@ -5,14 +5,13 @@ use peekmore::PeekMore;
 
 use super::{IterationTypeKind, TypeFacts};
 use crate::{
-    compiler::utilities_public::is_expression_of_optional_chain_root,
-    create_symbol_table, every, find, get_check_flags, get_object_flags, is_optional_chain,
-    is_outermost_optional_chain, last, length, some, try_every, try_reduce_left_no_initial_value,
-    CheckFlags, Debug_, ElementFlags, HasArena, InArena, InterfaceTypeInterface, Node,
-    NodeInterface, Number, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, PeekMoreExt,
-    PeekableExt, Signature, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Ternary,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicate,
-    UnionReduction,
+    compiler::utilities_public::is_expression_of_optional_chain_root, create_symbol_table, every,
+    find, get_check_flags, get_object_flags, is_optional_chain, is_outermost_optional_chain, last,
+    length, some, try_every, try_reduce_left_no_initial_value, CheckFlags, Debug_, ElementFlags,
+    HasArena, InArena, InterfaceTypeInterface, Node, NodeInterface, Number, ObjectFlags,
+    ObjectFlagsTypeInterface, OptionTry, PeekMoreExt, PeekableExt, Signature, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };
 
 impl TypeChecker {
@@ -36,7 +35,8 @@ impl TypeChecker {
         {
             return Ok(Ternary::False);
         }
-        if let Some(ref target_type_parameters) = target.ref_(self).maybe_type_parameters().clone() {
+        if let Some(ref target_type_parameters) = target.ref_(self).maybe_type_parameters().clone()
+        {
             let source_type_parameters = source.ref_(self).maybe_type_parameters().clone().unwrap();
             let mapper = self.create_type_mapper(
                 source_type_parameters.clone(),
@@ -68,7 +68,8 @@ impl TypeChecker {
                     return Ok(Ternary::False);
                 }
             }
-            source = self.alloc_signature(self.instantiate_signature(source, mapper, Some(true))?);
+            source =
+                self.alloc_signature(self.instantiate_signature(source, mapper, Some(true))?);
         }
         let mut result = Ternary::True;
         if !ignore_this_types {
@@ -138,7 +139,8 @@ impl TypeChecker {
                     Ternary::False
                 } else if source.ref_(self).type_ == target.ref_(self).type_ {
                     Ternary::True
-                } else if let (Some(source_type), Some(target_type)) = (source.ref_(self).type_, target.ref_(self).type_)
+                } else if let (Some(source_type), Some(target_type)) =
+                    (source.ref_(self).type_, target.ref_(self).type_)
                 {
                     compare_types(source_type, target_type)?
                 } else {
@@ -342,7 +344,8 @@ impl TypeChecker {
         if bases.len() != 1 {
             return Ok(None);
         }
-        if !self.get_members_of_symbol(type_.ref_(self).symbol())?
+        if !self
+            .get_members_of_symbol(type_.ref_(self).symbol())?
             .ref_(self)
             .is_empty()
         {
@@ -1187,7 +1190,10 @@ impl TypeChecker {
                 .ref_(self)
                 .set_value_declaration(source_value_declaration);
         }
-        let name_type = (*self.get_symbol_links(source).ref_(self)).borrow().name_type.clone();
+        let name_type = (*self.get_symbol_links(source).ref_(self))
+            .borrow()
+            .name_type
+            .clone();
         if let Some(name_type) = name_type {
             symbol_links.name_type = Some(name_type);
         }

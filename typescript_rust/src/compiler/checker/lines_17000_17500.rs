@@ -13,11 +13,11 @@ use super::{
     signature_has_rest_parameter, CheckMode, SignatureCheckMode, TypeComparerCompareTypesAssignable,
 };
 use crate::{
-    add_related_info, continue_if_none, create_diagnostic_for_node,
-    format_message, get_function_flags, get_semantic_jsx_children, get_source_file_of_node,
-    get_text_of_node, has_type, id_text, is_block, is_computed_non_literal_name,
-    is_identifier_type_predicate, is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute,
-    is_omitted_expression, is_spread_assignment, length, some, try_flat_map, try_map, try_some,
+    add_related_info, continue_if_none, create_diagnostic_for_node, format_message,
+    get_function_flags, get_semantic_jsx_children, get_source_file_of_node, get_text_of_node,
+    has_type, id_text, is_block, is_computed_non_literal_name, is_identifier_type_predicate,
+    is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute, is_omitted_expression,
+    is_spread_assignment, length, some, try_flat_map, try_map, try_some,
     unescape_leading_underscores, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
     Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface, HasArena,
     HasInitializerInterface, InArena, NamedDeclarationInterface, Node, NodeInterface, Number,
@@ -239,7 +239,9 @@ impl TypeChecker {
                 }),
             )? {
                 let result_obj = error_output_container.unwrap_or_else(|| {
-                    self.alloc_check_type_error_output_container(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+                    self.alloc_check_type_error_output_container(Box::new(
+                        CheckTypeErrorOutputContainerConcrete::new(None),
+                    ))
                 });
                 self.check_type_assignable_to(
                     source,
@@ -249,22 +251,27 @@ impl TypeChecker {
                     containing_message_chain.clone(),
                     Some(result_obj.clone()),
                 )?;
-                let diagnostic = result_obj.ref_(self).get_error(result_obj.ref_(self).errors_len() - 1).unwrap();
+                let diagnostic = result_obj
+                    .ref_(self)
+                    .get_error(result_obj.ref_(self).errors_len() - 1)
+                    .unwrap();
                 add_related_info(
                     &diagnostic.ref_(self),
-                    vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
-                        node,
-                        if
-                        /*signatures === constructSignatures*/
-                        signatures_index == 1 {
-                            &Diagnostics::Did_you_mean_to_use_new_with_this_expression
-                        } else {
-                            &Diagnostics::Did_you_mean_to_call_this_expression
-                        },
-                        None,
-                        self,
-                    )
-                    .into())],
+                    vec![self.alloc_diagnostic_related_information(
+                        create_diagnostic_for_node(
+                            node,
+                            if
+                            /*signatures === constructSignatures*/
+                            signatures_index == 1 {
+                                &Diagnostics::Did_you_mean_to_use_new_with_this_expression
+                            } else {
+                                &Diagnostics::Did_you_mean_to_call_this_expression
+                            },
+                            None,
+                            self,
+                        )
+                        .into(),
+                    )],
                 );
                 return Ok(true);
             }
@@ -334,7 +341,9 @@ impl TypeChecker {
                 return Ok(elaborated);
             }
             let result_obj = error_output_container.unwrap_or_else(|| {
-                self.alloc_check_type_error_output_container(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)))
+                self.alloc_check_type_error_output_container(Box::new(
+                    CheckTypeErrorOutputContainerConcrete::new(None),
+                ))
             });
             self.check_type_related_to(
                 source_return,
@@ -381,14 +390,20 @@ impl TypeChecker {
                     )?
                 {
                     add_related_info(
-                        &result_obj.ref_(self).get_error(result_obj.ref_(self).errors_len() - 1).unwrap().ref_(self),
-                        vec![self.alloc_diagnostic_related_information(create_diagnostic_for_node(
-                            node,
-                            &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
-                            None,
-                            self,
-                        )
-                        .into())],
+                        &result_obj
+                            .ref_(self)
+                            .get_error(result_obj.ref_(self).errors_len() - 1)
+                            .unwrap()
+                            .ref_(self),
+                        vec![self.alloc_diagnostic_related_information(
+                            create_diagnostic_for_node(
+                                node,
+                                &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                                None,
+                                self,
+                            )
+                            .into(),
+                        )],
                     );
                 }
                 return Ok(true);
@@ -510,8 +525,10 @@ impl TypeChecker {
                 };
                 reported_error = true;
                 if !elaborated {
-                    let result_obj_default: Id<Box<dyn CheckTypeErrorOutputContainer>> =
-                        self.alloc_check_type_error_output_container(Box::new(CheckTypeErrorOutputContainerConcrete::new(None)));
+                    let result_obj_default: Id<Box<dyn CheckTypeErrorOutputContainer>> = self
+                        .alloc_check_type_error_output_container(Box::new(
+                            CheckTypeErrorOutputContainerConcrete::new(None),
+                        ));
                     let result_obj: Id<Box<dyn CheckTypeErrorOutputContainer>> =
                         error_output_container.clone().unwrap_or(result_obj_default);
                     let specific_source = if let Some(next) = next {
@@ -594,8 +611,10 @@ impl TypeChecker {
                         }
                     }
                     if result_obj.ref_(self).errors_len() > 0 {
-                        let reported_diag =
-                            result_obj.ref_(self).get_error(result_obj.ref_(self).errors_len() - 1).unwrap();
+                        let reported_diag = result_obj
+                            .ref_(self)
+                            .get_error(result_obj.ref_(self).errors_len() - 1)
+                            .unwrap();
                         let property_name = if self.is_type_usable_as_property_name(name_type) {
                             Some(self.get_property_name_from_type(name_type))
                         } else {
@@ -612,7 +631,8 @@ impl TypeChecker {
                                 if let Some(index_info_declaration) =
                                     index_info.ref_(self).declaration.filter(|&declaration| {
                                         !get_source_file_of_node(declaration, self)
-                                            .ref_(self).as_source_file()
+                                            .ref_(self)
+                                            .as_source_file()
                                             .has_no_default_lib()
                                     })
                                 {
@@ -663,7 +683,8 @@ impl TypeChecker {
                                     .clone()
                             };
                             if !get_source_file_of_node(target_node, self)
-                                .ref_(self).as_source_file()
+                                .ref_(self)
+                                .as_source_file()
                                 .has_no_default_lib()
                             {
                                 add_related_info(
@@ -714,10 +735,13 @@ impl TypeChecker {
         }
         node_as_jsx_attributes
             .properties
-            .ref_(self).iter()
+            .ref_(self)
+            .iter()
             .flat_map(|prop| {
                 if is_jsx_spread_attribute(&prop.ref_(self))
-                    || self.is_hyphenated_jsx_name(&id_text(&prop.ref_(self).as_jsx_attribute().name.ref_(self)))
+                    || self.is_hyphenated_jsx_name(&id_text(
+                        &prop.ref_(self).as_jsx_attribute().name.ref_(self),
+                    ))
                 {
                     return vec![];
                 }
@@ -726,7 +750,8 @@ impl TypeChecker {
                 vec![ElaborationIteratorItem {
                     error_node: prop_as_jsx_attribute.name,
                     inner_expression: prop_as_jsx_attribute.initializer,
-                    name_type: self.get_string_literal_type(&id_text(&prop_as_jsx_attribute.name.ref_(self))),
+                    name_type: self
+                        .get_string_literal_type(&id_text(&prop_as_jsx_attribute.name.ref_(self))),
                     error_message: None,
                 }]
             })
@@ -780,7 +805,11 @@ impl TypeChecker {
                 }));
             }
             SyntaxKind::JsxText => {
-                if child.ref_(self).as_jsx_text().contains_only_trivia_white_spaces {
+                if child
+                    .ref_(self)
+                    .as_jsx_text()
+                    .contains_only_trivia_white_spaces
+                {
                 } else {
                     return Ok(Some(ElaborationIteratorItem {
                         error_node: child,
@@ -825,7 +854,9 @@ impl TypeChecker {
             error_output_container.clone(),
         )?;
         let mut invalid_text_diagnostic: Option<Cow<'static, DiagnosticMessage>> = None;
-        if is_jsx_opening_element(&node.ref_(self).parent().ref_(self)) && is_jsx_element(&node.ref_(self).parent().ref_(self).parent().ref_(self)) {
+        if is_jsx_opening_element(&node.ref_(self).parent().ref_(self))
+            && is_jsx_element(&node.ref_(self).parent().ref_(self).parent().ref_(self))
+        {
             let containing_element = node.ref_(self).parent().ref_(self).parent();
             let child_prop_name = self
                 .get_jsx_element_children_property_name(self.get_jsx_namespace_at(Some(node))?)?;
@@ -842,8 +873,14 @@ impl TypeChecker {
                 Option::<Id<Symbol>>::None,
                 None,
             )?;
-            let valid_children =
-                get_semantic_jsx_children(&containing_element.ref_(self).as_jsx_element().children.ref_(self), self);
+            let valid_children = get_semantic_jsx_children(
+                &containing_element
+                    .ref_(self)
+                    .as_jsx_element()
+                    .children
+                    .ref_(self),
+                self,
+            );
             if length(Some(&valid_children)) == 0 {
                 return Ok(result);
             }
@@ -859,7 +896,11 @@ impl TypeChecker {
                 || -> io::Result<Cow<'static, DiagnosticMessage>> {
                     if invalid_text_diagnostic.is_none() {
                         let tag_name_text = get_text_of_node(
-                            node.ref_(self).parent().ref_(self).as_jsx_opening_like_element().tag_name(),
+                            node.ref_(self)
+                                .parent()
+                                .ref_(self)
+                                .as_jsx_opening_like_element()
+                                .tag_name(),
                             None,
                             self,
                         );
@@ -1024,7 +1065,12 @@ impl TypeChecker {
         if len == 0 {
             return Ok(ret);
         }
-        for (i, elem) in node_as_array_literal_expression.elements.ref_(self).iter().enumerate() {
+        for (i, elem) in node_as_array_literal_expression
+            .elements
+            .ref_(self)
+            .iter()
+            .enumerate()
+        {
             if self.is_tuple_like_type(target)?
                 && self
                     .get_property_of_type_(target, &i.to_string(), None)?
@@ -1093,7 +1139,10 @@ impl TypeChecker {
     ) -> io::Result<Vec<ElaborationIteratorItem>> {
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
-        if length(Some(&node_as_object_literal_expression.properties.ref_(self))) == 0 {
+        if length(Some(
+            &node_as_object_literal_expression.properties.ref_(self),
+        )) == 0
+        {
             return Ok(vec![]);
         }
         try_flat_map(
@@ -1224,7 +1273,9 @@ impl TypeChecker {
             && s.ref_(self).parameters().len() == 1
             && signature_has_rest_parameter(&s.ref_(self))
             && (self.get_type_of_parameter(s.ref_(self).parameters()[0])? == self.any_array_type()
-                || self.is_type_any(Some(self.get_type_of_parameter(s.ref_(self).parameters()[0])?)))
+                || self.is_type_any(Some(
+                    self.get_type_of_parameter(s.ref_(self).parameters()[0])?,
+                )))
             && self.is_type_any(Some(self.get_return_type_of_signature(s)?)))
     }
 
@@ -1312,8 +1363,11 @@ impl TypeChecker {
             let target_this_type = self.get_this_type_of_signature(target)?;
             if let Some(target_this_type) = target_this_type {
                 let related = if !strict_variance {
-                    let mut related =
-                        compare_types.ref_(self).call(source_this_type, target_this_type, Some(false))?;
+                    let mut related = compare_types.ref_(self).call(
+                        source_this_type,
+                        target_this_type,
+                        Some(false),
+                    )?;
                     if related == Ternary::False {
                         related = compare_types.ref_(self).call(
                             target_this_type,
@@ -1323,7 +1377,11 @@ impl TypeChecker {
                     }
                     related
                 } else {
-                    compare_types.ref_(self).call(target_this_type, source_this_type, Some(report_errors))?
+                    compare_types.ref_(self).call(
+                        target_this_type,
+                        source_this_type,
+                        Some(report_errors),
+                    )?
                 };
                 if related == Ternary::False {
                     if report_errors {
@@ -1407,8 +1465,11 @@ impl TypeChecker {
                     } else {
                         if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance
                         {
-                            let mut related =
-                                compare_types.ref_(self).call(source_type, target_type, Some(false))?;
+                            let mut related = compare_types.ref_(self).call(
+                                source_type,
+                                target_type,
+                                Some(false),
+                            )?;
                             if related == Ternary::False {
                                 related = compare_types.ref_(self).call(
                                     target_type,
@@ -1418,14 +1479,20 @@ impl TypeChecker {
                             }
                             related
                         } else {
-                            compare_types.ref_(self).call(target_type, source_type, Some(report_errors))?
+                            compare_types.ref_(self).call(
+                                target_type,
+                                source_type,
+                                Some(report_errors),
+                            )?
                         }
                     };
                     if related != Ternary::False
                         && check_mode.intersects(SignatureCheckMode::StrictArity)
                         && i >= self.get_min_argument_count(source, None)?
                         && i < self.get_min_argument_count(target, None)?
-                        && compare_types.ref_(self).call(source_type, target_type, Some(false))?
+                        && compare_types
+                            .ref_(self)
+                            .call(source_type, target_type, Some(false))?
                             != Ternary::False
                     {
                         related = Ternary::False;
@@ -1460,7 +1527,8 @@ impl TypeChecker {
                 self.any_type()
             } else if let Some(target_declaration) =
                 target
-                    .ref_(self).declaration
+                    .ref_(self)
+                    .declaration
                     .try_filter(|&target_declaration| {
                         self.is_js_constructor(Some(target_declaration))
                     })?
@@ -1479,7 +1547,8 @@ impl TypeChecker {
                 self.any_type()
             } else if let Some(source_declaration) =
                 source
-                    .ref_(self).declaration
+                    .ref_(self)
+                    .declaration
                     .try_filter(|&source_declaration| {
                         self.is_js_constructor(Some(source_declaration))
                     })?
@@ -1522,8 +1591,11 @@ impl TypeChecker {
                 }
             } else {
                 result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
-                    let mut val =
-                        compare_types.ref_(self).call(target_return_type, source_return_type, Some(false))?;
+                    let mut val = compare_types.ref_(self).call(
+                        target_return_type,
+                        source_return_type,
+                        Some(false),
+                    )?;
                     if val == Ternary::False {
                         val = compare_types.ref_(self).call(
                             source_return_type,

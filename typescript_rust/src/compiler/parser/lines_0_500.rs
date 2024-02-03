@@ -4,10 +4,9 @@ use bitflags::bitflags;
 use id_arena::Id;
 
 use crate::{
-    create_node_factory, maybe_text_char_at_index, object_allocator, BaseNode, BaseNodeFactory,
-    CharacterCodes, Node, NodeArray, NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars,
-    SyntaxKind, Type,
-    HasArena, InArena, per_arena, AllArenas,
+    create_node_factory, maybe_text_char_at_index, object_allocator, per_arena, AllArenas,
+    BaseNode, BaseNodeFactory, CharacterCodes, HasArena, InArena, Node, NodeArray, NodeFactory,
+    NodeFactoryFlags, OptionTry, SourceTextAsChars, SyntaxKind, Type,
 };
 
 bitflags! {
@@ -34,7 +33,8 @@ pub struct ParseBaseNodeFactory {
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
+    PrivateIdentifierConstructor:
+        RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
 }
 
@@ -117,7 +117,8 @@ pub fn get_parse_node_factory(arena: &impl HasArena) -> debug_cell::Ref<'_, Node
             get_parse_base_node_factory(arena),
             arena,
         )
-    ).ref_(arena)
+    )
+    .ref_(arena)
 }
 
 pub(super) fn visit_node(cb_node: &mut impl FnMut(Id<Node>), node: Option<Id<Node>>) {

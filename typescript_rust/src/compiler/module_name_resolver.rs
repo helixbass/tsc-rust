@@ -1,4 +1,12 @@
-use std::{borrow::Cow, cell::{RefCell, Cell}, cmp, collections::HashMap, io, iter::FromIterator, rc::Rc};
+use std::{
+    borrow::Cow,
+    cell::{Cell, RefCell},
+    cmp,
+    collections::HashMap,
+    io,
+    iter::FromIterator,
+    rc::Rc,
+};
 
 use bitflags::bitflags;
 use id_arena::Id;
@@ -17,14 +25,13 @@ use crate::{
     path_is_relative, pattern_text, read_json, remove_file_extension, remove_prefix, sort,
     starts_with, string_contains, to_path, try_first_defined, try_for_each,
     try_for_each_ancestor_directory, try_get_extension_from_path, try_maybe_for_each,
-    try_parse_patterns, try_remove_extension, version, version_major_minor, CharacterCodes,
-    Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension,
-    GetOrInsertDefault, MapLike, ModuleKind, ModuleResolutionHost, ModuleResolutionKind, Node,
-    OptionTry, PackageId, Path, PathAndParts, ResolvedModuleFull,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    try_parse_patterns, try_remove_extension, version, version_major_minor, AllArenas, ArenaAlloc,
+    CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension,
+    GetOrInsertDefault, HasArena, InArena, MapLike, ModuleKind, ModuleResolutionHost,
+    ModuleResolutionKind, Node, OptionInArena, OptionTry, PackageId, Path, PathAndParts,
+    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     StringOrBool, StringOrPattern, Version, VersionRange,
-    HasArena, AllArenas, InArena, OptionInArena, ArenaAlloc,
 };
 
 pub(crate) fn trace(
@@ -133,35 +140,38 @@ fn create_resolved_module_with_failed_lookup_locations(
 ) -> Id<ResolvedModuleWithFailedLookupLocations> {
     if let Some(result_from_cache) = result_from_cache {
         result_from_cache
-            .ref_(arena).failed_lookup_locations_mut()
+            .ref_(arena)
+            .failed_lookup_locations_mut()
             .append(&mut failed_lookup_locations);
         return result_from_cache;
     }
-    arena.alloc_resolved_module_with_failed_lookup_locations(ResolvedModuleWithFailedLookupLocations::new(
-        resolved.map(|resolved| {
-            let Resolved {
-                path: resolved_path,
-                extension: resolved_extension,
-                package_id: resolved_package_id,
-                original_path: resolved_original_path,
-            } = resolved;
-            arena.alloc_resolved_module_full(ResolvedModuleFull {
-                resolved_file_name: resolved_path,
-                original_path: resolved_original_path.and_then(|resolved_original_path| {
-                    match resolved_original_path {
-                        StringOrBool::Bool(_ /*true*/) => None,
-                        StringOrBool::String(resolved_original_path) => {
-                            Some(resolved_original_path)
+    arena.alloc_resolved_module_with_failed_lookup_locations(
+        ResolvedModuleWithFailedLookupLocations::new(
+            resolved.map(|resolved| {
+                let Resolved {
+                    path: resolved_path,
+                    extension: resolved_extension,
+                    package_id: resolved_package_id,
+                    original_path: resolved_original_path,
+                } = resolved;
+                arena.alloc_resolved_module_full(ResolvedModuleFull {
+                    resolved_file_name: resolved_path,
+                    original_path: resolved_original_path.and_then(|resolved_original_path| {
+                        match resolved_original_path {
+                            StringOrBool::Bool(_ /*true*/) => None,
+                            StringOrBool::String(resolved_original_path) => {
+                                Some(resolved_original_path)
+                            }
                         }
-                    }
-                }),
-                extension: Some(resolved_extension),
-                is_external_library_import,
-                package_id: resolved_package_id,
-            })
-        }),
-        failed_lookup_locations,
-    ))
+                    }),
+                    extension: Some(resolved_extension),
+                    is_external_library_import,
+                    package_id: resolved_package_id,
+                })
+            }),
+            failed_lookup_locations,
+        ),
+    )
 }
 
 pub(crate) struct ModuleResolutionState<'a> {
@@ -170,8 +180,7 @@ pub(crate) struct ModuleResolutionState<'a> {
     pub trace_enabled: bool,
     pub failed_lookup_locations: RefCell<Vec<String>>,
     pub result_from_cache: RefCell<Option<Id<ResolvedModuleWithFailedLookupLocations>>>,
-    pub package_json_info_cache:
-        Option<&'a dyn PackageJsonInfoCache>,
+    pub package_json_info_cache: Option<&'a dyn PackageJsonInfoCache>,
     pub features: NodeResolutionFeatures,
     pub conditions: Vec<String>,
 }
@@ -534,7 +543,12 @@ pub fn resolve_type_reference_directive(
 ) -> io::Result<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference {
-        options = redirected_reference.ref_(arena).command_line.ref_(arena).options.clone();
+        options = redirected_reference
+            .ref_(arena)
+            .command_line
+            .ref_(arena)
+            .options
+            .clone();
     }
 
     let containing_directory =
@@ -550,8 +564,11 @@ pub fn resolve_type_reference_directive(
         } else {
             None
         };
-    let mut result = per_folder_cache
-        .and_then(|per_folder_cache| per_folder_cache.ref_(arena).get(type_reference_directive_name, None));
+    let mut result = per_folder_cache.and_then(|per_folder_cache| {
+        per_folder_cache
+            .ref_(arena)
+            .get(type_reference_directive_name, None)
+    });
     if let Some(result) = result.as_ref() {
         if trace_enabled {
             trace(
@@ -567,8 +584,10 @@ pub fn resolve_type_reference_directive(
                     host,
                     &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                     Some(vec![redirected_reference
-                        .ref_(arena).source_file
-                        .ref_(arena).as_source_file()
+                        .ref_(arena)
+                        .source_file
+                        .ref_(arena)
+                        .as_source_file()
                         .file_name()
                         .clone()]),
                 );
@@ -581,7 +600,12 @@ pub fn resolve_type_reference_directive(
                     containing_directory.clone().unwrap(),
                 ])
             );
-            trace_result(host, type_reference_directive_name, &result.ref_(arena), arena);
+            trace_result(
+                host,
+                type_reference_directive_name,
+                &result.ref_(arena),
+                arena,
+            );
         }
         return Ok(result.clone());
     }
@@ -647,8 +671,10 @@ pub fn resolve_type_reference_directive(
                 host,
                 &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                 Some(vec![redirected_reference
-                    .ref_(arena).source_file
-                    .ref_(arena).as_source_file()
+                    .ref_(arena)
+                    .source_file
+                    .ref_(arena)
+                    .as_source_file()
                     .file_name()
                     .clone()]),
             );
@@ -659,7 +685,8 @@ pub fn resolve_type_reference_directive(
     let cache_clone = cache.clone();
     let cache_clone = cache_clone.as_ref();
     let cache_ref = cache.refed(arena);
-    let cache_as_dyn_package_json_info_cache = cache_ref.map(|cache| debug_cell::Ref::map(cache, |cache| cache.as_dyn_package_json_info_cache()));
+    let cache_as_dyn_package_json_info_cache = cache_ref
+        .map(|cache| debug_cell::Ref::map(cache, |cache| cache.as_dyn_package_json_info_cache()));
     let module_resolution_state = ModuleResolutionState {
         compiler_options: options.clone(),
         host,
@@ -702,33 +729,44 @@ pub fn resolve_type_reference_directive(
         } else {
             real_path(&file_name, host, trace_enabled)
         };
-        resolved_type_reference_directive = Some(arena.alloc_resolved_type_reference_directive(ResolvedTypeReferenceDirective {
-            primary,
-            resolved_file_name: Some(resolved_file_name.clone()),
-            original_path: if are_paths_equal(&file_name, &resolved_file_name, host) {
-                None
-            } else {
-                Some(file_name.clone())
+        resolved_type_reference_directive = Some(arena.alloc_resolved_type_reference_directive(
+            ResolvedTypeReferenceDirective {
+                primary,
+                resolved_file_name: Some(resolved_file_name.clone()),
+                original_path: if are_paths_equal(&file_name, &resolved_file_name, host) {
+                    None
+                } else {
+                    Some(file_name.clone())
+                },
+                package_id,
+                is_external_library_import: Some(path_contains_node_modules(&file_name)),
             },
-            package_id,
-            is_external_library_import: Some(path_contains_node_modules(&file_name)),
-        }));
+        ));
     }
-    result = Some(arena.alloc_resolved_type_reference_directive_with_failed_lookup_locations(
-        ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
-            resolved_type_reference_directive,
-            failed_lookup_locations: module_resolution_state
-                .failed_lookup_locations
-                .borrow()
-                .clone(),
-        },
-    ));
+    result = Some(
+        arena.alloc_resolved_type_reference_directive_with_failed_lookup_locations(
+            ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
+                resolved_type_reference_directive,
+                failed_lookup_locations: module_resolution_state
+                    .failed_lookup_locations
+                    .borrow()
+                    .clone(),
+            },
+        ),
+    );
     let result = result.unwrap();
     if let Some(per_folder_cache) = per_folder_cache {
-        per_folder_cache.ref_(arena).set(type_reference_directive_name, None, result.clone());
+        per_folder_cache
+            .ref_(arena)
+            .set(type_reference_directive_name, None, result.clone());
     }
     if trace_enabled {
-        trace_result(host, type_reference_directive_name, &result.ref_(arena), arena);
+        trace_result(
+            host,
+            type_reference_directive_name,
+            &result.ref_(arena),
+            arena,
+        );
     }
     Ok(result)
 }
@@ -743,7 +781,8 @@ fn trace_result(
         .resolved_type_reference_directive
         .and_then(|result_resolved_type_reference_directive| {
             result_resolved_type_reference_directive
-                .ref_(arena).resolved_file_name
+                .ref_(arena)
+                .resolved_file_name
                 .clone()
         })
         .is_none()
@@ -756,7 +795,8 @@ fn trace_result(
     } else if let Some(result_resolved_type_reference_directive_package_id) = result
         .resolved_type_reference_directive
         .unwrap()
-        .ref_(arena).package_id
+        .ref_(arena)
+        .package_id
         .as_ref()
     {
         trace(
@@ -778,13 +818,15 @@ fn trace_result(
                 result
                     .resolved_type_reference_directive
                     .unwrap()
-                    .ref_(arena).resolved_file_name
+                    .ref_(arena)
+                    .resolved_file_name
                     .clone()
                     .unwrap(),
                 result
                     .resolved_type_reference_directive
                     .unwrap()
-                    .ref_(arena).primary
+                    .ref_(arena)
+                    .primary
                     .to_string(),
             ]),
         );
@@ -937,7 +979,11 @@ pub fn get_automatic_type_directive_names(
                             combine_paths(root, &[Some(&normalized), Some("package.json")]);
                         let is_not_needed_package = host.file_exists(&package_json_path)
                             && matches!(
-                                read_json(&package_json_path, |file_name| host.read_file(file_name), arena)
+                                read_json(
+                                    &package_json_path,
+                                    |file_name| host.read_file(file_name),
+                                    arena
+                                )
                                 .get("typings"),
                                 Some(&serde_json::Value::Null),
                             );
@@ -971,7 +1017,7 @@ pub struct ModeAwareCache<TValue: 'static> {
 
 pub trait PerDirectoryResolutionCache<TValue: 'static>
 where
-    ModeAwareCache<TValue>: ArenaAlloc 
+    ModeAwareCache<TValue>: ArenaAlloc,
 {
     fn get_or_create_cache_for_directory(
         &self,
@@ -1021,11 +1067,12 @@ pub struct CacheWithRedirects<TCache: 'static> {
 }
 
 impl<TCache> CacheWithRedirects<TCache>
-    where
-        HashMap<String, Id<TCache>>: ArenaAlloc,
-        HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
-        Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
-        Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>: InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
+where
+    HashMap<String, Id<TCache>>: ArenaAlloc,
+    HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
+    Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
+    Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>:
+        InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
 {
     pub fn new(options: Option<Id<CompilerOptions>>, arena: &impl HasArena) -> Self {
         Self {
@@ -1039,9 +1086,7 @@ impl<TCache> CacheWithRedirects<TCache>
         self.own_map.get()
     }
 
-    pub fn redirects_map(
-        &self,
-    ) -> Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>> {
+    pub fn redirects_map(&self) -> Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>> {
         self.redirects_map
     }
 
@@ -1061,7 +1106,8 @@ impl<TCache> CacheWithRedirects<TCache>
             return self.own_map.get();
         }
         let redirected_reference = redirected_reference.unwrap();
-        let redirected_reference_source_file_ref = redirected_reference.ref_(self).source_file.ref_(self);
+        let redirected_reference_source_file_ref =
+            redirected_reference.ref_(self).source_file.ref_(self);
         let path = redirected_reference_source_file_ref.as_source_file().path();
         let mut redirects = self.redirects_map.ref_(self).get(&path).cloned();
         if redirects.is_none() {
@@ -1070,7 +1116,12 @@ impl<TCache> CacheWithRedirects<TCache>
                     None => true,
                     Some(options) => options_have_module_resolution_changes(
                         &options.ref_(self),
-                        &redirected_reference.ref_(self).command_line.ref_(self).options.ref_(self),
+                        &redirected_reference
+                            .ref_(self)
+                            .command_line
+                            .ref_(self)
+                            .options
+                            .ref_(self),
                         self,
                     ),
                 } {
@@ -1102,11 +1153,12 @@ pub(crate) fn create_cache_with_redirects<TCache>(
     options: Option<Id<CompilerOptions>>,
     arena: &impl HasArena,
 ) -> CacheWithRedirects<TCache>
-    where
-        HashMap<String, Id<TCache>>: ArenaAlloc,
-        HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
-        Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
-        Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>: InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
+where
+    HashMap<String, Id<TCache>>: ArenaAlloc,
+    HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
+    Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
+    Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>:
+        InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
 {
     CacheWithRedirects::new(options, arena)
 }
@@ -1180,11 +1232,13 @@ fn get_or_create_cache<TCache>(
     mut create: impl FnMut() -> TCache,
     arena: &impl HasArena,
 ) -> Id<TCache>
-    where TCache: ArenaAlloc,
+where
+    TCache: ArenaAlloc,
     HashMap<String, Id<TCache>>: ArenaAlloc,
     HashMap<Path, Id<HashMap<String, Id<TCache>>>>: ArenaAlloc,
     Id<HashMap<String, Id<TCache>>>: InArena<Item = HashMap<String, Id<TCache>>>,
-    Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>: InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
+    Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>:
+        InArena<Item = HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
 {
     let cache = cache_with_redirects.get_or_create_map_of_cache_redirects(redirected_reference);
     let mut result: Option<Id<TCache>> = cache.ref_(arena).get(key).cloned();
@@ -1223,11 +1277,14 @@ impl<TValue: Clone + 'static> PerDirectoryResolutionCache<TValue>
     for PerDirectoryResolutionCacheConcrete<TValue>
 where
     ModeAwareCache<TValue>: ArenaAlloc,
-    Id<CacheWithRedirects<ModeAwareCache<TValue>>>: InArena<Item = CacheWithRedirects<ModeAwareCache<TValue>>>,
+    Id<CacheWithRedirects<ModeAwareCache<TValue>>>:
+        InArena<Item = CacheWithRedirects<ModeAwareCache<TValue>>>,
     HashMap<String, Id<ModeAwareCache<TValue>>>: ArenaAlloc,
     HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<TValue>>>>>: ArenaAlloc,
-    Id<HashMap<String, Id<ModeAwareCache<TValue>>>>: InArena<Item = HashMap<String, Id<ModeAwareCache<TValue>>>>,
-    Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<TValue>>>>>>: InArena<Item = HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<TValue>>>>>>,
+    Id<HashMap<String, Id<ModeAwareCache<TValue>>>>:
+        InArena<Item = HashMap<String, Id<ModeAwareCache<TValue>>>>,
+    Id<HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<TValue>>>>>>:
+        InArena<Item = HashMap<Path, Id<HashMap<String, Id<ModeAwareCache<TValue>>>>>>,
 {
     fn get_or_create_cache_for_directory(
         &self,
@@ -1261,8 +1318,7 @@ impl<TValue: Clone> HasArena for PerDirectoryResolutionCacheConcrete<TValue> {
     }
 }
 
-pub(crate) fn create_mode_aware_cache<TValue: Clone>() -> ModeAwareCache<TValue>
-{
+pub(crate) fn create_mode_aware_cache<TValue: Clone>() -> ModeAwareCache<TValue> {
     ModeAwareCache::new()
 }
 
@@ -1363,11 +1419,17 @@ pub fn create_module_resolution_cache(
         get_canonical_file_name.clone(),
         directory_to_module_name_map.clone(),
     );
-    let module_name_to_directory_map = module_name_to_directory_map
-        .unwrap_or_else(|| arena.alloc_cache_with_redirects_per_module_name_cache(create_cache_with_redirects(options.clone(), arena)));
-    let package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>> = arena.alloc_package_json_info_cache(Box::new(
-        create_package_json_info_cache(current_directory, get_canonical_file_name.clone()),
-    ));
+    let module_name_to_directory_map = module_name_to_directory_map.unwrap_or_else(|| {
+        arena.alloc_cache_with_redirects_per_module_name_cache(create_cache_with_redirects(
+            options.clone(),
+            arena,
+        ))
+    });
+    let package_json_info_cache: Id<Box<dyn PackageJsonInfoCache>> = arena
+        .alloc_package_json_info_cache(Box::new(create_package_json_info_cache(
+            current_directory,
+            get_canonical_file_name.clone(),
+        )));
 
     ModuleResolutionCache {
         current_directory: current_directory.to_owned(),
@@ -1430,10 +1492,12 @@ impl PerModuleNameCache {
             .insert(path.to_string(), result.clone());
 
         let resolved_file_name = result
-            .ref_(self).resolved_module
+            .ref_(self)
+            .resolved_module
             .map(|result_resolved_module| {
                 result_resolved_module
-                    .ref_(self).original_path
+                    .ref_(self)
+                    .original_path
                     .clone()
                     .unwrap_or_else(|| result_resolved_module.ref_(self).resolved_file_name.clone())
             });
@@ -1551,12 +1615,14 @@ impl NonRelativeModuleNameResolutionCache for ModuleResolutionCache {
 impl PackageJsonInfoCache for ModuleResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
         self.package_json_info_cache
-            .ref_(self).get_package_json_info(package_json_path)
+            .ref_(self)
+            .get_package_json_info(package_json_path)
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
         self.package_json_info_cache
-            .ref_(self).set_package_json_info(package_json_path, info)
+            .ref_(self)
+            .set_package_json_info(package_json_path, info)
     }
 
     fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
@@ -1637,12 +1703,14 @@ impl PerDirectoryResolutionCache<Id<ResolvedTypeReferenceDirectiveWithFailedLook
 impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
     fn get_package_json_info(&self, package_json_path: &str) -> Option<PackageJsonInfoOrBool> {
         self.package_json_info_cache
-            .ref_(self).get_package_json_info(package_json_path)
+            .ref_(self)
+            .get_package_json_info(package_json_path)
     }
 
     fn set_package_json_info(&self, package_json_path: &str, info: PackageJsonInfoOrBool) {
         self.package_json_info_cache
-            .ref_(self).set_package_json_info(package_json_path, info)
+            .ref_(self)
+            .set_package_json_info(package_json_path, info)
     }
 
     fn entries(&self) -> Vec<(Path, PackageJsonInfoOrBool)> {
@@ -1672,7 +1740,12 @@ pub fn resolve_module_name(
 ) -> io::Result<Id<ResolvedModuleWithFailedLookupLocations>> {
     let trace_enabled = is_trace_enabled(&compiler_options.ref_(arena), host);
     if let Some(redirected_reference) = redirected_reference {
-        compiler_options = redirected_reference.ref_(arena).command_line.ref_(arena).options.clone();
+        compiler_options = redirected_reference
+            .ref_(arena)
+            .command_line
+            .ref_(arena)
+            .options
+            .clone();
     }
     if trace_enabled {
         trace(
@@ -1685,8 +1758,10 @@ pub fn resolve_module_name(
                 host,
                 &Diagnostics::Using_compiler_options_of_project_reference_redirect_0,
                 Some(vec![redirected_reference
-                    .ref_(arena).source_file
-                    .ref_(arena).as_source_file()
+                    .ref_(arena)
+                    .source_file
+                    .ref_(arena)
+                    .as_source_file()
                     .file_name()
                     .clone()]),
             );
@@ -1694,10 +1769,15 @@ pub fn resolve_module_name(
     }
     let containing_directory = get_directory_path(containing_file);
     let per_folder_cache = cache.map(|cache| {
-        cache.ref_(arena).get_or_create_cache_for_directory(&containing_directory, redirected_reference.clone())
+        cache
+            .ref_(arena)
+            .get_or_create_cache_for_directory(&containing_directory, redirected_reference.clone())
     });
-    let mut result = per_folder_cache
-        .and_then(|per_folder_cache| per_folder_cache.ref_(arena).get(module_name, resolution_mode));
+    let mut result = per_folder_cache.and_then(|per_folder_cache| {
+        per_folder_cache
+            .ref_(arena)
+            .get(module_name, resolution_mode)
+    });
 
     if result.is_some() {
         if trace_enabled {
@@ -1797,24 +1877,28 @@ pub fn resolve_module_name(
               //     )));
               // }
         }
-        if let Some(ref _result_resolved_module) = result
-            .and_then(|result| result.ref_(arena).resolved_module.clone())
+        if let Some(ref _result_resolved_module) =
+            result.and_then(|result| result.ref_(arena).resolved_module.clone())
         {
             // perfLogger.logInfoEvent(`Module "${moduleName}" resolved to "${result.resolvedModule.resolvedFileName}"`);
         }
         // perfLogger.logStopResolvedModule((result && result.resolvedModule) ? "" + result.resolvedModule.resolvedFileName : "null");
 
         if let Some(per_folder_cache) = per_folder_cache {
-            per_folder_cache.ref_(arena).set(module_name, resolution_mode, result.clone().unwrap());
+            per_folder_cache
+                .ref_(arena)
+                .set(module_name, resolution_mode, result.clone().unwrap());
             if !is_external_module_name_relative(module_name) {
                 cache
                     .unwrap()
-                    .ref_(arena).get_or_create_cache_for_module_name(
+                    .ref_(arena)
+                    .get_or_create_cache_for_module_name(
                         module_name,
                         resolution_mode,
                         redirected_reference.clone(),
                     )
-                    .ref_(arena).set(&containing_directory, result.clone().unwrap());
+                    .ref_(arena)
+                    .set(&containing_directory, result.clone().unwrap());
             }
         }
     }
@@ -1830,7 +1914,10 @@ pub fn resolve_module_name(
                     &Diagnostics::Module_name_0_was_successfully_resolved_to_1_with_Package_ID_2,
                     Some(vec![
                         module_name.to_owned(),
-                        result_resolved_module.ref_(arena).resolved_file_name.clone(),
+                        result_resolved_module
+                            .ref_(arena)
+                            .resolved_file_name
+                            .clone(),
                         package_id_to_string(result_resolved_module_package_id),
                     ]),
                 );
@@ -1840,7 +1927,10 @@ pub fn resolve_module_name(
                     &Diagnostics::Module_name_0_was_successfully_resolved_to_1,
                     Some(vec![
                         module_name.to_owned(),
-                        result_resolved_module.ref_(arena).resolved_file_name.clone(),
+                        result_resolved_module
+                            .ref_(arena)
+                            .resolved_file_name
+                            .clone(),
                     ]),
                 );
             }
@@ -1867,8 +1957,13 @@ fn try_load_module_using_optional_resolution_settings(
     state: &ModuleResolutionState,
     arena: &impl HasArena,
 ) -> io::Result<Option<Resolved>> {
-    let resolved =
-        try_load_module_using_paths_if_eligible(extensions, module_name, loader.clone(), state, arena)?;
+    let resolved = try_load_module_using_paths_if_eligible(
+        extensions,
+        module_name,
+        loader.clone(),
+        state,
+        arena,
+    )?;
     if let Some(resolved) = resolved {
         return Ok(resolved.value);
     }
@@ -1926,7 +2021,8 @@ fn try_load_module_using_paths_if_eligible(
             let path_patterns = config_file
                 .and_then(|config_file| {
                     config_file
-                        .ref_(arena).as_source_file()
+                        .ref_(arena)
+                        .as_source_file()
                         .maybe_config_file_specs()
                         .clone()
                 })
@@ -1975,7 +2071,13 @@ fn try_load_module_using_root_dirs(
 
     let mut matched_root_dir: Option<String> = None;
     let mut matched_normalized_prefix: Option<String> = None;
-    for root_dir in state.compiler_options.ref_(arena).root_dirs.as_ref().unwrap() {
+    for root_dir in state
+        .compiler_options
+        .ref_(arena)
+        .root_dirs
+        .as_ref()
+        .unwrap()
+    {
         let mut normalized_root = normalize_path(root_dir);
         if !ends_with(&normalized_root, directory_separator_str) {
             normalized_root.push_str(directory_separator_str);
@@ -2047,7 +2149,13 @@ fn try_load_module_using_root_dirs(
                 None,
             );
         }
-        for root_dir in state.compiler_options.ref_(arena).root_dirs.as_ref().unwrap() {
+        for root_dir in state
+            .compiler_options
+            .ref_(arena)
+            .root_dirs
+            .as_ref()
+            .unwrap()
+        {
             if matches!(
                 matched_root_dir.as_ref(),
                 Some(matched_root_dir) if root_dir == matched_root_dir
@@ -2286,7 +2394,8 @@ fn node_module_name_resolver_worker(
 
     let failed_lookup_locations: Vec<String> = vec![];
     let cache_ref = cache.refed(arena);
-    let cache_as_dyn_package_json_info_cache = cache_ref.map(|cache| debug_cell::Ref::map(cache, |cache| cache.as_dyn_package_json_info_cache()));
+    let cache_as_dyn_package_json_info_cache = cache_ref
+        .map(|cache| debug_cell::Ref::map(cache, |cache| cache.as_dyn_package_json_info_cache()));
     let state = ModuleResolutionState {
         compiler_options: compiler_options.clone(),
         host,
@@ -2354,21 +2463,20 @@ fn try_resolve(
     extensions: Extensions,
     arena: &impl HasArena,
 ) -> io::Result<SearchResult<TryResolveSearchResultValue>> {
-    let loader: ResolutionKindSpecificLoader =
-        Rc::new({
-            let arena_raw: *const AllArenas = arena.arena();
-            let arena = unsafe { &*arena_raw };
-            |extensions, candidate, only_record_failures, state| {
-                node_load_module_by_relative_name(
-                    extensions,
-                    candidate,
-                    only_record_failures,
-                    state,
-                    true,
-                    arena,
-                )
-            }
-        });
+    let loader: ResolutionKindSpecificLoader = Rc::new({
+        let arena_raw: *const AllArenas = arena.arena();
+        let arena = unsafe { &*arena_raw };
+        |extensions, candidate, only_record_failures, state| {
+            node_load_module_by_relative_name(
+                extensions,
+                candidate,
+                only_record_failures,
+                state,
+                true,
+                arena,
+            )
+        }
+    });
     let resolved = try_load_module_using_optional_resolution_settings(
         extensions,
         module_name,
@@ -2676,7 +2784,13 @@ fn load_module_from_file(
         }
     }
 
-    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state, arena)
+    load_module_from_file_no_implicit_extensions(
+        extensions,
+        candidate,
+        only_record_failures,
+        state,
+        arena,
+    )
 }
 
 fn load_module_from_file_no_implicit_extensions(
@@ -2740,7 +2854,13 @@ fn load_js_or_exact_ts_file_name(
         });
     }
 
-    load_module_from_file_no_implicit_extensions(extensions, candidate, only_record_failures, state, arena)
+    load_module_from_file_no_implicit_extensions(
+        extensions,
+        candidate,
+        only_record_failures,
+        state,
+        arena,
+    )
 }
 
 fn try_adding_extensions(
@@ -2894,10 +3014,10 @@ fn load_node_module_from_directory(
     } else {
         None
     };
-    let package_json_content = package_info
-        .map(|package_info| package_info.ref_(arena).package_json_content.clone());
-    let version_paths = package_info
-        .and_then(|package_info| package_info.ref_(arena).version_paths.clone());
+    let package_json_content =
+        package_info.map(|package_info| package_info.ref_(arena).package_json_content.clone());
+    let version_paths =
+        package_info.and_then(|package_info| package_info.ref_(arena).version_paths.clone());
     Ok(with_package_id(
         package_info.refed(arena).as_deref(),
         load_node_module_from_directory_worker(
@@ -2939,7 +3059,8 @@ pub(crate) fn get_package_scope_for_path(
     let mut parts = get_path_components(file_name, None);
     parts.pop();
     while !parts.is_empty() {
-        let pkg = get_package_json_info(&get_path_from_path_components(&parts), false, &state, arena);
+        let pkg =
+            get_package_json_info(&get_path_from_path_components(&parts), false, &state, arena);
         if pkg.is_some() {
             return pkg;
         }
@@ -3006,8 +3127,11 @@ pub(crate) fn get_package_json_info(
         || host.is_directory_exists_supported(),
     );
     if directory_exists && host.file_exists(&package_json_path) {
-        let package_json_content =
-            Rc::new(read_json(&package_json_path, |path| host.read_file(path), arena));
+        let package_json_content = Rc::new(read_json(
+            &package_json_path,
+            |path| host.read_file(path),
+            arena,
+        ));
         if trace_enabled {
             trace(
                 host,
@@ -3075,40 +3199,39 @@ fn load_node_module_from_directory_worker(
     }
 
     let arena_raw: *const AllArenas = arena.arena();
-    let loader: ResolutionKindSpecificLoader =
-        Rc::new({
-            let arena = unsafe { &*arena_raw };
-            |extensions, candidate, only_record_failures, state| {
-                let from_file = try_file(candidate, only_record_failures, state);
-                if let Some(from_file) = from_file.as_ref() {
-                    let resolved = resolved_if_extension_matches(extensions, from_file);
-                    if let Some(resolved) = resolved.as_ref() {
-                        return Ok(no_package_id(Some(resolved)));
-                    }
-                    if state.trace_enabled {
-                        trace(
-                            state.host,
-                            &Diagnostics::File_0_has_an_unsupported_extension_so_skipping_it,
-                            Some(vec![from_file.clone()]),
-                        );
-                    }
+    let loader: ResolutionKindSpecificLoader = Rc::new({
+        let arena = unsafe { &*arena_raw };
+        |extensions, candidate, only_record_failures, state| {
+            let from_file = try_file(candidate, only_record_failures, state);
+            if let Some(from_file) = from_file.as_ref() {
+                let resolved = resolved_if_extension_matches(extensions, from_file);
+                if let Some(resolved) = resolved.as_ref() {
+                    return Ok(no_package_id(Some(resolved)));
                 }
-
-                let next_extensions = if extensions == Extensions::DtsOnly {
-                    Extensions::TypeScript
-                } else {
-                    extensions
-                };
-                node_load_module_by_relative_name(
-                    next_extensions,
-                    candidate,
-                    only_record_failures,
-                    state,
-                    false,
-                    arena,
-                )
+                if state.trace_enabled {
+                    trace(
+                        state.host,
+                        &Diagnostics::File_0_has_an_unsupported_extension_so_skipping_it,
+                        Some(vec![from_file.clone()]),
+                    );
+                }
             }
-        });
+
+            let next_extensions = if extensions == Extensions::DtsOnly {
+                Extensions::TypeScript
+            } else {
+                extensions
+            };
+            node_load_module_by_relative_name(
+                next_extensions,
+                candidate,
+                only_record_failures,
+                state,
+                false,
+                arena,
+            )
+        }
+    });
 
     let only_record_failures_for_package_file =
         package_file.as_ref().map_or(false, |package_file| {
@@ -3599,12 +3722,17 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
                         self,
                     )?;
                     return Ok(to_search_result(result.ref_(self).resolved_module.map(
-                        |result_resolved_module| Resolved {
-                            path: result_resolved_module.ref_(self).resolved_file_name.clone(),
-                            extension: result_resolved_module.ref_(self).extension.unwrap(),
-                            package_id: result_resolved_module.ref_(self).package_id.clone(),
-                            original_path:
-                                result_resolved_module.ref_(self).original_path.clone().map(Into::into),
+                        |result_resolved_module| {
+                            Resolved {
+                                path: result_resolved_module.ref_(self).resolved_file_name.clone(),
+                                extension: result_resolved_module.ref_(self).extension.unwrap(),
+                                package_id: result_resolved_module.ref_(self).package_id.clone(),
+                                original_path: result_resolved_module
+                                    .ref_(self)
+                                    .original_path
+                                    .clone()
+                                    .map(Into::into),
+                            }
                         },
                     )));
                 }
@@ -3681,8 +3809,14 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
 
             return Ok(to_search_result(with_package_id(
                 Some(self.scope),
-                load_js_or_exact_ts_file_name(self.extensions, &final_path, false, self.state, self)
-                    .as_ref(),
+                load_js_or_exact_ts_file_name(
+                    self.extensions,
+                    &final_path,
+                    false,
+                    self.state,
+                    self,
+                )
+                .as_ref(),
             )));
         } else if let Some(target) = target.filter(|target| target.is_object() || target.is_array())
         {
@@ -4015,7 +4149,9 @@ fn load_module_from_specific_node_modules_directory(
                             (*package_info)
                                 .borrow()
                                 .clone()
-                                .and_then(|package_info| package_info.ref_(arena).version_paths.clone())
+                                .and_then(|package_info| {
+                                    package_info.ref_(arena).version_paths.clone()
+                                })
                                 .as_deref(),
                             arena,
                         )
@@ -4030,8 +4166,12 @@ fn load_module_from_specific_node_modules_directory(
     if !rest.is_empty() {
         let package_directory = combine_paths(node_modules_directory, &[Some(&*package_name)]);
 
-        *package_info.borrow_mut() =
-            get_package_json_info(&package_directory, !node_modules_directory_exists, state, arena);
+        *package_info.borrow_mut() = get_package_json_info(
+            &package_directory,
+            !node_modules_directory_exists,
+            state,
+            arena,
+        );
         if let Some(package_info_version_paths) = (*package_info)
             .borrow()
             .as_ref()
@@ -4251,15 +4391,25 @@ fn try_find_non_relative_module_name_in_cache(
     *state.result_from_cache.borrow_mut() = Some(result.clone());
     Some(SearchResultPresent {
         value: result
-            .ref_(arena).resolved_module
+            .ref_(arena)
+            .resolved_module
             .map(|result_resolved_module| Resolved {
-                path: result_resolved_module.ref_(arena).resolved_file_name.clone(),
-                original_path: Some(result_resolved_module.ref_(arena).original_path.clone().map_or_else(
-                    || true.into(),
-                    |result_resolved_module_original_path| {
-                        result_resolved_module_original_path.into()
-                    },
-                )),
+                path: result_resolved_module
+                    .ref_(arena)
+                    .resolved_file_name
+                    .clone(),
+                original_path: Some(
+                    result_resolved_module
+                        .ref_(arena)
+                        .original_path
+                        .clone()
+                        .map_or_else(
+                            || true.into(),
+                            |result_resolved_module_original_path| {
+                                result_resolved_module_original_path.into()
+                            },
+                        ),
+                ),
                 extension: result_resolved_module.ref_(arena).extension(),
                 package_id: result_resolved_module.ref_(arena).package_id.clone(),
             }),
@@ -4339,9 +4489,9 @@ fn classic_name_resolver_try_resolve(
         Rc::new({
             let arena_raw: *const AllArenas = arena.arena();
             move |extensions: Extensions,
-             candidate: &str,
-             only_record_failures: bool,
-             state: &ModuleResolutionState| {
+                  candidate: &str,
+                  only_record_failures: bool,
+                  state: &ModuleResolutionState| {
                 let arena = unsafe { &*arena_raw };
                 Ok(load_module_from_file_no_package_id(
                     extensions,

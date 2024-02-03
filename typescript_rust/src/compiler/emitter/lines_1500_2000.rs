@@ -7,10 +7,10 @@ use crate::{
     compare_emit_helpers, get_emit_helpers, get_external_helpers_module_name,
     has_recorded_external_helpers, is_source_file, is_template_literal_kind, is_unparsed_source,
     stable_sort, BundleFileSection, BundleFileSectionKind, Debug_, EmitHelper, EmitHelperBase,
-    EmitHelperText, EmitHint, GetOrInsertDefault, HasTypeArgumentsInterface, ListFormat,
-    ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange,
-    SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
-    HasArena, InArena,
+    EmitHelperText, EmitHint, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, InArena,
+    ListFormat, ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer,
+    ReadonlyTextRange, SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind,
+    TextRange,
 };
 
 impl Printer {
@@ -20,17 +20,11 @@ impl Printer {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
-        self.emit(
-            node_as_type_parameter_declaration.maybe_name(),
-            None,
-        )?;
+        self.emit(node_as_type_parameter_declaration.maybe_name(), None)?;
         self.write_space();
         self.write_keyword("in");
         self.write_space();
-        self.emit(
-            node_as_type_parameter_declaration.constraint,
-            None,
-        )?;
+        self.emit(node_as_type_parameter_declaration.constraint, None)?;
 
         Ok(())
     }
@@ -123,7 +117,8 @@ impl Printer {
                     source_file,
                     Some(source_file) if has_recorded_external_helpers(source_file, self)
                 );
-            let should_bundle = (is_source_file(&current_node.ref_(self)) || is_unparsed_source(&current_node.ref_(self)))
+            let should_bundle = (is_source_file(&current_node.ref_(self))
+                || is_unparsed_source(&current_node.ref_(self)))
                 && !self.is_own_file_emit();
             let helpers = if is_unparsed_source(&current_node.ref_(self)) {
                 current_node.ref_(self).as_unparsed_source().helpers.clone()
@@ -138,7 +133,12 @@ impl Printer {
                         }
 
                         if should_bundle {
-                            if self.bundled_helpers().get(helper.ref_(self).name()).copied() == Some(true) {
+                            if self
+                                .bundled_helpers()
+                                .get(helper.ref_(self).name())
+                                .copied()
+                                == Some(true)
+                            {
                                 continue;
                             }
 
@@ -160,13 +160,13 @@ impl Printer {
                         }
                     }
                     if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-                        bundle_file_info.ref_mut(self).sections.push(self.alloc_bundle_file_section(
-                            BundleFileSection::new_emit_helpers(
+                        bundle_file_info.ref_mut(self).sections.push(
+                            self.alloc_bundle_file_section(BundleFileSection::new_emit_helpers(
                                 helper.ref_(self).name().to_owned(),
                                 pos.try_into().unwrap(),
                                 self.writer().get_text_pos().try_into().unwrap(),
-                            ),
-                        ));
+                            )),
+                        );
                     }
                     helpers_emitted = true;
                 }
@@ -207,7 +207,8 @@ impl Printer {
         );
         if (self.printer_options.source_map == Some(true)
             || self.printer_options.inline_source_map == Some(true))
-            && (node.ref_(self).kind() == SyntaxKind::StringLiteral || is_template_literal_kind(node.ref_(self).kind()))
+            && (node.ref_(self).kind() == SyntaxKind::StringLiteral
+                || is_template_literal_kind(node.ref_(self).kind()))
         {
             self.write_literal(text);
         } else {
@@ -229,10 +230,12 @@ impl Printer {
 
     pub(super) fn write_unparsed_node(&self, unparsed: Id<Node> /*UnparsedNode*/) {
         self.writer().raw_write(
-            &(*unparsed.ref_(self).parent().ref_(self).as_unparsed_source().text())[TryInto::<usize>::try_into(
-                unparsed.ref_(self).pos(),
-            )
-            .unwrap()
+            &(*unparsed
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_unparsed_source()
+                .text())[TryInto::<usize>::try_into(unparsed.ref_(self).pos()).unwrap()
                 ..TryInto::<usize>::try_into(unparsed.ref_(self).end()).unwrap()],
         );
     }
@@ -260,7 +263,12 @@ impl Printer {
         let pos = self.get_text_pos_with_write_line();
         self.write_unparsed_node(unparsed);
         if let Some(bundle_file_info) = self.maybe_bundle_file_info() {
-            let section = (*unparsed.ref_(self).as_unparsed_synthetic_reference().section.ref_(self)).clone();
+            let section = (*unparsed
+                .ref_(self)
+                .as_unparsed_synthetic_reference()
+                .section
+                .ref_(self))
+            .clone();
             section.set_pos(pos.try_into().unwrap());
             section.set_end(self.writer().get_text_pos().try_into().unwrap());
             bundle_file_info

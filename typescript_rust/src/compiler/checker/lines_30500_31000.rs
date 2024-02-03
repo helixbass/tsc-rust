@@ -21,10 +21,9 @@ use crate::{
     walk_up_parenthesized_expressions, AsDoubleDeref, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics, HasArena,
     HasInitializerInterface, InArena, Matches, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface,
-    OptionInArena,
+    NodeFlags, NodeInterface, ObjectFlags, OptionInArena, OptionTry, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
+    Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -40,7 +39,8 @@ impl TypeChecker {
             related_message: related_info,
         } = self.invocation_error_details(error_target, apparent_type, kind)?;
         let diagnostic: Id<Diagnostic> = self.alloc_diagnostic(
-            create_diagnostic_for_node_from_message_chain(error_target, message_chain, None, self).into(),
+            create_diagnostic_for_node_from_message_chain(error_target, message_chain, None, self)
+                .into(),
         );
         if let Some(related_info) = related_info {
             add_related_info(
@@ -51,8 +51,8 @@ impl TypeChecker {
             );
         }
         if is_call_expression(&error_target.ref_(self).parent().ref_(self)) {
-            let GetDiagnosticSpanForCallNodeReturn { start, length, .. } =
-                self.get_diagnostic_span_for_call_node(error_target.ref_(self).parent(), Some(true));
+            let GetDiagnosticSpanForCallNodeReturn { start, length, .. } = self
+                .get_diagnostic_span_for_call_node(error_target.ref_(self).parent(), Some(true));
             diagnostic.ref_(self).set_start(Some(start));
             diagnostic.ref_(self).set_length(Some(length));
         }
@@ -65,7 +65,8 @@ impl TypeChecker {
                 diagnostic
             } else {
                 diagnostic
-            }.ref_(self),
+            }
+            .ref_(self),
         )?;
 
         Ok(())
@@ -86,8 +87,8 @@ impl TypeChecker {
             .borrow()
             .originating_import
             .clone();
-        if let Some(import_node) = import_node
-            .filter(|&import_node| !is_import_call(import_node, self))
+        if let Some(import_node) =
+            import_node.filter(|&import_node| !is_import_call(import_node, self))
         {
             let sigs = self.get_signatures_of_type(
                 self.get_type_of_symbol(
@@ -131,8 +132,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Signature>> {
         let node_ref = node.ref_(self);
         let node_as_tagged_template_expression = node_ref.as_tagged_template_expression();
-        let tag_type =
-            self.check_expression(node_as_tagged_template_expression.tag, None, None)?;
+        let tag_type = self.check_expression(node_as_tagged_template_expression.tag, None, None)?;
         let apparent_type = self.get_apparent_type(tag_type)?;
 
         if self.is_error_type(apparent_type) {
@@ -325,11 +325,13 @@ impl TypeChecker {
                 Some("props"),
                 None,
                 self.node_builder()
-                    .ref_(self).type_to_type_node(result, Some(node), None, None)?,
+                    .ref_(self)
+                    .type_to_type_node(result, Some(node), None, None)?,
                 None,
             )],
             Some(if let Some(return_node) = return_node {
-                get_factory(self).create_type_reference_node(return_node, Option::<Id<NodeArray>>::None)
+                get_factory(self)
+                    .create_type_reference_node(return_node, Option::<Id<NodeArray>>::None)
             } else {
                 get_factory(self).create_keyword_type_node(SyntaxKind::AnyKeyword)
             }),
@@ -394,37 +396,43 @@ impl TypeChecker {
             if length(
                 node_as_jsx_opening_like_element
                     .maybe_type_arguments()
-                    .refed(self).as_double_deref(),
+                    .refed(self)
+                    .as_double_deref(),
             ) > 0
             {
                 try_maybe_for_each(
                     node_as_jsx_opening_like_element
                         .maybe_type_arguments()
-                        .refed(self).as_deref(),
+                        .refed(self)
+                        .as_deref(),
                     |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                         self.check_source_element(Some(type_argument))?;
                         Ok(None)
                     },
                 )?;
-                self.diagnostics().add(self.alloc_diagnostic(
-                    create_diagnostic_for_node_array(
-                        &get_source_file_of_node(node, self).ref_(self),
-                        &node_as_jsx_opening_like_element
-                            .maybe_type_arguments()
-                            .unwrap().ref_(self),
-                        &Diagnostics::Expected_0_type_arguments_but_got_1,
-                        Some(vec![
-                            0usize.to_string(),
-                            length(
-                                node_as_jsx_opening_like_element
-                                    .maybe_type_arguments()
-                                    .refed(self).as_double_deref(),
-                            )
-                            .to_string(),
-                        ]),
-                    )
-                    .into(),
-                ));
+                self.diagnostics().add(
+                    self.alloc_diagnostic(
+                        create_diagnostic_for_node_array(
+                            &get_source_file_of_node(node, self).ref_(self),
+                            &node_as_jsx_opening_like_element
+                                .maybe_type_arguments()
+                                .unwrap()
+                                .ref_(self),
+                            &Diagnostics::Expected_0_type_arguments_but_got_1,
+                            Some(vec![
+                                0usize.to_string(),
+                                length(
+                                    node_as_jsx_opening_like_element
+                                        .maybe_type_arguments()
+                                        .refed(self)
+                                        .as_double_deref(),
+                                )
+                                .to_string(),
+                            ]),
+                        )
+                        .into(),
+                    ),
+                );
             }
             return Ok(fake_signature);
         }
@@ -544,7 +552,9 @@ impl TypeChecker {
         if !is_in_js_file(Some(&node.ref_(self))) {
             return Ok(false);
         }
-        let func = if is_function_declaration(&node.ref_(self)) || is_function_expression(&node.ref_(self)) {
+        let func = if is_function_declaration(&node.ref_(self))
+            || is_function_expression(&node.ref_(self))
+        {
             Some(node)
         } else if is_variable_declaration(&node.ref_(self))
             && matches!(
@@ -552,7 +562,9 @@ impl TypeChecker {
                 Some(node_initializer) if is_function_expression(&node_initializer.ref_(self))
             )
         {
-            node.ref_(self).as_variable_declaration().maybe_initializer()
+            node.ref_(self)
+                .as_variable_declaration()
+                .maybe_initializer()
         } else {
             None
         };
@@ -682,20 +694,39 @@ impl TypeChecker {
         let mut name: Option<Id<Node /*Expression | BindingName*/>> = None;
         let mut decl: Option<Id<Node>> = None;
         if is_variable_declaration(&node.ref_(self).parent().ref_(self))
-            && node.ref_(self).parent().ref_(self).as_variable_declaration().maybe_initializer() == Some(node)
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_variable_declaration()
+                .maybe_initializer()
+                == Some(node)
         {
             if !is_in_js_file(Some(&node.ref_(self)))
-                && !(is_var_const(node.ref_(self).parent(), self) && is_function_like_declaration(&node.ref_(self)))
+                && !(is_var_const(node.ref_(self).parent(), self)
+                    && is_function_like_declaration(&node.ref_(self)))
             {
                 return Ok(None);
             }
-            name = node.ref_(self).parent().ref_(self).as_variable_declaration().maybe_name();
+            name = node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_variable_declaration()
+                .maybe_name();
             decl = Some(node.ref_(self).parent());
         } else if is_binary_expression(&node.ref_(self).parent().ref_(self)) {
             let parent_node = node.ref_(self).parent();
             let parent_node_ref = parent_node.ref_(self);
             let parent_node_as_binary_expression = parent_node_ref.as_binary_expression();
-            let parent_node_operator = node.ref_(self).parent().ref_(self).as_binary_expression().operator_token.ref_(self).kind();
+            let parent_node_operator = node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind();
             if parent_node_operator == SyntaxKind::EqualsToken
                 && (allow_declaration || parent_node_as_binary_expression.right == node)
             {
@@ -706,21 +737,48 @@ impl TypeChecker {
                 SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
             ) {
                 if is_variable_declaration(&parent_node.ref_(self).parent().ref_(self))
-                    && parent_node.ref_(self).parent().ref_(self).as_variable_declaration().maybe_initializer() == Some(parent_node)
+                    && parent_node
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .maybe_initializer()
+                        == Some(parent_node)
                 {
-                    name = parent_node.ref_(self).parent().ref_(self).as_variable_declaration().maybe_name();
+                    name = parent_node
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .maybe_name();
                     decl = Some(parent_node.ref_(self).parent());
                 } else if is_binary_expression(&parent_node.ref_(self).parent().ref_(self))
                     && parent_node
-                        .ref_(self).parent()
-                        .ref_(self).as_binary_expression()
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_binary_expression()
                         .operator_token
-                        .ref_(self).kind()
+                        .ref_(self)
+                        .kind()
                         == SyntaxKind::EqualsToken
                     && (allow_declaration
-                        || parent_node.ref_(self).parent().ref_(self).as_binary_expression().right == parent_node)
+                        || parent_node
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .as_binary_expression()
+                            .right
+                            == parent_node)
                 {
-                    name = Some(parent_node.ref_(self).parent().ref_(self).as_binary_expression().left);
+                    name = Some(
+                        parent_node
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .as_binary_expression()
+                            .left,
+                    );
                     decl = name;
                 }
 
@@ -728,7 +786,11 @@ impl TypeChecker {
                     None => true,
                     Some(name) => {
                         !is_bindable_static_name_expression(name, None, self)
-                            || !is_same_entity_name(name, parent_node.ref_(self).as_binary_expression().left, self)
+                            || !is_same_entity_name(
+                                name,
+                                parent_node.ref_(self).as_binary_expression().left,
+                                self,
+                            )
                     }
                 } {
                     return Ok(None);
@@ -741,7 +803,8 @@ impl TypeChecker {
 
         let decl = return_ok_default_if_none!(decl);
         let name = return_ok_default_if_none!(name);
-        if !allow_declaration && get_expando_initializer(node, is_prototype_access(name, self), self).is_none()
+        if !allow_declaration
+            && get_expando_initializer(node, is_prototype_access(name, self), self).is_none()
         {
             return Ok(None);
         }
@@ -753,8 +816,8 @@ impl TypeChecker {
             return None;
         }
         let mut parent = node.ref_(self).maybe_parent();
-        while let Some(parent_present) = parent
-            .filter(|parent| parent.ref_(self).kind() == SyntaxKind::PropertyAccessExpression)
+        while let Some(parent_present) =
+            parent.filter(|parent| parent.ref_(self).kind() == SyntaxKind::PropertyAccessExpression)
         {
             parent = parent_present.ref_(self).maybe_parent();
         }
@@ -763,7 +826,8 @@ impl TypeChecker {
                 let parent_ref = parent.ref_(self);
                 let parent_as_binary_expression = parent_ref.as_binary_expression();
                 is_prototype_access(parent_as_binary_expression.left, self)
-                    && parent_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::EqualsToken
+                    && parent_as_binary_expression.operator_token.ref_(self).kind()
+                        == SyntaxKind::EqualsToken
             }
         }) {
             let right = get_initializer_of_binary_expression(parent, self);
@@ -783,7 +847,8 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if !self.check_grammar_type_arguments(
             node,
-            node.ref_(self).as_has_type_arguments()
+            node.ref_(self)
+                .as_has_type_arguments()
                 .maybe_type_arguments(),
         ) {
             self.check_grammar_arguments(node.ref_(self).as_has_arguments().maybe_arguments());
@@ -796,7 +861,14 @@ impl TypeChecker {
 
         self.check_deprecated_signature(signature.clone(), node)?;
 
-        if node.ref_(self).as_has_expression().expression().ref_(self).kind() == SyntaxKind::SuperKeyword {
+        if node
+            .ref_(self)
+            .as_has_expression()
+            .expression()
+            .ref_(self)
+            .kind()
+            == SyntaxKind::SuperKeyword
+        {
             return Ok(self.void_type());
         }
 
@@ -825,7 +897,11 @@ impl TypeChecker {
 
         if is_in_js_file(Some(&node.ref_(self))) && self.is_common_js_require(node)? {
             return self.resolve_external_module_type_by_literal(
-                node.ref_(self).as_has_arguments().maybe_arguments().unwrap().ref_(self)[0],
+                node.ref_(self)
+                    .as_has_arguments()
+                    .maybe_arguments()
+                    .unwrap()
+                    .ref_(self)[0],
             );
         }
 
@@ -841,7 +917,11 @@ impl TypeChecker {
             );
         }
         if node.ref_(self).kind() == SyntaxKind::CallExpression
-            && node.ref_(self).as_call_expression().question_dot_token.is_none()
+            && node
+                .ref_(self)
+                .as_call_expression()
+                .question_dot_token
+                .is_none()
             && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::ExpressionStatement
             && return_type.ref_(self).flags().intersects(TypeFlags::Void)
             && self.get_type_predicate_of_signature(signature)?.is_some()
@@ -907,10 +987,12 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if let Some(signature_declaration) =
             signature
-                .ref_(self).declaration
+                .ref_(self)
+                .declaration
                 .filter(|signature_declaration| {
                     signature_declaration
-                        .ref_(self).flags()
+                        .ref_(self)
+                        .flags()
                         .intersects(NodeFlags::Deprecated)
                 })
         {
@@ -937,29 +1019,33 @@ impl TypeChecker {
     pub(super) fn get_deprecated_suggestion_node(&self, node: Id<Node>) -> Id<Node> {
         let node = skip_parentheses(node, None, self);
         match node.ref_(self).kind() {
-            SyntaxKind::CallExpression | SyntaxKind::Decorator | SyntaxKind::NewExpression => {
-                self.get_deprecated_suggestion_node(node.ref_(self).as_has_expression().expression())
-            }
-            SyntaxKind::TaggedTemplateExpression => {
-                self.get_deprecated_suggestion_node(node.ref_(self).as_tagged_template_expression().tag)
-            }
-            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => {
-                self.get_deprecated_suggestion_node(node.ref_(self).as_jsx_opening_like_element().tag_name())
-            }
-            SyntaxKind::ElementAccessExpression => self.get_deprecated_suggestion_node(
-                node.ref_(self).as_element_access_expression().argument_expression,
+            SyntaxKind::CallExpression | SyntaxKind::Decorator | SyntaxKind::NewExpression => self
+                .get_deprecated_suggestion_node(node.ref_(self).as_has_expression().expression()),
+            SyntaxKind::TaggedTemplateExpression => self.get_deprecated_suggestion_node(
+                node.ref_(self).as_tagged_template_expression().tag,
             ),
-            SyntaxKind::PropertyAccessExpression => {
-                self.get_deprecated_suggestion_node(node.ref_(self).as_property_access_expression().name)
-            }
+            SyntaxKind::JsxOpeningElement | SyntaxKind::JsxSelfClosingElement => self
+                .get_deprecated_suggestion_node(
+                    node.ref_(self).as_jsx_opening_like_element().tag_name(),
+                ),
+            SyntaxKind::ElementAccessExpression => self.get_deprecated_suggestion_node(
+                node.ref_(self)
+                    .as_element_access_expression()
+                    .argument_expression,
+            ),
+            SyntaxKind::PropertyAccessExpression => self.get_deprecated_suggestion_node(
+                node.ref_(self).as_property_access_expression().name,
+            ),
             SyntaxKind::TypeReference => {
                 let type_reference = node;
                 let type_reference_ref = type_reference.ref_(self);
-                let type_reference_as_type_reference_node = type_reference_ref.as_type_reference_node();
+                let type_reference_as_type_reference_node =
+                    type_reference_ref.as_type_reference_node();
                 if is_qualified_name(&type_reference_as_type_reference_node.type_name.ref_(self)) {
                     type_reference_as_type_reference_node
                         .type_name
-                        .ref_(self).as_qualified_name()
+                        .ref_(self)
+                        .as_qualified_name()
                         .right
                 } else {
                     type_reference

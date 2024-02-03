@@ -26,9 +26,8 @@ use crate::{
     set_watch_option_value, starts_with, to_file_name_lower_case, CommandLineOption,
     CommandLineOptionInterface, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
     ConfigFileSpecs, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
-    Extension, FileExtensionInfo, HasArena, Node, ParseConfigHost,
+    Extension, FileExtensionInfo, HasArena, InArena, Node, ParseConfigHost,
     ToHashMapOfCompilerOptionsValues, TypeAcquisition, WatchDirectoryFlags, WatchOptions,
-    InArena,
 };
 
 pub struct ExtendedConfigCacheEntry {
@@ -60,12 +59,15 @@ pub(crate) fn get_extended_config(
         }
     }
     if extended_result.is_none() {
-        extended_result = Some(read_json_config_file(extended_config_path, |path| {
-            host.read_file(path)
-        }, arena));
+        extended_result = Some(read_json_config_file(
+            extended_config_path,
+            |path| host.read_file(path),
+            arena,
+        ));
         if extended_result
             .unwrap()
-            .ref_(arena).as_source_file()
+            .ref_(arena)
+            .as_source_file()
             .parse_diagnostics()
             .ref_(arena)
             .is_empty()
@@ -97,8 +99,9 @@ pub(crate) fn get_extended_config(
     let extended_result_as_source_file = extended_result_ref.as_source_file();
     if let Some(source_file) = source_file {
         let source_file_ref = source_file.ref_(arena);
-        let mut source_file_extended_source_files =
-            source_file_ref.as_source_file().maybe_extended_source_files();
+        let mut source_file_extended_source_files = source_file_ref
+            .as_source_file()
+            .maybe_extended_source_files();
         *source_file_extended_source_files =
             Some(vec![extended_result_as_source_file.file_name().clone()]);
         if let Some(extended_result_extended_source_files) =
@@ -110,12 +113,14 @@ pub(crate) fn get_extended_config(
                 .append(&mut extended_result_extended_source_files.clone());
         }
     }
-    if !extended_result_as_source_file.parse_diagnostics()
+    if !extended_result_as_source_file
+        .parse_diagnostics()
         .ref_(arena)
         .is_empty()
     {
         errors.ref_mut(arena).append(
-            &mut extended_result_as_source_file.parse_diagnostics()
+            &mut extended_result_as_source_file
+                .parse_diagnostics()
                 .ref_(arena)
                 .clone(),
         );
@@ -298,13 +303,21 @@ pub(super) fn convert_options_from_json_compiler_options(
                 if let Some(opt) = opt {
                     default_options.set_value_from_command_line_option(
                         &opt.ref_(arena),
-                        convert_json_option(&opt.ref_(arena), Some(map_value), base_path, errors, arena),
+                        convert_json_option(
+                            &opt.ref_(arena),
+                            Some(map_value),
+                            base_path,
+                            errors,
+                            arena,
+                        ),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
+                        |message, args| {
+                            arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into())
+                        },
                         None,
                         arena,
                     ));
@@ -338,13 +351,21 @@ pub(super) fn convert_options_from_json_type_acquisition(
                     set_type_acquisition_value(
                         default_options,
                         &opt.ref_(arena),
-                        convert_json_option(&opt.ref_(arena), Some(map_value), base_path, errors, arena),
+                        convert_json_option(
+                            &opt.ref_(arena),
+                            Some(map_value),
+                            base_path,
+                            errors,
+                            arena,
+                        ),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
+                        |message, args| {
+                            arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into())
+                        },
                         None,
                         arena,
                     ));
@@ -381,13 +402,21 @@ pub(super) fn convert_options_from_json_watch_options(
                     set_watch_option_value(
                         &mut default_options,
                         &opt.ref_(arena),
-                        convert_json_option(&opt.ref_(arena), Some(map_value), base_path, errors, arena),
+                        convert_json_option(
+                            &opt.ref_(arena),
+                            Some(map_value),
+                            base_path,
+                            errors,
+                            arena,
+                        ),
                     );
                 } else {
                     errors.push(create_unknown_option_error(
                         id,
                         diagnostics,
-                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
+                        |message, args| {
+                            arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into())
+                        },
                         None,
                         arena,
                     ));
@@ -444,16 +473,18 @@ pub(crate) fn convert_json_option(
             normalize_non_list_option_value_compiler_options_value(opt, base_path, validated_value)
         };
     } else {
-        errors.push(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
-                Some(vec![
-                    opt.name().to_owned(),
-                    get_compiler_option_value_type_string(opt).to_owned(),
-                ]),
-            )
-            .into(),
-        ));
+        errors.push(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
+                    Some(vec![
+                        opt.name().to_owned(),
+                        get_compiler_option_value_type_string(opt).to_owned(),
+                    ]),
+                )
+                .into(),
+            ),
+        );
     }
     opt.to_compiler_options_value_none()
 }
@@ -475,13 +506,21 @@ pub(super) fn normalize_option_value(
         CommandLineOptionType::List => {
             let list_option = option.as_command_line_option_of_list_type();
             if list_option.element.ref_(arena).is_file_path()
-                || matches!(list_option.element.ref_(arena).type_(), CommandLineOptionType::Map(_))
+                || matches!(
+                    list_option.element.ref_(arena).type_(),
+                    CommandLineOptionType::Map(_)
+                )
             {
                 return match value {
                     serde_json::Value::Array(value) => CompilerOptionsValue::VecString(Some(
                         filter(
                             &map(value, |v, _| {
-                                normalize_option_value(&list_option.element.ref_(arena), base_path, Some(v), arena)
+                                normalize_option_value(
+                                    &list_option.element.ref_(arena),
+                                    base_path,
+                                    Some(v),
+                                    arena,
+                                )
                             }),
                             |v| v.is_some(),
                         )
@@ -578,9 +617,8 @@ pub(super) fn validate_json_option_value_compiler_options_value(
     }
     let d = d.unwrap();
     let (diagnostic_message, args) = d;
-    errors.push(arena.alloc_diagnostic(
-        create_compiler_diagnostic(diagnostic_message, args).into(),
-    ));
+    errors
+        .push(arena.alloc_diagnostic(create_compiler_diagnostic(diagnostic_message, args).into()));
     opt.to_compiler_options_value_none()
 }
 
@@ -602,9 +640,8 @@ pub(super) fn validate_json_option_value(
     }
     let d = d.unwrap();
     let (diagnostic_message, args) = d;
-    errors.push(arena.alloc_diagnostic(
-        create_compiler_diagnostic(diagnostic_message, args).into(),
-    ));
+    errors
+        .push(arena.alloc_diagnostic(create_compiler_diagnostic(diagnostic_message, args).into()));
     opt.to_compiler_options_value_none()
 }
 
@@ -635,7 +672,9 @@ pub(super) fn convert_json_option_of_custom_type(
             arena,
         );
     } else {
-        errors.push(create_compiler_diagnostic_for_invalid_custom_type(opt, arena));
+        errors.push(create_compiler_diagnostic_for_invalid_custom_type(
+            opt, arena,
+        ));
     }
     opt.type_()
         .as_map()
@@ -659,7 +698,9 @@ pub(super) fn convert_json_option_of_list_type(
             .into_iter()
             .filter_map(|v| {
                 match convert_json_option(
-                    &option_as_command_line_option_of_list_type.element.ref_(arena),
+                    &option_as_command_line_option_of_list_type
+                        .element
+                        .ref_(arena),
                     Some(v),
                     base_path,
                     errors,
@@ -949,7 +990,8 @@ fn create_diagnostic(
     spec: String,
     arena: &impl HasArena,
 ) -> Id<Diagnostic> {
-    let element = get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec, arena);
+    let element =
+        get_ts_config_prop_array_element_value(json_source_file.clone(), spec_key, &spec, arena);
     arena.alloc_diagnostic(if let Some(element) = element {
         create_diagnostic_for_node_in_source_file(
             json_source_file.unwrap(),

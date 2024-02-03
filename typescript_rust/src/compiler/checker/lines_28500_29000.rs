@@ -23,10 +23,9 @@ use crate::{
     try_get_property_access_or_identifier_to_string, try_get_spelling_suggestion,
     try_maybe_for_each, unescape_leading_underscores, AccessFlags, AssignmentKind, CheckFlags,
     Debug_, Diagnostics, HasArena, InArena, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeFlags, NodeInterface, OptionTry, Signature, SignatureFlags, StrOrRcNode, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
+    NodeFlags, NodeInterface, OptionInArena, OptionTry, Signature, SignatureFlags, StrOrRcNode,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags,
     TypeInterface, UnionOrIntersectionTypeInterface,
-    OptionInArena,
 };
 
 impl TypeChecker {
@@ -149,15 +148,9 @@ impl TypeChecker {
             let parent = name_inner_rc_node_ref.parent();
             if is_property_access_expression(&parent.ref_(self)) {
                 did_set_props = true;
-                props_ = Some(
-                    try_filter(&props, |&prop: &Id<Symbol>| {
-                        self.is_valid_property_access_for_completions_(
-                            parent,
-                            containing_type,
-                            prop,
-                        )
-                    })?
-                );
+                props_ = Some(try_filter(&props, |&prop: &Id<Symbol>| {
+                    self.is_valid_property_access_for_completions_(parent, containing_type, prop)
+                })?);
             }
             name = StrOrRcNode::Str(id_text(&name_inner_rc_node_ref));
         }
@@ -181,9 +174,15 @@ impl TypeChecker {
         };
         let mut properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
-            properties.iter().copied().find(|&x| symbol_name(x, self) == "htmlFor")
+            properties
+                .iter()
+                .copied()
+                .find(|&x| symbol_name(x, self) == "htmlFor")
         } else if str_name == "class" {
-            properties.iter().copied().find(|&x| symbol_name(x, self) == "className")
+            properties
+                .iter()
+                .copied()
+                .find(|&x| symbol_name(x, self) == "className")
         } else {
             None
         };
@@ -495,7 +494,10 @@ impl TypeChecker {
                 let node_as_property_access_expression = node_ref.as_property_access_expression();
                 self.is_valid_property_access_with_type(
                     node,
-                    node_as_property_access_expression.expression.ref_(self).kind()
+                    node_as_property_access_expression
+                        .expression
+                        .ref_(self)
+                        .kind()
                         == SyntaxKind::SuperKeyword,
                     property_name,
                     self.get_widened_type(self.check_expression(
@@ -534,7 +536,12 @@ impl TypeChecker {
         self.is_property_accessible(
             node,
             node.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
-                && node.ref_(self).as_property_access_expression().expression.ref_(self).kind()
+                && node
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .expression
+                    .ref_(self)
+                    .kind()
                     == SyntaxKind::SuperKeyword,
             false,
             type_,
@@ -587,9 +594,11 @@ impl TypeChecker {
         {
             let decl_class = get_containing_class(property_value_declaration, self);
             return Ok(!is_optional_chain(&node.ref_(self))
-                && find_ancestor(Some(node), |parent: Id<Node>| {
-                    decl_class == Some(parent)
-                }, self)
+                && find_ancestor(
+                    Some(node),
+                    |parent: Id<Node>| decl_class == Some(parent),
+                    self,
+                )
                 .is_some());
         }
 
@@ -610,12 +619,21 @@ impl TypeChecker {
         let initializer = node.ref_(self).as_for_in_statement().initializer;
         if initializer.ref_(self).kind() == SyntaxKind::VariableDeclarationList {
             let variable = initializer
-                .ref_(self).as_variable_declaration_list()
+                .ref_(self)
+                .as_variable_declaration_list()
                 .declarations
-                .ref_(self).get(0)
+                .ref_(self)
+                .get(0)
                 .copied();
             if let Some(variable) = variable.filter(|variable| {
-                !is_binding_pattern(variable.ref_(self).as_variable_declaration().maybe_name().refed(self).as_deref())
+                !is_binding_pattern(
+                    variable
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .maybe_name()
+                        .refed(self)
+                        .as_deref(),
+                )
             }) {
                 return self.get_symbol_of_node(variable);
             }
@@ -670,15 +688,19 @@ impl TypeChecker {
         node: Id<Node>, /*ElementAccessExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        Ok(if node.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
-            self.check_element_access_chain(node, check_mode)?
-        } else {
-            self.check_element_access_expression(
-                node,
-                self.check_non_null_expression(node.ref_(self).as_element_access_expression().expression)?,
-                check_mode,
-            )?
-        })
+        Ok(
+            if node.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
+                self.check_element_access_chain(node, check_mode)?
+            } else {
+                self.check_element_access_expression(
+                    node,
+                    self.check_non_null_expression(
+                        node.ref_(self).as_element_access_expression().expression,
+                    )?,
+                    check_mode,
+                )?
+            },
+        )
     }
 
     pub(super) fn check_element_access_chain(
@@ -730,7 +752,8 @@ impl TypeChecker {
             return Ok(object_type);
         }
 
-        if self.is_const_enum_object_type(object_type) && !is_string_literal_like(&index_expression.ref_(self))
+        if self.is_const_enum_object_type(object_type)
+            && !is_string_literal_like(&index_expression.ref_(self))
         {
             self.error(
                 Some(index_expression),
@@ -771,9 +794,7 @@ impl TypeChecker {
         self.check_indexed_access_index_type(
             self.get_flow_type_of_access_expression(
                 node,
-                self.get_node_links(node)
-                    .ref_(self)
-                    .resolved_symbol,
+                self.get_node_links(node).ref_(self).resolved_symbol,
                 indexed_access_type,
                 index_expression,
                 check_mode,
@@ -797,7 +818,11 @@ impl TypeChecker {
     ) -> io::Result<Id<Signature>> {
         if self.call_like_expression_may_have_type_arguments(node) {
             try_maybe_for_each(
-                node.ref_(self).as_has_type_arguments().maybe_type_arguments().refed(self).as_deref(),
+                node.ref_(self)
+                    .as_has_type_arguments()
+                    .maybe_type_arguments()
+                    .refed(self)
+                    .as_deref(),
                 |&type_argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_source_element(Some(type_argument))?;
                     Ok(None)
@@ -806,12 +831,24 @@ impl TypeChecker {
         }
 
         if node.ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
-            self.check_expression(node.ref_(self).as_tagged_template_expression().template, None, None)?;
+            self.check_expression(
+                node.ref_(self).as_tagged_template_expression().template,
+                None,
+                None,
+            )?;
         } else if is_jsx_opening_like_element(&node.ref_(self)) {
-            self.check_expression(node.ref_(self).as_jsx_opening_like_element().attributes(), None, None)?;
+            self.check_expression(
+                node.ref_(self).as_jsx_opening_like_element().attributes(),
+                None,
+                None,
+            )?;
         } else if node.ref_(self).kind() != SyntaxKind::Decorator {
             try_maybe_for_each(
-                node.ref_(self).as_has_arguments().maybe_arguments().refed(self).as_deref(),
+                node.ref_(self)
+                    .as_has_arguments()
+                    .maybe_arguments()
+                    .refed(self)
+                    .as_deref(),
                 |&argument: &Id<Node>, _| -> io::Result<Option<()>> {
                     self.check_expression(argument, None, None)?;
                     Ok(None)
@@ -843,13 +880,16 @@ impl TypeChecker {
         let mut splice_index: usize;
         Debug_.assert(result.is_empty(), None);
         for &signature in signatures {
-            let symbol = signature
-                .ref_(self).declaration
-                .try_and_then(|signature_declaration| {
-                    self.get_symbol_of_node(signature_declaration)
-                })?;
+            let symbol =
+                signature
+                    .ref_(self)
+                    .declaration
+                    .try_and_then(|signature_declaration| {
+                        self.get_symbol_of_node(signature_declaration)
+                    })?;
             let parent = signature
-                .ref_(self).declaration
+                .ref_(self)
+                .declaration
                 .and_then(|signature_declaration| signature_declaration.ref_(self).maybe_parent());
             if match last_symbol {
                 None => true,

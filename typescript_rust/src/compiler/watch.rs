@@ -1,4 +1,7 @@
-use std::{borrow::Cow, collections::HashMap, convert::TryInto, io, marker::PhantomData, rc::Rc, cell::RefCell};
+use std::{
+    borrow::Cow, cell::RefCell, collections::HashMap, convert::TryInto, io, marker::PhantomData,
+    rc::Rc,
+};
 
 use id_arena::Id;
 use local_macros::enum_unwrapped;
@@ -12,23 +15,24 @@ use crate::{
     get_normalized_absolute_path, get_parsed_command_line_of_config_file, get_pattern_from_spec,
     get_referenced_file_location, get_regex_from_pattern, get_sys, is_reference_file_location,
     is_referenced_file, maybe_for_each, out_file, package_id_to_string,
-    sort_and_deduplicate_diagnostics, target_option_declaration, text_substring, BuilderProgram,
-    CancellationToken, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    sort_and_deduplicate_diagnostics, target_option_declaration, text_substring, AllArenas,
+    BuilderProgram, CancellationToken, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram,
     CustomTransformers, Debug_, Diagnostic, DiagnosticCategory, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformationInterface, DiagnosticReporter, Diagnostics,
     EmitAndSemanticDiagnosticsBuilderProgram, EmitResult, ExitStatus, ExtendedConfigCacheEntry,
     Extension, FileExtensionInfo, FileIncludeKind, FileIncludeReason,
-    ForegroundColorEscapeSequences, FormatDiagnosticsHost, HasArena, Matches, ModuleResolutionHost,
-    Node, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Program, ProgramHost,
-    ProjectReference, ReferenceFileLocationOrSyntheticReferenceFileLocation,
+    ForegroundColorEscapeSequences, FormatDiagnosticsHost, HasArena, InArena, Matches,
+    ModuleResolutionHost, Node, ParseConfigFileHost, ParseConfigHost, ParsedCommandLine, Program,
+    ProgramHost, ProjectReference, ReferenceFileLocationOrSyntheticReferenceFileLocation,
     ReportEmitErrorSummary, ResolvedProjectReference, ScriptReferenceHost, SortedArray,
     SourceFileLike, StringOrRcNode, System, WatchCompilerHost, WatchCompilerHostOfConfigFile,
-    WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback, AllArenas, InArena,
+    WatchHost, WatchOptions, WatchStatusReporter, WriteFileCallback,
 };
 
-fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> /*Option<*/Id<SysFormatDiagnosticsHost>/*>*/ {
-    /*sys ?*/ arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
+fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> Id<SysFormatDiagnosticsHost> /*>*/ {
+    /*sys ?*/
+    arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(get_sys(arena), arena))
 }
 
 pub struct SysFormatDiagnosticsHost {
@@ -38,7 +42,8 @@ pub struct SysFormatDiagnosticsHost {
 
 impl SysFormatDiagnosticsHost {
     pub fn new(system: Id<Box<dyn System>>, arena: &impl HasArena) -> Self {
-        let system_use_case_sensitive_file_names = system.ref_(arena).use_case_sensitive_file_names();
+        let system_use_case_sensitive_file_names =
+            system.ref_(arena).use_case_sensitive_file_names();
         Self {
             system,
             get_canonical_file_name: create_get_canonical_file_name(
@@ -73,14 +78,14 @@ pub fn create_diagnostic_reporter(
     pretty: Option<bool>,
     arena: &impl HasArena,
 ) -> Id<Box<dyn DiagnosticReporter>> {
-    let host: Id<SysFormatDiagnosticsHost> =
-        if system == get_sys(arena)
-        /*&& sysFormatDiagnosticsHost*/
-        {
-            get_sys_format_diagnostics_host(arena)
-        } else {
-            arena.alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(system.clone(), arena))
-        };
+    let host: Id<SysFormatDiagnosticsHost> = if system == get_sys(arena)
+    /*&& sysFormatDiagnosticsHost*/
+    {
+        get_sys_format_diagnostics_host(arena)
+    } else {
+        arena
+            .alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(system.clone(), arena))
+    };
     arena.alloc_diagnostic_reporter(Box::new(DiagnosticReporterConcrete::new(
         host, pretty, system,
     )))
@@ -111,8 +116,11 @@ impl DiagnosticReporterConcrete {
 impl DiagnosticReporter for DiagnosticReporterConcrete {
     fn call(&self, diagnostic: Id<Diagnostic>) -> io::Result<()> {
         if !self.pretty {
-            self.system
-                .ref_(self).write(&format_diagnostic(&diagnostic.ref_(self), &*self.host.ref_(self), self)?);
+            self.system.ref_(self).write(&format_diagnostic(
+                &diagnostic.ref_(self),
+                &*self.host.ref_(self),
+                self,
+            )?);
             return Ok(());
         }
 
@@ -203,7 +211,11 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         _error_count: Option<usize>,
     ) {
         if self.pretty {
-            clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic.ref_(self), &options.ref_(self));
+            clear_screen_if_not_watching_for_file_changes(
+                &**self.system.ref_(self),
+                &diagnostic.ref_(self),
+                &options.ref_(self),
+            );
             let mut output = format!(
                 "[{}] ",
                 format_color_and_reset(
@@ -225,12 +237,18 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
         } else {
             let mut output = "".to_owned();
 
-            if !clear_screen_if_not_watching_for_file_changes(&**self.system.ref_(self), &diagnostic.ref_(self), &options.ref_(self))
-            {
+            if !clear_screen_if_not_watching_for_file_changes(
+                &**self.system.ref_(self),
+                &diagnostic.ref_(self),
+                &options.ref_(self),
+            ) {
                 output.push_str(new_line);
             }
 
-            output.push_str(&format!("{} - ", get_locale_time_string(&**self.system.ref_(self))));
+            output.push_str(&format!(
+                "{} - ",
+                get_locale_time_string(&**self.system.ref_(self))
+            ));
             output.push_str(&format!(
                 "{}{}",
                 flatten_diagnostic_message_text(
@@ -309,8 +327,13 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
         includes: &[String],
         depth: Option<usize>,
     ) -> io::Result<Vec<String>> {
-        self.system
-            .ref_(self).read_directory(root_dir, Some(extensions), excludes, Some(includes), depth)
+        self.system.ref_(self).read_directory(
+            root_dir,
+            Some(extensions),
+            excludes,
+            Some(includes),
+            depth,
+        )
     }
 
     fn file_exists(&self, path: &str) -> bool {
@@ -332,7 +355,11 @@ impl ParseConfigHost for ParseConfigFileWithSystemHost {
 
 impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>) {
-        report_unrecoverable_diagnostic(&**self.system.ref_(self), &**self.report_diagnostic.ref_(self), diagnostic)
+        report_unrecoverable_diagnostic(
+            &**self.system.ref_(self),
+            &**self.report_diagnostic.ref_(self),
+            diagnostic,
+        )
     }
 }
 
@@ -416,15 +443,22 @@ pub fn is_builder_program(program: &ProgramOrBuilderProgram) -> bool {
     matches!(program, ProgramOrBuilderProgram::BuilderProgram(_))
 }
 
-pub fn list_files(program: ProgramOrBuilderProgram, mut write: impl FnMut(&str), arena: &impl HasArena) {
+pub fn list_files(
+    program: ProgramOrBuilderProgram,
+    mut write: impl FnMut(&str),
+    arena: &impl HasArena,
+) {
     let options = program.get_compiler_options(arena);
     if matches!(options.ref_(arena).explain_files, Some(true)) {
         explain_files(
             &if is_builder_program(&program) {
-                enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram]).ref_(arena).get_program()
+                enum_unwrapped!(&program, [ProgramOrBuilderProgram, BuilderProgram])
+                    .ref_(arena)
+                    .get_program()
             } else {
                 enum_unwrapped!(&program, [ProgramOrBuilderProgram, Program]).clone()
-            }.ref_(arena),
+            }
+            .ref_(arena),
             write,
         );
     } else if matches!(options.ref_(arena).list_files, Some(true))
@@ -447,7 +481,11 @@ pub fn explain_files(program: &Program, mut write: impl FnMut(&str)) {
         })
     };
     for &file in &*program.get_source_files() {
-        write(&to_file_name(file.clone(), Some(&relative_file_name), program));
+        write(&to_file_name(
+            file.clone(),
+            Some(&relative_file_name),
+            program,
+        ));
         reasons
             .ref_(program)
             .get(&file.ref_(program).as_source_file().path())
@@ -514,13 +552,18 @@ pub fn explain_if_file_is_redirect(
     result
 }
 
-pub fn get_matched_file_spec(program: &Program, file_name: &str, arena: &impl HasArena) -> Option<String> {
+pub fn get_matched_file_spec(
+    program: &Program,
+    file_name: &str,
+    arena: &impl HasArena,
+) -> Option<String> {
     let program_compiler_options = program.get_compiler_options();
     let config_file = program_compiler_options.ref_(arena).config_file;
     let config_file_config_file_specs_validated_files_spec = config_file
         .and_then(|config_file| {
             config_file
-                .ref_(program).as_source_file()
+                .ref_(program)
+                .as_source_file()
                 .maybe_config_file_specs()
                 .clone()
         })
@@ -546,13 +589,18 @@ pub fn get_matched_file_spec(program: &Program, file_name: &str, arena: &impl Ha
     .map(Clone::clone)
 }
 
-pub fn get_matched_include_spec(program: &Program, file_name: &str, arena: &impl HasArena) -> Option<String> {
+pub fn get_matched_include_spec(
+    program: &Program,
+    file_name: &str,
+    arena: &impl HasArena,
+) -> Option<String> {
     let program_compiler_options = program.get_compiler_options();
     let config_file = program_compiler_options.ref_(arena).config_file;
     let config_file_config_file_specs_validated_include_specs = config_file
         .and_then(|config_file| {
             config_file
-                .ref_(program).as_source_file()
+                .ref_(program)
+                .as_source_file()
                 .maybe_config_file_specs()
                 .clone()
         })
@@ -597,8 +645,11 @@ pub fn file_include_reason_to_diagnostics(
     let options = program.get_compiler_options();
     if is_referenced_file(Some(reason)) {
         let reason = enum_unwrapped!(reason, [FileIncludeReason, ReferencedFile]);
-        let reference_location =
-            get_referenced_file_location(|path| program.get_source_file_by_path(path), reason, arena);
+        let reference_location = get_referenced_file_location(
+            |path| program.get_source_file_by_path(path),
+            reason,
+            arena,
+        );
         let reference_text = match &reference_location {
             ReferenceFileLocationOrSyntheticReferenceFileLocation::ReferenceFileLocation(reference_location) =>
                 text_substring(
@@ -668,14 +719,22 @@ pub fn file_include_reason_to_diagnostics(
                 Some(reference_location_package_id) => {
                     vec![
                         reference_text,
-                        to_file_name(reference_location.file(), file_name_convertor.as_ref(), program),
+                        to_file_name(
+                            reference_location.file(),
+                            file_name_convertor.as_ref(),
+                            program,
+                        ),
                         package_id_to_string(reference_location_package_id),
                     ]
                 }
                 None => {
                     vec![
                         reference_text,
-                        to_file_name(reference_location.file(), file_name_convertor.as_ref(), program),
+                        to_file_name(
+                            reference_location.file(),
+                            file_name_convertor.as_ref(),
+                            program,
+                        ),
                     ]
                 }
             }),
@@ -685,7 +744,8 @@ pub fn file_include_reason_to_diagnostics(
         FileIncludeReason::RootFile(reason) => {
             if !options.ref_(arena).config_file.matches(|config_file| {
                 config_file
-                    .ref_(program).as_source_file()
+                    .ref_(program)
+                    .as_source_file()
                     .maybe_config_file_specs()
                     .is_some()
             }) {
@@ -760,8 +820,10 @@ pub fn file_include_reason_to_diagnostics(
                     to_file_name(
                         {
                             let tmp: String = referenced_resolved_ref
-                                .ref_(arena).source_file
-                                .ref_(arena).as_source_file()
+                                .ref_(arena)
+                                .source_file
+                                .ref_(arena)
+                                .as_source_file()
                                 .file_name()
                                 .clone();
                             tmp
@@ -806,11 +868,17 @@ pub fn file_include_reason_to_diagnostics(
                 return chain_diagnostic_messages(
                     None,
                     &Diagnostics::Library_0_specified_in_compilerOptions,
-                    Some(vec![options.ref_(arena).lib.as_ref().unwrap()[reason_index].clone()]),
+                    Some(vec![options.ref_(arena).lib.as_ref().unwrap()
+                        [reason_index]
+                        .clone()]),
                 );
             }
-            let target =
-                for_each_entry(target_option_declaration(arena).ref_(arena).type_().as_map(), |value, key| {
+            let target = for_each_entry(
+                target_option_declaration(arena)
+                    .ref_(arena)
+                    .type_()
+                    .as_map(),
+                |value, key| {
                     if enum_unwrapped!(value, [CommandLineOptionMapTypeValue, ScriptTarget])
                         == &get_emit_script_target(&options.ref_(arena))
                     {
@@ -818,7 +886,8 @@ pub fn file_include_reason_to_diagnostics(
                     } else {
                         None
                     }
-                });
+                },
+            );
             chain_diagnostic_messages(
                 None,
                 if target.is_some() {
@@ -868,14 +937,25 @@ fn emit_files_and_report_errors(
     custom_transformers: Option<&CustomTransformers>,
     arena: &impl HasArena,
 ) -> io::Result<EmitFilesAndReportErrorsReturn> {
-    let is_list_files_only = program.ref_(arena).get_compiler_options().ref_(arena).list_files_only == Some(true);
+    let is_list_files_only = program
+        .ref_(arena)
+        .get_compiler_options()
+        .ref_(arena)
+        .list_files_only
+        == Some(true);
 
-    let mut all_diagnostics: Vec<Id<Diagnostic>> =
-        program.ref_(arena).get_config_file_parsing_diagnostics().clone();
+    let mut all_diagnostics: Vec<Id<Diagnostic>> = program
+        .ref_(arena)
+        .get_config_file_parsing_diagnostics()
+        .clone();
     let config_file_parsing_diagnostics_length = all_diagnostics.len();
     add_range(
         &mut all_diagnostics,
-        Some(&program.ref_(arena).get_syntactic_diagnostics(None, cancellation_token.clone())),
+        Some(
+            &program
+                .ref_(arena)
+                .get_syntactic_diagnostics(None, cancellation_token.clone()),
+        ),
         None,
         None,
     );
@@ -883,7 +963,11 @@ fn emit_files_and_report_errors(
     if all_diagnostics.len() == config_file_parsing_diagnostics_length {
         add_range(
             &mut all_diagnostics,
-            Some(&program.ref_(arena).get_options_diagnostics(cancellation_token.clone())),
+            Some(
+                &program
+                    .ref_(arena)
+                    .get_options_diagnostics(cancellation_token.clone()),
+            ),
             None,
             None,
         );
@@ -891,7 +975,11 @@ fn emit_files_and_report_errors(
         if !is_list_files_only {
             add_range(
                 &mut all_diagnostics,
-                Some(&program.ref_(arena).get_global_diagnostics(cancellation_token.clone())?),
+                Some(
+                    &program
+                        .ref_(arena)
+                        .get_global_diagnostics(cancellation_token.clone())?,
+                ),
                 None,
                 None,
             );
@@ -899,7 +987,11 @@ fn emit_files_and_report_errors(
             if all_diagnostics.len() == config_file_parsing_diagnostics_length {
                 add_range(
                     &mut all_diagnostics,
-                    Some(&program.ref_(arena).get_semantic_diagnostics(None, cancellation_token.clone())?),
+                    Some(
+                        &program
+                            .ref_(arena)
+                            .get_semantic_diagnostics(None, cancellation_token.clone())?,
+                    ),
                     None,
                     None,
                 );

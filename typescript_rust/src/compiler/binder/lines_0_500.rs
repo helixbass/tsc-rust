@@ -22,12 +22,12 @@ use crate::{
     AssignmentDeclarationKind, BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic,
     DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticWithLocation, Diagnostics,
     FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String,
+    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_eq,
     create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, static_arena,
-    AllArenas, BaseSymbol, HasArena, InArena, InternalSymbolName, NamedDeclarationInterface, Node,
-    NodeArray, NodeInterface, SymbolFlags, SymbolInterface,
-    append_if_unique_eq, index_of_eq, OptionInArena,
+    index_of_eq, is_property_name_literal, object_allocator, set_parent, set_value_declaration,
+    static_arena, AllArenas, BaseSymbol, HasArena, InArena, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionInArena, SymbolFlags,
+    SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -162,11 +162,16 @@ pub(super) fn get_module_instance_state_worker(
                 for &specifier in &*export_declaration
                     .export_clause
                     .unwrap()
-                    .ref_(arena).as_named_exports()
-                    .elements.ref_(arena)
+                    .ref_(arena)
+                    .as_named_exports()
+                    .elements
+                    .ref_(arena)
                 {
-                    let specifier_state =
-                        get_module_instance_state_for_alias_target(specifier, visited.clone(), arena);
+                    let specifier_state = get_module_instance_state_for_alias_target(
+                        specifier,
+                        visited.clone(),
+                        arena,
+                    );
                     if specifier_state > state {
                         state = specifier_state;
                     }
@@ -182,7 +187,8 @@ pub(super) fn get_module_instance_state_worker(
             for_each_child_returns(
                 node,
                 |n| {
-                    let child_state = get_module_instance_state_cached(n, Some(visited.clone()), arena);
+                    let child_state =
+                        get_module_instance_state_cached(n, Some(visited.clone()), arena);
                     match child_state {
                         ModuleInstanceState::NonInstantiated => None,
                         ModuleInstanceState::ConstEnumOnly => {
@@ -205,7 +211,9 @@ pub(super) fn get_module_instance_state_worker(
         }
         SyntaxKind::Identifier => {
             if matches!(
-                node.ref_(arena).as_identifier().maybe_is_in_jsdoc_namespace(),
+                node.ref_(arena)
+                    .as_identifier()
+                    .maybe_is_in_jsdoc_namespace(),
                 Some(true)
             ) {
                 return ModuleInstanceState::NonInstantiated;
@@ -228,7 +236,10 @@ pub(super) fn get_module_instance_state_for_alias_target(
         .unwrap_or_else(|| specifier_as_export_specifier.name);
     let mut p: Option<Id<Node>> = specifier.ref_(arena).maybe_parent();
     while let Some(p_present) = p {
-        if is_block(&p_present.ref_(arena)) || is_module_block(&p_present.ref_(arena)) || is_source_file(&p_present.ref_(arena)) {
+        if is_block(&p_present.ref_(arena))
+            || is_module_block(&p_present.ref_(arena))
+            || is_source_file(&p_present.ref_(arena))
+        {
             let statements = p_present.ref_(arena).as_has_statements().statements();
             let mut found: Option<ModuleInstanceState> = None;
             for &statement in &*statements.ref_(arena) {
@@ -237,7 +248,8 @@ pub(super) fn get_module_instance_state_for_alias_target(
                         set_parent(&statement.ref_(arena), Some(p_present));
                         set_parent_recursive(Some(statement), false, arena);
                     }
-                    let state = get_module_instance_state_cached(statement, Some(visited.clone()), arena);
+                    let state =
+                        get_module_instance_state_cached(statement, Some(visited.clone()), arena);
                     if match found {
                         None => true,
                         Some(found) if state > found => true,
@@ -286,7 +298,11 @@ pub(super) fn init_flow_node(node: FlowNode) -> FlowNode {
 //     static ref binder: BinderType = create_binder();
 // }
 
-pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptions>, arena: &impl HasArena) {
+pub fn bind_source_file(
+    file: Id<Node /*SourceFile*/>,
+    options: Id<CompilerOptions>,
+    arena: &impl HasArena,
+) {
     let file_ref = file.ref_(arena);
     let file_as_source_file = file_ref.as_source_file();
     if is_logging {
@@ -296,7 +312,9 @@ pub fn bind_source_file(file: Id<Node /*SourceFile*/>, options: Id<CompilerOptio
     // performance.mark("beforeBind");
     // perfLogger.logStartBindFile("" + file.fileName);
     // binder.call(file, options);
-    create_binder(&*static_arena()).ref_(arena).call(file, options);
+    create_binder(&*static_arena())
+        .ref_(arena)
+        .call(file, options);
     // perfLogger.logStopBindFile();
     // performance.mark("afterBind");
     // performance.measure("Bind", "beforeBind", "afterBind");
@@ -378,15 +396,19 @@ pub(super) fn create_binder(arena: *const AllArenas) -> Id<Binder> {
         symbol_count: Default::default(),
         Symbol: Default::default(),
         classifiable_names: Default::default(),
-        unreachable_flow: Cell::new(arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into())),
-        reported_unreachable_flow: Cell::new(arena_ref.alloc_flow_node(
-            FlowStart::new(FlowFlags::Unreachable, None).into(),
-        )),
+        unreachable_flow: Cell::new(
+            arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into()),
+        ),
+        reported_unreachable_flow: Cell::new(
+            arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into()),
+        ),
         bind_binary_expression_flow: Default::default(),
     });
-    ret.ref_(arena_ref).bind_binary_expression_flow.set(
-        Some(arena_ref.alloc_bind_binary_expression_flow(ret.ref_(arena_ref).create_bind_binary_expression_flow()))
-    );
+    ret.ref_(arena_ref).bind_binary_expression_flow.set(Some(
+        arena_ref.alloc_bind_binary_expression_flow(
+            ret.ref_(arena_ref).create_bind_binary_expression_flow(),
+        ),
+    ));
     ret
 }
 
@@ -452,13 +474,11 @@ impl Binder {
     }
 
     pub(super) fn this_parent_container(&self) -> Id<Node> {
-        self.this_parent_container
-            .get().unwrap()
+        self.this_parent_container.get().unwrap()
     }
 
     pub(super) fn maybe_this_parent_container(&self) -> Option<Id<Node>> {
-        self.this_parent_container
-            .get()
+        self.this_parent_container.get()
     }
 
     pub(super) fn set_this_parent_container(&self, this_parent_container: Option<Id<Node>>) {
@@ -466,14 +486,11 @@ impl Binder {
     }
 
     pub(super) fn maybe_block_scope_container(&self) -> Option<Id<Node>> {
-        self.block_scope_container
-            .get()
+        self.block_scope_container.get()
     }
 
     pub(super) fn block_scope_container(&self) -> Id<Node> {
-        self.block_scope_container
-            .get()
-            .unwrap()
+        self.block_scope_container.get().unwrap()
     }
 
     pub(super) fn set_block_scope_container(&self, block_scope_container: Option<Id<Node>>) {
@@ -824,10 +841,7 @@ impl Binder {
         }
     }
 
-    pub(super) fn get_declaration_name(
-        &self,
-        node: Id<Node>,
-    ) -> Option<Cow<'_, str> /*__String*/> {
+    pub(super) fn get_declaration_name(&self, node: Id<Node>) -> Option<Cow<'_, str> /*__String*/> {
         if node.ref_(self).kind() == SyntaxKind::ExportAssignment {
             return Some(
                 if matches!(
@@ -856,9 +870,11 @@ impl Binder {
                 let name_expression = name.ref_(self).as_computed_property_name().expression;
                 if is_string_or_numeric_literal_like(&name_expression.ref_(self)) {
                     return Some(
-                        escape_leading_underscores(&name_expression.ref_(self).as_literal_like_node().text())
-                            .into_owned()
-                            .into(),
+                        escape_leading_underscores(
+                            &name_expression.ref_(self).as_literal_like_node().text(),
+                        )
+                        .into_owned()
+                        .into(),
                     );
                 }
                 if is_signed_numeric_literal(name_expression, self) {
@@ -872,7 +888,8 @@ impl Binder {
                                 .unwrap(),
                             name_expression_as_prefix_unary_expression
                                 .operand
-                                .ref_(self).as_literal_like_node()
+                                .ref_(self)
+                                .as_literal_like_node()
                                 .text()
                         )
                         .into(),
@@ -916,7 +933,8 @@ impl Binder {
             SyntaxKind::ExportDeclaration => Some(InternalSymbolName::ExportStar.into()),
             SyntaxKind::SourceFile => Some(InternalSymbolName::ExportEquals.into()),
             SyntaxKind::BinaryExpression => {
-                if get_assignment_declaration_kind(node, self) == AssignmentDeclarationKind::ModuleExports
+                if get_assignment_declaration_kind(node, self)
+                    == AssignmentDeclarationKind::ModuleExports
                 {
                     return Some(InternalSymbolName::ExportEquals.into());
                 }
@@ -935,7 +953,11 @@ impl Binder {
                 );
                 let function_type = node.ref_(self).parent();
                 let index = index_of_eq(
-                    &function_type.ref_(self).as_jsdoc_function_type().parameters().ref_(self),
+                    &function_type
+                        .ref_(self)
+                        .as_jsdoc_function_type()
+                        .parameters()
+                        .ref_(self),
                     &node,
                 );
                 Some(format!("arg{}", index).into())
@@ -944,10 +966,7 @@ impl Binder {
         }
     }
 
-    pub(super) fn get_display_name(
-        &self,
-        node: Id<Node>, /*Declaration*/
-    ) -> Cow<'_, str> {
+    pub(super) fn get_display_name(&self, node: Id<Node> /*Declaration*/) -> Cow<'_, str> {
         if is_named_declaration(&node.ref_(self)) {
             declaration_name_to_string(node.ref_(self).as_named_declaration().maybe_name(), self)
         } else {
@@ -979,7 +998,14 @@ impl Binder {
 
         let is_default_export = has_syntactic_modifier(node, ModifierFlags::Default, self)
             || is_export_specifier(&node.ref_(self))
-                && node.ref_(self).as_export_specifier().name.ref_(self).as_identifier().escaped_text == "default";
+                && node
+                    .ref_(self)
+                    .as_export_specifier()
+                    .name
+                    .ref_(self)
+                    .as_identifier()
+                    .escaped_text
+                    == "default";
 
         let name: Option<Cow<'_, str> /*__String*/> = if is_computed_name {
             Some(InternalSymbolName::Computed.into())
@@ -1047,7 +1073,11 @@ impl Binder {
                         {
                             if is_named_declaration(&node.ref_(self)) {
                                 maybe_set_parent(
-                                    node.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref(),
+                                    node.ref_(self)
+                                        .as_named_declaration()
+                                        .maybe_name()
+                                        .refed(self)
+                                        .as_deref(),
                                     Some(node),
                                 );
                             }
@@ -1085,8 +1115,8 @@ impl Binder {
                                         symbol_present.ref_(self).maybe_declarations().as_ref(),
                                         Some(declarations) if !declarations.is_empty()
                                     ) && (node.ref_(self).kind() == SyntaxKind::ExportAssignment
-                                        && node.ref_(self).as_export_assignment().is_export_equals != Some(true)
-                                    )
+                                        && node.ref_(self).as_export_assignment().is_export_equals
+                                            != Some(true))
                                     {
                                         message = &*Diagnostics::A_module_cannot_have_multiple_default_exports;
                                         message_needs_name = false;
@@ -1098,33 +1128,39 @@ impl Binder {
                             let mut related_information: Vec<Id<DiagnosticRelatedInformation>> =
                                 vec![];
                             if is_type_alias_declaration(&node.ref_(self))
-                                && node_is_missing(Some(&node.ref_(self).as_type_alias_declaration().type_.ref_(self)))
+                                && node_is_missing(Some(
+                                    &node.ref_(self).as_type_alias_declaration().type_.ref_(self),
+                                ))
                                 && has_syntactic_modifier(node, ModifierFlags::Export, self)
                                 && symbol_present.ref_(self).flags().intersects(
                                     SymbolFlags::Alias | SymbolFlags::Type | SymbolFlags::Namespace,
                                 )
                             {
-                                related_information.push(self.alloc_diagnostic_related_information(
-                                    self.create_diagnostic_for_node(
-                                        node,
-                                        &Diagnostics::Did_you_mean_0,
-                                        Some(vec![format!(
-                                            "export type {{ {} }}",
-                                            unescape_leading_underscores(
-                                                &node
-                                                    .ref_(self).as_type_alias_declaration()
-                                                    .name()
-                                                    .ref_(self).as_identifier()
-                                                    .escaped_text
-                                            )
-                                        )]),
-                                    )
-                                    .into(),
-                                ));
+                                related_information.push(
+                                    self.alloc_diagnostic_related_information(
+                                        self.create_diagnostic_for_node(
+                                            node,
+                                            &Diagnostics::Did_you_mean_0,
+                                            Some(vec![format!(
+                                                "export type {{ {} }}",
+                                                unescape_leading_underscores(
+                                                    &node
+                                                        .ref_(self)
+                                                        .as_type_alias_declaration()
+                                                        .name()
+                                                        .ref_(self)
+                                                        .as_identifier()
+                                                        .escaped_text
+                                                )
+                                            )]),
+                                        )
+                                        .into(),
+                                    ),
+                                );
                             }
 
-                            let declaration_name = get_name_of_declaration(Some(node), self)
-                                .unwrap_or(node);
+                            let declaration_name =
+                                get_name_of_declaration(Some(node), self).unwrap_or(node);
                             maybe_for_each(
                                 symbol_present.ref_(self).maybe_declarations().as_ref(),
                                 |&declaration: &Id<Node>, index| {
@@ -1167,14 +1203,16 @@ impl Binder {
                                         },
                                     );
                                     if multiple_default_exports {
-                                        related_information.push(self.alloc_diagnostic_related_information(
-                                            self.create_diagnostic_for_node(
-                                                decl,
-                                                &Diagnostics::The_first_export_default_is_here,
-                                                None,
-                                            )
-                                            .into(),
-                                        ));
+                                        related_information.push(
+                                            self.alloc_diagnostic_related_information(
+                                                self.create_diagnostic_for_node(
+                                                    decl,
+                                                    &Diagnostics::The_first_export_default_is_here,
+                                                    None,
+                                                )
+                                                .into(),
+                                            ),
+                                        );
                                     }
                                     Option::<()>::None
                                 },
@@ -1194,7 +1232,8 @@ impl Binder {
                             );
                             add_related_info(&diag.ref_(self), related_information);
                             self.file()
-                                .ref_(self).as_source_file()
+                                .ref_(self)
+                                .as_source_file()
                                 .bind_diagnostics_mut()
                                 .push(diag);
 

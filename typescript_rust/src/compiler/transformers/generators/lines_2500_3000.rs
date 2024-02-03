@@ -2,8 +2,7 @@ use id_arena::Id;
 
 use super::{BlockAction, CodeBlockKind, Label, OpCode, OperationArguments, TransformGenerators};
 use crate::{
-    EmitFlags, GetOrInsertDefault, Node, NodeArray, NodeExt, Number, ReadonlyTextRange, _d,
-    InArena,
+    EmitFlags, GetOrInsertDefault, InArena, Node, NodeArray, NodeExt, Number, ReadonlyTextRange, _d,
 };
 
 impl TransformGenerators {
@@ -13,11 +12,7 @@ impl TransformGenerators {
 
     pub(super) fn emit_statement(&self, node: Id<Node /*Statement*/>) {
         // if (node) {
-        self.emit_worker(
-            OpCode::Statement,
-            Some(node.into()),
-            Option::<&Node>::None,
-        );
+        self.emit_worker(OpCode::Statement, Some(node.into()), Option::<&Node>::None);
         // } else {
         //     emitNop();
         // }
@@ -137,7 +132,8 @@ impl TransformGenerators {
         let build_result_is_empty = build_result.is_empty();
         self.emit_helpers().create_generator_helper(
             self.factory
-                .ref_(self).create_function_expression(
+                .ref_(self)
+                .create_function_expression(
                     Option::<Id<NodeArray>>::None,
                     None,
                     Option::<Id<Node>>::None,
@@ -153,7 +149,8 @@ impl TransformGenerators {
                     )]),
                     None,
                     self.factory
-                        .ref_(self).create_block(build_result, Some(!build_result_is_empty)),
+                        .ref_(self)
+                        .create_block(build_result, Some(!build_result_is_empty)),
                 )
                 .set_emit_flags(EmitFlags::ReuseTempVariableScope, self),
         )
@@ -173,7 +170,8 @@ impl TransformGenerators {
         if let Some(clauses) = self.maybe_clauses().as_ref() {
             let label_expression = self
                 .factory
-                .ref_(self).create_property_access_expression(self.state(), "label");
+                .ref_(self)
+                .create_property_access_expression(self.state(), "label");
             let switch_statement = self.factory.ref_(self).create_switch_statement(
                 label_expression,
                 self.factory.ref_(self).create_case_block(clauses.clone()),
@@ -243,7 +241,9 @@ impl TransformGenerators {
                 for with_block in with_block_stack.into_iter().rev() {
                     *statements = vec![self.factory.ref_(self).create_with_statement(
                         with_block.ref_(self).as_with_block().expression.clone(),
-                        self.factory.ref_(self).create_block(statements.clone(), None),
+                        self.factory
+                            .ref_(self)
+                            .create_block(statements.clone(), None),
                     )];
                 }
             }
@@ -262,19 +262,23 @@ impl TransformGenerators {
                         self.factory.ref_(self).create_call_expression(
                             self.factory.ref_(self).create_property_access_expression(
                                 self.factory
-                                    .ref_(self).create_property_access_expression(self.state(), "trys"),
+                                    .ref_(self)
+                                    .create_property_access_expression(self.state(), "trys"),
                                 "push",
                             ),
                             Option::<Id<NodeArray>>::None,
-                            Some(vec![self.factory.ref_(self).create_array_literal_expression(
-                                Some(vec![
-                                    self.create_label(Some(start_label)),
-                                    self.create_label(catch_label),
-                                    self.create_label(finally_label),
-                                    self.create_label(Some(end_label)),
-                                ]),
-                                None,
-                            )]),
+                            Some(vec![self
+                                .factory
+                                .ref_(self)
+                                .create_array_literal_expression(
+                                    Some(vec![
+                                        self.create_label(Some(start_label)),
+                                        self.create_label(catch_label),
+                                        self.create_label(finally_label),
+                                        self.create_label(Some(end_label)),
+                                    ]),
+                                    None,
+                                )]),
                         ),
                     ),
                 );
@@ -287,7 +291,8 @@ impl TransformGenerators {
                     self.factory.ref_(self).create_expression_statement(
                         self.factory.ref_(self).create_assignment(
                             self.factory
-                                .ref_(self).create_property_access_expression(self.state(), "label"),
+                                .ref_(self)
+                                .create_property_access_expression(self.state(), "label"),
                             self.factory.ref_(self).create_numeric_literal(
                                 Number::new((self.label_number() + 1) as f64),
                                 None,
@@ -301,7 +306,8 @@ impl TransformGenerators {
         clauses.push(
             self.factory.ref_(self).create_case_clause(
                 self.factory
-                    .ref_(self).create_numeric_literal(Number::new(self.label_number() as f64), None),
+                    .ref_(self)
+                    .create_numeric_literal(Number::new(self.label_number() as f64), None),
                 self.maybe_statements().clone().unwrap_or_default(),
             ),
         );
@@ -337,7 +343,8 @@ impl TransformGenerators {
                     if let Some(expressions) = expressions {
                         for expression in expressions {
                             expression
-                                .ref_(self).as_literal_like_node()
+                                .ref_(self)
+                                .as_literal_like_node()
                                 .set_text(format!("{label_number}"));
                         }
                     }
@@ -447,7 +454,8 @@ impl TransformGenerators {
     ) {
         self.write_statement(
             self.factory
-                .ref_(self).create_expression_statement(self.factory.ref_(self).create_assignment(left, right))
+                .ref_(self)
+                .create_expression_statement(self.factory.ref_(self).create_assignment(left, right))
                 .set_text_range(operation_location, self),
         );
     }

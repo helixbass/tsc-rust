@@ -14,8 +14,8 @@ use super::{
 };
 use crate::{
     array_is_equal_to, changes_affect_module_resolution, changes_affecting_program_structure,
-    compare_values, concatenate, contains, contains_path, create_type_checker,
-    emit_files, file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
+    compare_values, concatenate, contains, contains_path, create_type_checker, emit_files,
+    file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_emit_script_target, get_mode_for_resolution_at_index, get_normalized_absolute_path,
     get_resolved_module, get_transformers, has_changes_in_resolutions, is_source_file_js,
     is_trace_enabled, libs, map_defined, module_resolution_is_equal_to, no_transformers,
@@ -24,16 +24,15 @@ use crate::{
     sort_and_deduplicate_diagnostics, source_file_may_be_emitted, static_arena, string_contains,
     to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
     type_directive_is_equal_to, zip_to_mode_aware_cache, AllArenas, AsDoubleDeref,
-    CancellationToken, Comparison, CompilerHost, CompilerOptions, CustomTransformers,
-    Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason,
-    FileReference, FilesByNameValue, GetOrInsertDefault, ModuleSpecifierResolutionHost,
+    CancellationToken, Comparison, CompilerHost, CompilerOptions, CustomTransformers, Debug_,
+    Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason, FileReference,
+    FilesByNameValue, GetOrInsertDefault, HasArena, InArena, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeFlags,
-    NodeInterface, NonEmpty, Path, Program, ProgramBuildInfo, ProjectReference, ReadFileCallback,
-    RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
+    NodeInterface, NonEmpty, OptionInArena, Path, Program, ProgramBuildInfo, ProjectReference,
+    ReadFileCallback, RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
     ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFileLike,
     SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StringOrRcNode,
     StructureIsReused, SymlinkCache, TypeChecker, WriteFileCallback,
-    HasArena, InArena, OptionInArena,
 };
 
 impl Program {
@@ -79,7 +78,10 @@ impl Program {
         let containing_file: StringOrRcNode = containing_file.into();
         let containing_file_name = match &containing_file {
             StringOrRcNode::RcNode(containing_file) => get_normalized_absolute_path(
-                &containing_file.ref_(self).as_source_file().original_file_name(),
+                &containing_file
+                    .ref_(self)
+                    .as_source_file()
+                    .original_file_name(),
                 Some(&self.current_directory()),
             ),
             StringOrRcNode::String(containing_file) => containing_file.clone(),
@@ -95,7 +97,8 @@ impl Program {
         // performance.mark("beforeResolveTypeReference");
         let result = self
             .actual_resolve_type_reference_directive_names_worker()
-            .ref_(self).call(
+            .ref_(self)
+            .call(
                 type_directive_names,
                 &containing_file_name,
                 redirected_reference.clone(),
@@ -142,7 +145,8 @@ impl Program {
         let real_declaration_path = self.to_path(
             &self
                 .host()
-                .ref_(self).realpath(&file_as_source_file.original_file_name())
+                .ref_(self)
+                .realpath(&file_as_source_file.original_file_name())
                 .unwrap(),
         );
         if &real_declaration_path == &*file_as_source_file.path() {
@@ -166,7 +170,12 @@ impl Program {
             return None;
         }
         self.for_each_resolved_project_reference(|resolved_ref: Id<ResolvedProjectReference>| {
-            let resolved_ref_command_line_options_ref = resolved_ref.ref_(self).command_line.ref_(self).options.ref_(self);
+            let resolved_ref_command_line_options_ref = resolved_ref
+                .ref_(self)
+                .command_line
+                .ref_(self)
+                .options
+                .ref_(self);
             let out = out_file(&resolved_ref_command_line_options_ref)?;
             if out.is_empty() {
                 return None;
@@ -214,7 +223,8 @@ impl Program {
 
     pub(super) fn has_invalidated_resolution(&self, source_file: &Path) -> bool {
         self.host()
-            .ref_(self).has_invalidated_resolution(source_file)
+            .ref_(self)
+            .has_invalidated_resolution(source_file)
             .unwrap_or(false)
     }
 
@@ -338,7 +348,8 @@ impl Program {
 
         let emit_resolver = self
             .get_diagnostics_producing_type_checker()?
-            .ref_(self).get_emit_resolver(
+            .ref_(self)
+            .get_emit_resolver(
                 if matches!(
                     out_file(&self.options.ref_(self)),
                     Some(out_file) if !out_file.is_empty()
@@ -356,7 +367,12 @@ impl Program {
             emit_resolver,
             self.get_emit_host(write_file_callback),
             source_file,
-            get_transformers(&self.options.ref_(self), custom_transformers, emit_only_dts_files, self),
+            get_transformers(
+                &self.options.ref_(self),
+                custom_transformers,
+                emit_only_dts_files,
+                self,
+            ),
             emit_only_dts_files,
             Some(false),
             force_dts_emit,
@@ -431,10 +447,11 @@ impl Program {
             return self.resolve_module_names_worker(module_names, file, None);
         }
 
-        let old_source_file = self
-            .maybe_old_program()
-            .as_ref()
-            .and_then(|old_program| old_program.ref_(self).get_source_file_(&file_as_source_file.file_name()));
+        let old_source_file = self.maybe_old_program().as_ref().and_then(|old_program| {
+            old_program
+                .ref_(self)
+                .get_source_file_(&file_as_source_file.file_name())
+        });
         if old_source_file != Some(file) {
             if let Some(file_resolved_modules) =
                 file_as_source_file.maybe_resolved_modules().as_ref()
@@ -460,8 +477,8 @@ impl Program {
 
         for i in 0..module_names.len() {
             let module_name = &module_names[i];
-            if let Some(old_source_file) = old_source_file
-                .filter(|&old_source_file| file == old_source_file)
+            if let Some(old_source_file) =
+                old_source_file.filter(|&old_source_file| file == old_source_file)
             {
                 let old_source_file_ref = old_source_file.ref_(self);
                 let old_source_file_as_source_file = old_source_file_ref.as_source_file();
@@ -525,7 +542,10 @@ impl Program {
                 module_name,
             ) {
                 resolves_to_ambient_module_in_non_modified_file = true;
-                if is_trace_enabled(&self.options.ref_(self), self.host().ref_(self).as_dyn_module_resolution_host()) {
+                if is_trace_enabled(
+                    &self.options.ref_(self),
+                    self.host().ref_(self).as_dyn_module_resolution_host(),
+                ) {
                     trace(
                         self.host().ref_(self).as_dyn_module_resolution_host(),
                         &Diagnostics::Module_0_was_resolved_as_locally_declared_ambient_module_in_file_1,
@@ -598,7 +618,8 @@ impl Program {
             >= old_source_file
                 .and_then(|old_source_file| {
                     old_source_file
-                        .ref_(self).as_source_file()
+                        .ref_(self)
+                        .as_source_file()
                         .maybe_imports()
                         .as_ref()
                         .map(|old_source_file_imports| old_source_file_imports.len())
@@ -607,7 +628,8 @@ impl Program {
                 + old_source_file
                     .and_then(|old_source_file| {
                         old_source_file
-                            .ref_(self).as_source_file()
+                            .ref_(self)
+                            .as_source_file()
                             .maybe_module_augmentations()
                             .as_ref()
                             .map(|old_source_file_module_augmentations| {
@@ -622,13 +644,18 @@ impl Program {
             old_source_file.refed(self).as_deref(),
             module_name,
             old_source_file.and_then(|old_source_file| {
-                get_mode_for_resolution_at_index(old_source_file.ref_(self).as_source_file(), index, self)
+                get_mode_for_resolution_at_index(
+                    old_source_file.ref_(self).as_source_file(),
+                    index,
+                    self,
+                )
             }),
         );
         let resolved_file = resolution_to_file.as_ref().and_then(|resolution_to_file| {
             self.maybe_old_program()
                 .unwrap()
-                .ref_(self).get_source_file_(&resolution_to_file.ref_(self).resolved_file_name)
+                .ref_(self)
+                .get_source_file_(&resolution_to_file.ref_(self).resolved_file_name)
         });
         if resolution_to_file.is_some() && resolved_file.is_some() {
             return false;
@@ -644,7 +671,10 @@ impl Program {
         }
         let unmodified_file = unmodified_file.unwrap();
 
-        if is_trace_enabled(&self.options.ref_(self), self.host().ref_(self).as_dyn_module_resolution_host()) {
+        if is_trace_enabled(
+            &self.options.ref_(self),
+            self.host().ref_(self).as_dyn_module_resolution_host(),
+        ) {
             trace(
                 self.host().ref_(self).as_dyn_module_resolution_host(),
                 &Diagnostics::Module_0_was_resolved_as_ambient_module_declared_in_1_since_this_file_was_not_modified,
@@ -662,19 +692,28 @@ impl Program {
             self.maybe_old_program()
                 .as_ref()
                 .unwrap()
-                .ref_(self).get_project_references()
+                .ref_(self)
+                .get_project_references()
                 .as_deref(),
             self.maybe_old_program()
                 .as_ref()
                 .unwrap()
-                .ref_(self).get_resolved_project_references()
+                .ref_(self)
+                .get_resolved_project_references()
                 .as_deref(),
             |old_resolved_ref: Option<Id<ResolvedProjectReference>>,
              parent: Option<Id<ResolvedProjectReference>>,
              index: usize| {
                 let new_ref = parent
                     .map(|parent| {
-                        parent.ref_(self).command_line.ref_(self).project_references.as_ref().unwrap()[index].clone()
+                        parent
+                            .ref_(self)
+                            .command_line
+                            .ref_(self)
+                            .project_references
+                            .as_ref()
+                            .unwrap()[index]
+                            .clone()
                     })
                     .unwrap_or_else(|| {
                         self.maybe_project_references().as_ref().unwrap()[index].clone()
@@ -684,9 +723,18 @@ impl Program {
                     match new_resolved_ref {
                         None => true,
                         Some(new_resolved_ref) => {
-                            new_resolved_ref.ref_(self).source_file != old_resolved_ref.ref_(self).source_file
-                             || old_resolved_ref.ref_(self).command_line.ref_(self).file_names
-                                != new_resolved_ref.ref_(self).command_line.ref_(self).file_names
+                            new_resolved_ref.ref_(self).source_file
+                                != old_resolved_ref.ref_(self).source_file
+                                || old_resolved_ref
+                                    .ref_(self)
+                                    .command_line
+                                    .ref_(self)
+                                    .file_names
+                                    != new_resolved_ref
+                                        .ref_(self)
+                                        .command_line
+                                        .ref_(self)
+                                        .file_names
                         }
                     }
                 } else {
@@ -698,11 +746,18 @@ impl Program {
                  parent: Option<Id<ResolvedProjectReference>>| {
                     let new_references = if let Some(parent) = parent {
                         self.get_resolved_project_reference_by_path(
-                            &parent.ref_(self).source_file.ref_(self).as_source_file().path(),
+                            &parent
+                                .ref_(self)
+                                .source_file
+                                .ref_(self)
+                                .as_source_file()
+                                .path(),
                         )
                         .unwrap()
-                        .ref_(self).command_line
-                        .ref_(self).project_references
+                        .ref_(self)
+                        .command_line
+                        .ref_(self)
+                        .project_references
                         .clone()
                     } else {
                         self.maybe_project_references().clone()
@@ -728,7 +783,8 @@ impl Program {
         let old_program = old_program.unwrap();
 
         let old_options = old_program.ref_(self).get_compiler_options();
-        if changes_affect_module_resolution(&old_options.ref_(self), &self.options.ref_(self), self) {
+        if changes_affect_module_resolution(&old_options.ref_(self), &self.options.ref_(self), self)
+        {
             return Ok(StructureIsReused::Not);
         }
 
@@ -761,7 +817,8 @@ impl Program {
         self.set_structure_is_reused(StructureIsReused::Completely);
 
         if old_program
-            .ref_(self).get_missing_file_paths()
+            .ref_(self)
+            .get_missing_file_paths()
             .iter()
             .any(|missing_file_path| self.host().ref_(self).file_exists(missing_file_path))
         {
@@ -780,7 +837,11 @@ impl Program {
         for &old_source_file in &*old_source_files {
             let old_source_file_ref = old_source_file.ref_(self);
             let old_source_file_as_source_file = old_source_file_ref.as_source_file();
-            let Some(mut new_source_file) = (if self.host().ref_(self).is_get_source_file_by_path_supported() {
+            let Some(mut new_source_file) = (if self
+                .host()
+                .ref_(self)
+                .is_get_source_file_by_path_supported()
+            {
                 self.host().ref_(self).get_source_file_by_path(
                     &old_source_file_as_source_file.file_name(),
                     old_source_file_as_source_file
@@ -860,7 +921,8 @@ impl Program {
             new_source_file_as_source_file.set_file_name(old_source_file_file_name);
 
             let package_name = old_program
-                .ref_(self).source_file_to_package_name()
+                .ref_(self)
+                .source_file_to_package_name()
                 .get(&*old_source_file_as_source_file.path())
                 .cloned();
             if let Some(ref package_name) = package_name {
@@ -946,7 +1008,8 @@ impl Program {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
                 if old_source_file.ref_(self).flags() & NodeFlags::PermanentlySetIncrementalFlags
-                    != new_source_file.ref_(self).flags() & NodeFlags::PermanentlySetIncrementalFlags
+                    != new_source_file.ref_(self).flags()
+                        & NodeFlags::PermanentlySetIncrementalFlags
                 {
                     self.set_structure_is_reused(StructureIsReused::SafeModules);
                 }
@@ -1091,13 +1154,21 @@ impl Program {
             return Ok(self.structure_is_reused());
         }
 
-        if changes_affecting_program_structure(&old_options.ref_(self), &self.options.ref_(self), self)
-            || self.host().ref_(self).has_changed_automatic_type_directive_names() == Some(true)
+        if changes_affecting_program_structure(
+            &old_options.ref_(self),
+            &self.options.ref_(self),
+            self,
+        ) || self
+            .host()
+            .ref_(self)
+            .has_changed_automatic_type_directive_names()
+            == Some(true)
         {
             return Ok(StructureIsReused::SafeModules);
         }
 
-        *self.maybe_missing_file_paths() = Some(old_program.ref_(self).get_missing_file_paths().clone());
+        *self.maybe_missing_file_paths() =
+            Some(old_program.ref_(self).get_missing_file_paths().clone());
 
         Debug_.assert(
             new_source_files.len() == old_program.ref_(self).get_source_files().len(),
@@ -1121,7 +1192,10 @@ impl Program {
             let old_file_ref = old_file.ref_(self);
             let old_file_as_source_file = old_file_ref.as_source_file();
             if &**old_file_as_source_file.path() == &**path {
-                if old_program.ref_(self).is_source_file_from_external_library(old_file) {
+                if old_program
+                    .ref_(self)
+                    .is_source_file_from_external_library(old_file)
+                {
                     self.source_files_found_searching_node_modules_mut()
                         .insert((&**old_file_as_source_file.path()).to_owned(), true);
                 }
@@ -1141,7 +1215,10 @@ impl Program {
         self.set_files(Some(new_source_files));
         self.set_file_reasons(old_program.ref_(self).get_file_include_reasons());
         self.set_file_processing_diagnostics(
-            old_program.ref_(self).maybe_file_processing_diagnostics().clone()
+            old_program
+                .ref_(self)
+                .maybe_file_processing_diagnostics()
+                .clone(),
         );
         self.set_resolved_type_reference_directives(
             old_program.ref_(self).resolved_type_reference_directives(),
@@ -1150,7 +1227,9 @@ impl Program {
         *self.source_file_to_package_name.borrow_mut() =
             Some(old_program.ref_(self).source_file_to_package_name().clone());
         self.set_redirect_targets_map(old_program.ref_(self).redirect_targets_map());
-        self.set_uses_uri_style_node_core_modules(old_program.ref_(self).uses_uri_style_node_core_modules());
+        self.set_uses_uri_style_node_core_modules(
+            old_program.ref_(self).uses_uri_style_node_core_modules(),
+        );
 
         Ok(StructureIsReused::Completely)
     }
@@ -1170,7 +1249,10 @@ impl Program {
         write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
         _cancellation_token: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<EmitResult> {
-        Debug_.assert(out_file(&self.options.ref_(self)).non_empty().is_none(), None);
+        Debug_.assert(
+            out_file(&self.options.ref_(self)).non_empty().is_none(),
+            None,
+        );
         // tracing?.push(tracing.Phase.Emit, "emitBuildInfo", {}, /*separateBeginAndEnd*/ true);
         // performance.mark("beforeEmit");
         let emit_result = emit_files(
@@ -1243,11 +1325,12 @@ impl Program {
         //     self.diagnostics_producing_type_checker.as_ref().unwrap()
         // }
         if self.diagnostics_producing_type_checker.get().is_none() {
-            self.diagnostics_producing_type_checker.set(Some(create_type_checker(
-                &*static_arena(),
-                self.arena_id(),
-                true,
-            )?));
+            self.diagnostics_producing_type_checker
+                .set(Some(create_type_checker(
+                    &*static_arena(),
+                    self.arena_id(),
+                    true,
+                )?));
         }
         Ok(self.diagnostics_producing_type_checker.get().unwrap())
     }
@@ -1281,15 +1364,18 @@ impl Program {
         if let Some(source_file) = source_file {
             return get_diagnostics(source_file, cancellation_token);
         }
-        Ok(sort_and_deduplicate_diagnostics(&try_flat_map(
-            Some(&*self.get_source_files()),
-            |&source_file: &Id<Node>, _| {
-                // if (cancellationToken) {
-                //     cancellationToken.throwIfCancellationRequested();
-                // }
-                get_diagnostics(source_file, cancellation_token.clone())
-            },
-        )?, self)
+        Ok(sort_and_deduplicate_diagnostics(
+            &try_flat_map(
+                Some(&*self.get_source_files()),
+                |&source_file: &Id<Node>, _| {
+                    // if (cancellationToken) {
+                    //     cancellationToken.throwIfCancellationRequested();
+                    // }
+                    get_diagnostics(source_file, cancellation_token.clone())
+                },
+            )?,
+            self,
+        )
         .into())
     }
 
@@ -1297,9 +1383,11 @@ impl Program {
         &self,
         source_file: Id<Node>, /*SourceFile*/
     ) -> Vec<Id<Diagnostic>> {
-        if skip_type_checking(&source_file.ref_(self), &self.options.ref_(self), |file_name: &str| {
-            self.is_source_of_project_reference_redirect_(file_name)
-        }) {
+        if skip_type_checking(
+            &source_file.ref_(self),
+            &self.options.ref_(self),
+            |file_name: &str| self.is_source_of_project_reference_redirect_(file_name),
+        ) {
             return vec![];
         }
 
@@ -1315,15 +1403,16 @@ impl Program {
             return program_diagnostics_in_file;
         }
 
-        let ret = self.get_diagnostics_with_preceding_directives(
-            source_file,
-            source_file_as_source_file
-                .maybe_comment_directives()
-                .as_ref()
-                .unwrap(),
-            &program_diagnostics_in_file,
-        )
-        .diagnostics;
+        let ret = self
+            .get_diagnostics_with_preceding_directives(
+                source_file,
+                source_file_as_source_file
+                    .maybe_comment_directives()
+                    .as_ref()
+                    .unwrap(),
+                &program_diagnostics_in_file,
+            )
+            .diagnostics;
         ret
     }
 
@@ -1372,12 +1461,18 @@ impl Program {
                     .get_or_insert_with(|| self.get_js_syntactic_diagnostics_for_file(source_file));
             return concatenate(
                 source_file_additional_syntactic_diagnostics.clone(),
-                source_file.ref_(self).as_source_file().parse_diagnostics()
+                source_file
+                    .ref_(self)
+                    .as_source_file()
+                    .parse_diagnostics()
                     .ref_(self)
                     .clone(),
             );
         }
-        source_file.ref_(self).as_source_file().parse_diagnostics()
+        source_file
+            .ref_(self)
+            .as_source_file()
+            .parse_diagnostics()
             .ref_(self)
             .clone()
     }
@@ -1418,7 +1513,13 @@ impl ReadFileCallback for GetPrependNodesReadFileCallback {
         } else if self.program.ref_(self).files_by_name().contains_key(&*path) {
             None
         } else {
-            self.program.ref_(self).host().ref_(self).read_file(&path).ok().flatten()
+            self.program
+                .ref_(self)
+                .host()
+                .ref_(self)
+                .read_file(&path)
+                .ok()
+                .flatten()
         }
     }
 }
@@ -1501,7 +1602,8 @@ impl EmitHost for ProgramEmitHost {
 
     fn get_program_build_info(&self) -> Option<Id<ProgramBuildInfo>> {
         self.program
-            .ref_(self).maybe_get_program_build_info_id()
+            .ref_(self)
+            .maybe_get_program_build_info_id()
             .and_then(|get_program_build_info| get_program_build_info.ref_(self).call())
     }
 
@@ -1510,7 +1612,9 @@ impl EmitHost for ProgramEmitHost {
         file: Id<Node>, /*SourceFile | UnparsedSource*/
         ref_: &FileReference,
     ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
-        self.program.ref_(self).get_source_file_from_reference(file, ref_)
+        self.program
+            .ref_(self)
+            .get_source_file_from_reference(file, ref_)
     }
 
     fn redirect_targets_map(&self) -> Rc<RefCell<RedirectTargetsMap>> {
@@ -1564,12 +1668,15 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
-        self.program.ref_(self).get_project_reference_redirect_(file_name)
+        self.program
+            .ref_(self)
+            .get_project_reference_redirect_(file_name)
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         self.program
-            .ref_(self).is_source_of_project_reference_redirect_(file_name)
+            .ref_(self)
+            .is_source_of_project_reference_redirect_(file_name)
     }
 
     fn get_symlink_cache(&self) -> Option<Id<SymlinkCache>> {
@@ -1586,10 +1693,21 @@ impl ModuleSpecifierResolutionHost for ProgramEmitHost {
 
     fn file_exists(&self, f: &str) -> bool {
         let path = self.program.ref_(self).to_path(f);
-        if self.program.ref_(self).get_source_file_by_path(&path).is_some() {
+        if self
+            .program
+            .ref_(self)
+            .get_source_file_by_path(&path)
+            .is_some()
+        {
             return true;
         }
-        if contains(self.program.ref_(self).maybe_missing_file_paths().as_deref(), &path) {
+        if contains(
+            self.program
+                .ref_(self)
+                .maybe_missing_file_paths()
+                .as_deref(),
+            &path,
+        ) {
             return false;
         }
         self.program.ref_(self).host().ref_(self).file_exists(f)
@@ -1618,7 +1736,9 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
     }
 
     fn is_source_file_from_external_library(&self, file: Id<Node> /*SourceFile*/) -> bool {
-        self.program.ref_(self).is_source_file_from_external_library(file)
+        self.program
+            .ref_(self)
+            .is_source_file_from_external_library(file)
     }
 
     fn get_resolved_project_reference_to_redirect(
@@ -1626,12 +1746,14 @@ impl SourceFileMayBeEmittedHost for ProgramEmitHost {
         file_name: &str,
     ) -> Option<Id<ResolvedProjectReference>> {
         self.program
-            .ref_(self).get_resolved_project_reference_to_redirect(file_name)
+            .ref_(self)
+            .get_resolved_project_reference_to_redirect(file_name)
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
         self.program
-            .ref_(self).is_source_of_project_reference_redirect_(file_name)
+            .ref_(self)
+            .is_source_of_project_reference_redirect_(file_name)
     }
 }
 

@@ -21,13 +21,13 @@ use crate::{
     is_qualified_name, parse_config_file_text_to_json, position_is_synthesized, skip_trivia,
     token_to_string, unescape_leading_underscores, walk_up_parenthesized_expressions, AllArenas,
     BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseTextRange,
-    BaseType, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
+    BaseType, BoolExt, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     Extension, HasArena, HasInitializerInterface, InArena, MapLike, ModifierFlags,
     NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, BoolExt,
+    SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 pub fn get_first_identifier(mut node: Id<Node>, arena: &impl HasArena) -> Id<Node /*Identifier*/> {
@@ -59,9 +59,15 @@ pub fn is_dotted_name(node: Id<Node> /*Expression*/, arena: &impl HasArena) -> b
             | SyntaxKind::SuperKeyword
             | SyntaxKind::MetaProperty
     ) || node.ref_(arena).kind() == SyntaxKind::PropertyAccessExpression
-        && is_dotted_name(node.ref_(arena).as_property_access_expression().expression, arena)
+        && is_dotted_name(
+            node.ref_(arena).as_property_access_expression().expression,
+            arena,
+        )
         || node.ref_(arena).kind() == SyntaxKind::ParenthesizedExpression
-            && is_dotted_name(node.ref_(arena).as_parenthesized_expression().expression, arena)
+            && is_dotted_name(
+                node.ref_(arena).as_parenthesized_expression().expression,
+                arena,
+            )
 }
 
 pub fn is_property_access_entity_name_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -86,13 +92,11 @@ pub fn try_get_property_access_or_identifier_to_string(
             arena,
         );
         if let Some(base_str) = base_str {
-            return Some(
-                format!(
-                    "{}.{}",
-                    base_str,
-                    entity_name_to_string(expr_as_property_access_expression.name, arena)
-                )
-            );
+            return Some(format!(
+                "{}.{}",
+                base_str,
+                entity_name_to_string(expr_as_property_access_expression.name, arena)
+            ));
         }
     } else if is_element_access_expression(&expr.ref_(arena)) {
         let expr_ref = expr.ref_(arena);
@@ -102,22 +106,26 @@ pub fn try_get_property_access_or_identifier_to_string(
             arena,
         );
         if let Some(base_str) = base_str {
-            if is_property_name(&expr_as_element_access_expression.argument_expression.ref_(arena)) {
-                return Some(
-                    format!(
-                        "{}.{}",
-                        base_str,
-                        &*get_property_name_for_property_name_node(
-                            expr_as_element_access_expression.argument_expression,
-                            arena,
-                        )
-                        .unwrap()
+            if is_property_name(
+                &expr_as_element_access_expression
+                    .argument_expression
+                    .ref_(arena),
+            ) {
+                return Some(format!(
+                    "{}.{}",
+                    base_str,
+                    &*get_property_name_for_property_name_node(
+                        expr_as_element_access_expression.argument_expression,
+                        arena,
                     )
-                );
+                    .unwrap()
+                ));
             }
         }
     } else if is_identifier(&expr.ref_(arena)) {
-        return Some(unescape_leading_underscores(&expr.ref_(arena).as_identifier().escaped_text).to_owned());
+        return Some(
+            unescape_leading_underscores(&expr.ref_(arena).as_identifier().escaped_text).to_owned(),
+        );
     }
     None
 }
@@ -130,42 +138,84 @@ pub fn is_prototype_access(node: Id<Node>, arena: &impl HasArena) -> bool {
         }
 }
 
-pub fn is_right_side_of_qualified_name_or_property_access(node: Id<Node>, arena: &impl HasArena) -> bool {
+pub fn is_right_side_of_qualified_name_or_property_access(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> bool {
     node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::QualifiedName
-        && node.ref_(arena).parent().ref_(arena).as_qualified_name().right == node
+        && node
+            .ref_(arena)
+            .parent()
+            .ref_(arena)
+            .as_qualified_name()
+            .right
+            == node
         || node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::PropertyAccessExpression
-            && node.ref_(arena).parent().ref_(arena).as_property_access_expression().name == node
+            && node
+                .ref_(arena)
+                .parent()
+                .ref_(arena)
+                .as_property_access_expression()
+                .name
+                == node
 }
 
 pub fn is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name(
     node: Id<Node>,
     arena: &impl HasArena,
 ) -> bool {
-    is_qualified_name(&node.ref_(arena).parent().ref_(arena)) && node.ref_(arena).parent().ref_(arena).as_qualified_name().right == node
+    is_qualified_name(&node.ref_(arena).parent().ref_(arena))
+        && node
+            .ref_(arena)
+            .parent()
+            .ref_(arena)
+            .as_qualified_name()
+            .right
+            == node
         || is_property_access_expression(&node.ref_(arena).parent().ref_(arena))
-            && node.ref_(arena).parent().ref_(arena).as_property_access_expression().name == node
+            && node
+                .ref_(arena)
+                .parent()
+                .ref_(arena)
+                .as_property_access_expression()
+                .name
+                == node
         || is_jsdoc_member_name(&node.ref_(arena).parent().ref_(arena))
-            && node.ref_(arena).parent().ref_(arena).as_jsdoc_member_name().right == node
+            && node
+                .ref_(arena)
+                .parent()
+                .ref_(arena)
+                .as_jsdoc_member_name()
+                .right
+                == node
 }
 
 pub fn is_empty_object_literal(expression: Id<Node>, arena: &impl HasArena) -> bool {
     expression.ref_(arena).kind() == SyntaxKind::ObjectLiteralExpression
         && expression
-            .ref_(arena).as_object_literal_expression()
+            .ref_(arena)
+            .as_object_literal_expression()
             .properties
-            .ref_(arena).is_empty()
+            .ref_(arena)
+            .is_empty()
 }
 
 pub fn is_empty_array_literal(expression: Id<Node>, arena: &impl HasArena) -> bool {
     expression.ref_(arena).kind() == SyntaxKind::ArrayLiteralExpression
-        && expression.ref_(arena).as_array_literal_expression().elements.ref_(arena).is_empty()
+        && expression
+            .ref_(arena)
+            .as_array_literal_expression()
+            .elements
+            .ref_(arena)
+            .is_empty()
 }
 
 pub fn get_local_symbol_for_export_default(
     symbol: Id<Symbol>,
     arena: &impl HasArena,
 ) -> Option<Id<Symbol>> {
-    if !is_export_default_symbol(symbol, arena) || symbol.ref_(arena).maybe_declarations().is_none() {
+    if !is_export_default_symbol(symbol, arena) || symbol.ref_(arena).maybe_declarations().is_none()
+    {
         return None;
     }
     for decl in symbol.ref_(arena).maybe_declarations().as_ref().unwrap() {
@@ -179,7 +229,8 @@ pub fn get_local_symbol_for_export_default(
 fn is_export_default_symbol(symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
     /*symbol &&*/
     match symbol
-        .ref_(arena).maybe_declarations()
+        .ref_(arena)
+        .maybe_declarations()
         .as_ref()
         .filter(|declarations| !declarations.is_empty())
     {
@@ -284,7 +335,8 @@ pub fn move_range_pos(range: &impl ReadonlyTextRange, pos: isize) -> BaseTextRan
 
 pub fn move_range_past_decorators(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
     if let Some(node_decorators) = node
-        .ref_(arena).maybe_decorators()
+        .ref_(arena)
+        .maybe_decorators()
         .filter(|node_decorators| !node_decorators.ref_(arena).is_empty())
     {
         move_range_pos(&*node.ref_(arena), node_decorators.ref_(arena).end())
@@ -295,7 +347,8 @@ pub fn move_range_past_decorators(node: Id<Node>, arena: &impl HasArena) -> Base
 
 pub fn move_range_past_modifiers(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
     if let Some(node_modifiers) = node
-        .ref_(arena).maybe_modifiers()
+        .ref_(arena)
+        .maybe_modifiers()
         .filter(|node_modifiers| !node_modifiers.ref_(arena).is_empty())
     {
         move_range_pos(&*node.ref_(arena), node_modifiers.ref_(arena).end())
@@ -415,12 +468,21 @@ pub fn get_lines_between_position_and_next_non_whitespace_character(
     unimplemented!()
 }
 
-pub fn is_declaration_name_of_enum_or_namespace(node: Id<Node> /*Identifier*/, arena: &impl HasArena) -> bool {
+pub fn is_declaration_name_of_enum_or_namespace(
+    node: Id<Node>, /*Identifier*/
+    arena: &impl HasArena,
+) -> bool {
     let parse_node = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, arena);
     if let Some(parse_node) = parse_node {
         match parse_node.ref_(arena).parent().ref_(arena).kind() {
             SyntaxKind::EnumDeclaration | SyntaxKind::ModuleDeclaration => {
-                return parse_node == parse_node.ref_(arena).parent().ref_(arena).as_named_declaration().name();
+                return parse_node
+                    == parse_node
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .as_named_declaration()
+                        .name();
             }
             _ => (),
         }
@@ -428,9 +490,16 @@ pub fn is_declaration_name_of_enum_or_namespace(node: Id<Node> /*Identifier*/, a
     false
 }
 
-pub fn get_initialized_variables(node: Id<Node> /*VariableDeclarationList*/, arena: &impl HasArena) -> Vec<Id<Node>> {
+pub fn get_initialized_variables(
+    node: Id<Node>, /*VariableDeclarationList*/
+    arena: &impl HasArena,
+) -> Vec<Id<Node>> {
     filter(
-        &node.ref_(arena).as_variable_declaration_list().declarations.ref_(arena),
+        &node
+            .ref_(arena)
+            .as_variable_declaration_list()
+            .declarations
+            .ref_(arena),
         |declaration: &Id<Node>| is_initialized_variable(&declaration.ref_(arena)),
     )
 }
@@ -457,14 +526,19 @@ pub fn get_declaration_modifier_flags_from_symbol(
 ) -> ModifierFlags {
     let is_write = is_write.unwrap_or(false);
     if let Some(s_value_declaration) = s.ref_(arena).maybe_value_declaration() {
-        let declaration = is_write.then_and(|| {
-            s.ref_(arena).maybe_declarations().as_ref().and_then(|s_declarations| {
-                find(s_declarations, |d: &Id<Node>, _| {
-                    d.ref_(arena).kind() == SyntaxKind::SetAccessor
-                })
-                .copied()
+        let declaration = is_write
+            .then_and(|| {
+                s.ref_(arena)
+                    .maybe_declarations()
+                    .as_ref()
+                    .and_then(|s_declarations| {
+                        find(s_declarations, |d: &Id<Node>, _| {
+                            d.ref_(arena).kind() == SyntaxKind::SetAccessor
+                        })
+                        .copied()
+                    })
             })
-        }).unwrap_or(s_value_declaration);
+            .unwrap_or(s_value_declaration);
         let flags = get_combined_modifier_flags(declaration, arena);
         return if matches!(
             s.ref_(arena).maybe_parent(),
@@ -585,7 +659,8 @@ fn write_or_read_write(parent: Id<Node>, arena: &impl HasArena) -> AccessKind {
     if let Some(grandparent) = parent.ref_(arena).maybe_parent() {
         if walk_up_parenthesized_expressions(grandparent, arena)
             .unwrap()
-            .ref_(arena).kind()
+            .ref_(arena)
+            .kind()
             == SyntaxKind::ExpressionStatement
         {
             return AccessKind::Write;
@@ -607,7 +682,8 @@ pub fn get_class_like_declaration_of_symbol(
     arena: &impl HasArena,
 ) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
     symbol
-        .ref_(arena).maybe_declarations()
+        .ref_(arena)
+        .maybe_declarations()
         .as_ref()
         .and_then(|symbol_declarations| {
             symbol_declarations
@@ -688,7 +764,7 @@ pub fn is_bundle_file_text_like(_section: &BundleFileSection) -> bool {
 }
 
 pub fn get_leftmost_access_expression(
-    mut expr: Id<Node> /*Expression*/,
+    mut expr: Id<Node>, /*Expression*/
     arena: &impl HasArena,
 ) -> Id<Node /*Expression*/> {
     while is_access_expression(&expr.ref_(arena)) {
@@ -787,15 +863,21 @@ impl ObjectAllocator {
         Token
     }
 
-    pub fn get_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
+    pub fn get_identifier_constructor(
+        &self,
+    ) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Identifier
     }
 
-    pub fn get_private_identifier_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
+    pub fn get_private_identifier_constructor(
+        &self,
+    ) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Node
     }
 
-    pub fn get_source_file_constructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
+    pub fn get_source_file_constructor(
+        &self,
+    ) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         Node
     }
 
@@ -907,11 +989,17 @@ pub fn attach_file_to_diagnostic(
                 .iter()
                 .map(|&related| {
                     if is_diagnostic_with_detached_location(&related.ref_(arena))
-                        && &related.ref_(arena).as_diagnostic_with_detached_location().file_name == &*file_name
+                        && &related
+                            .ref_(arena)
+                            .as_diagnostic_with_detached_location()
+                            .file_name
+                            == &*file_name
                     {
                         Debug_.assert_less_than_or_equal(related.ref_(arena).start(), length);
-                        Debug_
-                            .assert_less_than_or_equal(related.ref_(arena).start() + related.ref_(arena).length(), length);
+                        Debug_.assert_less_than_or_equal(
+                            related.ref_(arena).start() + related.ref_(arena).length(),
+                            length,
+                        );
                         arena.alloc_diagnostic_related_information(
                             attach_file_to_diagnostic(
                                 related.ref_(arena).as_diagnostic_with_detached_location(),
@@ -939,8 +1027,14 @@ pub fn attach_file_to_diagnostics(
         .iter()
         .map(|diagnostic| {
             arena.alloc_diagnostic(
-                attach_file_to_diagnostic(diagnostic.ref_(arena).as_diagnostic_with_detached_location(), file, arena)
-                    .into(),
+                attach_file_to_diagnostic(
+                    diagnostic
+                        .ref_(arena)
+                        .as_diagnostic_with_detached_location(),
+                    file,
+                    arena,
+                )
+                .into(),
             )
         })
         .collect()

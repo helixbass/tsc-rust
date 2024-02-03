@@ -4,8 +4,8 @@ use id_arena::Id;
 
 use super::{CheckMode, TypeFacts};
 use crate::{
-    add_related_info, create_diagnostic_for_node, create_file_diagnostic,
-    first_or_undefined, get_check_flags, get_containing_class, get_containing_function,
+    add_related_info, create_diagnostic_for_node, create_file_diagnostic, first_or_undefined,
+    get_check_flags, get_containing_class, get_containing_function,
     get_containing_function_or_class_static_block, get_declaration_modifier_flags_from_symbol,
     get_effective_return_type_node, get_function_flags, get_object_flags, get_source_file_of_node,
     get_span_of_token_at_position, has_context_sensitive_parameters, is_access_expression,
@@ -29,7 +29,8 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         Debug_.assert(
-            node.ref_(self).kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
+            node.ref_(self).kind() != SyntaxKind::MethodDeclaration
+                || is_object_literal_method(node, self),
             None,
         );
         self.check_node_deferred(node);
@@ -167,7 +168,9 @@ impl TypeChecker {
                 {
                     let return_type = self.get_return_type_from_body(node, check_mode)?;
                     if signature.ref_(self).maybe_resolved_return_type().is_none() {
-                        signature.ref_(self).set_resolved_return_type(Some(return_type));
+                        signature
+                            .ref_(self)
+                            .set_resolved_return_type(Some(return_type));
                     }
                 }
                 self.check_signature_declaration(node)?;
@@ -182,7 +185,8 @@ impl TypeChecker {
         node: Id<Node>, /*ArrowFunction | FunctionExpression | MethodDeclaration*/
     ) -> io::Result<()> {
         Debug_.assert(
-            node.ref_(self).kind() != SyntaxKind::MethodDeclaration || is_object_literal_method(node, self),
+            node.ref_(self).kind() != SyntaxKind::MethodDeclaration
+                || is_object_literal_method(node, self),
             None,
         );
 
@@ -297,7 +301,8 @@ impl TypeChecker {
                 })
             {
                 let initializer = writable_prop_value_declaration
-                    .ref_(self).as_property_assignment()
+                    .ref_(self)
+                    .as_property_assignment()
                     .initializer;
                 let raw_original_type = self.check_expression(initializer, None, None)?;
                 if raw_original_type == self.false_type()
@@ -316,12 +321,8 @@ impl TypeChecker {
         Ok(
             get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Readonly)
                 || symbol.ref_(self).flags().intersects(SymbolFlags::Property)
-                    && get_declaration_modifier_flags_from_symbol(
-                        symbol,
-                        None,
-                        self,
-                    )
-                    .intersects(ModifierFlags::Readonly)
+                    && get_declaration_modifier_flags_from_symbol(symbol, None, self)
+                        .intersects(ModifierFlags::Readonly)
                 || symbol.ref_(self).flags().intersects(SymbolFlags::Variable)
                     && self
                         .get_declaration_node_flags_from_symbol(symbol)
@@ -356,7 +357,13 @@ impl TypeChecker {
         if self.is_readonly_symbol(symbol)? {
             if symbol.ref_(self).flags().intersects(SymbolFlags::Property)
                 && is_access_expression(&expr.ref_(self))
-                && expr.ref_(self).as_has_expression().expression().ref_(self).kind() == SyntaxKind::ThisKeyword
+                && expr
+                    .ref_(self)
+                    .as_has_expression()
+                    .expression()
+                    .ref_(self)
+                    .kind()
+                    == SyntaxKind::ThisKeyword
             {
                 let ctor = get_containing_function(expr, self);
                 if !matches!(
@@ -366,23 +373,23 @@ impl TypeChecker {
                     return Ok(true);
                 }
                 let ctor = ctor.unwrap();
-                if let Some(symbol_value_declaration) =
-                    symbol.ref_(self).maybe_value_declaration()
+                if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration()
                 {
-                    let is_assignment_declaration = is_binary_expression(&symbol_value_declaration.ref_(self));
-                    let is_local_property_declaration = ctor.ref_(self).maybe_parent() == symbol_value_declaration.ref_(self).maybe_parent();
+                    let is_assignment_declaration =
+                        is_binary_expression(&symbol_value_declaration.ref_(self));
+                    let is_local_property_declaration = ctor.ref_(self).maybe_parent()
+                        == symbol_value_declaration.ref_(self).maybe_parent();
                     let is_local_parameter_property =
                         symbol_value_declaration.ref_(self).maybe_parent() == Some(ctor);
                     let is_local_this_property_assignment = is_assignment_declaration
-                        && symbol
-                                .ref_(self)
-                                .maybe_parent()
-                                .and_then(|symbol_parent| {
-                                    symbol_parent.ref_(self).maybe_value_declaration()
-                                }) == ctor.ref_(self).maybe_parent();
+                        && symbol.ref_(self).maybe_parent().and_then(|symbol_parent| {
+                            symbol_parent.ref_(self).maybe_value_declaration()
+                        }) == ctor.ref_(self).maybe_parent();
                     let is_local_this_property_assignment_constructor_function =
                         is_assignment_declaration
-                            && symbol.ref_(self).maybe_parent().and_then(|symbol_parent| symbol_parent.ref_(self).maybe_value_declaration()) == Some(ctor);
+                            && symbol.ref_(self).maybe_parent().and_then(|symbol_parent| {
+                                symbol_parent.ref_(self).maybe_value_declaration()
+                            }) == Some(ctor);
                     let is_writeable_symbol = is_local_property_declaration
                         || is_local_parameter_property
                         || is_local_this_property_assignment
@@ -393,9 +400,11 @@ impl TypeChecker {
             return Ok(true);
         }
         if is_access_expression(&expr.ref_(self)) {
-            let node = skip_parentheses(expr.ref_(self).as_has_expression().expression(), None, self);
+            let node =
+                skip_parentheses(expr.ref_(self).as_has_expression().expression(), None, self);
             if node.ref_(self).kind() == SyntaxKind::Identifier {
-                let symbol = self.get_node_links(node)
+                let symbol = self
+                    .get_node_links(node)
                     .ref_(self)
                     .resolved_symbol
                     .clone()
@@ -423,7 +432,9 @@ impl TypeChecker {
             Some(OuterExpressionKinds::Assertions | OuterExpressionKinds::Parentheses),
             self,
         );
-        if node.ref_(self).kind() != SyntaxKind::Identifier && !is_access_expression(&node.ref_(self)) {
+        if node.ref_(self).kind() != SyntaxKind::Identifier
+            && !is_access_expression(&node.ref_(self))
+        {
             self.error(Some(expr), invalid_reference_message, None);
             return false;
         }
@@ -451,7 +462,13 @@ impl TypeChecker {
             return Ok(self.boolean_type());
         }
         if is_property_access_expression(&expr.ref_(self))
-            && is_private_identifier(&expr.ref_(self).as_property_access_expression().name.ref_(self))
+            && is_private_identifier(
+                &expr
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .name
+                    .ref_(self),
+            )
         {
             self.error(
                 Some(expr),
@@ -506,7 +523,11 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*TypeOfExpression*/
     ) -> io::Result<Id<Type>> {
-        self.check_expression(node.ref_(self).as_type_of_expression().expression, None, None)?;
+        self.check_expression(
+            node.ref_(self).as_type_of_expression().expression,
+            None,
+            None,
+        )?;
         Ok(self.typeof_type())
     }
 
@@ -538,7 +559,10 @@ impl TypeChecker {
                     let source_file = get_source_file_of_node(node, self);
                     if !self.has_parse_diagnostics(source_file) {
                         let mut span: Option<TextSpan> = None;
-                        if !is_effective_external_module(&source_file.ref_(self), &self.compiler_options.ref_(self)) {
+                        if !is_effective_external_module(
+                            &source_file.ref_(self),
+                            &self.compiler_options.ref_(self),
+                        ) {
                             if span.is_none() {
                                 span = Some(get_span_of_token_at_position(
                                     &source_file.ref_(self),
@@ -561,7 +585,8 @@ impl TypeChecker {
                             ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
                         ) && !(self.module_kind == ModuleKind::NodeNext
                             && get_source_file_of_node(node, self)
-                                .ref_(self).as_source_file()
+                                .ref_(self)
+                                .as_source_file()
                                 .maybe_implied_node_format()
                                 == Some(ModuleKind::ESNext))
                             || self.language_version < ScriptTarget::ES2017
@@ -603,15 +628,16 @@ impl TypeChecker {
                                 && !get_function_flags(Some(container), self)
                                     .intersects(FunctionFlags::Async)
                         }) {
-                            let related_info: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(
-                                create_diagnostic_for_node(
-                                    container,
-                                    &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
-                                    None,
-                                    self,
-                                )
-                                .into(),
-                            );
+                            let related_info: Id<DiagnosticRelatedInformation> = self
+                                .alloc_diagnostic_related_information(
+                                    create_diagnostic_for_node(
+                                        container,
+                                        &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
+                                        None,
+                                        self,
+                                    )
+                                    .into(),
+                                );
                             add_related_info(&diagnostic.ref_(self), vec![related_info]);
                         }
                         self.diagnostics().add(diagnostic);
@@ -678,7 +704,8 @@ impl TypeChecker {
                         self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
-                                .ref_(self).as_numeric_literal()
+                                .ref_(self)
+                                .as_numeric_literal()
                                 .text()
                                 .parse::<f64>()
                                 .unwrap()
@@ -691,7 +718,8 @@ impl TypeChecker {
                         self.get_number_literal_type(Number::new(
                             node_as_prefix_unary_expression
                                 .operand
-                                .ref_(self).as_numeric_literal()
+                                .ref_(self)
+                                .as_numeric_literal()
                                 .text()
                                 .parse::<f64>()
                                 .unwrap(),
@@ -708,7 +736,8 @@ impl TypeChecker {
                             parse_pseudo_big_int(
                                 &node_as_prefix_unary_expression
                                     .operand
-                                    .ref_(self).as_big_int_literal()
+                                    .ref_(self)
+                                    .as_big_int_literal()
                                     .text(),
                             ),
                         )),
@@ -957,7 +986,8 @@ impl TypeChecker {
             if self.language_version < ScriptTarget::ESNext {
                 self.check_external_emit_helpers(left, ExternalEmitHelpers::ClassPrivateFieldIn)?;
             }
-            if self.get_node_links(left)
+            if self
+                .get_node_links(left)
                 .ref_(self)
                 .resolved_symbol
                 .is_none()

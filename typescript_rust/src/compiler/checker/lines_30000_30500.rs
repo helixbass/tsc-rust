@@ -12,11 +12,10 @@ use crate::{
     min_and_max, skip_trivia, text_char_at_index, try_map_defined, AsDoubleDeref, Debug_,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasArena,
     HasTypeArgumentsInterface, InArena, InferenceFlags, IteratorExt, Matches, MinAndMax,
-    ModifierFlags, Node, NodeInterface, ObjectFlags, ReadonlyTextRange, ScriptTarget, Signature,
-    SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
-    OptionInArena,
+    ModifierFlags, Node, NodeInterface, ObjectFlags, OptionInArena, ReadonlyTextRange,
+    ScriptTarget, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -204,7 +203,10 @@ impl TypeChecker {
         let type_parameters = &type_parameters;
 
         let type_argument_nodes = if self.call_like_expression_may_have_type_arguments(node) {
-            node.ref_(self).as_has_type_arguments().maybe_type_arguments().clone()
+            node.ref_(self)
+                .as_has_type_arguments()
+                .maybe_type_arguments()
+                .clone()
         } else {
             None
         };
@@ -275,10 +277,9 @@ impl TypeChecker {
             CheckMode::SkipContextSensitive | CheckMode::SkipGenericFunctions,
             inference_context,
         )?;
-        Ok(self.alloc_signature(self.create_signature_instantiation(
-            candidate,
-            Some(&type_argument_types),
-        )?))
+        Ok(self.alloc_signature(
+            self.create_signature_instantiation(candidate, Some(&type_argument_types))?,
+        ))
     }
 
     pub(super) fn get_longest_candidate_index(
@@ -330,7 +331,8 @@ impl TypeChecker {
                     let base_constructors = self.get_instantiated_constructors_for_type_arguments(
                         super_type,
                         base_type_node
-                            .ref_(self).as_expression_with_type_arguments()
+                            .ref_(self)
+                            .as_expression_with_type_arguments()
                             .maybe_type_arguments()
                             .refed(self)
                             .as_double_deref(),
@@ -436,15 +438,17 @@ impl TypeChecker {
                         .unwrap()
                             - 1,
                     )) {
-                        related_information = Some(self.alloc_diagnostic_related_information(
-                            create_diagnostic_for_node(
-                                node_as_call_expression.expression,
-                                &Diagnostics::Are_you_missing_a_semicolon,
-                                None,
-                                self,
-                            )
-                            .into(),
-                        ));
+                        related_information = Some(
+                            self.alloc_diagnostic_related_information(
+                                create_diagnostic_for_node(
+                                    node_as_call_expression.expression,
+                                    &Diagnostics::Are_you_missing_a_semicolon,
+                                    None,
+                                    self,
+                                )
+                                .into(),
+                            ),
+                        );
                     }
                 }
                 self.invocation_error(
@@ -496,7 +500,8 @@ impl TypeChecker {
         &self,
         signature: Id<Signature>,
     ) -> io::Result<bool> {
-        let signature_type_parameters_is_some = signature.ref_(self).maybe_type_parameters().is_some();
+        let signature_type_parameters_is_some =
+            signature.ref_(self).maybe_type_parameters().is_some();
         Ok(signature_type_parameters_is_some
             && self.is_function_type(self.get_return_type_of_signature(signature)?)?)
     }
@@ -577,10 +582,12 @@ impl TypeChecker {
             if !self.is_constructor_accessible(node, construct_signatures[0])? {
                 return self.resolve_error_call(node);
             }
-            if construct_signatures
-                .iter()
-                .any(|signature| signature.ref_(self).flags.intersects(SignatureFlags::Abstract))
-            {
+            if construct_signatures.iter().any(|signature| {
+                signature
+                    .ref_(self)
+                    .flags
+                    .intersects(SignatureFlags::Abstract)
+            }) {
                 self.error(
                     Some(node),
                     &Diagnostics::Cannot_create_an_instance_of_an_abstract_class,
@@ -595,9 +602,9 @@ impl TypeChecker {
                     .and_then(|expression_type_symbol| {
                         get_class_like_declaration_of_symbol(expression_type_symbol, self)
                     });
-            if value_decl
-                .matches(|value_decl| has_syntactic_modifier(value_decl, ModifierFlags::Abstract, self))
-            {
+            if value_decl.matches(|value_decl| {
+                has_syntactic_modifier(value_decl, ModifierFlags::Abstract, self)
+            }) {
                 self.error(
                     Some(node),
                     &Diagnostics::Cannot_create_an_instance_of_an_abstract_class,
@@ -731,14 +738,19 @@ impl TypeChecker {
             self,
         );
 
-        if modifiers == ModifierFlags::None || declaration.ref_(self).kind() != SyntaxKind::Constructor {
+        if modifiers == ModifierFlags::None
+            || declaration.ref_(self).kind() != SyntaxKind::Constructor
+        {
             return Ok(true);
         }
 
-        let declaring_class_declaration =
-            get_class_like_declaration_of_symbol(declaration.ref_(self).parent().ref_(self).symbol(), self)
-                .unwrap();
-        let declaring_class = self.get_declared_type_of_symbol(declaration.ref_(self).parent().ref_(self).symbol())?;
+        let declaring_class_declaration = get_class_like_declaration_of_symbol(
+            declaration.ref_(self).parent().ref_(self).symbol(),
+            self,
+        )
+        .unwrap();
+        let declaring_class =
+            self.get_declared_type_of_symbol(declaration.ref_(self).parent().ref_(self).symbol())?;
 
         if !self.is_node_within_class(node, declaring_class_declaration) {
             let containing_class = get_containing_class(node, self);
@@ -906,14 +918,15 @@ impl TypeChecker {
 
         if is_call_expression(&error_target.ref_(self).parent().ref_(self))
             && error_target
-                .ref_(self).parent()
-                .ref_(self).as_call_expression()
-                .arguments
-                .ref_(self).is_empty()
-        {
-            let resolved_symbol = self.get_node_links(error_target)
                 .ref_(self)
-                .resolved_symbol;
+                .parent()
+                .ref_(self)
+                .as_call_expression()
+                .arguments
+                .ref_(self)
+                .is_empty()
+        {
+            let resolved_symbol = self.get_node_links(error_target).ref_(self).resolved_symbol;
             if matches!(
                 resolved_symbol,
                 Some(resolved_symbol) if resolved_symbol.ref_(self).flags().intersects(SymbolFlags::GetAccessor)

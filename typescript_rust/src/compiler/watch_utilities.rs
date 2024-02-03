@@ -1,6 +1,5 @@
 use std::io;
 
-
 pub trait DirectoryStructureHost {
     fn file_exists(&self, path: &str) -> bool;
     fn read_file(&self, path: &str, encoding: Option<&str>) -> io::Result<Option<String>>;

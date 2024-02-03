@@ -6,10 +6,10 @@ use std::{
 use id_arena::Id;
 
 use crate::{
-    combine_paths, get_directory_path, get_relative_path_to_directory_or_url, CharacterCodes,
-    Debug_, EmitHost, GetOrInsertDefault, LineAndCharacter, NonEmpty, RawSourceMap,
-    ScriptReferenceHost, SourceMapGenerator, SourceMapOptions, SourceTextAsChars,
-    HasArena, InArena, AllArenas,
+    combine_paths, get_directory_path, get_relative_path_to_directory_or_url, AllArenas,
+    CharacterCodes, Debug_, EmitHost, GetOrInsertDefault, HasArena, InArena, LineAndCharacter,
+    NonEmpty, RawSourceMap, ScriptReferenceHost, SourceMapGenerator, SourceMapOptions,
+    SourceTextAsChars,
 };
 
 pub struct SourceMapGeneratorOptions {

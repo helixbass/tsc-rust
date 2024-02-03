@@ -6,16 +6,13 @@ use crate::{
     cast, get_starts_on_new_line, is_array_binding_pattern, is_array_literal_expression,
     is_binding_element, is_binding_pattern, is_block, is_expression, is_identifier,
     is_object_binding_pattern, is_object_literal_element_like, is_object_literal_expression, map,
-    set_original_node, set_starts_on_new_line, set_text_range, BaseNodeFactory, Debug_,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeInterface,
-    HasTypeParametersInterface, NamedDeclarationInterface, Node, NodeConverters, NodeFactory,
-    NodeInterface, SignatureDeclarationInterface, SyntaxKind,
-    HasArena, AllArenas, InArena, NodeExt,
+    set_original_node, set_starts_on_new_line, set_text_range, AllArenas, BaseNodeFactory, Debug_,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasTypeInterface,
+    HasTypeParametersInterface, InArena, NamedDeclarationInterface, Node, NodeConverters, NodeExt,
+    NodeFactory, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };
 
-pub fn create_node_converters(
-    factory: Id<NodeFactory>,
-) -> NodeConvertersConcrete {
+pub fn create_node_converters(factory: Id<NodeFactory>) -> NodeConvertersConcrete {
     NodeConvertersConcrete::new(factory)
 }
 
@@ -23,15 +20,13 @@ pub struct NodeConvertersConcrete {
     factory: Id<NodeFactory>,
 }
 
-impl NodeConvertersConcrete
-{
+impl NodeConvertersConcrete {
     pub fn new(factory: Id<NodeFactory>) -> Self {
         Self { factory }
     }
 }
 
-impl NodeConverters for NodeConvertersConcrete
-{
+impl NodeConverters for NodeConvertersConcrete {
     fn convert_to_function_block(
         &self,
         node: Id<Node>, /*ConciseBody*/
@@ -42,12 +37,18 @@ impl NodeConverters for NodeConvertersConcrete
         }
         let return_statement = self
             .factory
-            .ref_(self).create_return_statement_raw(Some(node));
-        let return_statement = return_statement.alloc(self.arena()).set_text_range(Some(&*node.ref_(self)), self);
+            .ref_(self)
+            .create_return_statement_raw(Some(node));
+        let return_statement = return_statement
+            .alloc(self.arena())
+            .set_text_range(Some(&*node.ref_(self)), self);
         let body = self
             .factory
-            .ref_(self).create_block_raw(vec![return_statement], multi_line);
-        let body = body.alloc(self.arena()).set_text_range(Some(&*node.ref_(self)), self);
+            .ref_(self)
+            .create_block_raw(vec![return_statement], multi_line);
+        let body = body
+            .alloc(self.arena())
+            .set_text_range(Some(&*node.ref_(self)), self);
         body
     }
 
@@ -98,7 +99,8 @@ impl NodeConverters for NodeConvertersConcrete
                 );
                 return self
                     .factory
-                    .ref_(self).create_spread_element_raw(element_as_binding_element.name())
+                    .ref_(self)
+                    .create_spread_element_raw(element_as_binding_element.name())
                     .alloc(self.arena())
                     .set_text_range(Some(&*element.ref_(self)), self)
                     .set_original_node(Some(element), self);
@@ -109,7 +111,8 @@ impl NodeConverters for NodeConvertersConcrete
                 Some(element_initializer) => {
                     return self
                         .factory
-                        .ref_(self).create_assignment_raw(expression, element_initializer)
+                        .ref_(self)
+                        .create_assignment_raw(expression, element_initializer)
                         .alloc(self.arena())
                         .set_text_range(Some(&*element.ref_(self)), self)
                         .set_original_node(Some(element), self);
@@ -135,23 +138,28 @@ impl NodeConverters for NodeConvertersConcrete
                 );
                 return self
                     .factory
-                    .ref_(self).create_spread_assignment_raw(element_as_binding_element.name())
+                    .ref_(self)
+                    .create_spread_assignment_raw(element_as_binding_element.name())
                     .alloc(self.arena())
-                    .set_text_range(Some(&*element.ref_(self)),self)
+                    .set_text_range(Some(&*element.ref_(self)), self)
                     .set_original_node(Some(element), self);
             }
             if let Some(element_property_name) = element_as_binding_element.property_name {
                 let expression =
                     self.convert_to_assignment_element_target(element_as_binding_element.name());
-                return self.factory.ref_(self).create_property_assignment_raw(
-                    element_property_name.clone(),
-                    match element_as_binding_element.maybe_initializer() {
-                        Some(initializer) => {
-                            self.factory.ref_(self).create_assignment(expression, initializer)
-                        }
-                        None => expression,
-                    },
-                )
+                return self
+                    .factory
+                    .ref_(self)
+                    .create_property_assignment_raw(
+                        element_property_name.clone(),
+                        match element_as_binding_element.maybe_initializer() {
+                            Some(initializer) => self
+                                .factory
+                                .ref_(self)
+                                .create_assignment(expression, initializer),
+                            None => expression,
+                        },
+                    )
                     .alloc(self.arena())
                     .set_text_range(Some(&*element.ref_(self)), self)
                     .set_original_node(Some(element), self);
@@ -161,10 +169,13 @@ impl NodeConverters for NodeConvertersConcrete
                 Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
                 None,
             );
-            return self.factory.ref_(self).create_shorthand_property_assignment_raw(
-                element_as_binding_element.name(),
-                element_as_binding_element.maybe_initializer(),
-            )
+            return self
+                .factory
+                .ref_(self)
+                .create_shorthand_property_assignment_raw(
+                    element_as_binding_element.name(),
+                    element_as_binding_element.maybe_initializer(),
+                )
                 .alloc(self.arena())
                 .set_text_range(Some(&*element.ref_(self)), self)
                 .set_original_node(Some(element), self);
@@ -196,18 +207,23 @@ impl NodeConverters for NodeConvertersConcrete
         if is_object_binding_pattern(&node.ref_(self)) {
             let node_ref = node.ref_(self);
             let node_as_object_binding_pattern = node_ref.as_object_binding_pattern();
-            return self.factory.ref_(self).create_object_literal_expression_raw(
-                Some(map(
-                    &*node_as_object_binding_pattern.elements.ref_(self),
-                    |&element, _| self.convert_to_object_assignment_element(element),
-                )),
-                None,
-            )
+            return self
+                .factory
+                .ref_(self)
+                .create_object_literal_expression_raw(
+                    Some(map(
+                        &*node_as_object_binding_pattern.elements.ref_(self),
+                        |&element, _| self.convert_to_object_assignment_element(element),
+                    )),
+                    None,
+                )
                 .alloc(self.arena())
                 .set_text_range(Some(&*node.ref_(self)), self)
                 .set_original_node(Some(node), self);
         }
-        cast(Some(node), |node| is_object_literal_expression(&node.ref_(self)))
+        cast(Some(node), |node| {
+            is_object_literal_expression(&node.ref_(self))
+        })
     }
 
     fn convert_to_array_assignment_pattern(
@@ -217,18 +233,23 @@ impl NodeConverters for NodeConvertersConcrete
         if is_array_binding_pattern(&node.ref_(self)) {
             let node_ref = node.ref_(self);
             let node_as_array_binding_pattern = node_ref.as_array_binding_pattern();
-            return self.factory.ref_(self).create_array_literal_expression_raw(
-                Some(map(
-                    &*node_as_array_binding_pattern.elements.ref_(self),
-                    |&element, _| self.convert_to_array_assignment_element(element),
-                )),
-                None,
-            )
+            return self
+                .factory
+                .ref_(self)
+                .create_array_literal_expression_raw(
+                    Some(map(
+                        &*node_as_array_binding_pattern.elements.ref_(self),
+                        |&element, _| self.convert_to_array_assignment_element(element),
+                    )),
+                    None,
+                )
                 .alloc(self.arena())
                 .set_text_range(Some(&*node.ref_(self)), self)
                 .set_original_node(Some(node), self);
         }
-        cast(Some(node), |node| is_array_literal_expression(&node.ref_(self)))
+        cast(Some(node), |node| {
+            is_array_literal_expression(&node.ref_(self))
+        })
     }
 
     fn convert_to_assignment_element_target(
@@ -242,8 +263,7 @@ impl NodeConverters for NodeConvertersConcrete
     }
 }
 
-impl HasArena for NodeConvertersConcrete
-{
+impl HasArena for NodeConvertersConcrete {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
@@ -261,8 +281,7 @@ impl NullNodeConverters {
     }
 }
 
-impl NodeConverters for NullNodeConverters
-{
+impl NodeConverters for NullNodeConverters {
     fn convert_to_function_block(
         &self,
         _node: Id<Node>, /*ConciseBody*/

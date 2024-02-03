@@ -4,11 +4,10 @@ use id_arena::Id;
 
 use super::{TransformTypeScript, TypeScriptSubstitutionFlags};
 use crate::{
-    create_range, get_original_node_id, has_syntactic_modifier, id_text, is_static, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt, NodeInterface, ReadonlyTextRange,
-    SyntaxKind,
-    HasArena, InArena, OptionInArena,
-    CoreTransformationContext, TransformationContext,
+    create_range, get_original_node_id, has_syntactic_modifier, id_text, is_static,
+    CoreTransformationContext, HasArena, InArena, ModifierFlags, NamedDeclarationInterface, Node,
+    NodeCheckFlags, NodeExt, NodeInterface, OptionInArena, ReadonlyTextRange, SyntaxKind,
+    TransformationContext,
 };
 
 impl TransformTypeScript {
@@ -28,11 +27,14 @@ impl TransformTypeScript {
     }
 
     pub(super) fn is_default_external_module_export(&self, node: Id<Node>) -> bool {
-        self.is_external_module_export(node) && has_syntactic_modifier(node, ModifierFlags::Default, self)
+        self.is_external_module_export(node)
+            && has_syntactic_modifier(node, ModifierFlags::Default, self)
     }
 
     pub(super) fn expression_to_statement(&self, expression: Id<Node /*Expression*/>) -> Id<Node> {
-        self.factory.ref_(self).create_expression_statement(expression)
+        self.factory
+            .ref_(self)
+            .create_expression_statement(expression)
     }
 
     pub(super) fn add_export_member_assignment(
@@ -42,29 +44,47 @@ impl TransformTypeScript {
     ) {
         let expression = self
             .factory
-            .ref_(self).create_assignment(
-                self.factory.ref_(self).get_external_module_or_namespace_export_name(
-                    self.maybe_current_namespace_container_name(),
-                    node,
-                    Some(false),
-                    Some(true),
-                ),
+            .ref_(self)
+            .create_assignment(
+                self.factory
+                    .ref_(self)
+                    .get_external_module_or_namespace_export_name(
+                        self.maybe_current_namespace_container_name(),
+                        node,
+                        Some(false),
+                        Some(true),
+                    ),
                 self.factory.ref_(self).get_local_name(node, None, None),
             )
-            .set_source_map_range(Some(
-                self.alloc_source_map_range((&create_range(
-                    node.ref_(self).as_named_declaration()
-                        .maybe_name()
-                        .map_or_else(|| node.ref_(self).pos(), |node_name| node_name.ref_(self).pos()),
-                    Some(node.ref_(self).end()),
-                ))
-                    .into()),
-            ), self);
+            .set_source_map_range(
+                Some(
+                    self.alloc_source_map_range(
+                        (&create_range(
+                            node.ref_(self)
+                                .as_named_declaration()
+                                .maybe_name()
+                                .map_or_else(
+                                    || node.ref_(self).pos(),
+                                    |node_name| node_name.ref_(self).pos(),
+                                ),
+                            Some(node.ref_(self).end()),
+                        ))
+                            .into(),
+                    ),
+                ),
+                self,
+            );
 
         let statement = self
             .factory
-            .ref_(self).create_expression_statement(expression)
-            .set_source_map_range(Some(self.alloc_source_map_range((&create_range(-1, Some(node.ref_(self).end()))).into())), self);
+            .ref_(self)
+            .create_expression_statement(expression)
+            .set_source_map_range(
+                Some(self.alloc_source_map_range(
+                    (&create_range(-1, Some(node.ref_(self).end()))).into(),
+                )),
+                self,
+            );
         statements.push(statement);
     }
 
@@ -75,7 +95,8 @@ impl TransformTypeScript {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Id<Node> {
         self.factory
-            .ref_(self).create_expression_statement(self.factory.ref_(self).create_assignment(
+            .ref_(self)
+            .create_expression_statement(self.factory.ref_(self).create_assignment(
                 self.factory.ref_(self).get_namespace_member_name(
                     self.current_namespace_container_name(),
                     export_name,
@@ -94,7 +115,8 @@ impl TransformTypeScript {
         location: Option<&(impl ReadonlyTextRange + ?Sized)>,
     ) -> Id<Node> {
         self.factory
-            .ref_(self).create_assignment(
+            .ref_(self)
+            .create_assignment(
                 self.get_namespace_member_name_with_source_maps_and_without_comments(export_name),
                 export_value,
             )
@@ -118,11 +140,14 @@ impl TransformTypeScript {
         node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> Id<Node> {
         self.factory
-            .ref_(self).get_generated_name_for_node(Some(node), None)
+            .ref_(self)
+            .get_generated_name_for_node(Some(node), None)
             .set_source_map_range(
-                node.ref_(self).as_named_declaration()
+                node.ref_(self)
+                    .as_named_declaration()
                     .maybe_name()
-                    .refed(self).as_deref()
+                    .refed(self)
+                    .as_deref()
                     .map(|node| self.alloc_source_map_range(node.into())),
                 self,
             )
@@ -132,7 +157,9 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ModuleDeclaration | EnumDeclaration*/
     ) -> Id<Node> {
-        self.factory.ref_(self).get_generated_name_for_node(Some(node), None)
+        self.factory
+            .ref_(self)
+            .get_generated_name_for_node(Some(node), None)
     }
 
     pub(super) fn get_class_alias_if_needed(
@@ -141,19 +168,27 @@ impl TransformTypeScript {
     ) -> Option<Id<Node>> {
         if self
             .resolver
-            .ref_(self).get_node_check_flags(node)
+            .ref_(self)
+            .get_node_check_flags(node)
             .intersects(NodeCheckFlags::ClassWithConstructorReference)
         {
             self.enable_substitution_for_class_aliases();
             let class_alias = self.factory.ref_(self).create_unique_name(
-                &node.ref_(self).as_class_declaration()
+                &node
+                    .ref_(self)
+                    .as_class_declaration()
                     .maybe_name()
-                    .map_or_else(|| "default".into(), |node_name| Cow::from(id_text(&node_name.ref_(self)).to_owned())),
+                    .map_or_else(
+                        || "default".into(),
+                        |node_name| Cow::from(id_text(&node_name.ref_(self)).to_owned()),
+                    ),
                 None,
             );
             self.class_aliases_mut()
                 .insert(get_original_node_id(node, self), class_alias);
-            self.context.ref_(self).hoist_variable_declaration(class_alias);
+            self.context
+                .ref_(self)
+                .hoist_variable_declaration(class_alias);
             return Some(class_alias);
         }
         None
@@ -164,7 +199,9 @@ impl TransformTypeScript {
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> Id<Node> {
         self.factory.ref_(self).create_property_access_expression(
-            self.factory.ref_(self).get_declaration_name(Some(node), None, None),
+            self.factory
+                .ref_(self)
+                .get_declaration_name(Some(node), None, None),
             "prototype",
         )
     }
@@ -175,7 +212,9 @@ impl TransformTypeScript {
         member: Id<Node>, /*ClassElement*/
     ) -> Id<Node> {
         if is_static(member, self) {
-            self.factory.ref_(self).get_declaration_name(Some(node), None, None)
+            self.factory
+                .ref_(self)
+                .get_declaration_name(Some(node), None, None)
         } else {
             self.get_class_prototype(node)
         }
@@ -189,7 +228,9 @@ impl TransformTypeScript {
             self.set_enabled_substitutions(
                 self.enabled_substitutions() | TypeScriptSubstitutionFlags::NonQualifiedEnumMembers,
             );
-            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
+            self.context
+                .ref_(self)
+                .enable_substitution(SyntaxKind::Identifier);
         }
     }
 
@@ -202,7 +243,9 @@ impl TransformTypeScript {
                 self.enabled_substitutions() | TypeScriptSubstitutionFlags::ClassAliases,
             );
 
-            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
+            self.context
+                .ref_(self)
+                .enable_substitution(SyntaxKind::Identifier);
 
             self.set_class_aliases(Some(Default::default()));
         }
@@ -217,12 +260,16 @@ impl TransformTypeScript {
                 self.enabled_substitutions() | TypeScriptSubstitutionFlags::NamespaceExports,
             );
 
-            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
             self.context
-                .ref_(self).enable_substitution(SyntaxKind::ShorthandPropertyAssignment);
+                .ref_(self)
+                .enable_substitution(SyntaxKind::Identifier);
+            self.context
+                .ref_(self)
+                .enable_substitution(SyntaxKind::ShorthandPropertyAssignment);
 
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::ModuleDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::ModuleDeclaration);
         }
     }
 
@@ -231,7 +278,9 @@ impl TransformTypeScript {
             if self.compiler_options.ref_(self).preserve_value_imports == Some(true) {
                 self.resolver.ref_(self).is_value_alias_declaration(node)?
             } else {
-                self.resolver.ref_(self).is_referenced_alias_declaration(node, None)?
+                self.resolver
+                    .ref_(self)
+                    .is_referenced_alias_declaration(node, None)?
             },
         )
     }

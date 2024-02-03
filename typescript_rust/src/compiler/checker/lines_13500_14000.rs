@@ -9,10 +9,10 @@ use crate::{
     symbol_name, try_map, try_maybe_map, try_some, AsDoubleDeref, BaseInterfaceType, CheckFlags,
     DiagnosticMessage, Diagnostics, ElementFlags, GenericableTypeInterface, HasArena,
     HasTypeArgumentsInterface, InArena, InterfaceTypeInterface,
-    InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, TupleType, Type,
-    TypeChecker, TypeFlags, TypeInterface, TypeReferenceInterface,
-    OptionInArena,
+    InterfaceTypeWithDeclaredMembersInterface, Node, NodeInterface, Number, ObjectFlags,
+    OptionInArena, OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    TransientSymbolInterface, TupleType, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeReferenceInterface,
 };
 
 impl TypeChecker {
@@ -20,8 +20,8 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JSDocNullableType*/
     ) -> io::Result<Id<Type>> {
-        let type_ =
-            self.get_type_from_type_node_(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap())?;
+        let type_ = self
+            .get_type_from_type_node_(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap())?;
         Ok(if self.strict_null_checks {
             self.get_nullable_type(type_, TypeFlags::Null)?
         } else {
@@ -35,10 +35,16 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let links = self.get_node_links(node);
         if links.ref_(self).resolved_type.is_none() {
-            if is_const_type_reference(node, self) && is_assertion_expression(&node.ref_(self).parent().ref_(self)) {
+            if is_const_type_reference(node, self)
+                && is_assertion_expression(&node.ref_(self).parent().ref_(self))
+            {
                 links.ref_mut(self).resolved_symbol = Some(self.unknown_symbol());
                 let ret = self.check_expression_cached(
-                    node.ref_(self).parent().ref_(self).as_has_expression().expression(),
+                    node.ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_has_expression()
+                        .expression(),
                     None,
                 )?;
                 links.ref_mut(self).resolved_type = Some(ret.clone());
@@ -82,7 +88,11 @@ impl TypeChecker {
         node: Id<Node>, /*NodeWithTypeArguments*/
     ) -> io::Result<Option<Vec<Id<Type>>>> {
         try_maybe_map(
-            node.ref_(self).as_has_type_arguments().maybe_type_arguments().refed(self).as_deref(),
+            node.ref_(self)
+                .as_has_type_arguments()
+                .maybe_type_arguments()
+                .refed(self)
+                .as_deref(),
             |&type_argument, _| self.get_type_from_type_node_(type_argument),
         )
         .transpose()
@@ -144,10 +154,7 @@ impl TypeChecker {
             self.error(
                 self.get_type_declaration(symbol),
                 &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                Some(vec![
-                    symbol_name(symbol, self),
-                    arity.to_string(),
-                ]),
+                Some(vec![symbol_name(symbol, self), arity.to_string()]),
             );
             return Ok(if arity != 0 {
                 self.empty_generic_type()
@@ -248,10 +255,7 @@ impl TypeChecker {
                 self.error(
                     decl,
                     &Diagnostics::Global_type_0_must_have_1_type_parameter_s,
-                    Some(vec![
-                        symbol_name(symbol, self),
-                        arity.to_string(),
-                    ]),
+                    Some(vec![symbol_name(symbol, self), arity.to_string()]),
                 );
                 return Ok(None);
             }
@@ -327,9 +331,7 @@ impl TypeChecker {
                     .unwrap_or_else(|| self.empty_object_type()),
             ));
         }
-        Ok(self
-            .maybe_deferred_global_import_meta_type()
-            .unwrap())
+        Ok(self.maybe_deferred_global_import_meta_type().unwrap())
     }
 
     pub(super) fn get_global_import_meta_expression_type(&self) -> io::Result<Id<Type>> {
@@ -367,9 +369,9 @@ impl TypeChecker {
             ));
             symbol.ref_(self).set_members(Some(members));
 
-            self.set_deferred_global_import_meta_expression_type(
-                Some(self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])?)
-            );
+            self.set_deferred_global_import_meta_expression_type(Some(
+                self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])?,
+            ));
         }
         Ok(self
             .maybe_deferred_global_import_meta_expression_type()
@@ -384,9 +386,11 @@ impl TypeChecker {
             .maybe_deferred_global_import_call_options_type()
             .is_none()
         {
-            self.set_deferred_global_import_call_options_type(
-                self.get_global_type("ImportCallOptions", 0, report_errors)?
-            );
+            self.set_deferred_global_import_call_options_type(self.get_global_type(
+                "ImportCallOptions",
+                0,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_import_call_options_type()
@@ -402,11 +406,10 @@ impl TypeChecker {
             .is_none()
         {
             self.set_deferred_global_es_symbol_constructor_symbol(
-                self.get_global_value_symbol("Symbol", report_errors)?
+                self.get_global_value_symbol("Symbol", report_errors)?,
             );
         }
-        Ok(self
-            .maybe_deferred_global_es_symbol_constructor_symbol())
+        Ok(self.maybe_deferred_global_es_symbol_constructor_symbol())
     }
 
     pub(super) fn get_global_es_symbol_constructor_type_symbol(
@@ -418,18 +421,19 @@ impl TypeChecker {
             .is_none()
         {
             self.set_deferred_global_es_symbol_constructor_type_symbol(
-                self.get_global_type_symbol("SymbolConstructor", report_errors)?
+                self.get_global_type_symbol("SymbolConstructor", report_errors)?,
             );
         }
-        Ok(self
-            .maybe_deferred_global_es_symbol_constructor_type_symbol())
+        Ok(self.maybe_deferred_global_es_symbol_constructor_type_symbol())
     }
 
     pub(super) fn get_global_es_symbol_type(&self, report_errors: bool) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_es_symbol_type().is_none() {
-            self.set_deferred_global_es_symbol_type(
-                self.get_global_type("Symbol", 0, report_errors)?
-            );
+            self.set_deferred_global_es_symbol_type(self.get_global_type(
+                "Symbol",
+                0,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_es_symbol_type()
@@ -441,9 +445,11 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type /*GenericType*/>> {
         if self.maybe_deferred_global_promise_type().is_none() {
-            self.set_deferred_global_promise_type(
-                self.get_global_type("Promise", 1, report_errors)?
-            );
+            self.set_deferred_global_promise_type(self.get_global_type(
+                "Promise",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_promise_type()
@@ -455,9 +461,11 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type /*GenericType*/>> {
         if self.maybe_deferred_global_promise_like_type().is_none() {
-            self.set_deferred_global_promise_like_type(
-                self.get_global_type("PromiseLike", 1, report_errors)?
-            );
+            self.set_deferred_global_promise_like_type(self.get_global_type(
+                "PromiseLike",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_promise_like_type()
@@ -473,11 +481,10 @@ impl TypeChecker {
             .is_none()
         {
             self.set_deferred_global_promise_constructor_symbol(
-                self.get_global_value_symbol("Promise", report_errors)?
+                self.get_global_value_symbol("Promise", report_errors)?,
             );
         }
-        Ok(self
-            .maybe_deferred_global_promise_constructor_symbol())
+        Ok(self.maybe_deferred_global_promise_constructor_symbol())
     }
 
     pub(super) fn get_global_promise_constructor_like_type(
@@ -488,9 +495,11 @@ impl TypeChecker {
             .maybe_deferred_global_promise_constructor_like_type()
             .is_none()
         {
-            self.set_deferred_global_promise_constructor_like_type(
-                self.get_global_type("PromiseConstructorLike", 0, report_errors)?
-            );
+            self.set_deferred_global_promise_constructor_like_type(self.get_global_type(
+                "PromiseConstructorLike",
+                0,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_promise_constructor_like_type()
@@ -502,9 +511,11 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_async_iterable_type().is_none() {
-            self.set_deferred_global_async_iterable_type(
-                self.get_global_type("AsyncIterable", 1, report_errors)?
-            );
+            self.set_deferred_global_async_iterable_type(self.get_global_type(
+                "AsyncIterable",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_async_iterable_type()
@@ -516,9 +527,11 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_async_iterator_type().is_none() {
-            self.set_deferred_global_async_iterator_type(
-                self.get_global_type("AsyncIterator", 3, report_errors)?
-            );
+            self.set_deferred_global_async_iterator_type(self.get_global_type(
+                "AsyncIterator",
+                3,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_async_iterator_type()
@@ -533,9 +546,11 @@ impl TypeChecker {
             .maybe_deferred_global_async_iterable_iterator_type()
             .is_none()
         {
-            self.set_deferred_global_async_iterable_iterator_type(
-                self.get_global_type("AsyncIterableIterator", 1, report_errors)?
-            );
+            self.set_deferred_global_async_iterable_iterator_type(self.get_global_type(
+                "AsyncIterableIterator",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_async_iterable_iterator_type()
@@ -548,9 +563,11 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_async_generator_type().is_none() {
-            self.set_deferred_global_async_generator_type(
-                self.get_global_type("AsyncGenerator", 3, report_errors)?
-            );
+            self.set_deferred_global_async_generator_type(self.get_global_type(
+                "AsyncGenerator",
+                3,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_async_generator_type()
@@ -559,9 +576,11 @@ impl TypeChecker {
 
     pub(super) fn get_global_iterable_type(&self, report_errors: bool) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_iterable_type().is_none() {
-            self.set_deferred_global_iterable_type(
-                self.get_global_type("Iterable", 1, report_errors)?
-            );
+            self.set_deferred_global_iterable_type(self.get_global_type(
+                "Iterable",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_iterable_type()
@@ -570,9 +589,11 @@ impl TypeChecker {
 
     pub(super) fn get_global_iterator_type(&self, report_errors: bool) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_iterator_type().is_none() {
-            self.set_deferred_global_iterator_type(
-                self.get_global_type("Iterator", 3, report_errors)?
-            );
+            self.set_deferred_global_iterator_type(self.get_global_type(
+                "Iterator",
+                3,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_iterator_type()
@@ -587,9 +608,11 @@ impl TypeChecker {
             .maybe_deferred_global_iterable_iterator_type()
             .is_none()
         {
-            self.set_deferred_global_iterable_iterator_type(
-                self.get_global_type("IterableIterator", 1, report_errors)?
-            );
+            self.set_deferred_global_iterable_iterator_type(self.get_global_type(
+                "IterableIterator",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_iterable_iterator_type()
@@ -598,9 +621,11 @@ impl TypeChecker {
 
     pub(super) fn get_global_generator_type(&self, report_errors: bool) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_generator_type().is_none() {
-            self.set_deferred_global_generator_type(
-                self.get_global_type("Generator", 3, report_errors)?
-            );
+            self.set_deferred_global_generator_type(self.get_global_type(
+                "Generator",
+                3,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_generator_type()
@@ -615,9 +640,11 @@ impl TypeChecker {
             .maybe_deferred_global_iterator_yield_result_type()
             .is_none()
         {
-            self.set_deferred_global_iterator_yield_result_type(
-                self.get_global_type("IteratorYieldResult", 1, report_errors)?
-            );
+            self.set_deferred_global_iterator_yield_result_type(self.get_global_type(
+                "IteratorYieldResult",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_iterator_yield_result_type()
@@ -632,9 +659,11 @@ impl TypeChecker {
             .maybe_deferred_global_iterator_return_result_type()
             .is_none()
         {
-            self.set_deferred_global_iterator_return_result_type(
-                self.get_global_type("IteratorReturnResult", 1, report_errors)?
-            );
+            self.set_deferred_global_iterator_return_result_type(self.get_global_type(
+                "IteratorReturnResult",
+                1,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_iterator_return_result_type()
@@ -684,15 +713,16 @@ impl TypeChecker {
         report_errors: bool,
     ) -> io::Result<Option<Id<Symbol>>> {
         if self.maybe_deferred_global_awaited_symbol().is_none() {
-            self.set_deferred_global_awaited_symbol(self
-                .get_global_type_alias_symbol("Awaited", 1, report_errors)?
-                .or_else(|| {
-                    if report_errors {
-                        Some(self.unknown_symbol())
-                    } else {
-                        None
-                    }
-                }));
+            self.set_deferred_global_awaited_symbol(
+                self.get_global_type_alias_symbol("Awaited", 1, report_errors)?
+                    .or_else(|| {
+                        if report_errors {
+                            Some(self.unknown_symbol())
+                        } else {
+                            None
+                        }
+                    }),
+            );
         }
         Ok(self
             .maybe_deferred_global_awaited_symbol()
@@ -703,9 +733,11 @@ impl TypeChecker {
 
     pub(super) fn get_global_big_int_type(&self, report_errors: bool) -> io::Result<Id<Type>> {
         if self.maybe_deferred_global_big_int_type().is_none() {
-            self.set_deferred_global_big_int_type(
-                self.get_global_type("BigInt", 0, report_errors)?
-            );
+            self.set_deferred_global_big_int_type(self.get_global_type(
+                "BigInt",
+                0,
+                report_errors,
+            )?);
         }
         Ok(self
             .maybe_deferred_global_big_int_type()
@@ -841,9 +873,11 @@ impl TypeChecker {
                 } else {
                     matches!(has_default_type_arguments, Some(true))
                         || try_some(
-                            node.ref_(self).as_type_reference_node()
+                            node.ref_(self)
+                                .as_type_reference_node()
                                 .maybe_type_arguments()
-                                .refed(self).as_double_deref(),
+                                .refed(self)
+                                .as_double_deref(),
                             Some(|&type_argument: &Id<Node>| {
                                 self.may_resolve_type_alias(type_argument)
                             }),
@@ -902,12 +936,19 @@ impl TypeChecker {
                     || self.may_resolve_type_alias(
                         node_as_rest_type_node
                             .type_
-                            .ref_(self).as_array_type_node()
+                            .ref_(self)
+                            .as_array_type_node()
                             .element_type,
                     )?
             }
             SyntaxKind::UnionType | SyntaxKind::IntersectionType => try_some(
-                Some(&*node.ref_(self).as_union_or_intersection_type_node().types().ref_(self)),
+                Some(
+                    &*node
+                        .ref_(self)
+                        .as_union_or_intersection_type_node()
+                        .types()
+                        .ref_(self),
+                ),
                 Some(|&type_: &Id<Node>| self.may_resolve_type_alias(type_)),
             )?,
             SyntaxKind::IndexedAccessType => {
@@ -949,7 +990,12 @@ impl TypeChecker {
             {
                 links.ref_mut(self).resolved_type = Some(
                     if node.ref_(self).kind() == SyntaxKind::TupleType
-                        && node.ref_(self).as_tuple_type_node().elements.ref_(self).is_empty()
+                        && node
+                            .ref_(self)
+                            .as_tuple_type_node()
+                            .elements
+                            .ref_(self)
+                            .is_empty()
                     {
                         target
                     } else {
@@ -964,7 +1010,9 @@ impl TypeChecker {
                 );
             } else {
                 let element_types = if node.ref_(self).kind() == SyntaxKind::ArrayType {
-                    vec![self.get_type_from_type_node_(node.ref_(self).as_array_type_node().element_type)?]
+                    vec![self.get_type_from_type_node_(
+                        node.ref_(self).as_array_type_node().element_type,
+                    )?]
                 } else {
                     try_map(
                         &*node.ref_(self).as_tuple_type_node().elements.ref_(self),

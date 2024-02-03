@@ -8,9 +8,8 @@ use crate::{
     is_logical_or_coalescing_assignment_operator, is_optional_chain, is_outermost_optional_chain,
     is_parenthesized_expression, is_prefix_unary_expression, skip_parentheses,
     unused_label_is_error, Diagnostics, FlowArrayMutation, FlowAssignment, FlowCall, FlowFlags,
-    FlowNode, FlowNodeBase, FlowSwitchClause, HasInitializerInterface, NamedDeclarationInterface,
-    Node, NodeInterface, SyntaxKind,
-    HasArena, InArena,
+    FlowNode, FlowNodeBase, FlowSwitchClause, HasArena, HasInitializerInterface, InArena,
+    NamedDeclarationInterface, Node, NodeInterface, SyntaxKind,
 };
 
 impl Binder {
@@ -97,13 +96,18 @@ impl Binder {
             if node.ref_(self).kind() == SyntaxKind::ParenthesizedExpression {
                 node = node.ref_(self).as_parenthesized_expression().expression;
             } else if node.ref_(self).kind() == SyntaxKind::PrefixUnaryExpression
-                && node.ref_(self).as_prefix_unary_expression().operator == SyntaxKind::ExclamationToken
+                && node.ref_(self).as_prefix_unary_expression().operator
+                    == SyntaxKind::ExclamationToken
             {
                 node = node.ref_(self).as_prefix_unary_expression().operand;
             } else {
                 return node.ref_(self).kind() == SyntaxKind::BinaryExpression
                     && matches!(
-                        node.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
+                        node.ref_(self)
+                            .as_binary_expression()
+                            .operator_token
+                            .ref_(self)
+                            .kind(),
                         SyntaxKind::AmpersandAmpersandToken
                             | SyntaxKind::BarBarToken
                             | SyntaxKind::QuestionQuestionToken
@@ -116,14 +120,23 @@ impl Binder {
         let node = skip_parentheses(node, None, self);
         is_binary_expression(&node.ref_(self))
             && is_logical_or_coalescing_assignment_operator(
-                node.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
+                node.ref_(self)
+                    .as_binary_expression()
+                    .operator_token
+                    .ref_(self)
+                    .kind(),
             )
     }
 
     pub(super) fn is_top_level_logical_expression(&self, mut node: Id<Node>) -> bool {
         while is_parenthesized_expression(&node.ref_(self).parent().ref_(self))
             || is_prefix_unary_expression(&node.ref_(self).parent().ref_(self))
-                && node.ref_(self).parent().ref_(self).as_prefix_unary_expression().operator
+                && node
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_prefix_unary_expression()
+                    .operator
                     == SyntaxKind::ExclamationToken
         {
             node = node.ref_(self).parent();
@@ -132,7 +145,13 @@ impl Binder {
             && !self.is_logical_assignment_expression(node.ref_(self).parent())
             && !self.is_logical_expression(node.ref_(self).parent())
             && !(is_optional_chain(&node.ref_(self).parent().ref_(self))
-                && node.ref_(self).parent().ref_(self).as_has_expression().expression() == node)
+                && node
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_has_expression()
+                    .expression()
+                    == node)
     }
 
     pub(super) fn do_with_conditional_branches<TArgument, TAction: FnMut(TArgument)>(
@@ -168,24 +187,17 @@ impl Binder {
             Some(node) => {
                 !self.is_logical_assignment_expression(node)
                     && !self.is_logical_expression(node)
-                    && !(is_optional_chain(&node.ref_(self)) && is_outermost_optional_chain(node, self))
+                    && !(is_optional_chain(&node.ref_(self))
+                        && is_outermost_optional_chain(node, self))
             }
         } {
             self.add_antecedent(
                 &true_target.ref_(self),
-                self.create_flow_condition(
-                    FlowFlags::TrueCondition,
-                    self.current_flow(),
-                    node,
-                ),
+                self.create_flow_condition(FlowFlags::TrueCondition, self.current_flow(), node),
             );
             self.add_antecedent(
                 &false_target.ref_(self),
-                self.create_flow_condition(
-                    FlowFlags::FalseCondition,
-                    self.current_flow(),
-                    node,
-                ),
+                self.create_flow_condition(FlowFlags::FalseCondition, self.current_flow(), node),
             );
         }
     }
@@ -211,9 +223,13 @@ impl Binder {
         target: Id<FlowNode /*FlowLabel*/>,
     ) -> Id<FlowNode> {
         let mut label = self.maybe_active_label_list();
-        while label.is_some() && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::LabeledStatement {
+        while label.is_some()
+            && node.ref_(self).parent().ref_(self).kind() == SyntaxKind::LabeledStatement
+        {
             let label_present = label.unwrap();
-            label_present.ref_(self).set_continue_target(Some(target.clone()));
+            label_present
+                .ref_(self)
+                .set_continue_target(Some(target.clone()));
             label = label_present.ref_(self).next.clone();
             node = node.ref_(self).parent();
         }
@@ -304,7 +320,11 @@ impl Binder {
             self.bind(node.ref_(self).as_for_of_statement().await_modifier);
         }
         self.add_antecedent(&post_loop_label.ref_(self), self.current_flow());
-        let node_initializer = node.ref_(self).as_has_initializer().maybe_initializer().unwrap();
+        let node_initializer = node
+            .ref_(self)
+            .as_has_initializer()
+            .maybe_initializer()
+            .unwrap();
         self.bind(Some(node_initializer));
         if node_initializer.ref_(self).kind() != SyntaxKind::VariableDeclarationList {
             self.bind_assignment_target_flow(node_initializer);
@@ -387,7 +407,8 @@ impl Binder {
         let node_ref = node.ref_(self);
         let node_as_has_label = node_ref.as_has_label();
         if let Some(node_label) = node_as_has_label.maybe_label() {
-            let active_label = self.find_active_label(&node_label.ref_(self).as_identifier().escaped_text);
+            let active_label =
+                self.find_active_label(&node_label.ref_(self).as_identifier().escaped_text);
             if let Some(active_label) = active_label {
                 active_label.ref_(self).set_referenced(true);
                 self.bind_break_or_continue_flow(
@@ -433,22 +454,26 @@ impl Binder {
         if node_as_try_statement.finally_block.is_some() {
             let finally_label = self.create_branch_label();
             finally_label
-                .ref_(self).as_flow_label()
+                .ref_(self)
+                .as_flow_label()
                 .set_antecedents(Some(concatenate(
                     concatenate(
                         normal_exit_label
-                            .ref_(self).as_flow_label()
+                            .ref_(self)
+                            .as_flow_label()
                             .maybe_antecedents()
                             .clone()
                             .unwrap_or_else(|| vec![]),
                         exception_label
-                            .ref_(self).as_flow_label()
+                            .ref_(self)
+                            .as_flow_label()
                             .maybe_antecedents()
                             .clone()
                             .unwrap_or_else(|| vec![]),
                     ),
                     return_label
-                        .ref_(self).as_flow_label()
+                        .ref_(self)
+                        .as_flow_label()
                         .maybe_antecedents()
                         .clone()
                         .unwrap_or_else(|| vec![]),
@@ -457,14 +482,18 @@ impl Binder {
             self.bind(node_as_try_statement.finally_block);
             if self
                 .current_flow()
-                .ref_(self).flags()
+                .ref_(self)
+                .flags()
                 .intersects(FlowFlags::Unreachable)
             {
                 self.set_current_flow(Some(self.unreachable_flow()));
             } else {
                 if let Some(current_return_target) = self.maybe_current_return_target() {
-                    if let Some(return_label_antecedents) =
-                        return_label.ref_(self).as_flow_label().maybe_antecedents().clone()
+                    if let Some(return_label_antecedents) = return_label
+                        .ref_(self)
+                        .as_flow_label()
+                        .maybe_antecedents()
+                        .clone()
                     {
                         self.add_antecedent(
                             &current_return_target.ref_(self),
@@ -477,8 +506,11 @@ impl Binder {
                     }
                 }
                 if let Some(current_exception_target) = self.maybe_current_exception_target() {
-                    if let Some(exception_label_antecedents) =
-                        exception_label.ref_(self).as_flow_label().maybe_antecedents().clone()
+                    if let Some(exception_label_antecedents) = exception_label
+                        .ref_(self)
+                        .as_flow_label()
+                        .maybe_antecedents()
+                        .clone()
                     {
                         self.add_antecedent(
                             &current_exception_target.ref_(self),
@@ -492,7 +524,8 @@ impl Binder {
                 }
                 self.set_current_flow(Some(
                     match normal_exit_label
-                        .ref_(self).as_flow_label()
+                        .ref_(self)
+                        .as_flow_label()
                         .maybe_antecedents()
                         .clone()
                     {
@@ -522,13 +555,19 @@ impl Binder {
         self.bind(Some(node_as_switch_statement.case_block));
         self.add_antecedent(&post_switch_label.ref_(self), self.current_flow());
         let has_default = for_each_bool(
-            &*node_as_switch_statement.case_block.ref_(self).as_case_block().clauses.ref_(self),
+            &*node_as_switch_statement
+                .case_block
+                .ref_(self)
+                .as_case_block()
+                .clauses
+                .ref_(self),
             |c, _| c.ref_(self).kind() == SyntaxKind::DefaultClause,
         );
         node_as_switch_statement.set_possibly_exhaustive(Some(
             !has_default
                 && post_switch_label
-                    .ref_(self).as_flow_label()
+                    .ref_(self)
+                    .as_flow_label()
                     .maybe_antecedents()
                     .is_none(),
         ));
@@ -547,16 +586,23 @@ impl Binder {
         let node_ref = node.ref_(self);
         let node_as_case_block = node_ref.as_case_block();
         let clauses = &*node_as_case_block.clauses.ref_(self);
-        let is_narrowing_switch =
-            self.is_narrowing_expression(node.ref_(self).parent().ref_(self).as_switch_statement().expression);
+        let is_narrowing_switch = self.is_narrowing_expression(
+            node.ref_(self)
+                .parent()
+                .ref_(self)
+                .as_switch_statement()
+                .expression,
+        );
         let mut fallthrough_flow = self.unreachable_flow();
         let mut i = 0;
         while i < clauses.len() {
             let clause_start = i;
             while clauses[i]
-                .ref_(self).as_case_or_default_clause()
+                .ref_(self)
+                .as_case_or_default_clause()
                 .statements()
-                .ref_(self).is_empty()
+                .ref_(self)
+                .is_empty()
                 && i + 1 < clauses.len()
             {
                 self.bind(Some(clauses[i]));
@@ -583,13 +629,18 @@ impl Binder {
             fallthrough_flow = self.current_flow();
             if !self
                 .current_flow()
-                .ref_(self).flags()
+                .ref_(self)
+                .flags()
                 .intersects(FlowFlags::Unreachable)
                 && i != clauses.len() - 1
-                && matches!(self.options().ref_(self).no_fallthrough_cases_in_switch, Some(true))
+                && matches!(
+                    self.options().ref_(self).no_fallthrough_cases_in_switch,
+                    Some(true)
+                )
             {
                 clause
-                    .ref_(self).as_case_or_default_clause()
+                    .ref_(self)
+                    .as_case_or_default_clause()
                     .set_fallthrough_flow_node(Some(self.current_flow()));
             }
             i += 1;
@@ -630,17 +681,20 @@ impl Binder {
         let post_statement_label = self.create_branch_label();
         let node_ref = node.ref_(self);
         let node_as_labeled_statement = node_ref.as_labeled_statement();
-        self.set_active_label_list(Some(self.alloc_active_label(ActiveLabel::new(
-            self.maybe_active_label_list(),
-            node_as_labeled_statement
-                .label
-                .ref_(self).as_identifier()
-                .escaped_text
-                .clone(),
-            post_statement_label.clone(),
-            None,
-            false,
-        ))));
+        self.set_active_label_list(Some(
+            self.alloc_active_label(ActiveLabel::new(
+                self.maybe_active_label_list(),
+                node_as_labeled_statement
+                    .label
+                    .ref_(self)
+                    .as_identifier()
+                    .escaped_text
+                    .clone(),
+                post_statement_label.clone(),
+                None,
+                false,
+            )),
+        ));
         self.bind(Some(node_as_labeled_statement.label));
         self.bind(Some(node_as_labeled_statement.statement));
         if !self.active_label_list().ref_(self).referenced()
@@ -659,7 +713,13 @@ impl Binder {
 
     pub(super) fn bind_destructuring_target_flow(&self, node: Id<Node> /*Expression*/) {
         if node.ref_(self).kind() == SyntaxKind::BinaryExpression
-            && node.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::EqualsToken
+            && node
+                .ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind()
+                == SyntaxKind::EqualsToken
         {
             self.bind_assignment_target_flow(node.ref_(self).as_binary_expression().left);
         } else {
@@ -675,7 +735,12 @@ impl Binder {
                 node,
             )));
         } else if node.ref_(self).kind() == SyntaxKind::ArrayLiteralExpression {
-            for &e in &*node.ref_(self).as_array_literal_expression().elements.ref_(self) {
+            for &e in &*node
+                .ref_(self)
+                .as_array_literal_expression()
+                .elements
+                .ref_(self)
+            {
                 if e.ref_(self).kind() == SyntaxKind::SpreadElement {
                     self.bind_assignment_target_flow(e.ref_(self).as_spread_element().expression);
                 } else {
@@ -683,15 +748,27 @@ impl Binder {
                 }
             }
         } else if node.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
-            for p in &*node.ref_(self).as_object_literal_expression().properties.ref_(self) {
+            for p in &*node
+                .ref_(self)
+                .as_object_literal_expression()
+                .properties
+                .ref_(self)
+            {
                 if p.ref_(self).kind() == SyntaxKind::PropertyAssignment {
                     self.bind_destructuring_target_flow(
-                        p.ref_(self).as_property_assignment().maybe_initializer().unwrap(),
+                        p.ref_(self)
+                            .as_property_assignment()
+                            .maybe_initializer()
+                            .unwrap(),
                     );
                 } else if p.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
-                    self.bind_assignment_target_flow(p.ref_(self).as_shorthand_property_assignment().name());
+                    self.bind_assignment_target_flow(
+                        p.ref_(self).as_shorthand_property_assignment().name(),
+                    );
                 } else if p.ref_(self).kind() == SyntaxKind::SpreadAssignment {
-                    self.bind_assignment_target_flow(p.ref_(self).as_spread_assignment().expression);
+                    self.bind_assignment_target_flow(
+                        p.ref_(self).as_spread_assignment().expression,
+                    );
                 }
             }
         }

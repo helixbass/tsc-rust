@@ -22,7 +22,8 @@ impl TypeChecker {
             .ref_(self)
             .as_mapped_type()
             .declaration
-            .ref_(self).as_mapped_type_node()
+            .ref_(self)
+            .as_mapped_type_node()
             .name_type
             .try_map(|type_declaration_name_type| -> io::Result<_> {
                 if type_
@@ -35,13 +36,12 @@ impl TypeChecker {
                         self.get_type_from_type_node_(type_declaration_name_type)?,
                         type_.ref_(self).as_mapped_type().maybe_mapper(),
                     )?;
-                    type_.ref_(self).as_mapped_type().set_name_type(Some(name_type));
+                    type_
+                        .ref_(self)
+                        .as_mapped_type()
+                        .set_name_type(Some(name_type));
                 }
-                Ok(type_
-                    .ref_(self)
-                    .as_mapped_type()
-                    .maybe_name_type()
-                    .unwrap())
+                Ok(type_.ref_(self).as_mapped_type().maybe_name_type().unwrap())
             })
     }
 
@@ -60,7 +60,8 @@ impl TypeChecker {
                     .ref_(self)
                     .as_mapped_type()
                     .declaration
-                    .ref_(self).as_mapped_type_node()
+                    .ref_(self)
+                    .as_mapped_type_node()
                     .type_;
                 type_
             } {
@@ -81,7 +82,10 @@ impl TypeChecker {
             } else {
                 self.error_type()
             };
-            type_.ref_(self).as_mapped_type().set_template_type(Some(template_type));
+            type_
+                .ref_(self)
+                .as_mapped_type()
+                .set_template_type(Some(template_type));
         }
         Ok(type_
             .ref_(self)
@@ -99,7 +103,8 @@ impl TypeChecker {
                 .ref_(self)
                 .as_mapped_type()
                 .declaration
-                .ref_(self).as_mapped_type_node()
+                .ref_(self)
+                .as_mapped_type_node()
                 .type_parameter,
             self,
         )
@@ -113,7 +118,11 @@ impl TypeChecker {
             .get_constraint_declaration_for_mapped_type(type_)
             .unwrap();
         constraint_declaration.ref_(self).kind() == SyntaxKind::TypeOperator
-            && constraint_declaration.ref_(self).as_type_operator_node().operator == SyntaxKind::KeyOfKeyword
+            && constraint_declaration
+                .ref_(self)
+                .as_type_operator_node()
+                .operator
+                == SyntaxKind::KeyOfKeyword
     }
 
     pub(super) fn get_modifiers_type_from_mapped_type(
@@ -130,10 +139,10 @@ impl TypeChecker {
                 type_.ref_(self).as_mapped_type().set_modifiers_type(Some(
                     self.instantiate_type(
                         self.get_type_from_type_node_(
-                            self
-                                .get_constraint_declaration_for_mapped_type(type_)
+                            self.get_constraint_declaration_for_mapped_type(type_)
                                 .unwrap()
-                                .ref_(self).as_type_operator_node()
+                                .ref_(self)
+                                .as_type_operator_node()
                                 .type_,
                         )?,
                         type_.ref_(self).as_mapped_type().maybe_mapper(),
@@ -182,9 +191,7 @@ impl TypeChecker {
         let declaration = type_.ref_(self).as_mapped_type().declaration;
         let declaration_ref = declaration.ref_(self);
         let declaration_as_mapped_type_node = declaration_ref.as_mapped_type_node();
-        (if let Some(declaration_readonly_token) =
-            declaration_as_mapped_type_node.readonly_token
-        {
+        (if let Some(declaration_readonly_token) = declaration_as_mapped_type_node.readonly_token {
             if declaration_readonly_token.ref_(self).kind() == SyntaxKind::MinusToken {
                 MappedTypeModifiers::ExcludeReadonly
             } else {
@@ -321,7 +328,10 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let symbol = resolved.ref_(self).as_resolved_type().members()
+            let symbol = resolved
+                .ref_(self)
+                .as_resolved_type()
+                .members()
                 .ref_(self)
                 .get(name)
                 .map(Clone::clone);
@@ -375,7 +385,9 @@ impl TypeChecker {
             type_
                 .ref_(self)
                 .as_union_or_intersection_type_interface()
-                .set_resolved_properties(Some(self.alloc_vec_symbol(self.get_named_members(&members)?)));
+                .set_resolved_properties(Some(
+                    self.alloc_vec_symbol(self.get_named_members(&members)?),
+                ));
         }
         Ok(type_
             .ref_(self)
@@ -388,10 +400,7 @@ impl TypeChecker {
             .collect())
     }
 
-    pub(super) fn get_properties_of_type(
-        &self,
-        type_: Id<Type>,
-    ) -> io::Result<Vec<Id<Symbol>>> {
+    pub(super) fn get_properties_of_type(&self, type_: Id<Type>) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_reduced_apparent_type(type_)?;
         Ok(
             if type_
@@ -439,16 +448,27 @@ impl TypeChecker {
         obj: Id<Node>, /*ObjectLiteralExpression | JsxAttributes*/
     ) -> io::Result<bool> {
         let list = obj.ref_(self).as_has_properties().properties();
-        let ret = list.ref_(self).iter().try_any(|&property| -> io::Result<_> {
-            let name_type = property.ref_(self).as_named_declaration().maybe_name().try_map(|name| self.get_literal_type_from_property_name(name))?;
-            let name = name_type.filter(|&name_type| self.is_type_usable_as_property_name(name_type)).map(|name_type| self.get_property_name_from_type(name_type));
-            let expected = name.try_and_then(|name| self.get_type_of_property_of_type_(contextual_type, &name))?;
-            Ok(matches!(
-                expected,
-                Some(expected) if self.is_literal_type(expected)
-                    && !self.is_type_assignable_to(self.get_type_of_node(property)?, expected)?
-            ))
-        })?;
+        let ret = list
+            .ref_(self)
+            .iter()
+            .try_any(|&property| -> io::Result<_> {
+                let name_type = property
+                    .ref_(self)
+                    .as_named_declaration()
+                    .maybe_name()
+                    .try_map(|name| self.get_literal_type_from_property_name(name))?;
+                let name = name_type
+                    .filter(|&name_type| self.is_type_usable_as_property_name(name_type))
+                    .map(|name_type| self.get_property_name_from_type(name_type));
+                let expected = name.try_and_then(|name| {
+                    self.get_type_of_property_of_type_(contextual_type, &name)
+                })?;
+                Ok(matches!(
+                    expected,
+                    Some(expected) if self.is_literal_type(expected)
+                        && !self.is_type_assignable_to(self.get_type_of_node(property)?, expected)?
+                ))
+            })?;
         Ok(ret)
     }
 
@@ -605,20 +625,21 @@ impl TypeChecker {
             type_
                 .ref_(self)
                 .as_conditional_type()
-                .set_resolved_default_constraint(
-                Some(if self.is_type_any(Some(true_constraint)) {
-                    false_constraint
-                } else if self.is_type_any(Some(false_constraint)) {
-                    true_constraint
-                } else {
-                    self.get_union_type(
-                        &[true_constraint, false_constraint],
-                        None,
-                        Option::<Id<Symbol>>::None,
-                        None,
-                        None,
-                    )?
-                }));
+                .set_resolved_default_constraint(Some(
+                    if self.is_type_any(Some(true_constraint)) {
+                        false_constraint
+                    } else if self.is_type_any(Some(false_constraint)) {
+                        true_constraint
+                    } else {
+                        self.get_union_type(
+                            &[true_constraint, false_constraint],
+                            None,
+                            Option::<Id<Symbol>>::None,
+                            None,
+                            None,
+                        )?
+                    },
+                ));
         }
         Ok(type_
             .ref_(self)
@@ -631,7 +652,10 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*ConditionalType*/
     ) -> io::Result<Option<Id<Type>>> {
-        if type_.ref_(self).as_conditional_type().root
+        if type_
+            .ref_(self)
+            .as_conditional_type()
+            .root
             .ref_(self)
             .is_distributive
             && type_.ref_(self).maybe_restrictive_instantiation() != Some(type_)
@@ -853,13 +877,11 @@ impl TypeChecker {
                 }
                 result = Some(self.circular_constraint_type());
             }
-            t.ref_(self).set_immediate_base_constraint(
-                Some(result.unwrap_or_else(|| self.no_constraint_type()))
-            );
+            t.ref_(self).set_immediate_base_constraint(Some(
+                result.unwrap_or_else(|| self.no_constraint_type()),
+            ));
         }
-        Ok(t.ref_(self)
-            .maybe_immediate_base_constraint()
-            .unwrap())
+        Ok(t.ref_(self).maybe_immediate_base_constraint().unwrap())
     }
 
     pub(super) fn get_base_constraint(
@@ -1059,13 +1081,13 @@ impl TypeChecker {
                     .ref_(self)
                     .as_type_parameter()
                     .set_default(Some(if let Some(target_default) = target_default {
-                    self.instantiate_type(
-                        target_default,
-                        type_parameter.ref_(self).as_type_parameter().maybe_mapper(),
-                    )?
-                } else {
-                    self.no_constraint_type()
-                }));
+                        self.instantiate_type(
+                            target_default,
+                            type_parameter.ref_(self).as_type_parameter().maybe_mapper(),
+                        )?
+                    } else {
+                        self.no_constraint_type()
+                    }));
             } else {
                 type_parameter
                     .ref_(self)
@@ -1184,7 +1206,8 @@ impl TypeChecker {
                 .ref_(self)
                 .as_mapped_type()
                 .declaration
-                .ref_(self).as_mapped_type_node()
+                .ref_(self)
+                .as_mapped_type_node()
                 .name_type
                 .is_none()
             {

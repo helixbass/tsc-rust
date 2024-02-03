@@ -7,9 +7,9 @@ use super::TransformModule;
 use crate::{
     get_original_node_id, has_syntactic_modifier, id_text, is_binding_pattern,
     is_generated_identifier, is_omitted_expression, set_emit_flags, EmitFlags, EmitHelper,
-    GetOrInsertDefault, ModifierFlags, Node, NodeArray, NodeExt, NodeInterface, OptionTry,
-    ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind, VisitResult,
-    HasArena, InArena, OptionInArena,
+    GetOrInsertDefault, HasArena, InArena, ModifierFlags, Node, NodeArray, NodeExt, NodeInterface,
+    OptionInArena, OptionTry, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget, SyntaxKind,
+    VisitResult,
 };
 
 impl TransformModule {
@@ -19,7 +19,12 @@ impl TransformModule {
         decl: Id<Node>, /*ImportEqualsDeclaration*/
     ) /*: Statement[] | undefined */
     {
-        if self.current_module_info().ref_(self).export_equals.is_some() {
+        if self
+            .current_module_info()
+            .ref_(self)
+            .export_equals
+            .is_some()
+        {
             return /*statements*/;
         }
 
@@ -34,14 +39,21 @@ impl TransformModule {
     {
         let node_ref = node.ref_(self);
         let node_as_variable_statement = node_ref.as_variable_statement();
-        if self.current_module_info().ref_(self).export_equals.is_some() {
+        if self
+            .current_module_info()
+            .ref_(self)
+            .export_equals
+            .is_some()
+        {
             return /*statements*/;
         }
 
         for &decl in &*node_as_variable_statement
             .declaration_list
-            .ref_(self).as_variable_declaration_list()
-            .declarations.ref_(self)
+            .ref_(self)
+            .as_variable_declaration_list()
+            .declarations
+            .ref_(self)
         {
             self.append_exports_of_binding_element(statements, decl);
         }
@@ -57,15 +69,27 @@ impl TransformModule {
     {
         let decl_ref = decl.ref_(self);
         let decl_as_named_declaration = decl_ref.as_named_declaration();
-        if self.current_module_info().ref_(self).export_equals.is_some() {
+        if self
+            .current_module_info()
+            .ref_(self)
+            .export_equals
+            .is_some()
+        {
             return /*statements*/;
         }
 
-        if is_binding_pattern(decl_as_named_declaration.maybe_name().refed(self).as_deref()) {
+        if is_binding_pattern(
+            decl_as_named_declaration
+                .maybe_name()
+                .refed(self)
+                .as_deref(),
+        ) {
             for &element in &*decl_as_named_declaration
                 .name()
-                .ref_(self).as_has_elements()
-                .elements().ref_(self)
+                .ref_(self)
+                .as_has_elements()
+                .elements()
+                .ref_(self)
             {
                 if !is_omitted_expression(&element.ref_(self)) {
                     self.append_exports_of_binding_element(statements, element);
@@ -84,7 +108,12 @@ impl TransformModule {
         decl: Id<Node>, /*ClassDeclaration | FunctionDeclaration*/
     ) /*: Statement[] | undefined */
     {
-        if self.current_module_info().ref_(self).export_equals.is_some() {
+        if self
+            .current_module_info()
+            .ref_(self)
+            .export_equals
+            .is_some()
+        {
             return /*statements*/;
         }
 
@@ -92,7 +121,9 @@ impl TransformModule {
             let export_name = if has_syntactic_modifier(decl, ModifierFlags::Default, self) {
                 self.factory.ref_(self).create_identifier("default")
             } else {
-                self.factory.ref_(self).get_declaration_name(Some(decl), None, None)
+                self.factory
+                    .ref_(self)
+                    .get_declaration_name(Some(decl), None, None)
             };
             self.append_export_statement(
                 statements,
@@ -104,7 +135,12 @@ impl TransformModule {
             );
         }
 
-        if decl.ref_(self).as_named_declaration().maybe_name().is_some() {
+        if decl
+            .ref_(self)
+            .as_named_declaration()
+            .maybe_name()
+            .is_some()
+        {
             self.append_exports_of_declaration(statements, decl, None);
         }
 
@@ -118,14 +154,20 @@ impl TransformModule {
         live_binding: Option<bool>,
     ) /*: Statement[] | undefined */
     {
-        let name = self.factory.ref_(self).get_declaration_name(Some(decl), None, None);
+        let name = self
+            .factory
+            .ref_(self)
+            .get_declaration_name(Some(decl), None, None);
         let current_module_info = self.current_module_info();
         let current_module_info_ref = current_module_info.ref_(self);
-        let export_specifiers = current_module_info_ref.export_specifiers.get(id_text(&*name.ref_(self)));
+        let export_specifiers = current_module_info_ref
+            .export_specifiers
+            .get(id_text(&*name.ref_(self)));
         if let Some(export_specifiers) = export_specifiers {
             for export_specifier in export_specifiers {
                 let export_specifier_ref = export_specifier.ref_(self);
-                let export_specifier_as_export_specifier = export_specifier_ref.as_export_specifier();
+                let export_specifier_as_export_specifier =
+                    export_specifier_ref.as_export_specifier();
                 self.append_export_statement(
                     statements,
                     export_specifier_as_export_specifier.name,
@@ -164,39 +206,38 @@ impl TransformModule {
     pub(super) fn create_underscore_underscore_es_module(&self) -> Id<Node> {
         if self.language_version == ScriptTarget::ES3 {
             self.factory
-                .ref_(self).create_expression_statement(self.create_export_expression(
+                .ref_(self)
+                .create_expression_statement(self.create_export_expression(
                     self.factory.ref_(self).create_identifier("__esModule"),
                     self.factory.ref_(self).create_true(),
                     Option::<&Node>::None,
                     None,
                 ))
         } else {
-            self.factory
-                .ref_(self).create_expression_statement(self.factory.ref_(self).create_call_expression(
+            self.factory.ref_(self).create_expression_statement(
+                self.factory.ref_(self).create_call_expression(
                     self.factory.ref_(self).create_property_access_expression(
                         self.factory.ref_(self).create_identifier("Object"),
                         "defineProperty",
                     ),
                     Option::<Id<NodeArray>>::None,
                     Some(vec![
-                                self.factory.ref_(self).create_identifier("exports"),
-                                self.factory
-                                    .ref_(self).create_string_literal("__esModule".to_owned(), None, None)
-                                    ,
-                                self.factory
-                                    .ref_(self).create_object_literal_expression(
-                                        Some(vec![self
-                                            .factory
-                                            .ref_(self).create_property_assignment(
-                                                "value",
-                                                self.factory.ref_(self).create_true(),
-                                            )
-                                            ]),
-                                        None,
-                                    )
-                                    ,
-                            ]),
-                ))
+                        self.factory.ref_(self).create_identifier("exports"),
+                        self.factory.ref_(self).create_string_literal(
+                            "__esModule".to_owned(),
+                            None,
+                            None,
+                        ),
+                        self.factory.ref_(self).create_object_literal_expression(
+                            Some(vec![self.factory.ref_(self).create_property_assignment(
+                                "value",
+                                self.factory.ref_(self).create_true(),
+                            )]),
+                            None,
+                        ),
+                    ]),
+                ),
+            )
         }
         .set_emit_flags(EmitFlags::CustomPrologue, self)
     }
@@ -211,7 +252,8 @@ impl TransformModule {
     ) -> Id<Node> {
         let statement = self
             .factory
-            .ref_(self).create_expression_statement(self.create_export_expression(
+            .ref_(self)
+            .create_expression_statement(self.create_export_expression(
                 name,
                 value,
                 Option::<&Node>::None,
@@ -242,7 +284,9 @@ impl TransformModule {
                 Option::<Id<NodeArray>>::None,
                 Some(vec![
                     self.factory.ref_(self).create_identifier("exports"),
-                    self.factory.ref_(self).create_string_literal_from_node(name),
+                    self.factory
+                        .ref_(self)
+                        .create_string_literal_from_node(name),
                     self.factory.ref_(self).create_object_literal_expression(
                         Some(vec![
                             self.factory.ref_(self).create_property_assignment(
@@ -261,7 +305,8 @@ impl TransformModule {
                                     self.factory.ref_(self).create_block(
                                         vec![self
                                             .factory
-                                            .ref_(self).create_return_statement(Some(value))],
+                                            .ref_(self)
+                                            .create_return_statement(Some(value))],
                                         None,
                                     ),
                                 ),
@@ -297,14 +342,20 @@ impl TransformModule {
         if !is_generated_identifier(&name.ref_(self)) {
             let value_declaration = self
                 .resolver
-                .ref_(self).get_referenced_import_declaration(name)?
-                .try_or_else(|| self.resolver.ref_(self).get_referenced_value_declaration(name))?;
+                .ref_(self)
+                .get_referenced_import_declaration(name)?
+                .try_or_else(|| {
+                    self.resolver
+                        .ref_(self)
+                        .get_referenced_value_declaration(name)
+                })?;
             if let Some(value_declaration) = value_declaration {
                 return Ok(self
                     .maybe_current_module_info()
                     .and_then(|current_module_info| {
                         current_module_info
-                            .ref_(self).exported_bindings
+                            .ref_(self)
+                            .exported_bindings
                             .get(&get_original_node_id(value_declaration, self))
                             .cloned()
                     }));

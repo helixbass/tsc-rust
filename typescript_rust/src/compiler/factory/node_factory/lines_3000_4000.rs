@@ -3,23 +3,21 @@ use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    has_node_array_changed, has_option_node_array_changed,
-    is_external_module_reference, is_non_null_chain, modifiers_to_flags, AsDoubleDeref,
-    AsExpression, BaseNodeFactory, Block, BreakStatement, CaseBlock, ClassDeclaration,
-    ClassLikeDeclarationInterface, ContinueStatement, Debug_, DebuggerStatement, DoStatement,
-    EmptyStatement, EnumDeclaration, ExpressionStatement, ExpressionWithTypeArguments,
-    ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
+    has_node_array_changed, has_option_node_array_changed, is_external_module_reference,
+    is_non_null_chain, modifiers_to_flags, AsDoubleDeref, AsExpression, BaseNodeFactory, Block,
+    BreakStatement, CaseBlock, ClassDeclaration, ClassLikeDeclarationInterface, ContinueStatement,
+    Debug_, DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
+    ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, IfStatement,
-    ImportClause, ImportDeclaration, ImportEqualsDeclaration, InterfaceDeclaration,
+    ImportClause, ImportDeclaration, ImportEqualsDeclaration, InArena, InterfaceDeclaration,
     InterfaceOrClassLikeDeclarationInterface, LabeledStatement, MetaProperty, ModifierFlags,
     ModuleBlock, ModuleDeclaration, NamedDeclarationInterface, NamespaceExportDeclaration, Node,
     NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags, NodeInterface, NonNullExpression,
-    OmittedExpression, RcNodeOrNodeArrayOrVec, ReturnStatement, SemicolonClassElement,
-    SignatureDeclarationInterface, StrOrRcNode, SwitchStatement, SyntaxKind, TemplateSpan,
-    ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration, VariableDeclaration,
-    VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
-    InArena, OptionInArena,
+    OmittedExpression, OptionInArena, RcNodeOrNodeArrayOrVec, ReturnStatement,
+    SemicolonClassElement, SignatureDeclarationInterface, StrOrRcNode, SwitchStatement, SyntaxKind,
+    TemplateSpan, ThrowStatement, TransformFlags, TryStatement, TypeAliasDeclaration,
+    VariableDeclaration, VariableDeclarationList, VariableStatement, WhileStatement, WithStatement,
 };
 
 impl NodeFactory {
@@ -39,10 +37,12 @@ impl NodeFactory {
         let node = ExpressionWithTypeArguments::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_left_side_of_access(expression),
+                .ref_(self)
+                .parenthesize_left_side_of_access(expression),
             type_arguments.and_then(|type_arguments| {
                 self.parenthesizer_rules()
-                    .ref_(self).parenthesize_type_arguments(Some(type_arguments.into()))
+                    .ref_(self)
+                    .parenthesize_type_arguments(Some(type_arguments.into()))
             }),
         );
         node.add_transform_flags(
@@ -63,11 +63,11 @@ impl NodeFactory {
         let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
         let type_arguments = type_arguments.map(Into::into);
         if node_as_expression_with_type_arguments.expression != expression
-        || has_option_node_array_changed(
-            node_as_expression_with_type_arguments
-                .maybe_type_arguments(),
-            type_arguments.as_ref(),
-        ) {
+            || has_option_node_array_changed(
+                node_as_expression_with_type_arguments.maybe_type_arguments(),
+                type_arguments.as_ref(),
+            )
+        {
             self.update(
                 self.create_expression_with_type_arguments(expression, type_arguments),
                 node,
@@ -101,9 +101,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_as_expression = node_ref.as_as_expression();
-        if node_as_as_expression.expression != expression
-            || node_as_as_expression.type_ != type_
-        {
+        if node_as_as_expression.expression != expression || node_as_as_expression.type_ != type_ {
             self.update(self.create_as_expression(expression, type_), node)
         } else {
             node
@@ -119,7 +117,8 @@ impl NodeFactory {
         let node = NonNullExpression::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_left_side_of_access(expression),
+                .ref_(self)
+                .parenthesize_left_side_of_access(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self) | TransformFlags::ContainsTypeScript,
@@ -154,7 +153,8 @@ impl NodeFactory {
         let node = NonNullExpression::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_left_side_of_access(expression),
+                .ref_(self)
+                .parenthesize_left_side_of_access(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self) | TransformFlags::ContainsTypeScript,
@@ -363,7 +363,8 @@ impl NodeFactory {
         let node = ExpressionStatement::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_expression_of_expression_statement(expression),
+                .ref_(self)
+                .parenthesize_expression_of_expression_statement(expression),
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
         node
@@ -607,7 +608,8 @@ impl NodeFactory {
             await_modifier,
             initializer,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self)
+                .parenthesize_expression_for_disallowed_comma(expression),
             self.as_embedded_statement(Some(statement)).unwrap(),
         );
         node.add_transform_flags(
@@ -778,7 +780,8 @@ impl NodeFactory {
         let node = SwitchStatement::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self)
+                .parenthesize_expression_for_disallowed_comma(expression),
             case_block,
         );
         node.add_transform_flags(
@@ -927,7 +930,8 @@ impl NodeFactory {
             type_,
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self)
+                    .parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         let exclamation_token_is_some = exclamation_token.is_some();
@@ -1088,8 +1092,7 @@ impl NodeFactory {
             || node_as_function_declaration.maybe_asterisk_token() != asterisk_token
             || node_as_function_declaration.maybe_name() != name
             || has_option_node_array_changed(
-                node_as_function_declaration
-                    .maybe_type_parameters(),
+                node_as_function_declaration.maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || has_node_array_changed(node_as_function_declaration.parameters(), &parameters)
@@ -1190,8 +1193,7 @@ impl NodeFactory {
                 type_parameters.as_ref(),
             )
             || has_option_node_array_changed(
-                node_as_class_declaration
-                    .maybe_heritage_clauses(),
+                node_as_class_declaration.maybe_heritage_clauses(),
                 heritage_clauses.as_ref(),
             )
             || has_node_array_changed(node_as_class_declaration.members(), &members)
@@ -1256,13 +1258,11 @@ impl NodeFactory {
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_interface_declaration.name() != name
             || has_option_node_array_changed(
-                node_as_interface_declaration
-                    .maybe_type_parameters(),
+                node_as_interface_declaration.maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || has_option_node_array_changed(
-                node_as_interface_declaration
-                    .maybe_heritage_clauses(),
+                node_as_interface_declaration.maybe_heritage_clauses(),
                 heritage_clauses.as_ref(),
             )
             || has_node_array_changed(node_as_interface_declaration.members(), &members)
@@ -1322,8 +1322,7 @@ impl NodeFactory {
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || node_as_type_alias_declaration.name() != name
             || has_option_node_array_changed(
-                node_as_type_alias_declaration
-                    .maybe_type_parameters(),
+                node_as_type_alias_declaration.maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || node_as_type_alias_declaration.maybe_type().unwrap() != type_
@@ -1359,7 +1358,8 @@ impl NodeFactory {
         );
         let node = EnumDeclaration::new(node, self.create_node_array(members, None));
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.members.ref_(self))) | TransformFlags::ContainsTypeScript,
+            propagate_children_flags(Some(&node.members.ref_(self)))
+                | TransformFlags::ContainsTypeScript,
         );
         node.set_transform_flags(
             node.transform_flags() & !TransformFlags::ContainsPossibleTopLevelAwait,

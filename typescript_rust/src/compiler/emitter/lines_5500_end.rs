@@ -9,10 +9,9 @@ use crate::{
     for_each_trailing_comment_range, get_emit_flags, get_line_and_character_of_position,
     get_source_map_range, is_in_json_file, is_recognized_triple_slash_comment, is_unparsed_source,
     last, position_is_synthesized, skip_trivia, try_parse_raw_source_map, write_comment_range,
-    Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension, GetOrInsertDefault, LineAndCharacter,
-    ListFormat, Node, NodeInterface, Printer, RawSourceMap, ReadonlyTextRange, SourceFileLike,
-    SourceMapSource, SourceTextAsChars, SyntaxKind, TextRange,
-    InArena,
+    Debug_, EmitFlags, EmitHint, EmitTextWriter, Extension, GetOrInsertDefault, InArena,
+    LineAndCharacter, ListFormat, Node, NodeInterface, Printer, RawSourceMap, ReadonlyTextRange,
+    SourceFileLike, SourceMapSource, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -24,7 +23,11 @@ impl Printer {
         has_trailing_new_line: bool,
     ) {
         if !self.should_write_comment(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             comment_pos,
         ) {
             return;
@@ -35,7 +38,11 @@ impl Printer {
 
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),
@@ -96,7 +103,11 @@ impl Printer {
     ) {
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),
@@ -119,7 +130,11 @@ impl Printer {
     ) {
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),
@@ -148,7 +163,10 @@ impl Printer {
                     self.for_each_leading_comment_without_detached_comments(cb);
                 } else {
                     for_each_leading_comment_range(
-                        &current_source_file.ref_(self).as_source_file().text_as_chars(),
+                        &current_source_file
+                            .ref_(self)
+                            .as_source_file()
+                            .text_as_chars(),
                         pos.try_into().unwrap(),
                         |pos: usize,
                          end: usize,
@@ -184,7 +202,10 @@ impl Printer {
                 || end != self.container_end() && end != self.declaration_list_container_end()
             {
                 for_each_trailing_comment_range(
-                    &current_source_file.ref_(self).as_source_file().text_as_chars(),
+                    &current_source_file
+                        .ref_(self)
+                        .as_source_file()
+                        .text_as_chars(),
                     end,
                     |pos: usize,
                      end: usize,
@@ -227,7 +248,11 @@ impl Printer {
         }
 
         for_each_leading_comment_range(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             pos.try_into().unwrap(),
             |pos: usize,
              end: usize,
@@ -253,7 +278,11 @@ impl Printer {
         range: &impl ReadonlyTextRange,
     ) {
         let current_detached_comment_info = emit_detached_comments(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             &*self.get_current_line_map(),
             &**self.writer(),
             |text: &SourceTextAsChars,
@@ -285,7 +314,11 @@ impl Printer {
         new_line: &str,
     ) {
         if !self.should_write_comment(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             comment_pos,
         ) {
             return;
@@ -304,7 +337,11 @@ impl Printer {
 
     pub(super) fn is_triple_slash_comment(&self, comment_pos: isize, comment_end: isize) -> bool {
         is_recognized_triple_slash_comment(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             comment_pos.try_into().unwrap(),
             comment_end.try_into().unwrap(),
         )
@@ -368,18 +405,21 @@ impl Printer {
                         .as_ref()
                         .unwrap(),
                     Some(
-                        node_parent_as_unparsed_source
-                            .get_line_and_character_of_position(node.ref_(self).pos().try_into().unwrap()),
+                        node_parent_as_unparsed_source.get_line_and_character_of_position(
+                            node.ref_(self).pos().try_into().unwrap(),
+                        ),
                     ),
                     Some(
-                        node_parent_as_unparsed_source
-                            .get_line_and_character_of_position(node.ref_(self).end().try_into().unwrap()),
+                        node_parent_as_unparsed_source.get_line_and_character_of_position(
+                            node.ref_(self).end().try_into().unwrap(),
+                        ),
                     ),
                 );
             }
         } else {
             let source = source_map_range
-                .ref_(self).source
+                .ref_(self)
+                .source
                 .clone()
                 .unwrap_or_else(|| self.source_map_source());
             if node.ref_(self).kind() != SyntaxKind::NotEmittedStatement
@@ -388,7 +428,8 @@ impl Printer {
             {
                 self.emit_source_pos(
                     source_map_range
-                        .ref_(self).source
+                        .ref_(self)
+                        .source
                         .clone()
                         .unwrap_or_else(|| self.source_map_source()),
                     self.skip_source_trivia(source, source_map_range.ref_(self).pos()),
@@ -414,7 +455,8 @@ impl Printer {
             {
                 self.emit_source_pos(
                     source_map_range
-                        .ref_(self).source
+                        .ref_(self)
+                        .source
                         .clone()
                         .unwrap_or_else(|| self.source_map_source()),
                     source_map_range.ref_(self).end(),
@@ -473,7 +515,9 @@ impl Printer {
 
         token_pos = self.skip_source_trivia(
             source,
-            range.as_ref().map_or(token_pos, |range| range.ref_(self).pos()),
+            range
+                .as_ref()
+                .map_or(token_pos, |range| range.ref_(self).pos()),
         );
         if !emit_flags.intersects(EmitFlags::NoTokenLeadingSourceMaps) && token_pos >= 0 {
             self.emit_source_pos(source.clone(), token_pos);
@@ -502,7 +546,10 @@ impl Printer {
         let LineAndCharacter {
             line: source_line,
             character: source_character,
-        } = get_line_and_character_of_position(&self.source_map_source().ref_(self).ref_(self), pos.try_into().unwrap());
+        } = get_line_and_character_of_position(
+            &self.source_map_source().ref_(self).ref_(self),
+            pos.try_into().unwrap(),
+        );
         self.source_map_generator().ref_(self).add_mapping(
             self.writer().get_line(),
             self.writer().get_column(),
@@ -546,7 +593,8 @@ impl Printer {
 
         self.set_source_map_source_index(
             self.source_map_generator()
-                .ref_(self).add_source(&source.ref_(self).ref_(self).file_name())
+                .ref_(self)
+                .add_source(&source.ref_(self).ref_(self).file_name())
                 .try_into()
                 .unwrap(),
         );
@@ -568,7 +616,10 @@ impl Printer {
     }
 
     pub(super) fn is_json_source_map_source(&self, source_file: Id<SourceMapSource>) -> bool {
-        file_extension_is(&source_file.ref_(self).ref_(self).file_name(), Extension::Json.to_str())
+        file_extension_is(
+            &source_file.ref_(self).ref_(self).file_name(),
+            Extension::Json.to_str(),
+        )
     }
 }
 

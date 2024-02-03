@@ -173,9 +173,9 @@ impl TypeChecker {
         let result = BaseUnionOrIntersectionType::new(result, types, object_flags);
         let result = self.alloc_type(IntersectionType::new(result).into());
         result.ref_(self).set_alias_symbol(alias_symbol);
-        result.ref_(self).set_alias_type_arguments(
-            alias_type_arguments.map(ToOwned::to_owned)
-        );
+        result
+            .ref_(self)
+            .set_alias_type_arguments(alias_type_arguments.map(ToOwned::to_owned));
         result
     }
 
@@ -507,14 +507,11 @@ impl TypeChecker {
             type_ref.maybe_resolved_string_index_type().unwrap()
         } else {
             if type_.ref_(self).maybe_resolved_index_type().is_none() {
-                type_.ref_(self).set_resolved_index_type(
-                    Some(self.create_index_type(type_, false))
-                );
+                type_
+                    .ref_(self)
+                    .set_resolved_index_type(Some(self.create_index_type(type_, false)));
             }
-            type_
-                .ref_(self)
-                .maybe_resolved_index_type()
-                .unwrap()
+            type_.ref_(self).maybe_resolved_index_type().unwrap()
         }
     }
 
@@ -659,7 +656,10 @@ impl TypeChecker {
         ) {
             true
         } else if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
-            type_.ref_(self).as_conditional_type().root
+            type_
+                .ref_(self)
+                .as_conditional_type()
+                .root
                 .ref_(self)
                 .is_distributive
                 && type_.ref_(self).as_conditional_type().check_type == type_variable
@@ -743,10 +743,12 @@ impl TypeChecker {
             || !get_declaration_modifier_flags_from_symbol(prop, None, self)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
-            let mut type_ = (*self.get_symbol_links(self.get_late_bound_symbol(prop)?).ref_(self))
-                .borrow()
-                .name_type
-                .clone();
+            let mut type_ = (*self
+                .get_symbol_links(self.get_late_bound_symbol(prop)?)
+                .ref_(self))
+            .borrow()
+            .name_type
+            .clone();
             if type_.is_none() {
                 let name = get_name_of_declaration(prop.ref_(self).maybe_value_declaration(), self);
                 type_ = if prop.ref_(self).escaped_name() == InternalSymbolName::Default {
@@ -807,7 +809,9 @@ impl TypeChecker {
             if info != self.enum_number_index_info()
                 && self.is_key_type_included(info.ref_(self).key_type, include)
             {
-                if info.ref_(self).key_type == self.string_type() && include.intersects(TypeFlags::Number) {
+                if info.ref_(self).key_type == self.string_type()
+                    && include.intersects(TypeFlags::Number)
+                {
                     self.string_or_number_type()
                 } else {
                     info.ref_(self).key_type.clone()
@@ -944,9 +948,12 @@ impl TypeChecker {
                 }
                 SyntaxKind::UniqueKeyword => {
                     links.ref_mut(self).resolved_type = Some(
-                        if node_as_type_operator_node.type_.ref_(self).kind() == SyntaxKind::SymbolKeyword {
+                        if node_as_type_operator_node.type_.ref_(self).kind()
+                            == SyntaxKind::SymbolKeyword
+                        {
                             self.get_es_symbol_like_type_for_node(
-                                walk_up_parenthesized_types(node.ref_(self).parent(), self).unwrap(),
+                                walk_up_parenthesized_types(node.ref_(self).parent(), self)
+                                    .unwrap(),
                             )?
                         } else {
                             self.error_type()
@@ -976,16 +983,19 @@ impl TypeChecker {
             let node_as_template_literal_type_node = node_ref.as_template_literal_type_node();
             let mut texts = vec![node_as_template_literal_type_node
                 .head
-                .ref_(self).as_literal_like_node()
+                .ref_(self)
+                .as_literal_like_node()
                 .text()
                 .clone()];
             texts.extend(
                 map(
                     &*node_as_template_literal_type_node.template_spans.ref_(self),
                     |span: &Id<Node>, _| {
-                        span.ref_(self).as_template_literal_type_span()
+                        span.ref_(self)
+                            .as_template_literal_type_span()
                             .literal
-                            .ref_(self).as_literal_like_node()
+                            .ref_(self)
+                            .as_literal_like_node()
                             .text()
                             .clone()
                     },
@@ -997,7 +1007,9 @@ impl TypeChecker {
                 &try_map(
                     &*node_as_template_literal_type_node.template_spans.ref_(self),
                     |span: &Id<Node>, _| {
-                        self.get_type_from_type_node_(span.ref_(self).as_template_literal_type_span().type_)
+                        self.get_type_from_type_node_(
+                            span.ref_(self).as_template_literal_type_span().type_,
+                        )
                     },
                 )?,
             )?);

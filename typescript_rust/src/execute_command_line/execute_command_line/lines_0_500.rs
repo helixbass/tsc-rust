@@ -18,8 +18,8 @@ use crate::{
     supported_ts_extensions_flat, validate_locale_and_set_language, version, BuildOptions,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     DiagnosticMessage, DiagnosticReporter, Diagnostics, ExitStatus, ExtendedConfigCacheEntry,
-    Extension, HasArena, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage, System,
-    InArena,
+    Extension, HasArena, InArena, Node, ParsedCommandLine, Program, StringOrDiagnosticMessage,
+    System,
 };
 
 #[allow(dead_code)]
@@ -144,7 +144,11 @@ pub(super) fn default_is_pretty(sys: &dyn System) -> bool {
         && sys.get_environment_variable("NO_COLOR").is_empty()
 }
 
-pub(super) fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuildOptions, arena: &impl HasArena) -> bool {
+pub(super) fn should_be_pretty(
+    sys: &dyn System,
+    options: CompilerOptionsOrBuildOptions,
+    arena: &impl HasArena,
+) -> bool {
     if
     /* !options || */
     options.pretty(arena).is_none() {
@@ -153,16 +157,20 @@ pub(super) fn should_be_pretty(sys: &dyn System, options: CompilerOptionsOrBuild
     options.pretty(arena).unwrap()
 }
 
-pub(super) fn get_options_for_help(command_line: &ParsedCommandLine, arena: &impl HasArena) -> Vec<Id<CommandLineOption>> {
+pub(super) fn get_options_for_help(
+    command_line: &ParsedCommandLine,
+    arena: &impl HasArena,
+) -> Vec<Id<CommandLineOption>> {
     if command_line.options.ref_(arena).all == Some(true) {
         sort(&option_declarations(arena).ref_(arena), |a, b| {
             compare_strings_case_insensitive(a.ref_(arena).name(), b.ref_(arena).name())
         })
         .to_vec()
     } else {
-        filter(&option_declarations(arena).ref_(arena), |v: &Id<CommandLineOption>| {
-            v.ref_(arena).show_in_simplified_help_view()
-        })
+        filter(
+            &option_declarations(arena).ref_(arena),
+            |v: &Id<CommandLineOption>| v.ref_(arena).show_in_simplified_help_view(),
+        )
     }
 }
 
@@ -474,7 +482,10 @@ pub(super) fn get_pretty_output(
     res
 }
 
-pub(super) fn get_value_candidate(option: &CommandLineOption, arena: &impl HasArena) -> Option<ValueCandidate> {
+pub(super) fn get_value_candidate(
+    option: &CommandLineOption,
+    arena: &impl HasArena,
+) -> Option<ValueCandidate> {
     if matches!(option.type_(), CommandLineOptionType::Object) {
         return None;
     }
@@ -500,9 +511,13 @@ pub(super) fn get_possible_values(option: &CommandLineOption, arena: &impl HasAr
         CommandLineOptionType::String
         | CommandLineOptionType::Number
         | CommandLineOptionType::Boolean => option.type_().as_str().to_owned(),
-        CommandLineOptionType::List => {
-            get_possible_values(&option.as_command_line_option_of_list_type().element.ref_(arena), arena)
-        }
+        CommandLineOptionType::List => get_possible_values(
+            &option
+                .as_command_line_option_of_list_type()
+                .element
+                .ref_(arena),
+            arena,
+        ),
         CommandLineOptionType::Object => "".to_owned(),
         CommandLineOptionType::Map(type_) => {
             let keys = /*arrayFrom(*/type_.keys().map(|key| *key).collect::<Vec<_>>()/*)*/;
@@ -605,7 +620,11 @@ pub(super) fn generate_section_options_output(
     res
 }
 
-pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLineOption>], arena: &impl HasArena) {
+pub(super) fn print_easy_help(
+    sys: &dyn System,
+    simple_options: &[Id<CommandLineOption>],
+    arena: &impl HasArena,
+) {
     let colors = create_colors(sys);
     let mut output = get_header(
         sys,
@@ -660,13 +679,17 @@ pub(super) fn print_easy_help(sys: &dyn System, simple_options: &[Id<CommandLine
         &Diagnostics::Compiles_the_current_project_with_additional_settings,
     );
 
-    let cli_commands = simple_options.iter().filter(|opt| {
-        opt.ref_(arena).is_command_line_only() ||
-            matches!(
-                opt.ref_(arena).maybe_category(),
-                Some(category) if category == &*Diagnostics::Command_line_Options
-            )
-    }).copied().collect::<Vec<_>>();
+    let cli_commands = simple_options
+        .iter()
+        .filter(|opt| {
+            opt.ref_(arena).is_command_line_only()
+                || matches!(
+                    opt.ref_(arena).maybe_category(),
+                    Some(category) if category == &*Diagnostics::Command_line_Options
+                )
+        })
+        .copied()
+        .collect::<Vec<_>>();
     let config_opts = simple_options
         .iter()
         .filter(|opt| !contains(Some(&cli_commands), opt))
@@ -775,7 +798,11 @@ pub(super) fn print_all_help(
     }
 }
 
-pub(super) fn print_build_help(sys: &dyn System, build_options: &[Id<CommandLineOption>], arena: &impl HasArena) {
+pub(super) fn print_build_help(
+    sys: &dyn System,
+    build_options: &[Id<CommandLineOption>],
+    arena: &impl HasArena,
+) {
     let mut output = get_header(
         sys,
         &format!(
@@ -837,7 +864,11 @@ pub(super) fn get_header(sys: &dyn System, message: &str) -> Vec<String> {
     header
 }
 
-pub(super) fn print_help(sys: &dyn System, command_line: &ParsedCommandLine, arena: &impl HasArena) {
+pub(super) fn print_help(
+    sys: &dyn System,
+    command_line: &ParsedCommandLine,
+    arena: &impl HasArena,
+) {
     if command_line.options.ref_(arena).all != Some(true) {
         print_easy_help(sys, &get_options_for_help(command_line, arena), arena);
     } else {
@@ -859,14 +890,17 @@ pub(super) fn execute_command_line_worker(
 ) -> io::Result<()> {
     let mut report_diagnostic = create_diagnostic_reporter(sys.clone(), None, arena);
     if matches!(command_line.options.ref_(arena).build, Some(true)) {
-        report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Option_build_must_be_the_first_command_line_argument,
-                None,
-            )
-            .into(),
-        ))?;
-        sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+        report_diagnostic.ref_(arena).call(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Option_build_must_be_the_first_command_line_argument,
+                    None,
+                )
+                .into(),
+            ),
+        )?;
+        sys.ref_(arena)
+            .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     let mut config_file_name: Option<String> = None;
@@ -885,7 +919,8 @@ pub(super) fn execute_command_line_worker(
         for error in command_line.errors.ref_(arena).iter() {
             report_diagnostic.ref_(arena).call(error.clone())?;
         }
-        sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+        sys.ref_(arena)
+            .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     if matches!(command_line.options.ref_(arena).init, Some(true)) {
@@ -913,14 +948,17 @@ pub(super) fn execute_command_line_worker(
     if matches!(command_line.options.ref_(arena).watch, Some(true))
         && matches!(command_line.options.ref_(arena).list_files_only, Some(true))
     {
-        report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Options_0_and_1_cannot_be_combined,
-                Some(vec!["watch".to_owned(), "listFilesOnly".to_owned()]),
-            )
-            .into(),
-        ))?;
-        sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+        report_diagnostic.ref_(arena).call(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Options_0_and_1_cannot_be_combined,
+                    Some(vec!["watch".to_owned(), "listFilesOnly".to_owned()]),
+                )
+                .into(),
+            ),
+        )?;
+        sys.ref_(arena)
+            .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     if let Some(command_line_options_project) = command_line.options.ref_(arena).project.as_ref() {
@@ -932,7 +970,8 @@ pub(super) fn execute_command_line_worker(
                 )
                 .into(),
             ))?;
-            sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+            sys.ref_(arena)
+                .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
         }
 
         let file_or_directory = normalize_path(command_line_options_project);
@@ -941,7 +980,10 @@ pub(super) fn execute_command_line_worker(
                 &file_or_directory,
                 &vec![Some("tsconfig.json")],
             ));
-            if !sys.ref_(arena).file_exists(config_file_name.as_ref().unwrap()) {
+            if !sys
+                .ref_(arena)
+                .file_exists(config_file_name.as_ref().unwrap())
+            {
                 report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
                     create_compiler_diagnostic(
                         &Diagnostics::Cannot_find_a_tsconfig_json_file_at_the_specified_directory_Colon_0,
@@ -949,25 +991,35 @@ pub(super) fn execute_command_line_worker(
                     )
                     .into(),
                 ))?;
-                sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+                sys.ref_(arena)
+                    .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
             }
         } else {
             config_file_name = Some(file_or_directory);
-            if !sys.ref_(arena).file_exists(config_file_name.as_ref().unwrap()) {
-                report_diagnostic.ref_(arena).call(arena.alloc_diagnostic(
-                    create_compiler_diagnostic(
-                        &Diagnostics::The_specified_path_does_not_exist_Colon_0,
-                        Some(vec![command_line_options_project.to_owned()]),
-                    )
-                    .into(),
-                ))?;
-                sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+            if !sys
+                .ref_(arena)
+                .file_exists(config_file_name.as_ref().unwrap())
+            {
+                report_diagnostic.ref_(arena).call(
+                    arena.alloc_diagnostic(
+                        create_compiler_diagnostic(
+                            &Diagnostics::The_specified_path_does_not_exist_Colon_0,
+                            Some(vec![command_line_options_project.to_owned()]),
+                        )
+                        .into(),
+                    ),
+                )?;
+                sys.ref_(arena)
+                    .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
             }
         }
     } else if command_line.file_names.is_empty() {
         let search_path = normalize_path(&sys.ref_(arena).get_current_directory()?);
-        config_file_name =
-            find_config_file(&search_path, |file_name| sys.ref_(arena).file_exists(file_name), None);
+        config_file_name = find_config_file(
+            &search_path,
+            |file_name| sys.ref_(arena).file_exists(file_name),
+            None,
+        );
     }
 
     if command_line.file_names.is_empty() && config_file_name.is_none() {
@@ -983,14 +1035,16 @@ pub(super) fn execute_command_line_worker(
             print_version(&**sys.ref_(arena));
             print_help(&**sys.ref_(arena), &command_line, arena);
         }
-        sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+        sys.ref_(arena)
+            .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
     }
 
     let current_directory = sys.ref_(arena).get_current_directory()?;
-    let command_line_options =
-        convert_to_options_with_absolute_paths(command_line.options.clone(), |file_name| {
-            get_normalized_absolute_path(file_name, Some(&current_directory))
-        }, arena);
+    let command_line_options = convert_to_options_with_absolute_paths(
+        command_line.options.clone(),
+        |file_name| get_normalized_absolute_path(file_name, Some(&current_directory)),
+        arena,
+    );
 
     if let Some(config_file_name) = config_file_name {
         let mut extended_config_cache: HashMap<String, ExtendedConfigCacheEntry> = HashMap::new();
@@ -1007,7 +1061,12 @@ pub(super) fn execute_command_line_worker(
             .unwrap(),
         );
         if matches!(command_line.options.ref_(arena).show_config, Some(true)) {
-            if !config_parse_result.ref_(arena).errors.ref_(arena).is_empty() {
+            if !config_parse_result
+                .ref_(arena)
+                .errors
+                .ref_(arena)
+                .is_empty()
+            {
                 report_diagnostic = update_report_diagnostic(
                     sys.clone(),
                     report_diagnostic,
@@ -1017,16 +1076,20 @@ pub(super) fn execute_command_line_worker(
                 for error in config_parse_result.ref_(arena).errors.ref_(arena).iter() {
                     report_diagnostic.ref_(arena).call(error.clone())?;
                 }
-                sys.ref_(arena).exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
+                sys.ref_(arena)
+                    .exit(Some(ExitStatus::DiagnosticsPresent_OutputsSkipped));
             }
             sys.ref_(arena).write(&format!(
                 "{}{}",
-                serde_json::to_string_pretty(&convert_to_tsconfig(
-                    &config_parse_result.ref_(arena),
-                    &config_file_name,
-                    sys.ref_(arena).as_convert_to_tsconfig_host(),
-                    arena,
-                )?.into_serializable(arena))
+                serde_json::to_string_pretty(
+                    &convert_to_tsconfig(
+                        &config_parse_result.ref_(arena),
+                        &config_file_name,
+                        sys.ref_(arena).as_convert_to_tsconfig_host(),
+                        arena,
+                    )?
+                    .into_serializable(arena)
+                )
                 .unwrap(),
                 sys.ref_(arena).new_line()
             ));
@@ -1039,7 +1102,11 @@ pub(super) fn execute_command_line_worker(
             arena,
         );
         if is_watch_set(&config_parse_result.ref_(arena).options.ref_(arena)) {
-            if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic.ref_(arena), arena)? {
+            if report_watch_mode_without_sys_support(
+                &**sys.ref_(arena),
+                &**report_diagnostic.ref_(arena),
+                arena,
+            )? {
                 return Ok(());
             }
             create_watch_of_config_file(
@@ -1061,18 +1128,27 @@ pub(super) fn execute_command_line_worker(
                 arena,
             );
         } else {
-            perform_compilation(sys, cb, report_diagnostic, &config_parse_result.ref_(arena), arena)?;
+            perform_compilation(
+                sys,
+                cb,
+                report_diagnostic,
+                &config_parse_result.ref_(arena),
+                arena,
+            )?;
         }
     } else {
         if matches!(command_line.options.ref_(arena).show_config, Some(true)) {
             sys.ref_(arena).write(&format!(
                 "{}{}",
-                serde_json::to_string_pretty(&convert_to_tsconfig(
-                    &command_line,
-                    &combine_paths(&current_directory, &vec![Some("tsconfig.json")]),
-                    sys.ref_(arena).as_convert_to_tsconfig_host(),
-                    arena,
-                )?.into_serializable(arena))
+                serde_json::to_string_pretty(
+                    &convert_to_tsconfig(
+                        &command_line,
+                        &combine_paths(&current_directory, &vec![Some("tsconfig.json")]),
+                        sys.ref_(arena).as_convert_to_tsconfig_host(),
+                        arena,
+                    )?
+                    .into_serializable(arena)
+                )
                 .unwrap(),
                 sys.ref_(arena).new_line()
             ));
@@ -1085,7 +1161,11 @@ pub(super) fn execute_command_line_worker(
             arena,
         );
         if is_watch_set(&command_line_options.ref_(arena)) {
-            if report_watch_mode_without_sys_support(&**sys.ref_(arena), &**report_diagnostic.ref_(arena), arena)? {
+            if report_watch_mode_without_sys_support(
+                &**sys.ref_(arena),
+                &**report_diagnostic.ref_(arena),
+                arena,
+            )? {
                 return Ok(());
             }
             create_watch_of_files_and_compiler_options(

@@ -1,4 +1,4 @@
-use std::{io, any::Any};
+use std::{any::Any, io};
 
 use id_arena::Id;
 
@@ -6,11 +6,11 @@ use crate::{
     chain_bundle, get_non_assignment_operator_for_compound_assignment, is_access_expression,
     is_expression, is_left_hand_side_expression, is_logical_or_coalescing_assignment_expression,
     is_property_access_expression, is_simple_copiable_expression, maybe_visit_each_child,
-    skip_parentheses, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult, CoreTransformationContext,
+    skip_parentheses, static_arena, visit_each_child, visit_node, AllArenas,
+    BaseNodeFactorySynthetic, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
+    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface, VisitResult,
 };
 
 struct TransformES2021 {
@@ -35,12 +35,18 @@ impl TransformES2021 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
         if !node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsES2021)
         {
             return Some(node.into());
@@ -118,7 +124,8 @@ impl TransformES2021 {
                 left_expression
             } else {
                 self.factory
-                    .ref_(self).create_assignment(property_access_target.clone(), left_expression.clone())
+                    .ref_(self)
+                    .create_assignment(property_access_target.clone(), left_expression.clone())
             };
 
             if is_property_access_expression(&left.ref_(self)) {
@@ -136,7 +143,9 @@ impl TransformES2021 {
                 let left_ref = left.ref_(self);
                 let left_as_element_access_expression = left_ref.as_element_access_expression();
                 let element_access_argument_simple_copiable = is_simple_copiable_expression(
-                    &left_as_element_access_expression.argument_expression.ref_(self),
+                    &left_as_element_access_expression
+                        .argument_expression
+                        .ref_(self),
                 );
                 let element_access_argument = if element_access_argument_simple_copiable {
                     left_as_element_access_expression
@@ -175,11 +184,14 @@ impl TransformES2021 {
 
         Some(
             self.factory
-                .ref_(self).create_binary_expression(
+                .ref_(self)
+                .create_binary_expression(
                     left,
                     non_assignment_operator,
                     self.factory.ref_(self).create_parenthesized_expression(
-                        self.factory.ref_(self).create_assignment(assignment_target, right),
+                        self.factory
+                            .ref_(self)
+                            .create_assignment(assignment_target, right),
                     ),
                 )
                 .into(),

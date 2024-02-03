@@ -77,29 +77,44 @@ impl CheckTypeRelatedTo {
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation) {
+        if Rc::ptr_eq(
+            &self.relation,
+            &self.type_checker.ref_(self).identity_relation,
+        ) {
             return self.index_signatures_identical_to(source, target);
         }
-        let index_infos = self.type_checker.ref_(self).get_index_infos_of_type(target)?;
+        let index_infos = self
+            .type_checker
+            .ref_(self)
+            .get_index_infos_of_type(target)?;
         let target_has_string_index = some(
             Some(&index_infos),
-            Some(|info: &Id<IndexInfo>| info.ref_(self).key_type == self.type_checker.ref_(self).string_type()),
+            Some(|info: &Id<IndexInfo>| {
+                info.ref_(self).key_type == self.type_checker.ref_(self).string_type()
+            }),
         );
         let mut result = Ternary::True;
         for &target_info in &index_infos {
             let related = if !source_is_primitive
                 && target_has_string_index
                 && target_info
-                    .ref_(self).type_
+                    .ref_(self)
+                    .type_
                     .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Any)
             {
                 Ternary::True
-            } else if self.type_checker.ref_(self).is_generic_mapped_type(source)? && target_has_string_index {
+            } else if self
+                .type_checker
+                .ref_(self)
+                .is_generic_mapped_type(source)?
+                && target_has_string_index
+            {
                 self.is_related_to(
                     self.type_checker
-                        .ref_(self).get_template_type_from_mapped_type(source)?,
+                        .ref_(self)
+                        .get_template_type_from_mapped_type(source)?,
                     target_info.ref_(self).type_,
                     Some(RecursionFlags::Both),
                     Some(report_errors),
@@ -131,14 +146,16 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<Ternary> {
         let source_info = self
             .type_checker
-            .ref_(self).get_applicable_index_info(source, target_info.ref_(self).key_type)?;
+            .ref_(self)
+            .get_applicable_index_info(source, target_info.ref_(self).key_type)?;
         if let Some(source_info) = source_info {
             return self.index_info_related_to(source_info, target_info, report_errors);
         }
         if !intersection_state.intersects(IntersectionState::Source)
             && self
                 .type_checker
-                .ref_(self).is_object_type_with_inferable_index(source)?
+                .ref_(self)
+                .is_object_type_with_inferable_index(source)?
         {
             return self.members_related_to_index_info(source, target_info, report_errors);
         }
@@ -169,15 +186,22 @@ impl CheckTypeRelatedTo {
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<Ternary> {
-        let source_infos = self.type_checker.ref_(self).get_index_infos_of_type(source)?;
-        let target_infos = self.type_checker.ref_(self).get_index_infos_of_type(target)?;
+        let source_infos = self
+            .type_checker
+            .ref_(self)
+            .get_index_infos_of_type(source)?;
+        let target_infos = self
+            .type_checker
+            .ref_(self)
+            .get_index_infos_of_type(target)?;
         if source_infos.len() != target_infos.len() {
             return Ok(Ternary::False);
         }
         for target_info in &target_infos {
             let source_info = self
                 .type_checker
-                .ref_(self).get_index_info_of_type_(source, target_info.ref_(self).key_type)?;
+                .ref_(self)
+                .get_index_info_of_type_(source, target_info.ref_(self).key_type)?;
             if !matches!(
                 source_info.as_ref(),
                 Some(source_info) if self.is_related_to(
@@ -201,7 +225,7 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<bool> {
         let (Some(source_signature_declaration), Some(target_signature_declaration)) = (
             source_signature.ref_(self).declaration,
-            target_signature.ref_(self).declaration
+            target_signature.ref_(self).declaration,
         ) else {
             return Ok(true);
         };
@@ -240,10 +264,12 @@ impl CheckTypeRelatedTo {
                 ),
                 Some(vec![
                     self.type_checker
-                        .ref_(self).visibility_to_string(source_accessibility)
+                        .ref_(self)
+                        .visibility_to_string(source_accessibility)
                         .to_owned(),
                     self.type_checker
-                        .ref_(self).visibility_to_string(target_accessibility)
+                        .ref_(self)
+                        .visibility_to_string(target_accessibility)
                         .to_owned(),
                 ]),
             )?;
@@ -441,9 +467,14 @@ impl TypeChecker {
                     .ref_(self)
                     .as_resolved_type()
                     .properties()
-                    .ref_(self).is_empty()
+                    .ref_(self)
+                    .is_empty()
                 && every(
-                    &*resolved.ref_(self).as_resolved_type().properties().ref_(self),
+                    &*resolved
+                        .ref_(self)
+                        .as_resolved_type()
+                        .properties()
+                        .ref_(self),
                     |&p: &Id<Symbol>, _| p.ref_(self).flags().intersects(SymbolFlags::Optional),
                 ));
         }
@@ -581,12 +612,14 @@ impl TypeChecker {
                 let unmeasurable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let unreliable: Rc<Cell<bool>> = Rc::new(Cell::new(false));
                 let old_handler = self.maybe_outofband_variance_marker_handler();
-                self.set_outofband_variance_marker_handler(Some(self.alloc_outofband_variance_marker_handler(Box::new(
-                    GetVariancesWorkerOutofbandVarianceMarkerHandler::new(
-                        unmeasurable.clone(),
-                        unreliable.clone(),
-                    ),
-                ))));
+                self.set_outofband_variance_marker_handler(Some(
+                    self.alloc_outofband_variance_marker_handler(Box::new(
+                        GetVariancesWorkerOutofbandVarianceMarkerHandler::new(
+                            unmeasurable.clone(),
+                            unreliable.clone(),
+                        ),
+                    )),
+                ));
                 let type_with_super = create_marker_type(&cache, tp, self.marker_super_type())?;
                 let type_with_sub = create_marker_type(&cache, tp, self.marker_sub_type())?;
                 let mut variance =
@@ -789,13 +822,17 @@ impl TypeChecker {
         callback: &mut impl FnMut(Id<Symbol>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Synthetic) {
-            for &t in (*prop.ref_(self).as_transient_symbol().symbol_links().ref_(self))
-                .borrow()
-                .containing_type
-                .unwrap()
+            for &t in (*prop
                 .ref_(self)
-                .as_union_or_intersection_type_interface()
-                .types()
+                .as_transient_symbol()
+                .symbol_links()
+                .ref_(self))
+            .borrow()
+            .containing_type
+            .unwrap()
+            .ref_(self)
+            .as_union_or_intersection_type_interface()
+            .types()
             {
                 let p = self.get_property_of_type_(t, prop.ref_(self).escaped_name(), None)?;
                 let result = p.try_and_then(|p| self.for_each_property(p, callback))?;
@@ -873,12 +910,8 @@ impl TypeChecker {
         Ok(
             !self.for_each_property_bool(target_prop, &mut |tp: Id<Symbol>| {
                 Ok(
-                    if get_declaration_modifier_flags_from_symbol(
-                        tp,
-                        None,
-                        self,
-                    )
-                    .intersects(ModifierFlags::Protected)
+                    if get_declaration_modifier_flags_from_symbol(tp, None, self)
+                        .intersects(ModifierFlags::Protected)
                     {
                         !self.is_property_in_class_derived_from(
                             source_prop,
@@ -901,12 +934,8 @@ impl TypeChecker {
         Ok(
             if self.for_each_property_bool(prop, &mut |p: Id<Symbol>| {
                 Ok(
-                    if get_declaration_modifier_flags_from_symbol(
-                        p,
-                        Some(writing),
-                        self,
-                    )
-                    .intersects(ModifierFlags::Protected)
+                    if get_declaration_modifier_flags_from_symbol(p, Some(writing), self)
+                        .intersects(ModifierFlags::Protected)
                     {
                         !self.has_base_type(check_class, self.get_declaring_class(p)?)?
                     } else {
@@ -1095,12 +1124,14 @@ impl GetVariancesCache {
         type_checker: &TypeChecker,
     ) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
-            Self::SymbolLinks(symbol_links) => (*symbol_links.ref_(type_checker)).borrow().variances.clone(),
-            Self::GenericType(generic_type) =>
-                generic_type
-                    .ref_(type_checker)
-                    .as_generic_type()
-                    .maybe_variances(),
+            Self::SymbolLinks(symbol_links) => (*symbol_links.ref_(type_checker))
+                .borrow()
+                .variances
+                .clone(),
+            Self::GenericType(generic_type) => generic_type
+                .ref_(type_checker)
+                .as_generic_type()
+                .maybe_variances(),
         }
     }
 }

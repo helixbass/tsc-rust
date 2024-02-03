@@ -3,22 +3,21 @@ use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_identifier_name_flags};
 use crate::{
-    has_node_array_changed, has_option_node_array_changed,
-    has_option_str_or_node_changed, has_static_modifier, is_computed_property_name,
-    is_exclamation_token, is_question_token, is_this_identifier, modifiers_to_flags, ArrayTypeNode,
-    AsDoubleDeref, BaseNode, BaseNodeFactory, CallSignatureDeclaration,
-    ClassStaticBlockDeclaration, ComputedPropertyName, ConditionalTypeNode,
-    ConstructSignatureDeclaration, ConstructorDeclaration, ConstructorTypeNode, Decorator,
-    FunctionLikeDeclarationInterface, FunctionTypeNode, GetAccessorDeclaration,
-    HasInitializerInterface, HasQuestionTokenInterface, HasTypeArgumentsInterface,
-    HasTypeInterface, HasTypeParametersInterface, IndexSignatureDeclaration, IntersectionTypeNode,
-    MethodDeclaration, MethodSignature, ModifierFlags, NamedDeclarationInterface, NamedTupleMember,
-    Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OptionalTypeNode,
-    ParameterDeclaration, PropertyDeclaration, PropertySignature, QualifiedName, RestTypeNode,
-    SetAccessorDeclaration, SignatureDeclarationInterface, StrOrRcNode, SyntaxKind,
-    TemplateLiteralTypeSpan, TransformFlags, TupleTypeNode, TypeLiteralNode,
-    TypeParameterDeclaration, TypePredicateNode, TypeQueryNode, TypeReferenceNode, UnionTypeNode,
-    HasArena, InArena, OptionInArena,
+    has_node_array_changed, has_option_node_array_changed, has_option_str_or_node_changed,
+    has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
+    is_this_identifier, modifiers_to_flags, ArrayTypeNode, AsDoubleDeref, BaseNode,
+    BaseNodeFactory, CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
+    ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
+    ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
+    GetAccessorDeclaration, HasArena, HasInitializerInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
+    IndexSignatureDeclaration, IntersectionTypeNode, MethodDeclaration, MethodSignature,
+    ModifierFlags, NamedDeclarationInterface, NamedTupleMember, Node, NodeArray, NodeArrayOrVec,
+    NodeFactory, NodeInterface, OptionInArena, OptionalTypeNode, ParameterDeclaration,
+    PropertyDeclaration, PropertySignature, QualifiedName, RestTypeNode, SetAccessorDeclaration,
+    SignatureDeclarationInterface, StrOrRcNode, SyntaxKind, TemplateLiteralTypeSpan,
+    TransformFlags, TupleTypeNode, TypeLiteralNode, TypeParameterDeclaration, TypePredicateNode,
+    TypeQueryNode, TypeReferenceNode, UnionTypeNode,
 };
 
 impl NodeFactory {
@@ -105,7 +104,8 @@ impl NodeFactory {
         let node = self.create_base_node(SyntaxKind::QualifiedName);
         let node = QualifiedName::new(node, left, self.as_name(Some(right)).unwrap());
         node.add_transform_flags(
-            propagate_child_flags(Some(node.left), self) | propagate_identifier_name_flags(node.right, self),
+            propagate_child_flags(Some(node.left), self)
+                | propagate_identifier_name_flags(node.right, self),
         );
         node
     }
@@ -118,9 +118,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_qualified_name = node_ref.as_qualified_name();
-        if node_as_qualified_name.left != left
-            || node_as_qualified_name.right != right
-        {
+        if node_as_qualified_name.left != left || node_as_qualified_name.right != right {
             self.update(self.create_qualified_name(left, right), node)
         } else {
             node
@@ -136,7 +134,8 @@ impl NodeFactory {
         let node = ComputedPropertyName::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_expression_of_computed_property_name(expression),
+                .ref_(self)
+                .parenthesize_expression_of_computed_property_name(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
@@ -220,7 +219,8 @@ impl NodeFactory {
             type_,
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self)
+                    .parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         let question_token_is_some = question_token.is_some();
@@ -297,7 +297,8 @@ impl NodeFactory {
         let node = Decorator::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_left_side_of_access(expression),
+                .ref_(self)
+                .parenthesize_left_side_of_access(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression), self)
@@ -385,10 +386,9 @@ impl NodeFactory {
         let question_or_exclamation_token_is_some = question_or_exclamation_token.is_some();
         let node = PropertyDeclaration::new(
             node,
-            question_or_exclamation_token
-                .filter(|question_or_exclamation_token| {
-                    is_question_token(&question_or_exclamation_token.ref_(self))
-                }),
+            question_or_exclamation_token.filter(|question_or_exclamation_token| {
+                is_question_token(&question_or_exclamation_token.ref_(self))
+            }),
             question_or_exclamation_token.filter(|question_or_exclamation_token| {
                 is_exclamation_token(&question_or_exclamation_token.ref_(self))
             }),
@@ -405,13 +405,21 @@ impl NodeFactory {
             || has_static_modifier(node, self)
                 && node_as_property_declaration.maybe_initializer().is_some()
         {
-            node.ref_(self).add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
+            node.ref_(self)
+                .add_transform_flags(TransformFlags::ContainsTypeScriptClassSyntax);
         }
         if question_or_exclamation_token_is_some
-            || modifiers_to_flags(node.ref_(self).maybe_modifiers().refed(self).as_double_deref(), self)
-                .intersects(ModifierFlags::Ambient)
+            || modifiers_to_flags(
+                node.ref_(self)
+                    .maybe_modifiers()
+                    .refed(self)
+                    .as_double_deref(),
+                self,
+            )
+            .intersects(ModifierFlags::Ambient)
         {
-            node.ref_(self).add_transform_flags(TransformFlags::ContainsTypeScript);
+            node.ref_(self)
+                .add_transform_flags(TransformFlags::ContainsTypeScript);
         }
         node
     }
@@ -437,16 +445,14 @@ impl NodeFactory {
                 &name,
                 StrOrRcNode::RcNode(name) if node_as_property_declaration.name() == *name
             )
-            || node_as_property_declaration.maybe_question_token() !=
-                question_or_exclamation_token
-                    .filter(|question_or_exclamation_token| {
-                        is_question_token(&question_or_exclamation_token.ref_(self))
-                    })
-            || node_as_property_declaration.exclamation_token !=
-                question_or_exclamation_token
-                    .filter(|question_or_exclamation_token| {
-                        is_exclamation_token(&question_or_exclamation_token.ref_(self))
-                    })
+            || node_as_property_declaration.maybe_question_token()
+                != question_or_exclamation_token.filter(|question_or_exclamation_token| {
+                    is_question_token(&question_or_exclamation_token.ref_(self))
+                })
+            || node_as_property_declaration.exclamation_token
+                != question_or_exclamation_token.filter(|question_or_exclamation_token| {
+                    is_exclamation_token(&question_or_exclamation_token.ref_(self))
+                })
             || node_as_property_declaration.maybe_type() != type_
             || node_as_property_declaration.maybe_initializer() != initializer
         {
@@ -601,8 +607,7 @@ impl NodeFactory {
             || node_as_method_declaration.name() != name
             || node_as_method_declaration.maybe_question_token() != question_token
             || has_option_node_array_changed(
-                node_as_method_declaration
-                    .maybe_type_parameters(),
+                node_as_method_declaration.maybe_type_parameters(),
                 type_parameters.as_ref(),
             )
             || has_node_array_changed(node_as_method_declaration.parameters(), &parameters)
@@ -860,8 +865,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_call_signature_declaration = node_ref.as_call_signature_declaration();
-        if node_as_call_signature_declaration
-                .maybe_type_parameters() != type_parameters
+        if node_as_call_signature_declaration.maybe_type_parameters() != type_parameters
             || node_as_call_signature_declaration.parameters() != parameters
             || node_as_call_signature_declaration.maybe_type() != type_
         {
@@ -904,8 +908,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_construct_signature_declaration = node_ref.as_construct_signature_declaration();
-        if node_as_construct_signature_declaration
-                .maybe_type_parameters() != type_parameters
+        if node_as_construct_signature_declaration.maybe_type_parameters() != type_parameters
             || node_as_construct_signature_declaration.parameters() != parameters
             || node_as_construct_signature_declaration.maybe_type() != type_
         {
@@ -960,10 +963,8 @@ impl NodeFactory {
             || !has_option_node_array_changed(
                 node.ref_(self).maybe_decorators(),
                 decorators.as_ref(),
-            ) || !has_option_node_array_changed(
-                node.ref_(self).maybe_modifiers(),
-                modifiers.as_ref(),
             )
+            || !has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
         {
             self.update_base_signature_declaration(
                 self.create_index_signature(decorators, modifiers, parameters, Some(type_)),
@@ -1059,9 +1060,11 @@ impl NodeFactory {
             node,
             self.as_name(Some(type_name)).unwrap(),
             type_arguments.and_then(|type_arguments| {
-                self.parenthesizer_rules().ref_(self).parenthesize_type_arguments(Some(
-                    self.create_node_array(Some(type_arguments), None).into(),
-                ))
+                self.parenthesizer_rules()
+                    .ref_(self)
+                    .parenthesize_type_arguments(Some(
+                        self.create_node_array(Some(type_arguments), None).into(),
+                    ))
             }),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
@@ -1079,10 +1082,7 @@ impl NodeFactory {
         let node_as_type_reference_node = node_ref.as_type_reference_node();
         let node_type_arguments = node_as_type_reference_node.maybe_type_arguments();
         if node_as_type_reference_node.type_name != type_name
-            || has_option_node_array_changed(
-                node_type_arguments,
-                type_arguments.as_ref(),
-            )
+            || has_option_node_array_changed(node_type_arguments, type_arguments.as_ref())
         {
             self.update(
                 self.create_type_reference_node(type_name, type_arguments),
@@ -1170,8 +1170,7 @@ impl NodeFactory {
         let node_as_constructor_type_node = node_ref.as_constructor_type_node();
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_constructor_type_node
-                    .maybe_type_parameters() != type_parameters
+            || node_as_constructor_type_node.maybe_type_parameters() != type_parameters
             || node_as_constructor_type_node.parameters() != parameters
             || node_as_constructor_type_node.maybe_type() != type_
         {
@@ -1237,7 +1236,8 @@ impl NodeFactory {
         let node = ArrayTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_element_type_of_array_type(element_type),
+                .ref_(self)
+                .parenthesize_element_type_of_array_type(element_type),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -1327,7 +1327,8 @@ impl NodeFactory {
         let node = OptionalTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_element_type_of_array_type(type_),
+                .ref_(self)
+                .parenthesize_element_type_of_array_type(type_),
         );
         node.add_transform_flags(TransformFlags::ContainsTypeScript);
         node
@@ -1378,7 +1379,8 @@ impl NodeFactory {
         let node = self.create_base_node(kind);
         let types = self
             .parenthesizer_rules()
-            .ref_(self).parenthesize_constituent_types_of_union_or_intersection_type(types.into());
+            .ref_(self)
+            .parenthesize_constituent_types_of_union_or_intersection_type(types.into());
         let node: Node = match kind {
             SyntaxKind::UnionType => UnionTypeNode::new(node, types).into(),
             SyntaxKind::IntersectionType => IntersectionTypeNode::new(node, types).into(),
@@ -1449,9 +1451,11 @@ impl NodeFactory {
         let node = ConditionalTypeNode::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_member_of_conditional_type(check_type),
+                .ref_(self)
+                .parenthesize_member_of_conditional_type(check_type),
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_member_of_conditional_type(extends_type),
+                .ref_(self)
+                .parenthesize_member_of_conditional_type(extends_type),
             true_type,
             false_type,
         );

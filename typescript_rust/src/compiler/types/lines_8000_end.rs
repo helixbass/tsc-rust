@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, OnceCell},
+    cell::{Cell, OnceCell, RefCell},
     collections::{HashMap, HashSet},
     io,
     iter::FromIterator,
@@ -15,11 +15,10 @@ use serde::Serialize;
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
     AllArenas, BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint,
-    FileIncludeReason, LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId,
+    FileIncludeReason, HasArena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
+    InArena, LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId,
     ParenthesizerRules, Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray,
     SourceMapSource, SymlinkCache, SyntaxKind, TempFlags, TextRange,
-    IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    HasArena, InArena,
 };
 
 pub struct Printer {
@@ -339,7 +338,11 @@ impl BundleFilePrepend {
     pub fn serializable(&self, arena: &impl HasArena) -> BundleFilePrependSerializable {
         BundleFilePrependSerializable {
             _bundle_file_section_base: self._bundle_file_section_base.clone(),
-            texts: self.texts.iter().map(|text| text.ref_(arena).serializable(arena)).collect(),
+            texts: self
+                .texts
+                .iter()
+                .map(|text| text.ref_(arena).serializable(arena))
+                .collect(),
         }
     }
 }
@@ -498,12 +501,24 @@ impl BundleFileSection {
 
     pub fn serializable(&self, arena: &impl HasArena) -> BundleFileSectionSerializable {
         match self {
-            Self::BundleFilePrologue(value) => BundleFileSectionSerializable::BundleFilePrologue(value.clone()),
-            Self::BundleFileEmitHelpers(value) => BundleFileSectionSerializable::BundleFileEmitHelpers(value.clone()),
-            Self::BundleFileHasNoDefaultLib(value) => BundleFileSectionSerializable::BundleFileHasNoDefaultLib(value.clone()),
-            Self::BundleFileReference(value) => BundleFileSectionSerializable::BundleFileReference(value.clone()),
-            Self::BundleFilePrepend(value) => BundleFileSectionSerializable::BundleFilePrepend(value.serializable(arena)),
-            Self::BundleFileTextLike(value) => BundleFileSectionSerializable::BundleFileTextLike(value.clone()),
+            Self::BundleFilePrologue(value) => {
+                BundleFileSectionSerializable::BundleFilePrologue(value.clone())
+            }
+            Self::BundleFileEmitHelpers(value) => {
+                BundleFileSectionSerializable::BundleFileEmitHelpers(value.clone())
+            }
+            Self::BundleFileHasNoDefaultLib(value) => {
+                BundleFileSectionSerializable::BundleFileHasNoDefaultLib(value.clone())
+            }
+            Self::BundleFileReference(value) => {
+                BundleFileSectionSerializable::BundleFileReference(value.clone())
+            }
+            Self::BundleFilePrepend(value) => {
+                BundleFileSectionSerializable::BundleFilePrepend(value.serializable(arena))
+            }
+            Self::BundleFileTextLike(value) => {
+                BundleFileSectionSerializable::BundleFileTextLike(value.clone())
+            }
         }
     }
 }
@@ -624,7 +639,11 @@ pub struct BundleFileInfo {
 impl BundleFileInfo {
     pub fn serializable(&self, arena: &impl HasArena) -> BundleFileInfoSerializable {
         BundleFileInfoSerializable {
-            sections: self.sections.iter().map(|section| section.ref_(arena).serializable(arena)).collect(),
+            sections: self
+                .sections
+                .iter()
+                .map(|section| section.ref_(arena).serializable(arena))
+                .collect(),
             sources: self.sources.clone(),
         }
     }
@@ -672,7 +691,9 @@ pub struct BuildInfo {
 impl BuildInfo {
     pub fn serializable(&self, arena: &impl HasArena) -> BuildInfoSerializable {
         BuildInfoSerializable {
-            bundle: self.bundle.map(|bundle| bundle.ref_(arena).serializable(arena)),
+            bundle: self
+                .bundle
+                .map(|bundle| bundle.ref_(arena).serializable(arena)),
             program: self.program.map(|program| program.ref_(arena).clone()),
             version: self.version.clone(),
         }

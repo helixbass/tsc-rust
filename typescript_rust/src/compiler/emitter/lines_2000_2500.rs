@@ -13,11 +13,10 @@ use crate::{
     for_each, get_constant_value, get_emit_flags, get_factory, is_access_expression, is_finite,
     is_json_source_file, is_numeric_literal, set_text_range_pos_end,
     skip_partially_emitted_expressions, string_contains, token_to_string, EmitFlags, EmitHint,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasQuestionTokenInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, ListFormat,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasQuestionTokenInterface,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena, ListFormat,
     NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, ScriptTarget,
     SignatureDeclarationInterface, StringOrNumber, SyntaxKind, TokenFlags,
-    HasArena, InArena,
 };
 
 impl Printer {
@@ -27,10 +26,7 @@ impl Printer {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_type_parameter_declaration = node_ref.as_type_parameter_declaration();
-        self.emit(
-            node_as_type_parameter_declaration.maybe_name(),
-            None,
-        )?;
+        self.emit(node_as_type_parameter_declaration.maybe_name(), None)?;
         if let Some(node_constraint) = node_as_type_parameter_declaration.constraint {
             self.write_space();
             self.write_keyword("extends");
@@ -55,18 +51,12 @@ impl Printer {
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         self.emit_decorators(node, node.ref_(self).maybe_decorators())?;
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        self.emit(
-            node_as_parameter_declaration.dot_dot_dot_token,
-            None,
-        )?;
+        self.emit(node_as_parameter_declaration.dot_dot_dot_token, None)?;
         self.emit_node_with_writer(
             node_as_parameter_declaration.maybe_name(),
             Printer::write_parameter,
         )?;
-        self.emit(
-            node_as_parameter_declaration.question_token,
-            None,
-        )?;
+        self.emit(node_as_parameter_declaration.question_token, None)?;
         if matches!(
             node.ref_(self).maybe_parent(),
             Some(node_parent) if node_parent.ref_(self).kind() == SyntaxKind::JSDocFunctionType &&
@@ -80,9 +70,7 @@ impl Printer {
             node_as_parameter_declaration.maybe_initializer(),
             if let Some(node_type) = node_as_parameter_declaration.maybe_type() {
                 node_type.ref_(self).end()
-            } else if let Some(node_question_token) =
-                node_as_parameter_declaration.question_token
-            {
+            } else if let Some(node_question_token) = node_as_parameter_declaration.question_token {
                 node_question_token.ref_(self).end()
             } else if let Some(node_name) = node_as_parameter_declaration.maybe_name() {
                 node_name.ref_(self).end()
@@ -145,18 +133,13 @@ impl Printer {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit(node_as_property_declaration.maybe_name(), None)?;
         self.emit(node_as_property_declaration.question_token, None)?;
-        self.emit(
-            node_as_property_declaration.exclamation_token,
-            None,
-        )?;
+        self.emit(node_as_property_declaration.exclamation_token, None)?;
         self.emit_type_annotation(node_as_property_declaration.maybe_type())?;
         self.emit_initializer(
             node_as_property_declaration.maybe_initializer(),
             if let Some(node_type) = node_as_property_declaration.maybe_type() {
                 node_type.ref_(self).end()
-            } else if let Some(node_question_token) =
-                node_as_property_declaration.question_token
-            {
+            } else if let Some(node_question_token) = node_as_property_declaration.question_token {
                 node_question_token.ref_(self).end()
             } else {
                 node_as_property_declaration.name().ref_(self).pos()
@@ -180,10 +163,7 @@ impl Printer {
         let node_as_method_signature = node_ref.as_method_signature();
         self.emit(node_as_method_signature.maybe_name(), None)?;
         self.emit(node_as_method_signature.question_token, None)?;
-        self.emit_type_parameters(
-            node,
-            node_as_method_signature.maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_method_signature.maybe_type_parameters())?;
         self.emit_parameters(node, node_as_method_signature.parameters())?;
         self.emit_type_annotation(node_as_method_signature.maybe_type())?;
         self.write_trailing_semicolon();
@@ -200,15 +180,9 @@ impl Printer {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         let node_ref = node.ref_(self);
         let node_as_method_declaration = node_ref.as_method_declaration();
-        self.emit(
-            node_as_method_declaration.maybe_asterisk_token(),
-            None,
-        )?;
+        self.emit(node_as_method_declaration.maybe_asterisk_token(), None)?;
         self.emit(node_as_method_declaration.maybe_name(), None)?;
-        self.emit(
-            node_as_method_declaration.maybe_question_token(),
-            None,
-        )?;
+        self.emit(node_as_method_declaration.maybe_question_token(), None)?;
         self.emit_signature_and_body(node, |node: Id<Node>| self.emit_signature_head(node))?;
 
         Ok(())
@@ -266,8 +240,7 @@ impl Printer {
         let node_as_call_signature_declaration = node_ref.as_call_signature_declaration();
         self.emit_type_parameters(
             node,
-            node_as_call_signature_declaration
-                .maybe_type_parameters(),
+            node_as_call_signature_declaration.maybe_type_parameters(),
         )?;
         self.emit_parameters(node, node_as_call_signature_declaration.parameters())?;
         self.emit_type_annotation(node_as_call_signature_declaration.maybe_type())?;
@@ -290,8 +263,7 @@ impl Printer {
         let node_as_construct_signature_declaration = node_ref.as_construct_signature_declaration();
         self.emit_type_parameters(
             node,
-            node_as_construct_signature_declaration
-                .maybe_type_parameters(),
+            node_as_construct_signature_declaration.maybe_type_parameters(),
         )?;
         self.emit_parameters(node, node_as_construct_signature_declaration.parameters())?;
         self.emit_type_annotation(node_as_construct_signature_declaration.maybe_type())?;
@@ -346,14 +318,12 @@ impl Printer {
             self.write_space();
         }
         self.emit(Some(node_as_type_predicate_node.parameter_name), None)?;
-        Ok(
-            if let Some(node_type) = node_as_type_predicate_node.type_ {
-                self.write_space();
-                self.write_keyword("is");
-                self.write_space();
-                self.emit(Some(node_type), None)?;
-            },
-        )
+        Ok(if let Some(node_type) = node_as_type_predicate_node.type_ {
+            self.write_space();
+            self.write_keyword("is");
+            self.write_space();
+            self.emit(Some(node_type), None)?;
+        })
     }
 
     pub(super) fn emit_type_reference(
@@ -363,11 +333,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_type_reference_node = node_ref.as_type_reference_node();
         self.emit(Some(node_as_type_reference_node.type_name), None)?;
-        self.emit_type_arguments(
-            node,
-            node_as_type_reference_node
-                .maybe_type_arguments(),
-        )?;
+        self.emit_type_arguments(node, node_as_type_reference_node.maybe_type_arguments())?;
 
         Ok(())
     }
@@ -379,11 +345,7 @@ impl Printer {
         self.push_name_generation_scope(Some(node));
         let node_ref = node.ref_(self);
         let node_as_function_type_node = node_ref.as_function_type_node();
-        self.emit_type_parameters(
-            node,
-            node_as_function_type_node
-                .maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_function_type_node.maybe_type_parameters())?;
         self.emit_parameters_for_arrow(node, node_as_function_type_node.parameters())?;
         self.write_space();
         self.write_punctuation("=>");
@@ -457,11 +419,7 @@ impl Printer {
         self.write_space();
         let node_ref = node.ref_(self);
         let node_as_constructor_type_node = node_ref.as_constructor_type_node();
-        self.emit_type_parameters(
-            node,
-            node_as_constructor_type_node
-                .maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_constructor_type_node.maybe_type_parameters())?;
         self.emit_parameters(node, node_as_constructor_type_node.parameters())?;
         self.write_space();
         self.write_punctuation("=>");
@@ -568,10 +526,7 @@ impl Printer {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_named_tuple_member = node_ref.as_named_tuple_member();
-        self.emit(
-            node_as_named_tuple_member.dot_dot_dot_token,
-            None,
-        )?;
+        self.emit(node_as_named_tuple_member.dot_dot_dot_token, None)?;
         self.emit(Some(node_as_named_tuple_member.name), None)?;
         self.emit(node_as_named_tuple_member.question_token, None)?;
         self.emit_token_with_comment(
@@ -677,7 +632,10 @@ impl Printer {
     pub(super) fn emit_infer_type(&self, node: Id<Node> /*InferTypeNode*/) -> io::Result<()> {
         self.write_keyword("infer");
         self.write_space();
-        self.emit(Some(node.ref_(self).as_infer_type_node().type_parameter), None)?;
+        self.emit(
+            Some(node.ref_(self).as_infer_type_node().type_parameter),
+            None,
+        )?;
 
         Ok(())
     }
@@ -687,7 +645,10 @@ impl Printer {
         node: Id<Node>, /*ParenthesizedTypeNode*/
     ) -> io::Result<()> {
         self.write_punctuation("(");
-        self.emit(Some(node.ref_(self).as_parenthesized_type_node().type_), None)?;
+        self.emit(
+            Some(node.ref_(self).as_parenthesized_type_node().type_),
+            None,
+        )?;
         self.write_punctuation(")");
 
         Ok(())
@@ -841,10 +802,7 @@ impl Printer {
             self.write_punctuation(".");
             self.emit(Some(node_qualifier), None)?;
         }
-        self.emit_type_arguments(
-            node,
-            node_as_import_type_node.maybe_type_arguments(),
-        )?;
+        self.emit_type_arguments(node, node_as_import_type_node.maybe_type_arguments())?;
 
         Ok(())
     }
@@ -966,7 +924,8 @@ impl Printer {
         };
         let allow_trailing_comma = if self
             .current_source_file()
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .language_version()
             >= ScriptTarget::ES5
             && !is_json_source_file(&self.current_source_file().ref_(self))
@@ -1008,7 +967,10 @@ impl Printer {
                 let token: Id<Node> = get_factory(self).create_token(SyntaxKind::DotToken);
                 set_text_range_pos_end(
                     &*token.ref_(self),
-                    node_as_property_access_expression.expression.ref_(self).end(),
+                    node_as_property_access_expression
+                        .expression
+                        .ref_(self)
+                        .end(),
                     node_as_property_access_expression.name.ref_(self).pos(),
                 );
                 token
@@ -1042,7 +1004,10 @@ impl Printer {
         } else {
             self.emit_token_with_comment(
                 token.ref_(self).kind(),
-                node_as_property_access_expression.expression.ref_(self).end(),
+                node_as_property_access_expression
+                    .expression
+                    .ref_(self)
+                    .end(),
                 |text: &str| self.write_punctuation(text),
                 node,
                 None,
@@ -1062,7 +1027,11 @@ impl Printer {
         let expression = skip_partially_emitted_expressions(expression, self);
         if is_numeric_literal(&expression.ref_(self)) {
             let text = self.get_literal_text_of_node(expression, Some(true), false);
-            return expression.ref_(self).as_numeric_literal().numeric_literal_flags == TokenFlags::None
+            return expression
+                .ref_(self)
+                .as_numeric_literal()
+                .numeric_literal_flags
+                == TokenFlags::None
                 && !string_contains(&text, token_to_string(SyntaxKind::DotToken).unwrap());
         } else if is_access_expression(&expression.ref_(self)) {
             let constant_value = get_constant_value(expression, self);
@@ -1087,14 +1056,13 @@ impl Printer {
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
-        self.emit(
-            node_as_element_access_expression
-                .question_dot_token,
-            None,
-        )?;
+        self.emit(node_as_element_access_expression.question_dot_token, None)?;
         self.emit_token_with_comment(
             SyntaxKind::OpenBracketToken,
-            node_as_element_access_expression.expression.ref_(self).end(),
+            node_as_element_access_expression
+                .expression
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
@@ -1105,7 +1073,10 @@ impl Printer {
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBracketToken,
-            node_as_element_access_expression.argument_expression.ref_(self).end(),
+            node_as_element_access_expression
+                .argument_expression
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,

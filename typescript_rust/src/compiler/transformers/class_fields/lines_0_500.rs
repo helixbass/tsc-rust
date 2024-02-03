@@ -1,4 +1,10 @@
-use std::{borrow::Borrow, cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, any::Any};
+use std::{
+    any::Any,
+    borrow::Borrow,
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::HashMap,
+    io, mem,
+};
 
 use bitflags::bitflags;
 use id_arena::Id;
@@ -12,16 +18,13 @@ use crate::{
     TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VecExt, VisitResult,
-    _d, get_emit_flags, get_original_node,
-    is_arrow_function, is_get_accessor, is_identifier, is_modifier, is_set_accessor,
-    is_simple_inlineable_expression, is_static_modifier, is_super_property, maybe_filter,
-    maybe_visit_nodes, move_range_pos, set_comment_range, visit_function_body,
-    visit_parameter_list, AsDoubleDeref, EmitFlags, HasInitializerInterface,
-    NamedDeclarationInterface, NodeCheckFlags, ReadonlyTextRangeConcrete,
-    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
-    OptionInArena,
-    ref_unwrapped, ref_mut_unwrapped,
+    _d, downcast_transformer_ref, get_emit_flags, get_original_node, is_arrow_function,
+    is_get_accessor, is_identifier, is_modifier, is_set_accessor, is_simple_inlineable_expression,
+    is_static_modifier, is_super_property, maybe_filter, maybe_visit_nodes, move_range_pos,
+    ref_mut_unwrapped, ref_unwrapped, set_comment_range, static_arena, visit_function_body,
+    visit_parameter_list, AllArenas, AsDoubleDeref, CoreTransformationContext, EmitFlags, HasArena,
+    HasInitializerInterface, InArena, NamedDeclarationInterface, NodeCheckFlags, OptionInArena,
+    ReadonlyTextRangeConcrete, TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -376,12 +379,9 @@ pub(super) struct TransformClassFields {
     pub(super) class_aliases: RefCell<Option<HashMap<NodeId, Id<Node /*Identifier*/>>>>,
     pub(super) pending_expressions: RefCell<Option<Vec<Id<Node /*Expression*/>>>>,
     pub(super) pending_statements: RefCell<Option<Vec<Id<Node /*Statement*/>>>>,
-    pub(super) class_lexical_environment_stack:
-        RefCell<Vec<Option<Id<ClassLexicalEnvironment>>>>,
-    pub(super) class_lexical_environment_map:
-        RefCell<HashMap<NodeId, Id<ClassLexicalEnvironment>>>,
-    pub(super) current_class_lexical_environment:
-        Cell<Option<Id<ClassLexicalEnvironment>>>,
+    pub(super) class_lexical_environment_stack: RefCell<Vec<Option<Id<ClassLexicalEnvironment>>>>,
+    pub(super) class_lexical_environment_map: RefCell<HashMap<NodeId, Id<ClassLexicalEnvironment>>>,
+    pub(super) current_class_lexical_environment: Cell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_computed_property_name_class_lexical_environment:
         Cell<Option<Id<ClassLexicalEnvironment>>>,
     pub(super) current_static_property_declaration_or_static_block:
@@ -389,12 +389,16 @@ pub(super) struct TransformClassFields {
 }
 
 impl TransformClassFields {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
         let language_version = get_emit_script_target(&compiler_options.ref_(arena_ref));
-        let use_define_for_class_fields = get_use_define_for_class_fields(&compiler_options.ref_(arena_ref));
+        let use_define_for_class_fields =
+            get_use_define_for_class_fields(&compiler_options.ref_(arena_ref));
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
             factory: context_ref.factory(),
@@ -422,10 +426,9 @@ impl TransformClassFields {
             current_static_property_declaration_or_static_block: Default::default(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformClassFieldsOnEmitNodeOverrider::new(
-                ret,
-                previous_on_emit_node,
-            )))
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+                TransformClassFieldsOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+            ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
@@ -453,11 +456,7 @@ impl TransformClassFields {
         ref_unwrapped(&self.class_aliases)
     }
 
-    pub(super) fn class_aliases_mut(
-        &self,
-    ) -> RefMut<
-        HashMap<NodeId, Id<Node /*Identifier*/>>,
-    > {
+    pub(super) fn class_aliases_mut(&self) -> RefMut<HashMap<NodeId, Id<Node /*Identifier*/>>> {
         ref_mut_unwrapped(&self.class_aliases)
     }
 
@@ -468,9 +467,7 @@ impl TransformClassFields {
         *self.class_aliases.borrow_mut() = class_aliases;
     }
 
-    pub(super) fn maybe_pending_expressions(
-        &self,
-    ) -> Ref<Option<Vec<Id<Node /*Expression*/>>>> {
+    pub(super) fn maybe_pending_expressions(&self) -> Ref<Option<Vec<Id<Node /*Expression*/>>>> {
         self.pending_expressions.borrow()
     }
 
@@ -484,9 +481,7 @@ impl TransformClassFields {
         self.pending_expressions.borrow_mut()
     }
 
-    pub(super) fn pending_expressions_mut(
-        &self,
-    ) -> RefMut<Vec<Id<Node /*Expression*/>>> {
+    pub(super) fn pending_expressions_mut(&self) -> RefMut<Vec<Id<Node /*Expression*/>>> {
         ref_mut_unwrapped(&self.pending_expressions)
     }
 
@@ -497,9 +492,7 @@ impl TransformClassFields {
         *self.pending_expressions.borrow_mut() = pending_expressions;
     }
 
-    pub(super) fn maybe_pending_statements(
-        &self,
-    ) -> Ref<Option<Vec<Id<Node /*Statement*/>>>> {
+    pub(super) fn maybe_pending_statements(&self) -> Ref<Option<Vec<Id<Node /*Statement*/>>>> {
         self.pending_statements.borrow()
     }
 
@@ -507,9 +500,7 @@ impl TransformClassFields {
         ref_unwrapped(&self.pending_statements)
     }
 
-    pub(super) fn pending_statements_mut(
-        &self,
-    ) -> RefMut<Vec<Id<Node /*Statement*/>>> {
+    pub(super) fn pending_statements_mut(&self) -> RefMut<Vec<Id<Node /*Statement*/>>> {
         ref_mut_unwrapped(&self.pending_statements)
     }
 
@@ -554,7 +545,8 @@ impl TransformClassFields {
         &self,
         current_class_lexical_environment: Option<Id<ClassLexicalEnvironment>>,
     ) {
-        self.current_class_lexical_environment.set(current_class_lexical_environment);
+        self.current_class_lexical_environment
+            .set(current_class_lexical_environment);
     }
 
     pub(super) fn maybe_current_computed_property_name_class_lexical_environment(
@@ -570,7 +562,8 @@ impl TransformClassFields {
             Id<ClassLexicalEnvironment>,
         >,
     ) {
-        self.current_computed_property_name_class_lexical_environment.set(current_computed_property_name_class_lexical_environment);
+        self.current_computed_property_name_class_lexical_environment
+            .set(current_computed_property_name_class_lexical_environment);
     }
 
     pub(super) fn maybe_current_static_property_declaration_or_static_block(
@@ -586,7 +579,8 @@ impl TransformClassFields {
             Id<Node /*PropertyDeclaration | ClassStaticBlockDeclaration*/>,
         >,
     ) {
-        self.current_static_property_declaration_or_static_block.set(current_static_property_declaration_or_static_block);
+        self.current_static_property_declaration_or_static_block
+            .set(current_static_property_declaration_or_static_block);
     }
 
     pub(super) fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
@@ -599,14 +593,20 @@ impl TransformClassFields {
         {
             return node;
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
-            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
+        .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self)
     }
 
     pub(super) fn visitor_worker(&self, node: Id<Node>, value_is_discarded: bool) -> VisitResult /*<Node>*/
     {
         if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsClassFields)
         {
             match node.ref_(self).kind() {
@@ -629,10 +629,12 @@ impl TransformClassFields {
             }
         }
         if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsClassFields)
             || node
-                .ref_(self).transform_flags()
+                .ref_(self)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsLexicalSuper)
                 && self.should_transform_super_in_static_initializers
                 && self
@@ -688,7 +690,15 @@ impl TransformClassFields {
                 _ => (),
             }
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
+        Some(
+            visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            )
+            .into(),
+        )
     }
 
     pub(super) fn discarded_value_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -741,7 +751,8 @@ impl TransformClassFields {
         }
         Some(
             self.factory
-                .ref_(self).create_identifier("")
+                .ref_(self)
+                .create_identifier("")
                 .set_original_node(Some(node), self)
                 .into(),
         )
@@ -757,7 +768,11 @@ impl TransformClassFields {
             return Some(node.into());
         }
         let priv_id = node_as_binary_expression.left;
-        Debug_.assert_node(Some(priv_id), Some(|node: Id<Node>| is_private_identifier(&node.ref_(self))), None);
+        Debug_.assert_node(
+            Some(priv_id),
+            Some(|node: Id<Node>| is_private_identifier(&node.ref_(self))),
+            None,
+        );
         Debug_.assert(
             node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::InKeyword,
             None,
@@ -773,8 +788,10 @@ impl TransformClassFields {
 
             return Some(
                 self.context
-                    .ref_(self).get_emit_helper_factory()
-                    .ref_(self).create_class_private_field_in_helper(
+                    .ref_(self)
+                    .get_emit_helper_factory()
+                    .ref_(self)
+                    .create_class_private_field_in_helper(
                         info.ref_(self).brand_check_identifier(),
                         receiver,
                     )
@@ -783,7 +800,15 @@ impl TransformClassFields {
             );
         }
 
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
+        Some(
+            visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            )
+            .into(),
+        )
     }
 
     pub(super) fn class_element_visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -806,8 +831,12 @@ impl TransformClassFields {
         let saved_pending_statements = self.maybe_pending_statements().clone();
         self.set_pending_statements(Some(_d()));
 
-        let visited_node =
-            visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+        let visited_node = visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        );
         let statement: SingleNodeOrVecNode =
             if self.maybe_pending_statements().as_ref().is_non_empty() {
                 vec![visited_node]
@@ -827,7 +856,12 @@ impl TransformClassFields {
     ) -> VisitResult {
         let name_ref = name.ref_(self);
         let name_as_computed_property_name = name_ref.as_computed_property_name();
-        let mut node = visit_each_child(name, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+        let mut node = visit_each_child(
+            name,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        );
         if self.maybe_pending_expressions().as_ref().is_non_empty() {
             let mut expressions = self.pending_expressions().clone();
             expressions.push(name_as_computed_property_name.expression.clone());
@@ -847,7 +881,12 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         Debug_.assert(
-            !node.ref_(self).maybe_decorators().refed(self).as_double_deref().is_non_empty(),
+            !node
+                .ref_(self)
+                .maybe_decorators()
+                .refed(self)
+                .as_double_deref()
+                .is_non_empty(),
             None,
         );
 
@@ -882,9 +921,13 @@ impl TransformClassFields {
                 self.factory.ref_(self).create_assignment(
                     function_name.clone(),
                     self.factory.ref_(self).create_function_expression(
-                        maybe_filter(node.ref_(self).maybe_modifiers().refed(self).as_double_deref(), |m: &Id<Node>| {
-                            !is_static_modifier(&m.ref_(self))
-                        }),
+                        maybe_filter(
+                            node.ref_(self)
+                                .maybe_modifiers()
+                                .refed(self)
+                                .as_double_deref(),
+                            |m: &Id<Node>| !is_static_modifier(&m.ref_(self)),
+                        ),
                         node_as_function_like_declaration.maybe_asterisk_token(),
                         Some(function_name),
                         Option::<Id<NodeArray>>::None,
@@ -954,7 +997,12 @@ impl TransformClassFields {
         let node_ref = node.ref_(self);
         let node_as_property_declaration = node_ref.as_property_declaration();
         Debug_.assert(
-            !node.ref_(self).maybe_decorators().refed(self).as_double_deref().is_non_empty(),
+            !node
+                .ref_(self)
+                .maybe_decorators()
+                .refed(self)
+                .as_double_deref()
+                .is_non_empty(),
             None,
         );
 
@@ -962,7 +1010,8 @@ impl TransformClassFields {
             if !self.should_transform_private_elements_or_class_static_blocks {
                 return Some(
                     self.factory
-                        .ref_(self).update_property_declaration(
+                        .ref_(self)
+                        .update_property_declaration(
                             node,
                             Option::<Id<NodeArray>>::None,
                             maybe_visit_nodes(
@@ -1033,8 +1082,10 @@ impl TransformClassFields {
         match info.kind() {
             PrivateIdentifierKind::Accessor => self
                 .context
-                .ref_(self).get_emit_helper_factory()
-                .ref_(self).create_class_private_field_get_helper(
+                .ref_(self)
+                .get_emit_helper_factory()
+                .ref_(self)
+                .create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1044,8 +1095,10 @@ impl TransformClassFields {
                 ),
             PrivateIdentifierKind::Method => self
                 .context
-                .ref_(self).get_emit_helper_factory()
-                .ref_(self).create_class_private_field_get_helper(
+                .ref_(self)
+                .get_emit_helper_factory()
+                .ref_(self)
+                .create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1053,8 +1106,10 @@ impl TransformClassFields {
                 ),
             PrivateIdentifierKind::Field => self
                 .context
-                .ref_(self).get_emit_helper_factory()
-                .ref_(self).create_class_private_field_get_helper(
+                .ref_(self)
+                .get_emit_helper_factory()
+                .ref_(self)
+                .create_class_private_field_get_helper(
                     receiver,
                     info.brand_check_identifier(),
                     info.kind(),
@@ -1098,7 +1153,8 @@ impl TransformClassFields {
             if let Some(current_class_lexical_environment) =
                 self.maybe_current_class_lexical_environment()
             {
-                let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
+                let current_class_lexical_environment =
+                    current_class_lexical_environment.ref_(self);
                 let class_constructor =
                     current_class_lexical_environment.class_constructor.as_ref();
                 let super_class_reference = current_class_lexical_environment
@@ -1112,26 +1168,39 @@ impl TransformClassFields {
                     if let Some(super_class_reference) = super_class_reference {
                         return Some(
                             self.factory
-                                .ref_(self).create_reflect_get_call(
+                                .ref_(self)
+                                .create_reflect_get_call(
                                     super_class_reference.clone(),
                                     self.factory.ref_(self).create_string_literal_from_node(
                                         node_as_property_access_expression.name(),
                                     ),
                                     Some(class_constructor.clone()),
                                 )
-                                .set_original_node(Some(
-                                    node_as_property_access_expression.expression
-                                ), self)
-                                .set_text_range(Some(
-                                    &*node_as_property_access_expression.expression.ref_(self),
-                                ), self)
+                                .set_original_node(
+                                    Some(node_as_property_access_expression.expression),
+                                    self,
+                                )
+                                .set_text_range(
+                                    Some(
+                                        &*node_as_property_access_expression.expression.ref_(self),
+                                    ),
+                                    self,
+                                )
                                 .into(),
                         );
                     }
                 }
             }
         }
-        Some(visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into())
+        Some(
+            visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            )
+            .into(),
+        )
     }
 }
 
@@ -1200,7 +1269,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                         class_lexical_environment.clone(),
                     ));
                 self.previous_on_emit_node
-                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self)
+                    .on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1233,7 +1303,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self)
+                    .on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1261,7 +1332,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self)
+                    .on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1285,7 +1357,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
                 self.transform_class_fields()
                     .set_current_computed_property_name_class_lexical_environment(None);
                 self.previous_on_emit_node
-                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self)
+                    .on_emit_node(hint, node, emit_callback)?;
                 self.transform_class_fields()
                     .set_current_class_lexical_environment(saved_class_lexical_environment);
                 self.transform_class_fields()
@@ -1297,7 +1370,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
             _ => (),
         }
         self.previous_on_emit_node
-            .ref_(self).on_emit_node(hint, node, emit_callback)?;
+            .ref_(self)
+            .on_emit_node(hint, node, emit_callback)?;
 
         Ok(())
     }
@@ -1354,23 +1428,28 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                 .transform_class_fields()
                 .maybe_current_class_lexical_environment()
             {
-                let current_class_lexical_environment = current_class_lexical_environment.ref_(self);
+                let current_class_lexical_environment =
+                    current_class_lexical_environment.ref_(self);
                 let facts = current_class_lexical_environment.facts;
-                let class_constructor =
-                    current_class_lexical_environment.class_constructor;
+                let class_constructor = current_class_lexical_environment.class_constructor;
                 if facts.intersects(ClassFacts::ClassWasDecorated) {
                     return self
                         .transform_class_fields()
                         .factory
-                        .ref_(self).create_parenthesized_expression(
-                            self.transform_class_fields().factory.ref_(self).create_void_zero(),
+                        .ref_(self)
+                        .create_parenthesized_expression(
+                            self.transform_class_fields()
+                                .factory
+                                .ref_(self)
+                                .create_void_zero(),
                         );
                 }
                 if let Some(class_constructor) = class_constructor {
                     return self
                         .transform_class_fields()
                         .factory
-                        .ref_(self).clone_node(class_constructor)
+                        .ref_(self)
+                        .clone_node(class_constructor)
                         .set_original_node(Some(node), self)
                         .set_text_range(Some(&*node.ref_(self)), self);
                 }
@@ -1383,9 +1462,7 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
         &self,
         node: Id<Node>, /*Identifier*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        Ok(self
-            .try_substitute_class_alias(node)?
-            .unwrap_or(node))
+        Ok(self.try_substitute_class_alias(node)?.unwrap_or(node))
     }
 
     pub(super) fn try_substitute_class_alias(
@@ -1401,13 +1478,15 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
             if self
                 .transform_class_fields()
                 .resolver
-                .ref_(self).get_node_check_flags(node)
+                .ref_(self)
+                .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::ConstructorReferenceInClass)
             {
                 let declaration = self
                     .transform_class_fields()
                     .resolver
-                    .ref_(self).get_referenced_value_declaration(node)?;
+                    .ref_(self)
+                    .get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
                     let class_alias = self
                         .transform_class_fields()
@@ -1418,8 +1497,12 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
                         return Ok(Some(
                             self.transform_class_fields()
                                 .factory
-                                .ref_(self).clone_node(class_alias)
-                                .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
+                                .ref_(self)
+                                .clone_node(class_alias)
+                                .set_source_map_range(
+                                    Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
+                                    self,
+                                )
                                 .set_comment_range(&*node.ref_(self), self),
                         ));
                     }
@@ -1437,7 +1520,8 @@ impl TransformationContextOnSubstituteNodeOverrider
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .ref_(self).on_substitute_node(hint, node)?;
+            .ref_(self)
+            .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression {
             return self.substitute_expression(node);
         }
@@ -1450,7 +1534,6 @@ impl HasArena for TransformClassFieldsOnSubstituteNodeOverrider {
         unimplemented!()
     }
 }
-
 
 pub(super) struct TransformClassFieldsFactory {}
 

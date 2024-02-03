@@ -10,11 +10,10 @@ use super::{
 };
 use crate::{
     for_each, get_comment_range, get_emit_flags, is_block, is_let, is_module_declaration,
-    is_var_const, node_is_synthesized, range_is_on_single_line, EmitFlags, HasInitializerInterface,
-    HasTypeInterface, HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface,
-    ListFormat, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, Printer,
-    ReadonlyTextRange, SyntaxKind, TextRange,
-    HasArena, InArena,
+    is_var_const, node_is_synthesized, range_is_on_single_line, EmitFlags, HasArena,
+    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
+    InterfaceOrClassLikeDeclarationInterface, ListFormat, NamedDeclarationInterface, Node,
+    NodeFlags, NodeInterface, Printer, ReadonlyTextRange, SyntaxKind, TextRange,
 };
 
 impl Printer {
@@ -126,7 +125,8 @@ impl Printer {
                     node_as_try_statement
                         .catch_clause
                         .unwrap_or(node_as_try_statement.try_block)
-                        .ref_(self).end(),
+                        .ref_(self)
+                        .end(),
                     |text: &str| self.write_keyword(text),
                     node,
                     None,
@@ -154,10 +154,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration = node_ref.as_variable_declaration();
         self.emit(node_as_variable_declaration.maybe_name(), None)?;
-        self.emit(
-            node_as_variable_declaration.exclamation_token,
-            None,
-        )?;
+        self.emit(node_as_variable_declaration.exclamation_token, None)?;
         self.emit_type_annotation(node_as_variable_declaration.maybe_type())?;
         self.emit_initializer(
             node_as_variable_declaration.maybe_initializer(),
@@ -219,8 +216,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         self.emit(
-            node_as_function_like_declaration
-                .maybe_asterisk_token(),
+            node_as_function_like_declaration.maybe_asterisk_token(),
             None,
         )?;
         self.write_space();
@@ -286,11 +282,7 @@ impl Printer {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_signature_declaration = node_ref.as_signature_declaration();
-        self.emit_type_parameters(
-            node,
-            node_as_signature_declaration
-                .maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_signature_declaration.maybe_type_parameters())?;
         self.emit_parameters(node, node_as_signature_declaration.parameters())?;
         self.emit_type_annotation(node_as_signature_declaration.maybe_type())?;
 
@@ -311,7 +303,8 @@ impl Printer {
             return false;
         }
 
-        if !node_is_synthesized(&*body.ref_(self)) && !range_is_on_single_line(&*body.ref_(self), &self.current_source_file().ref_(self))
+        if !node_is_synthesized(&*body.ref_(self))
+            && !range_is_on_single_line(&*body.ref_(self), &self.current_source_file().ref_(self))
         {
             return false;
         }
@@ -402,8 +395,12 @@ impl Printer {
     ) -> io::Result<()> {
         let body_ref = body.ref_(self);
         let body_as_block = body_ref.as_block();
-        let statement_offset =
-            self.emit_prologue_directives(&body_as_block.statements.ref_(self), None, &mut None, None)?;
+        let statement_offset = self.emit_prologue_directives(
+            &body_as_block.statements.ref_(self),
+            None,
+            &mut None,
+            None,
+        )?;
         let pos = self.writer().get_text_pos();
         self.emit_helpers(body);
         Ok(
@@ -470,15 +467,10 @@ impl Printer {
             self.increase_indent();
         }
 
-        self.emit_type_parameters(
-            node,
-            node_as_class_like_declaration
-                .maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_class_like_declaration.maybe_type_parameters())?;
         self.emit_list(
             Some(node),
-            node_as_class_like_declaration
-                .maybe_heritage_clauses(),
+            node_as_class_like_declaration.maybe_heritage_clauses(),
             ListFormat::ClassHeritageClauses,
             None,
             None,
@@ -513,15 +505,10 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_interface_declaration = node_ref.as_interface_declaration();
         self.emit(node_as_interface_declaration.maybe_name(), None)?;
-        self.emit_type_parameters(
-            node,
-            node_as_interface_declaration
-                .maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_interface_declaration.maybe_type_parameters())?;
         self.emit_list(
             Some(node),
-            node_as_interface_declaration
-                .maybe_heritage_clauses(),
+            node_as_interface_declaration.maybe_heritage_clauses(),
             ListFormat::HeritageClauses,
             None,
             None,
@@ -553,11 +540,7 @@ impl Printer {
         let node_ref = node.ref_(self);
         let node_as_type_alias_declaration = node_ref.as_type_alias_declaration();
         self.emit(node_as_type_alias_declaration.maybe_name(), None)?;
-        self.emit_type_parameters(
-            node,
-            node_as_type_alias_declaration
-                .maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_type_alias_declaration.maybe_type_parameters())?;
         self.write_space();
         self.write_punctuation("=");
         self.write_space();
@@ -599,11 +582,13 @@ impl Printer {
     ) -> io::Result<()> {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         if (!node.ref_(self).flags()).intersects(NodeFlags::GlobalAugmentation) {
-            self.write_keyword(if node.ref_(self).flags().intersects(NodeFlags::Namespace) {
-                "namespace"
-            } else {
-                "module"
-            });
+            self.write_keyword(
+                if node.ref_(self).flags().intersects(NodeFlags::Namespace) {
+                    "namespace"
+                } else {
+                    "module"
+                },
+            );
             self.write_space();
         }
         let node_ref = node.ref_(self);
@@ -679,9 +664,10 @@ impl Printer {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit_token_with_comment(
             SyntaxKind::ImportKeyword,
-            node.ref_(self).maybe_modifiers()
-                .as_ref()
-                .map_or_else(|| node.ref_(self).pos(), |node_modifiers| node_modifiers.ref_(self).end()),
+            node.ref_(self).maybe_modifiers().as_ref().map_or_else(
+                || node.ref_(self).pos(),
+                |node_modifiers| node_modifiers.ref_(self).end(),
+            ),
             |text: &str| self.write_keyword(text),
             node,
             None,
@@ -699,10 +685,7 @@ impl Printer {
             );
             self.write_space();
         }
-        self.emit(
-            node_as_import_equals_declaration.maybe_name(),
-            None,
-        )?;
+        self.emit(node_as_import_equals_declaration.maybe_name(), None)?;
         self.write_space();
         self.emit_token_with_comment(
             SyntaxKind::EqualsToken,
@@ -736,9 +719,10 @@ impl Printer {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
         self.emit_token_with_comment(
             SyntaxKind::ImportKeyword,
-            node.ref_(self).maybe_modifiers()
-                .as_ref()
-                .map_or_else(|| node.ref_(self).pos(), |node_modifiers| node_modifiers.ref_(self).end()),
+            node.ref_(self).maybe_modifiers().as_ref().map_or_else(
+                || node.ref_(self).pos(),
+                |node_modifiers| node_modifiers.ref_(self).end(),
+            ),
             |text: &str| self.write_keyword(text),
             node,
             None,
@@ -936,7 +920,9 @@ impl Printer {
             self.write_space();
             let from_pos = node_as_export_declaration
                 .export_clause
-                .map_or(next_pos, |node_export_clause| node_export_clause.ref_(self).end());
+                .map_or(next_pos, |node_export_clause| {
+                    node_export_clause.ref_(self).end()
+                });
             self.emit_token_with_comment(
                 SyntaxKind::FromKeyword,
                 from_pos,
@@ -1028,7 +1014,8 @@ impl Printer {
         );
         self.write_space();
         self.emit(
-            node.ref_(self).as_namespace_export_declaration()
+            node.ref_(self)
+                .as_namespace_export_declaration()
                 .maybe_name(),
             None,
         )?;
@@ -1106,7 +1093,8 @@ impl Printer {
             self.write_keyword("type");
             self.write_space();
         }
-        if let Some(node_property_name) = node.ref_(self).as_has_property_name().maybe_property_name()
+        if let Some(node_property_name) =
+            node.ref_(self).as_has_property_name().maybe_property_name()
         {
             self.emit(Some(node_property_name), None)?;
             self.write_space();
@@ -1131,7 +1119,10 @@ impl Printer {
     ) -> io::Result<()> {
         self.write_keyword("require");
         self.write_punctuation("(");
-        self.emit_expression(Some(node.ref_(self).as_external_module_reference().expression), None)?;
+        self.emit_expression(
+            Some(node.ref_(self).as_external_module_reference().expression),
+            None,
+        )?;
         self.write_punctuation(")");
 
         Ok(())

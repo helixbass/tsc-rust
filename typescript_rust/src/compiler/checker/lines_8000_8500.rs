@@ -10,24 +10,24 @@ use id_arena::Id;
 
 use super::{get_symbol_id, NodeBuilderContext, TypeFacts};
 use crate::{
-    create_printer, create_symbol_table, declaration_name_to_string,
-    escape_string, find_ancestor, first_defined, get_check_flags, get_combined_modifier_flags,
+    create_printer, create_symbol_table, declaration_name_to_string, escape_string, find_ancestor,
+    first_defined, get_check_flags, get_combined_modifier_flags,
     get_declaration_modifier_flags_from_symbol, get_emit_script_target, get_factory,
-    get_first_identifier, get_name_of_declaration, get_root_declaration, has_effective_modifier,
-    is_ambient_module, is_bindable_object_define_property_call, is_binding_pattern,
-    is_call_expression, is_computed_property_name, is_external_module_augmentation,
-    is_identifier_text, is_internal_module_import_equals_declaration, is_left_hand_side_expression,
-    is_source_file, map, maybe_get_source_file_of_node, get_parse_node_factory,
-    return_ok_default_if_none, return_ok_none_if_none, set_parent, set_text_range, starts_with,
-    symbol_name, try_add_to_set, try_map, try_maybe_for_each, try_using_single_line_string_writer,
-    walk_up_parenthesized_types, CharacterCodes, CheckFlags, EmitHint, EmitTextWriter, HasArena,
-    InArena, InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    get_first_identifier, get_name_of_declaration, get_parse_node_factory, get_root_declaration,
+    has_effective_modifier, is_ambient_module, is_bindable_object_define_property_call,
+    is_binding_pattern, is_call_expression, is_computed_property_name,
+    is_external_module_augmentation, is_identifier_text,
+    is_internal_module_import_equals_declaration, is_left_hand_side_expression, is_source_file,
+    map, maybe_get_source_file_of_node, push_if_unique_eq, return_ok_default_if_none,
+    return_ok_none_if_none, set_parent, set_text_range, starts_with, symbol_name, try_add_to_set,
+    try_map, try_maybe_for_each, try_using_single_line_string_writer, walk_up_parenthesized_types,
+    CharacterCodes, CheckFlags, EmitHint, EmitTextWriter, HasArena, InArena,
+    InterfaceTypeInterface, InternalSymbolName, LiteralType, ModifierFlags,
     NamedDeclarationInterface, Node, NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags,
     ObjectFlagsTypeInterface, OptionTry, PrinterOptionsBuilder, Symbol, SymbolFlags, SymbolId,
     SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
     TypePredicate, TypePredicateKind, TypeReferenceInterface, TypeSystemEntity,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    push_if_unique_eq,
 };
 
 impl TypeChecker {
@@ -48,14 +48,17 @@ impl TypeChecker {
             )?;
             writer.ref_(self).get_text()
         } else {
-            try_using_single_line_string_writer(|writer| {
-                self.type_predicate_to_string_worker(
-                    type_predicate,
-                    enclosing_declaration,
-                    flags,
-                    writer,
-                )
-            }, self)?
+            try_using_single_line_string_writer(
+                |writer| {
+                    self.type_predicate_to_string_worker(
+                        type_predicate,
+                        enclosing_declaration,
+                        flags,
+                        writer,
+                    )
+                },
+                self,
+            )?
         })
     }
 
@@ -79,7 +82,8 @@ impl TypeChecker {
                 type_predicate.ref_(self).kind,
                 TypePredicateKind::Identifier | TypePredicateKind::AssertsIdentifier
             ) {
-                get_factory(self).create_identifier(type_predicate.ref_(self).parameter_name.as_ref().unwrap())
+                get_factory(self)
+                    .create_identifier(type_predicate.ref_(self).parameter_name.as_ref().unwrap())
             } else {
                 get_factory(self).create_this_type_node()
             },
@@ -104,16 +108,12 @@ impl TypeChecker {
             None,
             self,
         );
-        let source_file = enclosing_declaration
-            .and_then(|enclosing_declaration| {
-                maybe_get_source_file_of_node(Some(enclosing_declaration), self)
-            });
-        printer.ref_(self).write_node(
-            EmitHint::Unspecified,
-            predicate,
-            source_file,
-            writer,
-        )?;
+        let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
+            maybe_get_source_file_of_node(Some(enclosing_declaration), self)
+        });
+        printer
+            .ref_(self)
+            .write_node(EmitHint::Unspecified, predicate, source_file, writer)?;
         // return writer;
 
         Ok(())
@@ -186,8 +186,11 @@ impl TypeChecker {
                 if let Some(type_symbol_declarations) =
                     type_symbol.ref_(self).maybe_declarations().as_deref()
                 {
-                    let node =
-                        walk_up_parenthesized_types(type_symbol_declarations[0].ref_(self).parent(), self).unwrap();
+                    let node = walk_up_parenthesized_types(
+                        type_symbol_declarations[0].ref_(self).parent(),
+                        self,
+                    )
+                    .unwrap();
                     if node.ref_(self).kind() == SyntaxKind::TypeAliasDeclaration {
                         return self.get_symbol_of_node(node);
                     }
@@ -309,8 +312,10 @@ impl TypeChecker {
                         if is_computed_property_name(&name.ref_(self))
                             && !get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Late)
                         {
-                            let name_type =
-                                (*self.get_symbol_links(symbol).ref_(self)).borrow().name_type.clone();
+                            let name_type = (*self.get_symbol_links(symbol).ref_(self))
+                                .borrow()
+                                .name_type
+                                .clone();
                             if matches!(name_type, Some(name_type) if name_type.ref_(self).flags().intersects(TypeFlags::StringOrNumberLiteral))
                             {
                                 let result =
@@ -329,9 +334,15 @@ impl TypeChecker {
                 let declaration = declaration.unwrap();
                 if let Some(declaration_parent) = declaration.ref_(self).maybe_parent() {
                     if declaration_parent.ref_(self).kind() == SyntaxKind::VariableDeclaration {
-                        return declaration_name_to_string(Some(
-                            declaration_parent.ref_(self).as_variable_declaration().name(),
-                        ), self);
+                        return declaration_name_to_string(
+                            Some(
+                                declaration_parent
+                                    .ref_(self)
+                                    .as_variable_declaration()
+                                    .name(),
+                            ),
+                            self,
+                        );
                     }
                 }
                 match declaration.ref_(self).kind() {
@@ -391,7 +402,9 @@ impl TypeChecker {
                     Some(node_parent_parent_parent) if is_source_file(&node_parent_parent_parent.ref_(self))
                 )
             }
-            SyntaxKind::BindingElement => self.is_declaration_visible(node.ref_(self).parent().ref_(self).parent()),
+            SyntaxKind::BindingElement => {
+                self.is_declaration_visible(node.ref_(self).parent().ref_(self).parent())
+            }
             SyntaxKind::VariableDeclaration
             | SyntaxKind::ModuleDeclaration
             | SyntaxKind::ClassDeclaration
@@ -401,13 +414,18 @@ impl TypeChecker {
             | SyntaxKind::EnumDeclaration
             | SyntaxKind::ImportEqualsDeclaration => {
                 if node.ref_(self).kind() == SyntaxKind::VariableDeclaration
-                    && is_binding_pattern(Some(&node.ref_(self).as_variable_declaration().name().ref_(self)))
+                    && is_binding_pattern(Some(
+                        &node.ref_(self).as_variable_declaration().name().ref_(self),
+                    ))
                     && node
-                        .ref_(self).as_variable_declaration()
+                        .ref_(self)
+                        .as_variable_declaration()
                         .name()
-                        .ref_(self).as_has_elements()
+                        .ref_(self)
+                        .as_has_elements()
                         .elements()
-                        .ref_(self).is_empty()
+                        .ref_(self)
+                        .is_empty()
                 {
                     return false;
                 }
@@ -431,7 +449,11 @@ impl TypeChecker {
             | SyntaxKind::SetAccessor
             | SyntaxKind::MethodDeclaration
             | SyntaxKind::MethodSignature => {
-                if has_effective_modifier(node, ModifierFlags::Private | ModifierFlags::Protected, self) {
+                if has_effective_modifier(
+                    node,
+                    ModifierFlags::Private | ModifierFlags::Protected,
+                    self,
+                ) {
                     return false;
                 }
                 self.is_declaration_visible(node.ref_(self).parent())
@@ -520,48 +542,53 @@ impl TypeChecker {
         visited: &mut HashSet<SymbolId>,
         declarations: Option<&[Id<Node /*Declaration*/>]>,
     ) -> io::Result<()> {
-        try_maybe_for_each(declarations, |&declaration: &Id<Node>, _| -> io::Result<_> {
-            let result_node = self
-                .get_any_import_syntax(declaration)
-                .unwrap_or(declaration);
-            if set_visibility {
-                self.get_node_links(declaration).ref_mut(self).is_visible = Some(true);
-            } else {
-                let mut result = result.borrow_mut();
-                if result.is_none() {
-                    *result = Some(vec![]);
+        try_maybe_for_each(
+            declarations,
+            |&declaration: &Id<Node>, _| -> io::Result<_> {
+                let result_node = self
+                    .get_any_import_syntax(declaration)
+                    .unwrap_or(declaration);
+                if set_visibility {
+                    self.get_node_links(declaration).ref_mut(self).is_visible = Some(true);
+                } else {
+                    let mut result = result.borrow_mut();
+                    if result.is_none() {
+                        *result = Some(vec![]);
+                    }
+                    push_if_unique_eq(result.as_mut().unwrap(), &result_node);
                 }
-                push_if_unique_eq(result.as_mut().unwrap(), &result_node);
-            }
 
-            if is_internal_module_import_equals_declaration(declaration, self) {
-                let internal_module_reference =
-                    declaration.ref_(self).as_import_equals_declaration().module_reference;
-                let first_identifier = get_first_identifier(internal_module_reference, self);
-                let import_symbol = self.resolve_name_(
-                    Some(declaration),
-                    &first_identifier.ref_(self).as_identifier().escaped_text,
-                    SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
-                    None,
-                    Option::<Id<Node>>::None,
-                    false,
-                    None,
-                )?;
-                if let Some(import_symbol) = import_symbol
-                /*&& visited*/
-                {
-                    if try_add_to_set(visited, get_symbol_id(&import_symbol.ref_(self))) {
-                        self.build_visible_node_list(
-                            set_visibility,
-                            result,
-                            visited,
-                            import_symbol.ref_(self).maybe_declarations().as_deref(),
-                        )?;
+                if is_internal_module_import_equals_declaration(declaration, self) {
+                    let internal_module_reference = declaration
+                        .ref_(self)
+                        .as_import_equals_declaration()
+                        .module_reference;
+                    let first_identifier = get_first_identifier(internal_module_reference, self);
+                    let import_symbol = self.resolve_name_(
+                        Some(declaration),
+                        &first_identifier.ref_(self).as_identifier().escaped_text,
+                        SymbolFlags::Value | SymbolFlags::Type | SymbolFlags::Namespace,
+                        None,
+                        Option::<Id<Node>>::None,
+                        false,
+                        None,
+                    )?;
+                    if let Some(import_symbol) = import_symbol
+                    /*&& visited*/
+                    {
+                        if try_add_to_set(visited, get_symbol_id(&import_symbol.ref_(self))) {
+                            self.build_visible_node_list(
+                                set_visibility,
+                                result,
+                                visited,
+                                import_symbol.ref_(self).maybe_declarations().as_deref(),
+                            )?;
+                        }
                     }
                 }
-            }
-            Ok(Option::<()>::None)
-        })?;
+                Ok(Option::<()>::None)
+            },
+        )?;
 
         Ok(())
     }
@@ -623,11 +650,14 @@ impl TypeChecker {
                 .borrow()
                 .type_
                 .is_some(),
-            TypeSystemPropertyName::EnumTagType => self.get_node_links(target.as_node())
+            TypeSystemPropertyName::EnumTagType => self
+                .get_node_links(target.as_node())
                 .ref_(self)
                 .resolved_enum_type
                 .is_some(),
-            TypeSystemPropertyName::DeclaredType => self.get_symbol_links(target.as_symbol()).ref_(self)
+            TypeSystemPropertyName::DeclaredType => self
+                .get_symbol_links(target.as_symbol())
+                .ref_(self)
                 .declared_type
                 .is_some(),
             TypeSystemPropertyName::ResolvedBaseConstructorType => target
@@ -636,9 +666,11 @@ impl TypeChecker {
                 .as_not_actually_interface_type()
                 .maybe_resolved_base_constructor_type()
                 .is_some(),
-            TypeSystemPropertyName::ResolvedReturnType => {
-                target.as_signature().ref_(self).maybe_resolved_return_type().is_some()
-            }
+            TypeSystemPropertyName::ResolvedReturnType => target
+                .as_signature()
+                .ref_(self)
+                .maybe_resolved_return_type()
+                .is_some(),
             TypeSystemPropertyName::ImmediateBaseConstraint => target
                 .as_type()
                 .ref_(self)
@@ -669,19 +701,24 @@ impl TypeChecker {
     }
 
     pub(super) fn get_declaration_container(&self, node: Id<Node>) -> Id<Node> {
-        find_ancestor(Some(get_root_declaration(node, self)), |node| {
-            !matches!(
-                node.ref_(self).kind(),
-                SyntaxKind::VariableDeclaration
-                    | SyntaxKind::VariableDeclarationList
-                    | SyntaxKind::ImportSpecifier
-                    | SyntaxKind::NamedImports
-                    | SyntaxKind::NamespaceImport
-                    | SyntaxKind::ImportClause
-            )
-        }, self)
+        find_ancestor(
+            Some(get_root_declaration(node, self)),
+            |node| {
+                !matches!(
+                    node.ref_(self).kind(),
+                    SyntaxKind::VariableDeclaration
+                        | SyntaxKind::VariableDeclarationList
+                        | SyntaxKind::ImportSpecifier
+                        | SyntaxKind::NamedImports
+                        | SyntaxKind::NamespaceImport
+                        | SyntaxKind::ImportClause
+                )
+            },
+            self,
+        )
         .unwrap()
-        .ref_(self).parent()
+        .ref_(self)
+        .parent()
     }
 
     pub(super) fn get_type_of_prototype_property(
@@ -750,7 +787,12 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let symbol = self.get_symbol_of_node(node)?;
         symbol
-            .and_then(|symbol| (*self.get_symbol_links(symbol).ref_(self)).borrow().type_.clone())
+            .and_then(|symbol| {
+                (*self.get_symbol_links(symbol).ref_(self))
+                    .borrow()
+                    .type_
+                    .clone()
+            })
             .try_or_else(|| self.get_type_for_variable_like_declaration(node, false))
     }
 
@@ -814,12 +856,8 @@ impl TypeChecker {
                     None,
                 )?,
                 omit_key_type,
-            )? && !get_declaration_modifier_flags_from_symbol(
-                prop,
-                None,
-                self,
-            )
-            .intersects(ModifierFlags::Private | ModifierFlags::Protected)
+            )? && !get_declaration_modifier_flags_from_symbol(prop, None, self)
+                .intersects(ModifierFlags::Private | ModifierFlags::Protected)
                 && self.is_spreadable_property(prop)
             {
                 members.insert(
@@ -904,23 +942,26 @@ impl TypeChecker {
             |parent_access_flow_node| -> io::Result<_> {
                 let prop_name =
                     return_ok_default_if_none!(self.get_destructuring_property_name(node)?);
-                let literal = get_parse_node_factory(self).create_string_literal(prop_name, None, None);
+                let literal =
+                    get_parse_node_factory(self).create_string_literal(prop_name, None, None);
                 set_text_range(&*literal.ref_(self), Some(&*node.ref_(self)));
                 let lhs_expr = if is_left_hand_side_expression(parent_access, self) {
                     parent_access
                 } else {
-                    get_parse_node_factory(self).create_parenthesized_expression(parent_access.clone())
-                };
-                let result =
                     get_parse_node_factory(self)
-                        .create_element_access_expression(lhs_expr.clone(), literal.clone());
+                        .create_parenthesized_expression(parent_access.clone())
+                };
+                let result = get_parse_node_factory(self)
+                    .create_element_access_expression(lhs_expr.clone(), literal.clone());
                 set_text_range(&*result.ref_(self), Some(&*node.ref_(self)));
                 set_parent(&literal.ref_(self), Some(result));
                 set_parent(&result.ref_(self), Some(node));
                 if lhs_expr != parent_access {
                     set_parent(&lhs_expr.ref_(self), Some(result));
                 }
-                result.ref_(self).set_flow_node(Some(parent_access_flow_node));
+                result
+                    .ref_(self)
+                    .set_flow_node(Some(parent_access_flow_node));
                 Ok(Some(result))
             },
         )?;

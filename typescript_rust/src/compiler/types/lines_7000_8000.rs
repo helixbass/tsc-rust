@@ -1,4 +1,8 @@
-use std::{io, ptr, any::Any, cell::{Cell, RefCell}};
+use std::{
+    any::Any,
+    cell::{Cell, RefCell},
+    io, ptr,
+};
 
 use bitflags::bitflags;
 use derive_builder::Builder;
@@ -7,8 +11,7 @@ use local_macros::enum_unwrapped;
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
     BaseNodeFactory, BaseNodeFactorySynthetic, EmitHelper, EmitHelperFactory, EmitHost,
-    EmitResolver, NodeFactoryFlags, HasArena,
-    TransformNodesTransformationResult,
+    EmitResolver, HasArena, NodeFactoryFlags, TransformNodesTransformationResult,
 };
 
 #[derive(Default, Builder, Clone)]

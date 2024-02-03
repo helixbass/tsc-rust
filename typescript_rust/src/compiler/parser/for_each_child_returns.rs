@@ -5,12 +5,11 @@ use super::{
 };
 use crate::{
     for_each, maybe_for_each, try_for_each, try_maybe_for_each, ClassLikeDeclarationInterface,
-    FunctionLikeDeclarationInterface, HasInitializerInterface, HasQuestionTokenInterface,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasQuestionTokenInterface,
     HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, InterfaceOrClassLikeDeclarationInterface, JSDocTagInterface,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionTry,
-    SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
-    HasArena, InArena, OptionInArena,
+    HasTypeParametersInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
+    JSDocTagInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionInArena,
+    OptionTry, SignatureDeclarationInterface, StringOrNodeArray, SyntaxKind,
 };
 
 pub fn for_each_child_returns<TReturn>(

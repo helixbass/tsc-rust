@@ -1,8 +1,9 @@
 use std::{
+    any::Any,
     borrow::{Borrow, Cow},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, any::Any,
-    cell::{Cell, RefCell, Ref, RefMut},
+    io,
 };
 
 use derive_builder::Builder;
@@ -12,25 +13,23 @@ use once_cell::sync::Lazy;
 use regex::Captures;
 
 use crate::{
-    chain_bundle, BaseNodeFactorySynthetic,
-    CompilerOptions, EmitHelperFactory, GeneratedIdentifierFlags, JsxEmit,
-    NamedDeclarationInterface, Node, NodeFactory, NodeInterface, TransformationContext,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, _d,
-    add_emit_helpers, create_expression_for_jsx_element, create_expression_for_jsx_fragment,
-    create_expression_from_entity_name, create_jsx_factory_expression, filter, flatten,
-    get_emit_script_target, get_jsx_implicit_import_base, get_jsx_runtime_import,
-    get_line_and_character_of_position, get_semantic_jsx_children, id_text,
-    insert_statement_after_custom_prologue, is_expression, is_external_module,
-    is_external_or_common_js_module, is_identifier, is_intrinsic_jsx_name, is_jsx_attribute,
-    is_jsx_spread_attribute, is_line_break, is_source_file, is_string_double_quoted,
-    is_white_space_single_line, map, map_defined, maybe_get_original_node, maybe_visit_node, regex,
-    single_or_undefined, span_map, start_on_new_line, utf16_encode_as_string, visit_each_child,
-    visit_node, Debug_, GetOrInsertDefault, HasStatementsInterface, LiteralLikeNodeInterface,
-    MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number,
-    ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags, VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult, CoreTransformationContext,
-    ref_unwrapped, ref_mut_unwrapped,
+    chain_bundle, BaseNodeFactorySynthetic, CompilerOptions, EmitHelperFactory,
+    GeneratedIdentifierFlags, JsxEmit, NamedDeclarationInterface, Node, NodeFactory, NodeInterface,
+    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface, _d, add_emit_helpers, create_expression_for_jsx_element,
+    create_expression_for_jsx_fragment, create_expression_from_entity_name,
+    create_jsx_factory_expression, filter, flatten, get_emit_script_target,
+    get_jsx_implicit_import_base, get_jsx_runtime_import, get_line_and_character_of_position,
+    get_semantic_jsx_children, id_text, insert_statement_after_custom_prologue, is_expression,
+    is_external_module, is_external_or_common_js_module, is_identifier, is_intrinsic_jsx_name,
+    is_jsx_attribute, is_jsx_spread_attribute, is_line_break, is_source_file,
+    is_string_double_quoted, is_white_space_single_line, map, map_defined, maybe_get_original_node,
+    maybe_visit_node, ref_mut_unwrapped, ref_unwrapped, regex, single_or_undefined, span_map,
+    start_on_new_line, static_arena, utf16_encode_as_string, visit_each_child, visit_node,
+    AllArenas, CoreTransformationContext, Debug_, GetOrInsertDefault, HasArena,
+    HasStatementsInterface, InArena, LiteralLikeNodeInterface, MapOrDefault, Matches, NodeArray,
+    NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number, ReadonlyTextRange, ScriptTarget,
+    SyntaxKind, TransformFlags, TransformNodesTransformationResult, VisitResult,
 };
 
 #[derive(Builder, Default)]
@@ -87,9 +86,7 @@ impl TransformJsx {
         ref_unwrapped(&self.current_file_state)
     }
 
-    pub(super) fn current_file_state_mut(
-        &self,
-    ) -> RefMut<PerFileState> {
+    pub(super) fn current_file_state_mut(&self) -> RefMut<PerFileState> {
         ref_mut_unwrapped(&self.current_file_state)
     }
 
@@ -106,7 +103,8 @@ impl TransformJsx {
             self.current_file_state().filename_declaration
         {
             return current_file_state_filename_declaration
-                .ref_(self).as_variable_declaration()
+                .ref_(self)
+                .as_variable_declaration()
                 .name();
         }
         let declaration = self.factory.ref_(self).create_variable_declaration(
@@ -119,7 +117,8 @@ impl TransformJsx {
             Some(
                 self.factory.ref_(self).create_string_literal(
                     self.current_source_file()
-                        .ref_(self).as_source_file()
+                        .ref_(self)
+                        .as_source_file()
                         .file_name()
                         .clone(),
                     None,
@@ -197,7 +196,8 @@ impl TransformJsx {
             generated_name.clone(),
         );
         generated_name
-            .ref_(self).as_identifier()
+            .ref_(self)
+            .as_identifier()
             .set_generated_import_reference(Some(specifier));
         specifier_source_imports.insert(name.to_owned(), specifier);
         generated_name
@@ -220,10 +220,19 @@ impl TransformJsx {
                 .build()
                 .unwrap(),
         ));
-        let mut visited =
-            visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
-        add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
-        let mut statements: NodeArrayOrVec = visited.ref_(self).as_source_file().statements().into();
+        let mut visited = visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        );
+        add_emit_helpers(
+            visited,
+            self.context.ref_(self).read_emit_helpers().as_deref(),
+            self,
+        );
+        let mut statements: NodeArrayOrVec =
+            visited.ref_(self).as_source_file().statements().into();
         if let Some(current_file_state_filename_declaration) =
             self.current_file_state().filename_declaration
         {
@@ -252,7 +261,8 @@ impl TransformJsx {
                 if is_external_module(&node.ref_(self)) {
                     let import_statement = self
                         .factory
-                        .ref_(self).create_import_declaration(
+                        .ref_(self)
+                        .create_import_declaration(
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
                             Some(self.factory.ref_(self).create_import_clause(
@@ -262,8 +272,11 @@ impl TransformJsx {
                                     import_specifiers_map.values().cloned().collect_vec(),
                                 )),
                             )),
-                            self.factory
-                                .ref_(self).create_string_literal(import_source.clone(), None, None),
+                            self.factory.ref_(self).create_string_literal(
+                                import_source.clone(),
+                                None,
+                                None,
+                            ),
                             None,
                         )
                         .set_parent_recursive(false, self);
@@ -277,7 +290,8 @@ impl TransformJsx {
                 } else if is_external_or_common_js_module(&node.ref_(self)) {
                     let require_statement = self
                         .factory
-                        .ref_(self).create_variable_statement(
+                        .ref_(self)
+                        .create_variable_statement(
                             Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 vec![self.factory.ref_(self).create_variable_declaration(
@@ -287,7 +301,8 @@ impl TransformJsx {
                                                 .values()
                                                 .map(|s| {
                                                     let s_ref = s.ref_(self);
-                                                    let s_as_import_specifier = s_ref.as_import_specifier();
+                                                    let s_as_import_specifier =
+                                                        s_ref.as_import_specifier();
                                                     self.factory.ref_(self).create_binding_element(
                                                         None,
                                                         s_as_import_specifier.property_name.clone(),
@@ -331,7 +346,8 @@ impl TransformJsx {
         ) {
             visited = self
                 .factory
-                .ref_(self).update_source_file(visited, statements, None, None, None, None, None);
+                .ref_(self)
+                .update_source_file(visited, statements, None, None, None, None, None);
         }
         self.set_current_file_state(None);
         visited
@@ -339,7 +355,8 @@ impl TransformJsx {
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsJsx)
         {
             self.visitor_worker(node)
@@ -357,7 +374,13 @@ impl TransformJsx {
             SyntaxKind::JsxFragment => self.visit_jsx_fragment(node, false).map(Into::into),
             SyntaxKind::JsxExpression => self.visit_jsx_expression(node).map(Into::into),
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
+                visit_each_child(
+                    node,
+                    |node: Id<Node>| self.visitor(node),
+                    &*self.context.ref_(self),
+                    self,
+                )
+                .into(),
             ),
         }
     }
@@ -382,14 +405,23 @@ impl TransformJsx {
         let mut spread = false;
         for elem in &*node_as_jsx_opening_like_element
             .attributes()
-            .ref_(self).as_jsx_attributes()
-            .properties.ref_(self)
+            .ref_(self)
+            .as_jsx_attributes()
+            .properties
+            .ref_(self)
         {
             if is_jsx_spread_attribute(&elem.ref_(self)) {
                 spread = true;
             } else if spread
                 && is_jsx_attribute(&elem.ref_(self))
-                && elem.ref_(self).as_jsx_attribute().name.ref_(self).as_identifier().escaped_text == "key"
+                && elem
+                    .ref_(self)
+                    .as_jsx_attribute()
+                    .name
+                    .ref_(self)
+                    .as_identifier()
+                    .escaped_text
+                    == "key"
             {
                 return true;
             }
@@ -432,7 +464,12 @@ impl TransformJsx {
         is_child: bool,
     ) -> Option<Id<Node>> {
         if self.should_use_create_element(node) {
-            self.visit_jsx_opening_like_element_create_element(node, None, is_child, &*node.ref_(self))
+            self.visit_jsx_opening_like_element_create_element(
+                node,
+                None,
+                is_child,
+                &*node.ref_(self),
+            )
         } else {
             self.visit_jsx_opening_like_element_jsx(node, None, is_child, &*node.ref_(self))
         }
@@ -469,7 +506,8 @@ impl TransformJsx {
         let prop = self.convert_jsx_children_to_children_prop_assignment(children);
         prop.map(|prop| {
             self.factory
-                .ref_(self).create_object_literal_expression(Some(vec![prop]), None)
+                .ref_(self)
+                .create_object_literal_expression(Some(vec![prop]), None)
         })
     }
 
@@ -480,13 +518,17 @@ impl TransformJsx {
         let non_whitespace_children = get_semantic_jsx_children(children, self);
         if non_whitespace_children.len() == 1
             && non_whitespace_children[0]
-                .ref_(self).as_jsx_expression()
+                .ref_(self)
+                .as_jsx_expression()
                 .dot_dot_dot_token
                 .is_none()
         {
             let result = self.transform_jsx_child_to_expression(non_whitespace_children[0]);
-            return result
-                .map(|result| self.factory.ref_(self).create_property_assignment("children", result));
+            return result.map(|result| {
+                self.factory
+                    .ref_(self)
+                    .create_property_assignment("children", result)
+            });
         }
         let result = map_defined(Some(children), |&child: &Id<Node>, _| {
             self.transform_jsx_child_to_expression(child)
@@ -495,7 +537,8 @@ impl TransformJsx {
             self.factory.ref_(self).create_property_assignment(
                 "children",
                 self.factory
-                    .ref_(self).create_array_literal_expression(Some(result), None),
+                    .ref_(self)
+                    .create_array_literal_expression(Some(result), None),
             )
         })
     }
@@ -515,20 +558,27 @@ impl TransformJsx {
             .and_then(|children| self.convert_jsx_children_to_children_prop_assignment(children));
         let key_attr = node_as_jsx_opening_like_element
             .attributes()
-            .ref_(self).as_jsx_attributes()
+            .ref_(self)
+            .as_jsx_attributes()
             .properties
-            .ref_(self).iter()
+            .ref_(self)
+            .iter()
             .find(|p| {
-                p.ref_(self).as_named_declaration().maybe_name().matches(|p_name| {
-                    is_identifier(&p_name.ref_(self)) && p_name.ref_(self).as_identifier().escaped_text == "key"
-                })
+                p.ref_(self)
+                    .as_named_declaration()
+                    .maybe_name()
+                    .matches(|p_name| {
+                        is_identifier(&p_name.ref_(self))
+                            && p_name.ref_(self).as_identifier().escaped_text == "key"
+                    })
             })
             .cloned();
         let attrs: NodeArrayOrVec = key_attr.map_or_else(
             || {
                 node_as_jsx_opening_like_element
                     .attributes()
-                    .ref_(self).as_jsx_attributes()
+                    .ref_(self)
+                    .as_jsx_attributes()
                     .properties
                     .clone()
                     .into()
@@ -537,8 +587,10 @@ impl TransformJsx {
                 filter(
                     &node_as_jsx_opening_like_element
                         .attributes()
-                        .ref_(self).as_jsx_attributes()
-                        .properties.ref_(self),
+                        .ref_(self)
+                        .as_jsx_attributes()
+                        .properties
+                        .ref_(self),
                     |&p: &Id<Node>| p != key_attr,
                 )
                 .into()
@@ -577,7 +629,8 @@ impl TransformJsx {
                 .get(0)
                 .matches(|non_whitespace_children_0| {
                     non_whitespace_children_0
-                        .ref_(self).as_jsx_expression()
+                        .ref_(self)
+                        .as_jsx_expression()
                         .dot_dot_dot_token
                         .is_some()
                 });
@@ -633,7 +686,8 @@ impl TransformJsx {
         }
         let element = self
             .factory
-            .ref_(self).create_call_expression(
+            .ref_(self)
+            .create_call_expression(
                 self.get_jsx_factory_callee(is_static_children),
                 Option::<Id<NodeArray>>::None,
                 Some(args),
@@ -659,11 +713,15 @@ impl TransformJsx {
         let tag_name = self.get_tag_name(node);
         let attrs = node_as_jsx_opening_like_element
             .attributes()
-            .ref_(self).as_jsx_attributes()
+            .ref_(self)
+            .as_jsx_attributes()
             .properties
             .clone();
         let object_properties = if !attrs.ref_(self).is_empty() {
-            self.transform_jsx_attributes_to_object_props(&attrs.ref_(self), Option::<Id<Node>>::None)
+            self.transform_jsx_attributes_to_object_props(
+                &attrs.ref_(self),
+                Option::<Id<Node>>::None,
+            )
         } else {
             self.factory.ref_(self).create_null()
         };
@@ -672,8 +730,10 @@ impl TransformJsx {
             create_jsx_factory_expression(
                 &self.factory.ref_(self),
                 self.context
-                    .ref_(self).get_emit_resolver()
-                    .ref_(self).get_jsx_factory_entity(self.maybe_current_source_file()),
+                    .ref_(self)
+                    .get_emit_resolver()
+                    .ref_(self)
+                    .get_jsx_factory_entity(self.maybe_current_source_file()),
                 self.compiler_options.ref_(self).react_namespace.as_deref(),
                 node,
             )
@@ -719,7 +779,8 @@ impl TransformJsx {
             self.get_implicit_jsx_fragment_reference(),
             children_props.unwrap_or_else(|| {
                 self.factory
-                    .ref_(self).create_object_literal_expression(Some(vec![]), None)
+                    .ref_(self)
+                    .create_object_literal_expression(Some(vec![]), None)
             }),
             Option::<Id<Node>>::None,
             children,
@@ -738,12 +799,20 @@ impl TransformJsx {
         let element = create_expression_for_jsx_fragment(
             &self.factory.ref_(self),
             self.context
-                .ref_(self).get_emit_resolver()
-                .ref_(self).get_jsx_factory_entity(self.maybe_current_source_file()),
+                .ref_(self)
+                .get_emit_resolver()
+                .ref_(self)
+                .get_jsx_factory_entity(self.maybe_current_source_file()),
             self.context
-                .ref_(self).get_emit_resolver()
-                .ref_(self).get_jsx_fragment_factory_entity(self.maybe_current_source_file()),
-            self.compiler_options.ref_(self).react_namespace.as_deref().unwrap(),
+                .ref_(self)
+                .get_emit_resolver()
+                .ref_(self)
+                .get_jsx_fragment_factory_entity(self.maybe_current_source_file()),
+            self.compiler_options
+                .ref_(self)
+                .react_namespace
+                .as_deref()
+                .unwrap(),
             &map_defined(Some(children), |&child: &Id<Node>, _| {
                 self.transform_jsx_child_to_expression(child)
             }),
@@ -842,14 +911,16 @@ impl TransformJsx {
             expressions.insert(
                 0,
                 self.factory
-                    .ref_(self).create_object_literal_expression(Option::<Id<NodeArray>>::None, None),
+                    .ref_(self)
+                    .create_object_literal_expression(Option::<Id<NodeArray>>::None, None),
             );
         }
 
         if let Some(children) = children {
             expressions.push(
                 self.factory
-                    .ref_(self).create_object_literal_expression(Some(vec![children]), None),
+                    .ref_(self)
+                    .create_object_literal_expression(Some(vec![children]), None),
             );
         }
 
@@ -881,7 +952,9 @@ impl TransformJsx {
         let name = self.get_attribute_name(node);
         let expression =
             self.transform_jsx_attribute_initializer(node_as_jsx_attribute.initializer);
-        self.factory.ref_(self).create_property_assignment(name, expression)
+        self.factory
+            .ref_(self)
+            .create_property_assignment(name, expression)
     }
 
     fn transform_jsx_attribute_initializer(
@@ -894,11 +967,13 @@ impl TransformJsx {
         if node.ref_(self).kind() == SyntaxKind::StringLiteral {
             let node_ref = node.ref_(self);
             let node_as_string_literal = node_ref.as_string_literal();
-            let single_quote = node_as_string_literal
-                .single_quote
-                .unwrap_or_else(|| !is_string_double_quoted(node, self.current_source_file(), self));
-            let ret = self.factory
-                .ref_(self).create_string_literal(
+            let single_quote = node_as_string_literal.single_quote.unwrap_or_else(|| {
+                !is_string_double_quoted(node, self.current_source_file(), self)
+            });
+            let ret = self
+                .factory
+                .ref_(self)
+                .create_string_literal(
                     self.try_decode_entities(&node_as_string_literal.text())
                         .map(Cow::into_owned)
                         .unwrap_or_else(|| node_as_string_literal.text().clone()),
@@ -931,7 +1006,11 @@ impl TransformJsx {
         let node_ref = node.ref_(self);
         let node_as_jsx_text = node_ref.as_jsx_text();
         let fixed = self.fixup_whitespace_and_decode_entities(&node_as_jsx_text.text());
-        fixed.map(|fixed| self.factory.ref_(self).create_string_literal(fixed, None, None))
+        fixed.map(|fixed| {
+            self.factory
+                .ref_(self)
+                .create_string_literal(fixed, None, None)
+        })
     }
 
     fn fixup_whitespace_and_decode_entities(&self, text: &str) -> Option<String> {
@@ -1025,9 +1104,14 @@ impl TransformJsx {
             self.get_tag_name(node.ref_(self).as_jsx_element().opening_element)
         } else {
             let name = node.ref_(self).as_jsx_opening_like_element().tag_name();
-            if is_identifier(&name.ref_(self)) && is_intrinsic_jsx_name(&name.ref_(self).as_identifier().escaped_text) {
-                self.factory
-                    .ref_(self).create_string_literal(id_text(&name.ref_(self)).to_owned(), None, None)
+            if is_identifier(&name.ref_(self))
+                && is_intrinsic_jsx_name(&name.ref_(self).as_identifier().escaped_text)
+            {
+                self.factory.ref_(self).create_string_literal(
+                    id_text(&name.ref_(self)).to_owned(),
+                    None,
+                    None,
+                )
             } else {
                 create_expression_from_entity_name(&self.factory.ref_(self), name)
             }
@@ -1047,7 +1131,8 @@ impl TransformJsx {
             name
         } else {
             self.factory
-                .ref_(self).create_string_literal(text.to_owned(), None, None)
+                .ref_(self)
+                .create_string_literal(text.to_owned(), None, None)
         }
     }
 
@@ -1061,7 +1146,11 @@ impl TransformJsx {
             Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
         );
         if node_as_jsx_expression.dot_dot_dot_token.is_some() {
-            Some(self.factory.ref_(self).create_spread_element(expression.unwrap()))
+            Some(
+                self.factory
+                    .ref_(self)
+                    .create_spread_element(expression.unwrap()),
+            )
         } else {
             expression
         }

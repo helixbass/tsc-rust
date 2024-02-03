@@ -120,10 +120,7 @@ impl TypeChecker {
                         type_,
                         IterationTypeCacheKey::IterationTypesOfAsyncIterable,
                         // iterationTypes ?
-                        self.get_async_from_sync_iteration_types(
-                            iteration_types,
-                            error_node,
-                        )?, // : noIterationTypes
+                        self.get_async_from_sync_iteration_types(iteration_types, error_node)?, // : noIterationTypes
                     ));
                 } else {
                     return Ok(iteration_types);
@@ -156,13 +153,11 @@ impl TypeChecker {
                     Option::<Id<Node>>::None,
                 )
             })?;
-        Ok(
-            if global_iteration_types == self.no_iteration_types() {
-                self.default_iteration_types()
-            } else {
-                global_iteration_types
-            },
-        )
+        Ok(if global_iteration_types == self.no_iteration_types() {
+            self.default_iteration_types()
+        } else {
+            global_iteration_types
+        })
     }
 
     pub(super) fn get_iteration_types_of_iterable_fast(
@@ -344,13 +339,11 @@ impl TypeChecker {
             .try_unwrap_or_else(|| {
                 self.get_iteration_types_of_iterator_slow(type_, resolver, error_node)
             })?;
-        Ok(
-            if iteration_types == self.no_iteration_types() {
-                None
-            } else {
-                Some(iteration_types)
-            },
-        )
+        Ok(if iteration_types == self.no_iteration_types() {
+            None
+        } else {
+            Some(iteration_types)
+        })
     }
 
     pub(super) fn get_iteration_types_of_iterator_cached(
@@ -378,8 +371,7 @@ impl TypeChecker {
                         Option::<Id<Node>>::None,
                     )
                 })?;
-            let iteration_types = if global_iteration_types == self.no_iteration_types()
-            {
+            let iteration_types = if global_iteration_types == self.no_iteration_types() {
                 self.default_iteration_types()
             } else {
                 global_iteration_types
@@ -779,7 +771,9 @@ impl TypeChecker {
             is_async_generator,
         )?;
         Ok(iteration_types.map(|iteration_types| {
-            iteration_types.ref_(self).get_by_key(get_iteration_types_key_from_iteration_type_kind(kind))
+            iteration_types
+                .ref_(self)
+                .get_by_key(get_iteration_types_key_from_iteration_type_kind(kind))
         }))
     }
 

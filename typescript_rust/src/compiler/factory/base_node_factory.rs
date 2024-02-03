@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 
-
-use crate::{object_allocator, BaseNode, NodeInterface, SyntaxKind, AllArenas, HasArena};
+use crate::{object_allocator, AllArenas, BaseNode, HasArena, NodeInterface, SyntaxKind};
 
 pub trait BaseNodeFactory {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;
@@ -21,7 +20,8 @@ pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
 pub struct BaseNodeFactoryConcrete {
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    PrivateIdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
+    PrivateIdentifierConstructor:
+        RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
 }

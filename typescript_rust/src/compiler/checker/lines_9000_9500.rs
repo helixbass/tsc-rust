@@ -4,20 +4,19 @@ use id_arena::Id;
 
 use super::CheckMode;
 use crate::{
-    create_symbol_table, find_last_index_returns_isize, get_check_flags,
-    get_declaration_of_kind, get_effective_return_type_node,
-    get_effective_set_accessor_type_annotation_node, get_effective_type_annotation_node,
-    get_root_declaration, get_source_file_of_node, get_this_container, is_accessor,
-    is_binary_expression, is_bindable_static_element_access_expression, is_binding_element,
-    is_binding_pattern, is_call_expression,
-    is_catch_clause_variable_declaration_or_binding_element, is_class_declaration,
-    is_element_access_expression, is_enum_declaration, is_enum_member, is_function_declaration,
-    is_identifier, is_in_js_file, is_jsdoc_property_like_tag, is_json_source_file,
-    is_jsx_attribute, is_method_declaration, is_method_signature, is_numeric_literal,
-    is_object_literal_method, is_omitted_expression, is_parameter, is_property_access_expression,
-    is_property_assignment, is_property_declaration, is_property_signature,
-    is_prototype_property_assignment, is_shorthand_property_assignment, is_source_file,
-    is_string_literal_like, is_variable_declaration, last_or_undefined, map,
+    create_symbol_table, find_last_index_returns_isize, get_check_flags, get_declaration_of_kind,
+    get_effective_return_type_node, get_effective_set_accessor_type_annotation_node,
+    get_effective_type_annotation_node, get_root_declaration, get_source_file_of_node,
+    get_this_container, is_accessor, is_binary_expression,
+    is_bindable_static_element_access_expression, is_binding_element, is_binding_pattern,
+    is_call_expression, is_catch_clause_variable_declaration_or_binding_element,
+    is_class_declaration, is_element_access_expression, is_enum_declaration, is_enum_member,
+    is_function_declaration, is_identifier, is_in_js_file, is_jsdoc_property_like_tag,
+    is_json_source_file, is_jsx_attribute, is_method_declaration, is_method_signature,
+    is_numeric_literal, is_object_literal_method, is_omitted_expression, is_parameter,
+    is_property_access_expression, is_property_assignment, is_property_declaration,
+    is_property_signature, is_prototype_property_assignment, is_shorthand_property_assignment,
+    is_source_file, is_string_literal_like, is_variable_declaration, last_or_undefined, map,
     return_ok_none_if_none, try_for_each, try_for_each_child_recursively_bool, try_map, CheckFlags,
     Debug_, Diagnostics, ElementFlags, HasArena, HasInitializerInterface, HasStatementsInterface,
     InArena, IndexInfo, NamedDeclarationInterface, Node, NodeArray, NodeInterface, ObjectFlags,
@@ -34,9 +33,11 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         Ok(is_property_access_expression(&this_property.ref_(self))
             && this_property
-                .ref_(self).as_property_access_expression()
+                .ref_(self)
+                .as_property_access_expression()
                 .expression
-                .ref_(self).kind()
+                .ref_(self)
+                .kind()
                 == SyntaxKind::ThisKeyword
             && try_for_each_child_recursively_bool(
                 expression,
@@ -64,20 +65,27 @@ impl TypeChecker {
         declarations: &[Id<Node /*Declaration*/>],
     ) -> Option<Vec<Id<Type>>> {
         Debug_.assert(types.len() == declarations.len(), None);
-        Some(types.iter().enumerate().filter(|(i, _)| {
-            let declaration = declarations[*i];
-            let expression = if is_binary_expression(&declaration.ref_(self)) {
-                Some(declaration)
-            } else if is_binary_expression(&declaration.ref_(self).parent().ref_(self)) {
-                Some(declaration.ref_(self).parent())
-            } else {
-                None
-            };
-            matches!(
-                expression,
-                Some(expression) if self.is_declaration_in_constructor(expression)
-            )
-        }).map(|(_, type_)| type_.clone()).collect())
+        Some(
+            types
+                .iter()
+                .enumerate()
+                .filter(|(i, _)| {
+                    let declaration = declarations[*i];
+                    let expression = if is_binary_expression(&declaration.ref_(self)) {
+                        Some(declaration)
+                    } else if is_binary_expression(&declaration.ref_(self).parent().ref_(self)) {
+                        Some(declaration.ref_(self).parent())
+                    } else {
+                        None
+                    };
+                    matches!(
+                        expression,
+                        Some(expression) if self.is_declaration_in_constructor(expression)
+                    )
+                })
+                .map(|(_, type_)| type_.clone())
+                .collect(),
+        )
     }
 
     pub(super) fn get_type_from_binding_element(
@@ -89,15 +97,16 @@ impl TypeChecker {
         let element_ref = element.ref_(self);
         let element_as_binding_element = element_ref.as_binding_element();
         if element_as_binding_element.maybe_initializer().is_some() {
-            let contextual_type = if is_binding_pattern(Some(&element_as_binding_element.name().ref_(self))) {
-                self.get_type_from_binding_pattern(
-                    element_as_binding_element.name(),
-                    Some(true),
-                    Some(false),
-                )?
-            } else {
-                self.unknown_type()
-            };
+            let contextual_type =
+                if is_binding_pattern(Some(&element_as_binding_element.name().ref_(self))) {
+                    self.get_type_from_binding_pattern(
+                        element_as_binding_element.name(),
+                        Some(true),
+                        Some(false),
+                    )?
+                } else {
+                    self.unknown_type()
+                };
             return self.add_optionality(
                 self.widen_type_inferred_from_initializer(
                     element,
@@ -137,7 +146,11 @@ impl TypeChecker {
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
         try_for_each(
-            &*pattern.ref_(self).as_object_binding_pattern().elements.ref_(self),
+            &*pattern
+                .ref_(self)
+                .as_object_binding_pattern()
+                .elements
+                .ref_(self),
             |&e: &Id<Node>, _| -> io::Result<_> {
                 let e_ref = e.ref_(self);
                 let e_as_binding_element = e_ref.as_binding_element();
@@ -224,11 +237,14 @@ impl TypeChecker {
         let rest_element = last_element.filter(|last_element| {
             last_element.ref_(self).kind() == SyntaxKind::BindingElement
                 && last_element
-                    .ref_(self).as_binding_element()
+                    .ref_(self)
+                    .as_binding_element()
                     .dot_dot_dot_token
                     .is_some()
         });
-        if elements.ref_(self).is_empty() || elements.ref_(self).len() == 1 && rest_element.is_some() {
+        if elements.ref_(self).is_empty()
+            || elements.ref_(self).len() == 1 && rest_element.is_some()
+        {
             return Ok(if self.language_version >= ScriptTarget::ES2015 {
                 self.create_iterable_type(self.any_type())?
             } else {
@@ -287,19 +303,21 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let include_pattern_in_type = include_pattern_in_type.unwrap_or(false);
         let report_errors = report_errors.unwrap_or(false);
-        Ok(if pattern.ref_(self).kind() == SyntaxKind::ObjectBindingPattern {
-            self.get_type_from_object_binding_pattern(
-                pattern,
-                include_pattern_in_type,
-                report_errors,
-            )?
-        } else {
-            self.get_type_from_array_binding_pattern(
-                pattern,
-                include_pattern_in_type,
-                report_errors,
-            )?
-        })
+        Ok(
+            if pattern.ref_(self).kind() == SyntaxKind::ObjectBindingPattern {
+                self.get_type_from_object_binding_pattern(
+                    pattern,
+                    include_pattern_in_type,
+                    report_errors,
+                )?
+            } else {
+                self.get_type_from_array_binding_pattern(
+                    pattern,
+                    include_pattern_in_type,
+                    report_errors,
+                )?
+            },
+        )
     }
 
     pub(super) fn get_widened_type_for_variable_like_declaration(
@@ -356,7 +374,8 @@ impl TypeChecker {
 
         let type_ = if is_parameter(&declaration.ref_(self))
             && declaration
-                .ref_(self).as_parameter_declaration()
+                .ref_(self)
+                .as_parameter_declaration()
                 .dot_dot_dot_token
                 .is_some()
         {
@@ -457,14 +476,14 @@ impl TypeChecker {
                         .set_value_declaration(file_symbol_value_declaration);
                 }
                 if let Some(file_symbol_members) = file_symbol.ref_(self).maybe_members().as_ref() {
-                    result.ref_(self).set_members(Some(self.alloc_symbol_table(
-                        file_symbol_members.ref_(self).clone(),
-                    )));
+                    result.ref_(self).set_members(Some(
+                        self.alloc_symbol_table(file_symbol_members.ref_(self).clone()),
+                    ));
                 }
                 if let Some(file_symbol_exports) = file_symbol.ref_(self).maybe_exports().as_ref() {
-                    result.ref_(self).set_exports(Some(self.alloc_symbol_table(
-                        file_symbol_exports.ref_(self).clone(),
-                    )));
+                    result.ref_(self).set_exports(Some(
+                        self.alloc_symbol_table(file_symbol_exports.ref_(self).clone()),
+                    ));
                 }
                 let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
                 members.insert("exports".to_owned(), result);
@@ -499,14 +518,19 @@ impl TypeChecker {
         if is_source_file(&declaration.ref_(self)) && is_json_source_file(&declaration.ref_(self)) {
             let declaration_ref = declaration.ref_(self);
             let declaration_as_source_file = declaration_ref.as_source_file();
-            if declaration_as_source_file.statements().ref_(self).is_empty() {
+            if declaration_as_source_file
+                .statements()
+                .ref_(self)
+                .is_empty()
+            {
                 return Ok(self.empty_object_type());
             }
             return self.get_widened_type(
                 self.get_widened_literal_type(
                     self.check_expression(
                         declaration_as_source_file.statements().ref_(self)[0]
-                            .ref_(self).as_expression_statement()
+                            .ref_(self)
+                            .as_expression_statement()
                             .expression,
                         None,
                         None,
@@ -560,7 +584,8 @@ impl TypeChecker {
             || is_numeric_literal(&declaration.ref_(self))
             || is_class_declaration(&declaration.ref_(self))
             || is_function_declaration(&declaration.ref_(self))
-            || (is_method_declaration(&declaration.ref_(self)) && !is_object_literal_method(declaration, self))
+            || (is_method_declaration(&declaration.ref_(self))
+                && !is_object_literal_method(declaration, self))
             || is_method_signature(&declaration.ref_(self))
             || is_source_file(&declaration.ref_(self))
         {
@@ -595,7 +620,10 @@ impl TypeChecker {
                 .try_get_type_from_effective_type_node(declaration)?
                 .try_unwrap_or_else(|| {
                     self.check_expression_for_mutable_location(
-                        declaration.ref_(self).as_shorthand_property_assignment().name(),
+                        declaration
+                            .ref_(self)
+                            .as_shorthand_property_assignment()
+                            .name(),
                         Some(CheckMode::Normal),
                         None,
                         None,
@@ -661,7 +689,8 @@ impl TypeChecker {
             let getter_type_annotation = get_effective_return_type_node(accessor, self);
             return getter_type_annotation;
         } else {
-            let setter_type_annotation = get_effective_set_accessor_type_annotation_node(accessor, self);
+            let setter_type_annotation =
+                get_effective_set_accessor_type_annotation_node(accessor, self);
             return setter_type_annotation;
         }
     }
@@ -779,7 +808,12 @@ impl TypeChecker {
         }
 
         if let Some(getter) = getter {
-            if getter.ref_(self).as_function_like_declaration().maybe_body().is_some() {
+            if getter
+                .ref_(self)
+                .as_function_like_declaration()
+                .maybe_body()
+                .is_some()
+            {
                 let return_type_from_body = self.get_return_type_from_body(getter, None)?;
                 return Ok(Some(
                     self.instantiate_type_if_needed(return_type_from_body, symbol)?,

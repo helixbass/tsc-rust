@@ -1,6 +1,6 @@
 use std::{
     borrow::Borrow,
-    cell::{Cell, Ref, RefMut, RefCell},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
     fmt, io,
     iter::FromIterator,
@@ -22,24 +22,21 @@ use crate::{
     is_function_like, is_identifier, is_jsx_attribute_like, is_object_literal_element_like,
     is_parameter, is_property_access_expression,
     is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
-    object_allocator, parse_pseudo_big_int, return_ok_default_if_none, return_ok_none_if_none,
-    skip_type_checking, sum, unescape_leading_underscores, AllArenas, BaseInterfaceType,
-    CancellationToken, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
-    Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    object_allocator, parse_pseudo_big_int, ref_unwrapped, return_ok_default_if_none,
+    return_ok_none_if_none, skip_type_checking, static_arena, sum, unescape_leading_underscores,
+    AllArenas, BaseInterfaceType, CancellationToken, CheckBinaryExpression, CheckFlags,
+    ContextFlags, Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
     ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface,
     HasArena, InArena, IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey,
     IterationTypes, JsxEmit, ModuleInstanceState, Node, NodeArray, NodeBuilder, NodeBuilderFlags,
     NodeCheckFlags, NodeFlags, NodeId, NodeInterface, NodeLinks, Number, ObjectFlags, OptionTry,
-    OutofbandVarianceMarkerHandler, Path, PatternAmbientModule, PseudoBigInt,
+    OutofbandVarianceMarkerHandler, Path, PatternAmbientModule, Program, PseudoBigInt,
     RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
     TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
     TypePredicate, TypePredicateKind, VarianceFlags,
-    static_arena,
-    Program,
-    ref_unwrapped,
 };
 
 lazy_static! {
@@ -850,7 +847,9 @@ pub fn create_type_checker(
                 .into(),
         ),
     );
-    type_checker.undefined_symbol.unwrap()
+    type_checker
+        .undefined_symbol
+        .unwrap()
         .ref_(&type_checker)
         .set_declarations(vec![]);
     type_checker.global_this_symbol = Some(
@@ -866,13 +865,17 @@ pub fn create_type_checker(
     );
     let global_this_symbol = type_checker.global_this_symbol();
     {
-        global_this_symbol.ref_(&type_checker).set_exports(Some(type_checker.globals_id()));
+        global_this_symbol
+            .ref_(&type_checker)
+            .set_exports(Some(type_checker.globals_id()));
     }
     global_this_symbol
-        .ref_(&type_checker).set_declarations(vec![]);
+        .ref_(&type_checker)
+        .set_declarations(vec![]);
     type_checker.globals_mut().insert(
         global_this_symbol
-            .ref_(&type_checker).escaped_name()
+            .ref_(&type_checker)
+            .escaped_name()
             .to_owned(),
         global_this_symbol,
     );
@@ -1357,12 +1360,14 @@ pub fn create_type_checker(
         ),
     );
 
-    type_checker.no_type_predicate = Some(arena_ref.alloc_type_predicate(type_checker.create_type_predicate(
-        TypePredicateKind::Identifier,
-        Some("<<unresolved>>".to_owned()),
-        Some(0),
-        Some(type_checker.any_type()),
-    )));
+    type_checker.no_type_predicate = Some(arena_ref.alloc_type_predicate(
+        type_checker.create_type_predicate(
+            TypePredicateKind::Identifier,
+            Some("<<unresolved>>".to_owned()),
+            Some(0),
+            Some(type_checker.any_type()),
+        ),
+    ));
 
     type_checker.any_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
         None,
@@ -1374,43 +1379,47 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.unknown_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
-        None,
-        None,
-        None,
-        vec![],
-        Some(type_checker.error_type()),
-        None,
-        0,
-        SignatureFlags::None,
-    )));
-    type_checker.resolving_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
-        None,
-        None,
-        None,
-        vec![],
-        Some(type_checker.any_type()),
-        None,
-        0,
-        SignatureFlags::None,
-    )));
-    type_checker.silent_never_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
-        None,
-        None,
-        None,
-        vec![],
-        Some(type_checker.silent_never_type()),
-        None,
-        0,
-        SignatureFlags::None,
-    )));
+    type_checker.unknown_signature =
+        Some(arena_ref.alloc_signature(type_checker.create_signature(
+            None,
+            None,
+            None,
+            vec![],
+            Some(type_checker.error_type()),
+            None,
+            0,
+            SignatureFlags::None,
+        )));
+    type_checker.resolving_signature =
+        Some(arena_ref.alloc_signature(type_checker.create_signature(
+            None,
+            None,
+            None,
+            vec![],
+            Some(type_checker.any_type()),
+            None,
+            0,
+            SignatureFlags::None,
+        )));
+    type_checker.silent_never_signature =
+        Some(arena_ref.alloc_signature(type_checker.create_signature(
+            None,
+            None,
+            None,
+            vec![],
+            Some(type_checker.silent_never_type()),
+            None,
+            0,
+            SignatureFlags::None,
+        )));
 
-    type_checker.enum_number_index_info = Some(arena_ref.alloc_index_info(type_checker.create_index_info(
-        type_checker.number_type(),
-        type_checker.string_type(),
-        true,
-        None,
-    )));
+    type_checker.enum_number_index_info =
+        Some(arena_ref.alloc_index_info(type_checker.create_index_info(
+            type_checker.number_type(),
+            type_checker.string_type(),
+            true,
+            None,
+        )));
 
     type_checker.any_iteration_types = Some(type_checker.create_iteration_types(
         Some(type_checker.any_type()),
@@ -1446,7 +1455,8 @@ pub fn create_type_checker(
 
     let mut builtin_globals: SymbolTable = SymbolTable::new();
     builtin_globals.insert(
-        type_checker.undefined_symbol()
+        type_checker
+            .undefined_symbol()
             .ref_(&type_checker)
             .escaped_name()
             .to_owned(),
@@ -1457,12 +1467,20 @@ pub fn create_type_checker(
     let ret = arena_ref.alloc_type_checker(type_checker);
     ret.ref_(arena_ref).set_arena_id(ret.clone());
 
-    ret.ref_(arena_ref).node_builder.set(Some(ret.ref_(arena_ref).create_node_builder()));
+    ret.ref_(arena_ref)
+        .node_builder
+        .set(Some(ret.ref_(arena_ref).create_node_builder()));
 
     ret.ref_(arena_ref).initialize_type_checker()?;
 
-    ret.ref_(arena_ref).check_binary_expression.set(Some(ret.ref_(arena_ref).alloc_check_binary_expression(ret.ref_(arena_ref).create_check_binary_expression())));
-    ret.ref_(arena_ref).emit_resolver.set(Some(ret.ref_(arena_ref).create_resolver()));
+    ret.ref_(arena_ref)
+        .check_binary_expression
+        .set(Some(ret.ref_(arena_ref).alloc_check_binary_expression(
+            ret.ref_(arena_ref).create_check_binary_expression(),
+        )));
+    ret.ref_(arena_ref)
+        .emit_resolver
+        .set(Some(ret.ref_(arena_ref).create_resolver()));
 
     Ok(ret)
 }
@@ -1473,8 +1491,7 @@ struct RestrictiveMapperFunc {}
 impl TypeMapperCallback for RestrictiveMapperFunc {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if t
-                .ref_(type_checker)
+            if t.ref_(type_checker)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
@@ -1492,8 +1509,7 @@ struct PermissiveMapperFunc {}
 impl TypeMapperCallback for PermissiveMapperFunc {
     fn call(&self, type_checker: &TypeChecker, t: Id<Type>) -> io::Result<Id<Type>> {
         Ok(
-            if t
-                .ref_(type_checker)
+            if t.ref_(type_checker)
                 .flags()
                 .intersects(TypeFlags::TypeParameter)
             {
@@ -1551,35 +1567,37 @@ impl TypeChecker {
                 *packages_map = Some(HashMap::new());
             }
             let map = packages_map.as_mut().unwrap();
-            self.host.ref_(self).get_source_files().iter().for_each(|&sf| {
-                let sf_ref = sf.ref_(self);
-                let sf_as_source_file = sf_ref.as_source_file();
-                let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();
-                if sf_resolved_modules.is_none() {
-                    return;
-                }
-
-                sf_resolved_modules.as_ref().unwrap().for_each(|r, _, _| {
-                    if let Some(r) = r.as_ref() {
-                        if let Some(r_package_id) = r.ref_(self).package_id.as_ref() {
-                            map.insert(
-                                r_package_id.name.clone(),
-                                matches!(r.ref_(self).extension, Some(Extension::Dts))
-                                    || matches!(map.get(&r_package_id.name), Some(true)),
-                            );
-                        }
+            self.host
+                .ref_(self)
+                .get_source_files()
+                .iter()
+                .for_each(|&sf| {
+                    let sf_ref = sf.ref_(self);
+                    let sf_as_source_file = sf_ref.as_source_file();
+                    let sf_resolved_modules = sf_as_source_file.maybe_resolved_modules();
+                    if sf_resolved_modules.is_none() {
+                        return;
                     }
-                })
-            });
+
+                    sf_resolved_modules.as_ref().unwrap().for_each(|r, _, _| {
+                        if let Some(r) = r.as_ref() {
+                            if let Some(r_package_id) = r.ref_(self).package_id.as_ref() {
+                                map.insert(
+                                    r_package_id.name.clone(),
+                                    matches!(r.ref_(self).extension, Some(Extension::Dts))
+                                        || matches!(map.get(&r_package_id.name), Some(true)),
+                                );
+                            }
+                        }
+                    })
+                });
         }
         Ref::map(self._packages_map.borrow(), |option| {
             option.as_ref().unwrap()
         })
     }
 
-    pub(super) fn maybe_cancellation_token(
-        &self,
-    ) -> Option<Id<Box<dyn CancellationToken>>> {
+    pub(super) fn maybe_cancellation_token(&self) -> Option<Id<Box<dyn CancellationToken>>> {
         self.cancellation_token.get()
     }
 
@@ -1783,7 +1801,11 @@ impl TypeChecker {
         symbol: Id<Symbol>,
         location_in: Id<Node>,
     ) -> io::Result<Id<Type>> {
-        let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None, self);
+        let location = get_parse_tree_node(
+            Some(location_in),
+            Option::<fn(Id<Node>) -> bool>::None,
+            self,
+        );
         Ok(match location {
             Some(location) => self.get_type_of_symbol_at_location_(symbol, location)?,
             None => self.error_type(),
@@ -1879,7 +1901,11 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*TypeNode*/
     ) -> io::Result<Id<Type>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_type_node(&node.ref_(self))), self);
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: Id<Node>| is_type_node(&node.ref_(self))),
+            self,
+        );
         Ok(if let Some(node) = node {
             self.get_type_from_type_node_(node)?
         } else {
@@ -1910,8 +1936,12 @@ impl TypeChecker {
         flags: Option<NodeBuilderFlags>,
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*TypeNode*/>>> {
-        self.node_builder()
-            .ref_(self).type_to_type_node(type_, enclosing_declaration, flags, tracker)
+        self.node_builder().ref_(self).type_to_type_node(
+            type_,
+            enclosing_declaration,
+            flags,
+            tracker,
+        )
     }
 
     pub fn index_info_to_index_signature_declaration(
@@ -1922,7 +1952,8 @@ impl TypeChecker {
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*IndexSignatureDeclaration*/>>> {
         self.node_builder()
-            .ref_(self).index_info_to_index_signature_declaration(
+            .ref_(self)
+            .index_info_to_index_signature_declaration(
                 index_info,
                 enclosing_declaration,
                 flags,
@@ -1939,13 +1970,15 @@ impl TypeChecker {
         tracker: Option<Id<Box<dyn SymbolTracker>>>,
     ) -> io::Result<Option<Id<Node /*SignatureDeclaration & {typeArguments?: NodeArray<TypeNode>}*/>>>
     {
-        self.node_builder().ref_(self).signature_to_signature_declaration(
-            signature,
-            kind,
-            enclosing_declaration,
-            flags,
-            tracker,
-        )
+        self.node_builder()
+            .ref_(self)
+            .signature_to_signature_declaration(
+                signature,
+                kind,
+                enclosing_declaration,
+                flags,
+                tracker,
+            )
     }
 
     pub fn symbol_to_entity_name(
@@ -1986,12 +2019,9 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<NodeArray> /*<TypeParameterDeclaration>*/>> {
-        self.node_builder().ref_(self).symbol_to_type_parameter_declarations(
-            symbol,
-            enclosing_declaration,
-            flags,
-            None,
-        )
+        self.node_builder()
+            .ref_(self)
+            .symbol_to_type_parameter_declarations(symbol, enclosing_declaration, flags, None)
     }
 
     pub fn symbol_to_parameter_declaration(
@@ -2000,12 +2030,9 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*ParameterDeclaration*/>>> {
-        self.node_builder().ref_(self).symbol_to_parameter_declaration(
-            symbol,
-            enclosing_declaration,
-            flags,
-            None,
-        )
+        self.node_builder()
+            .ref_(self)
+            .symbol_to_parameter_declaration(symbol, enclosing_declaration, flags, None)
     }
 
     pub fn type_parameter_to_declaration(
@@ -2014,12 +2041,9 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         flags: Option<NodeBuilderFlags>,
     ) -> io::Result<Option<Id<Node /*TypeParameterDeclaration*/>>> {
-        self.node_builder().ref_(self).type_parameter_to_declaration(
-            parameter,
-            enclosing_declaration,
-            flags,
-            None,
-        )
+        self.node_builder()
+            .ref_(self)
+            .type_parameter_to_declaration(parameter, enclosing_declaration, flags, None)
     }
 
     pub fn get_symbols_in_scope(
@@ -2027,7 +2051,11 @@ impl TypeChecker {
         location_in: Id<Node>,
         meaning: SymbolFlags,
     ) -> io::Result<Vec<Id<Symbol>>> {
-        let location = get_parse_tree_node(Some(location_in), Option::<fn(Id<Node>) -> bool>::None, self);
+        let location = get_parse_tree_node(
+            Some(location_in),
+            Option::<fn(Id<Node>) -> bool>::None,
+            self,
+        );
         location.try_map_or_else(
             || Ok(Default::default()),
             |location| self.get_symbols_in_scope_(location, meaning),
@@ -2133,7 +2161,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             flags,
             kind,
             None,
@@ -2148,7 +2180,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_to_string_(
             type_,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             flags,
             None,
         )
@@ -2163,7 +2199,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             meaning,
             flags,
             None,
@@ -2178,7 +2218,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             flags,
             None,
         )
@@ -2194,7 +2238,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.signature_to_string_(
             signature,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             flags,
             kind,
             writer,
@@ -2210,7 +2258,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_to_string_(
             type_,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             flags,
             writer,
         )
@@ -2226,7 +2278,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.symbol_to_string_(
             symbol,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             meaning,
             flags,
             writer,
@@ -2242,7 +2298,11 @@ impl TypeChecker {
     ) -> io::Result<String> {
         self.type_predicate_to_string_(
             predicate,
-            get_parse_tree_node(enclosing_declaration, Option::<fn(Id<Node>) -> bool>::None, self),
+            get_parse_tree_node(
+                enclosing_declaration,
+                Option::<fn(Id<Node>) -> bool>::None,
+                self,
+            ),
             flags,
             writer,
         )
@@ -2258,8 +2318,11 @@ impl TypeChecker {
             Some(|node: Id<Node>| is_expression(node, self)),
             self,
         ));
-        let containing_call =
-            find_ancestor(Some(node), |node: Id<Node>| is_call_like_expression(&node.ref_(self)), self);
+        let containing_call = find_ancestor(
+            Some(node),
+            |node: Id<Node>| is_call_like_expression(&node.ref_(self)),
+            self,
+        );
         let containing_call_resolved_signature: Option<Id<Signature>> =
             containing_call.and_then(|containing_call| {
                 self.get_node_links(containing_call)
@@ -2391,7 +2454,9 @@ impl TypeChecker {
     ) -> io::Result<bool> {
         let node = get_parse_tree_node(
             Some(node_in),
-            Some(|node: Id<Node>| is_property_access_or_qualified_name_or_import_type_node(&node.ref_(self))),
+            Some(|node: Id<Node>| {
+                is_property_access_or_qualified_name_or_import_type_node(&node.ref_(self))
+            }),
             self,
         );
         Ok(match node {
@@ -2462,7 +2527,11 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*ParameterDeclaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_parameter(&node.ref_(self))), self);
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: Id<Node>| is_parameter(&node.ref_(self))),
+            self,
+        );
         Ok(match node {
             None => false,
             Some(node) => self.is_optional_parameter_(node)?,
@@ -2681,11 +2750,22 @@ impl TypeChecker {
         file_in: Id<Node>, /*SourceFile*/
         ct: Option<Id<Box<dyn CancellationToken>>>,
     ) -> io::Result<Vec<Id<Diagnostic /*DiagnosticWithLocation*/>>> {
-        let file = get_parse_tree_node(Some(file_in), Some(|node: Id<Node>| is_source_file(&node.ref_(self))), self)
-            .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
-        if skip_type_checking(&file.ref_(self), &self.compiler_options.ref_(self), |file_name| {
-            TypeCheckerHost::is_source_of_project_reference_redirect(&*self.host.ref_(self), file_name)
-        }) {
+        let file = get_parse_tree_node(
+            Some(file_in),
+            Some(|node: Id<Node>| is_source_file(&node.ref_(self))),
+            self,
+        )
+        .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
+        if skip_type_checking(
+            &file.ref_(self),
+            &self.compiler_options.ref_(self),
+            |file_name| {
+                TypeCheckerHost::is_source_of_project_reference_redirect(
+                    &*self.host.ref_(self),
+                    file_name,
+                )
+            },
+        ) {
             return Ok(vec![]);
         }
 
@@ -2718,7 +2798,10 @@ impl TypeChecker {
                 if !contains_parse_error(containing_node, self)
                     && !self.unused_is_error(
                         kind,
-                        containing_node.ref_(self).flags().intersects(NodeFlags::Ambient),
+                        containing_node
+                            .ref_(self)
+                            .flags()
+                            .intersects(NodeFlags::Ambient),
                     )
                 {
                     diag.ref_(self).set_category(DiagnosticCategory::Suggestion); // TODO: is it a problem that this is being mutated?
@@ -2793,9 +2876,7 @@ impl TypeChecker {
         self.big_int_literal_types.borrow_mut()
     }
 
-    pub(super) fn enum_literal_types(
-        &self,
-    ) -> RefMut<HashMap<String, Id</*LiteralType*/ Type>>> {
+    pub(super) fn enum_literal_types(&self) -> RefMut<HashMap<String, Id</*LiteralType*/ Type>>> {
         self.enum_literal_types.borrow_mut()
     }
 
@@ -3067,9 +3148,7 @@ impl TypeChecker {
         self.enum_number_index_info.as_ref().unwrap().clone()
     }
 
-    pub(super) fn iteration_types_cache(
-        &self,
-    ) -> RefMut<HashMap<String, Id<IterationTypes>>> {
+    pub(super) fn iteration_types_cache(&self) -> RefMut<HashMap<String, Id<IterationTypes>>> {
         self.iteration_types_cache.borrow_mut()
     }
 
@@ -3136,14 +3215,11 @@ impl TypeChecker {
     }
 
     pub(super) fn global_callable_function_type(&self) -> Id<Type> {
-        self.global_callable_function_type
-            .get().unwrap()
+        self.global_callable_function_type.get().unwrap()
     }
 
     pub(super) fn global_newable_function_type(&self) -> Id<Type> {
-        self.global_newable_function_type
-            .get()
-            .unwrap()
+        self.global_newable_function_type.get().unwrap()
     }
 
     pub(super) fn global_array_type(&self) -> Id<Type> {
@@ -3151,9 +3227,7 @@ impl TypeChecker {
     }
 
     pub(super) fn global_readonly_array_type(&self) -> Id<Type> {
-        self.global_readonly_array_type
-            .get()
-            .unwrap()
+        self.global_readonly_array_type.get().unwrap()
     }
 
     pub(super) fn global_string_type(&self) -> Id<Type> {
@@ -3185,14 +3259,10 @@ impl TypeChecker {
     }
 
     pub(super) fn any_readonly_array_type(&self) -> Id<Type> {
-        self.any_readonly_array_type
-            .get()
-            .unwrap()
+        self.any_readonly_array_type.get().unwrap()
     }
 
-    pub(super) fn maybe_deferred_global_non_nullable_type_alias(
-        &self,
-    ) -> Option<Id<Symbol>> {
+    pub(super) fn maybe_deferred_global_non_nullable_type_alias(&self) -> Option<Id<Symbol>> {
         self.deferred_global_non_nullable_type_alias.get()
     }
 
@@ -3200,14 +3270,12 @@ impl TypeChecker {
         &self,
         deferred_global_non_nullable_type_alias: Option<Id<Symbol>>,
     ) {
-        self.deferred_global_non_nullable_type_alias.set(deferred_global_non_nullable_type_alias);
+        self.deferred_global_non_nullable_type_alias
+            .set(deferred_global_non_nullable_type_alias);
     }
 
-    pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(
-        &self,
-    ) -> Option<Id<Symbol>> {
-        self.deferred_global_es_symbol_constructor_symbol
-            .get()
+    pub(super) fn maybe_deferred_global_es_symbol_constructor_symbol(&self) -> Option<Id<Symbol>> {
+        self.deferred_global_es_symbol_constructor_symbol.get()
     }
 
     pub(super) fn set_deferred_global_es_symbol_constructor_symbol(
@@ -3221,8 +3289,7 @@ impl TypeChecker {
     pub(super) fn maybe_deferred_global_es_symbol_constructor_type_symbol(
         &self,
     ) -> Option<Id<Symbol>> {
-        self.deferred_global_es_symbol_constructor_type_symbol
-            .get()
+        self.deferred_global_es_symbol_constructor_type_symbol.get()
     }
 
     pub(super) fn set_deferred_global_es_symbol_constructor_type_symbol(
@@ -3237,15 +3304,16 @@ impl TypeChecker {
         self.deferred_global_es_symbol_type.get()
     }
 
-    pub(super) fn set_deferred_global_es_symbol_type(&self, deferred_global_es_symbol_type: Option<Id<Type>>) {
-        self.deferred_global_es_symbol_type.set(deferred_global_es_symbol_type);
+    pub(super) fn set_deferred_global_es_symbol_type(
+        &self,
+        deferred_global_es_symbol_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_es_symbol_type
+            .set(deferred_global_es_symbol_type);
     }
 
-    pub(super) fn maybe_deferred_global_typed_property_descriptor_type(
-        &self,
-    ) -> Option<Id<Type>> {
-        self.deferred_global_typed_property_descriptor_type
-            .get()
+    pub(super) fn maybe_deferred_global_typed_property_descriptor_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_typed_property_descriptor_type.get()
     }
 
     pub(super) fn set_deferred_global_typed_property_descriptor_type(
@@ -3260,21 +3328,27 @@ impl TypeChecker {
         self.deferred_global_promise_type.get()
     }
 
-    pub(super) fn set_deferred_global_promise_type(&self, deferred_global_promise_type: Option<Id<Type>>) {
-        self.deferred_global_promise_type.set(deferred_global_promise_type);
+    pub(super) fn set_deferred_global_promise_type(
+        &self,
+        deferred_global_promise_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_promise_type
+            .set(deferred_global_promise_type);
     }
 
     pub(super) fn maybe_deferred_global_promise_like_type(&self) -> Option<Id<Type>> {
         self.deferred_global_promise_like_type.get()
     }
 
-    pub(super) fn set_deferred_global_promise_like_type(&self, deferred_global_promise_like_type: Option<Id<Type>>) {
-        self.deferred_global_promise_like_type.set(deferred_global_promise_like_type)
+    pub(super) fn set_deferred_global_promise_like_type(
+        &self,
+        deferred_global_promise_like_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_promise_like_type
+            .set(deferred_global_promise_like_type)
     }
 
-    pub(super) fn maybe_deferred_global_promise_constructor_symbol(
-        &self,
-    ) -> Option<Id<Symbol>> {
+    pub(super) fn maybe_deferred_global_promise_constructor_symbol(&self) -> Option<Id<Symbol>> {
         self.deferred_global_promise_constructor_symbol.get()
     }
 
@@ -3282,14 +3356,12 @@ impl TypeChecker {
         &self,
         deferred_global_promise_constructor_symbol: Option<Id<Symbol>>,
     ) {
-        self.deferred_global_promise_constructor_symbol.set(deferred_global_promise_constructor_symbol);
+        self.deferred_global_promise_constructor_symbol
+            .set(deferred_global_promise_constructor_symbol);
     }
 
-    pub(super) fn maybe_deferred_global_promise_constructor_like_type(
-        &self,
-    ) -> Option<Id<Type>> {
-        self.deferred_global_promise_constructor_like_type
-            .get()
+    pub(super) fn maybe_deferred_global_promise_constructor_like_type(&self) -> Option<Id<Type>> {
+        self.deferred_global_promise_constructor_like_type.get()
     }
 
     pub(super) fn set_deferred_global_promise_constructor_like_type(
@@ -3304,144 +3376,216 @@ impl TypeChecker {
         self.deferred_global_iterable_type.get()
     }
 
-    pub(super) fn set_deferred_global_iterable_type(&self, deferred_global_iterable_type: Option<Id<Type>>) {
-        self.deferred_global_iterable_type.set(deferred_global_iterable_type);
+    pub(super) fn set_deferred_global_iterable_type(
+        &self,
+        deferred_global_iterable_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_iterable_type
+            .set(deferred_global_iterable_type);
     }
 
     pub(super) fn maybe_deferred_global_iterator_type(&self) -> Option<Id<Type>> {
         self.deferred_global_iterator_type.get()
     }
 
-    pub(super) fn set_deferred_global_iterator_type(&self, deferred_global_iterator_type: Option<Id<Type>>) {
-        self.deferred_global_iterator_type.set(deferred_global_iterator_type);
+    pub(super) fn set_deferred_global_iterator_type(
+        &self,
+        deferred_global_iterator_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_iterator_type
+            .set(deferred_global_iterator_type);
     }
 
     pub(super) fn maybe_deferred_global_iterable_iterator_type(&self) -> Option<Id<Type>> {
         self.deferred_global_iterable_iterator_type.get()
     }
 
-    pub(super) fn set_deferred_global_iterable_iterator_type(&self, deferred_global_iterable_iterator_type: Option<Id<Type>>) {
-        self.deferred_global_iterable_iterator_type.set(deferred_global_iterable_iterator_type);
+    pub(super) fn set_deferred_global_iterable_iterator_type(
+        &self,
+        deferred_global_iterable_iterator_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_iterable_iterator_type
+            .set(deferred_global_iterable_iterator_type);
     }
 
     pub(super) fn maybe_deferred_global_generator_type(&self) -> Option<Id<Type>> {
         self.deferred_global_generator_type.get()
     }
 
-    pub(super) fn set_deferred_global_generator_type(&self, deferred_global_generator_type: Option<Id<Type>>) {
-        self.deferred_global_generator_type.set(deferred_global_generator_type);
+    pub(super) fn set_deferred_global_generator_type(
+        &self,
+        deferred_global_generator_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_generator_type
+            .set(deferred_global_generator_type);
     }
 
     pub(super) fn maybe_deferred_global_iterator_yield_result_type(&self) -> Option<Id<Type>> {
         self.deferred_global_iterator_yield_result_type.get()
     }
 
-    pub(super) fn set_deferred_global_iterator_yield_result_type(&self, deferred_global_iterator_yield_result_type: Option<Id<Type>>) {
-        self.deferred_global_iterator_yield_result_type.set(deferred_global_iterator_yield_result_type);
+    pub(super) fn set_deferred_global_iterator_yield_result_type(
+        &self,
+        deferred_global_iterator_yield_result_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_iterator_yield_result_type
+            .set(deferred_global_iterator_yield_result_type);
     }
 
     pub(super) fn maybe_deferred_global_iterator_return_result_type(&self) -> Option<Id<Type>> {
         self.deferred_global_iterator_return_result_type.get()
     }
 
-    pub(super) fn set_deferred_global_iterator_return_result_type(&self, deferred_global_iterator_return_result_type: Option<Id<Type>>) {
-        self.deferred_global_iterator_return_result_type.set(deferred_global_iterator_return_result_type);
+    pub(super) fn set_deferred_global_iterator_return_result_type(
+        &self,
+        deferred_global_iterator_return_result_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_iterator_return_result_type
+            .set(deferred_global_iterator_return_result_type);
     }
 
     pub(super) fn maybe_deferred_global_async_iterable_type(&self) -> Option<Id<Type>> {
         self.deferred_global_async_iterable_type.get()
     }
 
-    pub(super) fn set_deferred_global_async_iterable_type(&self, deferred_global_async_iterable_type: Option<Id<Type>>) {
-        self.deferred_global_async_iterable_type.set(deferred_global_async_iterable_type);
+    pub(super) fn set_deferred_global_async_iterable_type(
+        &self,
+        deferred_global_async_iterable_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_async_iterable_type
+            .set(deferred_global_async_iterable_type);
     }
 
     pub(super) fn maybe_deferred_global_async_iterator_type(&self) -> Option<Id<Type>> {
         self.deferred_global_async_iterator_type.get()
     }
 
-    pub(super) fn set_deferred_global_async_iterator_type(&self, deferred_global_async_iterator_type: Option<Id<Type>>) {
-        self.deferred_global_async_iterator_type.set(deferred_global_async_iterator_type);
+    pub(super) fn set_deferred_global_async_iterator_type(
+        &self,
+        deferred_global_async_iterator_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_async_iterator_type
+            .set(deferred_global_async_iterator_type);
     }
 
     pub(super) fn maybe_deferred_global_async_iterable_iterator_type(&self) -> Option<Id<Type>> {
         self.deferred_global_async_iterable_iterator_type.get()
     }
 
-    pub(super) fn set_deferred_global_async_iterable_iterator_type(&self, deferred_global_async_iterable_iterator_type: Option<Id<Type>>) {
-        self.deferred_global_async_iterable_iterator_type.set(deferred_global_async_iterable_iterator_type);
+    pub(super) fn set_deferred_global_async_iterable_iterator_type(
+        &self,
+        deferred_global_async_iterable_iterator_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_async_iterable_iterator_type
+            .set(deferred_global_async_iterable_iterator_type);
     }
 
     pub(super) fn maybe_deferred_global_async_generator_type(&self) -> Option<Id<Type>> {
         self.deferred_global_async_generator_type.get()
     }
 
-    pub(super) fn set_deferred_global_async_generator_type(&self, deferred_global_async_generator_type: Option<Id<Type>>) {
-        self.deferred_global_async_generator_type.set(deferred_global_async_generator_type);
+    pub(super) fn set_deferred_global_async_generator_type(
+        &self,
+        deferred_global_async_generator_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_async_generator_type
+            .set(deferred_global_async_generator_type);
     }
 
     pub(super) fn maybe_deferred_global_template_strings_array_type(&self) -> Option<Id<Type>> {
         self.deferred_global_template_strings_array_type.get()
     }
 
-    pub(super) fn set_deferred_global_template_strings_array_type(&self, deferred_global_template_strings_array_type: Option<Id<Type>>) {
-        self.deferred_global_template_strings_array_type.set(deferred_global_template_strings_array_type);
+    pub(super) fn set_deferred_global_template_strings_array_type(
+        &self,
+        deferred_global_template_strings_array_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_template_strings_array_type
+            .set(deferred_global_template_strings_array_type);
     }
 
     pub(super) fn maybe_deferred_global_import_meta_type(&self) -> Option<Id<Type>> {
         self.deferred_global_import_meta_type.get()
     }
 
-    pub(super) fn set_deferred_global_import_meta_type(&self, deferred_global_import_meta_type: Option<Id<Type>>) {
-        self.deferred_global_import_meta_type.set(deferred_global_import_meta_type);
+    pub(super) fn set_deferred_global_import_meta_type(
+        &self,
+        deferred_global_import_meta_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_import_meta_type
+            .set(deferred_global_import_meta_type);
     }
 
     pub(super) fn maybe_deferred_global_import_meta_expression_type(&self) -> Option<Id<Type>> {
         self.deferred_global_import_meta_expression_type.get()
     }
 
-    pub(super) fn set_deferred_global_import_meta_expression_type(&self, deferred_global_import_meta_expression_type: Option<Id<Type>>) {
-        self.deferred_global_import_meta_expression_type.set(deferred_global_import_meta_expression_type);
+    pub(super) fn set_deferred_global_import_meta_expression_type(
+        &self,
+        deferred_global_import_meta_expression_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_import_meta_expression_type
+            .set(deferred_global_import_meta_expression_type);
     }
 
     pub(super) fn maybe_deferred_global_import_call_options_type(&self) -> Option<Id<Type>> {
         self.deferred_global_import_call_options_type.get()
     }
 
-    pub(super) fn set_deferred_global_import_call_options_type(&self, deferred_global_import_call_options_type: Option<Id<Type>>) {
-        self.deferred_global_import_call_options_type.set(deferred_global_import_call_options_type);
+    pub(super) fn set_deferred_global_import_call_options_type(
+        &self,
+        deferred_global_import_call_options_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_import_call_options_type
+            .set(deferred_global_import_call_options_type);
     }
 
     pub(super) fn maybe_deferred_global_extract_symbol(&self) -> Option<Id<Symbol>> {
         self.deferred_global_extract_symbol.get()
     }
 
-    pub(super) fn set_deferred_global_extract_symbol(&self, deferred_global_extract_symbol: Option<Id<Symbol>>) {
-        self.deferred_global_extract_symbol.set(deferred_global_extract_symbol);
+    pub(super) fn set_deferred_global_extract_symbol(
+        &self,
+        deferred_global_extract_symbol: Option<Id<Symbol>>,
+    ) {
+        self.deferred_global_extract_symbol
+            .set(deferred_global_extract_symbol);
     }
 
     pub(super) fn maybe_deferred_global_omit_symbol(&self) -> Option<Id<Symbol>> {
         self.deferred_global_omit_symbol.get()
     }
 
-    pub(super) fn set_deferred_global_omit_symbol(&self, deferred_global_omit_symbol: Option<Id<Symbol>>) {
-        self.deferred_global_omit_symbol.set(deferred_global_omit_symbol);
+    pub(super) fn set_deferred_global_omit_symbol(
+        &self,
+        deferred_global_omit_symbol: Option<Id<Symbol>>,
+    ) {
+        self.deferred_global_omit_symbol
+            .set(deferred_global_omit_symbol);
     }
 
     pub(super) fn maybe_deferred_global_awaited_symbol(&self) -> Option<Id<Symbol>> {
         self.deferred_global_awaited_symbol.get()
     }
 
-    pub(super) fn set_deferred_global_awaited_symbol(&self, deferred_global_awaited_symbol: Option<Id<Symbol>>) {
-        self.deferred_global_awaited_symbol.set(deferred_global_awaited_symbol);
+    pub(super) fn set_deferred_global_awaited_symbol(
+        &self,
+        deferred_global_awaited_symbol: Option<Id<Symbol>>,
+    ) {
+        self.deferred_global_awaited_symbol
+            .set(deferred_global_awaited_symbol);
     }
 
     pub(super) fn maybe_deferred_global_big_int_type(&self) -> Option<Id<Type>> {
         self.deferred_global_big_int_type.get()
     }
 
-    pub(super) fn set_deferred_global_big_int_type(&self, deferred_global_big_int_type: Option<Id<Type>>) {
-        self.deferred_global_big_int_type.set(deferred_global_big_int_type);
+    pub(super) fn set_deferred_global_big_int_type(
+        &self,
+        deferred_global_big_int_type: Option<Id<Type>>,
+    ) {
+        self.deferred_global_big_int_type
+            .set(deferred_global_big_int_type);
     }
 
     pub(super) fn all_potentially_unused_identifiers(
@@ -3550,9 +3694,7 @@ impl TypeChecker {
         self.node_links.borrow_mut()
     }
 
-    pub(super) fn flow_loop_caches(
-        &self,
-    ) -> RefMut<HashMap<usize, Id<HashMap<String, Id<Type>>>>> {
+    pub(super) fn flow_loop_caches(&self) -> RefMut<HashMap<usize, Id<HashMap<String, Id<Type>>>>> {
         self.flow_loop_caches.borrow_mut()
     }
 
@@ -3638,7 +3780,8 @@ impl TypeChecker {
         &self,
         outofband_variance_marker_handler: Option<Id<Box<dyn OutofbandVarianceMarkerHandler>>>,
     ) {
-        self.outofband_variance_marker_handler.set(outofband_variance_marker_handler);
+        self.outofband_variance_marker_handler
+            .set(outofband_variance_marker_handler);
     }
 
     pub(super) fn subtype_relation(&self) -> Ref<HashMap<String, RelationComparisonResult>> {

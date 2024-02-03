@@ -17,13 +17,13 @@ use crate::{
     is_jsdoc_signature, is_json_source_file, is_qualified_name, is_source_file_js,
     is_string_literal_like, is_white_space_like, last, node_is_present, normalize_path,
     path_is_relative, remove_file_extension, str_to_source_text_as_chars, string_contains, to_path,
-    AllAccessorDeclarations, CharacterCodes, CompilerOptions, Debug_, DiagnosticCollection,
-    Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
-    FunctionLikeDeclarationInterface, HasTypeInterface, ModuleKind,
+    AllAccessorDeclarations, AllArenas, CharacterCodes, CompilerOptions, Debug_,
+    DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
+    FunctionLikeDeclarationInterface, HasArena, HasTypeInterface, InArena, ModuleKind,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
-    NodeInterface, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
+    NodeInterface, OptionInArena, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
     SourceFileMayBeEmittedHost, Symbol, SymbolFlags, SymbolTracker, SymbolWriter, SyntaxKind,
-    WriteFileCallback, HasArena, InArena, OptionInArena, AllArenas,
+    WriteFileCallback,
 };
 
 pub(super) fn is_quote_or_backtick(char_code: char) -> bool {
@@ -75,7 +75,8 @@ pub struct TextWriter {
 impl TextWriter {
     pub fn new(new_line: &str, arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
         arena.alloc_emit_text_writer(Box::new(Self {
-            _dyn_symbol_tracker_wrapper: arena.alloc_symbol_tracker(Box::new(TextWriterSymbolTracker)),
+            _dyn_symbol_tracker_wrapper: arena
+                .alloc_symbol_tracker(Box::new(TextWriterSymbolTracker)),
             new_line: new_line.to_owned(),
             output: Default::default(),
             indent: Default::default(),
@@ -355,66 +356,84 @@ impl SymbolTracker for TextWriter {
         enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
-        self._dyn_symbol_tracker_wrapper
-            .ref_(self).track_symbol(symbol, enclosing_declaration, meaning)
+        self._dyn_symbol_tracker_wrapper.ref_(self).track_symbol(
+            symbol,
+            enclosing_declaration,
+            meaning,
+        )
     }
 
     fn is_track_symbol_supported(&self) -> bool {
-        self._dyn_symbol_tracker_wrapper.ref_(self).is_track_symbol_supported()
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .is_track_symbol_supported()
     }
 
     fn disable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.ref_(self).disable_track_symbol();
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .disable_track_symbol();
     }
 
     fn reenable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.ref_(self).reenable_track_symbol();
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .reenable_track_symbol();
     }
 
     // TODO: are these correct?
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_inaccessible_this_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_this_error_supported()
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_private_in_base_of_class_expression_supported()
+            .ref_(self)
+            .is_report_private_in_base_of_class_expression_supported()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_cyclic_structure_error_supported()
+            .ref_(self)
+            .is_report_cyclic_structure_error_supported()
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self)
+            .is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_nonlocal_augmentation_supported()
+            .ref_(self)
+            .is_report_nonlocal_augmentation_supported()
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_non_serializable_property_supported()
+            .ref_(self)
+            .is_report_non_serializable_property_supported()
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_module_resolver_host_supported()
+            .ref_(self)
+            .is_module_resolver_host_supported()
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_track_referenced_ambient_module_supported()
+            .ref_(self)
+            .is_track_referenced_ambient_module_supported()
     }
 }
 
@@ -502,13 +521,15 @@ pub struct TrailingSemicolonDeferringWriter {
 }
 
 impl TrailingSemicolonDeferringWriter {
-    pub fn new(writer: Id<Box<dyn EmitTextWriter>>, arena: *const AllArenas) -> Id<Box<dyn EmitTextWriter>> {
+    pub fn new(
+        writer: Id<Box<dyn EmitTextWriter>>,
+        arena: *const AllArenas,
+    ) -> Id<Box<dyn EmitTextWriter>> {
         let arena_ref = unsafe { &*arena };
         arena_ref.alloc_emit_text_writer(Box::new(Self {
             _arena: arena,
-            _dyn_symbol_tracker_wrapper: arena_ref.alloc_symbol_tracker(Box::new(
-                TrailingSemicolonDeferringWriterSymbolTracker,
-            )),
+            _dyn_symbol_tracker_wrapper: arena_ref
+                .alloc_symbol_tracker(Box::new(TrailingSemicolonDeferringWriterSymbolTracker)),
             writer,
             pending_trailing_semicolon: Default::default(),
         }))
@@ -664,59 +685,74 @@ impl SymbolTracker for TrailingSemicolonDeferringWriter {
     // TODO: are these correct?
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_inaccessible_this_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_this_error_supported()
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_private_in_base_of_class_expression_supported()
+            .ref_(self)
+            .is_report_private_in_base_of_class_expression_supported()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_cyclic_structure_error_supported()
+            .ref_(self)
+            .is_report_cyclic_structure_error_supported()
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self)
+            .is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_nonlocal_augmentation_supported()
+            .ref_(self)
+            .is_report_nonlocal_augmentation_supported()
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_non_serializable_property_supported()
+            .ref_(self)
+            .is_report_non_serializable_property_supported()
     }
 
     fn is_track_symbol_supported(&self) -> bool {
-        self._dyn_symbol_tracker_wrapper.ref_(self).is_track_symbol_supported()
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .is_track_symbol_supported()
     }
 
     fn disable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.ref_(self).disable_track_symbol();
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .disable_track_symbol();
     }
 
     fn reenable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.ref_(self).reenable_track_symbol();
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .reenable_track_symbol();
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_module_resolver_host_supported()
+            .ref_(self)
+            .is_module_resolver_host_supported()
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_track_referenced_ambient_module_supported()
+            .ref_(self)
+            .is_track_referenced_ambient_module_supported()
     }
 }
 
@@ -809,9 +845,7 @@ pub fn get_resolved_external_module_name(
                     host,
                     &file_as_source_file.file_name(),
                     reference_file
-                        .map(|reference_file| {
-                            reference_file.as_source_file().file_name().clone()
-                        })
+                        .map(|reference_file| reference_file.as_source_file().file_name().clone())
                         .as_deref(),
                 )
             },
@@ -847,12 +881,11 @@ pub fn get_external_module_name_from_declaration(
     if let Some(specifier) = specifier {
         if is_string_literal_like(&specifier.ref_(arena))
             && !path_is_relative(&specifier.ref_(arena).as_literal_like_node().text())
-            && !get_canonical_absolute_path(host, &file.ref_(arena).as_source_file().path()).contains(
-                &*get_canonical_absolute_path(
+            && !get_canonical_absolute_path(host, &file.ref_(arena).as_source_file().path())
+                .contains(&*get_canonical_absolute_path(
                     host,
                     &ensure_trailing_directory_separator(&host.get_common_source_directory()),
-                ),
-            )
+                ))
         {
             return Ok(None);
         }
@@ -915,7 +948,11 @@ pub fn get_own_emit_output_file_path(
     format!("{}{}", emit_output_file_path_without_extension, extension)
 }
 
-pub fn get_declaration_emit_output_file_path(file_name: &str, host: &dyn EmitHost, arena: &impl HasArena) -> String {
+pub fn get_declaration_emit_output_file_path(
+    file_name: &str,
+    host: &dyn EmitHost,
+    arena: &impl HasArena,
+) -> String {
     get_declaration_emit_output_file_path_worker(
         file_name,
         &ScriptReferenceHost::get_compiler_options(host).ref_(arena),
@@ -1060,7 +1097,8 @@ pub fn source_file_may_be_emitted(
 ) -> bool {
     let options = host.get_compiler_options();
     let source_file_as_source_file = source_file.as_source_file();
-    !(matches!(options.ref_(arena).no_emit_for_js_files, Some(true)) && is_source_file_js(source_file))
+    !(matches!(options.ref_(arena).no_emit_for_js_files, Some(true))
+        && is_source_file_js(source_file))
         && !source_file_as_source_file.is_declaration_file()
         && !host.is_source_file_from_external_library(source_file.arena_id())
         && (matches!(force_dts_emit, Some(true))
@@ -1123,13 +1161,15 @@ pub fn write_file(
         data,
         write_byte_order_mark,
         Some(&mut |host_error_message| {
-            diagnostics.add(arena.alloc_diagnostic(
-                create_compiler_diagnostic(
-                    &Diagnostics::Could_not_write_file_0_Colon_1,
-                    Some(vec![file_name.to_owned(), host_error_message.to_owned()]),
-                )
-                .into(),
-            ))
+            diagnostics.add(
+                arena.alloc_diagnostic(
+                    create_compiler_diagnostic(
+                        &Diagnostics::Could_not_write_file_0_Colon_1,
+                        Some(vec![file_name.to_owned(), host_error_message.to_owned()]),
+                    )
+                    .into(),
+                ),
+            )
         }),
         source_files,
     )?;
@@ -1185,10 +1225,24 @@ pub fn get_first_constructor_with_body(
     node: Id<Node>, /*ClassLikeDeclaration*/
     arena: &impl HasArena,
 ) -> Option<Id<Node /*ConstructorDeclaration & { body: FunctionBody }*/>> {
-    find(&node.ref_(arena).as_class_like_declaration().members().ref_(arena), |member, _| {
-        is_constructor_declaration(&member.ref_(arena))
-            && node_is_present(member.ref_(arena).as_constructor_declaration().maybe_body().refed(arena).as_deref())
-    })
+    find(
+        &node
+            .ref_(arena)
+            .as_class_like_declaration()
+            .members()
+            .ref_(arena),
+        |member, _| {
+            is_constructor_declaration(&member.ref_(arena))
+                && node_is_present(
+                    member
+                        .ref_(arena)
+                        .as_constructor_declaration()
+                        .maybe_body()
+                        .refed(arena)
+                        .as_deref(),
+                )
+        },
+    )
     .copied()
 }
 
@@ -1202,8 +1256,8 @@ pub fn get_set_accessor_value_parameter(
     if
     /*accessor &&*/
     !accessor_parameters.ref_(arena).is_empty() {
-        let has_this =
-            accessor_parameters.ref_(arena).len() == 2 && parameter_is_this_keyword(accessor_parameters.ref_(arena)[0], arena);
+        let has_this = accessor_parameters.ref_(arena).len() == 2
+            && parameter_is_this_keyword(accessor_parameters.ref_(arena)[0], arena);
         return Some(accessor_parameters.ref_(arena)[if has_this { 1 } else { 0 }]);
     }
     None
@@ -1214,7 +1268,12 @@ pub fn get_set_accessor_type_annotation_node(
     arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
     let parameter = get_set_accessor_value_parameter(accessor, arena);
-    parameter.and_then(|parameter| parameter.ref_(arena).as_parameter_declaration().maybe_type())
+    parameter.and_then(|parameter| {
+        parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .maybe_type()
+    })
 }
 
 pub fn get_this_parameter(
@@ -1223,7 +1282,11 @@ pub fn get_this_parameter(
 ) -> Option<Id<Node /*ParameterDeclaration*/>> {
     let signature_ref = signature.ref_(arena);
     let signature_as_signature_declaration = signature_ref.as_signature_declaration();
-    if !signature_as_signature_declaration.parameters().ref_(arena).is_empty() && !is_jsdoc_signature(&signature.ref_(arena))
+    if !signature_as_signature_declaration
+        .parameters()
+        .ref_(arena)
+        .is_empty()
+        && !is_jsdoc_signature(&signature.ref_(arena))
     {
         let this_parameter = signature_as_signature_declaration.parameters().ref_(arena)[0];
         if parameter_is_this_keyword(this_parameter, arena) {
@@ -1233,8 +1296,17 @@ pub fn get_this_parameter(
     None
 }
 
-pub fn parameter_is_this_keyword(parameter: Id<Node> /*ParameterDeclaration*/, arena: &impl HasArena) -> bool {
-    is_this_identifier(Some(&parameter.ref_(arena).as_parameter_declaration().name().ref_(arena)))
+pub fn parameter_is_this_keyword(
+    parameter: Id<Node>, /*ParameterDeclaration*/
+    arena: &impl HasArena,
+) -> bool {
+    is_this_identifier(Some(
+        &parameter
+            .ref_(arena)
+            .as_parameter_declaration()
+            .name()
+            .ref_(arena),
+    ))
 }
 
 pub fn is_this_identifier(node: Option<&Node>) -> bool {
@@ -1250,7 +1322,13 @@ pub fn is_this_in_type_query(mut node: Id<Node>, arena: &impl HasArena) -> bool 
     }
 
     while is_qualified_name(&node.ref_(arena).parent().ref_(arena))
-        && node.ref_(arena).parent().ref_(arena).as_qualified_name().left == node
+        && node
+            .ref_(arena)
+            .parent()
+            .ref_(arena)
+            .as_qualified_name()
+            .left
+            == node
     {
         node = node.ref_(arena).parent();
     }
@@ -1267,7 +1345,8 @@ pub fn identifier_is_this_keyword(id: &Node /*Identifier*/) -> bool {
 
 pub fn get_all_accessor_declarations(
     declarations: &[Id<Node /*Declaration*/>],
-    accessor: Id<Node>, /*AccessorDeclaration*/ arena: &impl HasArena
+    accessor: Id<Node>,
+    /*AccessorDeclaration*/ arena: &impl HasArena,
 ) -> AllAccessorDeclarations {
     let mut first_accessor: Option<Id<Node>> = None;
     let mut second_accessor: Option<Id<Node>> = None;
@@ -1284,7 +1363,9 @@ pub fn get_all_accessor_declarations(
         }
     } else {
         declarations.into_iter().for_each(|&member| {
-            if is_accessor(&member.ref_(arena)) && is_static(member, arena) == is_static(accessor, arena) {
+            if is_accessor(&member.ref_(arena))
+                && is_static(member, arena) == is_static(accessor, arena)
+            {
                 let member_name = member.ref_(arena).as_named_declaration().name();
                 let member_name = get_property_name_for_property_name_node(member_name, arena);
                 let accessor_name = accessor.ref_(arena).as_named_declaration().name();
@@ -1296,11 +1377,15 @@ pub fn get_all_accessor_declarations(
                         second_accessor = Some(member);
                     }
 
-                    if member.ref_(arena).kind() == SyntaxKind::GetAccessor && get_accessor.is_none() {
+                    if member.ref_(arena).kind() == SyntaxKind::GetAccessor
+                        && get_accessor.is_none()
+                    {
                         get_accessor = Some(member);
                     }
 
-                    if member.ref_(arena).kind() == SyntaxKind::SetAccessor && set_accessor.is_none() {
+                    if member.ref_(arena).kind() == SyntaxKind::SetAccessor
+                        && set_accessor.is_none()
+                    {
                         set_accessor = Some(member);
                     }
                 }

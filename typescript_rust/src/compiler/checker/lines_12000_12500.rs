@@ -5,12 +5,11 @@ use indexmap::IndexMap;
 
 use super::{get_symbol_id, MinArgumentCountFlags};
 use crate::{
-    add_range, append, chain_diagnostic_messages, create_symbol_table, find,
-    get_check_flags, get_declaration_modifier_flags_from_symbol,
-    get_effective_type_parameter_declarations, get_immediately_invoked_function_expression,
-    get_jsdoc_parameter_tags, get_object_flags, has_question_token,
-    is_external_module_name_relative, is_in_js_file, is_jsdoc_property_like_tag,
-    is_property_declaration, length, map, maybe_append_if_unique_eq,
+    add_range, append, chain_diagnostic_messages, create_symbol_table, find, get_check_flags,
+    get_declaration_modifier_flags_from_symbol, get_effective_type_parameter_declarations,
+    get_immediately_invoked_function_expression, get_jsdoc_parameter_tags, get_object_flags,
+    has_question_token, index_of_eq, is_external_module_name_relative, is_in_js_file,
+    is_jsdoc_property_like_tag, is_property_declaration, length, map, maybe_append_if_unique_eq,
     reduce_left, try_filter, try_map, unescape_leading_underscores, CheckFlags, Debug_,
     DiagnosticMessageChain, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface,
     InArena, IndexInfo, IteratorExt, ModifierFlags, Node, NodeInterface, ObjectFlags,
@@ -18,7 +17,6 @@ use crate::{
     SymbolId, SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type,
     TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface, TypePredicate, TypePredicateKind,
     UnionOrIntersectionTypeInterface,
-    index_of_eq,
 };
 
 impl TypeChecker {
@@ -229,13 +227,18 @@ impl TypeChecker {
             && index_types.is_none()
         {
             if merged_instantiations {
-                let clone =
-                    self.create_symbol_with_type(
-                        single_prop,
-                        single_prop.ref_(self).maybe_as_transient_symbol().and_then(
-                            |single_prop| (*single_prop.symbol_links().ref_(self)).borrow().type_.clone(),
-                        ),
-                    );
+                let clone = self.create_symbol_with_type(
+                    single_prop,
+                    single_prop
+                        .ref_(self)
+                        .maybe_as_transient_symbol()
+                        .and_then(|single_prop| {
+                            (*single_prop.symbol_links().ref_(self))
+                                .borrow()
+                                .type_
+                                .clone()
+                        }),
+                );
                 clone.ref_(self).set_parent(
                     single_prop
                         .ref_(self)
@@ -249,7 +252,12 @@ impl TypeChecker {
                 clone_symbol_links.mapper = single_prop
                     .ref_(self)
                     .maybe_as_transient_symbol()
-                    .and_then(|single_prop| (*single_prop.symbol_links().ref_(self)).borrow().mapper.clone());
+                    .and_then(|single_prop| {
+                        (*single_prop.symbol_links().ref_(self))
+                            .borrow()
+                            .mapper
+                            .clone()
+                    });
                 return Ok(Some(clone));
             } else {
                 return Ok(Some(single_prop));
@@ -291,7 +299,10 @@ impl TypeChecker {
             let type_ = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(type_.clone());
-                name_type = (*self.get_symbol_links(prop).ref_(self)).borrow().name_type.clone();
+                name_type = (*self.get_symbol_links(prop).ref_(self))
+                    .borrow()
+                    .name_type
+                    .clone();
             } else if type_ != first_type.unwrap() {
                 check_flags |= CheckFlags::HasNonUniformType;
             }
@@ -321,8 +332,11 @@ impl TypeChecker {
                     .ref_(self)
                     .set_value_declaration(first_value_declaration.clone());
 
-                if let Some(first_value_declaration_symbol_parent) =
-                    first_value_declaration.ref_(self).symbol().ref_(self).maybe_parent()
+                if let Some(first_value_declaration_symbol_parent) = first_value_declaration
+                    .ref_(self)
+                    .symbol()
+                    .ref_(self)
+                    .maybe_parent()
                 {
                     result
                         .ref_(self)
@@ -598,7 +612,10 @@ impl TypeChecker {
         let type_ = self.get_reduced_apparent_type(type_)?;
         if type_.ref_(self).flags().intersects(TypeFlags::Object) {
             let resolved = self.resolve_structured_type_members(type_)?;
-            let symbol = resolved.ref_(self).as_resolved_type().members()
+            let symbol = resolved
+                .ref_(self)
+                .as_resolved_type()
+                .members()
                 .ref_(self)
                 .get(name)
                 .map(Clone::clone);
@@ -732,7 +749,9 @@ impl TypeChecker {
                 )?,
                 reduce_left(
                     &applicable_infos,
-                    |is_readonly, info: &Id<IndexInfo>, _| is_readonly && info.ref_(self).is_readonly,
+                    |is_readonly, info: &Id<IndexInfo>, _| {
+                        is_readonly && info.ref_(self).is_readonly
+                    },
                     true,
                     None,
                     None,
@@ -813,7 +832,9 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<IndexInfo>>> {
         try_filter(
             &self.get_index_infos_of_type(type_)?,
-            |info: &Id<IndexInfo>| self.is_applicable_index_type(key_type, info.ref_(self).key_type),
+            |info: &Id<IndexInfo>| {
+                self.is_applicable_index_type(key_type, info.ref_(self).key_type)
+            },
         )
     }
 
@@ -921,7 +942,13 @@ impl TypeChecker {
         if node_as_parameter_declaration.maybe_initializer().is_some() {
             let signature = self.get_signature_from_declaration_(node.ref_(self).parent())?;
             let parameter_index = index_of_eq(
-                &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
+                &node
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_signature_declaration()
+                    .parameters()
+                    .ref_(self),
                 &node,
             );
             Debug_.assert(parameter_index >= 0, None);
@@ -940,12 +967,20 @@ impl TypeChecker {
             return Ok(node_as_parameter_declaration.maybe_type().is_none()
                 && node_as_parameter_declaration.dot_dot_dot_token.is_none()
                 && index_of_eq(
-                    &node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
+                    &node
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_signature_declaration()
+                        .parameters()
+                        .ref_(self),
                     &node,
                 ) >= iife
-                    .ref_(self).as_call_expression()
+                    .ref_(self)
+                    .as_call_expression()
                     .arguments
-                    .ref_(self).len()
+                    .ref_(self)
+                    .len()
                     .try_into()
                     .unwrap());
         }
@@ -957,7 +992,12 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*Declaration*/
     ) -> bool {
-        is_property_declaration(&node.ref_(self)) && node.ref_(self).as_property_declaration().question_token.is_some()
+        is_property_declaration(&node.ref_(self))
+            && node
+                .ref_(self)
+                .as_property_declaration()
+                .question_token
+                .is_some()
     }
 
     pub(super) fn is_optional_jsdoc_property_like_tag(&self, node: Id<Node>) -> bool {

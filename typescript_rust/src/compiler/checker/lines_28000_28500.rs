@@ -163,17 +163,19 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
-        Ok(if node.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
-            self.check_property_access_chain(node, check_mode)?
-        } else {
-            self.check_property_access_expression_or_qualified_name(
-                node,
-                node_as_property_access_expression.expression,
-                self.check_non_null_expression(node_as_property_access_expression.expression)?,
-                node_as_property_access_expression.name,
-                check_mode,
-            )?
-        })
+        Ok(
+            if node.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
+                self.check_property_access_chain(node, check_mode)?
+            } else {
+                self.check_property_access_expression_or_qualified_name(
+                    node,
+                    node_as_property_access_expression.expression,
+                    self.check_non_null_expression(node_as_property_access_expression.expression)?,
+                    node_as_property_access_expression.name,
+                    check_mode,
+                )?
+            },
+        )
     }
 
     pub(super) fn check_property_access_chain(
@@ -236,7 +238,13 @@ impl TypeChecker {
             node = node.ref_(self).parent();
         }
         is_call_or_new_expression(&node.ref_(self).parent().ref_(self))
-            && node.ref_(self).parent().ref_(self).as_has_expression().expression() == node
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_has_expression()
+                .expression()
+                == node
     }
 
     pub(super) fn lookup_symbol_for_private_identifier_declaration(
@@ -366,13 +374,12 @@ impl TypeChecker {
             None
         });
         // }
-        let diag_name = self
-            .diagnostic_name(right.into())
-            .into_owned();
+        let diag_name = self.diagnostic_name(right.into()).into_owned();
         if let Some(property_on_type) = property_on_type {
             let type_value_decl =
                 Debug_.check_defined(property_on_type.ref_(self).maybe_value_declaration(), None);
-            let type_class = Debug_.check_defined(get_containing_class(type_value_decl, self), None);
+            let type_class =
+                Debug_.check_defined(get_containing_class(type_value_decl, self), None);
             if let Some(lexically_scoped_identifier_value_declaration) = lexically_scoped_identifier
                 .and_then(|lexically_scoped_identifier| {
                     lexically_scoped_identifier
@@ -384,10 +391,7 @@ impl TypeChecker {
                 let lexical_class = get_containing_class(lexical_value_decl, self);
                 Debug_.assert(lexical_class.is_some(), None);
                 let lexical_class = lexical_class.unwrap();
-                if find_ancestor(Some(lexical_class), |n: Id<Node>| {
-                    type_class == n
-                }, self)
-                .is_some()
+                if find_ancestor(Some(lexical_class), |n: Id<Node>| type_class == n, self).is_some()
                 {
                     let diagnostic = self.error(
                         Some(right),
@@ -465,9 +469,7 @@ impl TypeChecker {
         right: Id<Node>, /*Identifier | PrivateIdentifier*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let parent_symbol = self.get_node_links(left)
-            .ref_(self)
-            .resolved_symbol;
+        let parent_symbol = self.get_node_links(left).ref_(self).resolved_symbol;
         let assignment_kind = get_assignment_target_kind(node, self);
         let apparent_type = self.get_apparent_type(
             if assignment_kind != AssignmentKind::None || self.is_method_access_for_call(node) {
@@ -685,7 +687,8 @@ impl TypeChecker {
                     return Ok(self.error_type());
                 }
                 let index_info = index_info.unwrap();
-                if index_info.ref_(self).is_readonly && (is_assignment_target(node, self) || is_delete_target(node, self))
+                if index_info.ref_(self).is_readonly
+                    && (is_assignment_target(node, self) || is_delete_target(node, self))
                 {
                     self.error(
                         Some(node),
@@ -699,7 +702,8 @@ impl TypeChecker {
                     );
                 }
 
-                prop_type = if self.compiler_options.ref_(self).no_unchecked_indexed_access == Some(true)
+                prop_type = if self.compiler_options.ref_(self).no_unchecked_indexed_access
+                    == Some(true)
                     && !is_assignment_target(node, self)
                 {
                     self.get_union_type(
@@ -714,7 +718,8 @@ impl TypeChecker {
                 };
                 if self
                     .compiler_options
-                    .ref_(self).no_property_access_from_index_signature
+                    .ref_(self)
+                    .no_property_access_from_index_signature
                     == Some(true)
                     && is_property_access_expression(&node.ref_(self))
                 {
@@ -800,7 +805,9 @@ impl TypeChecker {
                     suggestion
                         .and_then(|suggestion| suggestion.ref_(self).maybe_declarations().clone())
                         .as_ref(),
-                    |&declaration: &Id<Node>, _| maybe_get_source_file_of_node(Some(declaration), self),
+                    |&declaration: &Id<Node>, _| {
+                        maybe_get_source_file_of_node(Some(declaration), self)
+                    },
                 );
                 return !matches!(
                     declaration_file,
@@ -856,17 +863,26 @@ impl TypeChecker {
         if self.strict_null_checks
             && self.strict_property_initialization
             && is_access_expression(&node.ref_(self))
-            && node.ref_(self).as_has_expression().expression().ref_(self).kind() == SyntaxKind::ThisKeyword
+            && node
+                .ref_(self)
+                .as_has_expression()
+                .expression()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::ThisKeyword
         {
             let declaration = prop.and_then(|prop| prop.ref_(self).maybe_value_declaration());
-            if let Some(declaration) = declaration
-                .filter(|&declaration| self.is_property_without_initializer(declaration))
+            if let Some(declaration) =
+                declaration.filter(|&declaration| self.is_property_without_initializer(declaration))
             {
                 if !is_static(declaration, self) {
                     let flow_container = self.get_control_flow_container(node);
                     if flow_container.ref_(self).kind() == SyntaxKind::Constructor
                         && flow_container.ref_(self).parent() == declaration.ref_(self).parent()
-                        && !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
+                        && !declaration
+                            .ref_(self)
+                            .flags()
+                            .intersects(NodeFlags::Ambient)
                     {
                         assume_uninitialized = true;
                     }
@@ -929,7 +945,8 @@ impl TypeChecker {
         let value_declaration = prop.ref_(self).maybe_value_declaration();
         if value_declaration.is_none()
             || get_source_file_of_node(node, self)
-                .ref_(self).as_source_file()
+                .ref_(self)
+                .as_source_file()
                 .is_declaration_file()
         {
             return Ok(());
@@ -942,7 +959,9 @@ impl TypeChecker {
         if self.is_in_property_initializer_or_class_static_block(node)
             && !self.is_optional_property_declaration(value_declaration)
             && !(is_access_expression(&node.ref_(self))
-                && is_access_expression(&node.ref_(self).as_has_expression().expression().ref_(self)))
+                && is_access_expression(
+                    &node.ref_(self).as_has_expression().expression().ref_(self),
+                ))
             && !self.is_block_scoped_name_declared_before_use(value_declaration, right)?
             && (self.compiler_options.ref_(self).use_define_for_class_fields == Some(true)
                 || !self.is_property_declared_in_ancestor_class(prop)?)
@@ -954,7 +973,10 @@ impl TypeChecker {
             ));
         } else if value_declaration.ref_(self).kind() == SyntaxKind::ClassDeclaration
             && node.ref_(self).parent().ref_(self).kind() != SyntaxKind::TypeReference
-            && !value_declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
+            && !value_declaration
+                .ref_(self)
+                .flags()
+                .intersects(NodeFlags::Ambient)
             && !self.is_block_scoped_name_declared_before_use(value_declaration, right)?
         {
             diagnostic_message = Some(self.error(
@@ -983,39 +1005,45 @@ impl TypeChecker {
     }
 
     pub(super) fn is_in_property_initializer_or_class_static_block(&self, node: Id<Node>) -> bool {
-        find_ancestor(Some(node), |node: Id<Node>| match node.ref_(self).kind() {
-            SyntaxKind::PropertyDeclaration => true.into(),
-            SyntaxKind::PropertyAssignment
-            | SyntaxKind::MethodDeclaration
-            | SyntaxKind::GetAccessor
-            | SyntaxKind::SetAccessor
-            | SyntaxKind::SpreadAssignment
-            | SyntaxKind::ComputedPropertyName
-            | SyntaxKind::TemplateSpan
-            | SyntaxKind::JsxExpression
-            | SyntaxKind::JsxAttribute
-            | SyntaxKind::JsxAttributes
-            | SyntaxKind::JsxSpreadAttribute
-            | SyntaxKind::JsxOpeningElement
-            | SyntaxKind::ExpressionWithTypeArguments
-            | SyntaxKind::HeritageClause => false.into(),
-            SyntaxKind::ArrowFunction | SyntaxKind::ExpressionStatement => {
-                if is_block(&node.ref_(self).parent().ref_(self))
-                    && is_class_static_block_declaration(&node.ref_(self).parent().ref_(self).parent().ref_(self))
-                {
-                    true.into()
-                } else {
-                    FindAncestorCallbackReturn::Quit
+        find_ancestor(
+            Some(node),
+            |node: Id<Node>| match node.ref_(self).kind() {
+                SyntaxKind::PropertyDeclaration => true.into(),
+                SyntaxKind::PropertyAssignment
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+                | SyntaxKind::SpreadAssignment
+                | SyntaxKind::ComputedPropertyName
+                | SyntaxKind::TemplateSpan
+                | SyntaxKind::JsxExpression
+                | SyntaxKind::JsxAttribute
+                | SyntaxKind::JsxAttributes
+                | SyntaxKind::JsxSpreadAttribute
+                | SyntaxKind::JsxOpeningElement
+                | SyntaxKind::ExpressionWithTypeArguments
+                | SyntaxKind::HeritageClause => false.into(),
+                SyntaxKind::ArrowFunction | SyntaxKind::ExpressionStatement => {
+                    if is_block(&node.ref_(self).parent().ref_(self))
+                        && is_class_static_block_declaration(
+                            &node.ref_(self).parent().ref_(self).parent().ref_(self),
+                        )
+                    {
+                        true.into()
+                    } else {
+                        FindAncestorCallbackReturn::Quit
+                    }
                 }
-            }
-            _ => {
-                if is_expression_node(node, self) {
-                    false.into()
-                } else {
-                    FindAncestorCallbackReturn::Quit
+                _ => {
+                    if is_expression_node(node, self) {
+                        false.into()
+                    } else {
+                        FindAncestorCallbackReturn::Quit
+                    }
                 }
-            }
-        }, self)
+            },
+            self,
+        )
         .is_some()
     }
 
@@ -1095,7 +1123,11 @@ impl TypeChecker {
         {
             for &subtype in containing_type.ref_(self).as_union_type().types() {
                 if self
-                    .get_property_of_type_(subtype, &prop_node.ref_(self).as_identifier().escaped_text, None)?
+                    .get_property_of_type_(
+                        subtype,
+                        &prop_node.ref_(self).as_identifier().escaped_text,
+                        None,
+                    )?
                     .is_none()
                     && self
                         .get_applicable_index_info_for_name(
@@ -1116,9 +1148,10 @@ impl TypeChecker {
                 }
             }
         }
-        if self
-            .type_has_static_property(&prop_node.ref_(self).as_member_name().escaped_text(), containing_type)?
-        {
+        if self.type_has_static_property(
+            &prop_node.ref_(self).as_member_name().escaped_text(),
+            containing_type,
+        )? {
             let prop_name = declaration_name_to_string(Some(prop_node), self).into_owned();
             let type_name =
                 self.type_to_string_(containing_type, Option::<Id<Node>>::None, None, None)?;
@@ -1155,17 +1188,20 @@ impl TypeChecker {
                         )?,
                     ]),
                 ));
-                related_info = Some(self.alloc_diagnostic_related_information(
-                    create_diagnostic_for_node(
-                        prop_node,
-                        &Diagnostics::Did_you_forget_to_use_await,
-                        None,
-                        self,
-                    )
-                    .into(),
-                ));
+                related_info = Some(
+                    self.alloc_diagnostic_related_information(
+                        create_diagnostic_for_node(
+                            prop_node,
+                            &Diagnostics::Did_you_forget_to_use_await,
+                            None,
+                            self,
+                        )
+                        .into(),
+                    ),
+                );
             } else {
-                let missing_property = declaration_name_to_string(Some(prop_node), self).into_owned();
+                let missing_property =
+                    declaration_name_to_string(Some(prop_node), self).into_owned();
                 let container =
                     self.type_to_string_(containing_type, Option::<Id<Node>>::None, None, None)?;
                 let lib_suggestion = self.get_suggested_lib_for_non_existent_property(
@@ -1199,10 +1235,8 @@ impl TypeChecker {
                             message,
                             Some(vec![missing_property, container, suggested_name.clone()]),
                         ));
-                        related_info = suggestion
-                            .ref_(self)
-                            .maybe_value_declaration()
-                            .map(|suggestion_value_declaration| {
+                        related_info = suggestion.ref_(self).maybe_value_declaration().map(
+                            |suggestion_value_declaration| {
                                 self.alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         suggestion_value_declaration,
@@ -1212,7 +1246,8 @@ impl TypeChecker {
                                     )
                                     .into(),
                                 )
-                            });
+                            },
+                        );
                     } else {
                         let diagnostic = if self
                             .container_seems_to_be_empty_dom_element(containing_type)?

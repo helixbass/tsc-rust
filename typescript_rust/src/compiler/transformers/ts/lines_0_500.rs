@@ -1,27 +1,30 @@
-use std::{cell::{Cell, RefCell, Ref, RefMut}, collections::HashMap, io, mem, ptr, any::Any};
+use std::{
+    any::Any,
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::HashMap,
+    io, mem, ptr,
+};
 
 use bitflags::bitflags;
 use id_arena::Id;
 
 use crate::{
-    add_emit_helpers, add_synthetic_trailing_comment,
-    create_unparsed_source_file, declaration_name_to_string,
-    get_emit_module_kind, get_emit_script_target, get_original_node,
-    get_parse_tree_node, get_strict_option_value, get_text_of_node, has_syntactic_modifier,
-    is_access_expression, is_class_declaration, is_element_access_expression,
-    is_generated_identifier, is_local_name, is_property_access_expression,
-    is_shorthand_property_assignment, is_source_file, is_statement, map_defined,
-    maybe_get_original_node_full, modifier_to_flag, set_constant_value, try_maybe_visit_each_child,
-    BaseNodeFactorySynthetic, BoolExt, CompilerOptions, Debug_, EmitHelperFactory, EmitHint,
-    EmitResolver, Matches, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node,
-    NodeCheckFlags, NodeExt, NodeFactory, NodeId, NodeInterface, OptionTry, ScriptTarget,
-    StringOrNumber, SyntaxKind, TransformFlags, TransformationContext,
+    add_emit_helpers, add_synthetic_trailing_comment, create_unparsed_source_file,
+    declaration_name_to_string, downcast_transformer_ref, get_emit_module_kind,
+    get_emit_script_target, get_original_node, get_parse_tree_node, get_strict_option_value,
+    get_text_of_node, has_syntactic_modifier, is_access_expression, is_class_declaration,
+    is_element_access_expression, is_generated_identifier, is_local_name,
+    is_property_access_expression, is_shorthand_property_assignment, is_source_file, is_statement,
+    map_defined, maybe_get_original_node_full, modifier_to_flag, ref_mut_unwrapped, ref_unwrapped,
+    set_constant_value, static_arena, try_maybe_visit_each_child, AllArenas,
+    BaseNodeFactorySynthetic, BoolExt, CompilerOptions, CoreTransformationContext, Debug_,
+    EmitHelperFactory, EmitHint, EmitResolver, HasArena, InArena, Matches, ModifierFlags,
+    ModuleKind, NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt, NodeFactory, NodeId,
+    NodeInterface, OptionTry, ScriptTarget, StringOrNumber, SyntaxKind, TransformFlags,
+    TransformNodesTransformationResult, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VisitResult,
-    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
-    ref_unwrapped, ref_mut_unwrapped,
 };
 
 pub(super) const USE_NEW_TYPE_METADATA_FORMAT: bool = false;
@@ -79,7 +82,10 @@ pub(super) struct TransformTypeScript {
 }
 
 impl TransformTypeScript {
-    pub(super) fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    pub(super) fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -87,7 +93,10 @@ impl TransformTypeScript {
             _arena: arena,
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
-            strict_null_checks: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictNullChecks"),
+            strict_null_checks: get_strict_option_value(
+                &compiler_options.ref_(arena_ref),
+                "strictNullChecks",
+            ),
             language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
             module_kind: get_emit_module_kind(&compiler_options.ref_(arena_ref)),
             compiler_options,
@@ -104,16 +113,14 @@ impl TransformTypeScript {
             applicable_substitutions: Default::default(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformTypeScriptOnEmitNodeOverrider::new(
-                ret,
-                previous_on_emit_node,
-            )))
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+                TransformTypeScriptOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+            ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformTypeScriptOnSubstituteNodeOverrider::new(
-                ret,
-                previous_on_substitute_node,
-            )))
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
+                TransformTypeScriptOnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+            ))
         });
 
         context_ref.enable_substitution(SyntaxKind::PropertyAccessExpression);
@@ -147,16 +154,15 @@ impl TransformTypeScript {
     }
 
     pub(super) fn current_namespace_container_name(&self) -> Id<Node> {
-        self.current_namespace_container_name
-            .get()
-            .unwrap()
+        self.current_namespace_container_name.get().unwrap()
     }
 
     pub(super) fn set_current_namespace_container_name(
         &self,
         current_namespace_container_name: Option<Id<Node>>,
     ) {
-        self.current_namespace_container_name.set(current_namespace_container_name);
+        self.current_namespace_container_name
+            .set(current_namespace_container_name);
     }
 
     pub(super) fn current_lexical_scope(&self) -> Id<Node> {
@@ -230,9 +236,7 @@ impl TransformTypeScript {
         ref_unwrapped(&self.class_aliases)
     }
 
-    pub(super) fn class_aliases_mut(
-        &self,
-    ) -> RefMut<HashMap<NodeId, Id<Node>>> {
+    pub(super) fn class_aliases_mut(&self) -> RefMut<HashMap<NodeId, Id<Node>>> {
         ref_mut_unwrapped(&self.class_aliases)
     }
 
@@ -273,9 +277,7 @@ impl TransformTypeScript {
                 .source_files
                 .iter()
                 .map(|source_file| -> io::Result<_> {
-                    Ok(Some(
-                        self.transform_source_file(source_file.unwrap())?,
-                    ))
+                    Ok(Some(self.transform_source_file(source_file.unwrap())?))
                 })
                 .collect::<Result<Vec<_>, _>>()?,
             Some(map_defined(
@@ -306,7 +308,11 @@ impl TransformTypeScript {
 
         let visited =
             self.try_save_state_and_invoke(node, |node: Id<Node>| self.visit_source_file(node))?;
-        add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
+        add_emit_helpers(
+            visited,
+            self.context.ref_(self).read_emit_helpers().as_deref(),
+            self,
+        );
 
         self.set_current_source_file(None);
         Ok(visited)
@@ -367,7 +373,12 @@ impl TransformTypeScript {
                     break 'case;
                 }
 
-                if node.ref_(self).as_named_declaration().maybe_name().is_some() {
+                if node
+                    .ref_(self)
+                    .as_named_declaration()
+                    .maybe_name()
+                    .is_some()
+                {
                     self.record_emitted_declaration_in_scope(node);
                 } else {
                     Debug_.assert(
@@ -390,7 +401,8 @@ impl TransformTypeScript {
 
     pub(super) fn visitor_worker(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsTypeScript)
         {
             return self.visit_type_script(node);
@@ -423,7 +435,8 @@ impl TransformTypeScript {
         let parsed = get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self);
         if parsed != Some(node) {
             if node
-                .ref_(self).transform_flags()
+                .ref_(self)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsTypeScript)
             {
                 return Ok(try_maybe_visit_each_child(
@@ -462,12 +475,18 @@ impl TransformTypeScript {
                 | SyntaxKind::ImportDeclaration
                 | SyntaxKind::ImportClause
         ) || node.ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration
-            && node.ref_(self).as_import_equals_declaration().module_reference.ref_(self).kind()
+            && node
+                .ref_(self)
+                .as_import_equals_declaration()
+                .module_reference
+                .ref_(self)
+                .kind()
                 == SyntaxKind::ExternalModuleReference
         {
             return Ok(None);
         } else if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsTypeScript)
             || has_syntactic_modifier(node, ModifierFlags::Export, self)
         {
@@ -516,7 +535,8 @@ impl TransformTypeScript {
         if is_statement(node, self) && has_syntactic_modifier(node, ModifierFlags::Ambient, self) {
             return Ok(Some(
                 self.factory
-                    .ref_(self).create_not_emitted_statement(node)
+                    .ref_(self)
+                    .create_not_emitted_statement(node)
                     .into(),
             ));
         }
@@ -569,7 +589,8 @@ impl TransformTypeScript {
             | SyntaxKind::Decorator => None,
             SyntaxKind::TypeAliasDeclaration => Some(
                 self.factory
-                    .ref_(self).create_not_emitted_statement(node)
+                    .ref_(self)
+                    .create_not_emitted_statement(node)
                     .into(),
             ),
             SyntaxKind::PropertyDeclaration => self.visit_property_declaration(node)?,
@@ -577,7 +598,8 @@ impl TransformTypeScript {
             SyntaxKind::Constructor => self.visit_constructor(node)?,
             SyntaxKind::InterfaceDeclaration => Some(
                 self.factory
-                    .ref_(self).create_not_emitted_statement(node)
+                    .ref_(self)
+                    .create_not_emitted_statement(node)
                     .into(),
             ),
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
@@ -673,7 +695,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeO
         node: Id<Node>,
         emit_callback: &dyn Fn(EmitHint, Id<Node>) -> io::Result<()>,
     ) -> io::Result<()> {
-        let saved_applicable_substitutions = self.transform_type_script().applicable_substitutions();
+        let saved_applicable_substitutions =
+            self.transform_type_script().applicable_substitutions();
         let saved_current_source_file = self.transform_type_script().maybe_current_source_file();
 
         if is_source_file(&node.ref_(self)) {
@@ -706,7 +729,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeO
         }
 
         self.previous_on_emit_node
-            .ref_(self).on_emit_node(hint, node, emit_callback)?;
+            .ref_(self)
+            .on_emit_node(hint, node, emit_callback)?;
 
         self.transform_type_script()
             .set_applicable_substitutions(saved_applicable_substitutions);
@@ -762,20 +786,26 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                         .object_assignment_initializer
                         .as_ref()
                 {
-                    let initializer = self.transform_type_script().factory.ref_(self).create_assignment(
-                        exported_name,
-                        node_object_assignment_initializer.clone(),
-                    );
+                    let initializer = self
+                        .transform_type_script()
+                        .factory
+                        .ref_(self)
+                        .create_assignment(
+                            exported_name,
+                            node_object_assignment_initializer.clone(),
+                        );
                     return Ok(self
                         .transform_type_script()
                         .factory
-                        .ref_(self).create_property_assignment(name, initializer)
+                        .ref_(self)
+                        .create_property_assignment(name, initializer)
                         .set_text_range(Some(&*node.ref_(self)), self));
                 }
                 return Ok(self
                     .transform_type_script()
                     .factory
-                    .ref_(self).create_property_assignment(name, exported_name)
+                    .ref_(self)
+                    .create_property_assignment(name, exported_name)
                     .set_text_range(Some(&*node.ref_(self)), self));
             }
         }
@@ -821,13 +851,15 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             if self
                 .transform_type_script()
                 .resolver
-                .ref_(self).get_node_check_flags(node)
+                .ref_(self)
+                .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::ConstructorReferenceInClass)
             {
                 let declaration = self
                     .transform_type_script()
                     .resolver
-                    .ref_(self).get_referenced_value_declaration(node)?;
+                    .ref_(self)
+                    .get_referenced_value_declaration(node)?;
                 if let Some(declaration) = declaration {
                     let transform_type_script_ref = self.transform_type_script();
                     let class_aliases = transform_type_script_ref.class_aliases();
@@ -836,8 +868,12 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                         return Ok(Some(
                             self.transform_type_script()
                                 .factory
-                                .ref_(self).clone_node(class_alias)
-                                .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
+                                .ref_(self)
+                                .clone_node(class_alias)
+                                .set_source_map_range(
+                                    Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
+                                    self,
+                                )
                                 .set_comment_range(&*node.ref_(self), self),
                         ));
                     }
@@ -861,7 +897,8 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
             let container = self
                 .transform_type_script()
                 .resolver
-                .ref_(self).get_referenced_export_container(node, Some(false))?;
+                .ref_(self)
+                .get_referenced_export_container(node, Some(false))?;
             if let Some(container) =
                 container.filter(|container| container.ref_(self).kind() != SyntaxKind::SourceFile)
             {
@@ -879,10 +916,12 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                     return Ok(Some(
                         self.transform_type_script()
                             .factory
-                            .ref_(self).create_property_access_expression(
+                            .ref_(self)
+                            .create_property_access_expression(
                                 self.transform_type_script()
                                     .factory
-                                    .ref_(self).get_generated_name_for_node(Some(container), None),
+                                    .ref_(self)
+                                    .get_generated_name_for_node(Some(container), None),
                                 node,
                             )
                             .set_text_range(Some(&*node.ref_(self)), self),
@@ -921,13 +960,21 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                 StringOrNumber::String(constant_value) => self
                     .transform_type_script()
                     .factory
-                    .ref_(self).create_string_literal(constant_value, None, None),
+                    .ref_(self)
+                    .create_string_literal(constant_value, None, None),
                 StringOrNumber::Number(constant_value) => self
                     .transform_type_script()
                     .factory
-                    .ref_(self).create_numeric_literal(constant_value, None),
+                    .ref_(self)
+                    .create_numeric_literal(constant_value, None),
             };
-            if self.transform_type_script().compiler_options.ref_(self).remove_comments != Some(true) {
+            if self
+                .transform_type_script()
+                .compiler_options
+                .ref_(self)
+                .remove_comments
+                != Some(true)
+            {
                 let original_node = maybe_get_original_node_full(
                     Some(node),
                     Some(|node: Option<Id<Node>>| is_access_expression(&node.unwrap().ref_(self))),
@@ -939,13 +986,17 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
                 .unwrap();
                 let property_name = if is_property_access_expression(&original_node.ref_(self)) {
                     declaration_name_to_string(
-                        original_node.ref_(self).as_property_access_expression().maybe_name(),
+                        original_node
+                            .ref_(self)
+                            .as_property_access_expression()
+                            .maybe_name(),
                         self,
                     )
                 } else {
                     get_text_of_node(
                         original_node
-                            .ref_(self).as_element_access_expression()
+                            .ref_(self)
+                            .as_element_access_expression()
                             .argument_expression,
                         None,
                         self,
@@ -968,12 +1019,24 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     }
 
     fn try_get_const_enum_value(&self, node: Id<Node>) -> io::Result<Option<StringOrNumber>> {
-        if self.transform_type_script().compiler_options.ref_(self).isolated_modules == Some(true) {
+        if self
+            .transform_type_script()
+            .compiler_options
+            .ref_(self)
+            .isolated_modules
+            == Some(true)
+        {
             return Ok(None);
         }
 
-        (is_property_access_expression(&node.ref_(self)) || is_element_access_expression(&node.ref_(self)))
-            .try_then_and(|| self.transform_type_script().resolver.ref_(self).get_constant_value(node))
+        (is_property_access_expression(&node.ref_(self))
+            || is_element_access_expression(&node.ref_(self)))
+        .try_then_and(|| {
+            self.transform_type_script()
+                .resolver
+                .ref_(self)
+                .get_constant_value(node)
+        })
     }
 }
 
@@ -983,7 +1046,8 @@ impl TransformationContextOnSubstituteNodeOverrider
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .ref_(self).on_substitute_node(hint, node)?;
+            .ref_(self)
+            .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression {
             return self.substitute_expression(node);
         } else if is_shorthand_property_assignment(&node.ref_(self)) {

@@ -7,10 +7,10 @@ use crate::{
     get_binary_operator_precedence, is_assignment_operator, is_async_modifier,
     is_jsdoc_function_type, is_left_hand_side_expression, is_modifier_kind, node_is_present,
     skip_trivia, some, token_to_string, AsDoubleDeref, AsExpression, AwaitExpression,
-    BinaryExpression, Debug_, DeleteExpression, Diagnostics, LanguageVariant, Node, NodeArray,
-    NodeFlags, NodeInterface, OperatorPrecedence, PrefixUnaryExpression, ReadonlyTextRange,
-    SyntaxKind, TypeOfExpression, VoidExpression, YieldExpression,
-    HasArena, InArena, OptionInArena,
+    BinaryExpression, Debug_, DeleteExpression, Diagnostics, HasArena, InArena, LanguageVariant,
+    Node, NodeArray, NodeFlags, NodeInterface, OperatorPrecedence, OptionInArena,
+    PrefixUnaryExpression, ReadonlyTextRange, SyntaxKind, TypeOfExpression, VoidExpression,
+    YieldExpression,
 };
 
 impl ParserType {
@@ -38,7 +38,8 @@ impl ParserType {
         };
         self.finish_node(
             self.factory()
-                .ref_(self).create_type_predicate_node_raw(
+                .ref_(self)
+                .create_type_predicate_node_raw(
                     Some(asserts_modifier.alloc(self.arena())),
                     parameter_name.alloc(self.arena()),
                     type_,
@@ -282,7 +283,9 @@ impl ParserType {
             )
         } else {
             self.finish_node(
-                self.factory().ref_(self).create_yield_expression_raw(None, None),
+                self.factory()
+                    .ref_(self)
+                    .create_yield_expression_raw(None, None),
                 pos,
                 None,
             )
@@ -611,7 +614,10 @@ impl ParserType {
             Some(equals_greater_than_token.alloc(self.arena())),
             body,
         );
-        Some(self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc))
+        Some(self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        ))
     }
 
     pub(super) fn parse_arrow_function_expression_body(
@@ -778,7 +784,8 @@ impl ParserType {
     ) -> BinaryExpression {
         self.finish_node(
             self.factory()
-                .ref_(self).create_binary_expression_raw(left, operator_token, right),
+                .ref_(self)
+                .create_binary_expression_raw(left, operator_token, right),
             pos,
             None,
         )
@@ -787,7 +794,9 @@ impl ParserType {
     pub(super) fn make_as_expression(&self, left: Id<Node>, right: Id<Node>) -> AsExpression {
         let left_pos = left.ref_(self).pos();
         self.finish_node(
-            self.factory().ref_(self).create_as_expression_raw(left, right),
+            self.factory()
+                .ref_(self)
+                .create_as_expression_raw(left, right),
             left_pos,
             None,
         )
@@ -796,10 +805,12 @@ impl ParserType {
     pub(super) fn parse_prefix_unary_expression(&self) -> PrefixUnaryExpression {
         let pos = self.get_node_pos();
         self.finish_node(
-            self.factory().ref_(self).create_prefix_unary_expression_raw(
-                self.token(),
-                self.next_token_and(|| self.parse_simple_unary_expression()),
-            ),
+            self.factory()
+                .ref_(self)
+                .create_prefix_unary_expression_raw(
+                    self.token(),
+                    self.next_token_and(|| self.parse_simple_unary_expression()),
+                ),
             pos,
             None,
         )
@@ -904,7 +915,9 @@ impl ParserType {
             SyntaxKind::PlusToken
             | SyntaxKind::MinusToken
             | SyntaxKind::TildeToken
-            | SyntaxKind::ExclamationToken => self.parse_prefix_unary_expression().alloc(self.arena()),
+            | SyntaxKind::ExclamationToken => {
+                self.parse_prefix_unary_expression().alloc(self.arena())
+            }
             SyntaxKind::DeleteKeyword => self.parse_delete_expression().alloc(self.arena()),
             SyntaxKind::TypeOfKeyword => self.parse_type_of_expression().alloc(self.arena()),
             SyntaxKind::VoidKeyword => self.parse_void_expression().alloc(self.arena()),
@@ -949,10 +962,14 @@ impl ParserType {
             let pos = self.get_node_pos();
             return self
                 .finish_node(
-                    self.factory().ref_(self).create_prefix_unary_expression_raw(
-                        self.token(),
-                        self.next_token_and(|| self.parse_left_hand_side_expression_or_higher()),
-                    ),
+                    self.factory()
+                        .ref_(self)
+                        .create_prefix_unary_expression_raw(
+                            self.token(),
+                            self.next_token_and(|| {
+                                self.parse_left_hand_side_expression_or_higher()
+                            }),
+                        ),
                     pos,
                     None,
                 )
@@ -980,7 +997,8 @@ impl ParserType {
             return self
                 .finish_node(
                     self.factory()
-                        .ref_(self).create_postfix_unary_expression_raw(expression, operator),
+                        .ref_(self)
+                        .create_postfix_unary_expression_raw(expression, operator),
                     expression_pos,
                     None,
                 )

@@ -1,4 +1,4 @@
-use std::cell::{Cell, RefCell, Ref, RefMut};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 
 use bitflags::bitflags;
 use local_macros::{ast_type, enum_unwrapped};
@@ -1009,8 +1009,7 @@ impl JSDocTemplateTag {
 
 impl HasTypeParametersInterface for JSDocTemplateTag {
     fn maybe_type_parameters(&self) -> Option<Id<NodeArray>> {
-        self.type_parameters_for_has_type_parameters_interface
-            .get()
+        self.type_parameters_for_has_type_parameters_interface.get()
     }
 
     fn set_type_parameters(&self, type_parameters: Option<Id<NodeArray>>) {

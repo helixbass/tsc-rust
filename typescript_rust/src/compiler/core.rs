@@ -14,9 +14,8 @@ use indexmap::IndexMap;
 use regex::{Captures, Regex};
 
 use crate::{
-    __String, text_char_at_index, Comparison, Debug_, IteratorExt, Node, NodeArrayOrVec, OptionTry,
-    PeekableExt, SortedArray, SourceTextAsChars,
-    HasArena,
+    __String, text_char_at_index, Comparison, Debug_, HasArena, IteratorExt, Node, NodeArrayOrVec,
+    OptionTry, PeekableExt, SortedArray, SourceTextAsChars,
 };
 
 pub fn length<TItem>(array: Option<&[TItem]>) -> usize {
@@ -849,9 +848,7 @@ fn deduplicate_sorted<TItem: Clone>(
     SortedArray::new(deduplicated)
 }
 
-pub fn insert_sorted<
-    TItem, /*, TComparer: Comparer<&'array_or_item TItem>*/
->(
+pub fn insert_sorted<TItem /*, TComparer: Comparer<&'array_or_item TItem>*/>(
     array: &mut SortedArray<TItem>,
     insert: TItem,
     // compare: Comparer<&'array_or_item TItem>,
@@ -1573,11 +1570,7 @@ pub fn array_to_map<TItem, TKey: hash::Hash + Eq, TValue>(
     result
 }
 
-pub fn array_to_multi_map<
-    TItem,
-    TKey: hash::Hash + Eq,
-    TValue: Clone,
->(
+pub fn array_to_multi_map<TItem, TKey: hash::Hash + Eq, TValue: Clone>(
     values: &[TItem],
     mut make_key: impl FnMut(&TItem) -> TKey,
     mut make_value: impl FnMut(&TItem) -> TValue,
@@ -1663,9 +1656,7 @@ mod _MultiMapDeriveTraceScope {
         }
     }
 
-    impl<TKey: Hash + Eq, TValue: Clone> IntoIterator
-        for MultiMap<TKey, TValue>
-    {
+    impl<TKey: Hash + Eq, TValue: Clone> IntoIterator for MultiMap<TKey, TValue> {
         type Item = (TKey, Vec<TValue>);
         type IntoIter = <HashMap<TKey, Vec<TValue>> as IntoIterator>::IntoIter;
 
@@ -1676,15 +1667,13 @@ mod _MultiMapDeriveTraceScope {
 }
 pub use _MultiMapDeriveTraceScope::MultiMap;
 
-pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue>
-{
+pub fn create_multi_map<TKey, TValue>() -> MultiMap<TKey, TValue> {
     MultiMap(Default::default())
 }
 
 pub type UnderscoreEscapedMultiMap<TValue> = MultiMap<__String, TValue>;
 
-pub fn create_underscore_escaped_multi_map<TValue>(
-) -> UnderscoreEscapedMultiMap<TValue> {
+pub fn create_underscore_escaped_multi_map<TValue>() -> UnderscoreEscapedMultiMap<TValue> {
     create_multi_map()
 }
 
@@ -1699,9 +1688,7 @@ mod _MultiMapOrderedDeriveTraceScope {
         pub IndexMap<TKey, Vec<TValue>>,
     );
 
-    impl<TKey: Hash + Eq, TValue: Clone>
-        MultiMapOrdered<TKey, TValue>
-    {
+    impl<TKey: Hash + Eq, TValue: Clone> MultiMapOrdered<TKey, TValue> {
         pub fn add(&mut self, key: TKey, value: TValue) {
             let values = self.0.entry(key).or_insert(vec![]);
             values.push(value);
@@ -1744,9 +1731,7 @@ mod _MultiMapOrderedDeriveTraceScope {
         }
     }
 
-    impl<TKey: Hash + Eq, TValue: Clone> IntoIterator
-        for MultiMapOrdered<TKey, TValue>
-    {
+    impl<TKey: Hash + Eq, TValue: Clone> IntoIterator for MultiMapOrdered<TKey, TValue> {
         type Item = (TKey, Vec<TValue>);
         type IntoIter = <IndexMap<TKey, Vec<TValue>> as IntoIterator>::IntoIter;
 
@@ -1760,8 +1745,7 @@ use id_arena::Id;
 
 use crate::{SingleNodeOrVecNode, _d};
 
-pub fn create_multi_map_ordered<TKey, TValue>(
-) -> MultiMapOrdered<TKey, TValue> {
+pub fn create_multi_map_ordered<TKey, TValue>() -> MultiMapOrdered<TKey, TValue> {
     MultiMapOrdered(Default::default())
 }
 

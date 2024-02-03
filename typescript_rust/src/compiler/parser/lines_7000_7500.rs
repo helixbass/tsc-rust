@@ -5,12 +5,11 @@ use id_arena::Id;
 use super::{ParserType, ParsingContext};
 use crate::{
     add_related_info, create_detached_diagnostic, is_export_modifier, is_keyword,
-    last_or_undefined, some, token_is_identifier_or_keyword, AssertClause, AssertEntry, Debug_,
-    DiagnosticRelatedInformationInterface, Diagnostics, ExpressionWithTypeArguments,
-    ExternalModuleReference, HeritageClause, ImportClause, ModuleBlock, NamespaceExport,
-    NamespaceImport, Node, NodeArray, NodeFlags, NodeInterface, SyntaxKind,
-    HasArena, InArena, OptionInArena,
-    AsDoubleDeref,
+    last_or_undefined, some, token_is_identifier_or_keyword, AsDoubleDeref, AssertClause,
+    AssertEntry, Debug_, DiagnosticRelatedInformationInterface, Diagnostics,
+    ExpressionWithTypeArguments, ExternalModuleReference, HasArena, HeritageClause, ImportClause,
+    InArena, ModuleBlock, NamespaceExport, NamespaceImport, Node, NodeArray, NodeFlags,
+    NodeInterface, OptionInArena, SyntaxKind,
 };
 
 impl ParserType {
@@ -47,7 +46,8 @@ impl ParserType {
         self.set_await_context(saved_await_context);
         let node: Node = if kind == SyntaxKind::ClassDeclaration {
             self.factory()
-                .ref_(self).create_class_declaration_raw(
+                .ref_(self)
+                .create_class_declaration_raw(
                     decorators,
                     modifiers,
                     name,
@@ -58,7 +58,8 @@ impl ParserType {
                 .into()
         } else {
             self.factory()
-                .ref_(self).create_class_expression_raw(
+                .ref_(self)
+                .create_class_expression_raw(
                     decorators,
                     modifiers,
                     name,
@@ -68,7 +69,10 @@ impl ParserType {
                 )
                 .into()
         };
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_name_of_class_declaration_or_expression(
@@ -109,11 +113,16 @@ impl ParserType {
         self.next_token();
         let types = self.parse_delimited_list(
             ParsingContext::HeritageClauseElement,
-            || self.parse_expression_with_type_arguments().alloc(self.arena()),
+            || {
+                self.parse_expression_with_type_arguments()
+                    .alloc(self.arena())
+            },
             None,
         );
         self.finish_node(
-            self.factory().ref_(self).create_heritage_clause_raw(tok, types),
+            self.factory()
+                .ref_(self)
+                .create_heritage_clause_raw(tok, types),
             pos,
             None,
         )
@@ -125,7 +134,8 @@ impl ParserType {
         let type_arguments = self.try_parse_type_arguments();
         self.finish_node(
             self.factory()
-                .ref_(self).create_expression_with_type_arguments_raw(expression, type_arguments),
+                .ref_(self)
+                .create_expression_with_type_arguments_raw(expression, type_arguments),
             pos,
             None,
         )
@@ -177,7 +187,10 @@ impl ParserType {
             heritage_clauses,
             members,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_type_alias_declaration(
@@ -192,8 +205,11 @@ impl ParserType {
         let type_parameters = self.parse_type_parameters();
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
         let type_: Id<Node> = if self.token() == SyntaxKind::IntrinsicKeyword {
-            self.try_parse(|| self.parse_keyword_and_no_dot().map(|node| node.alloc(self.arena())))
-                .unwrap_or_else(|| self.parse_type())
+            self.try_parse(|| {
+                self.parse_keyword_and_no_dot()
+                    .map(|node| node.alloc(self.arena()))
+            })
+            .unwrap_or_else(|| self.parse_type())
         } else {
             self.parse_type()
         };
@@ -205,7 +221,10 @@ impl ParserType {
             type_parameters,
             type_,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_enum_member(&self) -> Id<Node /*EnumMember*/> {
@@ -215,7 +234,9 @@ impl ParserType {
         let initializer = self.allow_in_and(|| self.parse_initializer());
         self.with_jsdoc(
             self.finish_node(
-                self.factory().ref_(self).create_enum_member_raw(name, initializer),
+                self.factory()
+                    .ref_(self)
+                    .create_enum_member_raw(name, initializer),
                 pos,
                 None,
             )
@@ -246,10 +267,16 @@ impl ParserType {
         } else {
             members = self.create_missing_list();
         }
-        let node =
-            self.factory()
-                .ref_(self).create_enum_declaration_raw(decorators, modifiers, name, Some(members));
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        let node = self.factory().ref_(self).create_enum_declaration_raw(
+            decorators,
+            modifiers,
+            name,
+            Some(members),
+        );
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_module_block(&self) -> ModuleBlock {
@@ -264,7 +291,9 @@ impl ParserType {
             statements = self.create_missing_list();
         }
         self.finish_node(
-            self.factory().ref_(self).create_module_block_raw(Some(statements)),
+            self.factory()
+                .ref_(self)
+                .create_module_block_raw(Some(statements)),
             pos,
             None,
         )
@@ -298,7 +327,10 @@ impl ParserType {
             Some(body),
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_ambient_external_module_declaration(
@@ -333,7 +365,10 @@ impl ParserType {
             body,
             Some(flags),
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_module_declaration(
@@ -388,10 +423,16 @@ impl ParserType {
         self.parse_expected(SyntaxKind::NamespaceKeyword, None, None);
         let name: Id<Node> = self.parse_identifier(None, None).alloc(self.arena());
         self.parse_semicolon();
-        let node = self.factory().ref_(self).create_namespace_export_declaration_raw(name);
+        let node = self
+            .factory()
+            .ref_(self)
+            .create_namespace_export_declaration_raw(name);
         node.set_decorators(decorators);
         node.set_modifiers(modifiers);
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_import_declaration_or_import_equals_declaration(
@@ -468,7 +509,10 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_assert_entry(&self) -> AssertEntry {
@@ -484,7 +528,9 @@ impl ParserType {
             .parse_literal_like_node(SyntaxKind::StringLiteral)
             .alloc(self.arena());
         self.finish_node(
-            self.factory().ref_(self).create_assert_entry_raw(name, value),
+            self.factory()
+                .ref_(self)
+                .create_assert_entry_raw(name, value),
             pos,
             None,
         )
@@ -524,7 +570,8 @@ impl ParserType {
             }
             self.finish_node(
                 self.factory()
-                    .ref_(self).create_assert_clause_raw(elements, Some(multi_line)),
+                    .ref_(self)
+                    .create_assert_clause_raw(elements, Some(multi_line)),
                 pos,
                 None,
             )
@@ -532,7 +579,8 @@ impl ParserType {
             let elements = self.create_node_array(vec![], self.get_node_pos(), None, Some(false));
             self.finish_node(
                 self.factory()
-                    .ref_(self).create_assert_clause_raw(elements, Some(false)),
+                    .ref_(self)
+                    .create_assert_clause_raw(elements, Some(false)),
                 pos,
                 None,
             )
@@ -567,14 +615,20 @@ impl ParserType {
         self.parse_expected(SyntaxKind::EqualsToken, None, None);
         let module_reference: Id<Node> = self.parse_module_reference().alloc(self.arena());
         self.parse_semicolon();
-        let node = self.factory().ref_(self).create_import_equals_declaration_raw(
-            decorators,
-            modifiers,
-            is_type_only,
-            identifier,
-            module_reference,
-        );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        let node = self
+            .factory()
+            .ref_(self)
+            .create_import_equals_declaration_raw(
+                decorators,
+                modifiers,
+                is_type_only,
+                identifier,
+                module_reference,
+            );
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_import_clause(
@@ -596,8 +650,11 @@ impl ParserType {
         }
 
         self.finish_node(
-            self.factory()
-                .ref_(self).create_import_clause_raw(is_type_only, identifier, named_bindings),
+            self.factory().ref_(self).create_import_clause_raw(
+                is_type_only,
+                identifier,
+                named_bindings,
+            ),
             pos.try_into().unwrap(),
             None,
         )
@@ -619,7 +676,8 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseParenToken, None, None);
         self.finish_node(
             self.factory()
-                .ref_(self).create_external_module_reference_raw(expression),
+                .ref_(self)
+                .create_external_module_reference_raw(expression),
             pos,
             None,
         )
@@ -643,7 +701,9 @@ impl ParserType {
         self.parse_expected(SyntaxKind::AsKeyword, None, None);
         let name = self.parse_identifier(None, None);
         self.finish_node(
-            self.factory().ref_(self).create_namespace_import_raw(name.alloc(self.arena())),
+            self.factory()
+                .ref_(self)
+                .create_namespace_import_raw(name.alloc(self.arena())),
             pos,
             None,
         )
@@ -655,7 +715,8 @@ impl ParserType {
 
         let node: Node = if kind == SyntaxKind::NamedImports {
             self.factory()
-                .ref_(self).create_named_imports_raw(self.parse_bracketed_list(
+                .ref_(self)
+                .create_named_imports_raw(self.parse_bracketed_list(
                     ParsingContext::ImportOrExportSpecifiers,
                     || self.parse_import_specifier().alloc(self.arena()),
                     SyntaxKind::OpenBraceToken,
@@ -664,7 +725,8 @@ impl ParserType {
                 .into()
         } else {
             self.factory()
-                .ref_(self).create_named_exports_raw(self.parse_bracketed_list(
+                .ref_(self)
+                .create_named_exports_raw(self.parse_bracketed_list(
                     ParsingContext::ImportOrExportSpecifiers,
                     || self.parse_export_specifier().alloc(self.arena()),
                     SyntaxKind::OpenBraceToken,
@@ -743,11 +805,13 @@ impl ParserType {
         }
         let node: Node = if kind == SyntaxKind::ImportSpecifier {
             self.factory()
-                .ref_(self).create_import_specifier_raw(is_type_only, property_name, name)
+                .ref_(self)
+                .create_import_specifier_raw(is_type_only, property_name, name)
                 .into()
         } else {
             self.factory()
-                .ref_(self).create_export_specifier_raw(is_type_only, property_name, name)
+                .ref_(self)
+                .create_export_specifier_raw(is_type_only, property_name, name)
                 .into()
         };
         self.finish_node(node, pos, None)
@@ -756,7 +820,8 @@ impl ParserType {
     pub(super) fn parse_namespace_export(&self, pos: isize) -> NamespaceExport {
         self.finish_node(
             self.factory()
-                .ref_(self).create_namespace_export_raw(self.parse_identifier_name(None).alloc(self.arena())),
+                .ref_(self)
+                .create_namespace_export_raw(self.parse_identifier_name(None).alloc(self.arena())),
             pos,
             None,
         )
@@ -778,7 +843,10 @@ impl ParserType {
         let namespace_export_pos = self.get_node_pos();
         if self.parse_optional(SyntaxKind::AsteriskToken) {
             if self.parse_optional(SyntaxKind::AsKeyword) {
-                export_clause = Some(self.parse_namespace_export(namespace_export_pos).alloc(self.arena()));
+                export_clause = Some(
+                    self.parse_namespace_export(namespace_export_pos)
+                        .alloc(self.arena()),
+                );
             }
             self.parse_expected(SyntaxKind::FromKeyword, None, None);
             module_specifier = Some(self.parse_module_specifier());
@@ -811,6 +879,9 @@ impl ParserType {
             module_specifier,
             assert_clause,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 }

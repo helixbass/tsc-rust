@@ -4,14 +4,14 @@ use id_arena::Id;
 
 use super::{CheckMode, IterationTypeKind, IterationUse};
 use crate::{
-    expression_result_is_unused, get_assigned_expando_initializer,
-    get_containing_function, get_function_flags, is_assignment_operator,
-    is_element_access_expression, is_identifier, is_jsdoc_typedef_tag, is_jsx_self_closing_element,
-    is_object_literal_expression, is_parenthesized_expression, is_property_access_expression,
-    token_to_string, unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InArena,
-    InferenceContext, Node, NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    expression_result_is_unused, get_assigned_expando_initializer, get_containing_function,
+    get_function_flags, is_assignment_operator, is_element_access_expression, is_identifier,
+    is_jsdoc_typedef_tag, is_jsx_self_closing_element, is_object_literal_expression,
+    is_parenthesized_expression, is_property_access_expression, token_to_string,
+    unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InArena, InferenceContext, Node,
+    NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -74,7 +74,8 @@ impl TypeChecker {
     }
 
     pub(super) fn is_eval_node(&self, node: Id<Node> /*Expression*/) -> bool {
-        node.ref_(self).kind() == SyntaxKind::Identifier && node.ref_(self).as_identifier().escaped_text == "eval"
+        node.ref_(self).kind() == SyntaxKind::Identifier
+            && node.ref_(self).as_identifier().escaped_text == "eval"
     }
 
     pub(super) fn check_for_disallowed_es_symbol_operand(
@@ -266,7 +267,9 @@ impl TypeChecker {
                 would_work_with_await,
                 &Diagnostics::Operator_0_cannot_be_applied_to_types_1_and_2,
                 Some(vec![
-                    token_to_string(operator_token.ref_(self).kind()).unwrap().to_owned(),
+                    token_to_string(operator_token.ref_(self).kind())
+                        .unwrap()
+                        .to_owned(),
                     left_str,
                     right_str,
                 ]),
@@ -415,11 +418,7 @@ impl TypeChecker {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     yielded_type,
                     signature_yield_type,
-                    Some(
-                        node_as_yield_expression
-                            .expression
-                            .unwrap_or(node),
-                    ),
+                    Some(node_as_yield_expression.expression.unwrap_or(node)),
                     node_as_yield_expression.expression,
                     None,
                     None,
@@ -504,7 +503,11 @@ impl TypeChecker {
         let parent = node.ref_(self).parent();
         is_parenthesized_expression(&node.ref_(self)) && self.is_template_literal_context(parent)
             || is_element_access_expression(&parent.ref_(self))
-                && parent.ref_(self).as_element_access_expression().argument_expression == node
+                && parent
+                    .ref_(self)
+                    .as_element_access_expression()
+                    .argument_expression
+                    == node
     }
 
     pub(super) fn check_template_expression(
@@ -513,8 +516,13 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let node_ref = node.ref_(self);
         let node_as_template_expression = node_ref.as_template_expression();
-        // TODO: try and avoid String cloning here? 
-        let mut texts = vec![node_as_template_expression.head.ref_(self).as_literal_like_node().text().clone()];
+        // TODO: try and avoid String cloning here?
+        let mut texts = vec![node_as_template_expression
+            .head
+            .ref_(self)
+            .as_literal_like_node()
+            .text()
+            .clone()];
         let mut types = vec![];
         for span in node_as_template_expression.template_spans.ref_(self).iter() {
             let span_ref = span.ref_(self);
@@ -527,7 +535,13 @@ impl TypeChecker {
                     None,
                 );
             }
-            texts.push(span.literal.ref_(self).as_literal_like_node().text().clone());
+            texts.push(
+                span.literal
+                    .ref_(self)
+                    .as_literal_like_node()
+                    .text()
+                    .clone(),
+            );
             types.push(
                 if self.is_type_assignable_to(type_, self.template_constraint_type())? {
                     type_
@@ -575,7 +589,8 @@ impl TypeChecker {
     }
 
     pub(super) fn get_context_node(&self, node: Id<Node> /*Expression*/) -> Id<Node> {
-        if node.ref_(self).kind() == SyntaxKind::JsxAttributes && !is_jsx_self_closing_element(&node.ref_(self).parent().ref_(self))
+        if node.ref_(self).kind() == SyntaxKind::JsxAttributes
+            && !is_jsx_self_closing_element(&node.ref_(self).parent().ref_(self))
         {
             return node.ref_(self).parent().ref_(self).parent();
         }
@@ -593,8 +608,12 @@ impl TypeChecker {
         let save_contextual_type = context.ref_(self).maybe_contextual_type();
         let save_inference_context = context.ref_(self).maybe_inference_context().clone();
         // try {
-        context.ref_(self).set_contextual_type(Some(contextual_type));
-        context.ref_(self).set_inference_context(inference_context.clone());
+        context
+            .ref_(self)
+            .set_contextual_type(Some(contextual_type));
+        context
+            .ref_(self)
+            .set_inference_context(inference_context.clone());
         let type_ = self.check_expression(
             node,
             Some(
@@ -620,7 +639,9 @@ impl TypeChecker {
         // }
         // finally {
         context.ref_(self).set_contextual_type(save_contextual_type);
-        context.ref_(self).set_inference_context(save_inference_context);
+        context
+            .ref_(self)
+            .set_inference_context(save_inference_context);
         // }
         Ok(result)
     }

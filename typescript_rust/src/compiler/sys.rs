@@ -1,5 +1,7 @@
 use std::{
     borrow::Cow,
+    cell::RefCell,
+    collections::HashMap,
     env,
     fs::{self, File},
     io::{self, Write},
@@ -8,18 +10,16 @@ use std::{
     process,
     rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
-    cell::RefCell,
-    collections::HashMap,
 };
 
 use id_arena::Id;
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
-    is_windows, match_files, process_cwd, read_file_and_strip_leading_byte_order_mark,
-    ConvertToTSConfigHost, ExitStatus, FileSystemEntries, ModuleResolutionHost, ParseConfigHost,
-    RequireResult, StatLike, Stats, WatchFileKind, WatchOptions,
-    HasArena, AllArenas, per_arena,
+    is_windows, match_files, per_arena, process_cwd, read_file_and_strip_leading_byte_order_mark,
+    AllArenas, ConvertToTSConfigHost, ExitStatus, FileSystemEntries, HasArena,
+    ModuleResolutionHost, ParseConfigHost, RequireResult, StatLike, Stats, WatchFileKind,
+    WatchOptions,
 };
 
 pub fn generate_djb2_hash(_data: &str) -> String {
@@ -188,7 +188,11 @@ pub struct SystemConcrete {
 }
 
 impl SystemConcrete {
-    pub fn new(args: Vec<String>, use_case_sensitive_file_names: bool, arena: &impl HasArena) -> Id<Box<dyn System>> {
+    pub fn new(
+        args: Vec<String>,
+        use_case_sensitive_file_names: bool,
+        arena: &impl HasArena,
+    ) -> Id<Box<dyn System>> {
         arena.alloc_system(Box::new(Self {
             args,
             use_case_sensitive_file_names,

@@ -17,8 +17,8 @@ use crate::{
     DiagnosticRelatedInformation, Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface,
     HasArena, HasInitializerInterface, HasQuestionTokenInterface, HasTypeInterface, InArena,
     ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeFlags, NodeInterface,
-    ReadonlyTextRange, ScriptTarget, SyntaxKind, TypeChecker, TypeFlags, TypeInterface, __String,
-    OptionInArena,
+    OptionInArena, ReadonlyTextRange, ScriptTarget, SyntaxKind, TypeChecker, TypeFlags,
+    TypeInterface, __String,
 };
 
 impl TypeChecker {
@@ -31,15 +31,18 @@ impl TypeChecker {
         self.check_grammar_jsx_name(node_as_jsx_opening_like_element.tag_name());
         self.check_grammar_type_arguments(
             node,
-            node.ref_(self).as_has_type_arguments()
+            node.ref_(self)
+                .as_has_type_arguments()
                 .maybe_type_arguments(),
         );
         let mut seen: HashMap<__String, bool> = HashMap::new();
 
         for attr in &*node_as_jsx_opening_like_element
             .attributes()
-            .ref_(self).as_jsx_attributes()
-            .properties.ref_(self)
+            .ref_(self)
+            .as_jsx_attributes()
+            .properties
+            .ref_(self)
         {
             if attr.ref_(self).kind() == SyntaxKind::JsxSpreadAttribute {
                 continue;
@@ -63,7 +66,11 @@ impl TypeChecker {
 
             if let Some(initializer) = initializer.filter(|initializer| {
                 initializer.ref_(self).kind() == SyntaxKind::JsxExpression
-                    && initializer.ref_(self).as_jsx_expression().expression.is_none()
+                    && initializer
+                        .ref_(self)
+                        .as_jsx_expression()
+                        .expression
+                        .is_none()
             }) {
                 return self.grammar_error_on_node(
                     initializer,
@@ -82,8 +89,9 @@ impl TypeChecker {
         if is_property_access_expression(&node.ref_(self)) {
             let mut prop_name: Id<Node /*JsxTagNameExpression*/> = node;
             while {
-                let check = self
-                    .check_grammar_jsx_nested_identifier(prop_name.ref_(self).as_named_declaration().name());
+                let check = self.check_grammar_jsx_nested_identifier(
+                    prop_name.ref_(self).as_named_declaration().name(),
+                );
                 if check {
                     return check;
                 }
@@ -117,7 +125,8 @@ impl TypeChecker {
         node: Id<Node>, /*JsxExpression*/
     ) -> bool {
         if let Some(node_expression) = node
-            .ref_(self).as_jsx_expression()
+            .ref_(self)
+            .as_jsx_expression()
             .expression
             .filter(|&node_expression| is_comma_sequence(node_expression, self))
         {
@@ -140,17 +149,22 @@ impl TypeChecker {
 
         if for_in_or_of_statement.ref_(self).kind() == SyntaxKind::ForOfStatement {
             if let Some(for_in_or_of_statement_await_modifier) = for_in_or_of_statement
-                .ref_(self).as_for_of_statement()
+                .ref_(self)
+                .as_for_of_statement()
                 .await_modifier
             {
                 if !for_in_or_of_statement
-                    .ref_(self).flags()
+                    .ref_(self)
+                    .flags()
                     .intersects(NodeFlags::AwaitContext)
                 {
                     let source_file = get_source_file_of_node(for_in_or_of_statement, self);
                     if is_in_top_level_context(for_in_or_of_statement, self) {
                         if !self.has_parse_diagnostics(source_file) {
-                            if !is_effective_external_module(&source_file.ref_(self), &self.compiler_options.ref_(self)) {
+                            if !is_effective_external_module(
+                                &source_file.ref_(self),
+                                &self.compiler_options.ref_(self),
+                            ) {
                                 self.diagnostics().add(
                                     self.alloc_diagnostic(
                                         create_diagnostic_for_node(
@@ -167,7 +181,8 @@ impl TypeChecker {
                                 ModuleKind::ES2022 | ModuleKind::ESNext | ModuleKind::System
                             ) && !(self.module_kind == ModuleKind::NodeNext
                                 && get_source_file_of_node(for_in_or_of_statement, self)
-                                    .ref_(self).as_source_file()
+                                    .ref_(self)
+                                    .as_source_file()
                                     .maybe_implied_node_format()
                                     == Some(ModuleKind::ESNext))
                                 || self.language_version < ScriptTarget::ES2017
@@ -203,7 +218,8 @@ impl TypeChecker {
                                         .intersects(FunctionFlags::Async),
                                     Some("Enclosing function should never be an async function."),
                                 );
-                                let related_info: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(
+                                let related_info: Id<DiagnosticRelatedInformation> = self
+                                    .alloc_diagnostic_related_information(
                                     create_diagnostic_for_node(
                                         func,
                                         &Diagnostics::Did_you_mean_to_mark_this_function_as_async,
@@ -225,17 +241,23 @@ impl TypeChecker {
 
         if is_for_of_statement(&for_in_or_of_statement.ref_(self))
             && !for_in_or_of_statement
-                .ref_(self).flags()
+                .ref_(self)
+                .flags()
                 .intersects(NodeFlags::AwaitContext)
         {
             let for_in_or_of_statement_ref = for_in_or_of_statement.ref_(self);
-            let for_in_or_of_statement_as_for_of_statement = for_in_or_of_statement_ref.as_for_of_statement();
-            if is_identifier(&for_in_or_of_statement_as_for_of_statement.initializer.ref_(self))
-                && for_in_or_of_statement_as_for_of_statement
+            let for_in_or_of_statement_as_for_of_statement =
+                for_in_or_of_statement_ref.as_for_of_statement();
+            if is_identifier(
+                &for_in_or_of_statement_as_for_of_statement
                     .initializer
-                    .ref_(self).as_identifier()
-                    .escaped_text
-                    == "async"
+                    .ref_(self),
+            ) && for_in_or_of_statement_as_for_of_statement
+                .initializer
+                .ref_(self)
+                .as_identifier()
+                .escaped_text
+                == "async"
             {
                 self.grammar_error_on_node(
                     for_in_or_of_statement_as_for_of_statement.initializer,
@@ -247,33 +269,43 @@ impl TypeChecker {
         }
 
         if for_in_or_of_statement
-            .ref_(self).as_has_initializer()
+            .ref_(self)
+            .as_has_initializer()
             .maybe_initializer()
             .unwrap()
-            .ref_(self).kind()
+            .ref_(self)
+            .kind()
             == SyntaxKind::VariableDeclarationList
         {
             let variable_list = for_in_or_of_statement
-                .ref_(self).as_has_initializer()
+                .ref_(self)
+                .as_has_initializer()
                 .maybe_initializer()
                 .unwrap();
             if !self.check_grammar_variable_declaration_list(variable_list) {
                 let variable_list_ref = variable_list.ref_(self);
-                let declarations = &variable_list_ref.as_variable_declaration_list().declarations;
+                let declarations = &variable_list_ref
+                    .as_variable_declaration_list()
+                    .declarations;
 
                 if declarations.ref_(self).is_empty() {
                     return false;
                 }
 
                 if declarations.ref_(self).len() > 1 {
-                    let diagnostic = if for_in_or_of_statement.ref_(self).kind() == SyntaxKind::ForInStatement
+                    let diagnostic = if for_in_or_of_statement.ref_(self).kind()
+                        == SyntaxKind::ForInStatement
                     {
                         &*Diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_in_statement
                     } else {
                         &*Diagnostics::Only_a_single_variable_declaration_is_allowed_in_a_for_of_statement
                     };
                     return self.grammar_error_on_first_token(
-                        variable_list.ref_(self).as_variable_declaration_list().declarations.ref_(self)[1],
+                        variable_list
+                            .ref_(self)
+                            .as_variable_declaration_list()
+                            .declarations
+                            .ref_(self)[1],
                         diagnostic,
                         None,
                     );
@@ -281,11 +313,13 @@ impl TypeChecker {
                 let first_declaration = declarations.ref_(self)[0];
 
                 if first_declaration
-                    .ref_(self).as_has_initializer()
+                    .ref_(self)
+                    .as_has_initializer()
                     .maybe_initializer()
                     .is_some()
                 {
-                    let diagnostic = if for_in_or_of_statement.ref_(self).kind() == SyntaxKind::ForInStatement
+                    let diagnostic = if for_in_or_of_statement.ref_(self).kind()
+                        == SyntaxKind::ForInStatement
                     {
                         &*Diagnostics::The_variable_declaration_of_a_for_in_statement_cannot_have_an_initializer
                     } else {
@@ -297,8 +331,14 @@ impl TypeChecker {
                         None,
                     );
                 }
-                if first_declaration.ref_(self).as_has_type().maybe_type().is_some() {
-                    let diagnostic = if for_in_or_of_statement.ref_(self).kind() == SyntaxKind::ForInStatement
+                if first_declaration
+                    .ref_(self)
+                    .as_has_type()
+                    .maybe_type()
+                    .is_some()
+                {
+                    let diagnostic = if for_in_or_of_statement.ref_(self).kind()
+                        == SyntaxKind::ForInStatement
                     {
                         &*Diagnostics::The_left_hand_side_of_a_for_in_statement_cannot_use_a_type_annotation
                     } else {
@@ -420,9 +460,7 @@ impl TypeChecker {
             }
             if parameter_as_parameter_declaration.question_token.is_some() {
                 return self.grammar_error_on_node(
-                    parameter_as_parameter_declaration
-                        .question_token
-                        .unwrap(),
+                    parameter_as_parameter_declaration.question_token.unwrap(),
                     &Diagnostics::A_set_accessor_cannot_have_an_optional_parameter,
                     None,
                 );
@@ -446,7 +484,12 @@ impl TypeChecker {
         accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> bool {
         self.get_accessor_this_parameter(accessor).is_some()
-            || accessor.ref_(self).as_function_like_declaration().parameters().ref_(self).len()
+            || accessor
+                .ref_(self)
+                .as_function_like_declaration()
+                .parameters()
+                .ref_(self)
+                .len()
                 == if accessor.ref_(self).kind() == SyntaxKind::GetAccessor {
                     0
                 } else {
@@ -458,7 +501,12 @@ impl TypeChecker {
         &self,
         accessor: Id<Node>, /*AccessorDeclaration*/
     ) -> Option<Id<Node /*ParameterDeclaration*/>> {
-        if accessor.ref_(self).as_function_like_declaration().parameters().ref_(self).len()
+        if accessor
+            .ref_(self)
+            .as_function_like_declaration()
+            .parameters()
+            .ref_(self)
+            .len()
             == if accessor.ref_(self).kind() == SyntaxKind::GetAccessor {
                 1
             } else {
@@ -488,7 +536,9 @@ impl TypeChecker {
             }
 
             let mut parent = walk_up_parenthesized_types(node.ref_(self).parent(), self).unwrap();
-            if is_in_js_file(Some(&parent.ref_(self))) && is_jsdoc_type_expression(&parent.ref_(self)) {
+            if is_in_js_file(Some(&parent.ref_(self)))
+                && is_jsdoc_type_expression(&parent.ref_(self))
+            {
                 parent = parent.ref_(self).parent();
                 if is_jsdoc_type_tag(&parent.ref_(self)) {
                     parent = parent.ref_(self).parent().ref_(self).parent();
@@ -497,7 +547,14 @@ impl TypeChecker {
             match parent.ref_(self).kind() {
                 SyntaxKind::VariableDeclaration => {
                     let decl = parent;
-                    if decl.ref_(self).as_variable_declaration().name().ref_(self).kind() != SyntaxKind::Identifier {
+                    if decl
+                        .ref_(self)
+                        .as_variable_declaration()
+                        .name()
+                        .ref_(self)
+                        .kind()
+                        != SyntaxKind::Identifier
+                    {
                         return self.grammar_error_on_node(
                             node,
                             &Diagnostics::unique_symbol_types_may_not_be_used_on_a_variable_declaration_with_a_binding_name,
@@ -511,7 +568,13 @@ impl TypeChecker {
                             None,
                         );
                     }
-                    if !decl.ref_(self).parent().ref_(self).flags().intersects(NodeFlags::Const) {
+                    if !decl
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .flags()
+                        .intersects(NodeFlags::Const)
+                    {
                         return self.grammar_error_on_node(
                             parent.ref_(self).as_variable_declaration().name(),
                             &Diagnostics::A_variable_whose_type_is_a_unique_symbol_type_must_be_const,
@@ -604,8 +667,7 @@ impl TypeChecker {
                 ) {
                     return Ok(true);
                 } else if self.check_grammar_for_invalid_exclamation_token(
-                    node_as_method_declaration
-                        .maybe_exclamation_token(),
+                    node_as_method_declaration.maybe_exclamation_token(),
                     &Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context,
                 ) {
                     return Ok(true);
@@ -642,7 +704,11 @@ impl TypeChecker {
                     &Diagnostics::A_computed_property_name_in_an_ambient_context_must_refer_to_an_expression_whose_type_is_a_literal_type_or_a_unique_symbol_type,
                 );
             } else if node.ref_(self).kind() == SyntaxKind::MethodDeclaration
-                && node.ref_(self).as_method_declaration().maybe_body().is_none()
+                && node
+                    .ref_(self)
+                    .as_method_declaration()
+                    .maybe_body()
+                    .is_none()
             {
                 return self.check_grammar_for_invalid_dynamic_name(
                     node_as_named_declaration.name(),
@@ -671,7 +737,8 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_has_label = node_ref.as_has_label();
         while let Some(current_present) = current {
-            if is_function_like_or_class_static_block_declaration(Some(&current_present.ref_(self))) {
+            if is_function_like_or_class_static_block_declaration(Some(&current_present.ref_(self)))
+            {
                 return self.grammar_error_on_node(
                     node,
                     &Diagnostics::Jump_target_cannot_cross_function_boundary,
@@ -798,7 +865,8 @@ impl TypeChecker {
                 let expr_ref = expr.ref_(self);
                 let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
                 expr_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
-                    && expr_as_prefix_unary_expression.operand.ref_(self).kind() == SyntaxKind::NumericLiteral
+                    && expr_as_prefix_unary_expression.operand.ref_(self).kind()
+                        == SyntaxKind::NumericLiteral
             }
     }
 
@@ -808,7 +876,8 @@ impl TypeChecker {
                 let expr_ref = expr.ref_(self);
                 let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
                 expr_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
-                    && expr_as_prefix_unary_expression.operand.ref_(self).kind() == SyntaxKind::BigIntLiteral
+                    && expr_as_prefix_unary_expression.operand.ref_(self).kind()
+                        == SyntaxKind::BigIntLiteral
             }
     }
 
@@ -819,7 +888,9 @@ impl TypeChecker {
         if (is_property_access_expression(&expr.ref_(self))
             || is_element_access_expression(&expr.ref_(self))
                 && self.is_string_or_number_literal_expression(
-                    expr.ref_(self).as_element_access_expression().argument_expression,
+                    expr.ref_(self)
+                        .as_element_access_expression()
+                        .argument_expression,
                 ))
             && is_entity_name_expression(expr.ref_(self).as_has_expression().expression(), self)
         {
@@ -881,14 +952,23 @@ impl TypeChecker {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration = node_ref.as_variable_declaration();
         if !matches!(
-            node.ref_(self).parent().ref_(self).parent().ref_(self).kind(),
+            node.ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind(),
             SyntaxKind::ForInStatement | SyntaxKind::ForOfStatement
         ) {
             if node.ref_(self).flags().intersects(NodeFlags::Ambient) {
                 self.check_ambient_initializer(node)?;
             } else if node_as_variable_declaration.maybe_initializer().is_none() {
-                if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self).as_deref())
-                    && !is_binding_pattern(node.ref_(self).maybe_parent().refed(self).as_deref())
+                if is_binding_pattern(
+                    node_as_variable_declaration
+                        .maybe_name()
+                        .refed(self)
+                        .as_deref(),
+                ) && !is_binding_pattern(node.ref_(self).maybe_parent().refed(self).as_deref())
                 {
                     return Ok(self.grammar_error_on_node(
                         node,
@@ -907,7 +987,14 @@ impl TypeChecker {
         }
 
         if node_as_variable_declaration.exclamation_token.is_some()
-            && (node.ref_(self).parent().ref_(self).parent().ref_(self).kind() != SyntaxKind::VariableStatement
+            && (node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                != SyntaxKind::VariableStatement
                 || node_as_variable_declaration.maybe_type().is_none()
                 || node_as_variable_declaration.maybe_initializer().is_some()
                 || node.ref_(self).flags().intersects(NodeFlags::Ambient))
@@ -920,9 +1007,7 @@ impl TypeChecker {
                 &*Diagnostics::A_definite_assignment_assertion_is_not_permitted_in_this_context
             };
             return Ok(self.grammar_error_on_node(
-                node_as_variable_declaration
-                    .exclamation_token
-                    .unwrap(),
+                node_as_variable_declaration.exclamation_token.unwrap(),
                 message,
                 None,
             ));
@@ -930,16 +1015,24 @@ impl TypeChecker {
 
         if (self.module_kind < ModuleKind::ES2015
             || get_source_file_of_node(node, self)
-                .ref_(self).as_source_file()
+                .ref_(self)
+                .as_source_file()
                 .maybe_implied_node_format()
                 == Some(ModuleKind::CommonJS))
             && self.module_kind != ModuleKind::System
             && !node
-                .ref_(self).parent()
-                .ref_(self).parent()
-                .ref_(self).flags()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .flags()
                 .intersects(NodeFlags::Ambient)
-            && has_syntactic_modifier(node.ref_(self).parent().ref_(self).parent(), ModifierFlags::Export, self)
+            && has_syntactic_modifier(
+                node.ref_(self).parent().ref_(self).parent(),
+                ModifierFlags::Export,
+                self,
+            )
         {
             self.check_es_module_marker(node_as_variable_declaration.name());
         }

@@ -27,13 +27,12 @@ use crate::{
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
     is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
     return_ok_default_if_none, try_maybe_visit_node, try_maybe_visit_nodes,
-    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasInitializerInterface,
-    HasMembersInterface, HasQuestionTokenInterface, HasStatementsInterface,
-    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
-    InterfaceOrClassLikeDeclarationInterface, NamedDeclarationInterface, Node, NodeArray,
-    NodeFlags, NodeInterface, SignatureDeclarationInterface, SyntaxKind, TransformationContext,
-    VisitResult,
-    HasArena, InArena,
+    ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasArena,
+    HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
+    HasStatementsInterface, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, InArena, InterfaceOrClassLikeDeclarationInterface,
+    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    SignatureDeclarationInterface, SyntaxKind, TransformationContext, VisitResult,
 };
 
 pub fn try_visit_each_child(
@@ -147,7 +146,9 @@ pub fn try_maybe_visit_each_child_full(
                 nodes_visitor(
                     node_as_identifier.maybe_type_arguments(),
                     Some(&mut |node: Id<Node>| visitor(node)),
-                    Some(&|node: Id<Node>| is_type_node_or_type_parameter_declaration(&node.ref_(arena))),
+                    Some(&|node: Id<Node>| {
+                        is_type_node_or_type_parameter_declaration(&node.ref_(arena))
+                    }),
                     None,
                     None,
                 )?,
@@ -223,68 +224,65 @@ pub fn try_maybe_visit_each_child_full(
         SyntaxKind::Parameter => {
             let node_ref = node.ref_(arena);
             let node_as_parameter_declaration = node_ref.as_parameter_declaration();
-            Some(
-                factory.ref_(arena).update_parameter_declaration(
-                    node,
-                    nodes_visitor(
-                        node.ref_(arena).maybe_decorators(),
-                        Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
-                        None,
-                        None,
-                    )?,
-                    nodes_visitor(
-                        node.ref_(arena).maybe_modifiers(),
-                        Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
-                        None,
-                        None,
-                    )?,
-                    node_visitor(
-                        node_as_parameter_declaration.dot_dot_dot_token,
-                        Some(&mut |node: Id<Node>| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
-                            } else {
-                                Some(node.into())
-                            })
-                        }),
-                        Some(&|node: Id<Node>| is_dot_dot_dot_token(&node.ref_(arena))),
-                        None,
-                    )?,
-                    node_visitor(
-                        node_as_parameter_declaration.maybe_name(),
-                        Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_binding_name(&node.ref_(arena))),
-                        None,
-                    )?,
-                    node_visitor(
-                        node_as_parameter_declaration
-                            .maybe_question_token(),
-                        Some(&mut |node: Id<Node>| {
-                            Ok(if let Some(token_visitor) = token_visitor.as_ref() {
-                                token_visitor(node)?
-                            } else {
-                                Some(node.into())
-                            })
-                        }),
-                        Some(&|node: Id<Node>| is_question_token(&node.ref_(arena))),
-                        None,
-                    )?,
-                    node_visitor(
-                        node_as_parameter_declaration.maybe_type(),
-                        Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
-                        None,
-                    )?,
-                    node_visitor(
-                        node_as_parameter_declaration.maybe_initializer(),
-                        Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_expression(node, arena)),
-                        None,
-                    )?,
-                ),
-            )
+            Some(factory.ref_(arena).update_parameter_declaration(
+                node,
+                nodes_visitor(
+                    node.ref_(arena).maybe_decorators(),
+                    Some(&mut |node: Id<Node>| visitor(node)),
+                    Some(&|node: Id<Node>| is_decorator(&node.ref_(arena))),
+                    None,
+                    None,
+                )?,
+                nodes_visitor(
+                    node.ref_(arena).maybe_modifiers(),
+                    Some(&mut |node: Id<Node>| visitor(node)),
+                    Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
+                    None,
+                    None,
+                )?,
+                node_visitor(
+                    node_as_parameter_declaration.dot_dot_dot_token,
+                    Some(&mut |node: Id<Node>| {
+                        Ok(if let Some(token_visitor) = token_visitor.as_ref() {
+                            token_visitor(node)?
+                        } else {
+                            Some(node.into())
+                        })
+                    }),
+                    Some(&|node: Id<Node>| is_dot_dot_dot_token(&node.ref_(arena))),
+                    None,
+                )?,
+                node_visitor(
+                    node_as_parameter_declaration.maybe_name(),
+                    Some(&mut visitor),
+                    Some(&|node: Id<Node>| is_binding_name(&node.ref_(arena))),
+                    None,
+                )?,
+                node_visitor(
+                    node_as_parameter_declaration.maybe_question_token(),
+                    Some(&mut |node: Id<Node>| {
+                        Ok(if let Some(token_visitor) = token_visitor.as_ref() {
+                            token_visitor(node)?
+                        } else {
+                            Some(node.into())
+                        })
+                    }),
+                    Some(&|node: Id<Node>| is_question_token(&node.ref_(arena))),
+                    None,
+                )?,
+                node_visitor(
+                    node_as_parameter_declaration.maybe_type(),
+                    Some(&mut visitor),
+                    Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
+                    None,
+                )?,
+                node_visitor(
+                    node_as_parameter_declaration.maybe_initializer(),
+                    Some(&mut visitor),
+                    Some(&|node: Id<Node>| is_expression(node, arena)),
+                    None,
+                )?,
+            ))
         }
         SyntaxKind::Decorator => {
             let node_ref = node.ref_(arena);
@@ -728,7 +726,8 @@ pub fn try_maybe_visit_each_child_full(
         }
         SyntaxKind::ClassStaticBlockDeclaration => {
             let node_ref = node.ref_(arena);
-            let node_as_class_static_block_declaration = node_ref.as_class_static_block_declaration();
+            let node_as_class_static_block_declaration =
+                node_ref.as_class_static_block_declaration();
             context.start_lexical_environment();
             context.suspend_lexical_environment();
             Some(
@@ -772,8 +771,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_call_signature(
                     node,
                     nodes_visitor(
-                        node_as_call_signature_declaration
-                            .maybe_type_parameters(),
+                        node_as_call_signature_declaration.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -798,13 +796,13 @@ pub fn try_maybe_visit_each_child_full(
         }
         SyntaxKind::ConstructSignature => {
             let node_ref = node.ref_(arena);
-            let node_as_construct_signature_declaration = node_ref.as_construct_signature_declaration();
+            let node_as_construct_signature_declaration =
+                node_ref.as_construct_signature_declaration();
             Some(
                 factory.ref_(arena).update_construct_signature(
                     node,
                     nodes_visitor(
-                        node_as_construct_signature_declaration
-                            .maybe_type_parameters(),
+                        node_as_construct_signature_declaration.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -819,8 +817,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     node_visitor(
-                        node_as_construct_signature_declaration
-                            .maybe_type(),
+                        node_as_construct_signature_declaration.maybe_type(),
                         Some(&mut visitor),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -908,8 +905,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_type_reference_node
-                            .maybe_type_arguments(),
+                        node_as_type_reference_node.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -925,8 +921,7 @@ pub fn try_maybe_visit_each_child_full(
                 factory.ref_(arena).update_function_type_node(
                     node,
                     nodes_visitor(
-                        node_as_function_type_node
-                            .maybe_type_parameters(),
+                        node_as_function_type_node.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -963,8 +958,7 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_constructor_type_node
-                            .maybe_type_parameters(),
+                        node_as_constructor_type_node.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -1307,7 +1301,9 @@ pub fn try_maybe_visit_each_child_full(
                                 Some(node.into())
                             })
                         }),
-                        Some(&|node: Id<Node>| is_readonly_keyword_or_plus_or_minus_token(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| {
+                            is_readonly_keyword_or_plus_or_minus_token(&node.ref_(arena))
+                        }),
                         None,
                     )?,
                     node_visitor(
@@ -1326,7 +1322,9 @@ pub fn try_maybe_visit_each_child_full(
                     node_visitor(
                         node_as_mapped_type_node.question_token,
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_question_or_plus_or_minus_token(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| {
+                            is_question_or_plus_or_minus_token(&node.ref_(arena))
+                        }),
                         None,
                     )?,
                     node_visitor(
@@ -1401,7 +1399,9 @@ pub fn try_maybe_visit_each_child_full(
                     node_visitor(
                         Some(node_as_template_literal_type_span.literal),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_template_middle_or_template_tail(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| {
+                            is_template_middle_or_template_tail(&node.ref_(arena))
+                        }),
                         None,
                     )?
                     .unwrap(),
@@ -1519,7 +1519,11 @@ pub fn try_maybe_visit_each_child_full(
         SyntaxKind::PropertyAccessExpression => {
             let node_ref = node.ref_(arena);
             let node_as_property_access_expression = node_ref.as_property_access_expression();
-            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
+            if node
+                .ref_(arena)
+                .flags()
+                .intersects(NodeFlags::OptionalChain)
+            {
                 return Ok(Some(
                     factory.ref_(arena).update_property_access_chain(
                         node,
@@ -1531,8 +1535,7 @@ pub fn try_maybe_visit_each_child_full(
                         )?
                         .unwrap(),
                         node_visitor(
-                            node_as_property_access_expression
-                                .question_dot_token,
+                            node_as_property_access_expression.question_dot_token,
                             Some(&mut |node: Id<Node>| {
                                 Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)?
@@ -1576,7 +1579,11 @@ pub fn try_maybe_visit_each_child_full(
         SyntaxKind::ElementAccessExpression => {
             let node_ref = node.ref_(arena);
             let node_as_element_access_expression = node_ref.as_element_access_expression();
-            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
+            if node
+                .ref_(arena)
+                .flags()
+                .intersects(NodeFlags::OptionalChain)
+            {
                 return Ok(Some(
                     factory.ref_(arena).update_element_access_chain(
                         node,
@@ -1588,8 +1595,7 @@ pub fn try_maybe_visit_each_child_full(
                         )?
                         .unwrap(),
                         node_visitor(
-                            node_as_element_access_expression
-                                .question_dot_token,
+                            node_as_element_access_expression.question_dot_token,
                             Some(&mut |node: Id<Node>| {
                                 Ok(if let Some(token_visitor) = token_visitor.as_ref() {
                                     token_visitor(node)?
@@ -1633,7 +1639,11 @@ pub fn try_maybe_visit_each_child_full(
         SyntaxKind::CallExpression => {
             let node_ref = node.ref_(arena);
             let node_as_call_expression = node_ref.as_call_expression();
-            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
+            if node
+                .ref_(arena)
+                .flags()
+                .intersects(NodeFlags::OptionalChain)
+            {
                 return Ok(Some(
                     factory.ref_(arena).update_call_chain(
                         node,
@@ -1746,8 +1756,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_tagged_template_expression
-                            .maybe_type_arguments(),
+                        node_as_tagged_template_expression.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -2257,7 +2266,8 @@ pub fn try_maybe_visit_each_child_full(
         }
         SyntaxKind::ExpressionWithTypeArguments => {
             let node_ref = node.ref_(arena);
-            let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
+            let node_as_expression_with_type_arguments =
+                node_ref.as_expression_with_type_arguments();
             Some(
                 factory.ref_(arena).update_expression_with_type_arguments(
                     node,
@@ -2269,8 +2279,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_expression_with_type_arguments
-                            .maybe_type_arguments(),
+                        node_as_expression_with_type_arguments.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -2305,7 +2314,11 @@ pub fn try_maybe_visit_each_child_full(
         SyntaxKind::NonNullExpression => {
             let node_ref = node.ref_(arena);
             let node_as_non_null_expression = node_ref.as_non_null_expression();
-            if node.ref_(arena).flags().intersects(NodeFlags::OptionalChain) {
+            if node
+                .ref_(arena)
+                .flags()
+                .intersects(NodeFlags::OptionalChain)
+            {
                 return Ok(Some(
                     factory.ref_(arena).update_non_null_chain(
                         node,
@@ -2364,7 +2377,9 @@ pub fn try_maybe_visit_each_child_full(
                     node_visitor(
                         Some(node_as_template_span.literal),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_template_middle_or_template_tail(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| {
+                            is_template_middle_or_template_tail(&node.ref_(arena))
+                        }),
                         None,
                     )?
                     .unwrap(),
@@ -2925,8 +2940,7 @@ pub fn try_maybe_visit_each_child_full(
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_class_declaration
-                            .maybe_heritage_clauses(),
+                        node_as_class_declaration.maybe_heritage_clauses(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
@@ -2971,16 +2985,14 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_interface_declaration
-                            .maybe_type_parameters(),
+                        node_as_interface_declaration.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
                         None,
                     )?,
                     nodes_visitor(
-                        node_as_interface_declaration
-                            .maybe_heritage_clauses(),
+                        node_as_interface_declaration.maybe_heritage_clauses(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_heritage_clause(&node.ref_(arena))),
                         None,
@@ -3025,8 +3037,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_type_alias_declaration
-                            .maybe_type_parameters(),
+                        node_as_type_alias_declaration.maybe_type_parameters(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_parameter_declaration(&node.ref_(arena))),
                         None,
@@ -3549,8 +3560,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_jsx_self_closing_element
-                            .maybe_type_arguments(),
+                        node_as_jsx_self_closing_element.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -3580,8 +3590,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     nodes_visitor(
-                        node_as_jsx_opening_element
-                            .maybe_type_arguments(),
+                        node_as_jsx_opening_element.maybe_type_arguments(),
                         Some(&mut |node: Id<Node>| visitor(node)),
                         Some(&|node: Id<Node>| is_type_node(&node.ref_(arena))),
                         None,
@@ -3660,7 +3669,9 @@ pub fn try_maybe_visit_each_child_full(
                     node_visitor(
                         node_as_jsx_attribute.maybe_initializer(),
                         Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_string_literal_or_jsx_expression(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| {
+                            is_string_literal_or_jsx_expression(&node.ref_(arena))
+                        }),
                         None,
                     )?,
                 ),
@@ -3762,7 +3773,9 @@ pub fn try_maybe_visit_each_child_full(
                     nodes_visitor(
                         Some(node_as_heritage_clause.types),
                         Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_expression_with_type_arguments(&node.ref_(arena))),
+                        Some(&|node: Id<Node>| {
+                            is_expression_with_type_arguments(&node.ref_(arena))
+                        }),
                         None,
                         None,
                     )?
@@ -3829,8 +3842,7 @@ pub fn try_maybe_visit_each_child_full(
                     )?
                     .unwrap(),
                     node_visitor(
-                        node_as_shorthand_property_assignment
-                            .object_assignment_initializer,
+                        node_as_shorthand_property_assignment.object_assignment_initializer,
                         Some(&mut visitor),
                         Some(&|node: Id<Node>| is_expression(node, arena)),
                         None,

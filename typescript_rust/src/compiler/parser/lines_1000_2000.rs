@@ -10,13 +10,12 @@ use crate::{
     is_modifier_kind, is_tagged_template_expression, is_template_literal_kind, last_or_undefined,
     map_defined, process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive,
     set_text_range, set_text_range_pos_end, set_text_range_pos_width, skip_trivia, starts_with,
-    text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, BaseNode,
+    text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, AllArenas, BaseNode,
     ComputedPropertyName, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
-    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
-    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
-    TransformFlags,
-    HasArena, InArena, AllArenas,
+    Diagnostics, HasArena, HasStatementsInterface, InArena, IncrementalParser,
+    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget,
+    SyntaxKind, TextRange, TransformFlags,
 };
 
 impl ParserType {
@@ -60,7 +59,8 @@ impl ParserType {
             self.parse_statement()
         });
         Debug_.assert(self.token() == SyntaxKind::EndOfFileToken, None);
-        let end_of_file_token = self.add_jsdoc_comment(self.alloc_node(self.parse_token_node().into()));
+        let end_of_file_token =
+            self.add_jsdoc_comment(self.alloc_node(self.parse_token_node().into()));
 
         let source_file = self.create_source_file(
             &self.file_name(),
@@ -133,7 +133,8 @@ impl ParserType {
         }
         if self.has_deprecated_tag() {
             self.set_has_deprecated_tag(false);
-            node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::Deprecated);
+            node.ref_(self)
+                .set_flags(node.ref_(self).flags() | NodeFlags::Deprecated);
         }
         node
     }
@@ -145,8 +146,10 @@ impl ParserType {
         let saved_syntax_cursor = self.take_syntax_cursor();
         let base_syntax_cursor = IncrementalParser().create_syntax_cursor(source_file, self);
         self.set_syntax_cursor(Some(
-            IncrementalParserSyntaxCursorReparseTopLevelAwait::new(self.alloc_incremental_parser_syntax_cursor(base_syntax_cursor))
-                .into(),
+            IncrementalParserSyntaxCursorReparseTopLevelAwait::new(
+                self.alloc_incremental_parser_syntax_cursor(base_syntax_cursor),
+            )
+            .into(),
         ));
 
         let mut statements: Vec<Id<Node>> = vec![];
@@ -169,7 +172,10 @@ impl ParserType {
                 pos.map(|pos| pos.try_into().unwrap()),
                 Some(start_present.try_into().unwrap()),
             );
-            pos = self.find_next_statement_without_await(&source_file_statements.ref_(self), start_present);
+            pos = self.find_next_statement_without_await(
+                &source_file_statements.ref_(self),
+                start_present,
+            );
 
             let diagnostic_start = find_index(
                 &saved_parse_diagnostics,
@@ -179,7 +185,9 @@ impl ParserType {
             let diagnostic_end = diagnostic_start.and_then(|diagnostic_start| {
                 find_index(
                     &saved_parse_diagnostics,
-                    |diagnostic, _| diagnostic.ref_(self).start() >= next_statement.ref_(self).pos(),
+                    |diagnostic, _| {
+                        diagnostic.ref_(self).start() >= next_statement.ref_(self).pos()
+                    },
                     Some(diagnostic_start),
                 )
             });
@@ -212,7 +220,8 @@ impl ParserType {
                         }
 
                         if let Some(pos_present) = pos {
-                            let non_await_statement = source_file_statements.ref_(self)[pos_present];
+                            let non_await_statement =
+                                source_file_statements.ref_(self)[pos_present];
                             if statement.ref_(self).end() == non_await_statement.ref_(self).pos() {
                                 break;
                             }
@@ -231,8 +240,9 @@ impl ParserType {
                 SpeculationKind::Reparse,
             );
 
-            start = pos
-                .and_then(|pos| self.find_next_statement_with_await(&source_file_statements.ref_(self), pos));
+            start = pos.and_then(|pos| {
+                self.find_next_statement_with_await(&source_file_statements.ref_(self), pos)
+            });
         }
 
         if let Some(pos) = pos {
@@ -260,16 +270,30 @@ impl ParserType {
         }
 
         self.set_syntax_cursor(saved_syntax_cursor);
-        let new_statements = self.factory().ref_(self).create_node_array(Some(statements), None);
-        set_text_range(&*new_statements.ref_(self), Some(&*source_file_statements.ref_(self)));
-        self.factory()
-            .ref_(self).update_source_file(source_file, new_statements, None, None, None, None, None)
+        let new_statements = self
+            .factory()
+            .ref_(self)
+            .create_node_array(Some(statements), None);
+        set_text_range(
+            &*new_statements.ref_(self),
+            Some(&*source_file_statements.ref_(self)),
+        );
+        self.factory().ref_(self).update_source_file(
+            source_file,
+            new_statements,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     }
 
     pub(super) fn contains_possible_top_level_await(&self, node: Id<Node>) -> bool {
         !node.ref_(self).flags().intersects(NodeFlags::AwaitContext)
             && node
-                .ref_(self).transform_flags()
+                .ref_(self)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
     }
 
@@ -319,7 +343,8 @@ impl ParserType {
     ) -> Id<Node> {
         let mut source_file =
             self.factory()
-                .ref_(self).create_source_file(statements, end_of_file_token, flags);
+                .ref_(self)
+                .create_source_file(statements, end_of_file_token, flags);
         set_text_range_pos_width(
             &*source_file.ref_(self),
             0,
@@ -330,7 +355,8 @@ impl ParserType {
         if !is_declaration_file
             && is_external_module(&source_file.ref_(self))
             && source_file
-                .ref_(self).transform_flags()
+                .ref_(self)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsPossibleTopLevelAwait)
         {
             source_file = self.reparse_top_level_await(source_file);
@@ -810,7 +836,13 @@ impl ParserType {
         }
         let expression_text = expression_text.unwrap();
 
-        let pos = skip_trivia(&self.source_text_as_chars(), node.ref_(self).pos(), None, None, None);
+        let pos = skip_trivia(
+            &self.source_text_as_chars(),
+            node.ref_(self).pos(),
+            None,
+            None,
+            None,
+        );
 
         match expression_text {
             "const" | "let" | "var" => {
@@ -1086,7 +1118,8 @@ impl ParserType {
     ) -> Id<NodeArray> {
         let array = self
             .factory()
-            .ref_(self).create_node_array(Some(elements), has_trailing_comma);
+            .ref_(self)
+            .create_node_array(Some(elements), has_trailing_comma);
         set_text_range_pos_end(
             &*array.ref_(self),
             pos,
@@ -1148,11 +1181,13 @@ impl ParserType {
         let pos = self.get_node_pos();
         let result = if kind == SyntaxKind::Identifier {
             self.factory()
-                .ref_(self).create_identifier_raw("", Option::<Id<NodeArray>>::None, None)
+                .ref_(self)
+                .create_identifier_raw("", Option::<Id<NodeArray>>::None, None)
                 .into()
         } else if is_template_literal_kind(kind) {
             self.factory()
-                .ref_(self).create_template_literal_like_node_raw(
+                .ref_(self)
+                .create_template_literal_like_node_raw(
                     kind,
                     "".to_owned(),
                     Some("".to_owned()),
@@ -1161,14 +1196,19 @@ impl ParserType {
                 .into()
         } else if kind == SyntaxKind::NumericLiteral {
             self.factory()
-                .ref_(self).create_numeric_literal_raw("".to_owned(), None)
+                .ref_(self)
+                .create_numeric_literal_raw("".to_owned(), None)
                 .into()
         } else if kind == SyntaxKind::StringLiteral {
             self.factory()
-                .ref_(self).create_string_literal_raw("".to_owned(), None, None)
+                .ref_(self)
+                .create_string_literal_raw("".to_owned(), None, None)
                 .into()
         } else if kind == SyntaxKind::MissingDeclaration {
-            self.factory().ref_(self).create_missing_declaration_raw().into()
+            self.factory()
+                .ref_(self)
+                .create_missing_declaration_raw()
+                .into()
         } else {
             self.factory().ref_(self).create_token_raw(kind).into()
         };
@@ -1202,7 +1242,8 @@ impl ParserType {
             self.next_token_without_check();
             return self.finish_node(
                 self.factory()
-                    .ref_(self).create_identifier_raw(
+                    .ref_(self)
+                    .create_identifier_raw(
                         &text,
                         Option::<Id<NodeArray>>::None,
                         Some(original_keyword_kind),
@@ -1337,7 +1378,9 @@ impl ParserType {
         let expression = self.allow_in_and(|| self.parse_expression());
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory().ref_(self).create_computed_property_name_raw(expression),
+            self.factory()
+                .ref_(self)
+                .create_computed_property_name_raw(expression),
             pos,
             None,
         )
@@ -1437,7 +1480,10 @@ impl IncrementalParserSyntaxCursorReparseTopLevelAwait {
 
 impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorReparseTopLevelAwait {
     fn current_node(&self, parser: &ParserType, position: usize) -> Option<Id<Node>> {
-        let node = self.base_syntax_cursor.ref_(self).current_node(parser, position);
+        let node = self
+            .base_syntax_cursor
+            .ref_(self)
+            .current_node(parser, position);
         if parser.top_level() {
             if let Some(node) = node {
                 if parser.contains_possible_top_level_await(node) {

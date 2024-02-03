@@ -10,7 +10,7 @@ use id_arena::Id;
 
 use super::SignatureToSignatureDeclarationOptions;
 use crate::{
-    add_synthetic_leading_comment, contains, create_printer,
+    add_synthetic_leading_comment, append_if_unique_eq, contains, create_printer,
     create_text_writer, default_maximum_truncation_length, every, get_factory,
     get_first_identifier, get_object_flags, get_text_of_node,
     get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text, is_binding_element,
@@ -19,19 +19,17 @@ use crate::{
     is_late_visibility_painted_statement, is_module_with_string_literal_name,
     is_type_reference_node, is_variable_declaration, is_variable_statement, maybe_filter,
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
-    pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, symbol_name,
-    try_map, try_using_single_line_string_writer, using_single_line_string_writer, AllArenas,
-    Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena, InArena, IndexInfo,
+    pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, static_arena,
+    symbol_name, try_map, try_using_single_line_string_writer, using_single_line_string_writer,
+    AllArenas, Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena,
+    IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, IndexInfo,
     KeywordTypeNode, ModifierFlags, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
-    NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder,
+    NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder, Program,
     RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
-    append_if_unique_eq,
-    static_arena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    Program, TypeCheckerHost,
+    SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -98,9 +96,28 @@ impl TypeChecker {
                     any_import_syntax.unwrap(),
                 );
             } else if is_variable_declaration(&declaration.ref_(self))
-                && is_variable_statement(&declaration.ref_(self).parent().ref_(self).parent().ref_(self))
-                && !has_syntactic_modifier(declaration.ref_(self).parent().ref_(self).parent(), ModifierFlags::Export, self)
-                && self.is_declaration_visible(declaration.ref_(self).parent().ref_(self).parent().ref_(self).parent())
+                && is_variable_statement(
+                    &declaration
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .parent()
+                        .ref_(self),
+                )
+                && !has_syntactic_modifier(
+                    declaration.ref_(self).parent().ref_(self).parent(),
+                    ModifierFlags::Export,
+                    self,
+                )
+                && self.is_declaration_visible(
+                    declaration
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .parent(),
+                )
             {
                 return self.add_visible_alias(
                     should_compute_aliases_to_make_visible,
@@ -123,25 +140,29 @@ impl TypeChecker {
                 && is_in_js_file(Some(&declaration.ref_(self)))
             {
                 let declaration_parent_parent = declaration
-                    .ref_(self).maybe_parent()
+                    .ref_(self)
+                    .maybe_parent()
                     .and_then(|parent| parent.ref_(self).maybe_parent());
                 if let Some(declaration_parent_parent) = declaration_parent_parent {
                     if is_variable_declaration(&declaration_parent_parent.ref_(self)) {
                         let declaration_parent_parent_parent_parent = declaration_parent_parent
-                            .ref_(self).maybe_parent()
+                            .ref_(self)
+                            .maybe_parent()
                             .and_then(|parent| parent.ref_(self).maybe_parent());
                         if let Some(declaration_parent_parent_parent_parent) =
                             declaration_parent_parent_parent_parent
                         {
-                            if is_variable_statement(&declaration_parent_parent_parent_parent.ref_(self))
-                                && !has_syntactic_modifier(
-                                    declaration_parent_parent_parent_parent,
-                                    ModifierFlags::Export,
-                                    self,
-                                )
-                            {
+                            if is_variable_statement(
+                                &declaration_parent_parent_parent_parent.ref_(self),
+                            ) && !has_syntactic_modifier(
+                                declaration_parent_parent_parent_parent,
+                                ModifierFlags::Export,
+                                self,
+                            ) {
                                 let declaration_parent_parent_parent_parent_parent =
-                                    declaration_parent_parent_parent_parent.ref_(self).maybe_parent();
+                                    declaration_parent_parent_parent_parent
+                                        .ref_(self)
+                                        .maybe_parent();
                                 if let Some(declaration_parent_parent_parent_parent_parent) =
                                     declaration_parent_parent_parent_parent_parent
                                 {
@@ -196,14 +217,18 @@ impl TypeChecker {
     ) -> io::Result<SymbolVisibilityResult> {
         let meaning: SymbolFlags;
         if entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::TypeQuery
-            || is_expression_with_type_arguments_in_class_extends_clause(entity_name.ref_(self).parent(), self)
+            || is_expression_with_type_arguments_in_class_extends_clause(
+                entity_name.ref_(self).parent(),
+                self,
+            )
             || entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ComputedPropertyName
         {
             meaning = SymbolFlags::Value | SymbolFlags::ExportValue;
         } else if matches!(
             entity_name.ref_(self).kind(),
             SyntaxKind::QualifiedName | SyntaxKind::PropertyAccessExpression
-        ) || entity_name.ref_(self).parent().ref_(self).kind() == SyntaxKind::ImportEqualsDeclaration
+        ) || entity_name.ref_(self).parent().ref_(self).kind()
+            == SyntaxKind::ImportEqualsDeclaration
         {
             meaning = SymbolFlags::Namespace;
         } else {
@@ -237,7 +262,9 @@ impl TypeChecker {
             .unwrap_or_else(|| SymbolVisibilityResult {
                 accessibility: SymbolAccessibility::NotAccessible,
                 aliases_to_make_visible: None,
-                error_symbol_name: Some(get_text_of_node(first_identifier, None, self).into_owned()),
+                error_symbol_name: Some(
+                    get_text_of_node(first_identifier, None, self).into_owned(),
+                ),
                 error_node: Some(first_identifier),
             }))
     }
@@ -303,16 +330,12 @@ impl TypeChecker {
                     self,
                 )
             };
-            let source_file = enclosing_declaration
-                .and_then(|enclosing_declaration| {
-                    maybe_get_source_file_of_node(Some(enclosing_declaration), self)
-                });
-            printer.ref_(self).write_node(
-                EmitHint::Unspecified,
-                entity,
-                source_file,
-                writer,
-            )?;
+            let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
+                maybe_get_source_file_of_node(Some(enclosing_declaration), self)
+            });
+            printer
+                .ref_(self)
+                .write_node(EmitHint::Unspecified, entity, source_file, writer)?;
             // writer
 
             Ok(())
@@ -344,15 +367,18 @@ impl TypeChecker {
             )?;
             writer.ref_(self).get_text()
         } else {
-            try_using_single_line_string_writer(|writer: Id<Box<dyn EmitTextWriter>>| {
-                self.signature_to_string_worker(
-                    signature,
-                    enclosing_declaration,
-                    flags,
-                    kind,
-                    writer,
-                )
-            }, self)?
+            try_using_single_line_string_writer(
+                |writer: Id<Box<dyn EmitTextWriter>>| {
+                    self.signature_to_string_worker(
+                        signature,
+                        enclosing_declaration,
+                        flags,
+                        kind,
+                        writer,
+                    )
+                },
+                self,
+            )?
         })
     }
 
@@ -378,17 +404,20 @@ impl TypeChecker {
                 SyntaxKind::CallSignature
             };
         }
-        let sig = self.node_builder().ref_(self).signature_to_signature_declaration(
-            signature,
-            sig_output,
-            enclosing_declaration,
-            Some(
-                self.to_node_builder_flags(Some(flags))
-                    | NodeBuilderFlags::IgnoreErrors
-                    | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
-            ),
-            None,
-        )?;
+        let sig = self
+            .node_builder()
+            .ref_(self)
+            .signature_to_signature_declaration(
+                signature,
+                sig_output,
+                enclosing_declaration,
+                Some(
+                    self.to_node_builder_flags(Some(flags))
+                        | NodeBuilderFlags::IgnoreErrors
+                        | NodeBuilderFlags::WriteTypeParametersInQualifiedName,
+                ),
+                None,
+            )?;
         let printer = create_printer(
             PrinterOptionsBuilder::default()
                 .remove_comments(Some(true))
@@ -398,10 +427,9 @@ impl TypeChecker {
             None,
             self,
         );
-        let source_file = enclosing_declaration
-            .and_then(|enclosing_declaration| {
-                maybe_get_source_file_of_node(Some(enclosing_declaration), self)
-            });
+        let source_file = enclosing_declaration.and_then(|enclosing_declaration| {
+            maybe_get_source_file_of_node(Some(enclosing_declaration), self)
+        });
         printer.ref_(self).write_node(
             EmitHint::Unspecified,
             sig.unwrap(),
@@ -425,8 +453,10 @@ impl TypeChecker {
                 | TypeFormatFlags::UseAliasDefinedOutsideCurrentScope,
         );
         let writer = writer.unwrap_or_else(|| create_text_writer("", self));
-        let no_truncation = matches!(self.compiler_options.ref_(self).no_error_truncation, Some(true))
-            || flags.intersects(TypeFormatFlags::NoTruncation);
+        let no_truncation = matches!(
+            self.compiler_options.ref_(self).no_error_truncation,
+            Some(true)
+        ) || flags.intersects(TypeFormatFlags::NoTruncation);
         let type_node = self.node_builder().ref_(self).type_to_type_node(
             type_,
             enclosing_declaration,
@@ -726,7 +756,8 @@ impl NodeBuilder {
             match enclosing_declaration {
                 None => true,
                 Some(enclosing_declaration) => !enclosing_declaration
-                    .ref_(self).flags()
+                    .ref_(self)
+                    .flags()
                     .intersects(NodeFlags::Synthesized),
             },
             None,
@@ -734,7 +765,11 @@ impl NodeBuilder {
         let tracker = tracker
             .filter(|tracker| tracker.ref_(self).is_track_symbol_supported())
             .unwrap_or_else(|| {
-                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.ref_(self).host.clone(), flags, self)
+                DefaultNodeBuilderContextSymbolTracker::new(
+                    self.type_checker.ref_(self).host.clone(),
+                    flags,
+                    self,
+                )
             });
         let context = NodeBuilderContext::new(
             enclosing_declaration,
@@ -743,7 +778,9 @@ impl NodeBuilder {
             self,
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.ref_(self).set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
+        context
+            .ref_(self)
+            .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
         let context = context.ref_(self);
         let resulting_node = cb(&context);
         if context.truncating.get() == Some(true)
@@ -772,7 +809,8 @@ impl NodeBuilder {
             match enclosing_declaration {
                 None => true,
                 Some(enclosing_declaration) => !enclosing_declaration
-                    .ref_(self).flags()
+                    .ref_(self)
+                    .flags()
                     .intersects(NodeFlags::Synthesized),
             },
             None,
@@ -780,7 +818,11 @@ impl NodeBuilder {
         let tracker = tracker
             .filter(|tracker| tracker.ref_(self).is_track_symbol_supported())
             .unwrap_or_else(|| {
-                DefaultNodeBuilderContextSymbolTracker::new(self.type_checker.ref_(self).host.clone(), flags, self)
+                DefaultNodeBuilderContextSymbolTracker::new(
+                    self.type_checker.ref_(self).host.clone(),
+                    flags,
+                    self,
+                )
             });
         let context = NodeBuilderContext::new(
             enclosing_declaration,
@@ -789,7 +831,9 @@ impl NodeBuilder {
             self,
         );
         let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
-        context.ref_(self).set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
+        context
+            .ref_(self)
+            .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
         let context = context.ref_(self);
         let resulting_node = cb(&context)?;
         if context.truncating.get() == Some(true)
@@ -845,9 +889,12 @@ impl NodeBuilder {
             }
             context.increment_approximate_length_by(3);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
-                ).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         let mut type_ = type_.unwrap();
@@ -871,10 +918,12 @@ impl NodeBuilder {
                 )));
             }
             if type_ == self.type_checker.ref_(self).unresolved_type() {
-                let ret = self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
-                )
-                .into());
+                let ret = self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::AnyKeyword),
+                    )
+                    .into(),
+                );
                 add_synthetic_leading_comment(
                     ret,
                     SyntaxKind::MultiLineCommentTrivia,
@@ -886,44 +935,59 @@ impl NodeBuilder {
             }
             context.increment_approximate_length_by(3);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(get_factory(self).create_keyword_type_node_raw(
-                    if type_ == self.type_checker.ref_(self).intrinsic_marker_type() {
-                        SyntaxKind::IntrinsicKeyword
-                    } else {
-                        SyntaxKind::AnyKeyword
-                    },
-                )).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(get_factory(self).create_keyword_type_node_raw(
+                        if type_ == self.type_checker.ref_(self).intrinsic_marker_type() {
+                            SyntaxKind::IntrinsicKeyword
+                        } else {
+                            SyntaxKind::AnyKeyword
+                        },
+                    ))
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Unknown) {
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::UnknownKeyword),
-                ).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::UnknownKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::String) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::StringKeyword),
-                ).into()),
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::StringKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Number) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::NumberKeyword),
-                ).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::NumberKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::BigInt) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::BigIntKeyword),
-                ).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::BigIntKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Boolean)
@@ -931,9 +995,12 @@ impl NodeBuilder {
         {
             context.increment_approximate_length_by(7);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::BooleanKeyword),
-                ).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::BooleanKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::EnumLiteral)
@@ -941,13 +1008,15 @@ impl NodeBuilder {
         {
             let parent_symbol = self
                 .type_checker
-                .ref_(self).get_parent_of_symbol(type_.ref_(self).symbol())?
+                .ref_(self)
+                .get_parent_of_symbol(type_.ref_(self).symbol())?
                 .unwrap();
             let parent_name =
                 self.symbol_to_type_node(parent_symbol, context, SymbolFlags::Type, None)?;
             if self
                 .type_checker
-                .ref_(self).get_declared_type_of_symbol(parent_symbol)?
+                .ref_(self)
+                .get_declared_type_of_symbol(parent_symbol)?
                 == type_
             {
                 return Ok(Some(parent_name));
@@ -958,36 +1027,36 @@ impl NodeBuilder {
                 return Ok(Some(
                     self.append_reference_to_type(
                         parent_name,
-                        self.alloc_node(get_factory(self)
-                            .create_type_reference_node_raw(
-                                &*member_name,
-                                Option::<Id<NodeArray>>::None,
-                            )
-                            .into(),
+                        self.alloc_node(
+                            get_factory(self)
+                                .create_type_reference_node_raw(
+                                    &*member_name,
+                                    Option::<Id<NodeArray>>::None,
+                                )
+                                .into(),
                         ),
                     ),
                 ));
             }
             if is_import_type_node(&parent_name.ref_(self)) {
-                parent_name.ref_(self).as_import_type_node().set_is_type_of(true);
+                parent_name
+                    .ref_(self)
+                    .as_import_type_node()
+                    .set_is_type_of(true);
                 return Ok(Some(get_factory(self).create_indexed_access_type_node(
                     parent_name,
-                    get_factory(self).create_literal_type_node(get_factory(self).create_string_literal(
-                        member_name,
-                        None,
-                        None,
-                    )),
+                    get_factory(self).create_literal_type_node(
+                        get_factory(self).create_string_literal(member_name, None, None),
+                    ),
                 )));
             } else if is_type_reference_node(&parent_name.ref_(self)) {
                 return Ok(Some(get_factory(self).create_indexed_access_type_node(
                     get_factory(self).create_type_query_node(
                         parent_name.ref_(self).as_type_reference_node().type_name,
                     ),
-                    get_factory(self).create_literal_type_node(get_factory(self).create_string_literal(
-                        member_name,
-                        None,
-                        None,
-                    )),
+                    get_factory(self).create_literal_type_node(
+                        get_factory(self).create_string_literal(member_name, None, None),
+                    ),
                 )));
             } else {
                 Debug_.fail(Some(
@@ -1066,11 +1135,14 @@ impl NodeBuilder {
             context.increment_approximate_length_by(type_intrinsic_name.len());
             return Ok(Some(
                 get_factory(self).create_literal_type_node(
-                    self.alloc_node(if type_intrinsic_name == "true" {
-                        get_factory(self).create_true_raw()
-                    } else {
-                        get_factory(self).create_false_raw()
-                    }.into()),
+                    self.alloc_node(
+                        if type_intrinsic_name == "true" {
+                            get_factory(self).create_true_raw()
+                        } else {
+                            get_factory(self).create_false_raw()
+                        }
+                        .into(),
+                    ),
                 ),
             ));
         }
@@ -1096,33 +1168,46 @@ impl NodeBuilder {
                     )?));
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
-                context.tracker_ref().report_inaccessible_unique_symbol_error();
+                context
+                    .tracker_ref()
+                    .report_inaccessible_unique_symbol_error();
                 // }
             }
             context.increment_approximate_length_by(13);
             return Ok(Some(
                 get_factory(self).create_type_operator_node(
                     SyntaxKind::UniqueKeyword,
-                    self.alloc_node(KeywordTypeNode::from(
-                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
-                    ).into()),
+                    self.alloc_node(
+                        KeywordTypeNode::from(
+                            get_factory(self)
+                                .create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
+                        )
+                        .into(),
+                    ),
                 ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Void) {
             context.increment_approximate_length_by(4);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::VoidKeyword),
-                ).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::VoidKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Undefined) {
             context.increment_approximate_length_by(9);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::UndefinedKeyword),
-                ).into())
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self)
+                            .create_keyword_type_node_raw(SyntaxKind::UndefinedKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Null) {
@@ -1134,25 +1219,34 @@ impl NodeBuilder {
         if type_.ref_(self).flags().intersects(TypeFlags::Never) {
             context.increment_approximate_length_by(5);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::NeverKeyword),
-                ).into()),
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::NeverKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::ESSymbol) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
-                ).into()),
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::SymbolKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if type_.ref_(self).flags().intersects(TypeFlags::NonPrimitive) {
             context.increment_approximate_length_by(6);
             return Ok(Some(
-                self.alloc_node(KeywordTypeNode::from(
-                    get_factory(self).create_keyword_type_node_raw(SyntaxKind::ObjectKeyword),
-                ).into()),
+                self.alloc_node(
+                    KeywordTypeNode::from(
+                        get_factory(self).create_keyword_type_node_raw(SyntaxKind::ObjectKeyword),
+                    )
+                    .into(),
+                ),
             ));
         }
         if self.type_checker.ref_(self).is_this_type_parameter(type_) {
@@ -1168,7 +1262,9 @@ impl NodeBuilder {
                     context.set_encountered_error(true);
                 }
                 // if (context.tracker.reportInaccessibleUniqueSymbolError) {
-                context.tracker_ref().report_inaccessible_unique_symbol_error();
+                context
+                    .tracker_ref()
+                    .report_inaccessible_unique_symbol_error();
                 // }
             }
             context.increment_approximate_length_by(4);
@@ -1192,7 +1288,8 @@ impl NodeBuilder {
                     )?;
                     if self
                         .type_checker
-                        .ref_(self).is_reserved_member_name(type_alias_symbol.ref_(self).escaped_name())
+                        .ref_(self)
+                        .is_reserved_member_name(type_alias_symbol.ref_(self).escaped_name())
                         && !type_alias_symbol
                             .ref_(self)
                             .flags()
@@ -1453,9 +1550,13 @@ impl DefaultNodeBuilderContextSymbolTracker {
                 flags,
                 Some(flags) if flags.intersects(NodeBuilderFlags::DoNotIncludeSymbolChain)
             ) {
-                Some(arena.alloc_module_specifier_resolution_host_and_get_common_source_directory(Box::new(
-                    DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(host),
-                )))
+                Some(
+                    arena.alloc_module_specifier_resolution_host_and_get_common_source_directory(
+                        Box::new(
+                            DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(host),
+                        ),
+                    ),
+                )
             } else {
                 None
             },
@@ -1484,8 +1585,7 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
     fn module_resolver_host(
         &self,
     ) -> Option<IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory> {
-        self.module_resolver_host
-            .map(Into::into)
+        self.module_resolver_host.map(Into::into)
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
@@ -1540,8 +1640,7 @@ impl ModuleSpecifierResolutionHostAndGetCommonSourceDirectory
     for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost
 {
     fn get_common_source_directory(&self) -> String {
-        TypeCheckerHost::get_common_source_directory(
-            &*self.host.ref_(self))
+        TypeCheckerHost::get_common_source_directory(&*self.host.ref_(self))
             .unwrap_or_else(|| "".to_owned())
     }
 
@@ -1568,7 +1667,10 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
     }
 
     fn get_project_reference_redirect(&self, file_name: &str) -> Option<String> {
-        ModuleSpecifierResolutionHost::get_project_reference_redirect(&*self.host.ref_(self), file_name)
+        ModuleSpecifierResolutionHost::get_project_reference_redirect(
+            &*self.host.ref_(self),
+            file_name,
+        )
     }
 
     fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
@@ -1637,56 +1739,75 @@ impl NodeBuilderContextWrappedSymbolTracker {
 
 impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     fn report_cyclic_structure_error(&self) {
-        if self.tracker.ref_(self).is_report_cyclic_structure_error_supported() {
+        if self
+            .tracker
+            .ref_(self)
+            .is_report_cyclic_structure_error_supported()
+        {
             self.mark_context_reported_diagnostic();
         }
         self.tracker.ref_(self).report_cyclic_structure_error()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
-        self.tracker.ref_(self).is_report_cyclic_structure_error_supported()
+        self.tracker
+            .ref_(self)
+            .is_report_cyclic_structure_error_supported()
     }
 
     fn report_inaccessible_this_error(&self) {
-        if self.tracker.ref_(self).is_report_inaccessible_this_error_supported() {
+        if self
+            .tracker
+            .ref_(self)
+            .is_report_inaccessible_this_error_supported()
+        {
             self.mark_context_reported_diagnostic();
         }
         self.tracker.ref_(self).report_inaccessible_this_error()
     }
 
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
-        self.tracker.ref_(self).is_report_inaccessible_this_error_supported()
+        self.tracker
+            .ref_(self)
+            .is_report_inaccessible_this_error_supported()
     }
 
     fn report_inaccessible_unique_symbol_error(&self) {
         if self
             .tracker
-            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_unique_symbol_error_supported()
         {
             self.mark_context_reported_diagnostic();
         }
-        self.tracker.ref_(self).report_inaccessible_unique_symbol_error()
+        self.tracker
+            .ref_(self)
+            .report_inaccessible_unique_symbol_error()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self.tracker
-            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn report_likely_unsafe_import_required_error(&self, specifier: &str) {
         if self
             .tracker
-            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self)
+            .is_report_likely_unsafe_import_required_error_supported()
         {
             self.mark_context_reported_diagnostic();
         }
         self.tracker
-            .ref_(self).report_likely_unsafe_import_required_error(specifier)
+            .ref_(self)
+            .report_likely_unsafe_import_required_error(specifier)
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self.tracker
-            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self)
+            .is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn report_nonlocal_augmentation(
@@ -1695,42 +1816,62 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         parent_symbol: Id<Symbol>,
         augmenting_symbol: Id<Symbol>,
     ) {
-        if self.tracker.ref_(self).is_report_nonlocal_augmentation_supported() {
+        if self
+            .tracker
+            .ref_(self)
+            .is_report_nonlocal_augmentation_supported()
+        {
             self.mark_context_reported_diagnostic();
         }
-        self.tracker
-            .ref_(self).report_nonlocal_augmentation(containing_file, parent_symbol, augmenting_symbol)
+        self.tracker.ref_(self).report_nonlocal_augmentation(
+            containing_file,
+            parent_symbol,
+            augmenting_symbol,
+        )
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
-        self.tracker.ref_(self).is_report_nonlocal_augmentation_supported()
+        self.tracker
+            .ref_(self)
+            .is_report_nonlocal_augmentation_supported()
     }
 
     fn report_private_in_base_of_class_expression(&self, property_name: &str) {
         if self
             .tracker
-            .ref_(self).is_report_private_in_base_of_class_expression_supported()
+            .ref_(self)
+            .is_report_private_in_base_of_class_expression_supported()
         {
             self.mark_context_reported_diagnostic();
         }
         self.tracker
-            .ref_(self).report_private_in_base_of_class_expression(property_name)
+            .ref_(self)
+            .report_private_in_base_of_class_expression(property_name)
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self.tracker
-            .ref_(self).is_report_private_in_base_of_class_expression_supported()
+            .ref_(self)
+            .is_report_private_in_base_of_class_expression_supported()
     }
 
     fn report_non_serializable_property(&self, property_name: &str) {
-        if self.tracker.ref_(self).is_report_non_serializable_property_supported() {
+        if self
+            .tracker
+            .ref_(self)
+            .is_report_non_serializable_property_supported()
+        {
             self.mark_context_reported_diagnostic();
         }
-        self.tracker.ref_(self).report_non_serializable_property(property_name)
+        self.tracker
+            .ref_(self)
+            .report_non_serializable_property(property_name)
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
-        self.tracker.ref_(self).is_report_non_serializable_property_supported()
+        self.tracker
+            .ref_(self)
+            .is_report_non_serializable_property_supported()
     }
 
     fn track_symbol(
@@ -1744,7 +1885,8 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         }
         let result = self
             .tracker
-            .ref_(self).track_symbol(symbol, enclosing_declaration, meaning);
+            .ref_(self)
+            .track_symbol(symbol, enclosing_declaration, meaning);
         if matches!(
             result.as_ref(),
             Some(result) if matches!(
@@ -1788,16 +1930,21 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
         decl: Id<Node>, /*ModuleDeclaration*/
         symbol: Id<Symbol>,
     ) -> io::Result<()> {
-        self.tracker.ref_(self).track_referenced_ambient_module(decl, symbol)
+        self.tracker
+            .ref_(self)
+            .track_referenced_ambient_module(decl, symbol)
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
-        self.tracker.ref_(self).is_track_referenced_ambient_module_supported()
+        self.tracker
+            .ref_(self)
+            .is_track_referenced_ambient_module_supported()
     }
 
     fn track_external_module_symbol_of_import_type_node(&self, symbol: Id<Symbol>) {
         self.tracker
-            .ref_(self).track_external_module_symbol_of_import_type_node(symbol)
+            .ref_(self)
+            .track_external_module_symbol_of_import_type_node(symbol)
     }
 }
 

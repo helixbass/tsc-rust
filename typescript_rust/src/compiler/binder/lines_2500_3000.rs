@@ -16,8 +16,8 @@ use crate::{
     is_source_file, is_special_property_declaration, is_static, is_this_initialized_declaration,
     remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
     Diagnostics, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena, InternalSymbolName,
-    Node, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind,
-    OptionInArena,
+    Node, NodeInterface, OptionInArena, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    SyntaxKind,
 };
 
 impl Binder {
@@ -138,7 +138,9 @@ impl Binder {
                             .ref_(self)
                             .as_has_expression()
                             .expression();
-                        if is_in_js_file(Some(&node.ref_(self))) && is_identifier(&expression.ref_(self)) {
+                        if is_in_js_file(Some(&node.ref_(self)))
+                            && is_identifier(&expression.ref_(self))
+                        {
                             let symbol = lookup_symbol_for_name(
                                 self,
                                 self.block_scope_container(),
@@ -400,8 +402,7 @@ impl Binder {
                     || matches!(
                         prop_tag_as_jsdoc_property_like_tag.type_expression,
                         Some(type_expression) if type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
-                    )
-                {
+                    ) {
                     SymbolFlags::Property | SymbolFlags::Optional
                 } else {
                     SymbolFlags::Property
@@ -420,8 +421,7 @@ impl Binder {
                     || matches!(
                         prop_tag_as_jsdoc_property_like_tag.type_expression,
                         Some(type_expression) if type_expression.ref_(self).as_jsdoc_type_expression().type_.ref_(self).kind() == SyntaxKind::JSDocOptionalType
-                    )
-                {
+                    ) {
                     SymbolFlags::Property | SymbolFlags::Optional
                 } else {
                     SymbolFlags::Property
@@ -560,14 +560,16 @@ impl Binder {
                 .ref_(self)
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(self.alloc_diagnostic(
-                    self.create_diagnostic_for_node(
-                        node,
-                        &Diagnostics::Modifiers_cannot_appear_here,
-                        None,
-                    )
-                    .into(),
-                ));
+                .push(
+                    self.alloc_diagnostic(
+                        self.create_diagnostic_for_node(
+                            node,
+                            &Diagnostics::Modifiers_cannot_appear_here,
+                            None,
+                        )
+                        .into(),
+                    ),
+                );
         }
         let diag = if !is_source_file(&node.ref_(self).parent().ref_(self)) {
             Some(&*Diagnostics::Global_module_exports_may_only_appear_at_top_level)
@@ -576,7 +578,8 @@ impl Binder {
         } else if !node
             .ref_(self)
             .parent()
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .is_declaration_file()
         {
             Some(&*Diagnostics::Global_module_exports_may_only_appear_in_declaration_files)
@@ -588,20 +591,22 @@ impl Binder {
                 .ref_(self)
                 .as_source_file()
                 .bind_diagnostics_mut()
-                .push(self.alloc_diagnostic(
-                    self.create_diagnostic_for_node(node, diag, None).into(),
-                ));
+                .push(
+                    self.alloc_diagnostic(self.create_diagnostic_for_node(node, diag, None).into()),
+                );
         } else {
             let file_symbol = self.file().ref_(self).symbol();
             let file_symbol_ref = file_symbol.ref_(self);
             if file_symbol_ref.maybe_global_exports().is_none() {
-                file_symbol_ref.set_global_exports(Some(self.alloc_symbol_table(create_symbol_table(
-                    self.arena(),
-                    Option::<&[Id<Symbol>]>::None,
-                ))));
+                file_symbol_ref.set_global_exports(Some(self.alloc_symbol_table(
+                    create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                )));
             }
             self.declare_symbol(
-                &mut file_symbol_ref.maybe_global_exports().unwrap().ref_mut(self),
+                &mut file_symbol_ref
+                    .maybe_global_exports()
+                    .unwrap()
+                    .ref_mut(self),
                 Some(self.file().ref_(self).symbol()),
                 node,
                 SymbolFlags::Alias,
@@ -640,7 +645,8 @@ impl Binder {
                 None,
                 None,
             );
-        } else if is_namespace_export(&node_as_export_declaration.export_clause.unwrap().ref_(self)) {
+        } else if is_namespace_export(&node_as_export_declaration.export_clause.unwrap().ref_(self))
+        {
             self.declare_symbol(
                 &mut self
                     .container()
@@ -679,7 +685,10 @@ impl Binder {
         {
             return false;
         }
-        if file_as_source_file.maybe_common_js_module_indicator().is_none() {
+        if file_as_source_file
+            .maybe_common_js_module_indicator()
+            .is_none()
+        {
             file_as_source_file.set_common_js_module_indicator(Some(node));
             self.bind_source_file_as_external_module();
         }
@@ -733,7 +742,8 @@ impl Binder {
         let symbol = self.for_each_identifier_in_entity_name(
             node_as_binary_expression
                 .left
-                .ref_(self).as_has_expression()
+                .ref_(self)
+                .as_has_expression()
                 .expression(),
             None,
             &mut |id, symbol, _| {
@@ -752,13 +762,15 @@ impl Binder {
                 && (is_exports_identifier(
                     &node_as_binary_expression
                         .left
-                        .ref_(self).as_has_expression()
+                        .ref_(self)
+                        .as_has_expression()
                         .expression()
                         .ref_(self),
                 ) || is_module_exports_access_expression(
                     node_as_binary_expression
                         .left
-                        .ref_(self).as_has_expression()
+                        .ref_(self)
+                        .as_has_expression()
                         .expression(),
                     self,
                 ));
@@ -800,13 +812,18 @@ impl Binder {
 
         if is_object_literal_expression(&assigned_expression.ref_(self)) {
             let assigned_expression_ref = assigned_expression.ref_(self);
-            let assigned_expression_as_object_literal_expression = assigned_expression_ref.as_object_literal_expression();
+            let assigned_expression_as_object_literal_expression =
+                assigned_expression_ref.as_object_literal_expression();
             if every(
-                &assigned_expression_as_object_literal_expression.properties.ref_(self),
+                &assigned_expression_as_object_literal_expression
+                    .properties
+                    .ref_(self),
                 |property, _| is_shorthand_property_assignment(&property.ref_(self)),
             ) {
                 for_each(
-                    &*assigned_expression_as_object_literal_expression.properties.ref_(self),
+                    &*assigned_expression_as_object_literal_expression
+                        .properties
+                        .ref_(self),
                     |&property, _| {
                         self.bind_export_assigned_object_member_alias(property);
                         Option::<()>::None
@@ -872,11 +889,19 @@ impl Binder {
                 && is_private_identifier(
                     &node_as_binary_expression
                         .left
-                        .ref_(self).as_property_access_expression()
-                        .name.ref_(self),
+                        .ref_(self)
+                        .as_property_access_expression()
+                        .name
+                        .ref_(self),
                 )
         } || is_property_access_expression(&node.ref_(self))
-            && is_private_identifier(&node.ref_(self).as_property_access_expression().name.ref_(self));
+            && is_private_identifier(
+                &node
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .name
+                    .ref_(self),
+            );
         if has_private_identifier {
             return;
         }
@@ -891,17 +916,23 @@ impl Binder {
                         this_container_parent_ref.as_binary_expression();
                     if this_container_parent_as_binary_expression
                         .operator_token
-                        .ref_(self).kind()
+                        .ref_(self)
+                        .kind()
                         == SyntaxKind::EqualsToken
                     {
                         let l = this_container_parent_as_binary_expression.left;
                         if is_bindable_static_access_expression(l, None, self)
-                            && is_prototype_access(l.ref_(self).as_has_expression().expression(), self)
+                            && is_prototype_access(
+                                l.ref_(self).as_has_expression().expression(),
+                                self,
+                            )
                         {
                             constructor_symbol = self.lookup_symbol_for_property_access(
-                                l.ref_(self).as_has_expression()
+                                l.ref_(self)
+                                    .as_has_expression()
                                     .expression()
-                                    .ref_(self).as_has_expression()
+                                    .ref_(self)
+                                    .as_has_expression()
                                     .expression(),
                                 Some(self.this_parent_container()),
                             );
@@ -916,12 +947,12 @@ impl Binder {
                         let constructor_symbol_members = {
                             let constructor_symbol_ref = constructor_symbol.ref_(self);
                             if constructor_symbol_ref.maybe_members().is_none() {
-                                constructor_symbol_ref.set_members(
-                                    Some(self.alloc_symbol_table(create_symbol_table(
+                                constructor_symbol_ref.set_members(Some(self.alloc_symbol_table(
+                                    create_symbol_table(
                                         self.arena(),
                                         Option::<&[Id<Symbol>]>::None,
-                                    )))
-                                );
+                                    ),
+                                )));
                             }
                             constructor_symbol_ref.members()
                         };
@@ -1066,7 +1097,14 @@ impl Binder {
         if node_as_has_expression.expression().ref_(self).kind() == SyntaxKind::ThisKeyword {
             self.bind_this_property_assignment(node);
         } else if is_bindable_static_access_expression(node, None, self)
-            && node.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::SourceFile
         {
             if is_prototype_access(node_as_has_expression.expression(), self) {
                 self.bind_prototype_property_assignment(node, node.ref_(self).parent());

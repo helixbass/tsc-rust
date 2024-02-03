@@ -6,12 +6,12 @@ use super::PipelinePhase;
 use crate::{
     cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node,
     is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
-    positions_are_on_same_line, skip_trivia, BaseNodeFactorySynthetic,
+    positions_are_on_same_line, skip_trivia, AllArenas, BaseNodeFactorySynthetic,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_,
-    EmitFlags, EmitHint, HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface,
-    LeftOrRight, ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules,
-    Printer, ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
-    HasArena, AllArenas, InArena,
+    EmitFlags, EmitHint, HasArena, HasTypeArgumentsInterface, HasTypeInterface,
+    HasTypeParametersInterface, InArena, LeftOrRight, ListFormat, NamedDeclarationInterface, Node,
+    NodeInterface, ParenthesizerRules, Printer, ReadonlyTextRange, SignatureDeclarationInterface,
+    SourceFileLike, SyntaxKind,
 };
 
 impl Printer {
@@ -38,10 +38,7 @@ impl Printer {
             self.write_punctuation(")");
         }
         self.emit(node_as_call_expression.question_dot_token, None)?;
-        self.emit_type_arguments(
-            node,
-            node_as_call_expression.maybe_type_arguments(),
-        )?;
+        self.emit_type_arguments(node, node_as_call_expression.maybe_type_arguments())?;
         self.emit_expression_list(
             Some(node),
             Some(node_as_call_expression.arguments),
@@ -78,10 +75,7 @@ impl Printer {
                 ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(self.parenthesizer()),
             ))),
         )?;
-        self.emit_type_arguments(
-            node,
-            node_as_new_expression.maybe_type_arguments(),
-        )?;
+        self.emit_type_arguments(node, node_as_new_expression.maybe_type_arguments())?;
         self.emit_expression_list(
             Some(node),
             node_as_new_expression.arguments,
@@ -122,8 +116,7 @@ impl Printer {
         }
         self.emit_type_arguments(
             node,
-            node_as_tagged_template_expression
-                .maybe_type_arguments(),
+            node_as_tagged_template_expression.maybe_type_arguments(),
         )?;
         self.write_space();
         self.emit_expression(Some(node_as_tagged_template_expression.template), None)?;
@@ -209,17 +202,11 @@ impl Printer {
     ) -> io::Result<()> {
         let node_ref = node.ref_(self);
         let node_as_arrow_function = node_ref.as_arrow_function();
-        self.emit_type_parameters(
-            node,
-            node_as_arrow_function.maybe_type_parameters(),
-        )?;
+        self.emit_type_parameters(node, node_as_arrow_function.maybe_type_parameters())?;
         self.emit_parameters_for_arrow(node, node_as_arrow_function.parameters())?;
         self.emit_type_annotation(node_as_arrow_function.maybe_type())?;
         self.write_space();
-        self.emit(
-            Some(node_as_arrow_function.equals_greater_than_token),
-            None,
-        )?;
+        self.emit(Some(node_as_arrow_function.equals_greater_than_token), None)?;
 
         Ok(())
     }
@@ -544,8 +531,7 @@ impl Printer {
         )?;
         self.emit_type_arguments(
             node,
-            node_as_expression_with_type_arguments
-                .maybe_type_arguments(),
+            node_as_expression_with_type_arguments.maybe_type_arguments(),
         )?;
 
         Ok(())
@@ -636,12 +622,12 @@ impl Printer {
             node,
             None,
         );
-        let format = if force_single_line || get_emit_flags(node, self).intersects(EmitFlags::SingleLine)
-        {
-            ListFormat::SingleLineBlockStatements
-        } else {
-            ListFormat::MultiLineBlockStatements
-        };
+        let format =
+            if force_single_line || get_emit_flags(node, self).intersects(EmitFlags::SingleLine) {
+                ListFormat::SingleLineBlockStatements
+            } else {
+                ListFormat::MultiLineBlockStatements
+            };
         self.emit_list(
             Some(node),
             Some(node.ref_(self).as_has_statements().statements()),
@@ -652,7 +638,11 @@ impl Printer {
         )?;
         self.emit_token_with_comment(
             SyntaxKind::CloseBraceToken,
-            node.ref_(self).as_has_statements().statements().ref_(self).end(),
+            node.ref_(self)
+                .as_has_statements()
+                .statements()
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             Some(format.intersects(ListFormat::MultiLine)),
@@ -666,7 +656,10 @@ impl Printer {
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<()> {
         self.emit_modifiers(node, node.ref_(self).maybe_modifiers())?;
-        self.emit(Some(node.ref_(self).as_variable_statement().declaration_list), None)?;
+        self.emit(
+            Some(node.ref_(self).as_variable_statement().declaration_list),
+            None,
+        )?;
         self.write_trailing_semicolon();
 
         Ok(())
@@ -777,7 +770,11 @@ impl Printer {
         self.emit_expression(node.ref_(self).as_has_expression().maybe_expression(), None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
-            node.ref_(self).as_has_expression().expression().ref_(self).end(),
+            node.ref_(self)
+                .as_has_expression()
+                .expression()
+                .ref_(self)
+                .end(),
             |text: &str| self.write_punctuation(text),
             node,
             None,
@@ -868,10 +865,7 @@ impl Printer {
             node,
             None,
         );
-        self.emit_expression_with_leading_space(
-            node_as_for_statement.incrementor,
-            None,
-        )?;
+        self.emit_expression_with_leading_space(node_as_for_statement.incrementor, None)?;
         self.emit_token_with_comment(
             SyntaxKind::CloseParenToken,
             node_as_for_statement
@@ -1030,7 +1024,11 @@ impl Printer {
         context_node: Id<Node>,
         indent_leading: Option<bool>,
     ) -> isize {
-        let node = get_parse_tree_node(Some(context_node), Option::<fn(Id<Node>) -> bool>::None, self);
+        let node = get_parse_tree_node(
+            Some(context_node),
+            Option::<fn(Id<Node>) -> bool>::None,
+            self,
+        );
         let is_similar_node = matches!(
             node,
             Some(node) if node.ref_(self).kind() == context_node.ref_(self).kind()
@@ -1039,7 +1037,10 @@ impl Printer {
         if is_similar_node {
             if let Some(current_source_file) = self.maybe_current_source_file() {
                 pos = skip_trivia(
-                    &current_source_file.ref_(self).as_source_file().text_as_chars(),
+                    &current_source_file
+                        .ref_(self)
+                        .as_source_file()
+                        .text_as_chars(),
                     pos,
                     None,
                     None,
@@ -1169,16 +1170,23 @@ impl EmitBinaryExpressionStateMachine {
 
     fn maybe_emit_expression(
         &self,
-        mut next: Id<Node>,   /*Expression*/
-        parent: Id<Node>, /*BinaryExpression*/
+        mut next: Id<Node>, /*Expression*/
+        parent: Id<Node>,   /*BinaryExpression*/
         side: LeftOrRight,
     ) -> io::Result<Option<Id<Node>>> {
-        let parenthesizer_rule: Id<Box<dyn CurrentParenthesizerRule>> =
-            self.alloc_current_parenthesizer_rule(Box::new(MaybeEmitExpressionCurrentParenthesizerRule::new(
-                side,
-                self.printer.ref_(self).parenthesizer(),
-                parent.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
-            )));
+        let parenthesizer_rule: Id<Box<dyn CurrentParenthesizerRule>> = self
+            .alloc_current_parenthesizer_rule(Box::new(
+                MaybeEmitExpressionCurrentParenthesizerRule::new(
+                    side,
+                    self.printer.ref_(self).parenthesizer(),
+                    parent
+                        .ref_(self)
+                        .as_binary_expression()
+                        .operator_token
+                        .ref_(self)
+                        .kind(),
+                ),
+            ));
 
         let mut pipeline_phase = self.printer.ref_(self).get_pipeline_phase(
             PipelinePhase::Notification,
@@ -1210,7 +1218,8 @@ impl EmitBinaryExpressionStateMachine {
         }
 
         self.printer
-            .ref_(self).set_current_parenthesizer_rule(Some(parenthesizer_rule));
+            .ref_(self)
+            .set_current_parenthesizer_rule(Some(parenthesizer_rule));
         pipeline_phase(&self.printer.ref_(self), EmitHint::Expression, next)?;
         Ok(None)
     }
@@ -1233,8 +1242,12 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             state
                 .preserve_source_newlines_stack
                 .push(self.printer.ref_(self).maybe_preserve_source_newlines());
-            state.container_pos_stack.push(self.printer.ref_(self).container_pos());
-            state.container_end_stack.push(self.printer.ref_(self).container_end());
+            state
+                .container_pos_stack
+                .push(self.printer.ref_(self).container_pos());
+            state
+                .container_end_stack
+                .push(self.printer.ref_(self).container_end());
             state
                 .declaration_list_container_end_stack
                 .push(self.printer.ref_(self).declaration_list_container_end());
@@ -1294,9 +1307,11 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             node_as_binary_expression.right,
         );
         self.printer
-            .ref_(self).write_lines_and_indent(lines_before_operator, is_comma_operator);
+            .ref_(self)
+            .write_lines_and_indent(lines_before_operator, is_comma_operator);
         self.printer
-            .ref_(self).emit_leading_comments_of_position(operator_token.ref_(self).pos());
+            .ref_(self)
+            .emit_leading_comments_of_position(operator_token.ref_(self).pos());
         self.printer.ref_(self).write_token_node(
             operator_token,
             if operator_token.ref_(self).kind() == SyntaxKind::InKeyword {
@@ -1305,10 +1320,14 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
                 Printer::write_operator
             },
         );
+        self.printer.ref_(self).emit_trailing_comments_of_position(
+            operator_token.ref_(self).end(),
+            Some(true),
+            None,
+        );
         self.printer
-            .ref_(self).emit_trailing_comments_of_position(operator_token.ref_(self).end(), Some(true), None);
-        self.printer
-            .ref_(self).write_lines_and_indent(lines_after_operator, true);
+            .ref_(self)
+            .write_lines_and_indent(lines_after_operator, true);
 
         Ok(())
     }
@@ -1340,7 +1359,8 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
             node_as_binary_expression.right,
         );
         self.printer
-            .ref_(self).decrease_indent_if(lines_before_operator != 0, Some(lines_after_operator != 0));
+            .ref_(self)
+            .decrease_indent_if(lines_before_operator != 0, Some(lines_after_operator != 0));
         {
             let mut state = state.borrow_mut();
             if state.stack_index > 0 {
@@ -1352,7 +1372,9 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
                     state.declaration_list_container_end_stack.pop().unwrap();
                 let should_emit_comments = state.should_emit_comments_stack.pop().unwrap();
                 let should_emit_source_maps = state.should_emit_source_maps_stack.pop().unwrap();
-                self.printer.ref_(self).after_emit_node(saved_preserve_source_newlines);
+                self.printer
+                    .ref_(self)
+                    .after_emit_node(saved_preserve_source_newlines);
                 if should_emit_source_maps {
                     self.printer.ref_(self).emit_source_maps_after_node(node);
                 }
@@ -1418,13 +1440,12 @@ impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         if self.side == LeftOrRight::Left {
             self.parenthesizer
-                .ref_(self).parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
+                .ref_(self)
+                .parenthesize_left_side_of_binary(self.parent_operator_token_kind, node)
         } else {
-            self.parenthesizer.ref_(self).parenthesize_right_side_of_binary(
-                self.parent_operator_token_kind,
-                None,
-                node,
-            )
+            self.parenthesizer
+                .ref_(self)
+                .parenthesize_right_side_of_binary(self.parent_operator_token_kind, None, node)
         }
     }
 }
@@ -1448,7 +1469,8 @@ impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_operand_of_prefix_unary(node)
+            .ref_(self)
+            .parenthesize_operand_of_prefix_unary(node)
     }
 }
 
@@ -1471,7 +1493,8 @@ impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_operand_of_postfix_unary(node)
+            .ref_(self)
+            .parenthesize_operand_of_postfix_unary(node)
     }
 }
 
@@ -1493,7 +1516,9 @@ impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.ref_(self).parenthesize_left_side_of_access(node)
+        self.parenthesizer
+            .ref_(self)
+            .parenthesize_left_side_of_access(node)
     }
 }
 
@@ -1515,7 +1540,9 @@ impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.ref_(self).parenthesize_expression_of_new(node)
+        self.parenthesizer
+            .ref_(self)
+            .parenthesize_expression_of_new(node)
     }
 }
 
@@ -1537,7 +1564,9 @@ impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
 
 impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
-        self.parenthesizer.ref_(self).parenthesize_member_of_element_type(node)
+        self.parenthesizer
+            .ref_(self)
+            .parenthesize_member_of_element_type(node)
     }
 }
 
@@ -1560,7 +1589,8 @@ impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_member_of_conditional_type(node)
+            .ref_(self)
+            .parenthesize_member_of_conditional_type(node)
     }
 }
 
@@ -1583,7 +1613,8 @@ impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_element_type_of_array_type(node)
+            .ref_(self)
+            .parenthesize_element_type_of_array_type(node)
     }
 }
 
@@ -1608,7 +1639,8 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_expression_of_computed_property_name(node)
+            .ref_(self)
+            .parenthesize_expression_of_computed_property_name(node)
     }
 }
 
@@ -1631,7 +1663,8 @@ impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_expression_for_disallowed_comma(node)
+            .ref_(self)
+            .parenthesize_expression_for_disallowed_comma(node)
     }
 }
 
@@ -1654,7 +1687,8 @@ impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_expression_of_export_default(node)
+            .ref_(self)
+            .parenthesize_expression_of_export_default(node)
     }
 }
 
@@ -1677,7 +1711,8 @@ impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
+            .ref_(self)
+            .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, node)
     }
 }
 
@@ -1700,7 +1735,8 @@ impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
 impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_concise_body_of_arrow_function(node)
+            .ref_(self)
+            .parenthesize_concise_body_of_arrow_function(node)
     }
 }
 
@@ -1725,7 +1761,8 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_expression_of_expression_statement(node)
+            .ref_(self)
+            .parenthesize_expression_of_expression_statement(node)
     }
 }
 
@@ -1750,7 +1787,8 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_branch_of_conditional_expression(node)
+            .ref_(self)
+            .parenthesize_branch_of_conditional_expression(node)
     }
 }
 
@@ -1775,7 +1813,8 @@ impl CurrentParenthesizerRule
 {
     fn call(&self, node: Id<Node>) -> Id<Node> {
         self.parenthesizer
-            .ref_(self).parenthesize_condition_of_conditional_expression(node)
+            .ref_(self)
+            .parenthesize_condition_of_conditional_expression(node)
     }
 }
 

@@ -9,15 +9,14 @@ use id_arena::Id;
 
 use super::{Parser, ParsingContext};
 use crate::{
-HasArena, InArena,    attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
-    ensure_script_kind, for_each_child, get_language_variant, is_logging,
-    normalize_path, object_allocator, ref_unwrapped, BaseNode, Debug_, Diagnostic, Diagnostics,
-    HasStatementsInterface, IncrementalParser, IncrementalParserSyntaxCursor,
-    JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray, NodeFactory, NodeFactoryFlags,
-    NodeFlags, NodeInterface, ParsedIsolatedJSDocComment, ParsedJSDocTypeExpression,
-    ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget, SourceTextAsChars, SyntaxKind,
-    TextChangeRange, AllArenas,
-    ref_mut_unwrapped,
+    attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
+    ensure_script_kind, for_each_child, get_language_variant, is_logging, normalize_path,
+    object_allocator, ref_mut_unwrapped, ref_unwrapped, AllArenas, BaseNode, Debug_, Diagnostic,
+    Diagnostics, HasArena, HasStatementsInterface, InArena, IncrementalParser,
+    IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray,
+    NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, ParsedIsolatedJSDocComment,
+    ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget,
+    SourceTextAsChars, SyntaxKind, TextChangeRange,
 };
 
 pub enum ForEachChildRecursivelyCallbackReturn<TValue> {
@@ -34,7 +33,9 @@ impl<TValue> From<TValue> for ForEachChildRecursivelyCallbackReturn<TValue> {
 pub fn for_each_child_recursively<TValue>(
     root_node: Id<Node>,
     mut cb_node: impl FnMut(Id<Node>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
-    mut cb_nodes: Option<impl FnMut(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>>,
+    mut cb_nodes: Option<
+        impl FnMut(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<TValue>>,
+    >,
     arena: &impl HasArena,
 ) -> Option<TValue> {
     let mut queue: Vec<RcNodeOrNodeArray> = gather_possible_children(root_node, arena);
@@ -175,9 +176,7 @@ fn gather_possible_children(node: Id<Node>, arena: &impl HasArena) -> Vec<RcNode
             children.borrow_mut().insert(0, child.into());
         },
         Some(|node_array: Id<NodeArray>| {
-            children
-                .borrow_mut()
-                .insert(0, node_array.into());
+            children.borrow_mut().insert(0, node_array.into());
         }),
         arena,
     );
@@ -233,7 +232,11 @@ pub fn parse_isolated_entity_name(
     Parser(arena).parse_isolated_entity_name(text, language_version)
 }
 
-pub fn parse_json_text(file_name: &str, source_text: String, arena: &impl HasArena) -> Id<Node /*JsonSourceFile*/> {
+pub fn parse_json_text(
+    file_name: &str,
+    source_text: String,
+    arena: &impl HasArena,
+) -> Id<Node /*JsonSourceFile*/> {
     Parser(arena).parse_json_text(file_name, source_text, None, None, None)
 }
 
@@ -258,7 +261,8 @@ pub fn update_source_file(
         aggressive_checks,
     );
     new_source_file.ref_(arena).set_flags(
-        new_source_file.ref_(arena).flags() | (source_file.ref_(arena).flags() & NodeFlags::PermanentlySetIncrementalFlags),
+        new_source_file.ref_(arena).flags()
+            | (source_file.ref_(arena).flags() & NodeFlags::PermanentlySetIncrementalFlags),
     );
     new_source_file
 }
@@ -294,10 +298,13 @@ pub struct ParserType {
     pub(super) scanner: RefCell<Scanner>,
     pub(super) disallow_in_and_decorator_context: NodeFlags,
     pub(super) NodeConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    pub(super) IdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    pub(super) PrivateIdentifierConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
+    pub(super) IdentifierConstructor:
+        Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
+    pub(super) PrivateIdentifierConstructor:
+        Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     pub(super) TokenConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
-    pub(super) SourceFileConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
+    pub(super) SourceFileConstructor:
+        Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     pub(super) factory: Cell<Option<Id<NodeFactory>>>,
     pub(super) file_name: RefCell<Option<String>>,
     pub(super) source_flags: Cell<Option<NodeFlags>>,
@@ -405,7 +412,9 @@ impl ParserType {
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn IdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
+    pub(super) fn IdentifierConstructor(
+        &self,
+    ) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.IdentifierConstructor.get().unwrap()
     }
 
@@ -418,7 +427,9 @@ impl ParserType {
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn PrivateIdentifierConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
+    pub(super) fn PrivateIdentifierConstructor(
+        &self,
+    ) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.PrivateIdentifierConstructor.get().unwrap()
     }
 
@@ -445,7 +456,9 @@ impl ParserType {
     }
 
     #[allow(non_snake_case)]
-    pub(super) fn SourceFileConstructor(&self) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
+    pub(super) fn SourceFileConstructor(
+        &self,
+    ) -> fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode {
         self.SourceFileConstructor.get().unwrap()
     }
 
@@ -512,9 +525,7 @@ impl ParserType {
         self.language_variant.set(language_variant);
     }
 
-    pub(super) fn parse_diagnostics(
-        &self,
-    ) -> RefMut<Vec<Id<Diagnostic>>> {
+    pub(super) fn parse_diagnostics(&self) -> RefMut<Vec<Id<Diagnostic>>> {
         ref_mut_unwrapped(&self.parse_diagnostics)
     }
 
@@ -694,7 +705,8 @@ impl ParserType {
                 result,
                 result_as_source_file
                     .statements()
-                    .ref_(self).get(0)
+                    .ref_(self)
+                    .get(0)
                     .map(|statement| statement.ref_(self).as_expression_statement().expression),
                 result_as_source_file.parse_diagnostics(),
                 false,
@@ -822,16 +834,21 @@ impl ParserType {
                 Some(expressions) if expressions.len() > 1 => self
                     .finish_node(
                         self.factory()
-                            .ref_(self).create_array_literal_expression_raw(Some(expressions), None),
+                            .ref_(self)
+                            .create_array_literal_expression_raw(Some(expressions), None),
                         pos,
                         None,
                     )
                     .alloc(self.arena()),
                 _ => Debug_.check_defined(expressions, None)[0].clone(),
             };
-            let statement = self.factory().ref_(self).create_expression_statement_raw(expression);
+            let statement = self
+                .factory()
+                .ref_(self)
+                .create_expression_statement_raw(expression);
             let statement = self.finish_node(statement, pos, None);
-            statements = self.create_node_array(vec![statement.alloc(self.arena())], pos, None, None);
+            statements =
+                self.create_node_array(vec![statement.alloc(self.arena())], pos, None, None);
             end_of_file_token = self
                 .parse_expected_token(
                     SyntaxKind::EndOfFileToken,

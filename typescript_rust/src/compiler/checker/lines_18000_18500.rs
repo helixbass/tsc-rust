@@ -13,16 +13,15 @@ use super::{
     IntersectionState, JsxNames, RecursionFlags,
 };
 use crate::{
-    add_related_info, append, chain_diagnostic_messages,
-    concatenate_diagnostic_message_chains, contains, create_diagnostic_for_node,
-    create_diagnostic_for_node_from_message_chain, find_ancestor, first_or_undefined,
-    get_emit_script_target, get_object_flags, is_identifier, is_identifier_text, is_import_call,
-    is_jsx_attribute, is_jsx_attributes, is_jsx_opening_like_element,
-    is_object_literal_element_like, maybe_get_source_file_of_node, some, try_reduce_left,
-    AllArenas, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticRelatedInformation, Diagnostics, HasArena, InArena, Node, NodeInterface, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult, SignatureKind, Symbol,
-    SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    add_related_info, append, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
+    contains, create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain,
+    find_ancestor, first_or_undefined, get_emit_script_target, get_object_flags, is_identifier,
+    is_identifier_text, is_import_call, is_jsx_attribute, is_jsx_attributes,
+    is_jsx_opening_like_element, is_object_literal_element_like, maybe_get_source_file_of_node,
+    some, try_reduce_left, AllArenas, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasArena, InArena, Node,
+    NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult,
+    SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
     UnionOrIntersectionTypeInterface,
 };
 
@@ -120,9 +119,7 @@ impl CheckTypeRelatedTo {
         self.error_info.borrow_mut()
     }
 
-    pub(super) fn maybe_related_info(
-        &self,
-    ) -> RefMut<Option<Vec<DiagnosticRelatedInformation>>> {
+    pub(super) fn maybe_related_info(&self) -> RefMut<Option<Vec<DiagnosticRelatedInformation>>> {
         self.related_info.borrow_mut()
     }
 
@@ -210,8 +207,10 @@ impl CheckTypeRelatedTo {
 
     pub(super) fn call(&self) -> io::Result<bool> {
         Debug_.assert(
-            !Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation)
-                || self.maybe_error_node().is_none(),
+            !Rc::ptr_eq(
+                &self.relation,
+                &self.type_checker.ref_(self).identity_relation,
+            ) || self.maybe_error_node().is_none(),
             Some("no error reporting in identity checking"),
         );
 
@@ -276,16 +275,18 @@ impl CheckTypeRelatedTo {
                                 },
                             )
                         {
-                            let helpful_retry = self.type_checker.ref_(self).check_type_related_to(
-                                self.type_checker
-                                    .ref_(self).get_type_of_symbol(links.ref_(self).target.unwrap())?,
-                                self.target,
-                                self.relation.clone(),
-                                Option::<Id<Node>>::None,
-                                None,
-                                None,
-                                None,
-                            )?;
+                            let helpful_retry =
+                                self.type_checker.ref_(self).check_type_related_to(
+                                    self.type_checker
+                                        .ref_(self)
+                                        .get_type_of_symbol(links.ref_(self).target.unwrap())?,
+                                    self.target,
+                                    self.relation.clone(),
+                                    Option::<Id<Node>>::None,
+                                    None,
+                                    None,
+                                    None,
+                                )?;
                             if helpful_retry {
                                 let diag: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(create_diagnostic_for_node(
                                     links_originating_import,
@@ -312,7 +313,13 @@ impl CheckTypeRelatedTo {
                 .into(),
             );
             if let Some(related_info) = self.maybe_related_info().clone() {
-                add_related_info(&diag.ref_(self), related_info.into_iter().map(|related_info| self.alloc_diagnostic_related_information(related_info)).collect());
+                add_related_info(
+                    &diag.ref_(self),
+                    related_info
+                        .into_iter()
+                        .map(|related_info| self.alloc_diagnostic_related_information(related_info))
+                        .collect(),
+                );
             }
             if let Some(error_output_container) = self.error_output_container.as_ref() {
                 error_output_container.ref_(self).push_error(diag.clone());
@@ -517,25 +524,32 @@ impl CheckTypeRelatedTo {
         }
         let (source_type, target_type) = self
             .type_checker
-            .ref_(self).get_type_names_for_error_display(source, target)?;
+            .ref_(self)
+            .get_type_names_for_error_display(source, target)?;
         let mut generalized_source = source;
         let mut generalized_source_type = source_type.clone();
 
         if self.type_checker.ref_(self).is_literal_type(source)
             && !self
                 .type_checker
-                .ref_(self).type_could_have_top_level_singleton_types(target)?
+                .ref_(self)
+                .type_could_have_top_level_singleton_types(target)?
         {
-            generalized_source = self.type_checker.ref_(self).get_base_type_of_literal_type(source)?;
+            generalized_source = self
+                .type_checker
+                .ref_(self)
+                .get_base_type_of_literal_type(source)?;
             Debug_.assert(
                 !self
                     .type_checker
-                    .ref_(self).is_type_assignable_to(generalized_source, target)?,
+                    .ref_(self)
+                    .is_type_assignable_to(generalized_source, target)?,
                 Some("generalized source shouldn't be assignable"),
             );
             generalized_source_type = self
                 .type_checker
-                .ref_(self).get_type_name_for_error_display(generalized_source)?;
+                .ref_(self)
+                .get_type_name_for_error_display(generalized_source)?;
         }
 
         if target
@@ -543,16 +557,21 @@ impl CheckTypeRelatedTo {
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            let constraint = self.type_checker.ref_(self).get_base_constraint_of_type(target)?;
+            let constraint = self
+                .type_checker
+                .ref_(self)
+                .get_base_constraint_of_type(target)?;
             let mut needs_original_source: Option<bool> = None;
             if let Some(constraint) = constraint.try_filter(|&constraint| -> io::Result<_> {
                 Ok(self
                     .type_checker
-                    .ref_(self).is_type_assignable_to(generalized_source, constraint)?
+                    .ref_(self)
+                    .is_type_assignable_to(generalized_source, constraint)?
                     || {
                         needs_original_source = Some(
                             self.type_checker
-                                .ref_(self).is_type_assignable_to(source, constraint)?,
+                                .ref_(self)
+                                .is_type_assignable_to(source, constraint)?,
                         );
                         matches!(needs_original_source, Some(true))
                     })
@@ -590,17 +609,23 @@ impl CheckTypeRelatedTo {
         }
 
         if message.is_none() {
-            if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation) {
+            if Rc::ptr_eq(
+                &self.relation,
+                &self.type_checker.ref_(self).comparable_relation,
+            ) {
                 message = Some(Cow::Borrowed(
                     &Diagnostics::Type_0_is_not_comparable_to_type_1,
                 ));
             } else if source_type == target_type {
                 message = Some(Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated));
-            } else if matches!(self.type_checker.ref_(self).exact_optional_property_types, Some(true))
-                && !self
-                    .type_checker
-                    .ref_(self).get_exact_optional_unassignable_properties(source, target)?
-                    .is_empty()
+            } else if matches!(
+                self.type_checker.ref_(self).exact_optional_property_types,
+                Some(true)
+            ) && !self
+                .type_checker
+                .ref_(self)
+                .get_exact_optional_unassignable_properties(source, target)?
+                .is_empty()
             {
                 message = Some(Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties));
             } else {
@@ -612,7 +637,8 @@ impl CheckTypeRelatedTo {
                 {
                     let suggested_type = self
                         .type_checker
-                        .ref_(self).get_suggested_type_for_nonexistent_string_literal_type(source, target);
+                        .ref_(self)
+                        .get_suggested_type_for_nonexistent_string_literal_type(source, target);
                     if let Some(suggested_type) = suggested_type {
                         self.report_error(
                             Cow::Borrowed(
@@ -639,11 +665,14 @@ impl CheckTypeRelatedTo {
         } else if matches!(
             message.as_ref(),
             Some(message) if ptr::eq(&**message, &*Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1)
-        ) && matches!(self.type_checker.ref_(self).exact_optional_property_types, Some(true))
-            && !self
-                .type_checker
-                .ref_(self).get_exact_optional_unassignable_properties(source, target)?
-                .is_empty()
+        ) && matches!(
+            self.type_checker.ref_(self).exact_optional_property_types,
+            Some(true)
+        ) && !self
+            .type_checker
+            .ref_(self)
+            .get_exact_optional_unassignable_properties(source, target)?
+            .is_empty()
         {
             message = Some(Cow::Borrowed(&Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties));
         }
@@ -663,7 +692,8 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<()> {
         let source_type = if self
             .type_checker
-            .ref_(self).symbol_value_declaration_is_context_sensitive(source.ref_(self).maybe_symbol())?
+            .ref_(self)
+            .symbol_value_declaration_is_context_sensitive(source.ref_(self).maybe_symbol())?
         {
             self.type_checker.ref_(self).type_to_string_(
                 source,
@@ -676,12 +706,17 @@ impl CheckTypeRelatedTo {
                 None,
             )?
         } else {
-            self.type_checker
-                .ref_(self).type_to_string_(source, Option::<Id<Node>>::None, None, None)?
+            self.type_checker.ref_(self).type_to_string_(
+                source,
+                Option::<Id<Node>>::None,
+                None,
+                None,
+            )?
         };
         let target_type = if self
             .type_checker
-            .ref_(self).symbol_value_declaration_is_context_sensitive(target.ref_(self).maybe_symbol())?
+            .ref_(self)
+            .symbol_value_declaration_is_context_sensitive(target.ref_(self).maybe_symbol())?
         {
             self.type_checker.ref_(self).type_to_string_(
                 target,
@@ -694,8 +729,12 @@ impl CheckTypeRelatedTo {
                 None,
             )?
         } else {
-            self.type_checker
-                .ref_(self).type_to_string_(target, Option::<Id<Node>>::None, None, None)?
+            self.type_checker.ref_(self).type_to_string_(
+                target,
+                Option::<Id<Node>>::None,
+                None,
+                None,
+            )?
         };
 
         if (self.type_checker.ref_(self).global_string_type() == source
@@ -704,7 +743,11 @@ impl CheckTypeRelatedTo {
                 && self.type_checker.ref_(self).number_type() == target)
             || (self.type_checker.ref_(self).global_boolean_type() == source
                 && self.type_checker.ref_(self).boolean_type() == target)
-            || (self.type_checker.ref_(self).get_global_es_symbol_type(false)? == source
+            || (self
+                .type_checker
+                .ref_(self)
+                .get_global_es_symbol_type(false)?
+                == source
                 && self.type_checker.ref_(self).es_symbol_type() == target)
         {
             self.report_error(
@@ -733,7 +776,10 @@ impl CheckTypeRelatedTo {
                 .ref_(self)
                 .as_tuple_type()
                 .readonly
-                && self.type_checker.ref_(self).is_mutable_array_or_tuple(target)
+                && self
+                    .type_checker
+                    .ref_(self)
+                    .is_mutable_array_or_tuple(target)
             {
                 if report_errors {
                     self.report_error(
@@ -756,12 +802,14 @@ impl CheckTypeRelatedTo {
                 }
                 return Ok(false);
             }
-            return Ok(
-                self.type_checker.ref_(self).is_tuple_type(target) || self.type_checker.ref_(self).is_array_type(target)
-            );
+            return Ok(self.type_checker.ref_(self).is_tuple_type(target)
+                || self.type_checker.ref_(self).is_array_type(target));
         }
         if self.type_checker.ref_(self).is_readonly_array_type(source)
-            && self.type_checker.ref_(self).is_mutable_array_or_tuple(target)
+            && self
+                .type_checker
+                .ref_(self)
+                .is_mutable_array_or_tuple(target)
         {
             if report_errors {
                 self.report_error(
@@ -863,16 +911,21 @@ impl CheckTypeRelatedTo {
 
         let source = self
             .type_checker
-            .ref_(self).get_normalized_type(original_source, false)?;
+            .ref_(self)
+            .get_normalized_type(original_source, false)?;
         let mut target = self
             .type_checker
-            .ref_(self).get_normalized_type(original_target, true)?;
+            .ref_(self)
+            .get_normalized_type(original_target, true)?;
 
         if source == target {
             return Ok(Ternary::True);
         }
 
-        if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).identity_relation) {
+        if Rc::ptr_eq(
+            &self.relation,
+            &self.type_checker.ref_(self).identity_relation,
+        ) {
             return self.is_identical_to(source, target, recursion_flags);
         }
 
@@ -898,11 +951,13 @@ impl CheckTypeRelatedTo {
                 <= 3
             && self
                 .type_checker
-                .ref_(self).maybe_type_of_kind(target, TypeFlags::Nullable)
+                .ref_(self)
+                .maybe_type_of_kind(target, TypeFlags::Nullable)
         {
             let null_stripped_target = self
                 .type_checker
-                .ref_(self).extract_types_of_kind(target, !TypeFlags::Nullable);
+                .ref_(self)
+                .extract_types_of_kind(target, !TypeFlags::Nullable);
             if !null_stripped_target
                 .ref_(self)
                 .flags()
@@ -910,15 +965,18 @@ impl CheckTypeRelatedTo {
             {
                 target = self
                     .type_checker
-                    .ref_(self).get_normalized_type(null_stripped_target, true)?;
+                    .ref_(self)
+                    .get_normalized_type(null_stripped_target, true)?;
             }
             if source == null_stripped_target {
                 return Ok(Ternary::True);
             }
         }
 
-        if Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation)
-            && !target.ref_(self).flags().intersects(TypeFlags::Never)
+        if Rc::ptr_eq(
+            &self.relation,
+            &self.type_checker.ref_(self).comparable_relation,
+        ) && !target.ref_(self).flags().intersects(TypeFlags::Never)
             && self.type_checker.ref_(self).is_simple_type_related_to(
                 target,
                 source,
@@ -962,23 +1020,31 @@ impl CheckTypeRelatedTo {
             }
         }
 
-        let is_performing_common_property_checks =
-            !Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation)
-                && !intersection_state.intersects(IntersectionState::Target)
-                && source
+        let is_performing_common_property_checks = !Rc::ptr_eq(
+            &self.relation,
+            &self.type_checker.ref_(self).comparable_relation,
+        ) && !intersection_state
+            .intersects(IntersectionState::Target)
+            && source
+                .ref_(self)
+                .flags()
+                .intersects(TypeFlags::Primitive | TypeFlags::Object | TypeFlags::Intersection)
+            && source != self.type_checker.ref_(self).global_object_type()
+            && target
+                .ref_(self)
+                .flags()
+                .intersects(TypeFlags::Object | TypeFlags::Intersection)
+            && self.type_checker.ref_(self).is_weak_type(target)?
+            && (!self
+                .type_checker
+                .ref_(self)
+                .get_properties_of_type(source)?
+                .len()
+                == 0
+                || self
+                    .type_checker
                     .ref_(self)
-                    .flags()
-                    .intersects(TypeFlags::Primitive | TypeFlags::Object | TypeFlags::Intersection)
-                && source != self.type_checker.ref_(self).global_object_type()
-                && target
-                    .ref_(self)
-                    .flags()
-                    .intersects(TypeFlags::Object | TypeFlags::Intersection)
-                && self.type_checker.ref_(self).is_weak_type(target)?
-                && (!self.type_checker.ref_(self).get_properties_of_type(source)?.len() == 0
-                    || self
-                        .type_checker
-                        .ref_(self).type_has_call_or_construct_signatures(source)?);
+                    .type_has_call_or_construct_signatures(source)?);
         if is_performing_common_property_checks
             && !self.type_checker.ref_(self).has_common_properties(
                 source,
@@ -1009,14 +1075,17 @@ impl CheckTypeRelatedTo {
                 )?;
                 let calls = self
                     .type_checker
-                    .ref_(self).get_signatures_of_type(source, SignatureKind::Call)?;
+                    .ref_(self)
+                    .get_signatures_of_type(source, SignatureKind::Call)?;
                 let constructs = self
                     .type_checker
-                    .ref_(self).get_signatures_of_type(source, SignatureKind::Construct)?;
+                    .ref_(self)
+                    .get_signatures_of_type(source, SignatureKind::Construct)?;
                 if !calls.is_empty()
                     && self.is_related_to(
                         self.type_checker
-                            .ref_(self).get_return_type_of_signature(calls[0].clone())?,
+                            .ref_(self)
+                            .get_return_type_of_signature(calls[0].clone())?,
                         target,
                         Some(RecursionFlags::Source),
                         Some(false),
@@ -1026,7 +1095,8 @@ impl CheckTypeRelatedTo {
                     || !constructs.is_empty()
                         && self.is_related_to(
                             self.type_checker
-                                .ref_(self).get_return_type_of_signature(constructs[0].clone())?,
+                                .ref_(self)
+                                .get_return_type_of_signature(constructs[0].clone())?,
                             target,
                             Some(RecursionFlags::Source),
                             Some(false),
@@ -1113,25 +1183,28 @@ impl CheckTypeRelatedTo {
                 .flags()
                 .intersects(TypeFlags::Intersection | TypeFlags::TypeParameter)
         {
-            let constraint = self.type_checker.ref_(self).get_effective_constraint_of_intersection(
-                &if source
-                    .ref_(self)
-                    .flags()
-                    .intersects(TypeFlags::Intersection)
-                {
-                    source
+            let constraint = self
+                .type_checker
+                .ref_(self)
+                .get_effective_constraint_of_intersection(
+                    &if source
                         .ref_(self)
-                        .as_union_or_intersection_type_interface()
-                        .types()
-                        .to_owned()
-                } else {
-                    vec![source.clone()]
-                },
-                {
-                    let intersects = target.ref_(self).flags().intersects(TypeFlags::Union);
-                    intersects
-                },
-            )?;
+                        .flags()
+                        .intersects(TypeFlags::Intersection)
+                    {
+                        source
+                            .ref_(self)
+                            .as_union_or_intersection_type_interface()
+                            .types()
+                            .to_owned()
+                    } else {
+                        vec![source.clone()]
+                    },
+                    {
+                        let intersects = target.ref_(self).flags().intersects(TypeFlags::Union);
+                        intersects
+                    },
+                )?;
             if let Some(constraint) = constraint {
                 if source
                     .ref_(self)
@@ -1139,7 +1212,11 @@ impl CheckTypeRelatedTo {
                     .intersects(TypeFlags::Intersection)
                     || target.ref_(self).flags().intersects(TypeFlags::Union)
                 {
-                    if self.type_checker.ref_(self).every_type(constraint, |c| c != source) {
+                    if self
+                        .type_checker
+                        .ref_(self)
+                        .every_type(constraint, |c| c != source)
+                    {
                         result = self.is_related_to(
                             constraint,
                             target,
@@ -1163,7 +1240,10 @@ impl CheckTypeRelatedTo {
                 .flags()
                 .intersects(TypeFlags::Intersection)
                 && (is_performing_excess_property_checks || is_performing_common_property_checks)
-                || self.type_checker.ref_(self).is_non_generic_object_type(target)?
+                || self
+                    .type_checker
+                    .ref_(self)
+                    .is_non_generic_object_type(target)?
                     && !self.type_checker.ref_(self).is_array_type(target)
                     && !self.type_checker.ref_(self).is_tuple_type(target)
                     && source
@@ -1172,7 +1252,8 @@ impl CheckTypeRelatedTo {
                         .intersects(TypeFlags::Intersection)
                     && self
                         .type_checker
-                        .ref_(self).get_apparent_type(source)?
+                        .ref_(self)
+                        .get_apparent_type(source)?
                         .ref_(self)
                         .flags()
                         .intersects(TypeFlags::StructuredType)
@@ -1222,11 +1303,13 @@ impl CheckTypeRelatedTo {
         if result == Ternary::False && report_errors {
             let source_has_base = self
                 .type_checker
-                .ref_(self).get_single_base_for_non_augmenting_subtype(original_source)?
+                .ref_(self)
+                .get_single_base_for_non_augmenting_subtype(original_source)?
                 .is_some();
             let target_has_base = self
                 .type_checker
-                .ref_(self).get_single_base_for_non_augmenting_subtype(original_target)?
+                .ref_(self)
+                .get_single_base_for_non_augmenting_subtype(original_target)?
                 .is_some();
             let source =
                 if original_source.ref_(self).maybe_alias_symbol().is_some() || source_has_base {
@@ -1279,16 +1362,22 @@ impl CheckTypeRelatedTo {
             {
                 let target_ref = target.ref_(self);
                 let target_types = target_ref.as_union_or_intersection_type_interface().types();
-                let intrinsic_attributes = self.type_checker.ref_(self).get_jsx_type(
-                    &JsxNames::IntrinsicAttributes,
-                    self.maybe_error_node(),
-                )?;
-                let intrinsic_class_attributes = self.type_checker.ref_(self).get_jsx_type(
-                    &JsxNames::IntrinsicClassAttributes,
-                    self.maybe_error_node(),
-                )?;
-                if !self.type_checker.ref_(self).is_error_type(intrinsic_attributes)
-                    && !self.type_checker.ref_(self).is_error_type(intrinsic_class_attributes)
+                let intrinsic_attributes = self
+                    .type_checker
+                    .ref_(self)
+                    .get_jsx_type(&JsxNames::IntrinsicAttributes, self.maybe_error_node())?;
+                let intrinsic_class_attributes = self
+                    .type_checker
+                    .ref_(self)
+                    .get_jsx_type(&JsxNames::IntrinsicClassAttributes, self.maybe_error_node())?;
+                if !self
+                    .type_checker
+                    .ref_(self)
+                    .is_error_type(intrinsic_attributes)
+                    && !self
+                        .type_checker
+                        .ref_(self)
+                        .is_error_type(intrinsic_class_attributes)
                     && (contains(Some(target_types), &intrinsic_attributes)
                         || contains(Some(target_types), &intrinsic_class_attributes))
                 {
@@ -1297,7 +1386,8 @@ impl CheckTypeRelatedTo {
             } else {
                 let error_info = self
                     .type_checker
-                    .ref_(self).elaborate_never_intersection(
+                    .ref_(self)
+                    .elaborate_never_intersection(
                         self.maybe_error_info().as_deref().cloned(),
                         original_target,
                     )?
@@ -1419,16 +1509,20 @@ impl CheckTypeRelatedTo {
                 .intersects(TypeFlags::UnionOrIntersection)
             {
                 self.type_checker
-                    .ref_(self).get_property_of_union_or_intersection_type(type_, name, None)?
+                    .ref_(self)
+                    .get_property_of_union_or_intersection_type(type_, name, None)?
             } else {
-                self.type_checker.ref_(self).get_property_of_object_type(type_, name)?
+                self.type_checker
+                    .ref_(self)
+                    .get_property_of_object_type(type_, name)?
             };
             let prop_type = prop
                 .try_map(|prop| self.type_checker.ref_(self).get_type_of_symbol(prop))?
                 .try_or_else(|| -> io::Result<_> {
                     Ok(self
                         .type_checker
-                        .ref_(self).get_applicable_index_info_for_name(type_, name)?
+                        .ref_(self)
+                        .get_applicable_index_info_for_name(type_, name)?
                         .map(|index_info| index_info.ref_(self).type_.clone()))
                 })?
                 .unwrap_or_else(|| self.type_checker.ref_(self).undefined_type());
@@ -1453,7 +1547,10 @@ impl CheckTypeRelatedTo {
         target: Id<Type>,
         report_errors: bool,
     ) -> io::Result<bool> {
-        if !self.type_checker.ref_(self).is_excess_property_check_target(target)
+        if !self
+            .type_checker
+            .ref_(self)
+            .is_excess_property_check_target(target)
             || !self.type_checker.ref_(self).no_implicit_any
                 && get_object_flags(&target.ref_(self)).intersects(ObjectFlags::JSLiteral)
         {
@@ -1461,13 +1558,18 @@ impl CheckTypeRelatedTo {
         }
         let is_comparing_jsx_attributes =
             get_object_flags(&source.ref_(self)).intersects(ObjectFlags::JsxAttributes);
-        if (Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).assignable_relation)
-            || Rc::ptr_eq(&self.relation, &self.type_checker.ref_(self).comparable_relation))
-            && (self
-                .type_checker
-                .ref_(self).is_type_subset_of(self.type_checker.ref_(self).global_object_type(), target)?
-                || !is_comparing_jsx_attributes
-                    && self.type_checker.ref_(self).is_empty_object_type(target)?)
+        if (Rc::ptr_eq(
+            &self.relation,
+            &self.type_checker.ref_(self).assignable_relation,
+        ) || Rc::ptr_eq(
+            &self.relation,
+            &self.type_checker.ref_(self).comparable_relation,
+        )) && (self
+            .type_checker
+            .ref_(self)
+            .is_type_subset_of(self.type_checker.ref_(self).global_object_type(), target)?
+            || !is_comparing_jsx_attributes
+                && self.type_checker.ref_(self).is_empty_object_type(target)?)
         {
             return Ok(false);
         }
@@ -1476,7 +1578,8 @@ impl CheckTypeRelatedTo {
         if target.ref_(self).flags().intersects(TypeFlags::Union) {
             reduced_target = self
                 .type_checker
-                .ref_(self).find_matching_discriminant_type(
+                .ref_(self)
+                .find_matching_discriminant_type(
                     source,
                     target,
                     |source, target| self.is_related_to(source, target, None, None, None, None),
@@ -1484,7 +1587,8 @@ impl CheckTypeRelatedTo {
                 )?
                 .unwrap_or_else(|| {
                     self.type_checker
-                        .ref_(self).filter_primitives_if_contains_non_primitive(target)
+                        .ref_(self)
+                        .filter_primitives_if_contains_non_primitive(target)
                 });
             check_types = Some(
                 if reduced_target
@@ -1502,9 +1606,16 @@ impl CheckTypeRelatedTo {
                 },
             );
         }
-        for prop in self.type_checker.ref_(self).get_properties_of_type(source)? {
+        for prop in self
+            .type_checker
+            .ref_(self)
+            .get_properties_of_type(source)?
+        {
             if self.should_check_as_excess_property(prop, source.ref_(self).symbol())
-                && !self.type_checker.ref_(self).is_ignored_jsx_property(source, prop)
+                && !self
+                    .type_checker
+                    .ref_(self)
+                    .is_ignored_jsx_property(source, prop)
             {
                 if !self.type_checker.ref_(self).is_known_property(
                     reduced_target,
@@ -1512,28 +1623,41 @@ impl CheckTypeRelatedTo {
                     is_comparing_jsx_attributes,
                 )? {
                     if report_errors {
-                        let error_target = self.type_checker.ref_(self).filter_type(reduced_target, |type_| {
-                            self.type_checker.ref_(self).is_excess_property_check_target(type_)
-                        });
+                        let error_target =
+                            self.type_checker
+                                .ref_(self)
+                                .filter_type(reduced_target, |type_| {
+                                    self.type_checker
+                                        .ref_(self)
+                                        .is_excess_property_check_target(type_)
+                                });
                         if self.maybe_error_node().is_none() {
                             Debug_.fail(None);
                         }
                         let error_node_present = self.maybe_error_node().unwrap();
                         if is_jsx_attributes(&error_node_present.ref_(self))
                             || is_jsx_opening_like_element(&error_node_present.ref_(self))
-                            || is_jsx_opening_like_element(&error_node_present.ref_(self).parent().ref_(self))
+                            || is_jsx_opening_like_element(
+                                &error_node_present.ref_(self).parent().ref_(self),
+                            )
                         {
                             if let Some(prop_value_declaration) = prop
                                 .ref_(self)
                                 .maybe_value_declaration()
                                 .filter(|prop_value_declaration| {
                                     is_jsx_attribute(&prop_value_declaration.ref_(self))
-                                        && maybe_get_source_file_of_node(Some(
-                                                error_node_present,
-                                            ), self) ==
-                                            maybe_get_source_file_of_node(Some(
-                                                prop_value_declaration.ref_(self).as_jsx_attribute().name,
-                                            ), self)
+                                        && maybe_get_source_file_of_node(
+                                            Some(error_node_present),
+                                            self,
+                                        ) == maybe_get_source_file_of_node(
+                                            Some(
+                                                prop_value_declaration
+                                                    .ref_(self)
+                                                    .as_jsx_attribute()
+                                                    .name,
+                                            ),
+                                            self,
+                                        )
                                 })
                             {
                                 self.set_error_node(Some(
@@ -1549,7 +1673,8 @@ impl CheckTypeRelatedTo {
                             )?;
                             let suggestion_symbol = self
                                 .type_checker
-                                .ref_(self).get_suggested_symbol_for_nonexistent_jsx_attribute(
+                                .ref_(self)
+                                .get_suggested_symbol_for_nonexistent_jsx_attribute(
                                     &*prop_name,
                                     error_target,
                                 )?;
@@ -1605,26 +1730,46 @@ impl CheckTypeRelatedTo {
                                 None
                             };
                             let mut suggestion: Option<String> = None;
-                            if let Some(prop_value_declaration) = prop.ref_(self).maybe_value_declaration().filter(|&prop_value_declaration|
-                                find_ancestor(
-                                    Some(prop_value_declaration),
-                                    |d| object_literal_declaration == Some(d),
-                                    self,
-                                ).is_some() &&
-                                maybe_get_source_file_of_node(object_literal_declaration, self) ==
-                                    maybe_get_source_file_of_node(Some(error_node_present), self)
-                            ) {
+                            if let Some(prop_value_declaration) = prop
+                                .ref_(self)
+                                .maybe_value_declaration()
+                                .filter(|&prop_value_declaration| {
+                                    find_ancestor(
+                                        Some(prop_value_declaration),
+                                        |d| object_literal_declaration == Some(d),
+                                        self,
+                                    )
+                                    .is_some()
+                                        && maybe_get_source_file_of_node(
+                                            object_literal_declaration,
+                                            self,
+                                        ) == maybe_get_source_file_of_node(
+                                            Some(error_node_present),
+                                            self,
+                                        )
+                                })
+                            {
                                 let prop_declaration = prop_value_declaration;
-                                Debug_.assert_node(Some(prop_declaration), Some(|node: Id<Node>| is_object_literal_element_like(&node.ref_(self))), None);
+                                Debug_.assert_node(
+                                    Some(prop_declaration),
+                                    Some(|node: Id<Node>| {
+                                        is_object_literal_element_like(&node.ref_(self))
+                                    }),
+                                    None,
+                                );
 
                                 self.set_error_node(Some(prop_declaration));
 
-                                let name = prop_declaration.ref_(self).as_named_declaration().name();
+                                let name =
+                                    prop_declaration.ref_(self).as_named_declaration().name();
                                 if is_identifier(&name.ref_(self)) {
-                                    suggestion = self.type_checker.ref_(self).get_suggestion_for_nonexistent_property(
-                                        name,
-                                        error_target
-                                    )?;
+                                    suggestion = self
+                                        .type_checker
+                                        .ref_(self)
+                                        .get_suggestion_for_nonexistent_property(
+                                            name,
+                                            error_target,
+                                        )?;
                                 }
                             }
                             if let Some(suggestion) = suggestion {

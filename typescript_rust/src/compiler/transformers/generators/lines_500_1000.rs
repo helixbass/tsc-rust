@@ -9,10 +9,9 @@ use crate::{
     get_non_assignment_operator_for_compound_assignment, insert_statements_after_standard_prologue,
     is_binary_expression, is_compound_assignment, is_expression, is_left_hand_side_expression,
     is_logical_operator, map, maybe_visit_node, reduce_left, visit_node, visit_nodes,
-    Associativity, EmitFlags, IntoA, NamedDeclarationInterface, NodeArray, NodeArrayOrVec,
-    ReadonlyTextRange, SyntaxKind, TransformFlags, VecExt,
-    HasArena, InArena,
-    CoreTransformationContext,
+    Associativity, CoreTransformationContext, EmitFlags, HasArena, InArena, IntoA,
+    NamedDeclarationInterface, NodeArray, NodeArrayOrVec, ReadonlyTextRange, SyntaxKind,
+    TransformFlags, VecExt,
 };
 
 impl TransformGenerators {
@@ -24,7 +23,12 @@ impl TransformGenerators {
         let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
         self.set_in_generator_function_body(Some(false));
         self.set_in_statement_containing_yield(Some(false));
-        let node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+        let node = visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        );
         self.set_in_generator_function_body(saved_in_generator_function_body);
         self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         Some(node.into())
@@ -65,7 +69,8 @@ impl TransformGenerators {
         self.set_operation_locations(None);
         self.set_state(Some(
             self.factory
-                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None),
+                .ref_(self)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None),
         ));
 
         self.context.ref_(self).resume_lexical_environment();
@@ -77,7 +82,10 @@ impl TransformGenerators {
             Some(|node: Id<Node>| self.visitor(node)),
         );
 
-        self.transform_and_emit_statements(&body_as_block.statements.ref_(self), Some(statement_offset));
+        self.transform_and_emit_statements(
+            &body_as_block.statements.ref_(self),
+            Some(statement_offset),
+        );
 
         let build_result = self.build();
         insert_statements_after_standard_prologue(
@@ -85,7 +93,11 @@ impl TransformGenerators {
             self.context.ref_(self).end_lexical_environment().as_deref(),
             self,
         );
-        statements.push(self.factory.ref_(self).create_return_statement(Some(build_result)));
+        statements.push(
+            self.factory
+                .ref_(self)
+                .create_return_statement(Some(build_result)),
+        );
 
         self.set_in_generator_function_body(saved_in_generator_function_body);
         self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
@@ -102,7 +114,8 @@ impl TransformGenerators {
         self.set_state(saved_state);
 
         self.factory
-            .ref_(self).create_block(statements, body_as_block.multi_line)
+            .ref_(self)
+            .create_block(statements, body_as_block.multi_line)
             .set_text_range(Some(&*body.ref_(self)), self)
     }
 
@@ -113,7 +126,8 @@ impl TransformGenerators {
         let node_ref = node.ref_(self);
         let node_as_variable_statement = node_ref.as_variable_statement();
         if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsYield)
         {
             self.transform_and_emit_variable_declaration_list(
@@ -127,27 +141,36 @@ impl TransformGenerators {
 
             for &variable in &*node_as_variable_statement
                 .declaration_list
-                .ref_(self).as_variable_declaration_list()
-                .declarations.ref_(self)
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(self)
             {
-                self.context
-                    .ref_(self).hoist_variable_declaration(variable.ref_(self).as_variable_declaration().name());
+                self.context.ref_(self).hoist_variable_declaration(
+                    variable.ref_(self).as_variable_declaration().name(),
+                );
             }
 
-            let variables = get_initialized_variables(node_as_variable_statement.declaration_list, self);
+            let variables =
+                get_initialized_variables(node_as_variable_statement.declaration_list, self);
             if variables.is_empty() {
                 return None;
             }
 
             Some(
                 self.factory
-                    .ref_(self).create_expression_statement(
+                    .ref_(self)
+                    .create_expression_statement(
                         self.factory
-                            .ref_(self).inline_expressions(&map(&variables, |&variable: &Id<Node>, _| {
+                            .ref_(self)
+                            .inline_expressions(&map(&variables, |&variable: &Id<Node>, _| {
                                 self.transform_initialized_variable(variable)
                             })),
                     )
-                    .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self),
+                    .set_source_map_range(
+                        Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
+                        self,
+                    ),
             )
         }
     }
@@ -177,7 +200,8 @@ impl TransformGenerators {
             let target: Id<Node /*Expression*/> = match left.ref_(self).kind() {
                 SyntaxKind::PropertyAccessExpression => {
                     let left_ref = left.ref_(self);
-                    let left_as_property_access_expression = left_ref.as_property_access_expression();
+                    let left_as_property_access_expression =
+                        left_ref.as_property_access_expression();
                     self.factory.ref_(self).update_property_access_expression(
                         left,
                         self.cache_expression(visit_node(
@@ -220,10 +244,12 @@ impl TransformGenerators {
             if is_compound_assignment(operator) {
                 return self
                     .factory
-                    .ref_(self).create_assignment(
+                    .ref_(self)
+                    .create_assignment(
                         target.clone(),
                         self.factory
-                            .ref_(self).create_binary_expression(
+                            .ref_(self)
+                            .create_binary_expression(
                                 self.cache_expression(target),
                                 get_non_assignment_operator_for_compound_assignment(operator),
                                 visit_node(
@@ -251,7 +277,12 @@ impl TransformGenerators {
             }
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     pub(super) fn visit_left_associative_binary_expression(
@@ -263,7 +294,9 @@ impl TransformGenerators {
         if self.contains_yield(Some(node_as_binary_expression.right)) {
             if is_logical_operator(node_as_binary_expression.operator_token.ref_(self).kind()) {
                 return self.visit_logical_binary_expression(node);
-            } else if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::CommaToken {
+            } else if node_as_binary_expression.operator_token.ref_(self).kind()
+                == SyntaxKind::CommaToken
+            {
                 return self.visit_comma_expression(node);
             }
 
@@ -285,7 +318,12 @@ impl TransformGenerators {
             );
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     pub(super) fn visit_comma_expression(
@@ -295,15 +333,14 @@ impl TransformGenerators {
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
-        self.visit_comma_expression_visit(
-            &mut pending_expressions,
-            node_as_binary_expression.left,
-        );
+        self.visit_comma_expression_visit(&mut pending_expressions, node_as_binary_expression.left);
         self.visit_comma_expression_visit(
             &mut pending_expressions,
             node_as_binary_expression.right,
         );
-        self.factory.ref_(self).inline_expressions(&pending_expressions)
+        self.factory
+            .ref_(self)
+            .inline_expressions(&pending_expressions)
     }
 
     pub(super) fn visit_comma_expression_visit(
@@ -312,23 +349,29 @@ impl TransformGenerators {
         node: Id<Node>, /*Expression*/
     ) {
         if is_binary_expression(&node.ref_(self))
-            && node.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::CommaToken
+            && node
+                .ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind()
+                == SyntaxKind::CommaToken
         {
             let node_ref = node.ref_(self);
             let node_as_binary_expression = node_ref.as_binary_expression();
             self.visit_comma_expression_visit(pending_expressions, node_as_binary_expression.left);
-            self.visit_comma_expression_visit(
-                pending_expressions,
-                node_as_binary_expression.right,
-            );
+            self.visit_comma_expression_visit(pending_expressions, node_as_binary_expression.right);
         } else {
             if self.contains_yield(Some(node)) && !pending_expressions.is_empty() {
                 self.emit_worker(
                     OpCode::Statement,
                     Some(
                         self.factory
-                            .ref_(self).create_expression_statement(
-                                self.factory.ref_(self).inline_expressions(pending_expressions),
+                            .ref_(self)
+                            .create_expression_statement(
+                                self.factory
+                                    .ref_(self)
+                                    .inline_expressions(pending_expressions),
                             )
                             .into(),
                     ),
@@ -355,7 +398,13 @@ impl TransformGenerators {
         let mut pending_expressions: Vec<Id<Node /*Expression*/>> = _d();
         for &elem in &*node_as_comma_list_expression.elements.ref_(self) {
             if is_binary_expression(&elem.ref_(self))
-                && elem.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::CommaToken
+                && elem
+                    .ref_(self)
+                    .as_binary_expression()
+                    .operator_token
+                    .ref_(self)
+                    .kind()
+                    == SyntaxKind::CommaToken
             {
                 pending_expressions.push(self.visit_comma_expression(elem));
             } else {
@@ -364,8 +413,11 @@ impl TransformGenerators {
                         OpCode::Statement,
                         Some(
                             self.factory
-                                .ref_(self).create_expression_statement(
-                                    self.factory.ref_(self).inline_expressions(&pending_expressions),
+                                .ref_(self)
+                                .create_expression_statement(
+                                    self.factory
+                                        .ref_(self)
+                                        .inline_expressions(&pending_expressions),
                                 )
                                 .into(),
                         ),
@@ -381,7 +433,12 @@ impl TransformGenerators {
                 ));
             }
         }
-        Some(self.factory.ref_(self).inline_expressions(&pending_expressions).into())
+        Some(
+            self.factory
+                .ref_(self)
+                .inline_expressions(&pending_expressions)
+                .into(),
+        )
     }
 
     pub(super) fn visit_logical_binary_expression(
@@ -403,7 +460,9 @@ impl TransformGenerators {
             ),
             Some(&*node_as_binary_expression.left.ref_(self)),
         );
-        if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::AmpersandAmpersandToken {
+        if node_as_binary_expression.operator_token.ref_(self).kind()
+            == SyntaxKind::AmpersandAmpersandToken
+        {
             self.emit_break_when_false(
                 result_label,
                 result_local.clone(),
@@ -479,7 +538,12 @@ impl TransformGenerators {
             return result_local;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     pub(super) fn visit_yield_expression(
@@ -592,11 +656,13 @@ impl TransformGenerators {
                 temp,
                 vec![self
                     .factory
-                    .ref_(self).create_array_literal_expression(Some(expressions), multi_line)],
+                    .ref_(self)
+                    .create_array_literal_expression(Some(expressions), multi_line)],
             )
         } else {
             self.factory
-                .ref_(self).create_array_literal_expression(
+                .ref_(self)
+                .create_array_literal_expression(
                     Some(if let Some(leading_element) = leading_element {
                         vec![leading_element].and_extend(expressions)
                     } else {

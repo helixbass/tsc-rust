@@ -7,10 +7,9 @@ use super::{
 };
 use crate::{
     Debug_, Node, ReadonlyTextRange, _d, get_original_node_id, id_text, is_generated_identifier,
-    last_or_undefined, GetOrInsertDefault, NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty,
-    Number, SyntaxKind,
-    HasArena, InArena,
-    CoreTransformationContext, TransformationContext,
+    last_or_undefined, CoreTransformationContext, GetOrInsertDefault, HasArena, InArena,
+    NamedDeclarationInterface, NodeArray, NodeExt, NonEmpty, Number, SyntaxKind,
+    TransformationContext,
 };
 
 impl TransformGenerators {
@@ -88,7 +87,9 @@ impl TransformGenerators {
         let start_label = self.define_label();
         let end_label = self.define_label();
         self.mark_label(start_label);
-        self.begin_block(self.alloc_code_block(WithBlock::new(expression, start_label, end_label).into()));
+        self.begin_block(
+            self.alloc_code_block(WithBlock::new(expression, start_label, end_label).into()),
+        );
     }
 
     pub(super) fn end_with_block(&self) {
@@ -102,15 +103,17 @@ impl TransformGenerators {
         let end_label = self.define_label();
         self.mark_label(start_label);
         self.begin_block(
-            self.alloc_code_block(ExceptionBlock::new(
-                ExceptionBlockState::Try,
-                start_label,
-                None,
-                None,
-                None,
-                end_label,
-            )
-            .into()),
+            self.alloc_code_block(
+                ExceptionBlock::new(
+                    ExceptionBlockState::Try,
+                    start_label,
+                    None,
+                    None,
+                    None,
+                    end_label,
+                )
+                .into(),
+            ),
         );
         self.emit_nop();
         end_label
@@ -128,7 +131,9 @@ impl TransformGenerators {
         let variable_name = variable_as_variable_declaration.name();
         if is_generated_identifier(&variable_name.ref_(self)) {
             name = variable_name.clone();
-            self.context.ref_(self).hoist_variable_declaration(variable_name);
+            self.context
+                .ref_(self)
+                .hoist_variable_declaration(variable_name);
         } else {
             let variable_name_ref = variable_name.ref_(self);
             let text = id_text(&variable_name_ref);
@@ -136,7 +141,9 @@ impl TransformGenerators {
             if self.maybe_renamed_catch_variables().is_none() {
                 self.set_renamed_catch_variables(Some(_d()));
                 self.set_renamed_catch_variable_declarations(_d());
-                self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
+                self.context
+                    .ref_(self)
+                    .enable_substitution(SyntaxKind::Identifier);
             }
 
             self.renamed_catch_variables_mut()
@@ -165,7 +172,8 @@ impl TransformGenerators {
             name,
             self.factory.ref_(self).create_call_expression(
                 self.factory
-                    .ref_(self).create_property_access_expression(self.state(), "sent"),
+                    .ref_(self)
+                    .create_property_access_expression(self.state(), "sent"),
                 Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             ),
@@ -224,7 +232,9 @@ impl TransformGenerators {
 
     pub(super) fn begin_loop_block(&self, continue_label: Label) -> Label {
         let break_label = self.define_label();
-        self.begin_block(self.alloc_code_block(LoopBlock::new(continue_label, false, break_label).into()));
+        self.begin_block(
+            self.alloc_code_block(LoopBlock::new(continue_label, false, break_label).into()),
+        );
         break_label
     }
 
@@ -266,7 +276,9 @@ impl TransformGenerators {
 
     pub(super) fn begin_labeled_block(&self, label_text: String) {
         let break_label = self.define_label();
-        self.begin_block(self.alloc_code_block(LabeledBlock::new(label_text, false, break_label).into()));
+        self.begin_block(
+            self.alloc_code_block(LabeledBlock::new(label_text, false, break_label).into()),
+        );
     }
 
     pub(super) fn end_labeled_block(&self) {
@@ -396,7 +408,10 @@ impl TransformGenerators {
             let mut label_expressions = self.maybe_label_expressions_mut();
             let label_expressions = label_expressions.get_or_insert_default_();
 
-            let expression = self.factory.ref_(self).create_numeric_literal(Number::new(-1.0), None);
+            let expression = self
+                .factory
+                .ref_(self)
+                .create_numeric_literal(Number::new(-1.0), None);
             label_expressions
                 .entry(label)
                 .or_default()
@@ -413,7 +428,8 @@ impl TransformGenerators {
         instruction: Instruction,
     ) -> Id<Node /*NumericLiteral*/> {
         self.factory
-            .ref_(self).create_numeric_literal(Number::new(instruction as u8 as f64), None)
+            .ref_(self)
+            .create_numeric_literal(Number::new(instruction as u8 as f64), None)
             .add_synthetic_trailing_comment(
                 SyntaxKind::MultiLineCommentTrivia,
                 get_instruction_name(instruction).unwrap(),
@@ -429,13 +445,16 @@ impl TransformGenerators {
     ) -> Id<Node /*ReturnStatement*/> {
         Debug_.assert_less_than(0, label, Some("Invalid label"));
         self.factory
-            .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
-                Some(vec![
-                    self.create_instruction(Instruction::Break),
-                    self.create_label(Some(label)),
-                ]),
-                None,
-            )))
+            .ref_(self)
+            .create_return_statement(Some(
+                self.factory.ref_(self).create_array_literal_expression(
+                    Some(vec![
+                        self.create_instruction(Instruction::Break),
+                        self.create_label(Some(label)),
+                    ]),
+                    None,
+                ),
+            ))
             .set_text_range(location, self)
     }
 
@@ -445,14 +464,17 @@ impl TransformGenerators {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Id<Node /*ReturnStatement*/> {
         self.factory
-            .ref_(self).create_return_statement(Some(self.factory.ref_(self).create_array_literal_expression(
-                Some(if let Some(expression) = expression {
-                    vec![self.create_instruction(Instruction::Return), expression]
-                } else {
-                    vec![self.create_instruction(Instruction::Return)]
-                }),
-                None,
-            )))
+            .ref_(self)
+            .create_return_statement(Some(
+                self.factory.ref_(self).create_array_literal_expression(
+                    Some(if let Some(expression) = expression {
+                        vec![self.create_instruction(Instruction::Return), expression]
+                    } else {
+                        vec![self.create_instruction(Instruction::Return)]
+                    }),
+                    None,
+                ),
+            ))
             .set_text_range(location, self)
     }
 
@@ -461,9 +483,11 @@ impl TransformGenerators {
         location: Option<&impl ReadonlyTextRange>,
     ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
-            .ref_(self).create_call_expression(
+            .ref_(self)
+            .create_call_expression(
                 self.factory
-                    .ref_(self).create_property_access_expression(self.state(), "sent"),
+                    .ref_(self)
+                    .create_property_access_expression(self.state(), "sent"),
                 Option::<Id<NodeArray>>::None,
                 Some(vec![]),
             )

@@ -3,12 +3,10 @@ use std::{borrow::Borrow, rc::Rc};
 use id_arena::Id;
 
 use crate::{
-    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node,
+    get_parse_tree_node, is_parse_tree_node, maybe_get_source_file_of_node, push_if_unique_eq,
     return_if_none, BaseTextRange, Debug_, EmitFlags, EmitHelper, EmitNode, GetOrInsertDefault,
-    Node, NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement, SourceMapRange,
-    StringOrNumber, SyntaxKind, SynthesizedComment,
-    HasArena, InArena,
-    push_if_unique_eq,
+    HasArena, InArena, Node, NodeInterface, NonEmpty, ReadonlyTextRange, SnippetElement,
+    SourceMapRange, StringOrNumber, SyntaxKind, SynthesizedComment,
 };
 
 pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> Id<EmitNode> {
@@ -36,11 +34,14 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> 
                     return ret;
                 }
 
-                let source_file = maybe_get_source_file_of_node(get_parse_tree_node(
-                    maybe_get_source_file_of_node(Some(node), arena),
-                    Option::<fn(Id<Node>) -> bool>::None,
+                let source_file = maybe_get_source_file_of_node(
+                    get_parse_tree_node(
+                        maybe_get_source_file_of_node(Some(node), arena),
+                        Option::<fn(Id<Node>) -> bool>::None,
+                        arena,
+                    ),
                     arena,
-                ), arena)
+                )
                 .unwrap_or_else(|| Debug_.fail(Some("Could not determine parsed source file.")));
                 get_or_create_emit_node(source_file, arena)
                     .ref_mut(arena)
@@ -50,7 +51,8 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> 
                     .push(node);
             }
 
-            node.ref_(arena).set_emit_node(Some(arena.alloc_emit_node(Default::default())));
+            node.ref_(arena)
+                .set_emit_node(Some(arena.alloc_emit_node(Default::default())));
         }
         Some(node_emit_node) => {
             Debug_.assert(
@@ -66,11 +68,10 @@ pub(crate) fn get_or_create_emit_node(node: Id<Node>, arena: &impl HasArena) -> 
 }
 
 pub fn dispose_emit_nodes(source_file: Option<Id<Node> /*SourceFile*/>, arena: &impl HasArena) {
-    let annotated_nodes = maybe_get_source_file_of_node(get_parse_tree_node(
-        source_file,
-        Option::<fn(Id<Node>) -> _>::None,
+    let annotated_nodes = maybe_get_source_file_of_node(
+        get_parse_tree_node(source_file, Option::<fn(Id<Node>) -> _>::None, arena),
         arena,
-    ), arena)
+    )
     .and_then(|source_file| source_file.ref_(arena).maybe_emit_node())
     .and_then(|emit_node| emit_node.ref_(arena).annotated_nodes.clone());
     if let Some(annotated_nodes) = annotated_nodes.as_ref() {
@@ -134,11 +135,13 @@ pub fn set_token_source_map_range(
 }
 
 pub(crate) fn get_starts_on_new_line(node: Id<Node>, arena: &impl HasArena) -> Option<bool> {
-    node.ref_(arena).maybe_emit_node()
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|emit_node| emit_node.ref_(arena).starts_on_new_line)
 }
 
-pub(crate) fn set_starts_on_new_line(node: Id<Node>, new_line: bool, arena: &impl HasArena) /*-> Id<Node>*/
+pub(crate) fn set_starts_on_new_line(node: Id<Node>, new_line: bool, arena: &impl HasArena)
+/*-> Id<Node>*/
 {
     get_or_create_emit_node(node, arena)
         .ref_mut(arena)
@@ -148,19 +151,29 @@ pub(crate) fn set_starts_on_new_line(node: Id<Node>, new_line: bool, arena: &imp
 
 pub fn get_comment_range(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
     // TODO: these semantics wouldn't work if the return value is treated mutably?
-    node.ref_(arena).maybe_emit_node()
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|node_emit_node| node_emit_node.ref_(arena).comment_range.clone())
         .unwrap_or_else(|| BaseTextRange::new(node.ref_(arena).pos(), node.ref_(arena).end()))
 }
 
-pub fn set_comment_range(node: Id<Node>, range: &impl ReadonlyTextRange /*TextRange*/, arena: &impl HasArena) -> Id<Node>
-{
-    get_or_create_emit_node(node, arena).ref_mut(arena).comment_range = Some(range.into());
+pub fn set_comment_range(
+    node: Id<Node>,
+    range: &impl ReadonlyTextRange, /*TextRange*/
+    arena: &impl HasArena,
+) -> Id<Node> {
+    get_or_create_emit_node(node, arena)
+        .ref_mut(arena)
+        .comment_range = Some(range.into());
     node
 }
 
-pub fn get_synthetic_leading_comments(node: Id<Node>, arena: &impl HasArena) -> Option<Vec<Rc<SynthesizedComment>>> {
-    node.ref_(arena).maybe_emit_node()
+pub fn get_synthetic_leading_comments(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Vec<Rc<SynthesizedComment>>> {
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|node_emit_node| node_emit_node.ref_(arena).leading_comments.clone())
 }
 
@@ -169,7 +182,9 @@ pub fn set_synthetic_leading_comments(
     comments: Option<Vec<Rc<SynthesizedComment>>>,
     arena: &impl HasArena,
 ) -> Id<Node> {
-    get_or_create_emit_node(node, arena).ref_mut(arena).leading_comments = comments;
+    get_or_create_emit_node(node, arena)
+        .ref_mut(arena)
+        .leading_comments = comments;
     node
 }
 
@@ -197,8 +212,12 @@ pub fn add_synthetic_leading_comment(
     set_synthetic_leading_comments(node, synthetic_leading_comments, arena);
 }
 
-pub fn get_synthetic_trailing_comments(node: Id<Node>, arena: &impl HasArena) -> Option<Vec<Rc<SynthesizedComment>>> {
-    node.ref_(arena).maybe_emit_node()
+pub fn get_synthetic_trailing_comments(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Vec<Rc<SynthesizedComment>>> {
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|node_emit_node| node_emit_node.ref_(arena).trailing_comments.clone())
 }
 
@@ -209,7 +228,9 @@ pub fn set_synthetic_trailing_comments(
 )
 /*-> Id<Node>*/
 {
-    get_or_create_emit_node(node, arena).ref_mut(arena).trailing_comments = comments;
+    get_or_create_emit_node(node, arena)
+        .ref_mut(arena)
+        .trailing_comments = comments;
 }
 
 pub fn add_synthetic_trailing_comment(
@@ -236,9 +257,17 @@ pub fn add_synthetic_trailing_comment(
     set_synthetic_trailing_comments(node, synthetic_trailing_comments, arena);
 }
 
-pub fn move_synthetic_comments(node: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+pub fn move_synthetic_comments(
+    node: Id<Node>,
+    original: Id<Node>,
+    arena: &impl HasArena,
+) -> Id<Node> {
     set_synthetic_leading_comments(node, get_synthetic_leading_comments(original, arena), arena);
-    set_synthetic_trailing_comments(node, get_synthetic_trailing_comments(original, arena), arena);
+    set_synthetic_trailing_comments(
+        node,
+        get_synthetic_trailing_comments(original, arena),
+        arena,
+    );
     let emit = get_or_create_emit_node(original, arena);
     let mut emit = emit.ref_mut(arena);
     emit.leading_comments = None;
@@ -246,8 +275,12 @@ pub fn move_synthetic_comments(node: Id<Node>, original: Id<Node>, arena: &impl 
     node
 }
 
-pub fn get_constant_value(node: Id<Node /*AccessExpression*/>, arena: &impl HasArena) -> Option<StringOrNumber> {
-    node.ref_(arena).maybe_emit_node()
+pub fn get_constant_value(
+    node: Id<Node /*AccessExpression*/>,
+    arena: &impl HasArena,
+) -> Option<StringOrNumber> {
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|node_emit_node| node_emit_node.ref_(arena).constant_value.clone())
 }
 
@@ -271,7 +304,11 @@ pub fn add_emit_helper(node: Id<Node>, helper: Id<EmitHelper>, arena: &impl HasA
     node
 }
 
-pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Id<EmitHelper>]>, arena: &impl HasArena) -> Id<Node> {
+pub fn add_emit_helpers(
+    node: Id<Node>,
+    helpers: Option<&[Id<EmitHelper>]>,
+    arena: &impl HasArena,
+) -> Id<Node> {
     if let Some(helpers) = helpers.non_empty() {
         let emit_node = get_or_create_emit_node(node, arena);
         let mut emit_node = emit_node.ref_mut(arena);
@@ -283,7 +320,8 @@ pub fn add_emit_helpers(node: Id<Node>, helpers: Option<&[Id<EmitHelper>]>, aren
 }
 
 pub fn get_emit_helpers(node: Id<Node>, arena: &impl HasArena) -> Option<Vec<Id<EmitHelper>>> {
-    node.ref_(arena).maybe_emit_node()
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|node_emit_node| node_emit_node.ref_(arena).helpers.clone())
 }
 
@@ -325,6 +363,7 @@ pub fn move_emit_helpers(
 }
 
 pub(crate) fn get_snippet_element(node: Id<Node>, arena: &impl HasArena) -> Option<SnippetElement> {
-    node.ref_(arena).maybe_emit_node()
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|node_emit_node| node_emit_node.ref_(arena).snippet_element)
 }

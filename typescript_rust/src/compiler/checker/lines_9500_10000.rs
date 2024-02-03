@@ -11,15 +11,13 @@ use crate::{
     get_effective_type_annotation_node, get_effective_type_parameter_declarations,
     get_object_flags, get_parameter_symbol_from_jsdoc, is_access_expression, is_binary_expression,
     is_export_assignment, is_in_js_file, is_jsdoc_template_tag, is_shorthand_ambient_module_symbol,
-    is_source_file, is_type_alias, length, maybe_append_if_unique_eq,
-    resolving_empty_array, return_ok_default_if_none, some, try_map, try_maybe_first_defined,
-    try_maybe_map, try_some, AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_,
-    Diagnostics, ElementFlags, HasArena, HasTypeArgumentsInterface, InArena,
-    InterfaceTypeInterface, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
-    Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeFormatFlags, TypeInterface,
-    TypeSystemPropertyName,
-    OptionInArena,
+    is_source_file, is_type_alias, length, maybe_append_if_unique_eq, resolving_empty_array,
+    return_ok_default_if_none, some, try_map, try_maybe_first_defined, try_maybe_map, try_some,
+    AsDoubleDeref, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags,
+    HasArena, HasTypeArgumentsInterface, InArena, InterfaceTypeInterface, InternalSymbolName, Node,
+    NodeInterface, ObjectFlags, OptionInArena, OptionTry, Signature, SignatureKind, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeFormatFlags, TypeInterface, TypeSystemPropertyName,
 };
 
 impl TypeChecker {
@@ -121,7 +119,9 @@ impl TypeChecker {
                 }
                 let export_equals = self
                     .get_merged_symbol(
-                        symbol.ref_(self).exports()
+                        symbol
+                            .ref_(self)
+                            .exports()
                             .ref_(self)
                             .get(InternalSymbolName::ExportEquals)
                             .cloned(),
@@ -276,7 +276,8 @@ impl TypeChecker {
         if self.no_implicit_any
             && (declaration.ref_(self).kind() != SyntaxKind::Parameter
                 || declaration
-                    .ref_(self).as_has_initializer()
+                    .ref_(self)
+                    .as_has_initializer()
                     .maybe_initializer()
                     .is_some())
         {
@@ -481,8 +482,9 @@ impl TypeChecker {
                         AssignmentDeclarationKind::Prototype
                             | AssignmentDeclarationKind::PrototypeProperty
                     ) {
-                        let symbol =
-                            self.get_symbol_of_node(node_present.ref_(self).as_binary_expression().left)?;
+                        let symbol = self.get_symbol_of_node(
+                            node_present.ref_(self).as_binary_expression().left,
+                        )?;
                         if let Some(symbol) = symbol {
                             if let Some(symbol_parent) = symbol.ref_(self).maybe_parent() {
                                 if find_ancestor(
@@ -535,7 +537,10 @@ impl TypeChecker {
                             Some(
                                 self.get_declared_type_of_type_parameter(
                                     self.get_symbol_of_node(
-                                        node_present.ref_(self).as_mapped_type_node().type_parameter,
+                                        node_present
+                                            .ref_(self)
+                                            .as_mapped_type_node()
+                                            .type_parameter,
                                     )?
                                     .unwrap(),
                                 ),
@@ -596,12 +601,22 @@ impl TypeChecker {
                     let outer_type_parameters =
                         self.get_outer_type_parameters(node_present, include_this_types)?;
                     return Ok(
-                        if let Some(node_tags) = node_present.ref_(self).as_jsdoc().tags.refed(self).as_deref() {
+                        if let Some(node_tags) = node_present
+                            .ref_(self)
+                            .as_jsdoc()
+                            .tags
+                            .refed(self)
+                            .as_deref()
+                        {
                             self.append_type_parameters(
                                 outer_type_parameters,
                                 &flat_map(Some(node_tags), |t: &Id<Node>, _| {
                                     if is_jsdoc_template_tag(&t.ref_(self)) {
-                                        t.ref_(self).as_jsdoc_template_tag().type_parameters.ref_(self).to_vec()
+                                        t.ref_(self)
+                                            .as_jsdoc_template_tag()
+                                            .type_parameters
+                                            .ref_(self)
+                                            .to_vec()
                                     } else {
                                         vec![]
                                     }
@@ -741,7 +756,9 @@ impl TypeChecker {
             |sig: &Id<Signature>| {
                 (is_javascript
                     || type_arg_count
-                        >= self.get_min_type_argument_count(sig.ref_(self).maybe_type_parameters().as_deref()))
+                        >= self.get_min_type_argument_count(
+                            sig.ref_(self).maybe_type_parameters().as_deref(),
+                        ))
                     && type_arg_count <= length(sig.ref_(self).maybe_type_parameters().as_deref())
             },
         ))
@@ -812,23 +829,26 @@ impl TypeChecker {
             }
             let base_constructor_type = self.check_expression(
                 base_type_node
-                    .ref_(self).as_expression_with_type_arguments()
+                    .ref_(self)
+                    .as_expression_with_type_arguments()
                     .expression,
                 None,
                 None,
             )?;
-            if let Some(extended) = extended
-                .filter(|&extended| base_type_node != extended)
-            {
+            if let Some(extended) = extended.filter(|&extended| base_type_node != extended) {
                 Debug_.assert(
                     extended
-                        .ref_(self).as_expression_with_type_arguments()
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
                         .maybe_type_arguments()
                         .is_none(),
                     None,
                 );
                 self.check_expression(
-                    extended.ref_(self).as_expression_with_type_arguments().expression,
+                    extended
+                        .ref_(self)
+                        .as_expression_with_type_arguments()
+                        .expression,
                     None,
                     None,
                 )?;
@@ -865,7 +885,8 @@ impl TypeChecker {
                 let err = self.error(
                     Some(
                         base_type_node
-                            .ref_(self).as_expression_with_type_arguments()
+                            .ref_(self)
+                            .as_expression_with_type_arguments()
                             .expression,
                     ),
                     &Diagnostics::Type_0_is_not_a_constructor_function_type,
@@ -947,7 +968,9 @@ impl TypeChecker {
             .as_deref()
         {
             for &declaration in type_symbol_declarations {
-                let Some(implements_type_nodes) = get_effective_implements_type_nodes(declaration, self) else {
+                let Some(implements_type_nodes) =
+                    get_effective_implements_type_nodes(declaration, self)
+                else {
                     continue;
                 };
                 for node in implements_type_nodes {
@@ -961,7 +984,11 @@ impl TypeChecker {
         Ok(resolved_implements_types)
     }
 
-    pub(super) fn report_circular_base_type(&self, node: Id<Node>, type_: Id<Type>) -> io::Result<()> {
+    pub(super) fn report_circular_base_type(
+        &self,
+        node: Id<Node>,
+        type_: Id<Type>,
+    ) -> io::Result<()> {
         self.error(
             Some(node),
             &Diagnostics::Type_0_recursively_references_itself_as_a_base_type,
@@ -997,9 +1024,9 @@ impl TypeChecker {
                     type_
                         .ref_(self)
                         .as_not_actually_interface_type()
-                        .set_resolved_base_types(
-                        Some(self.alloc_vec_type(vec![self.get_tuple_base_type(type_)?]))
-                    );
+                        .set_resolved_base_types(Some(
+                            self.alloc_vec_type(vec![self.get_tuple_base_type(type_)?]),
+                        ));
                 } else if type_
                     .ref_(self)
                     .symbol()
@@ -1052,14 +1079,13 @@ impl TypeChecker {
                 .as_not_actually_interface_type()
                 .set_base_types_resolved(Some(true));
         }
-        let ret =
-            type_
-                .ref_(self)
-                .as_not_actually_interface_type()
-                .maybe_resolved_base_types()
-                .unwrap()
-                .ref_(self)
-                .clone();
+        let ret = type_
+            .ref_(self)
+            .as_not_actually_interface_type()
+            .maybe_resolved_base_types()
+            .unwrap()
+            .ref_(self)
+            .clone();
         Ok(ret)
     }
 
@@ -1166,16 +1192,19 @@ impl TypeChecker {
             let constructors = self.get_instantiated_constructors_for_type_arguments(
                 base_constructor_type,
                 base_type_node
-                    .ref_(self).as_expression_with_type_arguments()
+                    .ref_(self)
+                    .as_expression_with_type_arguments()
                     .maybe_type_arguments()
-                    .refed(self).as_double_deref(),
+                    .refed(self)
+                    .as_double_deref(),
                 base_type_node,
             )?;
             if constructors.is_empty() {
                 self.error(
                     Some(
                         base_type_node
-                            .ref_(self).as_expression_with_type_arguments()
+                            .ref_(self)
+                            .as_expression_with_type_arguments()
                             .expression,
                     ),
                     &Diagnostics::No_base_constructor_has_the_specified_number_of_type_arguments,
@@ -1209,17 +1238,20 @@ impl TypeChecker {
                     self.type_to_string_(reduced_base_type, Option::<Id<Node>>::None, None, None)?
                 ])
             );
-            self.diagnostics().add(self.alloc_diagnostic(
-                create_diagnostic_for_node_from_message_chain(
-                    base_type_node
-                        .ref_(self).as_expression_with_type_arguments()
-                        .expression,
-                    diagnostic,
-                    None,
-                    self,
-                )
-                .into(),
-            ));
+            self.diagnostics().add(
+                self.alloc_diagnostic(
+                    create_diagnostic_for_node_from_message_chain(
+                        base_type_node
+                            .ref_(self)
+                            .as_expression_with_type_arguments()
+                            .expression,
+                        diagnostic,
+                        None,
+                        self,
+                    )
+                    .into(),
+                ),
+            );
             let ret = self.alloc_vec_type(vec![]);
             type_
                 .ref_(self)
@@ -1253,7 +1285,9 @@ impl TypeChecker {
             .ref_(self)
             .as_not_actually_interface_type()
             .maybe_resolved_base_types()
-            .unwrap() == resolving_empty_array(self) {
+            .unwrap()
+            == resolving_empty_array(self)
+        {
             type_
                 .ref_(self)
                 .as_not_actually_interface_type()

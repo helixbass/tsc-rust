@@ -11,14 +11,13 @@ use super::{
     parse_response_file, validate_json_option_value, watch_options_did_you_mean_diagnostics,
 };
 use crate::{
-    create_compiler_diagnostic, for_each, get_spelling_suggestion, starts_with, trim_string,
-    AlternateModeDiagnostics, BuildOptions, CharacterCodes, CommandLineOption,
-    CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
-    CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue,
-    Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics, HasArena,
-    ModuleKind, ParsedCommandLineWithBaseOptions, ScriptTarget, StringOrDiagnosticMessage,
-    WatchOptions,
-    InArena, per_arena, AllArenas,
+    create_compiler_diagnostic, for_each, get_spelling_suggestion, per_arena, starts_with,
+    trim_string, AllArenas, AlternateModeDiagnostics, BuildOptions, CharacterCodes,
+    CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
+    CommandLineOptionOfListType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
+    CompilerOptionsValue, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
+    HasArena, InArena, ModuleKind, ParsedCommandLineWithBaseOptions, ScriptTarget,
+    StringOrDiagnosticMessage, WatchOptions,
 };
 
 pub fn option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
@@ -36,7 +35,9 @@ pub fn option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption
     )
 }
 
-pub(crate) fn semantic_diagnostics_option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn semantic_diagnostics_option_declarations(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
@@ -51,7 +52,9 @@ pub(crate) fn semantic_diagnostics_option_declarations(arena: &impl HasArena) ->
     )
 }
 
-pub(crate) fn affects_emit_option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn affects_emit_option_declarations(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
@@ -66,7 +69,9 @@ pub(crate) fn affects_emit_option_declarations(arena: &impl HasArena) -> Id<Vec<
     )
 }
 
-pub(crate) fn module_resolution_option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn module_resolution_option_declarations(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
@@ -81,7 +86,9 @@ pub(crate) fn module_resolution_option_declarations(arena: &impl HasArena) -> Id
     )
 }
 
-pub(crate) fn source_file_affecting_compiler_options(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn source_file_affecting_compiler_options(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
@@ -100,7 +107,9 @@ pub(crate) fn source_file_affecting_compiler_options(arena: &impl HasArena) -> I
     )
 }
 
-pub(crate) fn options_affecting_program_structure(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn options_affecting_program_structure(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
@@ -115,7 +124,9 @@ pub(crate) fn options_affecting_program_structure(arena: &impl HasArena) -> Id<V
     )
 }
 
-pub(crate) fn transpile_option_value_compiler_options(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn transpile_option_value_compiler_options(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
@@ -187,49 +198,88 @@ pub(crate) fn build_opts(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>
     )
 }
 
-pub(crate) fn type_acquisition_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn type_acquisition_declarations(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
-        arena.alloc_vec_command_line_option(
-            vec![
-                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
-                        .name("enableAutoDiscovery".to_string())
-                        .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+        arena.alloc_vec_command_line_option(vec![
+            arena.alloc_command_line_option(
+                CommandLineOptionBaseBuilder::default()
+                    .name("enableAutoDiscovery".to_string())
+                    .type_(CommandLineOptionType::Boolean)
+                    .default_value_description(StringOrDiagnosticMessage::String(
+                        "false".to_string()
+                    ))
+                    .build()
+                    .unwrap()
+                    .try_into()
+                    .unwrap()
+            ),
+            arena.alloc_command_line_option(
+                CommandLineOptionBaseBuilder::default()
                     .name("enable".to_string())
                     .type_(CommandLineOptionType::Boolean)
-                    .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                    .build().unwrap().try_into().unwrap()),
-                arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                    .default_value_description(StringOrDiagnosticMessage::String(
+                        "false".to_string()
+                    ))
+                    .build()
+                    .unwrap()
+                    .try_into()
+                    .unwrap()
+            ),
+            arena.alloc_command_line_option(
+                CommandLineOptionOfListType::new(
                     CommandLineOptionBaseBuilder::default()
                         .name("include".to_string())
                         .type_(CommandLineOptionType::List)
-                        .build().unwrap(),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
-                        .name("include".to_string())
-                        .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                ).into()),
-                arena.alloc_command_line_option(CommandLineOptionOfListType::new(
+                        .build()
+                        .unwrap(),
+                    arena.alloc_command_line_option(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("include".to_string())
+                            .type_(CommandLineOptionType::String)
+                            .build()
+                            .unwrap()
+                            .try_into()
+                            .unwrap()
+                    ),
+                )
+                .into()
+            ),
+            arena.alloc_command_line_option(
+                CommandLineOptionOfListType::new(
                     CommandLineOptionBaseBuilder::default()
                         .name("exclude".to_string())
                         .type_(CommandLineOptionType::List)
-                        .build().unwrap(),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
-                        .name("exclude".to_string())
-                        .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                ).into()),
-                arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap(),
+                    arena.alloc_command_line_option(
+                        CommandLineOptionBaseBuilder::default()
+                            .name("exclude".to_string())
+                            .type_(CommandLineOptionType::String)
+                            .build()
+                            .unwrap()
+                            .try_into()
+                            .unwrap()
+                    ),
+                )
+                .into()
+            ),
+            arena.alloc_command_line_option(
+                CommandLineOptionBaseBuilder::default()
                     .name("disableFilenameBasedTypeAcquisition".to_string())
                     .type_(CommandLineOptionType::Boolean)
-                    .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                    .build().unwrap().try_into().unwrap()),
-            ]
-        )
+                    .default_value_description(StringOrDiagnosticMessage::String(
+                        "false".to_string()
+                    ))
+                    .build()
+                    .unwrap()
+                    .try_into()
+                    .unwrap()
+            ),
+        ])
     )
 }
 
@@ -238,13 +288,19 @@ pub struct OptionsNameMap {
     pub short_option_names: HashMap<String, String>,
 }
 
-pub fn create_option_name_map(option_declarations_: &[Id<CommandLineOption>], arena: &impl HasArena) -> OptionsNameMap {
+pub fn create_option_name_map(
+    option_declarations_: &[Id<CommandLineOption>],
+    arena: &impl HasArena,
+) -> OptionsNameMap {
     let mut options_name_map = HashMap::new();
     let mut short_option_names = HashMap::new();
     for_each(option_declarations_, |option, _| {
         options_name_map.insert(option.ref_(arena).name().to_lowercase(), option.clone());
         if let Some(option_short_name) = option.ref_(arena).maybe_short_name() {
-            short_option_names.insert(option_short_name.to_owned(), option.ref_(arena).name().to_owned());
+            short_option_names.insert(
+                option_short_name.to_owned(),
+                option.ref_(arena).name().to_owned(),
+            );
         }
         Option::<()>::None
     });
@@ -259,7 +315,10 @@ pub(crate) fn get_options_name_map(arena: &impl HasArena) -> Id<OptionsNameMap> 
     per_arena!(
         OptionsNameMap,
         arena,
-        arena.alloc_options_name_map(create_option_name_map(&option_declarations(arena).ref_(arena), arena))
+        arena.alloc_options_name_map(create_option_name_map(
+            &option_declarations(arena).ref_(arena),
+            arena
+        ))
     )
 }
 
@@ -277,14 +336,17 @@ pub(super) fn compiler_options_alternate_mode() -> Rc<AlternateModeDiagnostics> 
 
 // TODO: make static (per-arena)?
 pub(crate) fn get_default_init_compiler_options(arena: &impl HasArena) -> Id<CompilerOptions> {
-    arena.alloc_compiler_options(CompilerOptionsBuilder::default()
-        .module(ModuleKind::CommonJS)
-        .target(ScriptTarget::ES2016)
-        .strict(true)
-        .es_module_interop(true)
-        .force_consistent_casing_in_file_names(true)
-        .skip_lib_check(true)
-        .build().unwrap())
+    arena.alloc_compiler_options(
+        CompilerOptionsBuilder::default()
+            .module(ModuleKind::CommonJS)
+            .target(ScriptTarget::ES2016)
+            .strict(true)
+            .es_module_interop(true)
+            .force_consistent_casing_in_file_names(true)
+            .skip_lib_check(true)
+            .build()
+            .unwrap(),
+    )
 }
 
 pub(crate) fn convert_enable_auto_discovery_to_enable(
@@ -377,7 +439,11 @@ pub fn parse_list_type_option(
     }
     let values = value.split(",");
     let opt_as_command_line_option_of_list_type = opt.as_command_line_option_of_list_type();
-    match opt_as_command_line_option_of_list_type.element.ref_(arena).type_() {
+    match opt_as_command_line_option_of_list_type
+        .element
+        .ref_(arena)
+        .type_()
+    {
         // CommandLineOptionType::Number =>
         CommandLineOptionType::String => Some(
             values
@@ -436,7 +502,8 @@ pub(super) fn create_unknown_option_error(
 ) -> Id<Diagnostic> {
     if let Some(diagnostics_alternate_mode) = diagnostics.maybe_alternate_mode() {
         if (diagnostics_alternate_mode.get_options_name_map)(arena.arena())
-            .ref_(arena).options_name_map
+            .ref_(arena)
+            .options_name_map
             .contains_key(&unknown_option.to_lowercase())
         {
             return create_diagnostics(
@@ -450,7 +517,9 @@ pub(super) fn create_unknown_option_error(
     let possible_option = get_spelling_suggestion(
         unknown_option,
         &*diagnostics_option_declarations.ref_(arena),
-        |candidate: &Id<CommandLineOption>| Some(get_option_name(&candidate.ref_(arena)).to_owned()),
+        |candidate: &Id<CommandLineOption>| {
+            Some(get_option_name(&candidate.ref_(arena)).to_owned())
+        },
     );
     match possible_option {
         Some(possible_option) => create_diagnostics(
@@ -1149,7 +1218,15 @@ pub(super) fn parse_strings(
                 arena,
             );
             if let Some(opt) = opt {
-                i = parse_option_value(args, i, diagnostics, &opt.ref_(arena), options, errors, arena);
+                i = parse_option_value(
+                    args,
+                    i,
+                    diagnostics,
+                    &opt.ref_(arena),
+                    options,
+                    errors,
+                    arena,
+                );
             } else {
                 let watch_opt = get_option_declaration_from_name(
                     || watch_options_did_you_mean_diagnostics().get_options_name_map(),
@@ -1175,7 +1252,9 @@ pub(super) fn parse_strings(
                     errors.push(create_unknown_option_error(
                         &input_option_name,
                         diagnostics.as_did_you_mean_options_diagnostics(),
-                        |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
+                        |message, args| {
+                            arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into())
+                        },
                         Some(s),
                         arena,
                     ));

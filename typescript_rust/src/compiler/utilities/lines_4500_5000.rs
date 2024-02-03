@@ -7,21 +7,20 @@ use super::{
     get_set_accessor_value_parameter,
 };
 use crate::{
-    compute_line_and_character_of_position, flat_map, get_jsdoc_deprecated_tag_no_cache,
-    get_jsdoc_override_tag_no_cache, get_jsdoc_private_tag_no_cache,
-    get_jsdoc_protected_tag_no_cache, get_jsdoc_public_tag_no_cache,
-    get_jsdoc_readonly_tag_no_cache, get_jsdoc_return_type, get_jsdoc_tags, get_jsdoc_type,
-    get_leading_comment_ranges, is_binary_expression, is_class_element,
-    is_class_static_block_declaration, is_expression_with_type_arguments, is_function_declaration,
-    is_heritage_clause, is_in_js_file, is_jsdoc_property_like_tag, is_jsdoc_signature,
-    is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression, is_parameter,
-    is_pinned_comment, is_property_access_entity_name_expression, is_white_space_single_line, last,
-    maybe_filter, maybe_is_class_like, maybe_text_char_at_index, skip_trivia, text_char_at_index,
-    text_substring, trim_string, AsDoubleDeref, CharacterCodes, CommentRange, DetachedCommentInfo,
-    EmitTextWriter, HasArena, InArena, ModifierFlags, ModifiersArray, Node, NodeFlags,
-    NodeInterface, ReadonlyTextRange, SourceTextAsChars, SyntaxKind, TextRange,
-    get_factory,
-    OptionInArena,
+    compute_line_and_character_of_position, flat_map, get_factory,
+    get_jsdoc_deprecated_tag_no_cache, get_jsdoc_override_tag_no_cache,
+    get_jsdoc_private_tag_no_cache, get_jsdoc_protected_tag_no_cache,
+    get_jsdoc_public_tag_no_cache, get_jsdoc_readonly_tag_no_cache, get_jsdoc_return_type,
+    get_jsdoc_tags, get_jsdoc_type, get_leading_comment_ranges, is_binary_expression,
+    is_class_element, is_class_static_block_declaration, is_expression_with_type_arguments,
+    is_function_declaration, is_heritage_clause, is_in_js_file, is_jsdoc_property_like_tag,
+    is_jsdoc_signature, is_jsdoc_template_tag, is_jsdoc_type_alias, is_left_hand_side_expression,
+    is_parameter, is_pinned_comment, is_property_access_entity_name_expression,
+    is_white_space_single_line, last, maybe_filter, maybe_is_class_like, maybe_text_char_at_index,
+    skip_trivia, text_char_at_index, text_substring, trim_string, AsDoubleDeref, CharacterCodes,
+    CommentRange, DetachedCommentInfo, EmitTextWriter, HasArena, InArena, ModifierFlags,
+    ModifiersArray, Node, NodeFlags, NodeInterface, OptionInArena, ReadonlyTextRange,
+    SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 pub fn get_effective_type_annotation_node(
@@ -32,13 +31,15 @@ pub fn get_effective_type_annotation_node(
         return None;
     }
     let type_ = node
-        .ref_(arena).maybe_as_has_type()
+        .ref_(arena)
+        .maybe_as_has_type()
         .and_then(|has_type| has_type.maybe_type());
     if type_.is_some() || !is_in_js_file(Some(&node.ref_(arena))) {
         return type_;
     }
     if is_jsdoc_property_like_tag(&node.ref_(arena)) {
-        node.ref_(arena).as_jsdoc_property_like_tag()
+        node.ref_(arena)
+            .as_jsdoc_property_like_tag()
             .type_expression
             .map(|type_expression| type_expression.ref_(arena).as_jsdoc_type_expression().type_)
     } else {
@@ -52,43 +53,68 @@ pub fn get_type_annotation_node(node: &Node) -> Option<Id<Node /*TypeNode*/>> {
 }
 
 pub fn get_effective_return_type_node(
-    node: Id<Node> /*SignatureDeclaration | JSDocSignature*/, arena: &impl HasArena,
+    node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeNode*/>> {
     if is_jsdoc_signature(&node.ref_(arena)) {
-        node.ref_(arena).as_jsdoc_signature()
+        node.ref_(arena)
+            .as_jsdoc_signature()
             .type_
-            .and_then(|type_| type_.ref_(arena).as_base_jsdoc_type_like_tag().type_expression)
+            .and_then(|type_| {
+                type_
+                    .ref_(arena)
+                    .as_base_jsdoc_type_like_tag()
+                    .type_expression
+            })
             .map(|type_expression| type_expression.ref_(arena).as_jsdoc_type_expression().type_)
     } else {
-        node.ref_(arena).as_signature_declaration().maybe_type().or_else(|| {
-            if is_in_js_file(Some(&node.ref_(arena))) {
-                get_jsdoc_return_type(node, arena)
-            } else {
-                None
-            }
-        })
+        node.ref_(arena)
+            .as_signature_declaration()
+            .maybe_type()
+            .or_else(|| {
+                if is_in_js_file(Some(&node.ref_(arena))) {
+                    get_jsdoc_return_type(node, arena)
+                } else {
+                    None
+                }
+            })
     }
 }
 
 pub fn get_jsdoc_type_parameter_declarations(
-    node: Id<Node> /*DeclarationWithTypeParameters*/,
+    node: Id<Node>, /*DeclarationWithTypeParameters*/
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*TypeParameterDeclaration*/>> {
-    flat_map(Some(&*get_jsdoc_tags(node, arena).ref_(arena)), |&tag, _| {
-        if is_non_type_alias_template(tag, arena) {
-            tag.ref_(arena).as_jsdoc_template_tag().type_parameters.ref_(arena).to_vec()
-        } else {
-            vec![]
-        }
-    })
+    flat_map(
+        Some(&*get_jsdoc_tags(node, arena).ref_(arena)),
+        |&tag, _| {
+            if is_non_type_alias_template(tag, arena) {
+                tag.ref_(arena)
+                    .as_jsdoc_template_tag()
+                    .type_parameters
+                    .ref_(arena)
+                    .to_vec()
+            } else {
+                vec![]
+            }
+        },
+    )
 }
 
 pub fn is_non_type_alias_template(tag: Id<Node> /*JSDocTag*/, arena: &impl HasArena) -> bool {
     is_jsdoc_template_tag(&tag.ref_(arena))
         && !(tag.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::JSDocComment
-            && tag.ref_(arena).parent().ref_(arena).as_jsdoc().tags.map_or(false, |tags| {
-                tags.ref_(arena).iter().any(|tag| is_jsdoc_type_alias(&tag.ref_(arena)))
-            }))
+            && tag
+                .ref_(arena)
+                .parent()
+                .ref_(arena)
+                .as_jsdoc()
+                .tags
+                .map_or(false, |tags| {
+                    tags.ref_(arena)
+                        .iter()
+                        .any(|tag| is_jsdoc_type_alias(&tag.ref_(arena)))
+                }))
 }
 
 pub fn get_effective_set_accessor_type_annotation_node(
@@ -449,12 +475,15 @@ fn get_modifier_flags_worker(
     always_include_jsdoc: Option<bool>,
     arena: &impl HasArena,
 ) -> ModifierFlags {
-    if node.ref_(arena).kind() >= SyntaxKind::FirstToken && node.ref_(arena).kind() <= SyntaxKind::LastToken {
+    if node.ref_(arena).kind() >= SyntaxKind::FirstToken
+        && node.ref_(arena).kind() <= SyntaxKind::LastToken
+    {
         return ModifierFlags::None;
     }
 
     if !node
-        .ref_(arena).modifier_flags_cache()
+        .ref_(arena)
+        .modifier_flags_cache()
         .intersects(ModifierFlags::HasComputedFlags)
     {
         node.ref_(arena).set_modifier_flags_cache(
@@ -464,7 +493,8 @@ fn get_modifier_flags_worker(
 
     if include_jsdoc
         && !node
-            .ref_(arena).modifier_flags_cache()
+            .ref_(arena)
+            .modifier_flags_cache()
             .intersects(ModifierFlags::HasComputedJSDocModifiers)
         && (always_include_jsdoc == Some(true) || is_in_js_file(Some(&node.ref_(arena))))
         && node.ref_(arena).maybe_parent().is_some()
@@ -527,15 +557,27 @@ pub fn get_effective_modifier_flags_no_cache(
     node: Id<Node>,
     arena: &impl HasArena,
 ) -> ModifierFlags {
-    get_syntactic_modifier_flags_no_cache(node, arena) | get_jsdoc_modifier_flags_no_cache(node, arena)
+    get_syntactic_modifier_flags_no_cache(node, arena)
+        | get_jsdoc_modifier_flags_no_cache(node, arena)
 }
 
 fn get_syntactic_modifier_flags_no_cache(node: Id<Node>, arena: &impl HasArena) -> ModifierFlags {
-    let mut flags = modifiers_to_flags(node.ref_(arena).maybe_modifiers().refed(arena).as_double_deref(), arena);
-    if node.ref_(arena).flags().intersects(NodeFlags::NestedNamespace)
+    let mut flags = modifiers_to_flags(
+        node.ref_(arena)
+            .maybe_modifiers()
+            .refed(arena)
+            .as_double_deref(),
+        arena,
+    );
+    if node
+        .ref_(arena)
+        .flags()
+        .intersects(NodeFlags::NestedNamespace)
         || node.ref_(arena).kind() == SyntaxKind::Identifier
             && matches!(
-                node.ref_(arena).as_identifier().maybe_is_in_jsdoc_namespace(),
+                node.ref_(arena)
+                    .as_identifier()
+                    .maybe_is_in_jsdoc_namespace(),
                 Some(true)
             )
     {
@@ -544,7 +586,10 @@ fn get_syntactic_modifier_flags_no_cache(node: Id<Node>, arena: &impl HasArena) 
     flags
 }
 
-pub fn modifiers_to_flags(modifiers: Option<&[Id<Node /*Modifier*/>]>, arena: &impl HasArena) -> ModifierFlags {
+pub fn modifiers_to_flags(
+    modifiers: Option<&[Id<Node /*Modifier*/>]>,
+    arena: &impl HasArena,
+) -> ModifierFlags {
     let mut flags = ModifierFlags::None;
     if let Some(modifiers) = modifiers {
         for modifier in modifiers {
@@ -572,14 +617,15 @@ pub fn modifier_to_flag(token: SyntaxKind) -> ModifierFlags {
     }
 }
 
-pub fn create_modifiers(modifier_flags: ModifierFlags, arena: &impl HasArena) -> Option<ModifiersArray> {
+pub fn create_modifiers(
+    modifier_flags: ModifierFlags,
+    arena: &impl HasArena,
+) -> Option<ModifiersArray> {
     if modifier_flags != ModifierFlags::None {
-        Some(
-            get_factory(arena).create_node_array(
-                Some(get_factory(arena).create_modifiers_from_modifier_flags(modifier_flags)),
-                None,
-            )
-        )
+        Some(get_factory(arena).create_node_array(
+            Some(get_factory(arena).create_modifiers_from_modifier_flags(modifier_flags)),
+            None,
+        ))
     } else {
         None
     }
@@ -607,7 +653,13 @@ pub fn is_logical_or_coalescing_assignment_expression(
     expr: Id<Node>, /*BinaryExpression*/
     arena: &impl HasArena,
 ) -> bool {
-    is_logical_or_coalescing_assignment_operator(expr.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind())
+    is_logical_or_coalescing_assignment_operator(
+        expr.ref_(arena)
+            .as_binary_expression()
+            .operator_token
+            .ref_(arena)
+            .kind(),
+    )
 }
 
 pub fn is_assignment_operator(token: SyntaxKind) -> bool {
@@ -657,7 +709,11 @@ pub fn try_get_class_implementing_or_extending_expression_with_type_arguments(
     }
 }
 
-pub fn is_assignment_expression(node: Id<Node>, exclude_compound_assignment: Option<bool>, arena: &impl HasArena) -> bool {
+pub fn is_assignment_expression(
+    node: Id<Node>,
+    exclude_compound_assignment: Option<bool>,
+    arena: &impl HasArena,
+) -> bool {
     let exclude_compound_assignment = exclude_compound_assignment.unwrap_or(false);
     if !is_binary_expression(&node.ref_(arena)) {
         return false;
@@ -673,12 +729,23 @@ pub fn is_assignment_expression(node: Id<Node>, exclude_compound_assignment: Opt
 
 pub fn is_left_hand_side_of_assignment(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_assignment_expression(node.ref_(arena).parent(), None, arena)
-        && node.ref_(arena).parent().ref_(arena).as_binary_expression().left == node
+        && node
+            .ref_(arena)
+            .parent()
+            .ref_(arena)
+            .as_binary_expression()
+            .left
+            == node
 }
 
 pub fn is_destructuring_assignment(node: Id<Node>, arena: &impl HasArena) -> bool {
     if is_assignment_expression(node, Some(true), arena) {
-        let kind = node.ref_(arena).as_binary_expression().left.ref_(arena).kind();
+        let kind = node
+            .ref_(arena)
+            .as_binary_expression()
+            .left
+            .ref_(arena)
+            .kind();
         return matches!(
             kind,
             SyntaxKind::ObjectLiteralExpression | SyntaxKind::ArrayLiteralExpression
@@ -696,5 +763,6 @@ pub fn is_expression_with_type_arguments_in_class_extends_clause(
 }
 
 pub fn is_entity_name_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
-    node.ref_(arena).kind() == SyntaxKind::Identifier || is_property_access_entity_name_expression(node, arena)
+    node.ref_(arena).kind() == SyntaxKind::Identifier
+        || is_property_access_entity_name_expression(node, arena)
 }

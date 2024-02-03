@@ -13,13 +13,13 @@ use crate::{
     has_js_file_extension, has_jsdoc_nodes, is_declaration_file_name, maybe_for_each, maybe_map,
     node_modules_path_part, out_file, package_id_to_string, resolve_module_name,
     set_resolved_type_reference_directive, some, string_contains, to_file_name_lower_case,
-    try_for_each, try_maybe_for_each, AsDoubleDeref, CompilerHost, CompilerOptionsBuilder,
-    DiagnosticMessage, Diagnostics, Extension, FileIncludeKind, FileIncludeReason, FileReference,
-    ModuleResolutionKind, Node, NodeArray, NodeId, NodeIdOverride, NodeInterface,
-    NodeSymbolOverride, NonEmpty, PackageId, Path, Program, RedirectInfo, ReferencedFile,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile,
-    SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
-    HasArena, AllArenas, InArena, OptionInArena,
+    try_for_each, try_maybe_for_each, AllArenas, AsDoubleDeref, CompilerHost,
+    CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension, FileIncludeKind,
+    FileIncludeReason, FileReference, HasArena, InArena, ModuleResolutionKind, Node, NodeArray,
+    NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, NonEmpty, OptionInArena, PackageId,
+    Path, Program, RedirectInfo, ReferencedFile, ResolvedProjectReference,
+    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile, SourceFileLike,
+    SourceOfProjectReferenceRedirect, Symbol,
 };
 
 impl Program {
@@ -32,9 +32,10 @@ impl Program {
         let mut current = source_file;
         loop {
             let child = if is_java_script_file && has_jsdoc_nodes(&current.ref_(self)) {
-                maybe_for_each(current.ref_(self).maybe_js_doc().as_ref(), |&child: &Id<Node>, _| {
-                    self.get_containing_child(position, child)
-                })
+                maybe_for_each(
+                    current.ref_(self).maybe_js_doc().as_ref(),
+                    |&child: &Id<Node>, _| self.get_containing_child(position, child),
+                )
             } else {
                 None
             }
@@ -129,7 +130,8 @@ impl Program {
                             &self
                                 .get_source_file_by_path(&reason.unwrap().as_referenced_file().file)
                                 .unwrap()
-                                .ref_(self).as_source_file()
+                                .ref_(self)
+                                .as_source_file()
                                 .file_name(),
                         )
                 {
@@ -138,11 +140,12 @@ impl Program {
             }
             source_file
         } else {
-            let source_file_no_extension = if self.options.ref_(self).allow_non_ts_extensions == Some(true) {
-                get_source_file(file_name)?
-            } else {
-                None
-            };
+            let source_file_no_extension =
+                if self.options.ref_(self).allow_non_ts_extensions == Some(true) {
+                    get_source_file(file_name)?
+                } else {
+                    None
+                };
             if source_file_no_extension.is_some() {
                 return Ok(source_file_no_extension);
             }
@@ -288,12 +291,16 @@ impl Program {
         self.source_files_found_searching_node_modules_mut()
             .insert((**path).to_owned(), self.current_node_modules_depth() > 0);
         let redirect = redirect.alloc(self.arena());
-        redirect.ref_(self).set_id_override(self.alloc_node_id_override(Box::new(RedirectSourceFileIdOverride::new(
-            redirect.clone(),
-        ))));
-        redirect.ref_(self).set_symbol_override(self.alloc_node_symbol_override(Box::new(RedirectSourceFileSymbolOverride::new(
-            redirect.clone(),
-        ))));
+        redirect
+            .ref_(self)
+            .set_id_override(self.alloc_node_id_override(Box::new(
+                RedirectSourceFileIdOverride::new(redirect.clone()),
+            )));
+        redirect
+            .ref_(self)
+            .set_symbol_override(self.alloc_node_symbol_override(Box::new(
+                RedirectSourceFileSymbolOverride::new(redirect.clone()),
+            )));
         redirect
     }
 
@@ -370,7 +377,12 @@ impl Program {
             };
             self.add_file_include_reason(file, reason.clone());
             if let Some(file) = file {
-                if self.options.ref_(self).force_consistent_casing_in_file_names == Some(true) {
+                if self
+                    .options
+                    .ref_(self)
+                    .force_consistent_casing_in_file_names
+                    == Some(true)
+                {
                     let file_ref = file.ref_(self);
                     let ref checked_name = file_ref.as_source_file().file_name();
                     let is_redirect = self.to_path(checked_name) != self.to_path(&file_name);
@@ -437,7 +449,9 @@ impl Program {
         }
 
         let mut redirected_path: Option<Path> = None;
-        if is_referenced_file(Some(&reason.ref_(self))) && !self.use_source_of_project_reference_redirect() {
+        if is_referenced_file(Some(&reason.ref_(self)))
+            && !self.use_source_of_project_reference_redirect()
+        {
             let redirect_project = self.get_project_reference_redirect_project(&file_name);
             if let Some(redirect_project) = redirect_project {
                 if matches!(
@@ -482,7 +496,11 @@ impl Program {
                     original_file_name,
                 );
                 (*self.redirect_targets_map()).borrow_mut().add(
-                    file_from_package_id.ref_(self).as_source_file().path().clone(),
+                    file_from_package_id
+                        .ref_(self)
+                        .as_source_file()
+                        .path()
+                        .clone(),
                     file_name.clone(),
                 );
                 self.add_file_to_files_by_name(Some(dup_file), &path, redirected_path.as_ref());
@@ -517,7 +535,9 @@ impl Program {
                 file_as_source_file.maybe_resolved_path().as_ref().unwrap(),
                 self.maybe_module_resolution_cache()
                     .map(|module_resolution_cache| {
-                        module_resolution_cache.ref_(self).get_package_json_info_cache()
+                        module_resolution_cache
+                            .ref_(self)
+                            .get_package_json_info_cache()
                     })
                     .refed(self)
                     .as_double_deref(),
@@ -584,9 +604,10 @@ impl Program {
     ) {
         if let Some(file) = file {
             let file = file.borrow();
-            self.file_reasons()
-                .ref_mut(self)
-                .add(file.ref_(self).as_source_file().path().clone(), reason.clone());
+            self.file_reasons().ref_mut(self).add(
+                file.ref_(self).as_source_file().path().clone(),
+                reason.clone(),
+            );
         }
     }
 
@@ -651,7 +672,12 @@ impl Program {
         referenced_project: Id<ResolvedProjectReference>,
         file_name: &str,
     ) -> String {
-        let referenced_project_command_line_options_ref = referenced_project.ref_(self).command_line.ref_(self).options.ref_(self);
+        let referenced_project_command_line_options_ref = referenced_project
+            .ref_(self)
+            .command_line
+            .ref_(self)
+            .options
+            .ref_(self);
         let out = out_file(&referenced_project_command_line_options_ref);
         out.non_empty().map_or_else(
             || {
@@ -678,15 +704,18 @@ impl Program {
                 let mut map_from_file_to_project_reference_redirects = HashMap::new();
                 self.for_each_resolved_project_reference(
                     |referenced_project: Id<ResolvedProjectReference>| -> Option<()> {
-                        let referenced_project_source_file_ref = referenced_project.ref_(self).source_file.ref_(self);
+                        let referenced_project_source_file_ref =
+                            referenced_project.ref_(self).source_file.ref_(self);
                         let referenced_project_source_file_path =
                             referenced_project_source_file_ref.as_source_file().path();
                         if &self.to_path(self.options.ref_(self).config_file_path.as_ref().unwrap())
                             != &*referenced_project_source_file_path
                         {
                             referenced_project
-                                .ref_(self).command_line
-                                .ref_(self).file_names
+                                .ref_(self)
+                                .command_line
+                                .ref_(self)
+                                .file_names
                                 .iter()
                                 .for_each(|f| {
                                     map_from_file_to_project_reference_redirects.insert(
@@ -722,9 +751,9 @@ impl Program {
     pub fn for_each_resolved_project_reference_id(
         &self,
     ) -> Id<Box<dyn ForEachResolvedProjectReference>> {
-        self.alloc_for_each_resolved_project_reference(Box::new(ProgramForEachResolvedProjectReference::new(
-            self.arena_id(),
-        )))
+        self.alloc_for_each_resolved_project_reference(Box::new(
+            ProgramForEachResolvedProjectReference::new(self.arena_id()),
+        ))
     }
 
     pub(super) fn get_source_of_project_reference_redirect(
@@ -739,7 +768,12 @@ impl Program {
                 let mut map_from_to_project_reference_redirect_source = HashMap::new();
                 self.for_each_resolved_project_reference(
                     |resolved_ref: Id<ResolvedProjectReference>| -> Option<()> {
-                        let resolved_ref_command_line_options_ref = resolved_ref.ref_(self).command_line.ref_(self).options.ref_(self);
+                        let resolved_ref_command_line_options_ref = resolved_ref
+                            .ref_(self)
+                            .command_line
+                            .ref_(self)
+                            .options
+                            .ref_(self);
                         let out = out_file(&resolved_ref_command_line_options_ref);
                         if let Some(out) = out {
                             let output_dts = change_extension(out, Extension::Dts.to_str());
@@ -841,11 +875,13 @@ impl Program {
                     is_default_lib,
                     false,
                     None,
-                    self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(ReferencedFile {
-                        kind: FileIncludeKind::ReferenceFile,
-                        file: file_as_source_file.path().clone(),
-                        index,
-                    })),
+                    self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(
+                        ReferencedFile {
+                            kind: FileIncludeKind::ReferenceFile,
+                            file: file_as_source_file.path().clone(),
+                            index,
+                        },
+                    )),
                 )?;
                 Ok(None)
             },
@@ -875,8 +911,8 @@ impl Program {
         let file_type_reference_directives = file_type_reference_directives.unwrap();
         let file_type_reference_directives = (*file_type_reference_directives).borrow();
 
-        let resolutions = self
-            .resolve_type_reference_directive_names_worker(&type_directives, file)?;
+        let resolutions =
+            self.resolve_type_reference_directive_names_worker(&type_directives, file)?;
         for index in 0..type_directives.len() {
             let ref_ = &file_type_reference_directives[index];
             let resolved_type_reference_directive = &resolutions[index];
@@ -923,7 +959,8 @@ impl Program {
         resolved_type_reference_directive: Option<Id<ResolvedTypeReferenceDirective>>,
         reason: Id<FileIncludeReason>,
     ) -> io::Result<()> {
-        let previous_resolution = self.resolved_type_reference_directives()
+        let previous_resolution = self
+            .resolved_type_reference_directives()
             .ref_(self)
             .get(type_reference_directive)
             .cloned()
@@ -935,40 +972,55 @@ impl Program {
             return Ok(());
         }
         let mut save_resolution = true;
-        if let Some(resolved_type_reference_directive) = resolved_type_reference_directive
-        {
-            if resolved_type_reference_directive.ref_(self).is_external_library_import == Some(true) {
+        if let Some(resolved_type_reference_directive) = resolved_type_reference_directive {
+            if resolved_type_reference_directive
+                .ref_(self)
+                .is_external_library_import
+                == Some(true)
+            {
                 self.set_current_node_modules_depth(self.current_node_modules_depth() + 1);
             }
 
             if resolved_type_reference_directive.ref_(self).primary {
                 self.process_source_file(
                     resolved_type_reference_directive
-                        .ref_(self).resolved_file_name
+                        .ref_(self)
+                        .resolved_file_name
                         .as_ref()
                         .unwrap(),
                     false,
                     false,
-                    resolved_type_reference_directive.ref_(self).package_id.as_ref(),
+                    resolved_type_reference_directive
+                        .ref_(self)
+                        .package_id
+                        .as_ref(),
                     reason,
                 )?;
             } else {
                 if let Some(previous_resolution) = previous_resolution {
-                    if resolved_type_reference_directive.ref_(self).resolved_file_name
+                    if resolved_type_reference_directive
+                        .ref_(self)
+                        .resolved_file_name
                         != previous_resolution.ref_(self).resolved_file_name
                     {
                         let other_file_text = self
                             .host()
-                            .ref_(self).read_file(
+                            .ref_(self)
+                            .read_file(
                                 resolved_type_reference_directive
-                                    .ref_(self).resolved_file_name
+                                    .ref_(self)
+                                    .resolved_file_name
                                     .as_ref()
                                     .unwrap(),
                             )
                             .unwrap();
                         let existing_file = self
                             .get_source_file_(
-                                previous_resolution.ref_(self).resolved_file_name.as_ref().unwrap(),
+                                previous_resolution
+                                    .ref_(self)
+                                    .resolved_file_name
+                                    .as_ref()
+                                    .unwrap(),
                             )
                             .unwrap();
                         if !matches!(
@@ -991,18 +1043,26 @@ impl Program {
                 } else {
                     self.process_source_file(
                         resolved_type_reference_directive
-                            .ref_(self).resolved_file_name
+                            .ref_(self)
+                            .resolved_file_name
                             .as_ref()
                             .unwrap(),
                         false,
                         false,
-                        resolved_type_reference_directive.ref_(self).package_id.as_ref(),
+                        resolved_type_reference_directive
+                            .ref_(self)
+                            .package_id
+                            .as_ref(),
                         reason,
                     )?;
                 }
             }
 
-            if resolved_type_reference_directive.ref_(self).is_external_library_import == Some(true) {
+            if resolved_type_reference_directive
+                .ref_(self)
+                .is_external_library_import
+                == Some(true)
+            {
                 self.set_current_node_modules_depth(self.current_node_modules_depth() - 1);
             }
         } else {
@@ -1070,7 +1130,8 @@ impl Program {
             local_override_module_result.ref_(self).resolved_module
         {
             return Ok(local_override_module_result_resolved_module
-                .ref_(self).resolved_file_name
+                .ref_(self)
+                .resolved_file_name
                 .clone());
         }
         Ok(combine_paths(
@@ -1096,22 +1157,26 @@ impl RedirectSourceFileIdOverride {
 impl NodeIdOverride for RedirectSourceFileIdOverride {
     fn maybe_id(&self) -> Option<NodeId> {
         self.redirect_source_file
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .ref_(self).maybe_id()
+            .ref_(self)
+            .maybe_id()
     }
 
     fn set_id(&self, value: NodeId) {
         self.redirect_source_file
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .ref_(self).set_id(value);
+            .ref_(self)
+            .set_id(value);
     }
 }
 
@@ -1137,22 +1202,26 @@ impl RedirectSourceFileSymbolOverride {
 impl NodeSymbolOverride for RedirectSourceFileSymbolOverride {
     fn maybe_symbol(&self) -> Option<Id<Symbol>> {
         self.redirect_source_file
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .ref_(self).maybe_symbol()
+            .ref_(self)
+            .maybe_symbol()
     }
 
     fn set_symbol(&self, value: Id<Symbol>) {
         self.redirect_source_file
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_redirect_info()
             .as_ref()
             .unwrap()
             .redirect_target
-            .ref_(self).set_symbol(value);
+            .ref_(self)
+            .set_symbol(value);
     }
 }
 
@@ -1176,7 +1245,8 @@ impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference 
     fn call(&self, cb: &mut dyn FnMut(Id<ResolvedProjectReference>)) {
         for_each_resolved_project_reference(
             self.program
-                .ref_(self).maybe_resolved_project_references_mut()
+                .ref_(self)
+                .maybe_resolved_project_references_mut()
                 .as_deref(),
             |resolved_project_reference, _parent| -> Option<()> {
                 cb(resolved_project_reference);

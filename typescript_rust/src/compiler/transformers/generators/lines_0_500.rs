@@ -1,7 +1,8 @@
 use std::{
+    any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem, any::Any,
+    io, mem,
 };
 
 use id_arena::Id;
@@ -11,15 +12,14 @@ use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitHelperFactory, EmitHint, EmitResolver, Node,
     NodeFactory, NodeId, ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, _d, chain_bundle,
-    get_emit_script_target, get_original_node, get_original_node_id,
-    id_text, is_function_like_declaration, is_generated_identifier, is_identifier,
-    ref_mut_unwrapped, ref_unwrapped, visit_each_child, visit_parameter_list, Debug_,
-    FunctionLikeDeclarationInterface, Matches, NamedDeclarationInterface, NodeArray, NodeExt,
-    NodeInterface, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
+    TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, downcast_transformer_ref,
+    get_emit_script_target, get_original_node, get_original_node_id, id_text,
+    is_function_like_declaration, is_generated_identifier, is_identifier, ref_mut_unwrapped,
+    ref_unwrapped, static_arena, visit_each_child, visit_parameter_list, AllArenas,
+    CoreTransformationContext, Debug_, FunctionLikeDeclarationInterface, HasArena, InArena,
+    Matches, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, ScriptTarget,
+    SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
     VisitResult,
-    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
 };
 
 pub(super) type Label = i32;
@@ -372,7 +372,10 @@ pub(super) struct TransformGenerators {
 }
 
 impl TransformGenerators {
-    pub fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    pub fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -410,10 +413,9 @@ impl TransformGenerators {
             with_block_stack: _d(),
         }));
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformGeneratorsOnSubstituteNodeOverrider::new(
-                ret,
-                previous_on_substitute_node,
-            )))
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
+                TransformGeneratorsOnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+            ))
         });
         ret
     }
@@ -422,9 +424,7 @@ impl TransformGenerators {
         self.renamed_catch_variables.borrow()
     }
 
-    pub(super) fn renamed_catch_variables_mut(
-        &self,
-    ) -> RefMut<HashMap<String, bool>> {
+    pub(super) fn renamed_catch_variables_mut(&self) -> RefMut<HashMap<String, bool>> {
         ref_mut_unwrapped(&self.renamed_catch_variables)
     }
 
@@ -480,9 +480,7 @@ impl TransformGenerators {
         self.blocks.borrow()
     }
 
-    pub(super) fn blocks_mut(
-        &self,
-    ) -> RefMut<Vec<Id<CodeBlock>>> {
+    pub(super) fn blocks_mut(&self) -> RefMut<Vec<Id<CodeBlock>>> {
         ref_mut_unwrapped(&self.blocks)
     }
 
@@ -530,9 +528,7 @@ impl TransformGenerators {
         ref_unwrapped(&self.block_stack)
     }
 
-    pub(super) fn block_stack_mut(
-        &self,
-    ) -> RefMut<Vec<Id<CodeBlock>>> {
+    pub(super) fn block_stack_mut(&self) -> RefMut<Vec<Id<CodeBlock>>> {
         ref_mut_unwrapped(&self.block_stack)
     }
 
@@ -605,9 +601,7 @@ impl TransformGenerators {
         *self.operations.borrow_mut() = operations;
     }
 
-    pub(super) fn maybe_operation_arguments(
-        &self,
-    ) -> Ref<Option<Vec<Option<OperationArguments>>>> {
+    pub(super) fn maybe_operation_arguments(&self) -> Ref<Option<Vec<Option<OperationArguments>>>> {
         self.operation_arguments.borrow()
     }
 
@@ -615,10 +609,7 @@ impl TransformGenerators {
         ref_unwrapped(&self.operation_arguments)
     }
 
-    pub(super) fn operation_arguments_mut(
-        &self,
-    ) -> RefMut<Vec<Option<OperationArguments>>>
-    {
+    pub(super) fn operation_arguments_mut(&self) -> RefMut<Vec<Option<OperationArguments>>> {
         ref_mut_unwrapped(&self.operation_arguments)
     }
 
@@ -740,9 +731,7 @@ impl TransformGenerators {
 
     pub(super) fn exception_block_stack_mut(
         &self,
-    ) -> RefMut<
-        Vec<Id<CodeBlock /*ExceptionBlock*/>>,
-    > {
+    ) -> RefMut<Vec<Id<CodeBlock /*ExceptionBlock*/>>> {
         ref_mut_unwrapped(&self.exception_block_stack)
     }
 
@@ -753,9 +742,7 @@ impl TransformGenerators {
         *self.exception_block_stack.borrow_mut() = exception_block_stack;
     }
 
-    pub(super) fn maybe_current_exception_block(
-        &self,
-    ) -> Option<Id<CodeBlock /*ExceptionBlock*/>> {
+    pub(super) fn maybe_current_exception_block(&self) -> Option<Id<CodeBlock /*ExceptionBlock*/>> {
         self.current_exception_block.get()
     }
 
@@ -770,9 +757,7 @@ impl TransformGenerators {
         self.current_exception_block.set(current_exception_block);
     }
 
-    pub(super) fn maybe_with_block_stack(
-        &self,
-    ) -> Ref<Option<Vec<Id<CodeBlock /*WithBlock*/>>>> {
+    pub(super) fn maybe_with_block_stack(&self) -> Ref<Option<Vec<Id<CodeBlock /*WithBlock*/>>>> {
         self.with_block_stack.borrow()
     }
 
@@ -782,11 +767,7 @@ impl TransformGenerators {
         self.with_block_stack.borrow_mut()
     }
 
-    pub(super) fn with_block_stack_mut(
-        &self,
-    ) -> RefMut<
-        Vec<Id<CodeBlock /*WithBlock*/>>,
-    > {
+    pub(super) fn with_block_stack_mut(&self) -> RefMut<Vec<Id<CodeBlock /*WithBlock*/>>> {
         ref_mut_unwrapped(&self.with_block_stack)
     }
 
@@ -806,14 +787,20 @@ impl TransformGenerators {
         let node_as_source_file = node_ref.as_source_file();
         if node_as_source_file.is_declaration_file()
             || !node
-                .ref_(self).transform_flags()
+                .ref_(self)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsGenerator)
         {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
-            .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
+        .add_emit_helpers(self.context.ref_(self).read_emit_helpers().as_deref(), self)
     }
 
     pub(super) fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
@@ -825,14 +812,21 @@ impl TransformGenerators {
             self.visit_java_script_in_generator_function_body(node)
         } else if is_function_like_declaration(&node.ref_(self))
             && node
-                .ref_(self).as_function_like_declaration()
+                .ref_(self)
+                .as_function_like_declaration()
                 .maybe_asterisk_token()
                 .is_some()
         {
             self.visit_generator(node)
         } else if transform_flags.intersects(TransformFlags::ContainsGenerator) {
             Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
+                visit_each_child(
+                    node,
+                    |node: Id<Node>| self.visitor(node),
+                    &*self.context.ref_(self),
+                    self,
+                )
+                .into(),
             )
         } else {
             Some(node.into())
@@ -872,7 +866,8 @@ impl TransformGenerators {
             SyntaxKind::ReturnStatement => self.visit_return_statement(node),
             _ => {
                 if node
-                    .ref_(self).transform_flags()
+                    .ref_(self)
+                    .transform_flags()
                     .intersects(TransformFlags::ContainsYield)
                 {
                     self.visit_java_script_containing_yield(node)
@@ -911,7 +906,13 @@ impl TransformGenerators {
             SyntaxKind::CallExpression => self.visit_call_expression(node),
             SyntaxKind::NewExpression => self.visit_new_expression(node),
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
+                visit_each_child(
+                    node,
+                    |node: Id<Node>| self.visitor(node),
+                    &*self.context.ref_(self),
+                    self,
+                )
+                .into(),
             ),
         }
     }
@@ -931,13 +932,15 @@ impl TransformGenerators {
         mut node: Id<Node>, /*FunctionDeclaration*/
     ) -> Option<Id<Node /*Statement*/>> {
         if node
-            .ref_(self).as_function_declaration()
+            .ref_(self)
+            .as_function_declaration()
             .maybe_asterisk_token()
             .is_some()
         {
             node = self
                 .factory
-                .ref_(self).create_function_declaration(
+                .ref_(self)
+                .create_function_declaration(
                     Option::<Id<NodeArray>>::None,
                     node.ref_(self).maybe_modifiers(),
                     None,
@@ -951,9 +954,14 @@ impl TransformGenerators {
                     )
                     .unwrap(),
                     None,
-                    Some(self.transform_generator_function_body(
-                        node.ref_(self).as_function_declaration().maybe_body().unwrap(),
-                    )),
+                    Some(
+                        self.transform_generator_function_body(
+                            node.ref_(self)
+                                .as_function_declaration()
+                                .maybe_body()
+                                .unwrap(),
+                        ),
+                    ),
                 )
                 .set_text_range(Some(&*node.ref_(self)), self)
                 .set_original_node(Some(node), self);
@@ -962,7 +970,12 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+            node = visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            );
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -980,13 +993,15 @@ impl TransformGenerators {
         mut node: Id<Node>, /*FunctionExpression*/
     ) -> Id<Node /*Expression*/> {
         if node
-            .ref_(self).as_function_expression()
+            .ref_(self)
+            .as_function_expression()
             .maybe_asterisk_token()
             .is_some()
         {
             node = self
                 .factory
-                .ref_(self).create_function_expression(
+                .ref_(self)
+                .create_function_expression(
                     Option::<Id<NodeArray>>::None,
                     None,
                     node.ref_(self).as_function_expression().maybe_name(),
@@ -999,7 +1014,10 @@ impl TransformGenerators {
                     ),
                     None,
                     self.transform_generator_function_body(
-                        node.ref_(self).as_function_expression().maybe_body().unwrap(),
+                        node.ref_(self)
+                            .as_function_expression()
+                            .maybe_body()
+                            .unwrap(),
                     ),
                 )
                 .set_text_range(Some(&*node.ref_(self)), self)
@@ -1009,7 +1027,12 @@ impl TransformGenerators {
             let saved_in_statement_containing_yield = self.maybe_in_statement_containing_yield();
             self.set_in_generator_function_body(Some(false));
             self.set_in_statement_containing_yield(Some(false));
-            node = visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+            node = visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            );
             self.set_in_generator_function_body(saved_in_generator_function_body);
             self.set_in_statement_containing_yield(saved_in_statement_containing_yield);
         }
@@ -1082,7 +1105,8 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                 let declaration = self
                     .transform_generators()
                     .resolver
-                    .ref_(self).get_referenced_value_declaration(original)?;
+                    .ref_(self)
+                    .get_referenced_value_declaration(original)?;
                 if let Some(declaration) = declaration {
                     let name = self
                         .transform_generators()
@@ -1093,10 +1117,14 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                         return Ok(self
                             .transform_generators()
                             .factory
-                            .ref_(self).clone_node(name)
+                            .ref_(self)
+                            .clone_node(name)
                             .set_text_range(Some(&*name.ref_(self)), self)
                             .and_set_parent(name.ref_(self).maybe_parent(), self)
-                            .set_source_map_range(Some(self.alloc_source_map_range((&*node.ref_(self)).into())), self)
+                            .set_source_map_range(
+                                Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
+                                self,
+                            )
                             .set_comment_range((&*node.ref_(self)), self));
                     }
                 }
@@ -1113,7 +1141,8 @@ impl TransformationContextOnSubstituteNodeOverrider
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .ref_(self).on_substitute_node(hint, node)?;
+            .ref_(self)
+            .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression {
             return self.substitute_expression(node);
         }

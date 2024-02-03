@@ -1,8 +1,9 @@
 use std::{
+    any::Any,
     borrow::Borrow,
-    cell::{Cell, RefCell, Ref, RefMut},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    io, mem, any::Any,
+    io, mem,
 };
 
 use bitflags::bitflags;
@@ -11,30 +12,30 @@ use id_arena::Id;
 use super::create_super_access_variable_statement;
 use crate::{
     is_assignment_pattern, is_concise_body, is_expression, is_for_initializer, is_statement,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, __String,
-    add_emit_helper, add_emit_helpers, add_range, advanced_async_super_helper, async_super_helper,
-    chain_bundle, create_for_of_binding_statement, flatten_destructuring_assignment,
-    flatten_destructuring_binding, get_emit_script_target, get_node_id,
-    has_syntactic_modifier, insert_statements_after_standard_prologue, is_binding_pattern,
-    is_block, is_destructuring_assignment, is_effective_strict_mode_source_file, is_identifier,
-    is_modifier, is_object_literal_element_like, is_property_access_expression, is_property_name,
-    is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
-    maybe_visit_node, maybe_visit_nodes, process_tagged_template_expression, set_emit_flags,
-    set_original_node, set_text_range_node_array, set_text_range_id_node, skip_parentheses, some,
-    unwrap_innermost_statement_of_label, visit_each_child, visit_iteration_body,
-    visit_lexical_environment, visit_node, visit_parameter_list, BaseNodeFactorySynthetic,
-    CompilerOptions, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel,
-    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetOrInsertDefault,
+    set_text_range_id_node, skip_parentheses, some, unwrap_innermost_statement_of_label,
+    visit_each_child, visit_iteration_body, visit_lexical_environment, visit_node,
+    visit_parameter_list, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags,
+    EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel, FunctionFlags,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetOrInsertDefault,
     HasInitializerInterface, HasStatementsInterface, Matches, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeCheckFlags,
     NodeExt, NodeFactory, NodeFlags, NodeId, NodeInterface, ProcessLevel, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
-    TransformFlags, TransformationContext, VecExt, VecExtClone, VisitResult, With,
-    HasArena, AllArenas, InArena, OptionInArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
-    BaseNodeFactory,
-    ref_unwrapped,
+    TransformFlags, TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VecExt, VecExtClone, VisitResult, With,
+    __String, add_emit_helper, add_emit_helpers, add_range, advanced_async_super_helper,
+    async_super_helper, chain_bundle, create_for_of_binding_statement, downcast_transformer_ref,
+    flatten_destructuring_assignment, flatten_destructuring_binding, get_emit_script_target,
+    get_node_id, has_syntactic_modifier, insert_statements_after_standard_prologue,
+    is_binding_pattern, is_block, is_destructuring_assignment,
+    is_effective_strict_mode_source_file, is_identifier, is_modifier,
+    is_object_literal_element_like, is_property_access_expression, is_property_name,
+    is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
+    maybe_visit_node, maybe_visit_nodes, process_tagged_template_expression, ref_unwrapped,
+    set_emit_flags, set_original_node, set_text_range_node_array, static_arena, AllArenas,
+    BaseNodeFactory, CoreTransformationContext, HasArena, InArena, OptionInArena,
+    TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -90,7 +91,10 @@ struct TransformES2018 {
 }
 
 impl TransformES2018 {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -113,16 +117,14 @@ impl TransformES2018 {
             substituted_super_accessors: Default::default(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformES2018OnEmitNodeOverrider::new(
-                ret,
-                previous_on_emit_node,
-            )))
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+                TransformES2018OnEmitNodeOverrider::new(ret, previous_on_emit_node),
+            ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformES2018OnSubstituteNodeOverrider::new(
-                ret,
-                previous_on_substitute_node,
-            )))
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
+                TransformES2018OnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+            ))
         });
         ret
     }
@@ -274,7 +276,11 @@ impl TransformES2018 {
 
         self.set_current_source_file(Some(node));
         let visited = self.visit_source_file(node);
-        add_emit_helpers(visited, self.context.ref_(self).read_emit_helpers().as_deref(), self);
+        add_emit_helpers(
+            visited,
+            self.context.ref_(self).read_emit_helpers().as_deref(),
+            self,
+        );
 
         self.set_current_source_file(None);
         self.set_tagged_template_string_declarations(None);
@@ -325,7 +331,8 @@ impl TransformES2018 {
     fn visitor_worker(&self, node: Id<Node>, expression_result_is_unused: bool) -> VisitResult /*<Node>*/
     {
         if !node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsES2018)
         {
             return Some(node.into());
@@ -421,13 +428,20 @@ impl TransformES2018 {
                     self.maybe_captured_super_properties_mut().as_mut()
                 {
                     if is_property_access_expression(&node.ref_(self))
-                        && node.ref_(self).as_property_access_expression().expression.ref_(self).kind()
+                        && node
+                            .ref_(self)
+                            .as_property_access_expression()
+                            .expression
+                            .ref_(self)
+                            .kind()
                             == SyntaxKind::SuperKeyword
                     {
                         captured_super_properties.insert(
-                            node.ref_(self).as_property_access_expression()
+                            node.ref_(self)
+                                .as_property_access_expression()
                                 .name
-                                .ref_(self).as_member_name()
+                                .ref_(self)
+                                .as_member_name()
                                 .escaped_text()
                                 .to_owned(),
                         );
@@ -443,7 +457,12 @@ impl TransformES2018 {
             }
             SyntaxKind::ElementAccessExpression => {
                 if self.maybe_captured_super_properties().is_some() {
-                    if node.ref_(self).as_element_access_expression().expression.ref_(self).kind()
+                    if node
+                        .ref_(self)
+                        .as_element_access_expression()
+                        .expression
+                        .ref_(self)
+                        .kind()
                         == SyntaxKind::SuperKeyword
                     {
                         self.set_has_super_element_access(true);
@@ -491,7 +510,8 @@ impl TransformES2018 {
         {
             return set_original_node(
                 self.factory
-                    .ref_(self).create_yield_expression(
+                    .ref_(self)
+                    .create_yield_expression(
                         None,
                         Some(self.emit_helpers().create_await_helper(visit_node(
                             node.ref_(self).as_await_expression().expression,
@@ -505,7 +525,12 @@ impl TransformES2018 {
                 self,
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visit_yield_expression(&self, node: Id<Node> /*YieldExpression*/) -> VisitResult {
@@ -533,27 +558,29 @@ impl TransformES2018 {
                 return Some(
                     set_original_node(
                         self.factory
-                            .ref_(self).create_yield_expression(
+                            .ref_(self)
+                            .create_yield_expression(
                                 None,
-                                Some(self.emit_helpers().create_await_helper(
-                                    self.factory.ref_(self).update_yield_expression(
-                                        node,
-                                        node_as_yield_expression.asterisk_token.clone(),
-                                        Some(set_text_range_id_node(
-                                            self.emit_helpers().create_async_delegator_helper(
-                                                set_text_range_id_node(
-                                                    self.emit_helpers().create_async_values_helper(
-                                                        expression,
+                                Some(
+                                    self.emit_helpers().create_await_helper(
+                                        self.factory.ref_(self).update_yield_expression(
+                                            node,
+                                            node_as_yield_expression.asterisk_token.clone(),
+                                            Some(set_text_range_id_node(
+                                                self.emit_helpers().create_async_delegator_helper(
+                                                    set_text_range_id_node(
+                                                        self.emit_helpers()
+                                                            .create_async_values_helper(expression),
+                                                        Some(&*expression.ref_(self)),
+                                                        self,
                                                     ),
-                                                    Some(&*expression.ref_(self)),
-                                                    self,
                                                 ),
-                                            ),
-                                            Some(&*expression.ref_(self)),
-                                            self,
-                                        )),
+                                                Some(&*expression.ref_(self)),
+                                                self,
+                                            )),
+                                        ),
                                     ),
-                                )),
+                                ),
                             )
                             .set_text_range(Some(&*node.ref_(self)), self),
                         Some(node),
@@ -567,7 +594,8 @@ impl TransformES2018 {
         Some(
             set_original_node(
                 self.factory
-                    .ref_(self).create_yield_expression(
+                    .ref_(self)
+                    .create_yield_expression(
                         None,
                         Some(self.create_downlevel_await(
                             node_as_yield_expression.expression.map_or_else(
@@ -607,7 +635,8 @@ impl TransformES2018 {
         {
             return Some(
                 self.factory
-                    .ref_(self).update_return_statement(
+                    .ref_(self)
+                    .update_return_statement(
                         node,
                         Some(self.create_downlevel_await(
                             node_as_return_statement.expression.map_or_else(
@@ -646,13 +675,18 @@ impl TransformES2018 {
             let statement =
                 unwrap_innermost_statement_of_label(node, Option::<fn(Id<Node>)>::None, self);
             if statement.ref_(self).kind() == SyntaxKind::ForOfStatement
-                && statement.ref_(self).as_for_of_statement().await_modifier.is_some()
+                && statement
+                    .ref_(self)
+                    .as_for_of_statement()
+                    .await_modifier
+                    .is_some()
             {
                 return self.visit_for_of_statement(statement, Some(node));
             }
             return Some(
                 self.factory
-                    .ref_(self).restore_enclosing_label(
+                    .ref_(self)
+                    .restore_enclosing_label(
                         visit_node(
                             statement,
                             Some(|node: Id<Node>| self.visitor(node)),
@@ -687,7 +721,8 @@ impl TransformES2018 {
                 if let Some(chunk_object) = chunk_object.take() {
                     objects.push(
                         self.factory
-                            .ref_(self).create_object_literal_expression(Some(chunk_object), None),
+                            .ref_(self)
+                            .create_object_literal_expression(Some(chunk_object), None),
                     );
                 }
                 let target = e.ref_(self).as_spread_assignment().expression;
@@ -725,7 +760,8 @@ impl TransformES2018 {
         if let Some(chunk_object) = chunk_object {
             objects.push(
                 self.factory
-                    .ref_(self).create_object_literal_expression(Some(chunk_object), None),
+                    .ref_(self)
+                    .create_object_literal_expression(Some(chunk_object), None),
             );
         }
 
@@ -739,16 +775,21 @@ impl TransformES2018 {
         let node_ref = node.ref_(self);
         let node_as_object_literal_expression = node_ref.as_object_literal_expression();
         if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsObjectRestOrSpread)
         {
-            let mut objects =
-                self.chunk_object_literal_elements(&node_as_object_literal_expression.properties.ref_(self));
-            if !objects.is_empty() && objects[0].ref_(self).kind() != SyntaxKind::ObjectLiteralExpression {
+            let mut objects = self.chunk_object_literal_elements(
+                &node_as_object_literal_expression.properties.ref_(self),
+            );
+            if !objects.is_empty()
+                && objects[0].ref_(self).kind() != SyntaxKind::ObjectLiteralExpression
+            {
                 objects.insert(
                     0,
                     self.factory
-                        .ref_(self).create_object_literal_expression(Option::<Id<NodeArray>>::None, None),
+                        .ref_(self)
+                        .create_object_literal_expression(Option::<Id<NodeArray>>::None, None),
                 );
             }
             let mut expression = objects.get(0).cloned();
@@ -764,7 +805,12 @@ impl TransformES2018 {
                 return self.emit_helpers().create_assign_helper(objects);
             }
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visit_expression_statement(
@@ -808,18 +854,24 @@ impl TransformES2018 {
             },
         );
         self.set_exported_variable_statement(false);
-        let visited =
-            visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+        let visited = visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        );
         let statement =
             visited
-                .ref_(self).as_source_file()
+                .ref_(self)
+                .as_source_file()
                 .statements()
                 .with(|statements| -> NodeArrayOrVec {
                     if let Some(tagged_template_string_declarations) =
                         self.maybe_tagged_template_string_declarations().as_ref()
                     {
                         statements
-                            .ref_(self).to_vec()
+                            .ref_(self)
+                            .to_vec()
                             .and_push(self.factory.ref_(self).create_variable_statement(
                                 Option::<Id<NodeArray>>::None,
                                 self.factory.ref_(self).create_variable_declaration_list(
@@ -835,7 +887,9 @@ impl TransformES2018 {
         let result = self.factory.ref_(self).update_source_file(
             visited,
             set_text_range_node_array(
-                self.factory.ref_(self).create_node_array(Some(statement), None),
+                self.factory
+                    .ref_(self)
+                    .create_node_array(Some(statement), None),
                 Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
                 self,
             ),
@@ -878,7 +932,8 @@ impl TransformES2018 {
         if is_destructuring_assignment(node, self)
             && node_as_binary_expression
                 .left
-                .ref_(self).transform_flags()
+                .ref_(self)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsObjectRestOrSpread)
         {
             return flatten_destructuring_assignment(
@@ -915,7 +970,12 @@ impl TransformES2018 {
                 ),
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visit_comma_list_expression(
@@ -934,7 +994,12 @@ impl TransformES2018 {
             );
         }
         let mut result: Option<Vec<Id<Node /*Expression*/>>> = None;
-        for (i, element) in node_as_comma_list_expression.elements.ref_(self).iter().enumerate() {
+        for (i, element) in node_as_comma_list_expression
+            .elements
+            .ref_(self)
+            .iter()
+            .enumerate()
+        {
             let element = *element;
             let visited = visit_node(
                 element,
@@ -950,7 +1015,9 @@ impl TransformES2018 {
             );
             if result.is_some() || visited != element {
                 result
-                    .get_or_insert_with(|| node_as_comma_list_expression.elements.ref_(self)[0..i].to_owned())
+                    .get_or_insert_with(|| {
+                        node_as_comma_list_expression.elements.ref_(self)[0..i].to_owned()
+                    })
                     .push(visited);
             }
         }
@@ -958,30 +1025,44 @@ impl TransformES2018 {
             || node_as_comma_list_expression.elements.clone(),
             |result| {
                 self.factory
-                    .ref_(self).create_node_array(Some(result), None)
-                    .set_text_range(Some(&*node_as_comma_list_expression.elements.ref_(self)), self)
+                    .ref_(self)
+                    .create_node_array(Some(result), None)
+                    .set_text_range(
+                        Some(&*node_as_comma_list_expression.elements.ref_(self)),
+                        self,
+                    )
             },
         );
-        self.factory.ref_(self).update_comma_list_expression(node, elements)
+        self.factory
+            .ref_(self)
+            .update_comma_list_expression(node, elements)
     }
 
     fn visit_catch_clause(&self, node: Id<Node> /*CatchClause*/) -> VisitResult {
         let node_ref = node.ref_(self);
         let node_as_catch_clause = node_ref.as_catch_clause();
-        if let Some(node_variable_declaration) = node_as_catch_clause
-            .variable_declaration
-            .filter(|node_variable_declaration| {
-                let node_variable_declaration_ref = node_variable_declaration.ref_(self);
-                let node_variable_declaration_as_variable_declaration = node_variable_declaration_ref.as_variable_declaration();
-                is_binding_pattern(node_variable_declaration_as_variable_declaration.maybe_name().refed(self).as_deref())
-                    && node_variable_declaration_as_variable_declaration
+        if let Some(node_variable_declaration) =
+            node_as_catch_clause
+                .variable_declaration
+                .filter(|node_variable_declaration| {
+                    let node_variable_declaration_ref = node_variable_declaration.ref_(self);
+                    let node_variable_declaration_as_variable_declaration =
+                        node_variable_declaration_ref.as_variable_declaration();
+                    is_binding_pattern(
+                        node_variable_declaration_as_variable_declaration
+                            .maybe_name()
+                            .refed(self)
+                            .as_deref(),
+                    ) && node_variable_declaration_as_variable_declaration
                         .name()
-                        .ref_(self).transform_flags()
+                        .ref_(self)
+                        .transform_flags()
                         .intersects(TransformFlags::ContainsObjectRestOrSpread)
-            })
+                })
         {
             let node_variable_declaration_ref = node_variable_declaration.ref_(self);
-            let node_variable_declaration_as_variable_declaration = node_variable_declaration_ref.as_variable_declaration();
+            let node_variable_declaration_as_variable_declaration =
+                node_variable_declaration_ref.as_variable_declaration();
             let name = self.factory.ref_(self).get_generated_name_for_node(
                 node_variable_declaration_as_variable_declaration.maybe_name(),
                 None,
@@ -1016,12 +1097,21 @@ impl TransformES2018 {
                         Option::<Id<NodeArray>>::None,
                         visited_bindings,
                     )]
-                    .and_extend(block.ref_(self).as_block().statements.ref_(self).iter().cloned()),
+                    .and_extend(
+                        block
+                            .ref_(self)
+                            .as_block()
+                            .statements
+                            .ref_(self)
+                            .iter()
+                            .cloned(),
+                    ),
                 );
             }
             return Some(
                 self.factory
-                    .ref_(self).update_catch_clause(
+                    .ref_(self)
+                    .update_catch_clause(
                         node,
                         Some(self.factory.ref_(self).update_variable_declaration(
                             node_variable_declaration,
@@ -1049,8 +1139,12 @@ impl TransformES2018 {
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
             let saved_exported_variable_statement = self.exported_variable_statement();
             self.set_exported_variable_statement(true);
-            let visited =
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+            let visited = visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            );
             self.set_exported_variable_statement(saved_exported_variable_statement);
             return Some(visited.into());
         }
@@ -1084,11 +1178,16 @@ impl TransformES2018 {
     ) -> VisitResult /*<VariableDeclaration>*/ {
         let node_ref = node.ref_(self);
         let node_as_variable_declaration = node_ref.as_variable_declaration();
-        if is_binding_pattern(node_as_variable_declaration.maybe_name().refed(self).as_deref())
-            && node_as_variable_declaration
-                .name()
-                .ref_(self).transform_flags()
-                .intersects(TransformFlags::ContainsObjectRestOrSpread)
+        if is_binding_pattern(
+            node_as_variable_declaration
+                .maybe_name()
+                .refed(self)
+                .as_deref(),
+        ) && node_as_variable_declaration
+            .name()
+            .ref_(self)
+            .transform_flags()
+            .intersects(TransformFlags::ContainsObjectRestOrSpread)
         {
             return Some(
                 flatten_destructuring_binding(
@@ -1118,7 +1217,8 @@ impl TransformES2018 {
         let node_as_for_statement = node_ref.as_for_statement();
         Some(
             self.factory
-                .ref_(self).update_for_statement(
+                .ref_(self)
+                .update_for_statement(
                     node,
                     maybe_visit_node(
                         node_as_for_statement.initializer,
@@ -1172,21 +1272,19 @@ impl TransformES2018 {
         );
         if node_as_for_of_statement
             .initializer
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsObjectRestOrSpread)
         {
             node = self.transform_for_of_statement_with_object_rest(node);
         }
         let result = if node_as_for_of_statement.await_modifier.is_some() {
-            self.transform_for_await_of_statement(
-                node,
-                outermost_labeled_statement,
-                ancestor_facts,
-            )
+            self.transform_for_await_of_statement(node, outermost_labeled_statement, ancestor_facts)
         } else {
             Some(
                 self.factory
-                    .ref_(self).restore_enclosing_label(
+                    .ref_(self)
+                    .restore_enclosing_label(
                         visit_each_child(
                             node,
                             |node: Id<Node>| self.visitor(node),
@@ -1218,7 +1316,8 @@ impl TransformES2018 {
             let statements_location: Option<ReadonlyTextRangeConcrete /*TextRange*/>;
             let temp = self
                 .factory
-                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+                .ref_(self)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
             let mut statements: Vec<Id<Node /*Statement*/>> =
                 vec![create_for_of_binding_statement(
                     &self.factory.ref_(self),
@@ -1236,31 +1335,43 @@ impl TransformES2018 {
                     None,
                 );
                 body_location = Some(node_as_for_of_statement.statement.clone());
-                statements_location = Some((&*node_statement_as_block.statements.ref_(self)).into());
+                statements_location =
+                    Some((&*node_statement_as_block.statements.ref_(self)).into());
             } else
             /*if (node.statement)*/
             {
                 statements.push(node_as_for_of_statement.statement.clone());
                 body_location = Some(node_as_for_of_statement.statement.clone());
-                statements_location = Some((&*node_as_for_of_statement.statement.ref_(self)).into());
+                statements_location =
+                    Some((&*node_as_for_of_statement.statement.ref_(self)).into());
             }
             return self.factory.ref_(self).update_for_of_statement(
                 node,
                 node_as_for_of_statement.await_modifier.clone(),
                 self.factory
-                    .ref_(self).create_variable_declaration_list(
+                    .ref_(self)
+                    .create_variable_declaration_list(
                         vec![self
                             .factory
-                            .ref_(self).create_variable_declaration(Some(temp), None, None, None)
-                            .set_text_range(Some(&*node_as_for_of_statement.initializer.ref_(self)), self)],
+                            .ref_(self)
+                            .create_variable_declaration(Some(temp), None, None, None)
+                            .set_text_range(
+                                Some(&*node_as_for_of_statement.initializer.ref_(self)),
+                                self,
+                            )],
                         Some(NodeFlags::Let),
                     )
-                    .set_text_range(Some(&*node_as_for_of_statement.initializer.ref_(self)), self),
+                    .set_text_range(
+                        Some(&*node_as_for_of_statement.initializer.ref_(self)),
+                        self,
+                    ),
                 node_as_for_of_statement.expression,
                 self.factory
-                    .ref_(self).create_block(
+                    .ref_(self)
+                    .create_block(
                         self.factory
-                            .ref_(self).create_node_array(Some(statements), None)
+                            .ref_(self)
+                            .create_node_array(Some(statements), None)
                             .set_text_range(statements_location.as_ref(), self),
                         Some(true),
                     )
@@ -1313,9 +1424,11 @@ impl TransformES2018 {
         }
 
         self.factory
-            .ref_(self).create_block(
+            .ref_(self)
+            .create_block(
                 self.factory
-                    .ref_(self).create_node_array(Some(statements), None)
+                    .ref_(self)
+                    .create_node_array(Some(statements), None)
                     .set_text_range(statements_location.refed(self).as_deref(), self),
                 Some(true),
             )
@@ -1332,14 +1445,10 @@ impl TransformES2018 {
         {
             self.factory.ref_(self).create_yield_expression(
                 None,
-                Some(
-                    self.emit_helpers()
-                        .create_await_helper(expression),
-                ),
+                Some(self.emit_helpers().create_await_helper(expression)),
             )
         } else {
-            self.factory
-                .ref_(self).create_await_expression(expression)
+            self.factory.ref_(self).create_await_expression(expression)
         }
     }
 
@@ -1359,103 +1468,128 @@ impl TransformES2018 {
         );
         let iterator = if is_identifier(&expression.ref_(self)) {
             self.factory
-                .ref_(self).get_generated_name_for_node(Some(expression), None)
+                .ref_(self)
+                .get_generated_name_for_node(Some(expression), None)
         } else {
             self.factory
-                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None)
+                .ref_(self)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
         };
         let result = if is_identifier(&expression.ref_(self)) {
             self.factory
-                .ref_(self).get_generated_name_for_node(Some(iterator), None)
+                .ref_(self)
+                .get_generated_name_for_node(Some(iterator), None)
         } else {
             self.factory
-                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None)
+                .ref_(self)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
         };
         let error_record = self.factory.ref_(self).create_unique_name("e", None);
         let catch_variable = self
             .factory
-            .ref_(self).get_generated_name_for_node(Some(error_record), None);
+            .ref_(self)
+            .get_generated_name_for_node(Some(error_record), None);
         let return_method = self
             .factory
-            .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+            .ref_(self)
+            .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
         let call_values = self
             .emit_helpers()
             .create_async_values_helper(expression)
             .set_text_range(Some(&*node_as_for_of_statement.expression.ref_(self)), self);
         let call_next = self.factory.ref_(self).create_call_expression(
             self.factory
-                .ref_(self).create_property_access_expression(iterator.clone(), "next"),
+                .ref_(self)
+                .create_property_access_expression(iterator.clone(), "next"),
             Option::<Id<NodeArray>>::None,
             Some(vec![]),
         );
         let get_done = self
             .factory
-            .ref_(self).create_property_access_expression(result.clone(), "done");
+            .ref_(self)
+            .create_property_access_expression(result.clone(), "done");
         let get_value = self
             .factory
-            .ref_(self).create_property_access_expression(result.clone(), "value");
-        let call_return =
-            self.factory
-                .ref_(self).create_function_call_call(return_method.clone(), iterator.clone(), vec![]);
+            .ref_(self)
+            .create_property_access_expression(result.clone(), "value");
+        let call_return = self.factory.ref_(self).create_function_call_call(
+            return_method.clone(),
+            iterator.clone(),
+            vec![],
+        );
 
-        self.context.ref_(self).hoist_variable_declaration(error_record);
-        self.context.ref_(self).hoist_variable_declaration(return_method);
+        self.context
+            .ref_(self)
+            .hoist_variable_declaration(error_record);
+        self.context
+            .ref_(self)
+            .hoist_variable_declaration(return_method);
 
         let initializer = if ancestor_facts.intersects(HierarchyFacts::IterationContainer) {
             self.factory.ref_(self).inline_expressions(&[
-                self.factory
-                    .ref_(self).create_assignment(error_record.clone(), self.factory.ref_(self).create_void_zero()),
+                self.factory.ref_(self).create_assignment(
+                    error_record.clone(),
+                    self.factory.ref_(self).create_void_zero(),
+                ),
                 call_values,
             ])
         } else {
             call_values
         };
 
-        let for_statement = self
-            .factory
-            .ref_(self).create_for_statement(
-                Some(
-                    self.factory
-                        .ref_(self).create_variable_declaration_list(
-                            vec![
-                                self.factory
-                                    .ref_(self).create_variable_declaration(
-                                        Some(iterator.clone()),
+        let for_statement =
+            self.factory
+                .ref_(self)
+                .create_for_statement(
+                    Some(
+                        self.factory
+                            .ref_(self)
+                            .create_variable_declaration_list(
+                                vec![
+                                    self.factory
+                                        .ref_(self)
+                                        .create_variable_declaration(
+                                            Some(iterator.clone()),
+                                            None,
+                                            None,
+                                            Some(initializer),
+                                        )
+                                        .set_text_range(
+                                            Some(&*node_as_for_of_statement.expression.ref_(self)),
+                                            self,
+                                        ),
+                                    self.factory.ref_(self).create_variable_declaration(
+                                        Some(result.clone()),
                                         None,
                                         None,
-                                        Some(initializer),
-                                    )
-                                    .set_text_range(Some(&*node_as_for_of_statement.expression.ref_(self)), self),
-                                self.factory.ref_(self).create_variable_declaration(
-                                    Some(result.clone()),
-                                    None,
-                                    None,
-                                    None,
-                                ),
-                            ],
-                            None,
-                        )
-                        .set_text_range(Some(&*node_as_for_of_statement.expression.ref_(self)), self)
-                        .set_emit_flags(EmitFlags::NoHoisting, self),
-                ),
-                Some(
-                    self.factory.ref_(self).create_comma(
+                                        None,
+                                    ),
+                                ],
+                                None,
+                            )
+                            .set_text_range(
+                                Some(&*node_as_for_of_statement.expression.ref_(self)),
+                                self,
+                            )
+                            .set_emit_flags(EmitFlags::NoHoisting, self),
+                    ),
+                    Some(self.factory.ref_(self).create_comma(
                         self.factory.ref_(self).create_assignment(
                             result.clone(),
                             self.create_downlevel_await(call_next),
                         ),
                         self.factory.ref_(self).create_logical_not(get_done.clone()),
-                    ),
-                ),
-                None,
-                self.convert_for_of_statement_head(node, get_value),
-            )
-            .set_text_range(Some(&*node.ref_(self)), self)
-            .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps, self);
+                    )),
+                    None,
+                    self.convert_for_of_statement_head(node, get_value),
+                )
+                .set_text_range(Some(&*node.ref_(self)), self)
+                .set_emit_flags(EmitFlags::NoTokenTrailingSourceMaps, self);
 
         Some(
             self.factory
-                .ref_(self).create_try_statement(
+                .ref_(self)
+                .create_try_statement(
                     self.factory.ref_(self).create_block(
                         vec![self.factory.ref_(self).restore_enclosing_label(
                             for_statement,
@@ -1473,19 +1607,23 @@ impl TransformES2018 {
                                 None,
                             )),
                             self.factory
-                                .ref_(self).create_block(
+                                .ref_(self)
+                                .create_block(
                                     vec![self.factory.ref_(self).create_expression_statement(
                                         self.factory.ref_(self).create_assignment(
                                             error_record.clone(),
-                                            self.factory.ref_(self).create_object_literal_expression(
-                                                Some(vec![self
-                                                    .factory
-                                                    .ref_(self).create_property_assignment(
-                                                        "error",
-                                                        catch_variable,
-                                                    )]),
-                                                None,
-                                            ),
+                                            self.factory
+                                                .ref_(self)
+                                                .create_object_literal_expression(
+                                                    Some(vec![self
+                                                        .factory
+                                                        .ref_(self)
+                                                        .create_property_assignment(
+                                                            "error",
+                                                            catch_variable,
+                                                        )]),
+                                                    None,
+                                                ),
                                         ),
                                     )],
                                     None,
@@ -1493,22 +1631,28 @@ impl TransformES2018 {
                                 .set_emit_flags(EmitFlags::SingleLine, self),
                         ),
                     ),
-                    Some(self.factory.ref_(self).create_block(
-                        vec![self.factory.ref_(self).create_try_statement(
+                    Some(
+                        self.factory.ref_(self).create_block(
+                            vec![self.factory.ref_(self).create_try_statement(
                                 self.factory.ref_(self).create_block(
                                     vec![self
                                         .factory
-                                        .ref_(self).create_if_statement(
+                                        .ref_(self)
+                                        .create_if_statement(
                                             self.factory.ref_(self).create_logical_and(
                                                 self.factory.ref_(self).create_logical_and(
                                                     result,
-                                                    self.factory.ref_(self).create_logical_not(get_done),
+                                                    self.factory
+                                                        .ref_(self)
+                                                        .create_logical_not(get_done),
                                                 ),
                                                 self.factory.ref_(self).create_assignment(
                                                     return_method,
-                                                    self.factory.ref_(self).create_property_access_expression(
-                                                        iterator, "return",
-                                                    ),
+                                                    self.factory
+                                                        .ref_(self)
+                                                        .create_property_access_expression(
+                                                            iterator, "return",
+                                                        ),
                                                 ),
                                             ),
                                             self.factory.ref_(self).create_expression_statement(
@@ -1522,14 +1666,17 @@ impl TransformES2018 {
                                 None,
                                 Some(
                                     self.factory
-                                        .ref_(self).create_block(
+                                        .ref_(self)
+                                        .create_block(
                                             vec![self
                                                 .factory
-                                                .ref_(self).create_if_statement(
+                                                .ref_(self)
+                                                .create_if_statement(
                                                     error_record.clone(),
                                                     self.factory.ref_(self).create_throw_statement(
                                                         self.factory
-                                                            .ref_(self).create_property_access_expression(
+                                                            .ref_(self)
+                                                            .create_property_access_expression(
                                                                 error_record,
                                                                 "error",
                                                             ),
@@ -1542,8 +1689,9 @@ impl TransformES2018 {
                                         .set_emit_flags(EmitFlags::SingleLine, self),
                                 ),
                             )],
-                        None,
-                    )),
+                            None,
+                        ),
+                    ),
                 )
                 .into(),
         )
@@ -1556,7 +1704,8 @@ impl TransformES2018 {
         let node_ref = node.ref_(self);
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsObjectRestOrSpread)
         {
             return self.factory.ref_(self).update_parameter_declaration(
@@ -1564,7 +1713,11 @@ impl TransformES2018 {
                 Option::<Id<NodeArray>>::None,
                 Option::<Id<NodeArray>>::None,
                 node_as_parameter_declaration.dot_dot_dot_token.clone(),
-                Some(self.factory.ref_(self).get_generated_name_for_node(Some(node), None)),
+                Some(
+                    self.factory
+                        .ref_(self)
+                        .get_generated_name_for_node(Some(node), None),
+                ),
                 None,
                 None,
                 maybe_visit_node(
@@ -1575,7 +1728,12 @@ impl TransformES2018 {
                 ),
             );
         }
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visit_constructor_declaration(
@@ -1912,8 +2070,10 @@ impl TransformES2018 {
             &node_as_function_like_declaration
                 .maybe_body()
                 .unwrap()
-                .ref_(self).as_block()
-                .statements.ref_(self),
+                .ref_(self)
+                .as_block()
+                .statements
+                .ref_(self),
             &mut statements,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
@@ -1931,12 +2091,17 @@ impl TransformES2018 {
             self.emit_helpers().create_async_generator_helper(
                 self.factory.ref_(self).create_function_expression(
                     Option::<Id<NodeArray>>::None,
-                    Some(self.factory.ref_(self).create_token(SyntaxKind::AsteriskToken)),
+                    Some(
+                        self.factory
+                            .ref_(self)
+                            .create_token(SyntaxKind::AsteriskToken),
+                    ),
                     node_as_function_like_declaration
                         .maybe_name()
                         .map(|node_name| {
                             self.factory
-                                .ref_(self).get_generated_name_for_node(Some(node_name), None)
+                                .ref_(self)
+                                .get_generated_name_for_node(Some(node_name), None)
                         }),
                     Option::<Id<NodeArray>>::None,
                     Some(vec![]),
@@ -1947,7 +2112,8 @@ impl TransformES2018 {
                             node_as_function_like_declaration
                                 .maybe_body()
                                 .unwrap()
-                                .ref_(self).as_block()
+                                .ref_(self)
+                                .as_block()
                                 .statements,
                             |node: Id<Node>| self.visitor(node),
                             &*self.context.ref_(self),
@@ -1972,9 +2138,14 @@ impl TransformES2018 {
         ));
 
         let emit_super_helpers = self.language_version >= ScriptTarget::ES2015
-            && self.resolver.ref_(self).get_node_check_flags(node).intersects(
-                NodeCheckFlags::AsyncMethodWithSuperBinding | NodeCheckFlags::AsyncMethodWithSuper,
-            );
+            && self
+                .resolver
+                .ref_(self)
+                .get_node_check_flags(node)
+                .intersects(
+                    NodeCheckFlags::AsyncMethodWithSuperBinding
+                        | NodeCheckFlags::AsyncMethodWithSuper,
+                );
 
         if emit_super_helpers {
             self.enable_substitution_for_async_methods_with_super();
@@ -1986,7 +2157,11 @@ impl TransformES2018 {
             );
             self.substituted_super_accessors_mut()
                 .insert(get_node_id(&variable_statement.ref_(self)), true);
-            insert_statements_after_standard_prologue(&mut statements, Some(&[variable_statement]), self);
+            insert_statements_after_standard_prologue(
+                &mut statements,
+                Some(&[variable_statement]),
+                self,
+            );
         }
 
         statements.push(return_statement);
@@ -2004,13 +2179,15 @@ impl TransformES2018 {
         if emit_super_helpers && self.has_super_element_access() {
             if self
                 .resolver
-                .ref_(self).get_node_check_flags(node)
+                .ref_(self)
+                .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::AsyncMethodWithSuperBinding)
             {
                 add_emit_helper(block, advanced_async_super_helper(self), self);
             } else if self
                 .resolver
-                .ref_(self).get_node_check_flags(node)
+                .ref_(self)
+                .get_node_check_flags(node)
                 .intersects(NodeCheckFlags::AsyncMethodWithSuper)
             {
                 add_emit_helper(block, async_super_helper(self), self);
@@ -2063,7 +2240,8 @@ impl TransformES2018 {
         {
             let block = self
                 .factory
-                .ref_(self).converters()
+                .ref_(self)
+                .converters()
                 .convert_to_function_block(body, Some(true));
             insert_statements_after_standard_prologue(
                 &mut statements,
@@ -2080,7 +2258,8 @@ impl TransformES2018 {
             return self.factory.ref_(self).update_block(
                 block,
                 self.factory
-                    .ref_(self).create_node_array(Some(statements), None)
+                    .ref_(self)
+                    .create_node_array(Some(statements), None)
                     .set_text_range(Some(&*block_as_block.statements.ref_(self)), self),
             );
         }
@@ -2092,14 +2271,21 @@ impl TransformES2018 {
         mut statements: Option<Vec<Id<Node /*Statement*/>>>,
         node: Id<Node>, /*FunctionLikeDeclaration*/
     ) -> Option<Vec<Id<Node /*Statement*/>>> {
-        for &parameter in &*node.ref_(self).as_function_like_declaration().parameters().ref_(self) {
+        for &parameter in &*node
+            .ref_(self)
+            .as_function_like_declaration()
+            .parameters()
+            .ref_(self)
+        {
             if parameter
-                .ref_(self).transform_flags()
+                .ref_(self)
+                .transform_flags()
                 .intersects(TransformFlags::ContainsObjectRestOrSpread)
             {
                 let temp = self
                     .factory
-                    .ref_(self).get_generated_name_for_node(Some(parameter), None);
+                    .ref_(self)
+                    .get_generated_name_for_node(Some(parameter), None);
                 let declarations = flatten_destructuring_binding(
                     parameter,
                     |node: Id<Node>| self.visitor(node),
@@ -2114,7 +2300,8 @@ impl TransformES2018 {
                     let statement = self.factory.ref_(self).create_variable_statement(
                         Option::<Id<NodeArray>>::None,
                         self.factory
-                            .ref_(self).create_variable_declaration_list(declarations, None),
+                            .ref_(self)
+                            .create_variable_declaration_list(declarations, None),
                     );
                     set_emit_flags(statement, EmitFlags::CustomPrologue, self);
                     statements.get_or_insert_default_().push(statement);
@@ -2133,24 +2320,34 @@ impl TransformES2018 {
                 self.enabled_substitutions() | ESNextSubstitutionFlags::AsyncMethodsWithSuper,
             );
 
-            self.context.ref_(self).enable_substitution(SyntaxKind::CallExpression);
             self.context
-                .ref_(self).enable_substitution(SyntaxKind::PropertyAccessExpression);
+                .ref_(self)
+                .enable_substitution(SyntaxKind::CallExpression);
             self.context
-                .ref_(self).enable_substitution(SyntaxKind::ElementAccessExpression);
+                .ref_(self)
+                .enable_substitution(SyntaxKind::PropertyAccessExpression);
+            self.context
+                .ref_(self)
+                .enable_substitution(SyntaxKind::ElementAccessExpression);
 
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::ClassDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::ClassDeclaration);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::MethodDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::MethodDeclaration);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::GetAccessor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::GetAccessor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::SetAccessor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::SetAccessor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::Constructor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::Constructor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::VariableStatement);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::VariableStatement);
         }
     }
 }
@@ -2217,7 +2414,11 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
             .intersects(ESNextSubstitutionFlags::AsyncMethodsWithSuper)
             && self.is_super_container(node)
         {
-            let super_container_flags = self.transform_es2018().resolver.ref_(self).get_node_check_flags(node)
+            let super_container_flags = self
+                .transform_es2018()
+                .resolver
+                .ref_(self)
+                .get_node_check_flags(node)
                 & (NodeCheckFlags::AsyncMethodWithSuper
                     | NodeCheckFlags::AsyncMethodWithSuperBinding);
             if super_container_flags != self.transform_es2018().enclosing_super_container_flags() {
@@ -2226,7 +2427,8 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
                 self.transform_es2018()
                     .set_enclosing_super_container_flags(super_container_flags);
                 self.previous_on_emit_node
-                    .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                    .ref_(self)
+                    .on_emit_node(hint, node, emit_callback)?;
                 self.transform_es2018()
                     .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
                 return Ok(());
@@ -2244,14 +2446,16 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2018OnEmitNodeOverr
             self.transform_es2018()
                 .set_enclosing_super_container_flags(NodeCheckFlags::None);
             self.previous_on_emit_node
-                .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                .ref_(self)
+                .on_emit_node(hint, node, emit_callback)?;
             self.transform_es2018()
                 .set_enclosing_super_container_flags(saved_enclosing_super_container_flags);
             return Ok(());
         }
 
         self.previous_on_emit_node
-            .ref_(self).on_emit_node(hint, node, emit_callback)?;
+            .ref_(self)
+            .on_emit_node(hint, node, emit_callback)?;
 
         Ok(())
     }
@@ -2305,18 +2509,27 @@ impl TransformES2018OnSubstituteNodeOverrider {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
-        if node_as_property_access_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
+        if node_as_property_access_expression
+            .expression
+            .ref_(self)
+            .kind()
+            == SyntaxKind::SuperKeyword
+        {
             return self
                 .transform_es2018()
                 .factory
-                .ref_(self).create_property_access_expression(
-                    self.transform_es2018().factory.ref_(self).create_unique_name(
-                        "_super",
-                        Some(
-                            GeneratedIdentifierFlags::Optimistic
-                                | GeneratedIdentifierFlags::FileLevel,
+                .ref_(self)
+                .create_property_access_expression(
+                    self.transform_es2018()
+                        .factory
+                        .ref_(self)
+                        .create_unique_name(
+                            "_super",
+                            Some(
+                                GeneratedIdentifierFlags::Optimistic
+                                    | GeneratedIdentifierFlags::FileLevel,
+                            ),
                         ),
-                    ),
                     node_as_property_access_expression.name.clone(),
                 )
                 .set_text_range(Some(&*node.ref_(self)), self);
@@ -2330,7 +2543,12 @@ impl TransformES2018OnSubstituteNodeOverrider {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_element_access_expression = node_ref.as_element_access_expression();
-        if node_as_element_access_expression.expression.ref_(self).kind() == SyntaxKind::SuperKeyword {
+        if node_as_element_access_expression
+            .expression
+            .ref_(self)
+            .kind()
+            == SyntaxKind::SuperKeyword
+        {
             return self.create_super_element_access_in_async_method(
                 node_as_element_access_expression.argument_expression,
                 &*node.ref_(self),
@@ -2349,16 +2567,22 @@ impl TransformES2018OnSubstituteNodeOverrider {
             } else {
                 self.substitute_element_access_expression(expression)
             };
-            return self.transform_es2018().factory.ref_(self).create_call_expression(
-                self.transform_es2018()
-                    .factory
-                    .ref_(self).create_property_access_expression(argument_expression, "call"),
-                Option::<Id<NodeArray>>::None,
-                Some(
-                    vec![self.transform_es2018().factory.ref_(self).create_this()]
-                        .and_extend(node_as_call_expression.arguments.ref_(self).iter().cloned()),
-                ),
-            );
+            return self
+                .transform_es2018()
+                .factory
+                .ref_(self)
+                .create_call_expression(
+                    self.transform_es2018()
+                        .factory
+                        .ref_(self)
+                        .create_property_access_expression(argument_expression, "call"),
+                    Option::<Id<NodeArray>>::None,
+                    Some(
+                        vec![self.transform_es2018().factory.ref_(self).create_this()].and_extend(
+                            node_as_call_expression.arguments.ref_(self).iter().cloned(),
+                        ),
+                    ),
+                );
         }
         node
     }
@@ -2375,24 +2599,31 @@ impl TransformES2018OnSubstituteNodeOverrider {
         {
             self.transform_es2018()
                 .factory
-                .ref_(self).create_property_access_expression(
-                    self.transform_es2018().factory.ref_(self).create_call_expression(
-                        self.transform_es2018()
-                            .factory
-                            .ref_(self).create_identifier("_superIndex"),
-                        Option::<Id<NodeArray>>::None,
-                        Some(vec![argument_expression]),
-                    ),
+                .ref_(self)
+                .create_property_access_expression(
+                    self.transform_es2018()
+                        .factory
+                        .ref_(self)
+                        .create_call_expression(
+                            self.transform_es2018()
+                                .factory
+                                .ref_(self)
+                                .create_identifier("_superIndex"),
+                            Option::<Id<NodeArray>>::None,
+                            Some(vec![argument_expression]),
+                        ),
                     "value",
                 )
                 .set_text_range(Some(location), self)
         } else {
             self.transform_es2018()
                 .factory
-                .ref_(self).create_call_expression(
+                .ref_(self)
+                .create_call_expression(
                     self.transform_es2018()
                         .factory
-                        .ref_(self).create_identifier("_superIndex"),
+                        .ref_(self)
+                        .create_identifier("_superIndex"),
                     Option::<Id<NodeArray>>::None,
                     Some(vec![argument_expression]),
                 )
@@ -2405,7 +2636,8 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2018OnSubstit
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .ref_(self).on_substitute_node(hint, node)?;
+            .ref_(self)
+            .on_substitute_node(hint, node)?;
         if hint == EmitHint::Expression
             && self.transform_es2018().enclosing_super_container_flags() != NodeCheckFlags::None
         {

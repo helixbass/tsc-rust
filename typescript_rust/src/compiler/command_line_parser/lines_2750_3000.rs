@@ -16,13 +16,11 @@ use crate::{
     extend_watch_options, filter_mutate, find, get_directory_path, get_normalized_absolute_path,
     get_text_of_property_name, index_of, is_rooted_disk_path, map, maybe_extend_compiler_options,
     node_module_name_resolver, normalize_slashes, set_type_acquisition_value,
-    set_watch_option_value, starts_with, CommandLineOption, CommandLineOptionInterface,
+    set_watch_option_value, starts_with, AllArenas, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
-    JsonConversionNotifier, ModuleResolutionKind, Node, NodeInterface, OptionTry, ParseConfigHost,
-    Path, TypeAcquisition, WatchOptions,
-    HasArena, AllArenas, InArena, OptionInArena,
-    Matches,
+    HasArena, InArena, JsonConversionNotifier, Matches, ModuleResolutionKind, Node, NodeInterface,
+    OptionInArena, OptionTry, ParseConfigHost, Path, TypeAcquisition, WatchOptions,
 };
 
 pub(super) fn create_compiler_diagnostic_only_if_json(
@@ -133,15 +131,17 @@ pub(super) fn parse_config(
         get_normalized_absolute_path(config_file_name.unwrap_or(""), Some(&base_path));
 
     if index_of(resolution_stack, &&*resolved_path, |a, b| a == b) >= 0 {
-        errors.ref_mut(arena).push(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Circularity_detected_while_resolving_configuration_Colon_0,
-                Some(vec![[resolution_stack, &*vec![&*resolved_path]]
-                    .concat()
-                    .join(" -> ")]),
-            )
-            .into(),
-        ));
+        errors.ref_mut(arena).push(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Circularity_detected_while_resolving_configuration_Colon_0,
+                    Some(vec![[resolution_stack, &*vec![&*resolved_path]]
+                        .concat()
+                        .join(" -> ")]),
+                )
+                .into(),
+            ),
+        );
         return Ok(ParsedTsconfigBuilder::default()
             .raw(json.try_or_else(|| convert_to_object(source_file.unwrap(), errors, arena))?)
             .build()
@@ -174,7 +174,8 @@ pub(super) fn parse_config(
     {
         // own_config.options.as_mut().unwrap().paths_base_path = Some(base_path.clone());
         own_config.options = {
-            let mut options = maybe_extend_compiler_options(None, own_config.options.refed(arena).as_deref());
+            let mut options =
+                maybe_extend_compiler_options(None, own_config.options.refed(arena).as_deref());
             options.paths_base_path = Some(base_path.clone());
             Some(arena.alloc_compiler_options(options))
         };
@@ -275,13 +276,15 @@ pub(super) fn parse_own_config_of_json(
         _ => panic!("Expected object"),
     };
     if json.contains_key("excludes") {
-        errors.push(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
-                None,
-            )
-            .into(),
-        ));
+        errors.push(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
+                    None,
+                )
+                .into(),
+            ),
+        );
     }
 
     let options = convert_compiler_options_from_json_worker(
@@ -322,18 +325,22 @@ pub(super) fn parse_own_config_of_json(
                     host,
                     &new_base,
                     errors,
-                    |message, args| arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into()),
+                    |message, args| {
+                        arena.alloc_diagnostic(create_compiler_diagnostic(message, args).into())
+                    },
                     arena,
                 )?;
             }
             _ => {
-                errors.push(arena.alloc_diagnostic(
-                    create_compiler_diagnostic(
-                        &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
-                        Some(vec!["extends".to_owned(), "string".to_owned()]),
-                    )
-                    .into(),
-                ));
+                errors.push(
+                    arena.alloc_diagnostic(
+                        create_compiler_diagnostic(
+                            &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
+                            Some(vec!["extends".to_owned(), "string".to_owned()]),
+                        )
+                        .into(),
+                    ),
+                );
             }
         }
     }
@@ -375,8 +382,13 @@ pub(super) fn parse_own_config_of_json_source_file(
         source_file,
         &root_compiler_options,
     );
-    let json =
-        convert_config_file_to_object(source_file, errors.clone(), true, Some(&options_iterator), arena)?;
+    let json = convert_config_file_to_object(
+        source_file,
+        errors.clone(),
+        true,
+        Some(&options_iterator),
+        arena,
+    )?;
 
     let mut type_acquisition = type_acquisition.borrow_mut();
     let typing_options_type_acquisition = typing_options_type_acquisition.borrow();
@@ -589,31 +601,36 @@ impl<'a, THost: ParseConfigHost + ?Sized> JsonConversionNotifier
         _value_node: Id<Node>, /*Expression*/
     ) {
         if key == "excludes" {
-            self.errors.ref_mut(self).push(self.alloc_diagnostic(
-                create_diagnostic_for_node_in_source_file(
-                    self.source_file,
-                    key_node,
-                    &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
-                    None,
-                    self,
-                )
-                .into(),
-            ));
+            self.errors.ref_mut(self).push(
+                self.alloc_diagnostic(
+                    create_diagnostic_for_node_in_source_file(
+                        self.source_file,
+                        key_node,
+                        &Diagnostics::Unknown_option_excludes_Did_you_mean_exclude,
+                        None,
+                        self,
+                    )
+                    .into(),
+                ),
+            );
         }
-        if find(&*command_options_without_build(self).ref_(self), |opt, _| opt.ref_(self).name() == key).is_some() {
+        if find(
+            &*command_options_without_build(self).ref_(self),
+            |opt, _| opt.ref_(self).name() == key,
+        )
+        .is_some()
+        {
             let mut root_compiler_options = self.root_compiler_options.borrow_mut();
             if root_compiler_options.is_none() {
                 *root_compiler_options = Some(vec![]);
             }
-            append(
-                root_compiler_options.as_mut().unwrap(),
-                Some(key_node),
-            );
+            append(root_compiler_options.as_mut().unwrap(), Some(key_node));
         }
     }
 }
 
-impl<'a, THost: ParseConfigHost + ?Sized> HasArena for ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost>
+impl<'a, THost: ParseConfigHost + ?Sized> HasArena
+    for ParseOwnConfigOfJsonSourceFileOptionsIterator<'a, THost>
 {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
@@ -663,7 +680,12 @@ pub(super) fn get_extends_config_path(
         arena,
     )?;
     if let Some(resolved_resolved_module) = resolved.ref_(arena).resolved_module {
-        return Ok(Some(resolved_resolved_module.ref_(arena).resolved_file_name.clone()));
+        return Ok(Some(
+            resolved_resolved_module
+                .ref_(arena)
+                .resolved_file_name
+                .clone(),
+        ));
     }
     errors.push(create_diagnostic(
         &Diagnostics::File_0_not_found,

@@ -1,5 +1,5 @@
 use std::{
-    cell::{Ref, RefCell, RefMut, Cell},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     convert::TryInto,
     io, mem,
@@ -27,20 +27,20 @@ use crate::{
     is_import_call, is_import_equals_declaration, is_logging, map_defined, maybe_for_each,
     options_have_changes, out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
     resolve_type_reference_directive, skip_trivia, source_file_affecting_compiler_options,
-    stable_sort, to_file_name_lower_case, try_maybe_for_each, walk_up_parenthesized_expressions,
-    AsDoubleDeref, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions,
-    Debug_, Diagnostic, DiagnosticCollection, Extension, FileIncludeKind, FileIncludeReason,
-    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, GetOrInsertDefault,
-    GetProgramBuildInfo, LibFile, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
+    stable_sort, static_arena, to_file_name_lower_case, try_maybe_for_each,
+    walk_up_parenthesized_expressions, AllArenas, AsDoubleDeref, AutomaticTypeDirectiveFile,
+    CompilerHost, CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection,
+    Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
+    FilePreprocessingDiagnosticsKind, GetOrInsertDefault, GetProgramBuildInfo, HasArena, InArena,
+    LibFile, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
-    Node, NodeInterface, NonEmpty, OptionTry, PackageId, PackageJsonInfoCache, ParseConfigFileHost,
-    ParsedCommandLine, Path, Program, ProjectReference, ProjectReferenceFile, ReadonlyTextRange,
-    RedirectTargetsMap, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost, SourceFile, SourceFileLike,
-    SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache,
-    TextRange, TypeCheckerHost, TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache,
-    VecExt,
-    HasArena, AllArenas, InArena, static_arena, OptionInArena,
+    Node, NodeInterface, NonEmpty, OptionInArena, OptionTry, PackageId, PackageJsonInfoCache,
+    ParseConfigFileHost, ParsedCommandLine, Path, Program, ProjectReference, ProjectReferenceFile,
+    ReadonlyTextRange, RedirectTargetsMap, ReferencedFile, ResolvedModuleFull,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
+    SourceFile, SourceFileLike, SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect,
+    StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost, TypeCheckerHostDebuggable,
+    TypeReferenceDirectiveResolutionCache, VecExt,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue> {
@@ -92,7 +92,8 @@ impl LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>
             self.type_reference_directive_resolution_cache.clone(),
             self,
         )?
-        .ref_(self).resolved_type_reference_directive
+        .ref_(self)
+        .resolved_type_reference_directive
         .clone()
         .unwrap())
     }
@@ -181,15 +182,18 @@ pub(crate) fn get_mode_for_usage_location(
     let implied_node_format = implied_node_format?;
     if implied_node_format != ModuleKind::ESNext {
         return Some(
-            if is_import_call(walk_up_parenthesized_expressions(usage.ref_(arena).parent(), arena).unwrap(), arena) {
+            if is_import_call(
+                walk_up_parenthesized_expressions(usage.ref_(arena).parent(), arena).unwrap(),
+                arena,
+            ) {
                 ModuleKind::ESNext
             } else {
                 ModuleKind::CommonJS
             },
         );
     }
-    let expr_parent_parent =
-        walk_up_parenthesized_expressions(usage.ref_(arena).parent(), arena).and_then(|node| node.ref_(arena).maybe_parent());
+    let expr_parent_parent = walk_up_parenthesized_expressions(usage.ref_(arena).parent(), arena)
+        .and_then(|node| node.ref_(arena).maybe_parent());
     Some(
         if matches!(
             expr_parent_parent,
@@ -252,13 +256,13 @@ impl LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>
             resolver_mode,
             self,
         )?
-        .ref_(self).resolved_module
+        .ref_(self)
+        .resolved_module
         .clone())
     }
 }
 
-impl HasArena for LoadWithModeAwareCacheLoaderResolveModuleName
-{
+impl HasArena for LoadWithModeAwareCacheLoaderResolveModuleName {
     fn arena(&self) -> &AllArenas {
         unimplemented!()
     }
@@ -307,7 +311,10 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
 
 pub fn for_each_resolved_project_reference<TReturn>(
     resolved_project_references: Option<&[Option<Id<ResolvedProjectReference>>]>,
-    mut cb: impl FnMut(Id<ResolvedProjectReference>, Option<Id<ResolvedProjectReference>>) -> Option<TReturn>,
+    mut cb: impl FnMut(
+        Id<ResolvedProjectReference>,
+        Option<Id<ResolvedProjectReference>>,
+    ) -> Option<TReturn>,
     arena: &impl HasArena,
 ) -> Option<TReturn> {
     for_each_project_reference(
@@ -335,7 +342,10 @@ pub fn for_each_project_reference<TReturn>(
         usize,
     ) -> Option<TReturn>,
     cb_ref: Option<
-        impl Fn(Option<&[Rc<ProjectReference>]>, Option<Id<ResolvedProjectReference>>) -> Option<TReturn>,
+        impl Fn(
+            Option<&[Rc<ProjectReference>]>,
+            Option<Id<ResolvedProjectReference>>,
+        ) -> Option<TReturn>,
     >,
     arena: &impl HasArena,
 ) -> Option<TReturn> {
@@ -445,7 +455,10 @@ pub fn try_for_each_project_reference_bool<TError>(
 
 fn for_each_project_reference_worker<TReturn>(
     cb_ref: Option<
-        &impl Fn(Option<&[Rc<ProjectReference>]>, Option<Id<ResolvedProjectReference>>) -> Option<TReturn>,
+        &impl Fn(
+            Option<&[Rc<ProjectReference>]>,
+            Option<Id<ResolvedProjectReference>>,
+        ) -> Option<TReturn>,
     >,
     cb_resolved_ref: &mut impl FnMut(
         Option<Id<ResolvedProjectReference>>,
@@ -486,14 +499,25 @@ fn for_each_project_reference_worker<TReturn>(
             }
             let resolved_ref = resolved_ref.unwrap();
 
-            seen_resolved_refs
-                .get_or_insert_default_()
-                .insert(resolved_ref.ref_(arena).source_file.ref_(arena).as_source_file().path().clone());
+            seen_resolved_refs.get_or_insert_default_().insert(
+                resolved_ref
+                    .ref_(arena)
+                    .source_file
+                    .ref_(arena)
+                    .as_source_file()
+                    .path()
+                    .clone(),
+            );
             for_each_project_reference_worker(
                 cb_ref,
                 cb_resolved_ref,
                 seen_resolved_refs,
-                resolved_ref.ref_(arena).command_line.ref_(arena).project_references.as_deref(),
+                resolved_ref
+                    .ref_(arena)
+                    .command_line
+                    .ref_(arena)
+                    .project_references
+                    .as_deref(),
                 resolved_ref.ref_(arena).maybe_references().as_deref(),
                 Some(resolved_ref),
                 arena,
@@ -548,14 +572,25 @@ fn for_each_project_reference_worker_fallible<TReturn, TError>(
             }
             let resolved_ref = resolved_ref.unwrap();
 
-            seen_resolved_refs
-                .get_or_insert_default_()
-                .insert(resolved_ref.ref_(arena).source_file.ref_(arena).as_source_file().path().clone());
+            seen_resolved_refs.get_or_insert_default_().insert(
+                resolved_ref
+                    .ref_(arena)
+                    .source_file
+                    .ref_(arena)
+                    .as_source_file()
+                    .path()
+                    .clone(),
+            );
             for_each_project_reference_worker_fallible(
                 cb_ref,
                 cb_resolved_ref,
                 seen_resolved_refs,
-                resolved_ref.ref_(arena).command_line.ref_(arena).project_references.as_deref(),
+                resolved_ref
+                    .ref_(arena)
+                    .command_line
+                    .ref_(arena)
+                    .project_references
+                    .as_deref(),
                 resolved_ref.ref_(arena).maybe_references().as_deref(),
                 Some(resolved_ref),
                 arena,
@@ -669,7 +704,8 @@ pub(crate) fn get_referenced_file_location(
     let file_as_source_file = file_ref.as_source_file();
     match kind {
         FileIncludeKind::Import => {
-            let import_literal = get_module_name_string_literal_at(file_as_source_file, index, arena);
+            let import_literal =
+                get_module_name_string_literal_at(file_as_source_file, index, arena);
             let import_literal_ref = import_literal.ref_(arena);
             let import_literal_text = import_literal_ref.as_literal_like_node().text();
             package_id = file_as_source_file
@@ -750,11 +786,15 @@ pub fn get_config_file_parsing_diagnostics(
     config_file_parse_result: &ParsedCommandLine,
     arena: &impl HasArena,
 ) -> Vec<Id<Diagnostic>> {
-    if let Some(config_file_parse_result_options_config_file) =
-        config_file_parse_result.options.ref_(arena).config_file.as_ref()
+    if let Some(config_file_parse_result_options_config_file) = config_file_parse_result
+        .options
+        .ref_(arena)
+        .config_file
+        .as_ref()
     {
         config_file_parse_result_options_config_file
-            .ref_(arena).as_source_file()
+            .ref_(arena)
+            .as_source_file()
             .parse_diagnostics()
             .ref_(arena)
             .clone()
@@ -815,7 +855,8 @@ pub fn lookup_from_package_json(
     options: Id<CompilerOptions>,
     arena: &impl HasArena,
 ) -> ModuleKind /*ModuleKind.ESNext | ModuleKind.CommonJS*/ {
-    let scope = get_package_scope_for_path(file_name, package_json_info_cache, host, options, arena);
+    let scope =
+        get_package_scope_for_path(file_name, package_json_info_cache, host, options, arena);
     if matches!(
         scope,
         Some(scope) if matches!(
@@ -847,7 +888,10 @@ fn should_program_create_new_source_files(
     )
 }
 
-pub fn create_program(root_names_or_options: CreateProgramOptions, arena: &impl HasArena) -> io::Result<Id<Program>> {
+pub fn create_program(
+    root_names_or_options: CreateProgramOptions,
+    arena: &impl HasArena,
+) -> io::Result<Id<Program>> {
     let create_program_options = root_names_or_options;
     let program = Program::new(create_program_options, arena);
     program.ref_(arena).create()?;
@@ -865,72 +909,73 @@ impl Program {
     ) -> Id<Self> {
         let options = create_program_options.options.clone();
         let max_node_module_js_depth = options.ref_(arena).max_node_module_js_depth.unwrap_or(0);
-        let ret =
-            arena.alloc_program(Self {
-                _arena_id: Default::default(),
-                create_program_options: RefCell::new(Some(create_program_options)),
-                root_names: Default::default(),
-                options,
-                config_file_parsing_diagnostics: Default::default(),
-                project_references: Default::default(),
-                processing_default_lib_files: Default::default(),
-                processing_other_files: Default::default(),
-                files: Default::default(),
-                symlinks: Default::default(),
-                common_source_directory: Default::default(),
-                diagnostics_producing_type_checker: Default::default(),
-                no_diagnostics_type_checker: Default::default(),
-                classifiable_names: Default::default(),
-                ambient_module_name_to_unmodified_file_name: Default::default(),
-                file_reasons: Cell::new(arena.alloc_file_reasons(create_multi_map())),
-                cached_bind_and_check_diagnostics_for_file: Default::default(),
-                cached_declaration_diagnostics_for_file: Default::default(),
+        let ret = arena.alloc_program(Self {
+            _arena_id: Default::default(),
+            create_program_options: RefCell::new(Some(create_program_options)),
+            root_names: Default::default(),
+            options,
+            config_file_parsing_diagnostics: Default::default(),
+            project_references: Default::default(),
+            processing_default_lib_files: Default::default(),
+            processing_other_files: Default::default(),
+            files: Default::default(),
+            symlinks: Default::default(),
+            common_source_directory: Default::default(),
+            diagnostics_producing_type_checker: Default::default(),
+            no_diagnostics_type_checker: Default::default(),
+            classifiable_names: Default::default(),
+            ambient_module_name_to_unmodified_file_name: Default::default(),
+            file_reasons: Cell::new(arena.alloc_file_reasons(create_multi_map())),
+            cached_bind_and_check_diagnostics_for_file: Default::default(),
+            cached_declaration_diagnostics_for_file: Default::default(),
 
-                resolved_type_reference_directives: Cell::new(arena.alloc_resolved_type_reference_directives_map(Default::default())),
-                file_processing_diagnostics: Default::default(),
+            resolved_type_reference_directives: Cell::new(
+                arena.alloc_resolved_type_reference_directives_map(Default::default()),
+            ),
+            file_processing_diagnostics: Default::default(),
 
-                max_node_module_js_depth,
-                current_node_modules_depth: Default::default(),
+            max_node_module_js_depth,
+            current_node_modules_depth: Default::default(),
 
-                modules_with_elided_imports: Default::default(),
+            modules_with_elided_imports: Default::default(),
 
-                source_files_found_searching_node_modules: Default::default(),
+            source_files_found_searching_node_modules: Default::default(),
 
-                old_program: Default::default(),
-                host: Default::default(),
-                config_parsing_host: Default::default(),
+            old_program: Default::default(),
+            host: Default::default(),
+            config_parsing_host: Default::default(),
 
-                skip_default_lib: Default::default(),
-                get_default_library_file_name_memoized: Default::default(),
-                default_library_path: Default::default(),
-                program_diagnostics: Default::default(),
-                current_directory: Default::default(),
-                supported_extensions: Default::default(),
-                supported_extensions_with_json_if_resolve_json_module: Default::default(),
-                has_emit_blocking_diagnostics: Default::default(),
-                _compiler_options_object_literal_syntax: Default::default(),
-                module_resolution_cache: Default::default(),
-                type_reference_directive_resolution_cache: Default::default(),
-                actual_resolve_module_names_worker: Default::default(),
-                actual_resolve_type_reference_directive_names_worker: Default::default(),
-                package_id_to_source_file: Default::default(),
-                source_file_to_package_name: Default::default(),
-                redirect_targets_map: RefCell::new(Rc::new(RefCell::new(create_multi_map()))),
-                uses_uri_style_node_core_modules: Default::default(),
-                files_by_name: Default::default(),
-                missing_file_paths: Default::default(),
-                files_by_name_ignore_case: Default::default(),
-                resolved_project_references: Default::default(),
-                project_reference_redirects: Default::default(),
-                map_from_file_to_project_reference_redirects: Default::default(),
-                map_from_to_project_reference_redirect_source: Default::default(),
-                use_source_of_project_reference_redirect: Default::default(),
-                file_exists_rc: Default::default(),
-                directory_exists_rc: Default::default(),
-                should_create_new_source_file: Default::default(),
-                structure_is_reused: Default::default(),
-                get_program_build_info: Default::default(),
-            });
+            skip_default_lib: Default::default(),
+            get_default_library_file_name_memoized: Default::default(),
+            default_library_path: Default::default(),
+            program_diagnostics: Default::default(),
+            current_directory: Default::default(),
+            supported_extensions: Default::default(),
+            supported_extensions_with_json_if_resolve_json_module: Default::default(),
+            has_emit_blocking_diagnostics: Default::default(),
+            _compiler_options_object_literal_syntax: Default::default(),
+            module_resolution_cache: Default::default(),
+            type_reference_directive_resolution_cache: Default::default(),
+            actual_resolve_module_names_worker: Default::default(),
+            actual_resolve_type_reference_directive_names_worker: Default::default(),
+            package_id_to_source_file: Default::default(),
+            source_file_to_package_name: Default::default(),
+            redirect_targets_map: RefCell::new(Rc::new(RefCell::new(create_multi_map()))),
+            uses_uri_style_node_core_modules: Default::default(),
+            files_by_name: Default::default(),
+            missing_file_paths: Default::default(),
+            files_by_name_ignore_case: Default::default(),
+            resolved_project_references: Default::default(),
+            project_reference_redirects: Default::default(),
+            map_from_file_to_project_reference_redirects: Default::default(),
+            map_from_to_project_reference_redirect_source: Default::default(),
+            use_source_of_project_reference_redirect: Default::default(),
+            file_exists_rc: Default::default(),
+            directory_exists_rc: Default::default(),
+            should_create_new_source_file: Default::default(),
+            structure_is_reused: Default::default(),
+            get_program_build_info: Default::default(),
+        });
         ret.ref_(arena).set_arena_id(ret);
         ret
     }
@@ -953,30 +998,41 @@ impl Program {
         // performance.mark("beforeProgram");
 
         self.host.set(Some(host.unwrap_or_else(|| {
-            self.alloc_compiler_host(Box::new(create_compiler_host(self.options.clone(), None, self)))
-        })));
-        self.config_parsing_host.set(Some(self.alloc_parse_config_file_host(Box::new(
-            parse_config_host_from_compiler_host_like(
-                self.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::new(
-                    self.host(),
-                ))),
+            self.alloc_compiler_host(Box::new(create_compiler_host(
+                self.options.clone(),
                 None,
                 self,
-            ),
-        ))));
+            )))
+        })));
+        self.config_parsing_host
+            .set(Some(self.alloc_parse_config_file_host(Box::new(
+                parse_config_host_from_compiler_host_like(
+                    self.alloc_compiler_host_like(Box::new(
+                        CompilerHostLikeRcDynCompilerHost::new(self.host()),
+                    )),
+                    None,
+                    self,
+                ),
+            ))));
 
         self.skip_default_lib.set(self.options.ref_(self).no_lib);
-        *self.default_library_path.borrow_mut() =
-            Some(self.host().ref_(self).get_default_lib_location()?.try_unwrap_or_else(
-                || -> io::Result<_> {
+        *self.default_library_path.borrow_mut() = Some(
+            self.host()
+                .ref_(self)
+                .get_default_lib_location()?
+                .try_unwrap_or_else(|| -> io::Result<_> {
                     Ok(get_directory_path(&self.get_default_library_file_name()?))
-                },
-            )?);
-        *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection(&*static_arena()));
-        *self.current_directory.borrow_mut() =
-            Some(CompilerHost::get_current_directory(&**self.host().ref_(self))?);
-        *self.supported_extensions.borrow_mut() =
-            Some(get_supported_extensions(Some(&self.options.ref_(self)), None));
+                })?,
+        );
+        *self.program_diagnostics.borrow_mut() =
+            Some(create_diagnostic_collection(&*static_arena()));
+        *self.current_directory.borrow_mut() = Some(CompilerHost::get_current_directory(
+            &**self.host().ref_(self),
+        )?);
+        *self.supported_extensions.borrow_mut() = Some(get_supported_extensions(
+            Some(&self.options.ref_(self)),
+            None,
+        ));
         *self
             .supported_extensions_with_json_if_resolve_json_module
             .borrow_mut() = Some(get_supported_extensions_with_json_if_resolve_json_module(
@@ -987,68 +1043,84 @@ impl Program {
         *self.has_emit_blocking_diagnostics.borrow_mut() = Some(HashMap::new());
 
         if self.host().ref_(self).is_resolve_module_names_supported() {
-            self.actual_resolve_module_names_worker.set(Some(self.alloc_actual_resolve_module_names_worker(Box::new(
-                ActualResolveModuleNamesWorkerHost::new(self.host(), self.options.clone()),
-            ))));
-            self.module_resolution_cache.set(self.host().ref_(self).get_module_resolution_cache());
+            self.actual_resolve_module_names_worker.set(Some(
+                self.alloc_actual_resolve_module_names_worker(Box::new(
+                    ActualResolveModuleNamesWorkerHost::new(self.host(), self.options.clone()),
+                )),
+            ));
+            self.module_resolution_cache
+                .set(self.host().ref_(self).get_module_resolution_cache());
         } else {
-            self.module_resolution_cache.set(
-                Some(self.alloc_module_resolution_cache(create_module_resolution_cache(
-                    &self.current_directory(),
-                    self.get_canonical_file_name_rc(),
-                    Some(self.options.clone()),
-                    None,
-                    None,
-                    self,
-                )))
-            );
+            self.module_resolution_cache
+                .set(Some(self.alloc_module_resolution_cache(
+                    create_module_resolution_cache(
+                        &self.current_directory(),
+                        self.get_canonical_file_name_rc(),
+                        Some(self.options.clone()),
+                        None,
+                        None,
+                        self,
+                    ),
+                )));
             let loader = LoadWithModeAwareCacheLoaderResolveModuleName::new(
                 self.options.clone(),
                 self.host(),
                 self.maybe_module_resolution_cache(),
             );
-            self.actual_resolve_module_names_worker.set(Some(self.alloc_actual_resolve_module_names_worker(Box::new(
-                ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(self.alloc_load_with_mode_aware_cache_loader(Box::new(
-                    loader,
-                ))),
-            ))));
+            self.actual_resolve_module_names_worker.set(Some(
+                self.alloc_actual_resolve_module_names_worker(Box::new(
+                    ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(
+                        self.alloc_load_with_mode_aware_cache_loader(Box::new(loader)),
+                    ),
+                )),
+            ));
         }
 
-        if self.host().ref_(self).is_resolve_type_reference_directives_supported() {
-            self
-                .actual_resolve_type_reference_directive_names_worker
-                .set(Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
-                ActualResolveTypeReferenceDirectiveNamesWorkerHost::new(
-                    self.host(),
-                    self.options.clone(),
-                ),
-            ))));
+        if self
+            .host()
+            .ref_(self)
+            .is_resolve_type_reference_directives_supported()
+        {
+            self.actual_resolve_type_reference_directive_names_worker
+                .set(Some(
+                    self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
+                        ActualResolveTypeReferenceDirectiveNamesWorkerHost::new(
+                            self.host(),
+                            self.options.clone(),
+                        ),
+                    )),
+                ));
         } else {
-            self.type_reference_directive_resolution_cache.set(
-                Some(self.alloc_type_reference_directive_resolution_cache(create_type_reference_directive_resolution_cache(
-                    &self.current_directory(),
-                    self.get_canonical_file_name_rc(),
-                    None,
-                    self.maybe_module_resolution_cache()
-                        .map(|module_resolution_cache| {
-                            module_resolution_cache.ref_(self).get_package_json_info_cache()
-                        }),
-                    None,
-                    self,
-                )))
-            );
+            self.type_reference_directive_resolution_cache.set(Some(
+                self.alloc_type_reference_directive_resolution_cache(
+                    create_type_reference_directive_resolution_cache(
+                        &self.current_directory(),
+                        self.get_canonical_file_name_rc(),
+                        None,
+                        self.maybe_module_resolution_cache()
+                            .map(|module_resolution_cache| {
+                                module_resolution_cache
+                                    .ref_(self)
+                                    .get_package_json_info_cache()
+                            }),
+                        None,
+                        self,
+                    ),
+                ),
+            ));
             let loader = LoadWithLocalCacheLoaderResolveTypeReferenceDirective::new(
                 self.options.clone(),
                 self.host(),
                 self.maybe_type_reference_directive_resolution_cache(),
             );
-            self
-                .actual_resolve_type_reference_directive_names_worker
-                .set(Some(self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
-                ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(self.alloc_load_with_local_cache_loader(
-                    Box::new(loader),
-                )),
-            ))));
+            self.actual_resolve_type_reference_directive_names_worker
+                .set(Some(
+                    self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
+                        ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(
+                            self.alloc_load_with_local_cache_loader(Box::new(loader)),
+                        ),
+                    )),
+                ));
         }
 
         *self.package_id_to_source_file.borrow_mut() = Some(HashMap::new());
@@ -1064,8 +1136,15 @@ impl Program {
             };
 
         self.use_source_of_project_reference_redirect.set(Some(
-            self.host().ref_(self).use_source_of_project_reference_redirect() == Some(true)
-                && self.options.ref_(self).disable_source_of_project_reference_redirect != Some(true),
+            self.host()
+                .ref_(self)
+                .use_source_of_project_reference_redirect()
+                == Some(true)
+                && self
+                    .options
+                    .ref_(self)
+                    .disable_source_of_project_reference_redirect
+                    != Some(true),
         ));
         let UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
             on_program_create_complete,
@@ -1078,9 +1157,9 @@ impl Program {
                 use_source_of_project_reference_redirect: self
                     .use_source_of_project_reference_redirect(),
                 to_path: self.to_path_rc(),
-                get_resolved_project_references: self.alloc_get_resolved_project_references(Box::new(
-                    ProgramGetResolvedProjectReferences::new(self.arena_id()),
-                )),
+                get_resolved_project_references: self.alloc_get_resolved_project_references(
+                    Box::new(ProgramGetResolvedProjectReferences::new(self.arena_id())),
+                ),
                 for_each_resolved_project_reference: self.for_each_resolved_project_reference_id(),
             },
             self,
@@ -1237,17 +1316,17 @@ impl Program {
                     self.process_type_reference_directive(
                         &type_references[i],
                         resolutions.get(i).and_then(|resolution| resolution.clone()),
-                        self.alloc_file_include_reason(FileIncludeReason::AutomaticTypeDirectiveFile(
-                            AutomaticTypeDirectiveFile {
-                                kind: FileIncludeKind::AutomaticTypeDirectiveFile,
-                                type_reference: type_references[i].clone(),
-                                package_id: resolutions
-                                    .get(i)
-                                    .cloned()
-                                    .flatten()
-                                    .and_then(|resolution| resolution.ref_(self).package_id.clone()),
-                            },
-                        )),
+                        self.alloc_file_include_reason(
+                            FileIncludeReason::AutomaticTypeDirectiveFile(
+                                AutomaticTypeDirectiveFile {
+                                    kind: FileIncludeKind::AutomaticTypeDirectiveFile,
+                                    type_reference: type_references[i].clone(),
+                                    package_id: resolutions.get(i).cloned().flatten().and_then(
+                                        |resolution| resolution.ref_(self).package_id.clone(),
+                                    ),
+                                },
+                            ),
+                        ),
                     )?;
                 }
                 // tracing?.pop();
@@ -1273,10 +1352,12 @@ impl Program {
                                 &self.path_for_lib_file(lib_file_name)?,
                                 true,
                                 false,
-                                self.alloc_file_include_reason(FileIncludeReason::LibFile(LibFile {
-                                    kind: FileIncludeKind::LibFile,
-                                    index: Some(index),
-                                })),
+                                self.alloc_file_include_reason(FileIncludeReason::LibFile(
+                                    LibFile {
+                                        kind: FileIncludeKind::LibFile,
+                                        index: Some(index),
+                                    },
+                                )),
                             )?;
                             Ok(None)
                         },
@@ -1336,13 +1417,21 @@ impl Program {
         Debug_.assert(self.maybe_missing_file_paths().is_some(), None);
 
         if let Some(_old_program) = self.maybe_old_program().as_ref() {
-            if self.host().ref_(self).is_on_release_old_source_file_supported() {
+            if self
+                .host()
+                .ref_(self)
+                .is_on_release_old_source_file_supported()
+            {
                 unimplemented!()
             }
         }
 
         if let Some(_old_program) = self.maybe_old_program().as_ref() {
-            if self.host().ref_(self).is_on_release_parsed_command_line_supported() {
+            if self
+                .host()
+                .ref_(self)
+                .is_on_release_parsed_command_line_supported()
+            {
                 unimplemented!()
             }
         }
@@ -1420,9 +1509,7 @@ impl Program {
         })
     }
 
-    pub(super) fn maybe_config_file_parsing_diagnostics(
-        &self,
-    ) -> Ref<Option<Vec<Id<Diagnostic>>>> {
+    pub(super) fn maybe_config_file_parsing_diagnostics(&self) -> Ref<Option<Vec<Id<Diagnostic>>>> {
         self.config_file_parsing_diagnostics.borrow()
     }
 
@@ -1448,8 +1535,11 @@ impl Program {
             .borrow()
             .is_none()
         {
-            *self.get_default_library_file_name_memoized.borrow_mut() =
-                Some(self.host().ref_(self).get_default_lib_file_name(&self.options.ref_(self))?);
+            *self.get_default_library_file_name_memoized.borrow_mut() = Some(
+                self.host()
+                    .ref_(self)
+                    .get_default_lib_file_name(&self.options.ref_(self))?,
+            );
         }
         Ok(Ref::map(
             self.get_default_library_file_name_memoized.borrow(),
@@ -1531,22 +1621,15 @@ impl Program {
         self.file_reasons.get()
     }
 
-    pub(super) fn set_file_reasons(
-        &self,
-        file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>,
-    ) {
+    pub(super) fn set_file_reasons(&self, file_reasons: Id<MultiMap<Path, Id<FileIncludeReason>>>) {
         self.file_reasons.set(file_reasons);
     }
 
-    pub(super) fn cached_bind_and_check_diagnostics_for_file_mut(
-        &self,
-    ) -> RefMut<DiagnosticCache> {
+    pub(super) fn cached_bind_and_check_diagnostics_for_file_mut(&self) -> RefMut<DiagnosticCache> {
         self.cached_bind_and_check_diagnostics_for_file.borrow_mut()
     }
 
-    pub(super) fn cached_declaration_diagnostics_for_file_mut(
-        &self,
-    ) -> RefMut<DiagnosticCache> {
+    pub(super) fn cached_declaration_diagnostics_for_file_mut(&self) -> RefMut<DiagnosticCache> {
         self.cached_declaration_diagnostics_for_file.borrow_mut()
     }
 
@@ -1577,21 +1660,20 @@ impl Program {
 
     pub(super) fn set_resolved_type_reference_directives(
         &self,
-        resolved_type_reference_directives: Id<HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>>,
+        resolved_type_reference_directives: Id<
+            HashMap<String, Option<Id<ResolvedTypeReferenceDirective>>>,
+        >,
     ) {
-        self.resolved_type_reference_directives.set(resolved_type_reference_directives);
+        self.resolved_type_reference_directives
+            .set(resolved_type_reference_directives);
     }
 
     pub(super) fn program_diagnostics(&self) -> Ref<DiagnosticCollection> {
         ref_unwrapped(&self.program_diagnostics)
     }
 
-    pub(super) fn program_diagnostics_mut(
-        &self,
-    ) -> RefMut<DiagnosticCollection> {
-        ref_mut_unwrapped(
-            &self.program_diagnostics
-        )
+    pub(super) fn program_diagnostics_mut(&self) -> RefMut<DiagnosticCollection> {
+        ref_mut_unwrapped(&self.program_diagnostics)
     }
 
     pub(super) fn current_directory(&self) -> Ref<String> {
@@ -1636,12 +1718,11 @@ impl Program {
         &self,
         compiler_options_object_literal_syntax: Option<Option<Id<Node>>>,
     ) {
-        self._compiler_options_object_literal_syntax.set(compiler_options_object_literal_syntax);
+        self._compiler_options_object_literal_syntax
+            .set(compiler_options_object_literal_syntax);
     }
 
-    pub(super) fn maybe_module_resolution_cache(
-        &self,
-    ) -> Option<Id<ModuleResolutionCache>> {
+    pub(super) fn maybe_module_resolution_cache(&self) -> Option<Id<ModuleResolutionCache>> {
         self.module_resolution_cache.get()
     }
 
@@ -1654,9 +1735,7 @@ impl Program {
     pub(super) fn actual_resolve_module_names_worker(
         &self,
     ) -> Id<Box<dyn ActualResolveModuleNamesWorker>> {
-        self.actual_resolve_module_names_worker
-            .get()
-            .unwrap()
+        self.actual_resolve_module_names_worker.get().unwrap()
     }
 
     pub(super) fn actual_resolve_type_reference_directive_names_worker(
@@ -1670,17 +1749,13 @@ impl Program {
     pub(super) fn package_id_to_source_file(
         &self,
     ) -> Ref<HashMap<String, Id<Node /*SourceFile*/>>> {
-        ref_unwrapped(
-            &self.package_id_to_source_file
-        )
+        ref_unwrapped(&self.package_id_to_source_file)
     }
 
     pub(super) fn package_id_to_source_file_mut(
         &self,
     ) -> RefMut<HashMap<String, Id<Node /*SourceFile*/>>> {
-        ref_mut_unwrapped(
-            &self.package_id_to_source_file,
-        )
+        ref_mut_unwrapped(&self.package_id_to_source_file)
     }
 
     pub(super) fn source_file_to_package_name(&self) -> RefMut<HashMap<Path, String>> {
@@ -1717,10 +1792,7 @@ impl Program {
         ref_unwrapped(&self.files_by_name)
     }
 
-    pub(super) fn files_by_name_mut(
-        &self,
-    ) -> RefMut<HashMap<String, FilesByNameValue>>
-    {
+    pub(super) fn files_by_name_mut(&self) -> RefMut<HashMap<String, FilesByNameValue>> {
         ref_mut_unwrapped(&self.files_by_name)
     }
 
@@ -1728,20 +1800,12 @@ impl Program {
         self.missing_file_paths.borrow_mut()
     }
 
-    pub(super) fn files_by_name_ignore_case(
-        &self,
-    ) -> Ref<HashMap<String, Id<Node>>> {
-        ref_unwrapped(
-            &self.files_by_name_ignore_case
-        )
+    pub(super) fn files_by_name_ignore_case(&self) -> Ref<HashMap<String, Id<Node>>> {
+        ref_unwrapped(&self.files_by_name_ignore_case)
     }
 
-    pub(super) fn files_by_name_ignore_case_mut(
-        &self,
-    ) -> RefMut<HashMap<String, Id<Node>>> {
-        ref_mut_unwrapped(
-            &self.files_by_name_ignore_case
-        )
+    pub(super) fn files_by_name_ignore_case_mut(&self) -> RefMut<HashMap<String, Id<Node>>> {
+        ref_mut_unwrapped(&self.files_by_name_ignore_case)
     }
 
     pub(super) fn maybe_resolved_project_references(
@@ -1770,9 +1834,7 @@ impl Program {
 
     pub(super) fn project_reference_redirects_mut(
         &self,
-    ) -> RefMut<
-        HashMap<Path, Option<Id<ResolvedProjectReference>>>,
-    > {
+    ) -> RefMut<HashMap<Path, Option<Id<ResolvedProjectReference>>>> {
         ref_mut_unwrapped(&self.project_reference_redirects)
     }
 
@@ -1841,7 +1903,10 @@ impl ProgramGetResolvedProjectReferences {
 
 impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
     fn call(&self) -> Option<Vec<Option<Id<ResolvedProjectReference>>>> {
-        self.program.ref_(self).get_resolved_project_references().clone()
+        self.program
+            .ref_(self)
+            .get_resolved_project_references()
+            .clone()
     }
 }
 
@@ -1910,7 +1975,8 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
     ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
         Ok(self
             .host
-            .ref_(self).resolve_module_names(
+            .ref_(self)
+            .resolve_module_names(
                 /*Debug.checkEachDefined(*/ module_names, /*)*/
                 containing_file_name,
                 reused_names,
@@ -1929,7 +1995,8 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
                 }
                 let resolved = resolved.unwrap();
                 let mut with_extension = clone(&*resolved.ref_(self));
-                with_extension.extension = Some(extension_from_path(&resolved.ref_(self).resolved_file_name));
+                with_extension.extension =
+                    Some(extension_from_path(&resolved.ref_(self).resolved_file_name));
                 Some(self.alloc_resolved_module_full(with_extension))
             })
             .collect())
@@ -2011,7 +2078,8 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
     ) -> io::Result<Vec<Option<Id<ResolvedTypeReferenceDirective>>>> {
         Ok(self
             .host
-            .ref_(self).resolve_type_reference_directives(
+            .ref_(self)
+            .resolve_type_reference_directives(
                 /*Debug.checkEachDefined(*/ type_directive_names, /*)*/
                 containing_file,
                 redirected_reference,

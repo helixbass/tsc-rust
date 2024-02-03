@@ -564,11 +564,11 @@ impl TypeChecker {
                         | TypeFlags::Intersection
                         | TypeFlags::InstantiableNonPrimitive,
                 ) {
-                    self.get_properties_of_type(source)?
-                        .into_iter()
-                        .try_find_(|&p| -> io::Result<_> {
+                    self.get_properties_of_type(source)?.into_iter().try_find_(
+                        |&p| -> io::Result<_> {
                             Ok(self.is_unit_type(self.get_type_of_symbol(p)?))
-                        })?
+                        },
+                    )?
                 } else {
                     None
                 };
@@ -952,8 +952,13 @@ impl TypeChecker {
         )))
     }
 
-    pub(super) fn type_predicate_kinds_match(&self, a: Id<TypePredicate>, b: Id<TypePredicate>) -> bool {
-        a.ref_(self).kind == b.ref_(self).kind && a.ref_(self).parameter_index == b.ref_(self).parameter_index
+    pub(super) fn type_predicate_kinds_match(
+        &self,
+        a: Id<TypePredicate>,
+        b: Id<TypePredicate>,
+    ) -> bool {
+        a.ref_(self).kind == b.ref_(self).kind
+            && a.ref_(self).parameter_index == b.ref_(self).parameter_index
     }
 
     pub(super) fn get_union_type_from_sorted_list(
@@ -1030,9 +1035,9 @@ impl TypeChecker {
             type_ = Some(self.alloc_type(union_type.into()));
             let type_ = type_.unwrap();
             type_.ref_(self).set_alias_symbol(alias_symbol);
-            type_.ref_(self).set_alias_type_arguments(
-                alias_type_arguments.map(ToOwned::to_owned)
-            );
+            type_
+                .ref_(self)
+                .set_alias_type_arguments(alias_type_arguments.map(ToOwned::to_owned));
             // TODO: also treat union type as intrinsic type with intrinsic_name = "boolean" if
             // is_boolean - should expose maybe_intrinsic_name on UnionType or something?
             self.union_types().insert(id, type_.clone());
@@ -1049,9 +1054,10 @@ impl TypeChecker {
             let alias_symbol = self.get_alias_symbol_for_type_node(node)?;
             links.ref_mut(self).resolved_type = Some(
                 self.get_union_type(
-                    &try_map(&*node.ref_(self).as_union_type_node().types.ref_(self), |&type_: &Id<Node>, _| {
-                        self.get_type_from_type_node_(type_)
-                    })?,
+                    &try_map(
+                        &*node.ref_(self).as_union_type_node().types.ref_(self),
+                        |&type_: &Id<Node>, _| self.get_type_from_type_node_(type_),
+                    )?,
                     Some(UnionReduction::Literal),
                     alias_symbol,
                     self.get_type_arguments_for_alias_symbol(alias_symbol)?

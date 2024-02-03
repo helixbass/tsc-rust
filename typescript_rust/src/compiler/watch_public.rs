@@ -2,8 +2,7 @@ use id_arena::Id;
 
 use crate::{
     create_compiler_host_worker, get_sys, BuilderProgram, CompilerHost, CompilerOptions,
-    ConfigFileDiagnosticsReporter, Diagnostic, System,
-    HasArena,
+    ConfigFileDiagnosticsReporter, Diagnostic, HasArena, System,
 };
 
 pub fn create_incremental_compiler_host(

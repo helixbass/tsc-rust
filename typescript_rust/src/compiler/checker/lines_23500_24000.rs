@@ -9,12 +9,11 @@ use id_arena::Id;
 
 use super::TypeFacts;
 use crate::{
-    contains, get_assignment_target_kind, get_declared_expando_initializer,
-    get_object_flags, is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const,
-    is_variable_declaration, maybe_every, push_if_unique_eq, skip_parentheses,
-    AllArenas, AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasArena, InArena,
-    Node, NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, TypePredicateKind, UnionReduction,
+    contains, get_assignment_target_kind, get_declared_expando_initializer, get_object_flags,
+    is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration,
+    maybe_every, push_if_unique_eq, skip_parentheses, AllArenas, AssignmentKind, FlowFlags,
+    FlowNode, FlowNodeBase, FlowType, HasArena, InArena, Node, NodeInterface, ObjectFlags, Symbol,
+    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicateKind, UnionReduction,
 };
 
 impl TypeChecker {
@@ -52,9 +51,11 @@ impl TypeChecker {
                 let flow_as_flow_call = flow_ref.as_flow_call();
                 if flow_as_flow_call
                     .node
-                    .ref_(self).as_call_expression()
+                    .ref_(self)
+                    .as_call_expression()
                     .expression
-                    .ref_(self).kind()
+                    .ref_(self)
+                    .kind()
                     == SyntaxKind::SuperKeyword
                 {
                     return true;
@@ -62,12 +63,20 @@ impl TypeChecker {
                 flow = flow_as_flow_call.antecedent.clone();
             } else if flags.intersects(FlowFlags::BranchLabel) {
                 return maybe_every(
-                    flow.ref_(self).as_flow_label().maybe_antecedents().as_deref(),
+                    flow.ref_(self)
+                        .as_flow_label()
+                        .maybe_antecedents()
+                        .as_deref(),
                     |f: &Id<FlowNode>, _| self.is_post_super_flow_node(f.clone(), false),
                 );
             } else if flags.intersects(FlowFlags::LoopLabel) {
-                let new_flow =
-                    flow.ref_(self).as_flow_label().maybe_antecedents().as_ref().unwrap()[0].clone();
+                let new_flow = flow
+                    .ref_(self)
+                    .as_flow_label()
+                    .maybe_antecedents()
+                    .as_ref()
+                    .unwrap()[0]
+                    .clone();
                 flow = new_flow;
             } else if flags.intersects(FlowFlags::ReduceLabel) {
                 let flow_ref = flow.ref_(self);
@@ -96,16 +105,15 @@ impl TypeChecker {
                         && !self.is_symbol_assigned(symbol)?);
             }
             SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression => {
-                return Ok(
-                    self.is_constant_reference(node.ref_(self).as_has_expression().expression())?
-                        && self.is_readonly_symbol(
-                            self.get_node_links(node)
-                                .ref_(self)
-                                .resolved_symbol
-                                .clone()
-                                .unwrap_or_else(|| self.unknown_symbol()),
-                        )?,
-                );
+                return Ok(self
+                    .is_constant_reference(node.ref_(self).as_has_expression().expression())?
+                    && self.is_readonly_symbol(
+                        self.get_node_links(node)
+                            .ref_(self)
+                            .resolved_symbol
+                            .clone()
+                            .unwrap_or_else(|| self.unknown_symbol()),
+                    )?);
             }
             _ => (),
         }
@@ -206,23 +214,27 @@ impl GetFlowTypeOfReference {
             return Ok(self.declared_type.clone());
         }
         self.type_checker
-            .ref_(self).set_flow_invocation_count(self.type_checker.ref_(self).flow_invocation_count() + 1);
+            .ref_(self)
+            .set_flow_invocation_count(self.type_checker.ref_(self).flow_invocation_count() + 1);
         self.set_shared_flow_start(self.type_checker.ref_(self).shared_flow_count());
         let evolved_type = self.type_checker.ref_(self).get_type_from_flow_type(
             &self.get_type_at_flow_node(self.reference.ref_(self).maybe_flow_node().unwrap())?,
         );
         self.type_checker
-            .ref_(self).set_shared_flow_count(self.shared_flow_start());
+            .ref_(self)
+            .set_shared_flow_count(self.shared_flow_start());
         let result_type = if get_object_flags(&evolved_type.ref_(self))
             .intersects(ObjectFlags::EvolvingArray)
             && self
                 .type_checker
-                .ref_(self).is_evolving_array_operation_target(self.reference)?
+                .ref_(self)
+                .is_evolving_array_operation_target(self.reference)?
         {
             self.type_checker.ref_(self).auto_array_type()
         } else {
             self.type_checker
-                .ref_(self).finalize_evolving_array_type(evolved_type)?
+                .ref_(self)
+                .finalize_evolving_array_type(evolved_type)?
         };
         if result_type == self.type_checker.ref_(self).unreachable_never_type()
             || matches!(
@@ -231,7 +243,8 @@ impl GetFlowTypeOfReference {
             ) && !result_type.ref_(self).flags().intersects(TypeFlags::Never)
                 && self
                     .type_checker
-                    .ref_(self).get_type_with_facts(result_type, TypeFacts::NEUndefinedOrNull)?
+                    .ref_(self)
+                    .get_type_with_facts(result_type, TypeFacts::NEUndefinedOrNull)?
                     .ref_(self)
                     .flags()
                     .intersects(TypeFlags::Never)
@@ -265,8 +278,12 @@ impl GetFlowTypeOfReference {
     pub(super) fn get_type_at_flow_node(&self, mut flow: Id<FlowNode>) -> io::Result<FlowType> {
         if self.flow_depth() == 2000 {
             // tracing?.instant(tracing.Phase.CheckTypes, "getTypeAtFlowNode_DepthLimit", { flowId: flow.id });
-            self.type_checker.ref_(self).set_flow_analysis_disabled(true);
-            self.type_checker.ref_(self).report_flow_control_error(self.reference);
+            self.type_checker
+                .ref_(self)
+                .set_flow_analysis_disabled(true);
+            self.type_checker
+                .ref_(self)
+                .report_flow_control_error(self.reference);
             return Ok(self.type_checker.ref_(self).error_type().into());
         }
         self.set_flow_depth(self.flow_depth() + 1);
@@ -274,12 +291,21 @@ impl GetFlowTypeOfReference {
         loop {
             let flags = flow.ref_(self).flags();
             if flags.intersects(FlowFlags::Shared) {
-                for i in self.shared_flow_start()..self.type_checker.ref_(self).shared_flow_count() {
-                    if self.type_checker.ref_(self).shared_flow_nodes().get(&i).copied() == Some(flow) {
+                for i in self.shared_flow_start()..self.type_checker.ref_(self).shared_flow_count()
+                {
+                    if self
+                        .type_checker
+                        .ref_(self)
+                        .shared_flow_nodes()
+                        .get(&i)
+                        .copied()
+                        == Some(flow)
+                    {
                         self.set_flow_depth(self.flow_depth() - 1);
                         return Ok(self
                             .type_checker
-                            .ref_(self).shared_flow_types()
+                            .ref_(self)
+                            .shared_flow_types()
                             .get(&i)
                             .cloned()
                             .unwrap());
@@ -344,12 +370,13 @@ impl GetFlowTypeOfReference {
             } else if flags.intersects(FlowFlags::Start) {
                 let container = flow.ref_(self).as_flow_start().maybe_node();
                 if let Some(container) = container.filter(|&container| {
-                    self.flow_container != Some(container) && !matches!(
-                        self.reference.ref_(self).kind(),
-                        SyntaxKind::PropertyAccessExpression
-                            | SyntaxKind::ElementAccessExpression
-                            | SyntaxKind::ThisKeyword
-                    )
+                    self.flow_container != Some(container)
+                        && !matches!(
+                            self.reference.ref_(self).kind(),
+                            SyntaxKind::PropertyAccessExpression
+                                | SyntaxKind::ElementAccessExpression
+                                | SyntaxKind::ThisKeyword
+                        )
                 }) {
                     flow = container.ref_(self).maybe_flow_node().unwrap();
                     continue;
@@ -358,20 +385,23 @@ impl GetFlowTypeOfReference {
             } else {
                 type_ = Some(
                     self.type_checker
-                        .ref_(self).convert_auto_to_any(self.declared_type)
+                        .ref_(self)
+                        .convert_auto_to_any(self.declared_type)
                         .into(),
                 );
             }
             if let Some(shared_flow) = shared_flow.as_ref() {
-                self.type_checker
-                    .ref_(self).shared_flow_nodes_mut()
-                    .insert(self.type_checker.ref_(self).shared_flow_count(), shared_flow.clone());
+                self.type_checker.ref_(self).shared_flow_nodes_mut().insert(
+                    self.type_checker.ref_(self).shared_flow_count(),
+                    shared_flow.clone(),
+                );
                 self.type_checker.ref_(self).shared_flow_types_mut().insert(
                     self.type_checker.ref_(self).shared_flow_count(),
                     type_.clone().unwrap(),
                 );
                 self.type_checker
-                    .ref_(self).set_shared_flow_count(self.type_checker.ref_(self).shared_flow_count() + 1);
+                    .ref_(self)
+                    .set_shared_flow_count(self.type_checker.ref_(self).shared_flow_count() + 1);
             }
             self.set_flow_depth(self.flow_depth() - 1);
             return Ok(type_.unwrap());
@@ -383,18 +413,20 @@ impl GetFlowTypeOfReference {
         flow: &FlowNode, /*FlowAssignment*/
     ) -> io::Result<Id<Type>> {
         let node = flow.as_flow_assignment().node;
-        self.type_checker.ref_(self).get_narrowable_type_for_reference(
-            if matches!(
-                node.ref_(self).kind(),
-                SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
-            ) {
-                self.type_checker.ref_(self).get_initial_type(node)?
-            } else {
-                self.type_checker.ref_(self).get_assigned_type(node)?
-            },
-            self.reference,
-            None,
-        )
+        self.type_checker
+            .ref_(self)
+            .get_narrowable_type_for_reference(
+                if matches!(
+                    node.ref_(self).kind(),
+                    SyntaxKind::VariableDeclaration | SyntaxKind::BindingElement
+                ) {
+                    self.type_checker.ref_(self).get_initial_type(node)?
+                } else {
+                    self.type_checker.ref_(self).get_assigned_type(node)?
+                },
+                self.reference,
+                None,
+            )
     }
 
     pub(super) fn get_type_at_flow_assignment(
@@ -406,20 +438,31 @@ impl GetFlowTypeOfReference {
         let node = flow_as_flow_assignment.node;
         if self
             .type_checker
-            .ref_(self).is_matching_reference(self.reference, node)?
+            .ref_(self)
+            .is_matching_reference(self.reference, node)?
         {
-            if !self.type_checker.ref_(self).is_reachable_flow_node(flow.clone())? {
-                return Ok(Some(self.type_checker.ref_(self).unreachable_never_type().into()));
+            if !self
+                .type_checker
+                .ref_(self)
+                .is_reachable_flow_node(flow.clone())?
+            {
+                return Ok(Some(
+                    self.type_checker.ref_(self).unreachable_never_type().into(),
+                ));
             }
             if get_assignment_target_kind(node, self) == AssignmentKind::Compound {
                 let flow_type =
                     self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone())?;
-                return Ok(Some(self.type_checker.ref_(self).create_flow_type(
-                    self.type_checker.ref_(self).get_base_type_of_literal_type(
-                        self.type_checker.ref_(self).get_type_from_flow_type(&flow_type),
-                    )?,
-                    self.type_checker.ref_(self).is_incomplete(&flow_type),
-                )));
+                return Ok(Some(
+                    self.type_checker.ref_(self).create_flow_type(
+                        self.type_checker.ref_(self).get_base_type_of_literal_type(
+                            self.type_checker
+                                .ref_(self)
+                                .get_type_from_flow_type(&flow_type),
+                        )?,
+                        self.type_checker.ref_(self).is_incomplete(&flow_type),
+                    ),
+                ));
             }
             if self.declared_type == self.type_checker.ref_(self).auto_type()
                 || self.declared_type == self.type_checker.ref_(self).auto_array_type()
@@ -427,17 +470,19 @@ impl GetFlowTypeOfReference {
                 if self.type_checker.ref_(self).is_empty_array_assignment(node) {
                     return Ok(Some(
                         self.type_checker
-                            .ref_(self).get_evolving_array_type(self.type_checker.ref_(self).never_type())
+                            .ref_(self)
+                            .get_evolving_array_type(self.type_checker.ref_(self).never_type())
                             .into(),
                     ));
                 }
-                let assigned_type = self
-                    .type_checker
-                    .ref_(self).get_widened_literal_type(self.get_initial_or_assigned_type(&flow.ref_(self))?)?;
+                let assigned_type = self.type_checker.ref_(self).get_widened_literal_type(
+                    self.get_initial_or_assigned_type(&flow.ref_(self))?,
+                )?;
                 return Ok(
                     if self
                         .type_checker
-                        .ref_(self).is_type_assignable_to(assigned_type, self.declared_type)?
+                        .ref_(self)
+                        .is_type_assignable_to(assigned_type, self.declared_type)?
                     {
                         Some(assigned_type.into())
                     } else {
@@ -453,7 +498,8 @@ impl GetFlowTypeOfReference {
             {
                 return Ok(Some(
                     self.type_checker
-                        .ref_(self).get_assignment_reduced_type(
+                        .ref_(self)
+                        .get_assignment_reduced_type(
                             self.declared_type,
                             self.get_initial_or_assigned_type(&flow.ref_(self))?,
                         )?
@@ -464,12 +510,20 @@ impl GetFlowTypeOfReference {
         }
         if self
             .type_checker
-            .ref_(self).contains_matching_reference(self.reference, node)?
+            .ref_(self)
+            .contains_matching_reference(self.reference, node)?
         {
-            if !self.type_checker.ref_(self).is_reachable_flow_node(flow.clone())? {
-                return Ok(Some(self.type_checker.ref_(self).unreachable_never_type().into()));
+            if !self
+                .type_checker
+                .ref_(self)
+                .is_reachable_flow_node(flow.clone())?
+            {
+                return Ok(Some(
+                    self.type_checker.ref_(self).unreachable_never_type().into(),
+                ));
             }
-            if is_variable_declaration(&node.ref_(self)) && (is_in_js_file(Some(&node.ref_(self))) || is_var_const(node, self))
+            if is_variable_declaration(&node.ref_(self))
+                && (is_in_js_file(Some(&node.ref_(self))) || is_var_const(node, self))
             {
                 let init = get_declared_expando_initializer(node, self);
                 if matches!(
@@ -488,17 +542,35 @@ impl GetFlowTypeOfReference {
             return Ok(Some(self.declared_type.clone().into()));
         }
         if is_variable_declaration(&node.ref_(self))
-            && node.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::ForInStatement
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::ForInStatement
             && self.type_checker.ref_(self).is_matching_reference(
                 self.reference,
-                node.ref_(self).parent().ref_(self).parent().ref_(self).as_for_in_statement().expression,
+                node.ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_for_in_statement()
+                    .expression,
             )?
         {
             return Ok(Some(
                 self.type_checker
-                    .ref_(self).get_non_nullable_type_if_needed(self.type_checker.ref_(self).get_type_from_flow_type(
-                        &self.get_type_at_flow_node(flow_as_flow_assignment.antecedent.clone())?,
-                    ))?
+                    .ref_(self)
+                    .get_non_nullable_type_if_needed(
+                        self.type_checker.ref_(self).get_type_from_flow_type(
+                            &self.get_type_at_flow_node(
+                                flow_as_flow_assignment.antecedent.clone(),
+                            )?,
+                        ),
+                    )?
                     .into(),
             ));
         }
@@ -525,7 +597,8 @@ impl GetFlowTypeOfReference {
                     node_as_binary_expression.right,
                 );
             }
-            if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::BarBarToken {
+            if node_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::BarBarToken
+            {
                 return self.type_checker.ref_(self).get_union_type(
                     &[
                         self.narrow_type_by_assertion(type_, node_as_binary_expression.left)?,
@@ -549,11 +622,13 @@ impl GetFlowTypeOfReference {
         let flow_as_flow_call = flow_ref.as_flow_call();
         let signature = self
             .type_checker
-            .ref_(self).get_effects_signature(flow_as_flow_call.node)?;
+            .ref_(self)
+            .get_effects_signature(flow_as_flow_call.node)?;
         if let Some(signature) = signature {
             let predicate = self
                 .type_checker
-                .ref_(self).get_type_predicate_of_signature(signature)?;
+                .ref_(self)
+                .get_type_predicate_of_signature(signature)?;
             if let Some(predicate) = predicate.filter(|predicate| {
                 matches!(
                     predicate.ref_(self).kind,
@@ -562,7 +637,9 @@ impl GetFlowTypeOfReference {
             }) {
                 let flow_type = self.get_type_at_flow_node(flow_as_flow_call.antecedent.clone())?;
                 let type_ = self.type_checker.ref_(self).finalize_evolving_array_type(
-                    self.type_checker.ref_(self).get_type_from_flow_type(&flow_type),
+                    self.type_checker
+                        .ref_(self)
+                        .get_type_from_flow_type(&flow_type),
                 )?;
                 let narrowed_type = if predicate.ref_(self).type_.is_some() {
                     self.narrow_type_by_type_predicate(
@@ -579,7 +656,11 @@ impl GetFlowTypeOfReference {
                 {
                     self.narrow_type_by_assertion(
                         type_,
-                        flow_as_flow_call.node.ref_(self).as_call_expression().arguments
+                        flow_as_flow_call
+                            .node
+                            .ref_(self)
+                            .as_call_expression()
+                            .arguments
                             .ref_(self)[predicate.ref_(self).parameter_index.unwrap()],
                     )?
                 } else {
@@ -596,12 +677,15 @@ impl GetFlowTypeOfReference {
             }
             if self
                 .type_checker
-                .ref_(self).get_return_type_of_signature(signature.clone())?
+                .ref_(self)
+                .get_return_type_of_signature(signature.clone())?
                 .ref_(self)
                 .flags()
                 .intersects(TypeFlags::Never)
             {
-                return Ok(Some(self.type_checker.ref_(self).unreachable_never_type().into()));
+                return Ok(Some(
+                    self.type_checker.ref_(self).unreachable_never_type().into(),
+                ));
             }
         }
         Ok(None)
@@ -618,14 +702,18 @@ impl GetFlowTypeOfReference {
             let flow_as_flow_array_mutation = flow_ref.as_flow_array_mutation();
             let node = &flow_as_flow_array_mutation.node;
             let expr = if node.ref_(self).kind() == SyntaxKind::CallExpression {
-                node.ref_(self).as_call_expression()
+                node.ref_(self)
+                    .as_call_expression()
                     .expression
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression
             } else {
-                node.ref_(self).as_binary_expression()
+                node.ref_(self)
+                    .as_binary_expression()
                     .left
-                    .ref_(self).as_element_access_expression()
+                    .ref_(self)
+                    .as_element_access_expression()
                     .expression
             };
             if self.type_checker.ref_(self).is_matching_reference(
@@ -634,33 +722,44 @@ impl GetFlowTypeOfReference {
             )? {
                 let flow_type =
                     self.get_type_at_flow_node(flow_as_flow_array_mutation.antecedent.clone())?;
-                let type_ = self.type_checker.ref_(self).get_type_from_flow_type(&flow_type);
+                let type_ = self
+                    .type_checker
+                    .ref_(self)
+                    .get_type_from_flow_type(&flow_type);
                 if get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::EvolvingArray) {
                     let mut evolved_type = type_.clone();
                     if node.ref_(self).kind() == SyntaxKind::CallExpression {
                         for &arg in &*node.ref_(self).as_call_expression().arguments.ref_(self) {
                             evolved_type = self
                                 .type_checker
-                                .ref_(self).add_evolving_array_element_type(evolved_type, arg)?;
+                                .ref_(self)
+                                .add_evolving_array_element_type(evolved_type, arg)?;
                         }
                     } else {
                         let node_ref = node.ref_(self);
                         let node_as_binary_expression = node_ref.as_binary_expression();
-                        let index_type = self.type_checker.ref_(self).get_context_free_type_of_expression(
-                            node_as_binary_expression
-                                .left
-                                .ref_(self).as_element_access_expression()
-                                .argument_expression,
-                        )?;
+                        let index_type = self
+                            .type_checker
+                            .ref_(self)
+                            .get_context_free_type_of_expression(
+                                node_as_binary_expression
+                                    .left
+                                    .ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression,
+                            )?;
                         if self.type_checker.ref_(self).is_type_assignable_to_kind(
                             index_type,
                             TypeFlags::NumberLike,
                             None,
                         )? {
-                            evolved_type = self.type_checker.ref_(self).add_evolving_array_element_type(
-                                evolved_type,
-                                node_as_binary_expression.right,
-                            )?;
+                            evolved_type = self
+                                .type_checker
+                                .ref_(self)
+                                .add_evolving_array_element_type(
+                                    evolved_type,
+                                    node_as_binary_expression.right,
+                                )?;
                         }
                     }
                     return Ok(if evolved_type == type_ {
@@ -685,20 +784,27 @@ impl GetFlowTypeOfReference {
         let flow_ref = flow.ref_(self);
         let flow_as_flow_condition = flow_ref.as_flow_condition();
         let flow_type = self.get_type_at_flow_node(flow_as_flow_condition.antecedent.clone())?;
-        let type_ = self.type_checker.ref_(self).get_type_from_flow_type(&flow_type);
+        let type_ = self
+            .type_checker
+            .ref_(self)
+            .get_type_from_flow_type(&flow_type);
         if type_.ref_(self).flags().intersects(TypeFlags::Never) {
             return Ok(flow_type);
         }
         let assume_true = flow.ref_(self).flags().intersects(FlowFlags::TrueCondition);
-        let non_evolving_type = self.type_checker.ref_(self).finalize_evolving_array_type(type_)?;
+        let non_evolving_type = self
+            .type_checker
+            .ref_(self)
+            .finalize_evolving_array_type(type_)?;
         let narrowed_type =
             self.narrow_type(non_evolving_type, flow_as_flow_condition.node, assume_true)?;
         if narrowed_type == non_evolving_type {
             return Ok(flow_type);
         }
-        Ok(self
-            .type_checker
-            .ref_(self).create_flow_type(narrowed_type, self.type_checker.ref_(self).is_incomplete(&flow_type)))
+        Ok(self.type_checker.ref_(self).create_flow_type(
+            narrowed_type,
+            self.type_checker.ref_(self).is_incomplete(&flow_type),
+        ))
     }
 
     pub(super) fn get_type_at_switch_clause(
@@ -709,14 +815,19 @@ impl GetFlowTypeOfReference {
         let flow_as_flow_switch_clause = flow_ref.as_flow_switch_clause();
         let expr = flow_as_flow_switch_clause
             .switch_statement
-            .ref_(self).as_switch_statement()
+            .ref_(self)
+            .as_switch_statement()
             .expression;
         let flow_type =
             self.get_type_at_flow_node(flow_as_flow_switch_clause.antecedent.clone())?;
-        let mut type_ = self.type_checker.ref_(self).get_type_from_flow_type(&flow_type);
+        let mut type_ = self
+            .type_checker
+            .ref_(self)
+            .get_type_from_flow_type(&flow_type);
         if self
             .type_checker
-            .ref_(self).is_matching_reference(self.reference, expr)?
+            .ref_(self)
+            .is_matching_reference(self.reference, expr)?
         {
             type_ = self.narrow_type_by_switch_on_discriminant(
                 type_,
@@ -725,9 +836,10 @@ impl GetFlowTypeOfReference {
                 flow_as_flow_switch_clause.clause_end,
             )?;
         } else if expr.ref_(self).kind() == SyntaxKind::TypeOfExpression
-            && self
-                .type_checker
-                .ref_(self).is_matching_reference(self.reference, expr.ref_(self).as_type_of_expression().expression)?
+            && self.type_checker.ref_(self).is_matching_reference(
+                self.reference,
+                expr.ref_(self).as_type_of_expression().expression,
+            )?
         {
             type_ = self.narrow_by_switch_on_type_of(
                 type_,
@@ -739,7 +851,8 @@ impl GetFlowTypeOfReference {
             if self.type_checker.ref_(self).strict_null_checks {
                 if self
                     .type_checker
-                    .ref_(self).optional_chain_contains_reference(expr, self.reference)?
+                    .ref_(self)
+                    .optional_chain_contains_reference(expr, self.reference)?
                 {
                     type_ = self.narrow_type_by_switch_optional_chain_containment(
                         type_,
@@ -753,10 +866,13 @@ impl GetFlowTypeOfReference {
                         },
                     )?;
                 } else if expr.ref_(self).kind() == SyntaxKind::TypeOfExpression
-                    && self.type_checker.ref_(self).optional_chain_contains_reference(
-                        expr.ref_(self).as_type_of_expression().expression,
-                        self.reference,
-                    )?
+                    && self
+                        .type_checker
+                        .ref_(self)
+                        .optional_chain_contains_reference(
+                            expr.ref_(self).as_type_of_expression().expression,
+                            self.reference,
+                        )?
                 {
                     type_ = self.narrow_type_by_switch_optional_chain_containment(
                         type_,
@@ -782,9 +898,10 @@ impl GetFlowTypeOfReference {
                 )?;
             }
         }
-        Ok(self
-            .type_checker
-            .ref_(self).create_flow_type(type_, self.type_checker.ref_(self).is_incomplete(&flow_type)))
+        Ok(self.type_checker.ref_(self).create_flow_type(
+            type_,
+            self.type_checker.ref_(self).is_incomplete(&flow_type),
+        ))
     }
 
     pub(super) fn get_type_at_flow_branch_label(
@@ -798,24 +915,34 @@ impl GetFlowTypeOfReference {
         let flow_ref = flow.ref_(self);
         let flow_as_flow_label = flow_ref.as_flow_label();
         for antecedent in flow_as_flow_label.maybe_antecedents().as_ref().unwrap() {
-            if bypass_flow.is_none() && antecedent.ref_(self).flags().intersects(FlowFlags::SwitchClause) && {
-                let antecedent_ref = antecedent.ref_(self);
-                let antecendent_as_flow_switch_clause = antecedent_ref.as_flow_switch_clause();
-                antecendent_as_flow_switch_clause.clause_start
-                    == antecendent_as_flow_switch_clause.clause_end
-            } {
+            if bypass_flow.is_none()
+                && antecedent
+                    .ref_(self)
+                    .flags()
+                    .intersects(FlowFlags::SwitchClause)
+                && {
+                    let antecedent_ref = antecedent.ref_(self);
+                    let antecendent_as_flow_switch_clause = antecedent_ref.as_flow_switch_clause();
+                    antecendent_as_flow_switch_clause.clause_start
+                        == antecendent_as_flow_switch_clause.clause_end
+                }
+            {
                 bypass_flow = Some(antecedent.clone());
                 continue;
             }
             let flow_type = self.get_type_at_flow_node(antecedent.clone())?;
-            let type_ = self.type_checker.ref_(self).get_type_from_flow_type(&flow_type);
+            let type_ = self
+                .type_checker
+                .ref_(self)
+                .get_type_from_flow_type(&flow_type);
             if type_ == self.declared_type && self.declared_type == self.initial_type {
                 return Ok(type_.into());
             }
             push_if_unique_eq(&mut antecedent_types, &type_);
             if !self
                 .type_checker
-                .ref_(self).is_type_subset_of(type_, self.declared_type)?
+                .ref_(self)
+                .is_type_subset_of(type_, self.declared_type)?
             {
                 subtype_reduction = true;
             }
@@ -825,11 +952,20 @@ impl GetFlowTypeOfReference {
         }
         if let Some(bypass_flow) = bypass_flow.as_ref() {
             let flow_type = self.get_type_at_flow_node(bypass_flow.clone())?;
-            let type_ = self.type_checker.ref_(self).get_type_from_flow_type(&flow_type);
+            let type_ = self
+                .type_checker
+                .ref_(self)
+                .get_type_from_flow_type(&flow_type);
             if !contains(Some(&antecedent_types), &type_)
-                && !self.type_checker.ref_(self).is_exhaustive_switch_statement(
-                    bypass_flow.ref_(self).as_flow_switch_clause().switch_statement,
-                )?
+                && !self
+                    .type_checker
+                    .ref_(self)
+                    .is_exhaustive_switch_statement(
+                        bypass_flow
+                            .ref_(self)
+                            .as_flow_switch_clause()
+                            .switch_statement,
+                    )?
             {
                 if type_ == self.declared_type && self.declared_type == self.initial_type {
                     return Ok(type_.into());
@@ -837,7 +973,8 @@ impl GetFlowTypeOfReference {
                 antecedent_types.push(type_.clone());
                 if !self
                     .type_checker
-                    .ref_(self).is_type_subset_of(type_, self.declared_type)?
+                    .ref_(self)
+                    .is_type_subset_of(type_, self.declared_type)?
                 {
                     subtype_reduction = true;
                 }
@@ -863,15 +1000,24 @@ impl GetFlowTypeOfReference {
         &self,
         flow: Id<FlowNode /*FlowLabel*/>,
     ) -> io::Result<FlowType> {
-        let id = self.type_checker.ref_(self).get_flow_node_id(&flow.ref_(self));
+        let id = self
+            .type_checker
+            .ref_(self)
+            .get_flow_node_id(&flow.ref_(self));
         let cache = {
-            let value = self.type_checker.ref_(self).flow_loop_caches().get(&id).cloned();
+            let value = self
+                .type_checker
+                .ref_(self)
+                .flow_loop_caches()
+                .get(&id)
+                .cloned();
             value
         }
         .unwrap_or_else(|| {
             let flow_loop_cache = self.alloc_flow_loop_cache(HashMap::new());
             self.type_checker
-                .ref_(self).flow_loop_caches()
+                .ref_(self)
+                .flow_loop_caches()
                 .insert(id, flow_loop_cache.clone());
             flow_loop_cache
         });
@@ -884,14 +1030,24 @@ impl GetFlowTypeOfReference {
         if let Some(cached) = cached {
             return Ok(cached.into());
         }
-        for i in self.type_checker.ref_(self).flow_loop_start()..self.type_checker.ref_(self).flow_loop_count() {
-            if self.type_checker.ref_(self).flow_loop_nodes().get(&i).copied() == Some(flow)
+        for i in self.type_checker.ref_(self).flow_loop_start()
+            ..self.type_checker.ref_(self).flow_loop_count()
+        {
+            if self
+                .type_checker
+                .ref_(self)
+                .flow_loop_nodes()
+                .get(&i)
+                .copied()
+                == Some(flow)
                 && matches!(
                     self.type_checker.ref_(self).flow_loop_keys().get(&i),
                     Some(flow_loop_key) if flow_loop_key == &key
-                ) && !self
+                )
+                && !self
                     .type_checker
-                    .ref_(self).flow_loop_types()
+                    .ref_(self)
+                    .flow_loop_types()
                     .get(&i)
                     .unwrap()
                     .is_empty()
@@ -900,7 +1056,8 @@ impl GetFlowTypeOfReference {
                     self.get_union_or_evolving_array_type(
                         &self
                             .type_checker
-                            .ref_(self).flow_loop_types()
+                            .ref_(self)
+                            .flow_loop_types()
                             .get(&i)
                             .cloned()
                             .unwrap(),
@@ -924,10 +1081,12 @@ impl GetFlowTypeOfReference {
                 }
                 Some(_) => {
                     self.type_checker
-                        .ref_(self).flow_loop_nodes()
+                        .ref_(self)
+                        .flow_loop_nodes()
                         .insert(self.type_checker.ref_(self).flow_loop_count(), flow.clone());
                     self.type_checker
-                        .ref_(self).flow_loop_keys()
+                        .ref_(self)
+                        .flow_loop_keys()
                         .insert(self.type_checker.ref_(self).flow_loop_count(), key.clone());
                     self.type_checker.ref_(self).flow_loop_types().insert(
                         self.type_checker.ref_(self).flow_loop_count(),
@@ -935,23 +1094,30 @@ impl GetFlowTypeOfReference {
                         antecedent_types.clone(),
                     );
                     self.type_checker
-                        .ref_(self).set_flow_loop_count(self.type_checker.ref_(self).flow_loop_count() + 1);
-                    let save_flow_type_cache = self.type_checker.ref_(self).maybe_flow_type_cache().take();
+                        .ref_(self)
+                        .set_flow_loop_count(self.type_checker.ref_(self).flow_loop_count() + 1);
+                    let save_flow_type_cache =
+                        self.type_checker.ref_(self).maybe_flow_type_cache().take();
                     flow_type = self.get_type_at_flow_node(antecedent.clone())?;
                     *self.type_checker.ref_(self).maybe_flow_type_cache() = save_flow_type_cache;
                     self.type_checker
-                        .ref_(self).set_flow_loop_count(self.type_checker.ref_(self).flow_loop_count() - 1);
+                        .ref_(self)
+                        .set_flow_loop_count(self.type_checker.ref_(self).flow_loop_count() - 1);
                     let cached = cache.ref_(self).get(&key).cloned();
                     if let Some(cached) = cached {
                         return Ok(cached.into());
                     }
                 }
             }
-            let type_ = self.type_checker.ref_(self).get_type_from_flow_type(&flow_type);
+            let type_ = self
+                .type_checker
+                .ref_(self)
+                .get_type_from_flow_type(&flow_type);
             push_if_unique_eq(&mut antecedent_types, &type_);
             if !self
                 .type_checker
-                .ref_(self).is_type_subset_of(type_, self.declared_type)?
+                .ref_(self)
+                .is_type_subset_of(type_, self.declared_type)?
             {
                 subtype_reduction = true;
             }
@@ -969,7 +1135,8 @@ impl GetFlowTypeOfReference {
         )?;
         if self
             .type_checker
-            .ref_(self).is_incomplete(first_antecedent_type.as_ref().unwrap())
+            .ref_(self)
+            .is_incomplete(first_antecedent_type.as_ref().unwrap())
         {
             return Ok(self.type_checker.ref_(self).create_flow_type(result, true));
         }

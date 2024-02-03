@@ -3,24 +3,23 @@ use std::{borrow::Borrow, io, ptr};
 use id_arena::Id;
 
 use crate::{
-    add_related_info, contains, create_diagnostic_for_node, find_ancestor,
-    for_each_child_returns, for_each_enclosing_block_scope_container, get_ancestor,
-    get_assignment_declaration_kind, get_class_extends_heritage_element,
-    get_enclosing_block_scope_container, get_jsdoc_this_tag, get_jsdoc_type, get_super_container,
-    get_this_container, get_this_parameter, has_static_modifier, has_syntactic_modifier,
-    is_assignment_target, is_binary_expression, is_call_expression, is_class_like,
-    is_class_static_block_declaration, is_external_or_common_js_module, is_for_statement,
-    is_function_like, is_function_like_declaration, is_identifier, is_in_js_file,
-    is_iteration_statement, is_method_declaration, is_object_literal_expression,
-    is_property_assignment, is_property_declaration, is_source_file, is_static, is_super_call,
-    is_super_property, length, maybe_is_class_like, node_starts_new_lexical_environment,
-    push_if_unique_eq, text_range_contains_position_inclusive, AsDoubleDeref,
-    AssignmentDeclarationKind, DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn,
-    HasArena, HasTypeInterface, InArena, InterfaceTypeInterface, InternalSymbolName, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeInterface, OptionTry,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
-    OptionInArena,
+    add_related_info, contains, create_diagnostic_for_node, find_ancestor, for_each_child_returns,
+    for_each_enclosing_block_scope_container, get_ancestor, get_assignment_declaration_kind,
+    get_class_extends_heritage_element, get_enclosing_block_scope_container, get_jsdoc_this_tag,
+    get_jsdoc_type, get_super_container, get_this_container, get_this_parameter,
+    has_static_modifier, has_syntactic_modifier, is_assignment_target, is_binary_expression,
+    is_call_expression, is_class_like, is_class_static_block_declaration,
+    is_external_or_common_js_module, is_for_statement, is_function_like,
+    is_function_like_declaration, is_identifier, is_in_js_file, is_iteration_statement,
+    is_method_declaration, is_object_literal_expression, is_property_assignment,
+    is_property_declaration, is_source_file, is_static, is_super_call, is_super_property, length,
+    maybe_is_class_like, node_starts_new_lexical_environment, push_if_unique_eq,
+    text_range_contains_position_inclusive, AsDoubleDeref, AssignmentDeclarationKind,
+    DiagnosticMessage, Diagnostics, FindAncestorCallbackReturn, HasArena, HasTypeInterface,
+    InArena, InterfaceTypeInterface, InternalSymbolName, ModifierFlags, NamedDeclarationInterface,
+    Node, NodeArray, NodeCheckFlags, NodeInterface, OptionInArena, OptionTry, ReadonlyTextRange,
+    ScriptTarget, SignatureDeclarationInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
+    Type, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -53,29 +52,37 @@ impl TypeChecker {
     ) -> Option<Id<Node>> {
         let container_ref = container.ref_(self);
         let container_as_for_statement = container_ref.as_for_statement();
-        find_ancestor(Some(node), |n: Id<Node>| {
-            if n == container {
-                FindAncestorCallbackReturn::Quit
-            } else {
-                (container_as_for_statement.initializer == Some(n)
-                 || container_as_for_statement.condition == Some(n)
-                 || container_as_for_statement.incrementor == Some(n)
-                 || n == container_as_for_statement.statement)
-                .into()
-            }
-        }, self)
+        find_ancestor(
+            Some(node),
+            |n: Id<Node>| {
+                if n == container {
+                    FindAncestorCallbackReturn::Quit
+                } else {
+                    (container_as_for_statement.initializer == Some(n)
+                        || container_as_for_statement.condition == Some(n)
+                        || container_as_for_statement.incrementor == Some(n)
+                        || n == container_as_for_statement.statement)
+                        .into()
+                }
+            },
+            self,
+        )
     }
 
     pub(super) fn get_enclosing_iteration_statement(&self, node: Id<Node>) -> Option<Id<Node>> {
-        find_ancestor(Some(node), |n: Id<Node>| {
-            if
-            /* !n ||*/
-            node_starts_new_lexical_environment(&n.ref_(self)) {
-                FindAncestorCallbackReturn::Quit
-            } else {
-                is_iteration_statement(n, false, self).into()
-            }
-        }, self)
+        find_ancestor(
+            Some(node),
+            |n: Id<Node>| {
+                if
+                /* !n ||*/
+                node_starts_new_lexical_environment(&n.ref_(self)) {
+                    FindAncestorCallbackReturn::Quit
+                } else {
+                    is_iteration_statement(n, false, self).into()
+                }
+            },
+            self,
+        )
     }
 
     pub(super) fn check_nested_block_scoped_binding(
@@ -92,7 +99,12 @@ impl TypeChecker {
                 None => true,
                 Some(symbol_value_declaration) => {
                     is_source_file(&symbol_value_declaration.ref_(self))
-                        || symbol_value_declaration.ref_(self).parent().ref_(self).kind() == SyntaxKind::CatchClause
+                        || symbol_value_declaration
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .kind()
+                            == SyntaxKind::CatchClause
                 }
             }
         {
@@ -100,9 +112,9 @@ impl TypeChecker {
         }
         let symbol_value_declaration = symbol.ref_(self).maybe_value_declaration().unwrap();
 
-        let container = get_enclosing_block_scope_container(symbol_value_declaration, self).unwrap();
-        let is_captured =
-            self.is_inside_function_or_instance_property_initializer(node, container);
+        let container =
+            get_enclosing_block_scope_container(symbol_value_declaration, self).unwrap();
+        let is_captured = self.is_inside_function_or_instance_property_initializer(node, container);
 
         let enclosing_iteration_statement = self.get_enclosing_iteration_statement(container);
         if let Some(enclosing_iteration_statement) = enclosing_iteration_statement {
@@ -118,8 +130,10 @@ impl TypeChecker {
                         var_decl_list,
                         Some(var_decl_list) if var_decl_list.ref_(self).parent() == container
                     ) {
-                        let part = self
-                            .get_part_of_for_statement_containing_node(node.ref_(self).parent(), container);
+                        let part = self.get_part_of_for_statement_containing_node(
+                            node.ref_(self).parent(),
+                            container,
+                        );
                         if let Some(part) = part {
                             let links = self.get_node_links(part);
                             links.ref_mut(self).flags |=
@@ -221,13 +235,17 @@ impl TypeChecker {
 
         let container_ref = container.ref_(self);
         let container_as_for_statement = container_ref.as_for_statement();
-        find_ancestor(Some(current), |n: Id<Node>| {
-            if n == container {
-                FindAncestorCallbackReturn::Quit
-            } else {
-                (n == container_as_for_statement.statement).into()
-            }
-        }, self)
+        find_ancestor(
+            Some(current),
+            |n: Id<Node>| {
+                if n == container {
+                    FindAncestorCallbackReturn::Quit
+                } else {
+                    (n == container_as_for_statement.statement).into()
+                }
+            },
+            self,
+        )
         .is_some()
     }
 
@@ -307,7 +325,15 @@ impl TypeChecker {
                     this_expression.ref_(self).pos(),
                 )
             )
-            && length(container.ref_(self).parent().ref_(self).maybe_decorators().refed(self).as_double_deref()) > 0
+            && length(
+                container
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .maybe_decorators()
+                    .refed(self)
+                    .as_double_deref(),
+            ) > 0
         {
             self.error(
                 Some(this_expression),
@@ -426,9 +452,7 @@ impl TypeChecker {
         container: Option<Id<Node>>,
     ) -> io::Result<Option<Id<Type>>> {
         let include_global_this = include_global_this.unwrap_or(true);
-        let container = container.unwrap_or_else(
-            || get_this_container(node, false, self),
-        );
+        let container = container.unwrap_or_else(|| get_this_container(node, false, self));
         let is_in_js = is_in_js_file(Some(&node.ref_(self)));
         if is_function_like(Some(&container.ref_(self)))
             && (!self.is_in_parameter_initializer_before_containing_function(node)
@@ -466,7 +490,8 @@ impl TypeChecker {
                 } else if self.is_js_constructor(Some(container))? {
                     this_type = self
                         .get_declared_type_of_symbol(
-                            self.get_merged_symbol(Some(container.ref_(self).symbol())).unwrap(),
+                            self.get_merged_symbol(Some(container.ref_(self).symbol()))
+                                .unwrap(),
                         )?
                         .ref_(self)
                         .maybe_as_interface_type()
@@ -488,7 +513,9 @@ impl TypeChecker {
         }
 
         if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self).as_deref()) {
-            let symbol = self.get_symbol_of_node(container.ref_(self).parent())?.unwrap();
+            let symbol = self
+                .get_symbol_of_node(container.ref_(self).parent())?
+                .unwrap();
             let type_ = if is_static(container, self) {
                 self.get_type_of_symbol(symbol)?
             } else {
@@ -540,7 +567,9 @@ impl TypeChecker {
             }
         }
         if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self).as_deref()) {
-            let symbol = self.get_symbol_of_node(container.ref_(self).parent())?.unwrap();
+            let symbol = self
+                .get_symbol_of_node(container.ref_(self).parent())?
+                .unwrap();
             return Ok(if is_static(container, self) {
                 Some(self.get_type_of_symbol(symbol)?)
             } else {
@@ -564,83 +593,137 @@ impl TypeChecker {
         {
             return Some(
                 container
-                    .ref_(self).parent()
-                    .ref_(self).as_binary_expression()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_binary_expression()
                     .left
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression,
             );
         } else if container.ref_(self).kind() == SyntaxKind::MethodDeclaration
-            && container.ref_(self).parent().ref_(self).kind() == SyntaxKind::ObjectLiteralExpression
+            && container.ref_(self).parent().ref_(self).kind()
+                == SyntaxKind::ObjectLiteralExpression
             && is_binary_expression(&container.ref_(self).parent().ref_(self).parent().ref_(self))
-            && get_assignment_declaration_kind(container.ref_(self).parent().ref_(self).parent(), self)
-                == AssignmentDeclarationKind::Prototype
+            && get_assignment_declaration_kind(
+                container.ref_(self).parent().ref_(self).parent(),
+                self,
+            ) == AssignmentDeclarationKind::Prototype
         {
             return Some(
                 container
-                    .ref_(self).parent()
-                    .ref_(self).parent()
-                    .ref_(self).as_binary_expression()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_binary_expression()
                     .left
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression,
             );
         } else if container.ref_(self).kind() == SyntaxKind::FunctionExpression
             && container.ref_(self).parent().ref_(self).kind() == SyntaxKind::PropertyAssignment
-            && container.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::ObjectLiteralExpression
-            && is_binary_expression(&container.ref_(self).parent().ref_(self).parent().ref_(self).parent().ref_(self))
-            && get_assignment_declaration_kind(container.ref_(self).parent().ref_(self).parent().ref_(self).parent(), self)
-                == AssignmentDeclarationKind::Prototype
+            && container
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::ObjectLiteralExpression
+            && is_binary_expression(
+                &container
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self),
+            )
+            && get_assignment_declaration_kind(
+                container
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent(),
+                self,
+            ) == AssignmentDeclarationKind::Prototype
         {
             return Some(
                 container
-                    .ref_(self).parent()
-                    .ref_(self).parent()
-                    .ref_(self).parent()
-                    .ref_(self).as_binary_expression()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_binary_expression()
                     .left
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression,
             );
-        } else if container.ref_(self).kind() == SyntaxKind::FunctionExpression
-            && {
-                let container_parent = container.ref_(self).parent();
-                is_property_assignment(&container_parent.ref_(self))
+        } else if container.ref_(self).kind() == SyntaxKind::FunctionExpression && {
+            let container_parent = container.ref_(self).parent();
+            is_property_assignment(&container_parent.ref_(self)) && {
+                let container_parent_ref = container_parent.ref_(self);
+                let container_parent_as_property_assignment =
+                    container_parent_ref.as_property_assignment();
+                is_identifier(&container_parent_as_property_assignment.name().ref_(self))
+                    && matches!(
+                        &*container_parent_as_property_assignment
+                            .name()
+                            .ref_(self)
+                            .as_identifier()
+                            .escaped_text,
+                        "value" | "get" | "set"
+                    )
                     && {
-                        let container_parent_ref = container_parent.ref_(self);
-                        let container_parent_as_property_assignment = container_parent_ref.as_property_assignment();
-                        is_identifier(&container_parent_as_property_assignment.name().ref_(self))
-                            && matches!(
-                                &*container_parent_as_property_assignment
-                                    .name()
-                                    .ref_(self).as_identifier()
-                                    .escaped_text,
-                                "value" | "get" | "set"
-                            )
-                            && {
-                                let container_parent_parent = container_parent.ref_(self).parent();
-                                is_object_literal_expression(&container_parent_parent.ref_(self))
-                                    && {
-                                        let container_parent_parent_parent =
-                                            container_parent_parent.ref_(self).parent();
-                                        is_call_expression(&container_parent_parent_parent.ref_(self)) &&
-                                            container_parent_parent_parent.ref_(self).as_call_expression().arguments.ref_(self).get(2).copied() == Some(container_parent_parent)
-                                                && get_assignment_declaration_kind(container_parent_parent_parent, self) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
-                                    }
-                            }
+                        let container_parent_parent = container_parent.ref_(self).parent();
+                        is_object_literal_expression(&container_parent_parent.ref_(self)) && {
+                            let container_parent_parent_parent =
+                                container_parent_parent.ref_(self).parent();
+                            is_call_expression(&container_parent_parent_parent.ref_(self))
+                                && container_parent_parent_parent
+                                    .ref_(self)
+                                    .as_call_expression()
+                                    .arguments
+                                    .ref_(self)
+                                    .get(2)
+                                    .copied()
+                                    == Some(container_parent_parent)
+                                && get_assignment_declaration_kind(
+                                    container_parent_parent_parent,
+                                    self,
+                                ) == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
+                        }
                     }
             }
-        {
+        } {
             return Some(
                 container
-                    .ref_(self).parent()
-                    .ref_(self).parent()
-                    .ref_(self).parent()
-                    .ref_(self).as_call_expression()
-                    .arguments.ref_(self)[0]
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_call_expression()
+                    .arguments
+                    .ref_(self)[0]
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression,
             );
         } else if is_method_declaration(&container.ref_(self)) && {
@@ -650,7 +733,8 @@ impl TypeChecker {
                 && matches!(
                     &*container_as_method_declaration
                         .name()
-                        .ref_(self).as_identifier()
+                        .ref_(self)
+                        .as_identifier()
                         .escaped_text,
                     "value" | "get" | "set"
                 )
@@ -659,15 +743,31 @@ impl TypeChecker {
                     is_object_literal_expression(&container_parent.ref_(self)) && {
                         let container_parent_parent = container_parent.ref_(self).parent();
                         is_call_expression(&container_parent_parent.ref_(self))
-                            && container_parent_parent.ref_(self).as_call_expression().arguments.ref_(self).get(2).copied() == Some(container_parent)
+                            && container_parent_parent
+                                .ref_(self)
+                                .as_call_expression()
+                                .arguments
+                                .ref_(self)
+                                .get(2)
+                                .copied()
+                                == Some(container_parent)
                             && get_assignment_declaration_kind(container_parent_parent, self)
                                 == AssignmentDeclarationKind::ObjectDefinePrototypeProperty
                     }
                 }
         } {
             return Some(
-                container.ref_(self).parent().ref_(self).parent().ref_(self).as_call_expression().arguments.ref_(self)[0]
-                    .ref_(self).as_property_access_expression()
+                container
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_call_expression()
+                    .arguments
+                    .ref_(self)[0]
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression,
             );
         }
@@ -694,7 +794,8 @@ impl TypeChecker {
                 return Ok(Some(
                     self.get_type_from_type_node_(
                         js_doc_function_type_parameters.ref_(self)[0]
-                            .ref_(self).as_parameter_declaration()
+                            .ref_(self)
+                            .as_parameter_declaration()
                             .maybe_type()
                             .unwrap(),
                     )?,
@@ -705,7 +806,8 @@ impl TypeChecker {
         this_tag
             .and_then(|this_tag| {
                 this_tag
-                    .ref_(self).as_base_jsdoc_type_like_tag()
+                    .ref_(self)
+                    .as_base_jsdoc_type_like_tag()
                     .type_expression
             })
             .try_map(|this_tag_type_expression| {
@@ -718,20 +820,32 @@ impl TypeChecker {
         node: Id<Node>,
         constructor_decl: Id<Node>,
     ) -> bool {
-        find_ancestor(Some(node), |n: Id<Node>| {
-            if is_function_like_declaration(&n.ref_(self)) {
-                FindAncestorCallbackReturn::Quit
-            } else {
-                (n.ref_(self).kind() == SyntaxKind::Parameter && n.ref_(self).parent() == constructor_decl)
-                    .into()
-            }
-        }, self)
+        find_ancestor(
+            Some(node),
+            |n: Id<Node>| {
+                if is_function_like_declaration(&n.ref_(self)) {
+                    FindAncestorCallbackReturn::Quit
+                } else {
+                    (n.ref_(self).kind() == SyntaxKind::Parameter
+                        && n.ref_(self).parent() == constructor_decl)
+                        .into()
+                }
+            },
+            self,
+        )
         .is_some()
     }
 
     pub(super) fn check_super_expression(&self, node: Id<Node>) -> io::Result<Id<Type>> {
-        let is_call_expression = node.ref_(self).parent().ref_(self).kind() == SyntaxKind::CallExpression
-            && node.ref_(self).parent().ref_(self).as_call_expression().expression == node;
+        let is_call_expression = node.ref_(self).parent().ref_(self).kind()
+            == SyntaxKind::CallExpression
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_call_expression()
+                .expression
+                == node;
 
         let immediate_container = get_super_container(node, true, self).unwrap();
         let mut container = Some(immediate_container.clone());
@@ -751,13 +865,17 @@ impl TypeChecker {
         let node_check_flag: NodeCheckFlags;
 
         if !can_use_super_expression {
-            let current = find_ancestor(Some(node), |n: Id<Node>| {
-                if container == Some(n) {
-                    FindAncestorCallbackReturn::Quit
-                } else {
-                    (n.ref_(self).kind() == SyntaxKind::ComputedPropertyName).into()
-                }
-            }, self);
+            let current = find_ancestor(
+                Some(node),
+                |n: Id<Node>| {
+                    if container == Some(n) {
+                        FindAncestorCallbackReturn::Quit
+                    } else {
+                        (n.ref_(self).kind() == SyntaxKind::ComputedPropertyName).into()
+                    }
+                },
+                self,
+            );
             if matches!(
                 current,
                 Some(current) if current.ref_(self).kind() == SyntaxKind::ComputedPropertyName
@@ -779,7 +897,8 @@ impl TypeChecker {
                     None => true,
                     Some(container_parent) => {
                         !(is_class_like(&container_parent.ref_(self))
-                            || container_parent.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression)
+                            || container_parent.ref_(self).kind()
+                                == SyntaxKind::ObjectLiteralExpression)
                     }
                 },
             } {
@@ -814,12 +933,18 @@ impl TypeChecker {
                 && (is_property_declaration(&container.unwrap().ref_(self))
                     || is_class_static_block_declaration(&container.unwrap().ref_(self)))
             {
-                for_each_enclosing_block_scope_container(node.ref_(self).parent(), |current: Id<Node>| {
-                    if !is_source_file(&current.ref_(self)) || is_external_or_common_js_module(&current.ref_(self)) {
-                        self.get_node_links(current).ref_mut(self).flags |=
-                            NodeCheckFlags::ContainsSuperPropertyInStaticInitializer;
-                    }
-                }, self);
+                for_each_enclosing_block_scope_container(
+                    node.ref_(self).parent(),
+                    |current: Id<Node>| {
+                        if !is_source_file(&current.ref_(self))
+                            || is_external_or_common_js_module(&current.ref_(self))
+                        {
+                            self.get_node_links(current).ref_mut(self).flags |=
+                                NodeCheckFlags::ContainsSuperPropertyInStaticInitializer;
+                        }
+                    },
+                    self,
+                );
             }
         } else {
             node_check_flag = NodeCheckFlags::SuperInstance;
@@ -831,7 +956,9 @@ impl TypeChecker {
         if container.ref_(self).kind() == SyntaxKind::MethodDeclaration
             && has_syntactic_modifier(container, ModifierFlags::Async, self)
         {
-            if is_super_property(node.ref_(self).parent(), self) && is_assignment_target(node.ref_(self).parent(), self) {
+            if is_super_property(node.ref_(self).parent(), self)
+                && is_assignment_target(node.ref_(self).parent(), self)
+            {
                 self.get_node_links(container).ref_mut(self).flags |=
                     NodeCheckFlags::AsyncMethodWithSuperBinding;
             } else {

@@ -81,7 +81,8 @@ pub fn get_external_module_require_argument(
             )
             .ref_(arena)
             .as_call_expression()
-            .arguments.ref_(arena)[0],
+            .arguments
+            .ref_(arena)[0],
         )
     } else {
         None
@@ -192,7 +193,11 @@ pub fn is_require_variable_declaration(mut node: Id<Node>, arena: &impl HasArena
     let Some(node_initializer) = node_as_variable_declaration.maybe_initializer() else {
         return false;
     };
-    is_require_call(get_leftmost_access_expression(node_initializer, arena), true, arena)
+    is_require_call(
+        get_leftmost_access_expression(node_initializer, arena),
+        true,
+        arena,
+    )
 }
 
 pub fn is_require_variable_statement(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -201,16 +206,17 @@ pub fn is_require_variable_statement(node: Id<Node>, arena: &impl HasArena) -> b
     }
     let node_ref = node.ref_(arena);
     let node_as_variable_statement = node_ref.as_variable_statement();
-    let node_declaration_list_ref = node_as_variable_statement
-        .declaration_list
-        .ref_(arena);
-    let node_declaration_list_as_variable_declaration_list = node_declaration_list_ref
-        .as_variable_declaration_list();
+    let node_declaration_list_ref = node_as_variable_statement.declaration_list.ref_(arena);
+    let node_declaration_list_as_variable_declaration_list =
+        node_declaration_list_ref.as_variable_declaration_list();
     !node_declaration_list_as_variable_declaration_list
         .declarations
-        .ref_(arena).is_empty()
+        .ref_(arena)
+        .is_empty()
         && every(
-            &node_declaration_list_as_variable_declaration_list.declarations.ref_(arena),
+            &node_declaration_list_as_variable_declaration_list
+                .declarations
+                .ref_(arena),
             |&decl, _| is_require_variable_declaration(decl, arena),
         )
 }
@@ -237,15 +243,22 @@ pub fn is_assignment_declaration(decl: &Node /*Declaration*/) -> bool {
         || is_call_expression(decl)
 }
 
-pub fn get_effective_initializer(node: Id<Node> /*HasExpressionInitializer*/, arena: &impl HasArena) -> Option<Id<Node>> {
+pub fn get_effective_initializer(
+    node: Id<Node>, /*HasExpressionInitializer*/
+    arena: &impl HasArena,
+) -> Option<Id<Node>> {
     let node_initializer = node.ref_(arena).as_has_initializer().maybe_initializer();
     if is_in_js_file(Some(&node.ref_(arena))) {
         if let Some(node_initializer) = node_initializer {
             if is_binary_expression(&node_initializer.ref_(arena)) {
                 let node_initializer_ref = node_initializer.ref_(arena);
-                let node_initializer_as_binary_expression = node_initializer_ref.as_binary_expression();
+                let node_initializer_as_binary_expression =
+                    node_initializer_ref.as_binary_expression();
                 if matches!(
-                    node_initializer_as_binary_expression.operator_token.ref_(arena).kind(),
+                    node_initializer_as_binary_expression
+                        .operator_token
+                        .ref_(arena)
+                        .kind(),
                     SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
                 ) {
                     if let Some(node_name) = node.ref_(arena).as_named_declaration().maybe_name() {
@@ -285,20 +298,32 @@ pub fn has_expando_value_property(
     is_prototype_assignment: bool,
     arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
-    for_each(&*node.ref_(arena).as_object_literal_expression().properties.ref_(arena), |&p: &Id<Node>, _| {
-        if !is_property_assignment(&p.ref_(arena)) {
-            return None;
-        }
-        let p_ref = p.ref_(arena);
-        let p_as_property_assignment = p_ref.as_property_assignment();
-        if !is_identifier(&p_as_property_assignment.name().ref_(arena))
-            && p_as_property_assignment.name().ref_(arena).as_identifier().escaped_text == "value"
-        {
-            return None;
-        }
-        let p_initializer = p_as_property_assignment.maybe_initializer()?;
-        get_expando_initializer(p_initializer, is_prototype_assignment, arena)
-    })
+    for_each(
+        &*node
+            .ref_(arena)
+            .as_object_literal_expression()
+            .properties
+            .ref_(arena),
+        |&p: &Id<Node>, _| {
+            if !is_property_assignment(&p.ref_(arena)) {
+                return None;
+            }
+            let p_ref = p.ref_(arena);
+            let p_as_property_assignment = p_ref.as_property_assignment();
+            if !is_identifier(&p_as_property_assignment.name().ref_(arena))
+                && p_as_property_assignment
+                    .name()
+                    .ref_(arena)
+                    .as_identifier()
+                    .escaped_text
+                    == "value"
+            {
+                return None;
+            }
+            let p_initializer = p_as_property_assignment.maybe_initializer()?;
+            get_expando_initializer(p_initializer, is_prototype_assignment, arena)
+        },
+    )
 }
 
 pub fn get_assigned_expando_initializer(
@@ -311,7 +336,12 @@ pub fn get_assigned_expando_initializer(
         if is_binary_expression(&node_parent.ref_(arena)) {
             let node_parent_ref = node_parent.ref_(arena);
             let node_parent_as_binary_expression = node_parent_ref.as_binary_expression();
-            if node_parent_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken {
+            if node_parent_as_binary_expression
+                .operator_token
+                .ref_(arena)
+                .kind()
+                == SyntaxKind::EqualsToken
+            {
                 let is_prototype_assignment =
                     is_prototype_access(node_parent_as_binary_expression.left, arena);
                 return get_expando_initializer(
@@ -330,13 +360,15 @@ pub fn get_assigned_expando_initializer(
             }
         }
     }
-    if is_call_expression(&node.ref_(arena)) && is_bindable_object_define_property_call(node, arena) {
+    if is_call_expression(&node.ref_(arena)) && is_bindable_object_define_property_call(node, arena)
+    {
         let node_ref = node.ref_(arena);
         let node_as_call_expression = node_ref.as_call_expression();
         let result = has_expando_value_property(
             node_as_call_expression.arguments.ref_(arena)[2],
             &*node_as_call_expression.arguments.ref_(arena)[1]
-                .ref_(arena).as_literal_like_node()
+                .ref_(arena)
+                .as_literal_like_node()
                 .text()
                 == "prototype",
             arena,
@@ -354,7 +386,11 @@ pub fn get_expando_initializer(
     arena: &impl HasArena,
 ) -> Option<Id<Node /*Expression*/>> {
     if is_call_expression(&initializer.ref_(arena)) {
-        let e = skip_parentheses(initializer.ref_(arena).as_call_expression().expression, None, arena);
+        let e = skip_parentheses(
+            initializer.ref_(arena).as_call_expression().expression,
+            None,
+            arena,
+        );
         return if matches!(
             e.ref_(arena).kind(),
             SyntaxKind::FunctionExpression | SyntaxKind::ArrowFunction
@@ -372,9 +408,11 @@ pub fn get_expando_initializer(
     }
     if is_object_literal_expression(&initializer.ref_(arena))
         && (initializer
-            .ref_(arena).as_object_literal_expression()
+            .ref_(arena)
+            .as_object_literal_expression()
             .properties
-            .ref_(arena).is_empty()
+            .ref_(arena)
+            .is_empty()
             || is_prototype_assignment)
     {
         return Some(initializer);
@@ -392,7 +430,10 @@ pub fn get_defaulted_expando_initializer(
         let initializer_ref = initializer.ref_(arena);
         let initializer_as_binary_expression = initializer_ref.as_binary_expression();
         if matches!(
-            initializer_as_binary_expression.operator_token.ref_(arena).kind(),
+            initializer_as_binary_expression
+                .operator_token
+                .ref_(arena)
+                .kind(),
             SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
         ) {
             get_expando_initializer(
@@ -406,15 +447,30 @@ pub fn get_defaulted_expando_initializer(
     } else {
         None
     };
-    e.filter(|_| is_same_entity_name(name, initializer.ref_(arena).as_binary_expression().left, arena))
+    e.filter(|_| {
+        is_same_entity_name(
+            name,
+            initializer.ref_(arena).as_binary_expression().left,
+            arena,
+        )
+    })
 }
 
-pub fn is_defaulted_expando_initializer(node: Id<Node> /*BinaryExpression*/, arena: &impl HasArena) -> bool {
+pub fn is_defaulted_expando_initializer(
+    node: Id<Node>, /*BinaryExpression*/
+    arena: &impl HasArena,
+) -> bool {
     let node_parent = node.ref_(arena).parent();
     let Some(name) = (if is_variable_declaration(&node_parent.ref_(arena)) {
         Some(node_parent.ref_(arena).as_variable_declaration().name())
     } else if is_binary_expression(&node_parent.ref_(arena))
-        && node_parent.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken
+        && node_parent
+            .ref_(arena)
+            .as_binary_expression()
+            .operator_token
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::EqualsToken
     {
         Some(node_parent.ref_(arena).as_binary_expression().left)
     } else {
@@ -424,7 +480,12 @@ pub fn is_defaulted_expando_initializer(node: Id<Node> /*BinaryExpression*/, are
     };
     let node_ref = node.ref_(arena);
     let node_as_binary_expression = node_ref.as_binary_expression();
-    get_expando_initializer(node_as_binary_expression.right, is_prototype_access(name, arena), arena).is_some()
+    get_expando_initializer(
+        node_as_binary_expression.right,
+        is_prototype_access(name, arena),
+        arena,
+    )
+    .is_some()
         && is_entity_name_expression(name, arena)
         && is_same_entity_name(name, node_as_binary_expression.left, arena)
 }
@@ -436,7 +497,12 @@ pub fn get_name_of_expando(
     let node_parent = node.ref_(arena).parent();
     if is_binary_expression(&node_parent.ref_(arena)) {
         let parent = if matches!(
-            node_parent.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind(),
+            node_parent
+                .ref_(arena)
+                .as_binary_expression()
+                .operator_token
+                .ref_(arena)
+                .kind(),
             SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
         ) && is_binary_expression(&node_parent.ref_(arena).parent().ref_(arena))
         {
@@ -446,7 +512,11 @@ pub fn get_name_of_expando(
         };
         let parent_ref = parent.ref_(arena);
         let parent_as_binary_expression = parent_ref.as_binary_expression();
-        if parent_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken
+        if parent_as_binary_expression
+            .operator_token
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::EqualsToken
             && is_identifier(&parent_as_binary_expression.left.ref_(arena))
         {
             return Some(parent_as_binary_expression.left);
@@ -462,19 +532,26 @@ pub fn is_same_entity_name(
     initializer: Id<Node>, /*Expression*/
     arena: &impl HasArena,
 ) -> bool {
-    if is_property_name_literal(&name.ref_(arena)) && is_property_name_literal(&initializer.ref_(arena)) {
+    if is_property_name_literal(&name.ref_(arena))
+        && is_property_name_literal(&initializer.ref_(arena))
+    {
         return get_text_of_identifier_or_literal(&name.ref_(arena))
             == get_text_of_identifier_or_literal(&initializer.ref_(arena));
     }
     if is_identifier(&name.ref_(arena)) && is_literal_like_access(initializer, arena) {
         let initializer_ref = initializer.ref_(arena);
         let initializer_as_has_expression = initializer_ref.as_has_expression();
-        if initializer_as_has_expression.expression().ref_(arena).kind() == SyntaxKind::ThisKeyword
+        if initializer_as_has_expression
+            .expression()
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::ThisKeyword
             || is_identifier(&initializer_as_has_expression.expression().ref_(arena))
                 && matches!(
                     initializer_as_has_expression
                         .expression()
-                        .ref_(arena).as_identifier()
+                        .ref_(arena)
+                        .as_identifier()
                         .escaped_text
                         .deref(),
                     "window" | "self" | "global"
@@ -526,14 +603,21 @@ pub fn is_module_identifier(node: &Node) -> bool {
 }
 
 pub fn is_module_exports_access_expression(node: Id<Node>, arena: &impl HasArena) -> bool {
-    if !(is_property_access_expression(&node.ref_(arena)) || is_literal_like_element_access(node, arena)) {
+    if !(is_property_access_expression(&node.ref_(arena))
+        || is_literal_like_element_access(node, arena))
+    {
         return false;
     }
-    is_module_identifier(&node.ref_(arena).as_has_expression().expression().ref_(arena))
-        && match get_element_or_property_access_name(node, arena) {
-            Some(name) => name == "exports",
-            None => false,
-        }
+    is_module_identifier(
+        &node
+            .ref_(arena)
+            .as_has_expression()
+            .expression()
+            .ref_(arena),
+    ) && match get_element_or_property_access_name(node, arena) {
+        Some(name) => name == "exports",
+        None => false,
+    }
 }
 
 pub fn get_assignment_declaration_kind(
@@ -548,7 +632,10 @@ pub fn get_assignment_declaration_kind(
     }
 }
 
-pub fn is_bindable_object_define_property_call(expr: Id<Node> /*CallExpression*/, arena: &impl HasArena) -> bool {
+pub fn is_bindable_object_define_property_call(
+    expr: Id<Node>, /*CallExpression*/
+    arena: &impl HasArena,
+) -> bool {
     let expr_ref = expr.ref_(arena);
     let expr_as_call_expression = expr_ref.as_call_expression();
     if length(Some(&expr_as_call_expression.arguments.ref_(arena))) != 3 {
@@ -561,13 +648,27 @@ pub fn is_bindable_object_define_property_call(expr: Id<Node> /*CallExpression*/
     let expr_expression_ref = expr_as_call_expression.expression.ref_(arena);
     let expr_expression_as_property_access_expression =
         expr_expression_ref.as_property_access_expression();
-    if !is_identifier(&expr_expression_as_property_access_expression.expression.ref_(arena)) {
+    if !is_identifier(
+        &expr_expression_as_property_access_expression
+            .expression
+            .ref_(arena),
+    ) {
         return false;
     }
-    if id_text(&expr_expression_as_property_access_expression.expression.ref_(arena)) != "Object" {
+    if id_text(
+        &expr_expression_as_property_access_expression
+            .expression
+            .ref_(arena),
+    ) != "Object"
+    {
         return false;
     }
-    if id_text(&expr_expression_as_property_access_expression.name.ref_(arena)) != "defineProperty" {
+    if id_text(
+        &expr_expression_as_property_access_expression
+            .name
+            .ref_(arena),
+    ) != "defineProperty"
+    {
         return false;
     }
     if !is_string_or_numeric_literal_like(&expr_arguments.ref_(arena)[1].ref_(arena)) {
@@ -586,7 +687,11 @@ pub fn is_literal_like_element_access(node: Id<Node>, arena: &impl HasArena) -> 
     }
     let node_ref = node.ref_(arena);
     let node_as_element_access_expression = node_ref.as_element_access_expression();
-    is_string_or_numeric_literal_like(&node_as_element_access_expression.argument_expression.ref_(arena))
+    is_string_or_numeric_literal_like(
+        &node_as_element_access_expression
+            .argument_expression
+            .ref_(arena),
+    )
 }
 
 pub fn is_bindable_static_access_expression(
@@ -599,7 +704,11 @@ pub fn is_bindable_static_access_expression(
         let node_ref = node.ref_(arena);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
         if !exclude_this_keyword_unwrapped
-            && node_as_property_access_expression.expression.ref_(arena).kind() == SyntaxKind::ThisKeyword
+            && node_as_property_access_expression
+                .expression
+                .ref_(arena)
+                .kind()
+                == SyntaxKind::ThisKeyword
             || is_identifier(&node_as_property_access_expression.name.ref_(arena))
                 && is_bindable_static_name_expression(
                     node_as_property_access_expression.expression,
@@ -625,7 +734,11 @@ pub fn is_bindable_static_element_access_expression(
     let node_ref = node.ref_(arena);
     let node_as_element_access_expression = node_ref.as_element_access_expression();
     !exclude_this_keyword
-        && node_as_element_access_expression.expression.ref_(arena).kind() == SyntaxKind::ThisKeyword
+        && node_as_element_access_expression
+            .expression
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::ThisKeyword
         || is_entity_name_expression(node_as_element_access_expression.expression, arena)
         || is_bindable_static_access_expression(
             node_as_element_access_expression.expression,
@@ -634,7 +747,11 @@ pub fn is_bindable_static_element_access_expression(
         )
 }
 
-pub fn is_bindable_static_name_expression(node: Id<Node>, exclude_this_keyword: Option<bool>, arena: &impl HasArena) -> bool {
+pub fn is_bindable_static_name_expression(
+    node: Id<Node>,
+    exclude_this_keyword: Option<bool>,
+    arena: &impl HasArena,
+) -> bool {
     is_entity_name_expression(node, arena)
         || is_bindable_static_access_expression(node, exclude_this_keyword, arena)
 }
@@ -645,8 +762,7 @@ pub fn get_name_or_argument(
     if is_property_access_expression(expr) {
         return expr.as_property_access_expression().name();
     }
-    expr.as_element_access_expression()
-        .argument_expression
+    expr.as_element_access_expression().argument_expression
 }
 
 fn get_assignment_declaration_kind_worker(
@@ -660,7 +776,9 @@ fn get_assignment_declaration_kind_worker(
         let expr_ref = expr.ref_(arena);
         let expr_arguments = &expr_ref.as_call_expression().arguments;
         let entity_name = expr_arguments.ref_(arena)[0];
-        if is_exports_identifier(&entity_name.ref_(arena)) || is_module_exports_access_expression(entity_name, arena) {
+        if is_exports_identifier(&entity_name.ref_(arena))
+            || is_module_exports_access_expression(entity_name, arena)
+        {
             return AssignmentDeclarationKind::ObjectDefinePropertyExports;
         }
         if is_bindable_static_access_expression(entity_name, None, arena)
@@ -683,13 +801,16 @@ fn get_assignment_declaration_kind_worker(
     }
     let expr_left_ref = expr_as_binary_expression.left.ref_(arena);
     let expr_left_as_has_expression = expr_left_ref.as_has_expression();
-    if is_bindable_static_name_expression(expr_left_as_has_expression.expression(), Some(true), arena)
-        && match get_element_or_property_access_name(expr_as_binary_expression.left, arena) {
-            Some(name) => name == "prototype",
-            None => false,
-        }
-        && is_object_literal_expression(&get_initializer_of_binary_expression(expr, arena).ref_(arena))
-    {
+    if is_bindable_static_name_expression(
+        expr_left_as_has_expression.expression(),
+        Some(true),
+        arena,
+    ) && match get_element_or_property_access_name(expr_as_binary_expression.left, arena) {
+        Some(name) => name == "prototype",
+        None => false,
+    } && is_object_literal_expression(
+        &get_initializer_of_binary_expression(expr, arena).ref_(arena),
+    ) {
         return AssignmentDeclarationKind::Prototype;
     }
     get_assignment_declaration_property_access_kind(expr_as_binary_expression.left, arena)
@@ -704,8 +825,7 @@ fn is_void_zero(node: Id<Node>, arena: &impl HasArena) -> bool {
     if !is_numeric_literal(&node_as_void_expression.expression.ref_(arena)) {
         return false;
     }
-    let node_expression_ref = 
-        node_as_void_expression.expression.ref_(arena);
+    let node_expression_ref = node_as_void_expression.expression.ref_(arena);
     let node_expression_as_numeric_literal = node_expression_ref.as_numeric_literal();
     let ret = &*node_expression_as_numeric_literal.text() == "0";
     ret
@@ -724,7 +844,11 @@ pub(crate) fn get_element_or_property_access_argument_expression_or_name(
     }
     let node_ref = node.ref_(arena);
     let node_as_element_access_expression = node_ref.as_element_access_expression();
-    let arg = skip_parentheses(node_as_element_access_expression.argument_expression, None, arena);
+    let arg = skip_parentheses(
+        node_as_element_access_expression.argument_expression,
+        None,
+        arena,
+    );
     if is_numeric_literal(&arg.ref_(arena)) || is_string_literal_like(&arg.ref_(arena)) {
         return Some(arg);
     }
@@ -742,7 +866,8 @@ pub(crate) fn get_element_or_property_access_name(
         }
         if is_string_literal_like(&name.ref_(arena)) || is_numeric_literal(&name.ref_(arena)) {
             return Some(
-                escape_leading_underscores(&name.ref_(arena).as_literal_like_node().text()).into_owned(),
+                escape_leading_underscores(&name.ref_(arena).as_literal_like_node().text())
+                    .into_owned(),
             );
         }
         None
@@ -759,13 +884,23 @@ pub fn get_assignment_declaration_property_access_kind(
         return AssignmentDeclarationKind::ThisProperty;
     } else if is_module_exports_access_expression(lhs, arena) {
         return AssignmentDeclarationKind::ModuleExports;
-    } else if is_bindable_static_name_expression(lhs_as_has_expression.expression(), Some(true), arena) {
+    } else if is_bindable_static_name_expression(
+        lhs_as_has_expression.expression(),
+        Some(true),
+        arena,
+    ) {
         if is_prototype_access(lhs_as_has_expression.expression(), arena) {
             return AssignmentDeclarationKind::PrototypeProperty;
         }
 
         let mut next_to_last = lhs;
-        while !is_identifier(&next_to_last.ref_(arena).as_has_expression().expression().ref_(arena)) {
+        while !is_identifier(
+            &next_to_last
+                .ref_(arena)
+                .as_has_expression()
+                .expression()
+                .ref_(arena),
+        ) {
             next_to_last = next_to_last.ref_(arena).as_has_expression().expression();
         }
         let id = next_to_last.ref_(arena).as_has_expression().expression();
@@ -802,7 +937,8 @@ pub fn get_initializer_of_binary_expression(
 
 pub fn is_prototype_property_assignment(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_binary_expression(&node.ref_(arena))
-        && get_assignment_declaration_kind(node, arena) == AssignmentDeclarationKind::PrototypeProperty
+        && get_assignment_declaration_kind(node, arena)
+            == AssignmentDeclarationKind::PrototypeProperty
 }
 
 pub fn is_special_property_declaration(
@@ -813,7 +949,9 @@ pub fn is_special_property_declaration(
         && matches!(
             expr.ref_(arena).maybe_parent(),
             Some(parent) if parent.ref_(arena).kind() == SyntaxKind::ExpressionStatement
-        ) && (!is_element_access_expression(&expr.ref_(arena)) || is_literal_like_element_access(expr, arena))
+        )
+        && (!is_element_access_expression(&expr.ref_(arena))
+            || is_literal_like_element_access(expr, arena))
         && get_jsdoc_type_tag(expr.ref_(arena).parent(), arena).is_some()
 }
 
@@ -824,7 +962,10 @@ pub fn set_value_declaration(symbol: Id<Symbol>, node: Id<Node>, arena: &impl Ha
         }
         Some(value_declaration)
             if !(node.ref_(arena).flags().intersects(NodeFlags::Ambient)
-                && !value_declaration.ref_(arena).flags().intersects(NodeFlags::Ambient))
+                && !value_declaration
+                    .ref_(arena)
+                    .flags()
+                    .intersects(NodeFlags::Ambient))
                 && (is_assignment_declaration(&value_declaration.ref_(arena))
                     && !is_assignment_declaration(&node.ref_(arena)))
                 || (value_declaration.ref_(arena).kind() != node.ref_(arena).kind()
@@ -849,7 +990,11 @@ pub fn is_function_symbol(symbol: Option<Id<Symbol>>, arena: &impl HasArena) -> 
     if !is_variable_declaration(&decl.ref_(arena)) {
         return false;
     }
-    let Some(decl_initializer) = decl.ref_(arena).as_variable_declaration().maybe_initializer() else {
+    let Some(decl_initializer) = decl
+        .ref_(arena)
+        .as_variable_declaration()
+        .maybe_initializer()
+    else {
         return false;
     };
     is_function_like(Some(&decl_initializer.ref_(arena)))
@@ -861,12 +1006,16 @@ pub fn try_get_module_specifier_from_declaration(
 ) -> Option<String> {
     match node.ref_(arena).kind() {
         SyntaxKind::VariableDeclaration => Some(
-            node.ref_(arena).as_variable_declaration()
+            node.ref_(arena)
+                .as_variable_declaration()
                 .maybe_initializer()
                 .unwrap()
-                .ref_(arena).as_call_expression()
-                .arguments.ref_(arena)[0]
-                .ref_(arena).as_literal_like_node()
+                .ref_(arena)
+                .as_call_expression()
+                .arguments
+                .ref_(arena)[0]
+                .ref_(arena)
+                .as_literal_like_node()
                 .text()
                 .clone(),
         ),
@@ -874,14 +1023,29 @@ pub fn try_get_module_specifier_from_declaration(
             node.ref_(arena).as_import_declaration().module_specifier,
             |module_specifier| is_string_literal_like(&module_specifier.ref_(arena)),
         )
-        .map(|module_specifier| module_specifier.ref_(arena).as_literal_like_node().text().clone()),
+        .map(|module_specifier| {
+            module_specifier
+                .ref_(arena)
+                .as_literal_like_node()
+                .text()
+                .clone()
+        }),
         SyntaxKind::ImportEqualsDeclaration => try_cast(
-            node.ref_(arena).as_import_equals_declaration().module_reference,
+            node.ref_(arena)
+                .as_import_equals_declaration()
+                .module_reference,
             |module_reference| is_external_module_reference(&module_reference.ref_(arena)),
         )
-        .map(|module_reference| module_reference.ref_(arena).as_external_module_reference().expression)
+        .map(|module_reference| {
+            module_reference
+                .ref_(arena)
+                .as_external_module_reference()
+                .expression
+        })
         .and_then(|expression| {
-            try_cast(expression, |expression| is_string_literal_like(&expression.ref_(arena)))
+            try_cast(expression, |expression| {
+                is_string_literal_like(&expression.ref_(arena))
+            })
         })
         .map(|expression| expression.ref_(arena).as_literal_like_node().text().clone()),
         _ => Debug_.assert_never(node, None),
@@ -892,6 +1056,7 @@ pub fn import_from_module_specifier(
     node: Id<Node>, /*StringLiteralLike*/
     arena: &impl HasArena,
 ) -> Id<Node /*AnyValidImportOrReExport*/> {
-    try_get_import_from_module_specifier(node, arena)
-        .unwrap_or_else(|| Debug_.fail_bad_syntax_kind(&node.ref_(arena).parent().ref_(arena), None))
+    try_get_import_from_module_specifier(node, arena).unwrap_or_else(|| {
+        Debug_.fail_bad_syntax_kind(&node.ref_(arena).parent().ref_(arena), None)
+    })
 }

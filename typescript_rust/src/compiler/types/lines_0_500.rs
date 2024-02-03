@@ -1,6 +1,5 @@
 use std::{cell::Cell, ops::Deref};
 
-
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Path(String);
 

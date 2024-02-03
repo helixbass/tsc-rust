@@ -412,7 +412,10 @@ impl Printer {
 
         if (pos > 0 || end > 0) && pos != end {
             if !skip_leading_comments {
-                self.emit_leading_comments(pos, node.ref_(self).kind() != SyntaxKind::NotEmittedStatement);
+                self.emit_leading_comments(
+                    pos,
+                    node.ref_(self).kind() != SyntaxKind::NotEmittedStatement,
+                );
             }
 
             if !skip_leading_comments
@@ -467,7 +470,8 @@ impl Printer {
             self.set_container_end(saved_container_end);
             self.set_declaration_list_container_end(saved_declaration_list_container_end);
 
-            if !skip_trailing_comments && node.ref_(self).kind() != SyntaxKind::NotEmittedStatement {
+            if !skip_trailing_comments && node.ref_(self).kind() != SyntaxKind::NotEmittedStatement
+            {
                 self.emit_trailing_comments(end);
             }
         }
@@ -619,7 +623,8 @@ impl Printer {
         let parent_node_array = get_containing_node_array(previous_node);
         let prev_node_index = parent_node_array.as_ref().and_then(|parent_node_array| {
             parent_node_array
-                .ref_(self).into_iter()
+                .ref_(self)
+                .into_iter()
                 .position(|&node| node == previous_node)
         });
         matches!(
@@ -740,7 +745,11 @@ impl Printer {
         range_pos: isize,
     ) {
         if !self.should_write_comment(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             comment_pos,
         ) {
             return;
@@ -757,7 +766,11 @@ impl Printer {
 
         self.emit_pos(comment_pos);
         write_comment_range(
-            &self.current_source_file().ref_(self).as_source_file().text_as_chars(),
+            &self
+                .current_source_file()
+                .ref_(self)
+                .as_source_file()
+                .text_as_chars(),
             &self.get_current_line_map(),
             &**self.writer(),
             comment_pos.try_into().unwrap(),

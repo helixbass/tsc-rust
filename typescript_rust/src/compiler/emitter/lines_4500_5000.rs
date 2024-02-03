@@ -15,10 +15,10 @@ use crate::{
     node_is_synthesized, position_is_synthesized, range_end_is_on_same_line_as_range_start,
     range_end_positions_are_on_same_line, range_is_on_single_line,
     range_start_positions_are_on_same_line, token_to_string, Debug_, EmitFlags,
-    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetLiteralTextFlags, ListFormat,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Printer,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
-    InArena,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetLiteralTextFlags, InArena,
+    ListFormat, LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, Printer, ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface,
+    SyntaxKind,
 };
 
 impl Printer {
@@ -162,9 +162,10 @@ impl Printer {
             let Some(first_child) = children.get(0).copied() else {
                 return if match parent_node {
                     None => true,
-                    Some(parent_node) => {
-                        range_is_on_single_line(&*parent_node.ref_(self), &self.current_source_file().ref_(self))
-                    }
+                    Some(parent_node) => range_is_on_single_line(
+                        &*parent_node.ref_(self),
+                        &self.current_source_file().ref_(self),
+                    ),
                 } {
                     0
                 } else {
@@ -182,7 +183,10 @@ impl Printer {
                     && !node_is_synthesized(&*first_child.ref_(self))
                     && match first_child.ref_(self).maybe_parent() {
                         None => true,
-                        Some(first_child_parent) => get_original_node(first_child_parent, self) == get_original_node(parent_node, self),
+                        Some(first_child_parent) => {
+                            get_original_node(first_child_parent, self)
+                                == get_original_node(parent_node, self)
+                        }
                     }
             }) {
                 if self.maybe_preserve_source_newlines() == Some(true) {
@@ -233,7 +237,9 @@ impl Printer {
             let previous_node = previous_node.unwrap();
             if next_node.ref_(self).kind() == SyntaxKind::JsxText {
                 return 0;
-            } else if !node_is_synthesized(&*previous_node.ref_(self)) && !node_is_synthesized(&*next_node.ref_(self)) {
+            } else if !node_is_synthesized(&*previous_node.ref_(self))
+                && !node_is_synthesized(&*next_node.ref_(self))
+            {
                 if self.maybe_preserve_source_newlines() == Some(true)
                     && self.sibling_node_positions_are_comparable(previous_node, next_node)
                 {
@@ -295,9 +301,10 @@ impl Printer {
             if last_child.is_none() {
                 return if match parent_node {
                     None => true,
-                    Some(parent_node) => {
-                        range_is_on_single_line(&*parent_node.ref_(self), &self.current_source_file().ref_(self))
-                    }
+                    Some(parent_node) => range_is_on_single_line(
+                        &*parent_node.ref_(self),
+                        &self.current_source_file().ref_(self),
+                    ),
                 } {
                     0
                 } else {
@@ -372,11 +379,7 @@ impl Printer {
         parent: Id<Node>,
     ) -> bool {
         let leading_newlines = if self.maybe_preserve_source_newlines() == Some(true) {
-            self.get_leading_line_terminator_count(
-                Some(parent),
-                &[node],
-                ListFormat::None,
-            )
+            self.get_leading_line_terminator_count(Some(parent), &[node], ListFormat::None)
         } else {
             0
         };
@@ -465,12 +468,23 @@ impl Printer {
     }
 
     pub(super) fn is_empty_block(&self, block: Id<Node> /*BlockLike*/) -> bool {
-        block.ref_(self).as_has_statements().statements().ref_(self).is_empty()
-            && range_end_is_on_same_line_as_range_start(&*block.ref_(self), &*block.ref_(self), &self.current_source_file().ref_(self))
+        block
+            .ref_(self)
+            .as_has_statements()
+            .statements()
+            .ref_(self)
+            .is_empty()
+            && range_end_is_on_same_line_as_range_start(
+                &*block.ref_(self),
+                &*block.ref_(self),
+                &self.current_source_file().ref_(self),
+            )
     }
 
     pub(super) fn skip_synthesized_parentheses(&self, mut node: Id<Node>) -> Id<Node> {
-        while node.ref_(self).kind() == SyntaxKind::ParenthesizedExpression && node_is_synthesized(&*node.ref_(self)) {
+        while node.ref_(self).kind() == SyntaxKind::ParenthesizedExpression
+            && node_is_synthesized(&*node.ref_(self))
+        {
             node = node.ref_(self).as_parenthesized_expression().expression;
         }
 
@@ -500,10 +514,17 @@ impl Printer {
         {
             return id_text(&*node.ref_(self)).to_owned().into();
         } else if node.ref_(self).kind() == SyntaxKind::StringLiteral
-            && node.ref_(self).as_string_literal().text_source_node.is_some()
+            && node
+                .ref_(self)
+                .as_string_literal()
+                .text_source_node
+                .is_some()
         {
             return self.get_text_of_node(
-                node.ref_(self).as_string_literal().text_source_node.unwrap(),
+                node.ref_(self)
+                    .as_string_literal()
+                    .text_source_node
+                    .unwrap(),
                 include_trivia,
             );
         } else if is_literal_expression(&node.ref_(self))
@@ -512,7 +533,12 @@ impl Printer {
             return node.ref_(self).as_literal_like_node().text().clone().into();
         }
 
-        get_source_text_of_node_from_source_file(self.current_source_file(), node, include_trivia, self)
+        get_source_text_of_node_from_source_file(
+            self.current_source_file(),
+            node,
+            include_trivia,
+            self,
+        )
     }
 
     pub(super) fn get_literal_text_of_node(
@@ -523,9 +549,16 @@ impl Printer {
     ) -> Cow<'static, str> {
         if node.ref_(self).kind() == SyntaxKind::StringLiteral {
             if let Some(text_source_node) = node.ref_(self).as_string_literal().text_source_node {
-                if is_identifier(&text_source_node.ref_(self)) || is_numeric_literal(&text_source_node.ref_(self)) {
+                if is_identifier(&text_source_node.ref_(self))
+                    || is_numeric_literal(&text_source_node.ref_(self))
+                {
                     let text = if is_numeric_literal(&text_source_node.ref_(self)) {
-                        text_source_node.ref_(self).as_numeric_literal().text().clone().into()
+                        text_source_node
+                            .ref_(self)
+                            .as_numeric_literal()
+                            .text()
+                            .clone()
+                            .into()
                     } else {
                         self.get_text_of_node(text_source_node, None)
                     };
@@ -680,11 +713,17 @@ impl Printer {
                 self.generate_names(Some(node_as_catch_clause.block));
             }
             SyntaxKind::VariableStatement => {
-                self.generate_names(Some(node.ref_(self).as_variable_statement().declaration_list));
+                self.generate_names(Some(
+                    node.ref_(self).as_variable_statement().declaration_list,
+                ));
             }
             SyntaxKind::VariableDeclarationList => {
                 for_each(
-                    &*node.ref_(self).as_variable_declaration_list().declarations.ref_(self),
+                    &*node
+                        .ref_(self)
+                        .as_variable_declaration_list()
+                        .declarations
+                        .ref_(self),
                     |&declaration: &Id<Node>, _| -> Option<()> {
                         self.generate_names(Some(declaration));
                         None

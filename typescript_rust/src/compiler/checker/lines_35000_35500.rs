@@ -10,10 +10,9 @@ use crate::{
     is_entity_name_expression, is_export_assignment, is_private_identifier,
     is_property_name_literal, is_static, node_is_missing, node_is_present, return_ok_none_if_none,
     try_map, try_maybe_for_each, Debug_, DiagnosticMessage, Diagnostics, HasArena, InArena,
-    ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, OptionTry,
+    ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, OptionInArena, OptionTry,
     ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionReduction,
-    OptionInArena,
 };
 
 impl TypeChecker {
@@ -50,10 +49,14 @@ impl TypeChecker {
         {
             if subsequent_node.ref_(self).kind() == node.ref_(self).kind() {
                 let error_node = subsequent_node
-                    .ref_(self).as_named_declaration()
+                    .ref_(self)
+                    .as_named_declaration()
                     .maybe_name()
                     .unwrap_or(subsequent_node);
-                let subsequent_name = subsequent_node.ref_(self).as_named_declaration().maybe_name();
+                let subsequent_name = subsequent_node
+                    .ref_(self)
+                    .as_named_declaration()
+                    .maybe_name();
                 if let (Some(node_name), Some(subsequent_name)) = (
                     node.ref_(self).as_named_declaration().maybe_name(),
                     subsequent_name,
@@ -61,18 +64,24 @@ impl TypeChecker {
                     if is_private_identifier(&node_name.ref_(self))
                         && is_private_identifier(&subsequent_name.ref_(self))
                         && node_name.ref_(self).as_private_identifier().escaped_text
-                            == subsequent_name.ref_(self).as_private_identifier().escaped_text
+                            == subsequent_name
+                                .ref_(self)
+                                .as_private_identifier()
+                                .escaped_text
                         || is_computed_property_name(&node_name.ref_(self))
                             && is_computed_property_name(&subsequent_name.ref_(self))
                         || is_property_name_literal(&node_name.ref_(self))
                             && is_property_name_literal(&subsequent_name.ref_(self))
                             && get_escaped_text_of_identifier_or_literal(&node_name.ref_(self))
-                                == get_escaped_text_of_identifier_or_literal(&subsequent_name.ref_(self))
+                                == get_escaped_text_of_identifier_or_literal(
+                                    &subsequent_name.ref_(self),
+                                )
                     {
                         let report_error = matches!(
                             node.ref_(self).kind(),
                             SyntaxKind::MethodDeclaration | SyntaxKind::MethodSignature
-                        ) && is_static(node, self) != is_static(subsequent_node, self);
+                        ) && is_static(node, self)
+                            != is_static(subsequent_node, self);
                         if report_error {
                             let diagnostic = if is_static(node, self) {
                                 &*Diagnostics::Function_overload_must_be_static
@@ -84,7 +93,14 @@ impl TypeChecker {
                         return;
                     }
                 }
-                if node_is_present(subsequent_node.ref_(self).as_function_like_declaration().maybe_body().refed(self).as_deref()) {
+                if node_is_present(
+                    subsequent_node
+                        .ref_(self)
+                        .as_function_like_declaration()
+                        .maybe_body()
+                        .refed(self)
+                        .as_deref(),
+                ) {
                     self.error(
                         Some(error_node),
                         &Diagnostics::Function_implementation_name_must_be_0,
@@ -99,7 +115,8 @@ impl TypeChecker {
             }
         }
         let error_node = node
-            .ref_(self).as_signature_declaration()
+            .ref_(self)
+            .as_signature_declaration()
             .maybe_name()
             .unwrap_or(node);
         if is_constructor {
@@ -224,7 +241,8 @@ impl TypeChecker {
             | SyntaxKind::JSDocEnumTag => DeclarationSpaces::ExportType,
             SyntaxKind::ModuleDeclaration => {
                 if is_ambient_module(d, self)
-                    || get_module_instance_state(d, None, self) != ModuleInstanceState::NonInstantiated
+                    || get_module_instance_state(d, None, self)
+                        != ModuleInstanceState::NonInstantiated
                 {
                     DeclarationSpaces::ExportNamespace | DeclarationSpaces::ExportValue
                 } else {
@@ -316,7 +334,9 @@ impl TypeChecker {
 
         if self.is_reference_to_type(type_, self.get_global_promise_type(false)?) {
             let ret = self.get_type_arguments(type_)?[0];
-            type_as_promise.ref_(self).set_promised_type_of_promise(Some(ret));
+            type_as_promise
+                .ref_(self)
+                .set_promised_type_of_promise(Some(ret));
             return Ok(Some(ret));
         }
 
@@ -390,7 +410,9 @@ impl TypeChecker {
             None,
             None,
         )?;
-        type_as_promise.ref_(self).set_promised_type_of_promise(Some(ret));
+        type_as_promise
+            .ref_(self)
+            .set_promised_type_of_promise(Some(ret));
         Ok(Some(ret))
     }
 
@@ -596,7 +618,9 @@ impl TypeChecker {
 
             let awaited_type = return_ok_none_if_none!(awaited_type);
 
-            type_as_awaitable.ref_(self).set_awaited_type_of_type(Some(awaited_type));
+            type_as_awaitable
+                .ref_(self)
+                .set_awaited_type_of_type(Some(awaited_type));
             return Ok(Some(awaited_type));
         }
 
@@ -609,7 +633,9 @@ impl TypeChecker {
         }
 
         let ret = type_;
-        type_as_awaitable.ref_(self).set_awaited_type_of_type(Some(ret));
+        type_as_awaitable
+            .ref_(self)
+            .set_awaited_type_of_type(Some(ret));
         Ok(Some(ret))
     }
 }

@@ -24,8 +24,8 @@ use crate::{
     get_path_from_path_components, get_string_comparer, get_token_pos_of_node, has_extension,
     index_of, index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map,
     normalize_path, remove_trailing_directory_separator, skip_trivia, some, sort, starts_with,
-    to_path, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseTextRange, CharacterCodes,
-    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    to_path, AllArenas, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseTextRange,
+    CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
     DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
@@ -33,7 +33,7 @@ use crate::{
     LanguageVariant, MapLike, Matches, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray,
     NodeInterface, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
     ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
-    TypeAcquisition, WatchOptions, AllArenas,
+    TypeAcquisition, WatchOptions,
 };
 
 pub fn create_compiler_diagnostic_from_message_chain(
@@ -107,7 +107,8 @@ fn get_diagnostic_file_path(
     arena: &impl HasArena,
 ) -> Option<String> {
     diagnostic.maybe_file().and_then(|file| {
-        file.ref_(arena).as_source_file()
+        file.ref_(arena)
+            .as_source_file()
             .maybe_path()
             .as_ref()
             .map(|path| path.to_string())
@@ -165,7 +166,11 @@ pub fn compare_diagnostics_skip_related_information(
     Comparison::EqualTo
 }
 
-fn compare_related_information(d1: &Diagnostic, d2: &Diagnostic, arena: &impl HasArena) -> Comparison {
+fn compare_related_information(
+    d1: &Diagnostic,
+    d2: &Diagnostic,
+    arena: &impl HasArena,
+) -> Comparison {
     if d1.maybe_related_information().is_none() && d2.maybe_related_information().is_none() {
         return Comparison::EqualTo;
     }
@@ -971,8 +976,11 @@ impl SymlinkCache {
         Debug_.assert(!self.has_processed_resolutions(), None);
         self.set_has_processed_resolutions(true);
         for file in files {
-            if let Some(file_resolved_modules) =
-                file.ref_(self).as_source_file().maybe_resolved_modules().as_ref()
+            if let Some(file_resolved_modules) = file
+                .ref_(self)
+                .as_source_file()
+                .maybe_resolved_modules()
+                .as_ref()
             {
                 file_resolved_modules.for_each(|resolution, _, _| {
                     self.process_resolution(resolution.clone().map(Into::into))
@@ -1053,7 +1061,9 @@ impl ResolvedModuleFullOrResolvedTypeReferenceDirective {
     pub fn maybe_resolved_file_name(&self, arena: &impl HasArena) -> Option<String> {
         match self {
             Self::ResolvedModuleFull(value) => Some(value.ref_(arena).resolved_file_name.clone()),
-            Self::ResolvedTypeReferenceDirective(value) => value.ref_(arena).resolved_file_name.clone(),
+            Self::ResolvedTypeReferenceDirective(value) => {
+                value.ref_(arena).resolved_file_name.clone()
+            }
         }
     }
 }
@@ -2002,8 +2012,12 @@ pub fn match_pattern_or_exact(
         }
     }
 
-    find_best_pattern_match(&patterns, |pattern: &Rc<Pattern>| pattern.clone(), candidate)
-        .map(|value| StringOrPattern::Pattern(value.clone()))
+    find_best_pattern_match(
+        &patterns,
+        |pattern: &Rc<Pattern>| pattern.clone(),
+        candidate,
+    )
+    .map(|value| StringOrPattern::Pattern(value.clone()))
 }
 
 pub fn slice_after<'a, TItem>(
@@ -2017,10 +2031,7 @@ pub fn slice_after<'a, TItem>(
     &arr[index..]
 }
 
-pub fn slice_after_eq<'a, TItem: PartialEq>(
-    arr: &'a [TItem],
-    value: &TItem,
-) -> &'a [TItem] {
+pub fn slice_after_eq<'a, TItem: PartialEq>(arr: &'a [TItem], value: &TItem) -> &'a [TItem] {
     slice_after(arr, value, |a, b| a == b)
 }
 
@@ -2083,7 +2094,7 @@ pub fn range_of_node(node: Id<Node>, arena: &impl HasArena) -> BaseTextRange {
 }
 
 pub fn range_of_type_parameters(
-    source_file: &Node,       /*SourceFile*/
+    source_file: &Node,          /*SourceFile*/
     type_parameters: &NodeArray, /*<TypeParameterDeclaration>*/
 ) -> BaseTextRange {
     let pos = type_parameters.pos() - 1;

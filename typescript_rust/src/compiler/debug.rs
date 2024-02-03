@@ -8,9 +8,8 @@ use std::{
 use id_arena::Id;
 
 use crate::{
-    maybe_map, unescape_leading_underscores, AssertionLevel, Node, NodeArray, NodeInterface,
-    Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    HasArena, InArena,
+    maybe_map, unescape_leading_underscores, AssertionLevel, HasArena, InArena, Node, NodeArray,
+    NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]

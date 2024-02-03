@@ -17,17 +17,16 @@ use crate::{
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, find,
     get_base_file_name, get_directory_path, get_normalized_absolute_path, get_sys,
     is_array_literal_expression, is_object_literal_expression, maybe_text_char_at_index,
-    parse_json_text, starts_with, text_char_at_index, text_substring, to_path,
-    AlternateModeDiagnostics, BaseNode, BuildOptions, CharacterCodes, CommandLineOption,
+    parse_json_text, per_arena, starts_with, text_char_at_index, text_substring, to_path,
+    AllArenas, AlternateModeDiagnostics, BaseNode, BuildOptions, CharacterCodes, CommandLineOption,
     CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionOfListType,
     CommandLineOptionType, CompilerOptions, CompilerOptionsValue, Diagnostic, DiagnosticMessage,
     DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics,
     DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, HasArena,
-    HasStatementsInterface, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
-    OptionsNameMap, ParseConfigHost, ParsedCommandLine, ParsedCommandLineWithBaseOptions, Push,
-    ScriptKind, ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
-    TsConfigOnlyOption, WatchOptions,
-    InArena, per_arena, AllArenas, OptionInArena,
+    HasStatementsInterface, InArena, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
+    OptionInArena, OptionsNameMap, ParseConfigHost, ParsedCommandLine,
+    ParsedCommandLineWithBaseOptions, Push, ScriptKind, ScriptTarget, SourceFile,
+    StringOrDiagnosticMessage, SyntaxKind, TransformFlags, TsConfigOnlyOption, WatchOptions,
 };
 
 pub(super) fn parse_response_file(
@@ -41,10 +40,14 @@ pub(super) fn parse_response_file(
     arena: &impl HasArena,
 ) {
     let sys = get_sys(arena);
-    let text: StringOrRcDiagnostic = try_read_file(file_name, |file_name| match read_file {
-        Some(read_file) => read_file(file_name),
-        None => sys.ref_(arena).read_file(file_name),
-    }, arena);
+    let text: StringOrRcDiagnostic = try_read_file(
+        file_name,
+        |file_name| match read_file {
+            Some(read_file) => read_file(file_name),
+            None => sys.ref_(arena).read_file(file_name),
+        },
+        arena,
+    );
     match text {
         StringOrRcDiagnostic::RcDiagnostic(text) => {
             errors.push(text);
@@ -74,13 +77,15 @@ pub(super) fn parse_response_file(
                         args.push(text_substring(&text_as_chars, start + 1, pos));
                         pos += 1;
                     } else {
-                        errors.push(arena.alloc_diagnostic(
-                            create_compiler_diagnostic(
-                                &Diagnostics::Unterminated_quoted_string_in_response_file_0,
-                                Some(vec![file_name.to_owned()]),
-                            )
-                            .into(),
-                        ));
+                        errors.push(
+                            arena.alloc_diagnostic(
+                                create_compiler_diagnostic(
+                                    &Diagnostics::Unterminated_quoted_string_in_response_file_0,
+                                    Some(vec![file_name.to_owned()]),
+                                )
+                                .into(),
+                            ),
+                        );
                     }
                 } else {
                     while matches!(maybe_text_char_at_index(&text_as_chars, pos), Some(ch) if ch > CharacterCodes::space)
@@ -122,7 +127,12 @@ pub(super) fn parse_option_value(
             if matches!(opt_value, Some("false")) {
                 options.insert(
                     opt.name().to_owned(),
-                    validate_json_option_value(opt, Some(&serde_json::Value::Bool(false)), errors, arena),
+                    validate_json_option_value(
+                        opt,
+                        Some(&serde_json::Value::Bool(false)),
+                        errors,
+                        arena,
+                    ),
                 );
                 i += 1;
             } else {
@@ -164,16 +174,18 @@ pub(super) fn parse_option_value(
             Some(arg) => arg.is_empty(),
         } && !matches!(opt.type_(), CommandLineOptionType::Boolean)
         {
-            errors.push(arena.alloc_diagnostic(
-                create_compiler_diagnostic(
-                    diagnostics.option_type_mismatch_diagnostic(),
-                    Some(vec![
-                        opt.name().to_owned(),
-                        get_compiler_option_value_type_string(opt).to_owned(),
-                    ]),
-                )
-                .into(),
-            ));
+            errors.push(
+                arena.alloc_diagnostic(
+                    create_compiler_diagnostic(
+                        diagnostics.option_type_mismatch_diagnostic(),
+                        Some(vec![
+                            opt.name().to_owned(),
+                            get_compiler_option_value_type_string(opt).to_owned(),
+                        ]),
+                    )
+                    .into(),
+                ),
+            );
         }
         if !matches!(args.get(i).map(|arg| &**arg), Some("null")) {
             match opt.type_() {
@@ -329,7 +341,12 @@ pub(crate) fn get_option_from_name(
     allow_short: Option<bool>,
     arena: &impl HasArena,
 ) -> Option<Id<CommandLineOption>> {
-    get_option_declaration_from_name(|| get_options_name_map(arena), option_name, allow_short, arena)
+    get_option_declaration_from_name(
+        || get_options_name_map(arena),
+        option_name,
+        allow_short,
+        arena,
+    )
 }
 
 pub(super) fn get_option_declaration_from_name(
@@ -368,7 +385,10 @@ pub(crate) fn get_build_options_name_map(arena: &impl HasArena) -> Id<OptionsNam
     per_arena!(
         OptionsNameMap,
         arena,
-        arena.alloc_options_name_map(create_option_name_map(&build_opts(arena).ref_(arena), arena))
+        arena.alloc_options_name_map(create_option_name_map(
+            &build_opts(arena).ref_(arena),
+            arena
+        ))
     )
 }
 
@@ -461,40 +481,48 @@ pub(crate) fn parse_build_command(args: &[String], arena: &impl HasArena) -> Par
     }
 
     if matches!(build_options.clean, Some(true)) && matches!(build_options.force, Some(true)) {
-        errors.push(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Options_0_and_1_cannot_be_combined,
-                Some(vec!["clean".to_owned(), "force".to_owned()]),
-            )
-            .into(),
-        ));
+        errors.push(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Options_0_and_1_cannot_be_combined,
+                    Some(vec!["clean".to_owned(), "force".to_owned()]),
+                )
+                .into(),
+            ),
+        );
     }
     if matches!(build_options.clean, Some(true)) && matches!(build_options.verbose, Some(true)) {
-        errors.push(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Options_0_and_1_cannot_be_combined,
-                Some(vec!["clean".to_owned(), "verbose".to_owned()]),
-            )
-            .into(),
-        ));
+        errors.push(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Options_0_and_1_cannot_be_combined,
+                    Some(vec!["clean".to_owned(), "verbose".to_owned()]),
+                )
+                .into(),
+            ),
+        );
     }
     if matches!(build_options.clean, Some(true)) && matches!(build_options.watch, Some(true)) {
-        errors.push(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Options_0_and_1_cannot_be_combined,
-                Some(vec!["clean".to_owned(), "watch".to_owned()]),
-            )
-            .into(),
-        ));
+        errors.push(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Options_0_and_1_cannot_be_combined,
+                    Some(vec!["clean".to_owned(), "watch".to_owned()]),
+                )
+                .into(),
+            ),
+        );
     }
     if matches!(build_options.watch, Some(true)) && matches!(build_options.dry, Some(true)) {
-        errors.push(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Options_0_and_1_cannot_be_combined,
-                Some(vec!["watch".to_owned(), "dry".to_owned()]),
-            )
-            .into(),
-        ));
+        errors.push(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Options_0_and_1_cannot_be_combined,
+                    Some(vec!["watch".to_owned(), "dry".to_owned()]),
+                )
+                .into(),
+            ),
+        );
     }
 
     ParsedBuildCommand {
@@ -521,9 +549,7 @@ pub trait ConfigFileDiagnosticsReporter {
     fn on_un_recoverable_config_file_diagnostic(&self, diagnostic: Id<Diagnostic>);
 }
 
-pub trait ParseConfigFileHost:
-    ParseConfigHost + ConfigFileDiagnosticsReporter
-{
+pub trait ParseConfigFileHost: ParseConfigHost + ConfigFileDiagnosticsReporter {
     fn get_current_directory(&self) -> io::Result<String>;
 }
 
@@ -536,7 +562,11 @@ pub fn get_parsed_command_line_of_config_file(
     extra_file_extensions: Option<&[FileExtensionInfo]>,
     arena: &impl HasArena,
 ) -> io::Result<Option<ParsedCommandLine>> {
-    let config_file_text = try_read_file(config_file_name, |file_name| host.read_file(file_name), arena);
+    let config_file_text = try_read_file(
+        config_file_name,
+        |file_name| host.read_file(file_name),
+        arena,
+    );
     if let StringOrRcDiagnostic::RcDiagnostic(ref config_file_text) = config_file_text {
         host.on_un_recoverable_config_file_diagnostic(config_file_text.clone());
         return Ok(None);
@@ -596,7 +626,10 @@ pub fn parse_config_file_text_to_json(
     arena: &impl HasArena,
 ) -> io::Result<ReadConfigFileReturn> {
     let json_source_file = parse_json_text(file_name, json_text, arena);
-    let json_source_file_parse_diagnostics = json_source_file.ref_(arena).as_source_file().parse_diagnostics();
+    let json_source_file_parse_diagnostics = json_source_file
+        .ref_(arena)
+        .as_source_file()
+        .parse_diagnostics();
     let config = convert_config_file_to_object(
         json_source_file,
         json_source_file_parse_diagnostics.clone(),
@@ -657,7 +690,8 @@ pub fn read_json_config_file(
             )
             .alloc(arena.arena());
             source_file
-                .ref_(arena).as_source_file()
+                .ref_(arena)
+                .as_source_file()
                 .set_parse_diagnostics(arena.alloc_vec_diagnostic(vec![text_or_diagnostic]));
             source_file
         }
@@ -687,20 +721,24 @@ pub(crate) fn try_read_file(
     arena: &impl HasArena,
 ) -> StringOrRcDiagnostic {
     match read_file(file_name) {
-        Err(e) => Into::<StringOrRcDiagnostic>::into(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Cannot_read_file_0_Colon_1,
-                Some(vec![file_name.to_owned(), e.to_string()]),
-            )
-            .into(),
-        )),
-        Ok(None) => Into::<StringOrRcDiagnostic>::into(arena.alloc_diagnostic(
-            create_compiler_diagnostic(
-                &Diagnostics::Cannot_read_file_0,
-                Some(vec![file_name.to_owned()]),
-            )
-            .into(),
-        )),
+        Err(e) => Into::<StringOrRcDiagnostic>::into(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Cannot_read_file_0_Colon_1,
+                    Some(vec![file_name.to_owned(), e.to_string()]),
+                )
+                .into(),
+            ),
+        ),
+        Ok(None) => Into::<StringOrRcDiagnostic>::into(
+            arena.alloc_diagnostic(
+                create_compiler_diagnostic(
+                    &Diagnostics::Cannot_read_file_0,
+                    Some(vec![file_name.to_owned()]),
+                )
+                .into(),
+            ),
+        ),
         Ok(Some(text)) => text.into(),
     }
 }
@@ -762,7 +800,10 @@ pub(super) fn get_watch_options_name_map(arena: &impl HasArena) -> Id<OptionsNam
     per_arena!(
         OptionsNameMap,
         arena,
-        arena.alloc_options_name_map(create_option_name_map(&options_for_watch(arena).ref_(arena), arena))
+        arena.alloc_options_name_map(create_option_name_map(
+            &options_for_watch(arena).ref_(arena),
+            arena
+        ))
     )
 }
 
@@ -823,8 +864,9 @@ pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLin
     })
 }
 
-pub(super) fn get_command_line_compiler_options_map(arena: &impl HasArena) -> Id<HashMap<String, Id<CommandLineOption>>>
-{
+pub(super) fn get_command_line_compiler_options_map(
+    arena: &impl HasArena,
+) -> Id<HashMap<String, Id<CommandLineOption>>> {
     per_arena!(
         HashMap<String, Id<CommandLineOption>>,
         arena,
@@ -834,7 +876,9 @@ pub(super) fn get_command_line_compiler_options_map(arena: &impl HasArena) -> Id
     )
 }
 
-pub(super) fn get_command_line_watch_options_map(arena: &impl HasArena) -> Id<HashMap<String, Id<CommandLineOption>>> {
+pub(super) fn get_command_line_watch_options_map(
+    arena: &impl HasArena,
+) -> Id<HashMap<String, Id<CommandLineOption>>> {
     per_arena!(
         HashMap<String, Id<CommandLineOption>>,
         arena,
@@ -844,8 +888,9 @@ pub(super) fn get_command_line_watch_options_map(arena: &impl HasArena) -> Id<Ha
     )
 }
 
-pub(super) fn get_command_line_type_acquisition_map(arena: &impl HasArena) -> Id<HashMap<String, Id<CommandLineOption>>>
-{
+pub(super) fn get_command_line_type_acquisition_map(
+    arena: &impl HasArena,
+) -> Id<HashMap<String, Id<CommandLineOption>>> {
     per_arena!(
         HashMap<String, Id<CommandLineOption>>,
         arena,
@@ -1044,39 +1089,48 @@ pub(super) fn convert_config_file_to_object(
     let source_file_as_source_file = source_file_ref.as_source_file();
     let root_expression = source_file_as_source_file
         .statements()
-        .ref_(arena).get(0)
+        .ref_(arena)
+        .get(0)
         .map(|statement| statement.ref_(arena).as_expression_statement().expression);
     let known_root_options: Option<Id<CommandLineOption>> = if report_options_errors {
         Some(get_tsconfig_root_options_map(arena))
     } else {
         None
     };
-    if let Some(root_expression) = root_expression
-        .filter(|root_expression| root_expression.ref_(arena).kind() != SyntaxKind::ObjectLiteralExpression)
-    {
-        errors.ref_mut(arena).push(arena.alloc_diagnostic(
-            create_diagnostic_for_node_in_source_file(
-                source_file,
-                root_expression,
-                &Diagnostics::The_root_value_of_a_0_file_must_be_an_object,
-                Some(vec![
-                    if get_base_file_name(&source_file_as_source_file.file_name(), None, None)
-                        == "jsconfig.json"
+    if let Some(root_expression) = root_expression.filter(|root_expression| {
+        root_expression.ref_(arena).kind() != SyntaxKind::ObjectLiteralExpression
+    }) {
+        errors.ref_mut(arena).push(
+            arena.alloc_diagnostic(
+                create_diagnostic_for_node_in_source_file(
+                    source_file,
+                    root_expression,
+                    &Diagnostics::The_root_value_of_a_0_file_must_be_an_object,
+                    Some(vec![if get_base_file_name(
+                        &source_file_as_source_file.file_name(),
+                        None,
+                        None,
+                    ) == "jsconfig.json"
                     {
                         "jsconfig.json".to_owned()
                     } else {
                         "tsconfig.json".to_owned()
-                    },
-                ]),
-                arena,
-            )
-            .into(),
-        ));
+                    }]),
+                    arena,
+                )
+                .into(),
+            ),
+        );
         if is_array_literal_expression(&root_expression.ref_(arena)) {
             let first_object = find(
-                &root_expression.ref_(arena).as_array_literal_expression().elements.ref_(arena),
+                &root_expression
+                    .ref_(arena)
+                    .as_array_literal_expression()
+                    .elements
+                    .ref_(arena),
                 |element, _| is_object_literal_expression(&element.ref_(arena)),
-            ).copied();
+            )
+            .copied();
             if let Some(first_object) = first_object {
                 return convert_to_object_worker(
                     source_file,
@@ -1110,9 +1164,11 @@ pub fn convert_to_object(
     convert_to_object_worker(
         source_file,
         source_file
-            .ref_(arena).as_source_file()
+            .ref_(arena)
+            .as_source_file()
             .statements()
-            .ref_(arena).get(0)
+            .ref_(arena)
+            .get(0)
             .map(|statement| statement.ref_(arena).as_expression_statement().expression),
         errors,
         true,

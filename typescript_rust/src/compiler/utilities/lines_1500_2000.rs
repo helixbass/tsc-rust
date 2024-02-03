@@ -14,9 +14,9 @@ use crate::{
     is_object_literal_expression, is_private_identifier, is_property_assignment,
     is_shorthand_property_assignment, is_source_file, is_string_literal, is_variable_declaration,
     maybe_is_class_like, some, try_cast, ClassLikeDeclarationInterface, Debug_,
-    FindAncestorCallbackReturn, HasInitializerInterface, HasStatementsInterface,
-    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, SyntaxKind,
-    TypePredicate, TypePredicateKind, HasArena, InArena, OptionInArena,
+    FindAncestorCallbackReturn, HasArena, HasInitializerInterface, HasStatementsInterface, InArena,
+    LiteralLikeNodeInterface, NamedDeclarationInterface, Node, NodeInterface, OptionInArena,
+    SyntaxKind, TypePredicate, TypePredicateKind,
 };
 
 pub fn introduces_arguments_exotic_object(node: &Node) -> bool {
@@ -52,7 +52,8 @@ pub fn unwrap_innermost_statement_of_label(
 
 pub fn is_function_block(node: Id<Node>, arena: &impl HasArena) -> bool {
     /*node &&*/
-    node.ref_(arena).kind() == SyntaxKind::Block && is_function_like(node.ref_(arena).maybe_parent().refed(arena).as_deref())
+    node.ref_(arena).kind() == SyntaxKind::Block
+        && is_function_like(node.ref_(arena).maybe_parent().refed(arena).as_deref())
 }
 
 pub fn is_object_literal_method(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -61,7 +62,10 @@ pub fn is_object_literal_method(node: Id<Node>, arena: &impl HasArena) -> bool {
         && node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::ObjectLiteralExpression
 }
 
-pub fn is_object_literal_or_class_expression_method_or_accessor(node: Id<Node>, arena: &impl HasArena) -> bool {
+pub fn is_object_literal_or_class_expression_method_or_accessor(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> bool {
     matches!(
         node.ref_(arena).kind(),
         SyntaxKind::MethodDeclaration | SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
@@ -88,9 +92,11 @@ pub fn get_property_assignment(
     arena: &impl HasArena,
 ) -> Vec<Id<Node /*PropertyAssignment*/>> {
     object_literal
-        .ref_(arena).as_object_literal_expression()
+        .ref_(arena)
+        .as_object_literal_expression()
         .properties
-        .ref_(arena).iter()
+        .ref_(arena)
+        .iter()
         .copied()
         .filter(|&property| {
             if property.ref_(arena).kind() == SyntaxKind::PropertyAssignment {
@@ -107,7 +113,7 @@ pub fn get_property_array_element_value(
     object_literal: Id<Node>, /*ObjectLiteralExpression*/
     prop_key: &str,
     element_value: &str,
-    arena: &impl HasArena
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*StringLiteral*/>> {
     first_defined(
         get_property_assignment(object_literal, prop_key, None, arena),
@@ -115,14 +121,19 @@ pub fn get_property_array_element_value(
             let property_ref = property.ref_(arena);
             let property_as_property_assignment = property_ref.as_property_assignment();
             if is_array_literal_expression(
-                &property_as_property_assignment.maybe_initializer().unwrap().ref_(arena),
+                &property_as_property_assignment
+                    .maybe_initializer()
+                    .unwrap()
+                    .ref_(arena),
             ) {
                 find(
                     &property_as_property_assignment
                         .maybe_initializer()
                         .unwrap()
-                        .ref_(arena).as_array_literal_expression()
-                        .elements.ref_(arena),
+                        .ref_(arena)
+                        .as_array_literal_expression()
+                        .elements
+                        .ref_(arena),
                     |element, _| {
                         is_string_literal(&element.ref_(arena))
                             && &*element.ref_(arena).as_string_literal().text() == element_value
@@ -143,9 +154,16 @@ pub fn get_ts_config_object_literal_expression(
     let ts_config_source_file = ts_config_source_file?;
     let ts_config_source_file_ref = ts_config_source_file.ref_(arena);
     let ts_config_source_file_as_source_file = ts_config_source_file_ref.as_source_file();
-    if !ts_config_source_file_as_source_file.statements().ref_(arena).is_empty() {
-        let expression = ts_config_source_file_as_source_file.statements().ref_(arena)[0]
-            .ref_(arena).as_expression_statement()
+    if !ts_config_source_file_as_source_file
+        .statements()
+        .ref_(arena)
+        .is_empty()
+    {
+        let expression = ts_config_source_file_as_source_file
+            .statements()
+            .ref_(arena)[0]
+            .ref_(arena)
+            .as_expression_statement()
             .expression;
         return try_cast(expression, |expression| {
             is_object_literal_expression(&expression.ref_(arena))
@@ -157,7 +175,8 @@ pub fn get_ts_config_object_literal_expression(
 pub fn get_ts_config_prop_array_element_value(
     ts_config_source_file: Option<Id<Node> /*TsConfigSourceFile*/>,
     prop_key: &str,
-    element_value: &str, arena: &impl HasArena
+    element_value: &str,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*StringLiteral*/>> {
     first_defined(
         get_ts_config_prop_array(ts_config_source_file, prop_key, arena),
@@ -165,14 +184,19 @@ pub fn get_ts_config_prop_array_element_value(
             let property_ref = property.ref_(arena);
             let property_as_property_assignment = property_ref.as_property_assignment();
             if is_array_literal_expression(
-                &property_as_property_assignment.maybe_initializer().unwrap().ref_(arena),
+                &property_as_property_assignment
+                    .maybe_initializer()
+                    .unwrap()
+                    .ref_(arena),
             ) {
                 find(
                     &property_as_property_assignment
                         .maybe_initializer()
                         .unwrap()
-                        .ref_(arena).as_array_literal_expression()
-                        .elements.ref_(arena),
+                        .ref_(arena)
+                        .as_array_literal_expression()
+                        .elements
+                        .ref_(arena),
                     |element, _| {
                         is_string_literal(&element.ref_(arena))
                             && &*element.ref_(arena).as_string_literal().text() == element_value
@@ -193,52 +217,80 @@ pub fn get_ts_config_prop_array(
 ) -> Vec<Id<Node /*PropertyAssignment*/>> {
     let json_object_literal = get_ts_config_object_literal_expression(ts_config_source_file, arena);
     match json_object_literal {
-        Some(json_object_literal) => get_property_assignment(
-            json_object_literal,
-            prop_key,
-            None,
-            arena,
-        ),
+        Some(json_object_literal) => {
+            get_property_assignment(json_object_literal, prop_key, None, arena)
+        }
         None => Default::default(),
     }
 }
 
-pub fn get_containing_function(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*SignatureDeclaration*/>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| {
-        is_function_like(Some(&node.ref_(arena)))
-    }, arena)
+pub fn get_containing_function(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*SignatureDeclaration*/>> {
+    find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |node: Id<Node>| is_function_like(Some(&node.ref_(arena))),
+        arena,
+    )
 }
 
 pub fn get_containing_function_declaration(
-    node: Id<Node>, arena: &impl HasArena,
+    node: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*FunctionLikeDeclaration*/>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| {
-        is_function_like_declaration(&node.ref_(arena))
-    }, arena)
+    find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |node: Id<Node>| is_function_like_declaration(&node.ref_(arena)),
+        arena,
+    )
 }
 
-pub fn get_containing_class(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| is_class_like(&node.ref_(arena)), arena)
+pub fn get_containing_class(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*ClassLikeDeclaration*/>> {
+    find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |node: Id<Node>| is_class_like(&node.ref_(arena)),
+        arena,
+    )
 }
 
-pub fn get_containing_class_static_block(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), |n: Id<Node>| {
-        if is_class_like(&n.ref_(arena)) || is_function_like(Some(&n.ref_(arena))) {
-            return FindAncestorCallbackReturn::Quit;
-        }
-        is_class_static_block_declaration(&n.ref_(arena)).into()
-    }, arena)
+pub fn get_containing_class_static_block(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node>> {
+    find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |n: Id<Node>| {
+            if is_class_like(&n.ref_(arena)) || is_function_like(Some(&n.ref_(arena))) {
+                return FindAncestorCallbackReturn::Quit;
+            }
+            is_class_static_block_declaration(&n.ref_(arena)).into()
+        },
+        arena,
+    )
 }
 
 pub fn get_containing_function_or_class_static_block(
-    node: Id<Node>, arena: &impl HasArena,
+    node: Id<Node>,
+    arena: &impl HasArena,
 ) -> Option<Id<Node /*SignatureDeclaration | ClassStaticBlockDeclaration*/>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), |node: Id<Node>| {
-        is_function_like_or_class_static_block_declaration(Some(&node.ref_(arena)))
-    }, arena)
+    find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |node: Id<Node>| {
+            is_function_like_or_class_static_block_declaration(Some(&node.ref_(arena)))
+        },
+        arena,
+    )
 }
 
-pub fn get_this_container(mut node: Id<Node>, include_arrow_functions: bool, arena: &impl HasArena) -> Id<Node> {
+pub fn get_this_container(
+    mut node: Id<Node>,
+    include_arrow_functions: bool,
+    arena: &impl HasArena,
+) -> Id<Node> {
     Debug_.assert(node.ref_(arena).kind() != SyntaxKind::SourceFile, None);
     loop {
         let Some(maybe_parent) = node.ref_(arena).maybe_parent() else {
@@ -246,7 +298,14 @@ pub fn get_this_container(mut node: Id<Node>, include_arrow_functions: bool, are
         };
         match node.ref_(arena).kind() {
             SyntaxKind::ComputedPropertyName => {
-                if maybe_is_class_like(node.ref_(arena).parent().ref_(arena).maybe_parent().refed(arena).as_deref()) {
+                if maybe_is_class_like(
+                    node.ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .maybe_parent()
+                        .refed(arena)
+                        .as_deref(),
+                ) {
                     return node;
                 }
                 node = node.ref_(arena).parent();
@@ -291,7 +350,8 @@ pub fn get_this_container(mut node: Id<Node>, include_arrow_functions: bool, are
 
 pub fn is_in_top_level_context(mut node: Id<Node>, arena: &impl HasArena) -> bool {
     if is_identifier(&node.ref_(arena))
-        && (is_class_declaration(&node.ref_(arena).parent().ref_(arena)) || is_function_declaration(&node.ref_(arena).parent().ref_(arena)))
+        && (is_class_declaration(&node.ref_(arena).parent().ref_(arena))
+            || is_function_declaration(&node.ref_(arena).parent().ref_(arena)))
         && matches!(
             node.ref_(arena).parent().ref_(arena).as_named_declaration().maybe_name(),
             Some(node_parent_name) if node_parent_name == node
@@ -318,7 +378,11 @@ pub fn get_new_target_container(node: Id<Node>, arena: &impl HasArena) -> Option
     None
 }
 
-pub fn get_super_container(mut node: Id<Node>, stop_on_functions: bool, arena: &impl HasArena) -> Option<Id<Node>> {
+pub fn get_super_container(
+    mut node: Id<Node>,
+    stop_on_functions: bool,
+    arena: &impl HasArena,
+) -> Option<Id<Node>> {
     loop {
         node = node.ref_(arena).maybe_parent()?;
         match node.ref_(arena).kind() {
@@ -388,14 +452,26 @@ pub fn is_super_property(node: Id<Node>, arena: &impl HasArena) -> bool {
     matches!(
         node.ref_(arena).kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-    ) && node.ref_(arena).as_has_expression().expression().ref_(arena).kind() == SyntaxKind::SuperKeyword
+    ) && node
+        .ref_(arena)
+        .as_has_expression()
+        .expression()
+        .ref_(arena)
+        .kind()
+        == SyntaxKind::SuperKeyword
 }
 
 pub fn is_this_property(node: Id<Node>, arena: &impl HasArena) -> bool {
     matches!(
         node.ref_(arena).kind(),
         SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
-    ) && node.ref_(arena).as_has_expression().expression().ref_(arena).kind() == SyntaxKind::ThisKeyword
+    ) && node
+        .ref_(arena)
+        .as_has_expression()
+        .expression()
+        .ref_(arena)
+        .kind()
+        == SyntaxKind::ThisKeyword
 }
 
 pub fn is_this_initialized_declaration(node: Option<Id<Node>>, arena: &impl HasArena) -> bool {
@@ -416,7 +492,9 @@ pub fn is_this_initialized_object_binding_expression(
     let Some(node) = node else {
         return false;
     };
-    if !(is_shorthand_property_assignment(&node.ref_(arena)) || is_property_assignment(&node.ref_(arena))) {
+    if !(is_shorthand_property_assignment(&node.ref_(arena))
+        || is_property_assignment(&node.ref_(arena)))
+    {
         return false;
     }
     let node_parent_parent = node.ref_(arena).parent().ref_(arena).parent();
@@ -427,9 +505,14 @@ pub fn is_this_initialized_object_binding_expression(
     let node_parent_parent_as_binary_expression = node_parent_parent_ref.as_binary_expression();
     node_parent_parent_as_binary_expression
         .operator_token
-        .ref_(arena).kind()
+        .ref_(arena)
+        .kind()
         == SyntaxKind::EqualsToken
-        && node_parent_parent_as_binary_expression.right.ref_(arena).kind() == SyntaxKind::ThisKeyword
+        && node_parent_parent_as_binary_expression
+            .right
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::ThisKeyword
 }
 
 pub fn get_entity_name_from_type_node(
@@ -442,9 +525,12 @@ pub fn get_entity_name_from_type_node(
         }
         SyntaxKind::ExpressionWithTypeArguments => {
             let node_ref = node.ref_(arena);
-            let node_as_expression_with_type_arguments = node_ref.as_expression_with_type_arguments();
-            return if is_entity_name_expression(node_as_expression_with_type_arguments.expression, arena)
-            {
+            let node_as_expression_with_type_arguments =
+                node_ref.as_expression_with_type_arguments();
+            return if is_entity_name_expression(
+                node_as_expression_with_type_arguments.expression,
+                arena,
+            ) {
                 Some(node_as_expression_with_type_arguments.expression)
             } else {
                 None
@@ -460,7 +546,7 @@ pub fn get_entity_name_from_type_node(
     None
 }
 
-pub fn get_invoked_expression(node: &Node, /*CallLikeExpression*/) -> Id<Node /*Expression*/> {
+pub fn get_invoked_expression(node: &Node /*CallLikeExpression*/) -> Id<Node /*Expression*/> {
     match node.kind() {
         SyntaxKind::TaggedTemplateExpression => node.as_tagged_template_expression().tag,
         SyntaxKind::JsxOpeningElement => node.as_jsx_opening_element().tag_name,
@@ -475,7 +561,9 @@ pub fn node_can_be_decorated(
     grandparent: Option<Id<Node>>,
     arena: &impl HasArena,
 ) -> bool {
-    if is_named_declaration(&node.ref_(arena)) && is_private_identifier(&node.ref_(arena).as_named_declaration().name().ref_(arena)) {
+    if is_named_declaration(&node.ref_(arena))
+        && is_private_identifier(&node.ref_(arena).as_named_declaration().name().ref_(arena))
+    {
         return false;
     }
     match node.ref_(arena).kind() {
@@ -487,7 +575,12 @@ pub fn node_can_be_decorated(
         }
 
         SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
-            if !node.ref_(arena).as_function_like_declaration().maybe_body().is_some() {
+            if !node
+                .ref_(arena)
+                .as_function_like_declaration()
+                .maybe_body()
+                .is_some()
+            {
                 return false;
             }
             let parent = parent.unwrap();
@@ -496,7 +589,11 @@ pub fn node_can_be_decorated(
 
         SyntaxKind::Parameter => {
             let parent = parent.unwrap();
-            if !(parent.ref_(arena).as_function_like_declaration().maybe_body().is_some()
+            if !(parent
+                .ref_(arena)
+                .as_function_like_declaration()
+                .maybe_body()
+                .is_some()
                 && matches!(
                     parent.ref_(arena).kind(),
                     SyntaxKind::Constructor
@@ -519,7 +616,8 @@ pub fn node_is_decorated(
     grandparent: Option<Id<Node>>,
     arena: &impl HasArena,
 ) -> bool {
-    node.ref_(arena).maybe_decorators().is_some() && node_can_be_decorated(node, parent, grandparent, arena)
+    node.ref_(arena).maybe_decorators().is_some()
+        && node_can_be_decorated(node, parent, grandparent, arena)
 }
 
 pub fn node_or_child_is_decorated(
@@ -534,18 +632,33 @@ pub fn node_or_child_is_decorated(
 pub fn child_is_decorated(node: Id<Node>, parent: Option<Id<Node>>, arena: &impl HasArena) -> bool {
     match node.ref_(arena).kind() {
         SyntaxKind::ClassDeclaration => some(
-            Some(&*node.ref_(arena).as_class_declaration().members().ref_(arena)),
+            Some(
+                &*node
+                    .ref_(arena)
+                    .as_class_declaration()
+                    .members()
+                    .ref_(arena),
+            ),
             Some(|&m: &Id<Node>| node_or_child_is_decorated(m, Some(node), parent, arena)),
         ),
         SyntaxKind::MethodDeclaration | SyntaxKind::SetAccessor | SyntaxKind::Constructor => some(
-            Some(&*node.ref_(arena).as_function_like_declaration().parameters().ref_(arena)),
+            Some(
+                &*node
+                    .ref_(arena)
+                    .as_function_like_declaration()
+                    .parameters()
+                    .ref_(arena),
+            ),
             Some(|&p: &Id<Node>| node_is_decorated(p, Some(node), parent, arena)),
         ),
         _ => false,
     }
 }
 
-pub fn class_or_constructor_parameter_is_decorated(node: Id<Node> /*ClassDeclaration*/, arena: &impl HasArena) -> bool {
+pub fn class_or_constructor_parameter_is_decorated(
+    node: Id<Node>, /*ClassDeclaration*/
+    arena: &impl HasArena,
+) -> bool {
     if node_is_decorated(node, None, None, arena) {
         return true;
     }
@@ -559,11 +672,15 @@ pub fn class_or_constructor_parameter_is_decorated(node: Id<Node> /*ClassDeclara
 pub fn is_jsx_tag_name(node: Id<Node>, arena: &impl HasArena) -> bool {
     let parent = node.ref_(arena).parent();
     match parent.ref_(arena).kind() {
-        SyntaxKind::JsxOpeningElement => parent.ref_(arena).as_jsx_opening_element().tag_name == node,
+        SyntaxKind::JsxOpeningElement => {
+            parent.ref_(arena).as_jsx_opening_element().tag_name == node
+        }
         SyntaxKind::JsxSelfClosingElement => {
             parent.ref_(arena).as_jsx_self_closing_element().tag_name == node
         }
-        SyntaxKind::JsxClosingElement => parent.ref_(arena).as_jsx_closing_element().tag_name == node,
+        SyntaxKind::JsxClosingElement => {
+            parent.ref_(arena).as_jsx_closing_element().tag_name == node
+        }
         _ => false,
     }
 }
@@ -633,7 +750,11 @@ pub fn is_expression_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
             let node_parent_ref = node_parent.ref_(arena);
             let node_parent_as_binary_expression = node_parent_ref.as_binary_expression();
             node_parent_as_binary_expression.left == node
-                && node_parent_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::InKeyword
+                && node_parent_as_binary_expression
+                    .operator_token
+                    .ref_(arena)
+                    .kind()
+                    == SyntaxKind::InKeyword
         }
         SyntaxKind::Identifier => {
             if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::TypeQuery
@@ -664,14 +785,18 @@ pub fn is_in_expression_context(node: Id<Node>, arena: &impl HasArena) -> bool {
         | SyntaxKind::PropertySignature
         | SyntaxKind::EnumMember
         | SyntaxKind::PropertyAssignment
-        | SyntaxKind::BindingElement => parent.ref_(arena).as_has_initializer().maybe_initializer() == Some(node),
+        | SyntaxKind::BindingElement => {
+            parent.ref_(arena).as_has_initializer().maybe_initializer() == Some(node)
+        }
         SyntaxKind::ExpressionStatement => {
             parent.ref_(arena).as_expression_statement().expression == node
         }
         SyntaxKind::IfStatement => parent.ref_(arena).as_if_statement().expression == node,
         SyntaxKind::DoStatement => parent.ref_(arena).as_do_statement().expression == node,
         SyntaxKind::WhileStatement => parent.ref_(arena).as_while_statement().expression == node,
-        SyntaxKind::ReturnStatement => parent.ref_(arena).as_return_statement().expression == Some(node),
+        SyntaxKind::ReturnStatement => {
+            parent.ref_(arena).as_return_statement().expression == Some(node)
+        }
         SyntaxKind::WithStatement => parent.ref_(arena).as_with_statement().expression == node,
         SyntaxKind::SwitchStatement => parent.ref_(arena).as_switch_statement().expression == node,
         SyntaxKind::CaseClause => parent.ref_(arena).as_case_clause().expression == node,
@@ -683,20 +808,22 @@ pub fn is_in_expression_context(node: Id<Node>, arena: &impl HasArena) -> bool {
                 for_statement.initializer,
                 Some(initializer) if initializer == node && initializer.ref_(arena).kind() != SyntaxKind::VariableDeclarationList
             ) || for_statement.condition == Some(node)
-            || for_statement.incrementor == Some(node)
+                || for_statement.incrementor == Some(node)
         }
         SyntaxKind::ForInStatement => {
             let parent_ref = parent.ref_(arena);
             let for_in_statement = parent_ref.as_for_in_statement();
             for_in_statement.initializer == node
-                && for_in_statement.initializer.ref_(arena).kind() != SyntaxKind::VariableDeclarationList
+                && for_in_statement.initializer.ref_(arena).kind()
+                    != SyntaxKind::VariableDeclarationList
                 || for_in_statement.expression == node
         }
         SyntaxKind::ForOfStatement => {
             let parent_ref = parent.ref_(arena);
             let for_of_statement = parent_ref.as_for_of_statement();
             for_of_statement.initializer == node
-                && for_of_statement.initializer.ref_(arena).kind() != SyntaxKind::VariableDeclarationList
+                && for_of_statement.initializer.ref_(arena).kind()
+                    != SyntaxKind::VariableDeclarationList
                 || for_of_statement.expression == node
         }
         SyntaxKind::TypeAssertionExpression => {
@@ -712,11 +839,19 @@ pub fn is_in_expression_context(node: Id<Node>, arena: &impl HasArena) -> bool {
         | SyntaxKind::JsxSpreadAttribute
         | SyntaxKind::SpreadAssignment => true,
         SyntaxKind::ExpressionWithTypeArguments => {
-            parent.ref_(arena).as_expression_with_type_arguments().expression == node
+            parent
+                .ref_(arena)
+                .as_expression_with_type_arguments()
+                .expression
+                == node
                 && is_expression_with_type_arguments_in_class_extends_clause(parent, arena)
         }
         SyntaxKind::ShorthandPropertyAssignment => {
-            parent.ref_(arena).as_shorthand_property_assignment().object_assignment_initializer == Some(node)
+            parent
+                .ref_(arena)
+                .as_shorthand_property_assignment()
+                .object_assignment_initializer
+                == Some(node)
         }
         _ => is_expression_node(parent, arena),
     }

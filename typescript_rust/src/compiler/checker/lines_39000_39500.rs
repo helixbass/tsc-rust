@@ -5,22 +5,21 @@ use id_arena::Id;
 use super::{intrinsic_type_kinds, is_instantiated_module};
 use crate::{
     try_for_each, try_maybe_for_each, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeInterface, __String, cast_present, declaration_name_to_string,
-    escape_leading_underscores, for_each, get_declaration_of_kind,
-    get_effective_modifier_flags, get_enclosing_block_scope_container, get_factory,
-    get_interface_base_type_nodes, get_name_of_declaration, get_text_of_identifier_or_literal,
-    get_text_of_property_name, has_abstract_modifier, is_ambient_module, is_binding_pattern,
-    is_computed_non_literal_name, is_entity_name_expression, is_enum_const, is_enum_declaration,
-    is_external_module_augmentation, is_external_module_name_relative, is_finite,
-    is_global_scope_augmentation, is_identifier, is_infinity_or_nan_string, is_literal_expression,
-    is_nan, is_optional_chain, is_private_identifier, is_static, is_string_literal_like, length,
-    maybe_for_each, maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
+    TypeInterface, __String, cast_present, declaration_name_to_string, escape_leading_underscores,
+    for_each, get_declaration_of_kind, get_effective_modifier_flags,
+    get_enclosing_block_scope_container, get_factory, get_interface_base_type_nodes,
+    get_name_of_declaration, get_text_of_identifier_or_literal, get_text_of_property_name,
+    has_abstract_modifier, is_ambient_module, is_binding_pattern, is_computed_non_literal_name,
+    is_entity_name_expression, is_enum_const, is_enum_declaration, is_external_module_augmentation,
+    is_external_module_name_relative, is_finite, is_global_scope_augmentation, is_identifier,
+    is_infinity_or_nan_string, is_literal_expression, is_nan, is_optional_chain,
+    is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
+    maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
     should_preserve_const_enums, AsDoubleDeref, Diagnostics, EnumKind,
     FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
     HasTypeParametersInterface, InArena, InterfaceTypeInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface, Number, OptionTry,
-    ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
-    OptionInArena,
+    NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface, Number,
+    OptionInArena, OptionTry, ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
 };
 
 impl TypeChecker {
@@ -35,7 +34,12 @@ impl TypeChecker {
             return Ok(());
         }
         let constructor = self.find_constructor_declaration(node);
-        for &member in &*node.ref_(self).as_class_like_declaration().members().ref_(self) {
+        for &member in &*node
+            .ref_(self)
+            .as_class_like_declaration()
+            .members()
+            .ref_(self)
+        {
             if get_effective_modifier_flags(member, self).intersects(ModifierFlags::Ambient) {
                 continue;
             }
@@ -43,7 +47,9 @@ impl TypeChecker {
                 let member_ref = member.ref_(self);
                 let member_as_property_declaration = member_ref.as_property_declaration();
                 let prop_name = member_as_property_declaration.name();
-                if is_identifier(&prop_name.ref_(self)) || is_private_identifier(&prop_name.ref_(self)) {
+                if is_identifier(&prop_name.ref_(self))
+                    || is_private_identifier(&prop_name.ref_(self))
+                {
                     let type_ =
                         self.get_type_of_symbol(self.get_symbol_of_node(member)?.unwrap())?;
                     if !(type_.ref_(self).flags().intersects(TypeFlags::AnyOrUnknown)
@@ -74,12 +80,14 @@ impl TypeChecker {
     }
 
     pub(super) fn is_property_without_initializer(&self, node: Id<Node>) -> bool {
-        node.ref_(self).kind() == SyntaxKind::PropertyDeclaration && !has_abstract_modifier(node, self) && {
-            let node_ref = node.ref_(self);
-            let node_as_property_declaration = node_ref.as_property_declaration();
-            node_as_property_declaration.exclamation_token.is_none()
-                && node_as_property_declaration.maybe_initializer().is_none()
-        }
+        node.ref_(self).kind() == SyntaxKind::PropertyDeclaration
+            && !has_abstract_modifier(node, self)
+            && {
+                let node_ref = node.ref_(self);
+                let node_as_property_declaration = node_ref.as_property_declaration();
+                node_as_property_declaration.exclamation_token.is_none()
+                    && node_as_property_declaration.maybe_initializer().is_none()
+            }
     }
 
     pub(super) fn is_property_initialized_in_static_blocks(
@@ -91,20 +99,26 @@ impl TypeChecker {
         end_pos: isize,
     ) -> io::Result<bool> {
         for static_block in static_blocks {
-            if static_block.ref_(self).pos() >= start_pos && static_block.ref_(self).pos() <= end_pos {
-                let reference: Id<Node> =
-                    get_factory(self).create_property_access_expression(
-                        get_factory(self).create_this(),
-                        prop_name,
-                    );
+            if static_block.ref_(self).pos() >= start_pos
+                && static_block.ref_(self).pos() <= end_pos
+            {
+                let reference: Id<Node> = get_factory(self)
+                    .create_property_access_expression(get_factory(self).create_this(), prop_name);
                 set_parent(
-                    &reference.ref_(self).as_property_access_expression().expression.ref_(self),
+                    &reference
+                        .ref_(self)
+                        .as_property_access_expression()
+                        .expression
+                        .ref_(self),
                     Some(reference),
                 );
                 set_parent(&reference.ref_(self), Some(static_block));
-                reference.ref_(self).set_flow_node(static_block
-                    .ref_(self).as_class_static_block_declaration()
-                    .maybe_return_flow_node());
+                reference.ref_(self).set_flow_node(
+                    static_block
+                        .ref_(self)
+                        .as_class_static_block_declaration()
+                        .maybe_return_flow_node(),
+                );
                 let flow_type = self.get_flow_type_of_reference(
                     reference,
                     prop_type,
@@ -128,18 +142,23 @@ impl TypeChecker {
         prop_type: Id<Type>,
         constructor: Id<Node>, /*ConstructorDeclaration*/
     ) -> io::Result<bool> {
-        let reference = get_factory(self).create_property_access_expression(
-            get_factory(self).create_this(),
-            prop_name,
-        );
+        let reference = get_factory(self)
+            .create_property_access_expression(get_factory(self).create_this(), prop_name);
         set_parent(
-            &reference.ref_(self).as_property_access_expression().expression.ref_(self),
+            &reference
+                .ref_(self)
+                .as_property_access_expression()
+                .expression
+                .ref_(self),
             Some(reference),
         );
         set_parent(&reference.ref_(self), Some(constructor));
-        reference.ref_(self).set_flow_node(constructor
-            .ref_(self).as_constructor_declaration()
-            .maybe_return_flow_node());
+        reference.ref_(self).set_flow_node(
+            constructor
+                .ref_(self)
+                .as_constructor_declaration()
+                .maybe_return_flow_node(),
+        );
         let flow_type = self.get_flow_type_of_reference(
             reference,
             prop_type,
@@ -164,7 +183,8 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_interface_declaration
                 .maybe_type_parameters()
-                .refed(self).as_double_deref(),
+                .refed(self)
+                .as_double_deref(),
         )?;
         if self.produce_diagnostics {
             self.check_type_name_is_reserved(
@@ -209,15 +229,20 @@ impl TypeChecker {
             self.check_object_type_for_duplicate_declarations(node);
         }
         try_maybe_for_each(
-            get_interface_base_type_nodes(node, self).refed(self).as_deref(),
+            get_interface_base_type_nodes(node, self)
+                .refed(self)
+                .as_deref(),
             |&heritage_element: &Id<Node>, _| -> io::Result<Option<()>> {
                 let heritage_element_ref = heritage_element.ref_(self);
-                let heritage_element_as_expression_with_type_arguments = heritage_element_ref.as_expression_with_type_arguments();
+                let heritage_element_as_expression_with_type_arguments =
+                    heritage_element_ref.as_expression_with_type_arguments();
                 if !is_entity_name_expression(
                     heritage_element_as_expression_with_type_arguments.expression,
                     self,
                 ) || is_optional_chain(
-                    &heritage_element_as_expression_with_type_arguments.expression.ref_(self),
+                    &heritage_element_as_expression_with_type_arguments
+                        .expression
+                        .ref_(self),
                 ) {
                     self.error(
                         Some(heritage_element_as_expression_with_type_arguments.expression),
@@ -261,18 +286,21 @@ impl TypeChecker {
         self.check_type_parameters(
             node_as_type_alias_declaration
                 .maybe_type_parameters()
-                .refed(self).as_double_deref(),
+                .refed(self)
+                .as_double_deref(),
         )?;
         if node_as_type_alias_declaration.type_.ref_(self).kind() == SyntaxKind::IntrinsicKeyword {
             if !intrinsic_type_kinds.contains_key(
                 &&*node_as_type_alias_declaration
                     .name()
-                    .ref_(self).as_identifier()
+                    .ref_(self)
+                    .as_identifier()
                     .escaped_text,
             ) || length(
                 node_as_type_alias_declaration
                     .maybe_type_parameters()
-                    .refed(self).as_double_deref(),
+                    .refed(self)
+                    .as_double_deref(),
             ) != 1
             {
                 self.error(
@@ -341,10 +369,17 @@ impl TypeChecker {
         if member_as_enum_member.initializer.is_some() {
             return self.compute_constant_value(member);
         }
-        if member.ref_(self).parent().ref_(self).flags().intersects(NodeFlags::Ambient)
+        if member
+            .ref_(self)
+            .parent()
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::Ambient)
             && !is_enum_const(member.ref_(self).parent(), self)
-            && self.get_enum_kind(self.get_symbol_of_node(member.ref_(self).parent())?.unwrap())?
-                == EnumKind::Numeric
+            && self.get_enum_kind(
+                self.get_symbol_of_node(member.ref_(self).parent())?
+                    .unwrap(),
+            )? == EnumKind::Numeric
         {
             return Ok(None);
         }
@@ -363,7 +398,10 @@ impl TypeChecker {
         &self,
         member: Id<Node>, /*EnumMember*/
     ) -> io::Result<Option<StringOrNumber>> {
-        let enum_kind = self.get_enum_kind(self.get_symbol_of_node(member.ref_(self).parent())?.unwrap())?;
+        let enum_kind = self.get_enum_kind(
+            self.get_symbol_of_node(member.ref_(self).parent())?
+                .unwrap(),
+        )?;
         let is_const_enum = is_enum_const(member.ref_(self).parent(), self);
         let member_ref = member.ref_(self);
         let member_as_enum_member = member_ref.as_enum_member();
@@ -402,7 +440,13 @@ impl TypeChecker {
                 &Diagnostics::const_enum_member_initializers_can_only_contain_literal_values_and_other_computed_enum_values,
                 None,
             );
-        } else if member.ref_(self).parent().ref_(self).flags().intersects(NodeFlags::Ambient) {
+        } else if member
+            .ref_(self)
+            .parent()
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::Ambient)
+        {
             self.error(
                 Some(initializer),
                 &Diagnostics::In_ambient_enum_declarations_member_initializer_must_be_constant_expression,
@@ -426,7 +470,8 @@ impl TypeChecker {
                 self.check_type_assignable_to(
                     source,
                     self.get_declared_type_of_symbol(
-                        self.get_symbol_of_node(member.ref_(self).parent())?.unwrap(),
+                        self.get_symbol_of_node(member.ref_(self).parent())?
+                            .unwrap(),
                     )?,
                     Some(initializer),
                     None,
@@ -535,7 +580,10 @@ impl TypeChecker {
                 )));
             }
             SyntaxKind::ParenthesizedExpression => {
-                return self.evaluate(member, expr.ref_(self).as_parenthesized_expression().expression);
+                return self.evaluate(
+                    member,
+                    expr.ref_(self).as_parenthesized_expression().expression,
+                );
             }
             SyntaxKind::Identifier => {
                 let expr_ref = expr.ref_(self);
@@ -549,7 +597,8 @@ impl TypeChecker {
                     self.evaluate_enum_member(
                         member,
                         expr,
-                        self.get_symbol_of_node(member.ref_(self).parent())?.unwrap(),
+                        self.get_symbol_of_node(member.ref_(self).parent())?
+                            .unwrap(),
                         &identifier.escaped_text,
                     )?
                 });
@@ -557,8 +606,8 @@ impl TypeChecker {
             SyntaxKind::ElementAccessExpression | SyntaxKind::PropertyAccessExpression => {
                 let ex = expr;
                 if self.is_constant_member_access(ex) {
-                    let type_ =
-                        self.get_type_of_expression(ex.ref_(self).as_has_expression().expression())?;
+                    let type_ = self
+                        .get_type_of_expression(ex.ref_(self).as_has_expression().expression())?;
                     if let Some(type_symbol) =
                         type_.ref_(self).maybe_symbol().filter(|&type_symbol| {
                             type_symbol.ref_(self).flags().intersects(SymbolFlags::Enum)
@@ -567,18 +616,25 @@ impl TypeChecker {
                         let name: __String;
                         if ex.ref_(self).kind() == SyntaxKind::PropertyAccessExpression {
                             name = ex
-                                .ref_(self).as_property_access_expression()
+                                .ref_(self)
+                                .as_property_access_expression()
                                 .name
-                                .ref_(self).as_member_name()
+                                .ref_(self)
+                                .as_member_name()
                                 .escaped_text()
                                 .to_owned();
                         } else {
                             name = escape_leading_underscores(
                                 &cast_present(
-                                    ex.ref_(self).as_element_access_expression().argument_expression,
-                                    |expression: &Id<Node>| is_literal_expression(&expression.ref_(self)),
+                                    ex.ref_(self)
+                                        .as_element_access_expression()
+                                        .argument_expression,
+                                    |expression: &Id<Node>| {
+                                        is_literal_expression(&expression.ref_(self))
+                                    },
                                 )
-                                .ref_(self).as_literal_like_node()
+                                .ref_(self)
+                                .as_literal_like_node()
                                 .text(),
                             )
                             .into_owned();
@@ -599,7 +655,11 @@ impl TypeChecker {
         enum_symbol: Id<Symbol>,
         name: &str, /*__String*/
     ) -> io::Result<Option<StringOrNumber>> {
-        let member_symbol = enum_symbol.ref_(self).maybe_exports().clone().unwrap()
+        let member_symbol = enum_symbol
+            .ref_(self)
+            .maybe_exports()
+            .clone()
+            .unwrap()
             .ref_(self)
             .get(name)
             .cloned();
@@ -637,10 +697,20 @@ impl TypeChecker {
     pub(super) fn is_constant_member_access(&self, node: Id<Node> /*Expression*/) -> bool {
         node.ref_(self).kind() == SyntaxKind::Identifier
             || node.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
-                && self.is_constant_member_access(node.ref_(self).as_property_access_expression().expression)
+                && self.is_constant_member_access(
+                    node.ref_(self).as_property_access_expression().expression,
+                )
             || node.ref_(self).kind() == SyntaxKind::ElementAccessExpression
-                && self.is_constant_member_access(node.ref_(self).as_element_access_expression().expression)
-                && is_string_literal_like(&node.ref_(self).as_element_access_expression().argument_expression.ref_(self))
+                && self.is_constant_member_access(
+                    node.ref_(self).as_element_access_expression().expression,
+                )
+                && is_string_literal_like(
+                    &node
+                        .ref_(self)
+                        .as_element_access_expression()
+                        .argument_expression
+                        .ref_(self),
+                )
     }
 
     pub(super) fn check_enum_declaration(
@@ -676,7 +746,9 @@ impl TypeChecker {
                 for_each(
                     enum_symbol_declarations,
                     |&decl: &Id<Node>, _| -> Option<()> {
-                        if is_enum_declaration(&decl.ref_(self)) && is_enum_const(decl, self) != enum_is_const {
+                        if is_enum_declaration(&decl.ref_(self))
+                            && is_enum_const(decl, self) != enum_is_const
+                        {
                             self.error(
                                 get_name_of_declaration(Some(decl), self),
                                 &Diagnostics::Enum_declarations_must_all_be_const_or_non_const,
@@ -744,8 +816,18 @@ impl TypeChecker {
             for &declaration in declarations {
                 if (declaration.ref_(self).kind() == SyntaxKind::ClassDeclaration
                     || declaration.ref_(self).kind() == SyntaxKind::FunctionDeclaration
-                        && node_is_present(declaration.ref_(self).as_function_declaration().maybe_body().refed(self).as_deref()))
-                    && !declaration.ref_(self).flags().intersects(NodeFlags::Ambient)
+                        && node_is_present(
+                            declaration
+                                .ref_(self)
+                                .as_function_declaration()
+                                .maybe_body()
+                                .refed(self)
+                                .as_deref(),
+                        ))
+                    && !declaration
+                        .ref_(self)
+                        .flags()
+                        .intersects(NodeFlags::Ambient)
                 {
                     return Some(declaration);
                 }
@@ -795,7 +877,8 @@ impl TypeChecker {
 
             if !self.check_grammar_decorators_and_modifiers(node) {
                 if !in_ambient_context
-                    && node_as_module_declaration.name.ref_(self).kind() == SyntaxKind::StringLiteral
+                    && node_as_module_declaration.name.ref_(self).kind()
+                        == SyntaxKind::StringLiteral
                 {
                     self.grammar_error_on_node(
                         node_as_module_declaration.name,
@@ -824,22 +907,29 @@ impl TypeChecker {
                     symbol.ref_(self).maybe_declarations().as_ref(),
                     Some(symbol_declarations) if symbol_declarations.len() > 1
                 )
-                && is_instantiated_module(node, should_preserve_const_enums(&self.compiler_options.ref_(self)), self)
+                && is_instantiated_module(
+                    node,
+                    should_preserve_const_enums(&self.compiler_options.ref_(self)),
+                    self,
+                )
             {
                 let first_non_ambient_class_or_func =
                     self.get_first_non_ambient_class_or_function_declaration(symbol);
-                if let Some(first_non_ambient_class_or_func) =
-                    first_non_ambient_class_or_func
-                {
-                    if maybe_get_source_file_of_node(Some(node), self) !=
-                        maybe_get_source_file_of_node(Some(first_non_ambient_class_or_func), self)
+                if let Some(first_non_ambient_class_or_func) = first_non_ambient_class_or_func {
+                    if maybe_get_source_file_of_node(Some(node), self)
+                        != maybe_get_source_file_of_node(
+                            Some(first_non_ambient_class_or_func),
+                            self,
+                        )
                     {
                         self.error(
                             Some(node_as_module_declaration.name),
                             &Diagnostics::A_namespace_declaration_cannot_be_in_a_different_file_from_a_class_or_function_with_which_it_is_merged,
                             None,
                         );
-                    } else if node.ref_(self).pos() < first_non_ambient_class_or_func.ref_(self).pos() {
+                    } else if node.ref_(self).pos()
+                        < first_non_ambient_class_or_func.ref_(self).pos()
+                    {
                         self.error(
                             Some(node_as_module_declaration.name),
                             &Diagnostics::A_namespace_declaration_cannot_be_located_prior_to_a_class_or_function_with_which_it_is_merged,
@@ -873,7 +963,9 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Transient);
                     if check_body {
                         if let Some(node_body) = node_as_module_declaration.body {
-                            for &statement in &*node_body.ref_(self).as_module_block().statements.ref_(self) {
+                            for &statement in
+                                &*node_body.ref_(self).as_module_block().statements.ref_(self)
+                            {
                                 self.check_module_augmentation_element(
                                     statement,
                                     is_global_augmentation,
@@ -933,10 +1025,13 @@ impl TypeChecker {
         match node.ref_(self).kind() {
             SyntaxKind::VariableStatement => {
                 for &decl in &*node
-                    .ref_(self).as_variable_statement()
+                    .ref_(self)
+                    .as_variable_statement()
                     .declaration_list
-                    .ref_(self).as_variable_declaration_list()
-                    .declarations.ref_(self)
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+                    .ref_(self)
                 {
                     self.check_module_augmentation_element(decl, is_global_augmentation)?;
                 }
@@ -958,7 +1053,13 @@ impl TypeChecker {
             SyntaxKind::BindingElement | SyntaxKind::VariableDeclaration => {
                 let name = node.ref_(self).as_named_declaration().maybe_name();
                 if is_binding_pattern(name.refed(self).as_deref()) {
-                    for &el in &*name.unwrap().ref_(self).as_has_elements().elements().ref_(self) {
+                    for &el in &*name
+                        .unwrap()
+                        .ref_(self)
+                        .as_has_elements()
+                        .elements()
+                        .ref_(self)
+                    {
                         self.check_module_augmentation_element(el, is_global_augmentation)?;
                     }
                 }

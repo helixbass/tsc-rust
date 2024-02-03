@@ -7,11 +7,10 @@ use crate::{
     add_range, append, concatenate, count_where, create_symbol_table, get_check_flags, index_of,
     try_count_where, try_every, try_map, try_map_defined, try_reduce_left, try_some, CheckFlags,
     Diagnostics, HasArena, InArena, IndexInfo, InternalSymbolName, Node, Number,
-    ObjectTypeInterface, OptionTry, ResolvedTypeInterface, Signature, SignatureFlags,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
+    ObjectTypeInterface, OptionInArena, OptionTry, ResolvedTypeInterface, Signature,
+    SignatureFlags, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SymbolTable, Ternary,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface,
-    OptionInArena,
 };
 
 impl TypeChecker {
@@ -145,7 +144,8 @@ impl TypeChecker {
                     (*rest_param_symbol
                         .ref_(self)
                         .as_transient_symbol()
-                        .symbol_links().ref_(self))
+                        .symbol_links()
+                        .ref_(self))
                     .borrow()
                     .type_,
                     mapper,
@@ -168,11 +168,14 @@ impl TypeChecker {
         right: Id<Signature>,
     ) -> io::Result<Signature> {
         let type_params = left
-            .ref_(self).maybe_type_parameters()
+            .ref_(self)
+            .maybe_type_parameters()
             .clone()
             .or_else(|| right.ref_(self).maybe_type_parameters().clone());
         let mut param_mapper: Option<Id<TypeMapper>> = None;
-        if left.ref_(self).maybe_type_parameters().is_some() && right.ref_(self).maybe_type_parameters().is_some() {
+        if left.ref_(self).maybe_type_parameters().is_some()
+            && right.ref_(self).maybe_type_parameters().is_some()
+        {
             param_mapper = Some(self.create_type_mapper(
                 right.ref_(self).maybe_type_parameters().clone().unwrap(),
                 left.ref_(self).maybe_type_parameters().clone(),
@@ -185,7 +188,10 @@ impl TypeChecker {
             right.ref_(self).maybe_this_parameter(),
             param_mapper.clone(),
         )?;
-        let min_arg_count = cmp::max(left.ref_(self).min_argument_count(), right.ref_(self).min_argument_count());
+        let min_arg_count = cmp::max(
+            left.ref_(self).min_argument_count(),
+            right.ref_(self).min_argument_count(),
+        );
         let mut result = self.create_signature(
             declaration,
             type_params,
@@ -198,7 +204,10 @@ impl TypeChecker {
         );
         result.composite_kind = Some(TypeFlags::Union);
         result.composite_signatures = Some(concatenate(
-            if !matches!(left.ref_(self).composite_kind, Some(TypeFlags::Intersection)) {
+            if !matches!(
+                left.ref_(self).composite_kind,
+                Some(TypeFlags::Intersection)
+            ) {
                 left.ref_(self).composite_signatures.clone()
             } else {
                 None
@@ -208,8 +217,10 @@ impl TypeChecker {
         ));
         if let Some(param_mapper) = param_mapper {
             result.mapper = Some(
-                if !matches!(left.ref_(self).composite_kind, Some(TypeFlags::Intersection))
-                    && left.ref_(self).mapper.is_some()
+                if !matches!(
+                    left.ref_(self).composite_kind,
+                    Some(TypeFlags::Intersection)
+                ) && left.ref_(self).mapper.is_some()
                     && left.ref_(self).composite_signatures.is_some()
                 {
                     self.combine_type_mappers(left.ref_(self).mapper.clone(), param_mapper)
@@ -233,33 +244,36 @@ impl TypeChecker {
             if try_every(types, |&t: &Id<Type>, _| -> io::Result<_> {
                 Ok(self.get_index_info_of_type_(t, index_type)?.is_some())
             })? {
-                result.push(self.alloc_index_info(
-                    self.create_index_info(
-                        index_type.clone(),
-                        self.get_union_type(
-                            &types
-                                .into_iter()
-                                .map(|&t| -> io::Result<_> {
-                                    Ok(self.get_index_type_of_type_(t, index_type)?.unwrap())
-                                })
-                                .collect::<Result<Vec<_>, _>>()?,
+                result.push(
+                    self.alloc_index_info(
+                        self.create_index_info(
+                            index_type.clone(),
+                            self.get_union_type(
+                                &types
+                                    .into_iter()
+                                    .map(|&t| -> io::Result<_> {
+                                        Ok(self.get_index_type_of_type_(t, index_type)?.unwrap())
+                                    })
+                                    .collect::<Result<Vec<_>, _>>()?,
+                                None,
+                                Option::<Id<Symbol>>::None,
+                                None,
+                                None,
+                            )?,
+                            try_some(
+                                Some(types),
+                                Some(|&t: &Id<Type>| -> io::Result<_> {
+                                    Ok(self
+                                        .get_index_info_of_type_(t, index_type)?
+                                        .unwrap()
+                                        .ref_(self)
+                                        .is_readonly)
+                                }),
+                            )?,
                             None,
-                            Option::<Id<Symbol>>::None,
-                            None,
-                            None,
-                        )?,
-                        try_some(
-                            Some(types),
-                            Some(|&t: &Id<Type>| -> io::Result<_> {
-                                Ok(self
-                                    .get_index_info_of_type_(t, index_type)?
-                                    .unwrap()
-                                    .ref_(self).is_readonly)
-                            }),
-                        )?,
-                        None,
+                        ),
                     ),
-                ));
+                );
             }
         }
         Ok(result)
@@ -456,7 +470,10 @@ impl TypeChecker {
                     info.ref_(self).key_type.clone(),
                     if union {
                         self.get_union_type(
-                            &[info.ref_(self).type_.clone(), new_info.ref_(self).type_.clone()],
+                            &[
+                                info.ref_(self).type_.clone(),
+                                new_info.ref_(self).type_.clone(),
+                            ],
                             None,
                             Option::<Id<Symbol>>::None,
                             None,
@@ -464,7 +481,10 @@ impl TypeChecker {
                         )?
                     } else {
                         self.get_intersection_type(
-                            &vec![info.ref_(self).type_.clone(), new_info.ref_(self).type_.clone()],
+                            &vec![
+                                info.ref_(self).type_.clone(),
+                                new_info.ref_(self).type_.clone(),
+                            ],
                             Option::<Id<Symbol>>::None,
                             None,
                         )?
@@ -597,12 +617,9 @@ impl TypeChecker {
                         self.get_properties_of_type(base_constructor_type)?,
                     );
                 } else if base_constructor_type == self.any_type() {
-                    base_constructor_index_info = Some(self.alloc_index_info(self.create_index_info(
-                        self.string_type(),
-                        self.any_type(),
-                        false,
-                        None,
-                    )));
+                    base_constructor_index_info = Some(self.alloc_index_info(
+                        self.create_index_info(self.string_type(), self.any_type(), false, None),
+                    ));
                 }
             }
 
@@ -624,7 +641,8 @@ impl TypeChecker {
                                 .ref_(self)
                                 .as_object_type()
                                 .maybe_properties()
-                                .refed(self).as_deref(),
+                                .refed(self)
+                                .as_deref(),
                             Some(|&prop: &Id<Symbol>| -> io::Result<_> {
                                 Ok(self
                                     .get_type_of_symbol(prop)?
@@ -866,7 +884,10 @@ impl TypeChecker {
             });
         }
         if type_.ref_(self).flags().intersects(TypeFlags::Conditional) {
-            if type_.ref_(self).as_conditional_type().root
+            if type_
+                .ref_(self)
+                .as_conditional_type()
+                .root
                 .ref_(self)
                 .is_distributive
             {
@@ -876,7 +897,10 @@ impl TypeChecker {
                     return self.get_conditional_type_instantiation(
                         type_,
                         self.prepend_type_mapping(
-                            type_.ref_(self).as_conditional_type().root
+                            type_
+                                .ref_(self)
+                                .as_conditional_type()
+                                .root
                                 .ref_(self)
                                 .check_type,
                             constraint,
@@ -951,7 +975,8 @@ impl TypeChecker {
             for info in self.get_index_infos_of_type(type_)? {
                 if !strings_only
                     || info
-                        .ref_(self).key_type
+                        .ref_(self)
+                        .key_type
                         .ref_(self)
                         .flags()
                         .intersects(TypeFlags::String | TypeFlags::TemplateLiteral)
@@ -1116,11 +1141,12 @@ impl TypeChecker {
             if let Some(&existing_prop) = existing_prop {
                 let existing_prop_ref = existing_prop.ref_(self);
                 let existing_prop_as_mapped_symbol = existing_prop_ref.as_mapped_symbol();
-                let existing_prop_name_type = (*existing_prop_as_mapped_symbol.symbol_links().ref_(self))
-                    .borrow()
-                    .name_type
-                    .clone()
-                    .unwrap();
+                let existing_prop_name_type =
+                    (*existing_prop_as_mapped_symbol.symbol_links().ref_(self))
+                        .borrow()
+                        .name_type
+                        .clone()
+                        .unwrap();
                 existing_prop_as_mapped_symbol
                     .symbol_links()
                     .ref_mut(self)
@@ -1315,7 +1341,9 @@ impl TypeChecker {
             }
             symbol_as_mapped_symbol.symbol_links().ref_mut(self).type_ = Some(type_);
         }
-        Ok(symbol_as_mapped_symbol.symbol_links().ref_(self)
+        Ok(symbol_as_mapped_symbol
+            .symbol_links()
+            .ref_(self)
             .type_
             .clone()
             .unwrap())
@@ -1326,10 +1354,7 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
         {
-            let value = type_
-                .ref_(self)
-                .as_mapped_type()
-                .maybe_type_parameter();
+            let value = type_.ref_(self).as_mapped_type().maybe_type_parameter();
             value
         }
         .try_unwrap_or_else(|| -> io::Result<_> {
@@ -1346,7 +1371,10 @@ impl TypeChecker {
                 })?
                 .unwrap(),
             );
-            type_.ref_(self).as_mapped_type().set_type_parameter(Some(ret.clone()));
+            type_
+                .ref_(self)
+                .as_mapped_type()
+                .set_type_parameter(Some(ret.clone()));
             Ok(ret)
         })
     }
@@ -1356,17 +1384,17 @@ impl TypeChecker {
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<Id<Type>> {
         {
-            let value = type_
-                .ref_(self)
-                .as_mapped_type()
-                .maybe_constraint_type();
+            let value = type_.ref_(self).as_mapped_type().maybe_constraint_type();
             value
         }
         .try_unwrap_or_else(|| {
             let ret = self
                 .get_constraint_of_type_parameter(self.get_type_parameter_from_mapped_type(type_)?)?
                 .unwrap_or_else(|| self.error_type());
-            type_.ref_(self).as_mapped_type().set_constraint_type(Some(ret.clone()));
+            type_
+                .ref_(self)
+                .as_mapped_type()
+                .set_constraint_type(Some(ret.clone()));
             Ok(ret)
         })
     }

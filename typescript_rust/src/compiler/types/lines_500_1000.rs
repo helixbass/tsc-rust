@@ -1,4 +1,7 @@
-use std::{cell::{Cell, RefCell}, fmt};
+use std::{
+    cell::{Cell, RefCell},
+    fmt,
+};
 
 use bitflags::bitflags;
 use id_arena::Id;
@@ -59,15 +62,14 @@ use crate::{
     add_emit_flags, add_emit_helpers, add_synthetic_leading_comment,
     add_synthetic_trailing_comment, get_emit_flags, move_synthetic_comments, remove_all_comments,
     set_comment_range, set_emit_flags, set_original_node, set_parent_recursive,
-    set_source_map_range, set_text_range_end, set_text_range_pos, set_text_range_id_node,
-    start_on_new_line, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper,
+    set_source_map_range, set_text_range_end, set_text_range_id_node, set_text_range_pos,
+    start_on_new_line, AllArenas, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, HasArena,
     HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
     HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
     HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
-    HasTagNameInterface, HasTextsInterface, InferenceContext, JSDocHeritageTagInterface,
+    HasTagNameInterface, HasTextsInterface, InArena, InferenceContext, JSDocHeritageTagInterface,
     JsxOpeningLikeElementInterface, SourceFileLike, SourceMapRange, SyntheticExpression,
     SyntheticReferenceExpression, UnparsedSyntheticReference,
-    HasArena, InArena, AllArenas,
 };
 
 bitflags! {
@@ -2099,7 +2101,11 @@ impl Clone for BaseNode {
 }
 
 pub trait NodeExt {
-    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>, arena: &impl HasArena) -> Self;
+    fn set_text_range(
+        self,
+        location: Option<&(impl ReadonlyTextRange + ?Sized)>,
+        arena: &impl HasArena,
+    ) -> Self;
     fn set_text_range_pos(self, pos: isize, arena: &impl HasArena) -> Self;
     fn set_text_range_end(self, end: isize, arena: &impl HasArena) -> Self;
     fn set_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self;
@@ -2107,7 +2113,8 @@ pub trait NodeExt {
     fn add_emit_flags(self, emit_flags: EmitFlags, arena: &impl HasArena) -> Self;
     fn set_original_node(self, original: Option<Id<Node>>, arena: &impl HasArena) -> Self;
     fn set_comment_range(self, range: &impl ReadonlyTextRange, arena: &impl HasArena) -> Self;
-    fn set_source_map_range(self, range: Option<Id<SourceMapRange>>, arena: &impl HasArena) -> Self;
+    fn set_source_map_range(self, range: Option<Id<SourceMapRange>>, arena: &impl HasArena)
+        -> Self;
     fn start_on_new_line(self, arena: &impl HasArena) -> Self;
     fn and_set_parent(self, parent: Option<Id<Node>>, arena: &impl HasArena) -> Self;
     fn set_parent_recursive(self, incremental: bool, arena: &impl HasArena) -> Self;
@@ -2132,7 +2139,11 @@ pub trait NodeExt {
 }
 
 impl NodeExt for Id<Node> {
-    fn set_text_range(self, location: Option<&(impl ReadonlyTextRange + ?Sized)>, arena: &impl HasArena) -> Self {
+    fn set_text_range(
+        self,
+        location: Option<&(impl ReadonlyTextRange + ?Sized)>,
+        arena: &impl HasArena,
+    ) -> Self {
         set_text_range_id_node(self, location, arena)
     }
 
@@ -2168,7 +2179,11 @@ impl NodeExt for Id<Node> {
         set_comment_range(self, range, arena)
     }
 
-    fn set_source_map_range(self, range: Option<Id<SourceMapRange>>, arena: &impl HasArena) -> Self {
+    fn set_source_map_range(
+        self,
+        range: Option<Id<SourceMapRange>>,
+        arena: &impl HasArena,
+    ) -> Self {
         set_source_map_range(self, range, arena)
     }
 

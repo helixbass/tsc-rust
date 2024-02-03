@@ -1,4 +1,9 @@
-use std::{collections::HashMap, io, mem, any::Any, cell::{RefCell, Ref, RefMut, Cell}};
+use std::{
+    any::Any,
+    cell::{Cell, Ref, RefCell, RefMut},
+    collections::HashMap,
+    io, mem,
+};
 
 use id_arena::Id;
 
@@ -6,20 +11,18 @@ use crate::{
     BaseNodeFactorySynthetic, CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, _d, chain_bundle, create_empty_exports,
-    create_external_helpers_import_declaration_if_needed,
-    get_emit_flags, get_emit_script_target,
-    get_external_module_name_literal, has_syntactic_modifier, id_text,
+    create_external_helpers_import_declaration_if_needed, downcast_transformer_ref, get_emit_flags,
+    get_emit_script_target, get_external_module_name_literal, has_syntactic_modifier, id_text,
     insert_statements_after_custom_prologue, is_export_namespace_as_default_declaration,
     is_external_module, is_external_module_import_equals_declaration, is_external_module_indicator,
-    is_identifier, is_namespace_export, is_source_file, is_statement, single_or_many_node,
-    try_visit_each_child, try_visit_nodes, BoolExt, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitHost, GeneratedIdentifierFlags, GetOrInsertDefault, HasStatementsInterface, Matches,
-    ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt,
-    NodeFlags, NodeInterface, SyntaxKind, TransformationContextOnEmitNodeOverrider,
+    is_identifier, is_namespace_export, is_source_file, is_statement, ref_mut_unwrapped,
+    ref_unwrapped, single_or_many_node, static_arena, try_visit_each_child, try_visit_nodes,
+    AllArenas, BoolExt, CoreTransformationContext, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitHost, GeneratedIdentifierFlags, GetOrInsertDefault, HasArena, HasStatementsInterface,
+    InArena, Matches, ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray,
+    NodeArrayExt, NodeExt, NodeFlags, NodeInterface, SyntaxKind,
+    TransformNodesTransformationResult, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
-    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
-    ref_unwrapped, ref_mut_unwrapped,
 };
 
 struct TransformEcmascriptModule {
@@ -41,7 +44,10 @@ struct TransformEcmascriptModule {
 }
 
 impl TransformEcmascriptModule {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
@@ -58,10 +64,9 @@ impl TransformEcmascriptModule {
             import_require_statements: _d(),
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformEcmascriptModuleOnEmitNodeOverrider::new(
-                ret,
-                previous_on_emit_node,
-            )))
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+                TransformEcmascriptModuleOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+            ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
@@ -94,9 +99,7 @@ impl TransformEcmascriptModule {
 
     pub(super) fn helper_name_substitutions_mut(
         &self,
-    ) -> RefMut<
-        HashMap<String, Id<Node /*Identifier*/>>,
-    > {
+    ) -> RefMut<HashMap<String, Id<Node /*Identifier*/>>> {
         ref_mut_unwrapped(&self.helper_name_substitutions)
     }
 
@@ -140,7 +143,8 @@ impl TransformEcmascriptModule {
             Id<Node /*VariableStatement*/>,
         )>,
     ) {
-        self.import_require_statements.set(import_require_statements);
+        self.import_require_statements
+            .set(import_require_statements);
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> io::Result<Id<Node>> {
@@ -150,7 +154,9 @@ impl TransformEcmascriptModule {
             return Ok(node);
         }
 
-        if is_external_module(&node.ref_(self)) || self.compiler_options.ref_(self).isolated_modules == Some(true) {
+        if is_external_module(&node.ref_(self))
+            || self.compiler_options.ref_(self).isolated_modules == Some(true)
+        {
             self.set_current_source_file(Some(node));
             self.set_import_require_statements(None);
             let mut result = self.update_external_module(node)?;
@@ -159,9 +165,15 @@ impl TransformEcmascriptModule {
                 result = self.factory.ref_(self).update_source_file(
                     result,
                     self.factory
-                        .ref_(self).create_node_array(
+                        .ref_(self)
+                        .create_node_array(
                             {
-                                let mut statements = result.ref_(self).as_source_file().statements().ref_(self).to_vec();
+                                let mut statements = result
+                                    .ref_(self)
+                                    .as_source_file()
+                                    .statements()
+                                    .ref_(self)
+                                    .to_vec();
                                 insert_statements_after_custom_prologue(
                                     &mut statements,
                                     Some(&[
@@ -174,7 +186,10 @@ impl TransformEcmascriptModule {
                             },
                             None,
                         )
-                        .set_text_range(Some(&*result.ref_(self).as_source_file().statements().ref_(self)), self),
+                        .set_text_range(
+                            Some(&*result.ref_(self).as_source_file().statements().ref_(self)),
+                            self,
+                        ),
                     None,
                     None,
                     None,
@@ -184,9 +199,11 @@ impl TransformEcmascriptModule {
             }
             if !is_external_module(&node.ref_(self))
                 || result
-                    .ref_(self).as_source_file()
+                    .ref_(self)
+                    .as_source_file()
                     .statements()
-                    .ref_(self).iter()
+                    .ref_(self)
+                    .iter()
                     .any(|&statement| is_external_module_indicator(statement, self))
             {
                 return Ok(result);
@@ -194,17 +211,23 @@ impl TransformEcmascriptModule {
             return Ok(self.factory.ref_(self).update_source_file(
                 result,
                 self.factory
-                    .ref_(self).create_node_array(
+                    .ref_(self)
+                    .create_node_array(
                         Some(
                             result
-                                .ref_(self).as_source_file()
+                                .ref_(self)
+                                .as_source_file()
                                 .statements()
-                                .ref_(self).to_vec()
+                                .ref_(self)
+                                .to_vec()
                                 .and_push(create_empty_exports(&self.factory.ref_(self))),
                         ),
                         None,
                     )
-                    .set_text_range(Some(&*result.ref_(self).as_source_file().statements().ref_(self)), self),
+                    .set_text_range(
+                        Some(&*result.ref_(self).as_source_file().statements().ref_(self)),
+                        self,
+                    ),
                 None,
                 None,
                 None,
@@ -248,12 +271,15 @@ impl TransformEcmascriptModule {
                         None,
                         self,
                     )?
-                    .ref_(self).iter().copied(),
+                    .ref_(self)
+                    .iter()
+                    .copied(),
                 );
                 self.factory.ref_(self).update_source_file(
                     node,
                     self.factory
-                        .ref_(self).create_node_array(Some(statements), None)
+                        .ref_(self)
+                        .create_node_array(Some(statements), None)
                         .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
                     None,
                     None,
@@ -262,20 +288,25 @@ impl TransformEcmascriptModule {
                     None,
                 )
             }
-            None => {
-                try_visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)?
-            }
+            None => try_visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            )?,
         })
     }
 
     fn visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
         Ok(match node.ref_(self).kind() {
-            SyntaxKind::ImportEqualsDeclaration => (get_emit_script_target(&self.compiler_options.ref_(self))
+            SyntaxKind::ImportEqualsDeclaration => {
+                (get_emit_script_target(&self.compiler_options.ref_(self))
                 // TODO: this definitely looks like an upstream bug of using ModuleKind instead
                 // of ScriptTarget - technically should say ScriptTarget::ES2019 here to be using
                 // the same exact enum int value but let's see if this causes any problems
                 >= ScriptTarget::ES2020)
-                .try_then_and(|| self.visit_import_equals_declaration(node))?,
+                    .try_then_and(|| self.visit_import_equals_declaration(node))?
+            }
             SyntaxKind::ExportAssignment => self.visit_export_assignment(node),
             SyntaxKind::ExportDeclaration => {
                 let export_decl = node;
@@ -322,7 +353,8 @@ impl TransformEcmascriptModule {
                     ])),
                 )),
                 self.factory
-                    .ref_(self).create_string_literal("module".to_owned(), None, None),
+                    .ref_(self)
+                    .create_string_literal("module".to_owned(), None, None),
                 None,
             );
             let require_helper_name = self.factory.ref_(self).create_unique_name(
@@ -339,13 +371,15 @@ impl TransformEcmascriptModule {
                         Some(self.factory.ref_(self).create_call_expression(
                             self.factory.ref_(self).clone_node(create_require_name),
                             Option::<Id<NodeArray>>::None,
-                            Some(vec![self.factory.ref_(self).create_property_access_expression(
-                                self.factory.ref_(self).create_meta_property(
-                                    SyntaxKind::ImportKeyword,
-                                    self.factory.ref_(self).create_identifier("meta"),
+                            Some(vec![
+                                self.factory.ref_(self).create_property_access_expression(
+                                    self.factory.ref_(self).create_meta_property(
+                                        SyntaxKind::ImportKeyword,
+                                        self.factory.ref_(self).create_identifier("meta"),
+                                    ),
+                                    self.factory.ref_(self).create_identifier("url"),
                                 ),
-                                self.factory.ref_(self).create_identifier("url"),
-                            )]),
+                            ]),
                         )),
                     )],
                     Some(
@@ -361,13 +395,21 @@ impl TransformEcmascriptModule {
         let name = self
             .import_require_statements()
             .1
-            .ref_(self).as_variable_statement()
+            .ref_(self)
+            .as_variable_statement()
             .declaration_list
-            .ref_(self).as_variable_declaration_list()
-            .declarations.ref_(self)[0]
-            .ref_(self).as_variable_declaration()
+            .ref_(self)
+            .as_variable_declaration_list()
+            .declarations
+            .ref_(self)[0]
+            .ref_(self)
+            .as_variable_declaration()
             .name();
-        Debug_.assert_node(Some(name), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), None);
+        Debug_.assert_node(
+            Some(name),
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
+            None,
+        );
         Ok(self.factory.ref_(self).create_call_expression(
             self.factory.ref_(self).clone_node(name),
             Option::<Id<NodeArray>>::None,
@@ -389,13 +431,15 @@ impl TransformEcmascriptModule {
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         statements.get_or_insert_default_().push(
             self.factory
-                .ref_(self).create_variable_statement(
+                .ref_(self)
+                .create_variable_statement(
                     Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
                             Some(
                                 self.factory
-                                    .ref_(self).clone_node(node_as_import_equals_declaration.name()),
+                                    .ref_(self)
+                                    .clone_node(node_as_import_equals_declaration.name()),
                             ),
                             None,
                             None,
@@ -425,9 +469,8 @@ impl TransformEcmascriptModule {
         let node_ref = node.ref_(self);
         let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
         if has_syntactic_modifier(node, ModifierFlags::Export, self) {
-            statements
-                .get_or_insert_default_()
-                .push(self.factory.ref_(self).create_export_declaration(
+            statements.get_or_insert_default_().push(
+                self.factory.ref_(self).create_export_declaration(
                     Option::<Id<NodeArray>>::None,
                     Option::<Id<NodeArray>>::None,
                     node_as_import_equals_declaration.is_type_only,
@@ -440,7 +483,8 @@ impl TransformEcmascriptModule {
                     ])),
                     None,
                     None,
-                ));
+                ),
+            );
         }
         // return statements;
     }
@@ -449,8 +493,7 @@ impl TransformEcmascriptModule {
     {
         let node_ref = node.ref_(self);
         let node_as_export_assignment = node_ref.as_export_assignment();
-        (node_as_export_assignment.is_export_equals != Some(true))
-            .then(|| node.into())
+        (node_as_export_assignment.is_export_equals != Some(true)).then(|| node.into())
     }
 
     fn visit_export_declaration(&self, node: Id<Node> /*ExportDeclaration*/) -> VisitResult {
@@ -458,7 +501,8 @@ impl TransformEcmascriptModule {
         let node_as_export_declaration = node_ref.as_export_declaration();
         if self
             .compiler_options
-            .ref_(self).module
+            .ref_(self)
+            .module
             .matches(|compiler_options_module| compiler_options_module > ModuleKind::ES2015)
         {
             return Some(node.into());
@@ -466,7 +510,8 @@ impl TransformEcmascriptModule {
 
         let node_export_clause = node_as_export_declaration.export_clause;
         let node_module_specifier = node_as_export_declaration.module_specifier;
-        if !node_export_clause.matches(|node_export_clause| is_namespace_export(&node_export_clause.ref_(self)))
+        if !node_export_clause
+            .matches(|node_export_clause| is_namespace_export(&node_export_clause.ref_(self)))
             || node_module_specifier.is_none()
         {
             return Some(node.into());
@@ -479,17 +524,25 @@ impl TransformEcmascriptModule {
         let old_identifier = node_export_clause_as_namespace_export.name;
         let synth_name = self
             .factory
-            .ref_(self).get_generated_name_for_node(Some(old_identifier), None);
+            .ref_(self)
+            .get_generated_name_for_node(Some(old_identifier), None);
         let import_decl = self
             .factory
-            .ref_(self).create_import_declaration(
+            .ref_(self)
+            .create_import_declaration(
                 Option::<Id<NodeArray>>::None,
                 Option::<Id<NodeArray>>::None,
-                Some(self.factory.ref_(self).create_import_clause(
-                    false,
-                    None,
-                    Some(self.factory.ref_(self).create_namespace_import(synth_name.clone())),
-                )),
+                Some(
+                    self.factory.ref_(self).create_import_clause(
+                        false,
+                        None,
+                        Some(
+                            self.factory
+                                .ref_(self)
+                                .create_namespace_import(synth_name.clone()),
+                        ),
+                    ),
+                ),
                 node_module_specifier.clone(),
                 node_as_export_declaration.assert_clause.clone(),
             )
@@ -568,24 +621,28 @@ impl TransformationContextOnEmitNodeOverrider for TransformEcmascriptModuleOnEmi
                 || self
                     .transform_ecmascript_module()
                     .compiler_options
-                    .ref_(self).isolated_modules
+                    .ref_(self)
+                    .isolated_modules
                     == Some(true))
                 && self
                     .transform_ecmascript_module()
                     .compiler_options
-                    .ref_(self).import_helpers
+                    .ref_(self)
+                    .import_helpers
                     == Some(true)
             {
                 self.transform_ecmascript_module()
                     .set_helper_name_substitutions(Some(_d()));
             }
             self.previous_on_emit_node
-                .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                .ref_(self)
+                .on_emit_node(hint, node, emit_callback)?;
             self.transform_ecmascript_module()
                 .set_helper_name_substitutions(None);
         } else {
             self.previous_on_emit_node
-                .ref_(self).on_emit_node(hint, node, emit_callback)?;
+                .ref_(self)
+                .on_emit_node(hint, node, emit_callback)?;
         }
 
         Ok(())
@@ -630,10 +687,18 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
             .get(name)
             .cloned();
         if substitution.is_none() {
-            substitution = Some(self.transform_ecmascript_module().factory.ref_(self).create_unique_name(
-                name,
-                Some(GeneratedIdentifierFlags::Optimistic | GeneratedIdentifierFlags::FileLevel),
-            ));
+            substitution = Some(
+                self.transform_ecmascript_module()
+                    .factory
+                    .ref_(self)
+                    .create_unique_name(
+                        name,
+                        Some(
+                            GeneratedIdentifierFlags::Optimistic
+                                | GeneratedIdentifierFlags::FileLevel,
+                        ),
+                    ),
+            );
             self.transform_ecmascript_module()
                 .helper_name_substitutions_mut()
                 .insert(name.to_owned(), substitution.clone().unwrap());
@@ -648,7 +713,8 @@ impl TransformationContextOnSubstituteNodeOverrider
     fn on_substitute_node(&self, hint: EmitHint, node: Id<Node>) -> io::Result<Id<Node>> {
         let node = self
             .previous_on_substitute_node
-            .ref_(self).on_substitute_node(hint, node)?;
+            .ref_(self)
+            .on_substitute_node(hint, node)?;
         if self
             .transform_ecmascript_module()
             .maybe_helper_name_substitutions()

@@ -1,5 +1,5 @@
 use std::{
-    cell::{Cell, RefCell, RefMut, Ref},
+    cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
     rc::Rc,
 };
@@ -13,10 +13,8 @@ use super::{
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{
-    EvolvingArrayType, FreshObjectLiteralTypeInterface, Number, TypeId, TypeMapper,
-    __String, HasArena,
-    InArena,
-    ref_unwrapped, ref_mut_unwrapped,
+    EvolvingArrayType, FreshObjectLiteralTypeInterface, HasArena, InArena, Number, TypeId,
+    TypeMapper, __String, ref_mut_unwrapped, ref_unwrapped,
 };
 
 pub trait LiteralTypeInterface: TypeInterface {
@@ -470,8 +468,7 @@ impl BaseObjectType {
     pub fn not_actually_interface_type_maybe_resolved_base_types(
         &self,
     ) -> Option<Id<Vec<Id<Type>>>> {
-        self.not_actually_interface_type_resolved_base_types
-            .get()
+        self.not_actually_interface_type_resolved_base_types.get()
     }
 
     pub fn not_actually_interface_type_set_resolved_base_types(
@@ -617,16 +614,14 @@ impl ResolvedTypeInterface for BaseObjectType {
     }
 
     fn maybe_object_type_without_abstract_construct_signatures(&self) -> Option<Id<Type>> {
-        self.object_type_without_abstract_construct_signatures
-            .get()
+        self.object_type_without_abstract_construct_signatures.get()
     }
 
     fn set_object_type_without_abstract_construct_signatures(
         &self,
         object_type_without_abstract_construct_signatures: Option<Id<Type>>,
     ) {
-        self
-            .object_type_without_abstract_construct_signatures
+        self.object_type_without_abstract_construct_signatures
             .set(object_type_without_abstract_construct_signatures);
     }
 }
@@ -706,12 +701,18 @@ impl NotActuallyInterfaceType<'_> {
         }
     }
 
-    pub fn set_resolved_base_constructor_type(&self, resolved_base_constructor_type: Option<Id<Type>>) {
+    pub fn set_resolved_base_constructor_type(
+        &self,
+        resolved_base_constructor_type: Option<Id<Type>>,
+    ) {
         match self {
-            Self::InterfaceType(value) => value.set_resolved_base_constructor_type(resolved_base_constructor_type),
-            Self::BaseObjectType(value) => {
-                value.not_actually_interface_type_set_resolved_base_constructor_type(resolved_base_constructor_type)
+            Self::InterfaceType(value) => {
+                value.set_resolved_base_constructor_type(resolved_base_constructor_type)
             }
+            Self::BaseObjectType(value) => value
+                .not_actually_interface_type_set_resolved_base_constructor_type(
+                    resolved_base_constructor_type,
+                ),
         }
     }
 }
@@ -829,7 +830,8 @@ impl InterfaceTypeInterface for BaseInterfaceType {
     }
 
     fn set_resolved_base_constructor_type(&self, resolved_base_constructor_type: Option<Id<Type>>) {
-        self.resolved_base_constructor_type.set(resolved_base_constructor_type);
+        self.resolved_base_constructor_type
+            .set(resolved_base_constructor_type);
     }
 
     fn maybe_resolved_base_types(&self) -> Option<Id<Vec<Id<Type>>>> {
@@ -859,9 +861,7 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     }
 
     fn declared_call_signatures(&self) -> Ref<Vec<Id<Signature>>> {
-        ref_unwrapped(
-            &self.declared_call_signatures
-        )
+        ref_unwrapped(&self.declared_call_signatures)
     }
 
     fn set_declared_call_signatures(&self, declared_call_signatures: Vec<Id<Signature>>) {
@@ -869,9 +869,7 @@ impl InterfaceTypeWithDeclaredMembersInterface for BaseInterfaceType {
     }
 
     fn declared_construct_signatures(&self) -> Ref<Vec<Id<Signature>>> {
-        ref_unwrapped(
-            &self.declared_construct_signatures,
-        )
+        ref_unwrapped(&self.declared_construct_signatures)
     }
 
     fn set_declared_construct_signatures(&self, declared_construct_signatures: Vec<Id<Signature>>) {
@@ -905,11 +903,7 @@ impl GenericableTypeInterface for BaseInterfaceType {
 }
 
 impl GenericTypeInterface for BaseInterfaceType {
-    fn instantiations(
-        &self,
-    ) -> RefMut<
-        HashMap<String, Id<Type /*TypeReference*/>>,
-    > {
+    fn instantiations(&self) -> RefMut<HashMap<String, Id<Type /*TypeReference*/>>> {
         ref_mut_unwrapped(&self.instantiations)
     }
 
@@ -960,7 +954,8 @@ impl TypeReferenceInterface for BaseInterfaceType {
     }
 
     fn set_cached_equivalent_base_type(&self, cached_equivalent_base_type: Option<Id<Type>>) {
-        self.cached_equivalent_base_type.set(cached_equivalent_base_type);
+        self.cached_equivalent_base_type
+            .set(cached_equivalent_base_type);
     }
 }
 
@@ -1046,7 +1041,8 @@ impl TypeReferenceInterface for TypeReference {
     }
 
     fn set_cached_equivalent_base_type(&self, cached_equivalent_base_type: Option<Id<Type>>) {
-        self.cached_equivalent_base_type.set(cached_equivalent_base_type);
+        self.cached_equivalent_base_type
+            .set(cached_equivalent_base_type);
     }
 }
 
@@ -1075,11 +1071,7 @@ pub trait GenericTypeInterface:
     + InterfaceTypeInterface
     + TypeReferenceInterface
 {
-    fn instantiations(
-        &self,
-    ) -> RefMut<
-        HashMap<String, Id<Type /*TypeReference*/>>,
-    >;
+    fn instantiations(&self) -> RefMut<HashMap<String, Id<Type /*TypeReference*/>>>;
     fn maybe_variances(&self) -> Rc<RefCell<Option<Vec<VarianceFlags>>>>;
     fn set_variances(&self, variances: Vec<VarianceFlags>);
 }

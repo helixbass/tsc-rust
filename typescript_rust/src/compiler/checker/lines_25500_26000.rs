@@ -13,9 +13,8 @@ use crate::{
     is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
     return_ok_none_if_none, try_for_each, walk_up_parenthesized_expressions, AccessFlags,
     ContextFlags, FunctionFlags, HasArena, HasInitializerInterface, InArena,
-    NamedDeclarationInterface, Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    OptionInArena,
+    NamedDeclarationInterface, Node, NodeInterface, Number, ObjectFlags, OptionInArena, OptionTry,
+    Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -32,7 +31,8 @@ impl TypeChecker {
             return container.ref_(self).kind() == SyntaxKind::Constructor;
         } else {
             if maybe_is_class_like(container.ref_(self).maybe_parent().refed(self).as_deref())
-                || container.ref_(self).parent().ref_(self).kind() == SyntaxKind::ObjectLiteralExpression
+                || container.ref_(self).parent().ref_(self).kind()
+                    == SyntaxKind::ObjectLiteralExpression
             {
                 if is_static(container, self) {
                     return matches!(
@@ -152,7 +152,9 @@ impl TypeChecker {
                             ),
                         )?));
                     }
-                    if literal.ref_(self).parent().ref_(self).kind() != SyntaxKind::PropertyAssignment {
+                    if literal.ref_(self).parent().ref_(self).kind()
+                        != SyntaxKind::PropertyAssignment
+                    {
                         break;
                     }
                     literal = literal.ref_(self).parent().ref_(self).parent();
@@ -170,14 +172,17 @@ impl TypeChecker {
             if parent.ref_(self).kind() == SyntaxKind::BinaryExpression {
                 let parent_ref = parent.ref_(self);
                 let parent_as_binary_expression = parent_ref.as_binary_expression();
-                if parent_as_binary_expression.operator_token.ref_(self).kind() == SyntaxKind::EqualsToken {
+                if parent_as_binary_expression.operator_token.ref_(self).kind()
+                    == SyntaxKind::EqualsToken
+                {
                     let target = parent_as_binary_expression.left;
                     if is_access_expression(&target.ref_(self)) {
                         let expression = target.ref_(self).as_has_expression().expression();
                         if in_js && is_identifier(&expression.ref_(self)) {
                             let source_file = get_source_file_of_node(parent, self);
                             if source_file
-                                .ref_(self).as_source_file()
+                                .ref_(self)
+                                .as_source_file()
                                 .maybe_common_js_module_indicator()
                                 .is_some()
                                 && matches!(
@@ -219,7 +224,8 @@ impl TypeChecker {
             let args = self.get_effective_call_arguments(iife)?;
             let index_of_parameter = func_as_function_like_declaration
                 .parameters()
-                .ref_(self).into_iter()
+                .ref_(self)
+                .into_iter()
                 .position(|&param| param == parameter)
                 .unwrap();
             if parameter_as_parameter_declaration
@@ -259,7 +265,8 @@ impl TypeChecker {
         if let Some(contextual_signature) = contextual_signature {
             let index = func_as_function_like_declaration
                 .parameters()
-                .ref_(self).into_iter()
+                .ref_(self)
+                .into_iter()
                 .position(|&param| param == parameter)
                 .unwrap()
                 - if get_this_parameter(func, self).is_some() {
@@ -326,7 +333,11 @@ impl TypeChecker {
             .try_or_else(|| -> io::Result<_> {
                 Ok(
                     if parent.ref_(self).kind() != SyntaxKind::BindingElement
-                        && parent.ref_(self).as_has_initializer().maybe_initializer().is_some()
+                        && parent
+                            .ref_(self)
+                            .as_has_initializer()
+                            .maybe_initializer()
+                            .is_some()
                     {
                         Some(self.check_declaration_initializer(parent, None)?)
                     } else {
@@ -341,9 +352,22 @@ impl TypeChecker {
             return Ok(None);
         }
         let parent_type = parent_type.unwrap();
-        if parent.ref_(self).as_named_declaration().name().ref_(self).kind() == SyntaxKind::ArrayBindingPattern {
+        if parent
+            .ref_(self)
+            .as_named_declaration()
+            .name()
+            .ref_(self)
+            .kind()
+            == SyntaxKind::ArrayBindingPattern
+        {
             let index = index_of_node(
-                &declaration.ref_(self).parent().ref_(self).as_has_elements().elements().ref_(self),
+                &declaration
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_has_elements()
+                    .elements()
+                    .ref_(self),
                 declaration,
                 self,
             );
@@ -365,11 +389,12 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>, /*PropertyDeclaration*/
     ) -> io::Result<Option<Id<Type>>> {
-        let parent_type = return_ok_none_if_none!(if is_expression(declaration.ref_(self).parent(), self) {
-            self.get_contextual_type_(declaration.ref_(self).parent(), None)?
-        } else {
-            None
-        });
+        let parent_type =
+            return_ok_none_if_none!(if is_expression(declaration.ref_(self).parent(), self) {
+                self.get_contextual_type_(declaration.ref_(self).parent(), None)?
+            } else {
+                None
+            });
         self.get_type_of_property_of_contextual_type(
             parent_type,
             self.get_symbol_of_node(declaration)?
@@ -386,7 +411,11 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let declaration = node.ref_(self).parent();
         if has_initializer(&declaration.ref_(self))
-            && declaration.ref_(self).as_has_initializer().maybe_initializer() == Some(node)
+            && declaration
+                .ref_(self)
+                .as_has_initializer()
+                .maybe_initializer()
+                == Some(node)
         {
             let result = self.get_contextual_type_for_variable_like_declaration(declaration)?;
             if result.is_some() {
@@ -395,8 +424,14 @@ impl TypeChecker {
             if !matches!(
                 context_flags,
                 Some(context_flags) if context_flags.intersects(ContextFlags::SkipBindingPatterns)
-            ) && is_binding_pattern(declaration.ref_(self).as_named_declaration().maybe_name().refed(self).as_deref())
-            {
+            ) && is_binding_pattern(
+                declaration
+                    .ref_(self)
+                    .as_named_declaration()
+                    .maybe_name()
+                    .refed(self)
+                    .as_deref(),
+            ) {
                 return Ok(Some(self.get_type_from_binding_pattern(
                     declaration.ref_(self).as_named_declaration().name(),
                     Some(true),
@@ -502,15 +537,22 @@ impl TypeChecker {
             let function_flags = get_function_flags(Some(func), self);
             let contextual_return_type = self.get_contextual_return_type(func)?;
             if let Some(contextual_return_type) = contextual_return_type {
-                return Ok(if node.ref_(self).as_yield_expression().asterisk_token.is_some() {
-                    Some(contextual_return_type)
-                } else {
-                    self.get_iteration_type_of_generator_function_return_type(
-                        IterationTypeKind::Yield,
-                        contextual_return_type,
-                        function_flags.intersects(FunctionFlags::Async),
-                    )?
-                });
+                return Ok(
+                    if node
+                        .ref_(self)
+                        .as_yield_expression()
+                        .asterisk_token
+                        .is_some()
+                    {
+                        Some(contextual_return_type)
+                    } else {
+                        self.get_iteration_type_of_generator_function_return_type(
+                            IterationTypeKind::Yield,
+                            contextual_return_type,
+                            function_flags.intersects(FunctionFlags::Async),
+                        )?
+                    },
+                );
             }
         }
 
@@ -523,17 +565,26 @@ impl TypeChecker {
     ) -> bool {
         let mut in_binding_initializer = false;
         while let Some(node_parent) = node
-            .ref_(self).maybe_parent()
+            .ref_(self)
+            .maybe_parent()
             .filter(|node_parent| !is_function_like(Some(&node_parent.ref_(self))))
         {
             if is_parameter(&node_parent.ref_(self))
                 && (in_binding_initializer
-                    || node_parent.ref_(self).as_has_initializer().maybe_initializer() == Some(node))
+                    || node_parent
+                        .ref_(self)
+                        .as_has_initializer()
+                        .maybe_initializer()
+                        == Some(node))
             {
                 return true;
             }
             if is_binding_element(&node_parent.ref_(self))
-                && node_parent.ref_(self).as_has_initializer().maybe_initializer() == Some(node)
+                && node_parent
+                    .ref_(self)
+                    .as_has_initializer()
+                    .maybe_initializer()
+                    == Some(node)
             {
                 in_binding_initializer = true;
             }
@@ -613,7 +664,12 @@ impl TypeChecker {
             });
         }
 
-        let signature = if self.get_node_links(call_target).ref_(self).resolved_signature == Some(self.resolving_signature()) {
+        let signature = if self
+            .get_node_links(call_target)
+            .ref_(self)
+            .resolved_signature
+            == Some(self.resolving_signature())
+        {
             self.resolving_signature()
         } else {
             self.get_resolved_signature_(call_target, None, None)?
@@ -623,7 +679,8 @@ impl TypeChecker {
             return self
                 .get_effective_first_argument_for_jsx_signature(signature.clone(), call_target);
         }
-        let rest_index = TryInto::<isize>::try_into(signature.ref_(self).parameters().len()).unwrap() - 1;
+        let rest_index =
+            TryInto::<isize>::try_into(signature.ref_(self).parameters().len()).unwrap() - 1;
         Ok(
             if signature_has_rest_parameter(&signature.ref_(self))
                 && TryInto::<isize>::try_into(arg_index).unwrap() >= rest_index
@@ -649,8 +706,10 @@ impl TypeChecker {
         substitution_expression: Id<Node>, /*Expression*/
     ) -> io::Result<Option<Id<Type>>> {
         if template.ref_(self).parent().ref_(self).kind() == SyntaxKind::TaggedTemplateExpression {
-            return self
-                .get_contextual_type_for_argument(template.ref_(self).parent(), substitution_expression);
+            return self.get_contextual_type_for_argument(
+                template.ref_(self).parent(),
+                substitution_expression,
+            );
         }
 
         Ok(None)
@@ -728,7 +787,8 @@ impl TypeChecker {
                         lhs_type,
                         &e_as_property_access_expression
                             .name
-                            .ref_(self).as_identifier()
+                            .ref_(self)
+                            .as_identifier()
                             .escaped_text,
                         None,
                     )?

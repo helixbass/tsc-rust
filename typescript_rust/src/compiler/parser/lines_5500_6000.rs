@@ -6,9 +6,8 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     add_related_info, create_detached_diagnostic, is_async_modifier, last_or_undefined, some,
     ArrayLiteralExpression, AsDoubleDeref, CaseClause, Debug_, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, Node, NodeArray, NodeFlags, NodeInterface,
-    ObjectLiteralExpression, SyntaxKind,
-    HasArena, InArena, OptionInArena,
+    DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectLiteralExpression, OptionInArena, SyntaxKind,
 };
 
 impl ParserType {
@@ -83,15 +82,21 @@ impl ParserType {
             SyntaxKind::NumericLiteral
             | SyntaxKind::BigIntLiteral
             | SyntaxKind::StringLiteral
-            | SyntaxKind::NoSubstitutionTemplateLiteral => return self.parse_literal_node().alloc(self.arena()),
+            | SyntaxKind::NoSubstitutionTemplateLiteral => {
+                return self.parse_literal_node().alloc(self.arena())
+            }
             SyntaxKind::ThisKeyword
             | SyntaxKind::SuperKeyword
             | SyntaxKind::NullKeyword
             | SyntaxKind::TrueKeyword
             | SyntaxKind::FalseKeyword => return self.parse_token_node().alloc(self.arena()),
             SyntaxKind::OpenParenToken => return self.parse_parenthesized_expression(),
-            SyntaxKind::OpenBracketToken => return self.parse_array_literal_expression().alloc(self.arena()),
-            SyntaxKind::OpenBraceToken => return self.parse_object_literal_expression().alloc(self.arena()),
+            SyntaxKind::OpenBracketToken => {
+                return self.parse_array_literal_expression().alloc(self.arena())
+            }
+            SyntaxKind::OpenBraceToken => {
+                return self.parse_object_literal_expression().alloc(self.arena())
+            }
             SyntaxKind::AsyncKeyword => {
                 if self.look_ahead_bool(|| self.next_token_is_function_keyword_on_same_line()) {
                     return self.parse_function_expression();
@@ -99,14 +104,22 @@ impl ParserType {
             }
             SyntaxKind::ClassKeyword => return self.parse_class_expression(),
             SyntaxKind::FunctionKeyword => return self.parse_function_expression(),
-            SyntaxKind::NewKeyword => return self.parse_new_expression_or_new_dot_target().alloc(self.arena()),
+            SyntaxKind::NewKeyword => {
+                return self
+                    .parse_new_expression_or_new_dot_target()
+                    .alloc(self.arena())
+            }
             SyntaxKind::SlashToken | SyntaxKind::SlashEqualsToken => {
                 if self.re_scan_slash_token() == SyntaxKind::RegularExpressionLiteral {
                     return self.parse_literal_node().alloc(self.arena());
                 }
             }
-            SyntaxKind::TemplateHead => return self.parse_template_expression(false).alloc(self.arena()),
-            SyntaxKind::PrivateIdentifier => return self.parse_private_identifier().alloc(self.arena()),
+            SyntaxKind::TemplateHead => {
+                return self.parse_template_expression(false).alloc(self.arena())
+            }
+            SyntaxKind::PrivateIdentifier => {
+                return self.parse_private_identifier().alloc(self.arena())
+            }
             _ => (),
         }
 
@@ -123,7 +136,8 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .ref_(self).create_parenthesized_expression_raw(expression),
+                    .ref_(self)
+                    .create_parenthesized_expression_raw(expression),
                 pos,
                 None,
             )
@@ -137,7 +151,10 @@ impl ParserType {
         self.parse_expected(SyntaxKind::DotDotDotToken, None, None);
         let expression = self.parse_assignment_expression_or_higher();
         self.finish_node(
-            self.factory().ref_(self).create_spread_element_raw(expression).into(),
+            self.factory()
+                .ref_(self)
+                .create_spread_element_raw(expression)
+                .into(),
             pos,
             None,
         )
@@ -176,7 +193,8 @@ impl ParserType {
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
             self.factory()
-                .ref_(self).create_array_literal_expression_raw(Some(elements), Some(multi_line)),
+                .ref_(self)
+                .create_array_literal_expression_raw(Some(elements), Some(multi_line)),
             pos,
             None,
         )
@@ -193,7 +211,9 @@ impl ParserType {
             let expression = self.parse_assignment_expression_or_higher();
             return self.with_jsdoc(
                 self.finish_node(
-                    self.factory().ref_(self).create_spread_assignment_raw(expression),
+                    self.factory()
+                        .ref_(self)
+                        .create_spread_assignment_raw(expression),
                     pos,
                     None,
                 )
@@ -270,7 +290,8 @@ impl ParserType {
             };
             let mut node_as_shorthand_property_assignment = self
                 .factory()
-                .ref_(self).create_shorthand_property_assignment_raw(name, object_assignment_initializer);
+                .ref_(self)
+                .create_shorthand_property_assignment_raw(name, object_assignment_initializer);
             node_as_shorthand_property_assignment.equals_token = equals_token;
             node_as_shorthand_property_assignment.question_token = question_token;
             node_as_shorthand_property_assignment.exclamation_token = exclamation_token;
@@ -280,14 +301,18 @@ impl ParserType {
             let initializer = self.allow_in_and(|| self.parse_assignment_expression_or_higher());
             let mut node_as_property_assignment = self
                 .factory()
-                .ref_(self).create_property_assignment_raw(name, initializer);
+                .ref_(self)
+                .create_property_assignment_raw(name, initializer);
             node_as_property_assignment.question_token = question_token;
             node_as_property_assignment.exclamation_token = exclamation_token;
             node = node_as_property_assignment.into();
         }
         node.set_decorators(decorators);
         node.set_modifiers(modifiers);
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_object_literal_expression(&self) -> ObjectLiteralExpression {
@@ -323,7 +348,8 @@ impl ParserType {
         }
         self.finish_node(
             self.factory()
-                .ref_(self).create_object_literal_expression_raw(Some(properties), Some(multi_line)),
+                .ref_(self)
+                .create_object_literal_expression_raw(Some(properties), Some(multi_line)),
             pos,
             None,
         )
@@ -390,7 +416,10 @@ impl ParserType {
             type_,
             body,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_optional_binding_identifier(&self) -> Option<Node /*Identifier*/> {
@@ -409,7 +438,8 @@ impl ParserType {
             let name: Id<Node> = self.parse_identifier_name(None).alloc(self.arena());
             return self.finish_node(
                 self.factory()
-                    .ref_(self).create_meta_property_raw(SyntaxKind::NewKeyword, name)
+                    .ref_(self)
+                    .create_meta_property_raw(SyntaxKind::NewKeyword, name)
                     .into(),
                 pos,
                 None,
@@ -443,7 +473,8 @@ impl ParserType {
         }
         self.finish_node(
             self.factory()
-                .ref_(self).create_new_expression_raw(expression, type_arguments, arguments_array)
+                .ref_(self)
+                .create_new_expression_raw(expression, type_arguments, arguments_array)
                 .into(),
             pos,
             None,
@@ -489,7 +520,8 @@ impl ParserType {
             let result = self.with_jsdoc(
                 self.finish_node(
                     self.factory()
-                        .ref_(self).create_block_raw(statements, Some(multi_line)),
+                        .ref_(self)
+                        .create_block_raw(statements, Some(multi_line)),
                     pos,
                     None,
                 )
@@ -505,8 +537,12 @@ impl ParserType {
         } else {
             let statements = self.create_missing_list();
             self.with_jsdoc(
-                self.finish_node(self.factory().ref_(self).create_block_raw(statements, None), pos, None)
-                    .alloc(self.arena()),
+                self.finish_node(
+                    self.factory().ref_(self).create_block_raw(statements, None),
+                    pos,
+                    None,
+                )
+                .alloc(self.arena()),
                 has_jsdoc,
             )
         }
@@ -552,8 +588,12 @@ impl ParserType {
         let has_jsdoc = self.has_preceding_jsdoc_comment();
         self.parse_expected(SyntaxKind::SemicolonToken, None, None);
         self.with_jsdoc(
-            self.finish_node(self.factory().ref_(self).create_empty_statement_raw(), pos, None)
-                .alloc(self.arena()),
+            self.finish_node(
+                self.factory().ref_(self).create_empty_statement_raw(),
+                pos,
+                None,
+            )
+            .alloc(self.arena()),
             has_jsdoc,
         )
     }
@@ -573,8 +613,11 @@ impl ParserType {
         };
         self.with_jsdoc(
             self.finish_node(
-                self.factory()
-                    .ref_(self).create_if_statement_raw(expression, then_statement, else_statement),
+                self.factory().ref_(self).create_if_statement_raw(
+                    expression,
+                    then_statement,
+                    else_statement,
+                ),
                 pos,
                 None,
             )
@@ -597,7 +640,8 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .ref_(self).create_do_statement_raw(statement, expression),
+                    .ref_(self)
+                    .create_do_statement_raw(statement, expression),
                 pos,
                 None,
             )
@@ -617,7 +661,8 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .ref_(self).create_while_statement_raw(expression, statement),
+                    .ref_(self)
+                    .create_while_statement_raw(expression, statement),
                 pos,
                 None,
             )
@@ -639,7 +684,10 @@ impl ParserType {
                 self.token(),
                 SyntaxKind::VarKeyword | SyntaxKind::LetKeyword | SyntaxKind::ConstKeyword
             ) {
-                initializer = Some(self.parse_variable_declaration_list(true).alloc(self.arena()));
+                initializer = Some(
+                    self.parse_variable_declaration_list(true)
+                        .alloc(self.arena()),
+                );
             } else {
                 initializer = Some(self.disallow_in_and(|| self.parse_expression()));
             }
@@ -655,7 +703,8 @@ impl ParserType {
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
             node = self
                 .factory()
-                .ref_(self).create_for_of_statement_raw(
+                .ref_(self)
+                .create_for_of_statement_raw(
                     await_token.map(|node| node.alloc(self.arena())),
                     initializer.unwrap(),
                     expression,
@@ -667,7 +716,8 @@ impl ParserType {
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
             node = self
                 .factory()
-                .ref_(self).create_for_in_statement_raw(
+                .ref_(self)
+                .create_for_in_statement_raw(
                     initializer.unwrap(),
                     expression,
                     self.parse_statement(),
@@ -692,7 +742,8 @@ impl ParserType {
             self.parse_expected(SyntaxKind::CloseParenToken, None, None);
             node = self
                 .factory()
-                .ref_(self).create_for_statement_raw(
+                .ref_(self)
+                .create_for_statement_raw(
                     initializer,
                     condition,
                     incrementor,
@@ -701,7 +752,10 @@ impl ParserType {
                 .into();
         }
 
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_break_or_continue_statement(
@@ -728,11 +782,20 @@ impl ParserType {
 
         self.parse_semicolon();
         let node: Node = if kind == SyntaxKind::BreakStatement {
-            self.factory().ref_(self).create_break_statement_raw(label).into()
+            self.factory()
+                .ref_(self)
+                .create_break_statement_raw(label)
+                .into()
         } else {
-            self.factory().ref_(self).create_continue_statement_raw(label).into()
+            self.factory()
+                .ref_(self)
+                .create_continue_statement_raw(label)
+                .into()
         };
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_return_statement(&self) -> Id<Node /*ReturnStatement*/> {
@@ -747,7 +810,9 @@ impl ParserType {
         self.parse_semicolon();
         self.with_jsdoc(
             self.finish_node(
-                self.factory().ref_(self).create_return_statement_raw(expression),
+                self.factory()
+                    .ref_(self)
+                    .create_return_statement_raw(expression),
                 pos,
                 None,
             )
@@ -768,7 +833,8 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .ref_(self).create_with_statement_raw(expression, statement),
+                    .ref_(self)
+                    .create_with_statement_raw(expression, statement),
                 pos,
                 None,
             )
@@ -787,7 +853,8 @@ impl ParserType {
         });
         self.finish_node(
             self.factory()
-                .ref_(self).create_case_clause_raw(expression, statements),
+                .ref_(self)
+                .create_case_clause_raw(expression, statements),
             pos,
             None,
         )

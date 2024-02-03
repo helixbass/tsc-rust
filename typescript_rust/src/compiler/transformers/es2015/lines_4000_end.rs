@@ -10,11 +10,9 @@ use crate::{
     first_or_undefined, is_array_literal_expression, is_call_to_helper, is_expression,
     is_identifier, is_packed_array_literal, is_static, node_is_synthesized, return_default_if_none,
     single_or_undefined, try_map, try_process_tagged_template_expression, try_visit_node,
-    try_visit_nodes, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags,
+    try_visit_nodes, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, InArena,
     LiteralLikeNodeInterface, Matches, Node, NodeArray, NodeExt, NodeInterface, ProcessLevel,
-    SignatureDeclarationInterface, SyntaxKind, TokenFlags, VisitResult,
-    InArena,
-    TransformationContext,
+    SignatureDeclarationInterface, SyntaxKind, TokenFlags, TransformationContext, VisitResult,
 };
 
 impl TransformES2015 {
@@ -69,9 +67,9 @@ impl TransformES2015 {
     ) -> io::Result<SpreadSegment> {
         let expression = self.factory.ref_(self).create_array_literal_expression(
             Some(try_visit_nodes(
-                self
-                    .factory
-                    .ref_(self).create_node_array(Some(chunk), Some(has_trailing_comma)),
+                self.factory
+                    .ref_(self)
+                    .create_node_array(Some(chunk), Some(has_trailing_comma)),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 None,
@@ -106,7 +104,12 @@ impl TransformES2015 {
         node: Id<Node>, /*LiteralExpression*/
     ) -> Id<Node /*LeftHandSideExpression*/> {
         self.factory
-            .ref_(self).create_string_literal(node.ref_(self).as_literal_like_node().text().clone(), None, None)
+            .ref_(self)
+            .create_string_literal(
+                node.ref_(self).as_literal_like_node().text().clone(),
+                None,
+                None,
+            )
             .set_text_range(Some(&*node.ref_(self)), self)
     }
 
@@ -119,7 +122,8 @@ impl TransformES2015 {
         if node_as_string_literal.has_extended_unicode_escape() == Some(true) {
             return Some(
                 self.factory
-                    .ref_(self).create_string_literal(node_as_string_literal.text().clone(), None, None)
+                    .ref_(self)
+                    .create_string_literal(node_as_string_literal.text().clone(), None, None)
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );
@@ -139,7 +143,8 @@ impl TransformES2015 {
         {
             return Some(
                 self.factory
-                    .ref_(self).create_numeric_literal(node_as_numeric_literal.text().clone(), None)
+                    .ref_(self)
+                    .create_numeric_literal(node_as_numeric_literal.text().clone(), None)
                     .set_text_range(Some(&*node.ref_(self)), self)
                     .into(),
             );
@@ -170,15 +175,17 @@ impl TransformES2015 {
     ) -> io::Result<Id<Node /*Expression*/>> {
         let node_ref = node.ref_(self);
         let node_as_template_expression = node_ref.as_template_expression();
-        let mut expression: Id<Node /*Expression*/> = self.factory.ref_(self).create_string_literal(
-            node_as_template_expression
-                .head
-                .ref_(self).as_template_literal_like_node()
-                .text()
-                .clone(),
-            None,
-            None,
-        );
+        let mut expression: Id<Node /*Expression*/> =
+            self.factory.ref_(self).create_string_literal(
+                node_as_template_expression
+                    .head
+                    .ref_(self)
+                    .as_template_literal_like_node()
+                    .text()
+                    .clone(),
+                None,
+                None,
+            );
         for span in &*node_as_template_expression.template_spans.ref_(self) {
             let span_ref = span.ref_(self);
             let span_as_template_span = span_ref.as_template_span();
@@ -191,7 +198,8 @@ impl TransformES2015 {
 
             if !span_as_template_span
                 .literal
-                .ref_(self).as_template_literal_like_node()
+                .ref_(self)
+                .as_template_literal_like_node()
                 .text()
                 .is_empty()
             {
@@ -199,7 +207,8 @@ impl TransformES2015 {
                     self.factory.ref_(self).create_string_literal(
                         span_as_template_span
                             .literal
-                            .ref_(self).as_template_literal_like_node()
+                            .ref_(self)
+                            .as_template_literal_like_node()
                             .text()
                             .clone(),
                         None,
@@ -210,7 +219,8 @@ impl TransformES2015 {
 
             expression = self.factory.ref_(self).create_call_expression(
                 self.factory
-                    .ref_(self).create_property_access_expression(expression, "concat"),
+                    .ref_(self)
+                    .create_property_access_expression(expression, "concat"),
                 Option::<Id<NodeArray>>::None,
                 Some(args),
             );
@@ -250,14 +260,20 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_meta_property = node_ref.as_meta_property();
         if node_as_meta_property.keyword_token == SyntaxKind::NewKeyword
-            && node_as_meta_property.name.ref_(self).as_identifier().escaped_text == "target"
+            && node_as_meta_property
+                .name
+                .ref_(self)
+                .as_identifier()
+                .escaped_text
+                == "target"
         {
             self.set_hierarchy_facts(Some(
                 self.maybe_hierarchy_facts().unwrap_or_default() | HierarchyFacts::NewTarget,
             ));
             return Some(
                 self.factory
-                    .ref_(self).create_unique_name(
+                    .ref_(self)
+                    .create_unique_name(
                         "_newTarget",
                         Some(
                             GeneratedIdentifierFlags::Optimistic
@@ -280,7 +296,9 @@ impl TransformES2015 {
                 self.maybe_enabled_substitutions().unwrap_or_default()
                     | ES2015SubstitutionFlags::BlockScopedBindings,
             ));
-            self.context.ref_(self).enable_substitution(SyntaxKind::Identifier);
+            self.context
+                .ref_(self)
+                .enable_substitution(SyntaxKind::Identifier);
         }
     }
 
@@ -294,21 +312,30 @@ impl TransformES2015 {
                 self.maybe_enabled_substitutions().unwrap_or_default()
                     | ES2015SubstitutionFlags::CapturedThis,
             ));
-            self.context.ref_(self).enable_substitution(SyntaxKind::ThisKeyword);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::Constructor);
+                .ref_(self)
+                .enable_substitution(SyntaxKind::ThisKeyword);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::MethodDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::Constructor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::GetAccessor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::MethodDeclaration);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::SetAccessor);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::GetAccessor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::ArrowFunction);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::SetAccessor);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::FunctionExpression);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::ArrowFunction);
             self.context
-                .ref_(self).enable_emit_notification(SyntaxKind::FunctionDeclaration);
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::FunctionExpression);
+            self.context
+                .ref_(self)
+                .enable_emit_notification(SyntaxKind::FunctionDeclaration);
         }
     }
 
@@ -341,7 +368,8 @@ impl TransformES2015 {
 
         if !constructor_as_constructor_declaration
             .parameters()
-            .ref_(self).is_empty()
+            .ref_(self)
+            .is_empty()
         {
             return false;
         }
@@ -350,8 +378,10 @@ impl TransformES2015 {
             &constructor_as_constructor_declaration
                 .maybe_body()
                 .unwrap()
-                .ref_(self).as_block()
-                .statements.ref_(self),
+                .ref_(self)
+                .as_block()
+                .statements
+                .ref_(self),
         )
         .cloned();
         if statement.is_none_or_matches(|statement| {
@@ -374,12 +404,16 @@ impl TransformES2015 {
         let statement_expression_as_call_expression = statement_expression_ref.as_call_expression();
 
         let call_target = statement_expression_as_call_expression.expression;
-        if !node_is_synthesized(&*call_target.ref_(self)) || call_target.ref_(self).kind() != SyntaxKind::SuperKeyword {
+        if !node_is_synthesized(&*call_target.ref_(self))
+            || call_target.ref_(self).kind() != SyntaxKind::SuperKeyword
+        {
             return false;
         }
 
-        let call_argument =
-            single_or_undefined(Some(&statement_expression_as_call_expression.arguments.ref_(self))).cloned();
+        let call_argument = single_or_undefined(Some(
+            &statement_expression_as_call_expression.arguments.ref_(self),
+        ))
+        .cloned();
         if call_argument.is_none_or_matches(|call_argument| {
             !node_is_synthesized(&*call_argument.ref_(self))
                 || call_argument.ref_(self).kind() != SyntaxKind::SpreadElement
@@ -391,6 +425,7 @@ impl TransformES2015 {
         let call_argument_as_spread_element = call_argument_ref.as_spread_element();
 
         let expression = call_argument_as_spread_element.expression;
-        is_identifier(&expression.ref_(self)) && expression.ref_(self).as_identifier().escaped_text == "arguments"
+        is_identifier(&expression.ref_(self))
+            && expression.ref_(self).as_identifier().escaped_text == "arguments"
     }
 }

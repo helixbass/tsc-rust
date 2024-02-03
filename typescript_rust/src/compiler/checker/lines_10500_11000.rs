@@ -8,21 +8,20 @@ use id_arena::Id;
 
 use super::{signature_has_rest_parameter, MembersOrExportsResolutionKind};
 use crate::{
-    concatenate, create_symbol_table,
-    declaration_name_to_string, escape_leading_underscores, every, for_each,
-    get_assignment_declaration_kind, get_check_flags, get_class_like_declaration_of_symbol,
-    get_members_of_declaration, get_name_of_declaration, get_object_flags, has_dynamic_name,
-    has_static_modifier, has_syntactic_modifier, is_binary_expression, is_dynamic_name,
-    is_element_access_expression, is_in_js_file, last_or_undefined, length, maybe_concatenate,
-    maybe_for_each, range_equals, return_ok_default_if_none, some, try_map,
-    try_map_defined, try_maybe_map, try_some, unescape_leading_underscores,
-    AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics, ElementFlags, HasArena, InArena,
-    IndexInfo, InterfaceTypeInterface, InterfaceTypeWithDeclaredMembersInterface,
-    InternalSymbolName, LiteralType, ModifierFlags, Node, NodeInterface, ObjectFlags, OptionTry,
-    Signature, SignatureFlags, SignatureKind, SignatureOptionalCallSignatureCache, Symbol,
-    SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable, Ternary, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper, TypePredicate,
-    append_if_unique_eq,
+    append_if_unique_eq, concatenate, create_symbol_table, declaration_name_to_string,
+    escape_leading_underscores, every, for_each, get_assignment_declaration_kind, get_check_flags,
+    get_class_like_declaration_of_symbol, get_members_of_declaration, get_name_of_declaration,
+    get_object_flags, has_dynamic_name, has_static_modifier, has_syntactic_modifier,
+    is_binary_expression, is_dynamic_name, is_element_access_expression, is_in_js_file,
+    last_or_undefined, length, maybe_concatenate, maybe_for_each, range_equals,
+    return_ok_default_if_none, some, try_map, try_map_defined, try_maybe_map, try_some,
+    unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags, Debug_, Diagnostics,
+    ElementFlags, HasArena, InArena, IndexInfo, InterfaceTypeInterface,
+    InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, LiteralType, ModifierFlags,
+    Node, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureFlags, SignatureKind,
+    SignatureOptionalCallSignatureCache, Symbol, SymbolFlags, SymbolInterface, SymbolLinks,
+    SymbolTable, Ternary, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeMapper, TypePredicate,
 };
 
 impl TypeChecker {
@@ -101,10 +100,14 @@ impl TypeChecker {
             .ref_mut(self)
             .late_symbol = Some(symbol);
         if symbol.ref_(self).maybe_declarations().is_none() {
-            symbol
-                .ref_(self)
-                .set_declarations(vec![member]);
-        } else if member.ref_(self).symbol().ref_(self).maybe_is_replaceable_by_method() != Some(true) {
+            symbol.ref_(self).set_declarations(vec![member]);
+        } else if member
+            .ref_(self)
+            .symbol()
+            .ref_(self)
+            .maybe_is_replaceable_by_method()
+            != Some(true)
+        {
             symbol
                 .ref_(self)
                 .maybe_declarations_mut()
@@ -115,11 +118,11 @@ impl TypeChecker {
         if symbol_flags.intersects(SymbolFlags::Value) {
             if match symbol.ref_(self).maybe_value_declaration() {
                 None => true,
-                Some(value_declaration) => value_declaration.ref_(self).kind() != member.ref_(self).kind(),
+                Some(value_declaration) => {
+                    value_declaration.ref_(self).kind() != member.ref_(self).kind()
+                }
             } {
-                symbol
-                    .ref_(self)
-                    .set_value_declaration(member);
+                symbol.ref_(self).set_value_declaration(member);
             }
         }
     }
@@ -145,7 +148,10 @@ impl TypeChecker {
             };
             let type_ = if is_element_access_expression(&decl_name.ref_(self)) {
                 self.check_expression_cached(
-                    decl_name.ref_(self).as_element_access_expression().argument_expression,
+                    decl_name
+                        .ref_(self)
+                        .as_element_access_expression()
+                        .argument_expression,
                     None,
                 )?
             } else {
@@ -271,8 +277,7 @@ impl TypeChecker {
             );
 
             let mut late_symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-            let early_symbols_ref = early_symbols
-                .map(|early_symbols| early_symbols.ref_(self));
+            let early_symbols_ref = early_symbols.map(|early_symbols| early_symbols.ref_(self));
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for &decl in symbol_declarations {
                     let members = get_members_of_declaration(&decl.ref_(self));
@@ -369,10 +374,7 @@ impl TypeChecker {
         }
     }
 
-    pub(super) fn get_members_of_symbol(
-        &self,
-        symbol: Id<Symbol>,
-    ) -> io::Result<Id<SymbolTable>> {
+    pub(super) fn get_members_of_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<SymbolTable>> {
         Ok(
             if symbol
                 .ref_(self)
@@ -630,7 +632,10 @@ impl TypeChecker {
                 };
                 let inherited_index_infos_filtered = inherited_index_infos
                     .into_iter()
-                    .filter(|info| self.find_index_info(&index_infos, info.ref_(self).key_type).is_none())
+                    .filter(|info| {
+                        self.find_index_info(&index_infos, info.ref_(self).key_type)
+                            .is_none()
+                    })
                     .collect::<Vec<_>>();
                 index_infos.extend(inherited_index_infos_filtered);
             }
@@ -753,10 +758,14 @@ impl TypeChecker {
         if signature.ref_(self).flags & SignatureFlags::CallChainFlags == call_chain_flags {
             return signature;
         }
-        if signature.ref_(self).maybe_optional_call_signature_cache().is_none() {
-            signature.ref_(self).set_optional_call_signature_cache(
-                Some(SignatureOptionalCallSignatureCache::new())
-            );
+        if signature
+            .ref_(self)
+            .maybe_optional_call_signature_cache()
+            .is_none()
+        {
+            signature.ref_(self).set_optional_call_signature_cache(Some(
+                SignatureOptionalCallSignatureCache::new(),
+            ));
         }
         let key = if call_chain_flags == SignatureFlags::IsInnerCallChain {
             "inner"
@@ -765,28 +774,33 @@ impl TypeChecker {
         };
         let existing = if key == "inner" {
             signature
-                .ref_(self).maybe_optional_call_signature_cache()
+                .ref_(self)
+                .maybe_optional_call_signature_cache()
                 .unwrap()
                 .inner
         } else {
             signature
-                .ref_(self).maybe_optional_call_signature_cache()
+                .ref_(self)
+                .maybe_optional_call_signature_cache()
                 .unwrap()
                 .outer
         };
         if let Some(existing) = existing {
             return existing;
         }
-        let ret = self.alloc_signature(self.create_optional_call_signature(signature, call_chain_flags));
+        let ret =
+            self.alloc_signature(self.create_optional_call_signature(signature, call_chain_flags));
         if key == "inner" {
             signature
-                .ref_(self).maybe_optional_call_signature_cache_mut()
+                .ref_(self)
+                .maybe_optional_call_signature_cache_mut()
                 .as_mut()
                 .unwrap()
                 .inner = Some(ret.clone());
         } else {
             signature
-                .ref_(self).maybe_optional_call_signature_cache_mut()
+                .ref_(self)
+                .maybe_optional_call_signature_cache_mut()
                 .as_mut()
                 .unwrap()
                 .outer = Some(ret.clone());
@@ -936,8 +950,9 @@ impl TypeChecker {
         let type_arg_count = length(type_arguments.as_deref());
         let mut result: Vec<Id<Signature>> = vec![];
         for base_sig in base_signatures {
-            let min_type_argument_count =
-                self.get_min_type_argument_count(base_sig.ref_(self).maybe_type_parameters().as_deref());
+            let min_type_argument_count = self.get_min_type_argument_count(
+                base_sig.ref_(self).maybe_type_parameters().as_deref(),
+            );
             let type_param_count = length(base_sig.ref_(self).maybe_type_parameters().as_deref());
             if is_java_script
                 || type_arg_count >= min_type_argument_count && type_arg_count <= type_param_count
@@ -1073,7 +1088,8 @@ impl TypeChecker {
                     if let Some(union_signatures) = union_signatures {
                         let mut s = signature.clone();
                         if union_signatures.len() > 1 {
-                            let mut this_parameter = signature.ref_(self).maybe_this_parameter().clone();
+                            let mut this_parameter =
+                                signature.ref_(self).maybe_this_parameter().clone();
                             let first_this_parameter_of_union_signatures =
                                 for_each(&union_signatures, |sig: &Id<Signature>, _| {
                                     sig.ref_(self).maybe_this_parameter().clone()
@@ -1085,9 +1101,11 @@ impl TypeChecker {
                                     &try_map_defined(
                                         Some(&union_signatures),
                                         |sig: &Id<Signature>, _| {
-                                            sig.ref_(self).maybe_this_parameter().try_map(|this_parameter| {
-                                                self.get_type_of_symbol(this_parameter)
-                                            })
+                                            sig.ref_(self).maybe_this_parameter().try_map(
+                                                |this_parameter| {
+                                                    self.get_type_of_symbol(this_parameter)
+                                                },
+                                            )
                                         },
                                     )?,
                                     Option::<Id<Symbol>>::None,
@@ -1147,10 +1165,14 @@ impl TypeChecker {
                         try_maybe_map(
                             results.as_ref(),
                             |sig: &Id<Signature>, _| -> io::Result<_> {
-                                Ok(self.alloc_signature(self.combine_signatures_of_union_members(
-                                    sig.clone(),
-                                    signature.clone(),
-                                )?))
+                                Ok(
+                                    self.alloc_signature(
+                                        self.combine_signatures_of_union_members(
+                                            sig.clone(),
+                                            signature.clone(),
+                                        )?,
+                                    ),
+                                )
                             },
                         )
                         .transpose()?

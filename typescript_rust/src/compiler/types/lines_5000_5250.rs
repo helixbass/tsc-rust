@@ -1,4 +1,8 @@
-use std::{cell::{Cell, RefCell}, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+    rc::Rc,
+};
 
 use bitflags::bitflags;
 use id_arena::Id;
@@ -572,36 +576,50 @@ pub trait TypeInterface {
     fn set_default_only_type(&self, default_only_type: Option<Id<Type>>);
     // PromiseOrAwaitableType fields
     fn maybe_promise_type_of_promise_constructor(&self) -> Option<Id<Type>>;
-    fn set_promise_type_of_promise_constructor(&self, promise_type_of_promise_constructor: Option<Id<Type>>);
+    fn set_promise_type_of_promise_constructor(
+        &self,
+        promise_type_of_promise_constructor: Option<Id<Type>>,
+    );
     fn maybe_promised_type_of_promise(&self) -> Option<Id<Type>>;
     fn set_promised_type_of_promise(&self, promised_type_of_promise: Option<Id<Type>>);
     fn maybe_awaited_type_of_type(&self) -> Option<Id<Type>>;
     fn set_awaited_type_of_type(&self, awaited_type_of_type: Option<Id<Type>>);
     // IterableOrIteratorType fields
-    fn maybe_iteration_types_of_generator_return_type(
-        &self,
-    ) -> Option<Id<IterationTypes>>;
+    fn maybe_iteration_types_of_generator_return_type(&self) -> Option<Id<IterationTypes>>;
     fn set_iteration_types_of_generator_return_type(
         &self,
         iteration_types_of_generator_return_type: Option<Id<IterationTypes>>,
     );
-    fn maybe_iteration_types_of_async_generator_return_type(
-        &self,
-    ) -> Option<Id<IterationTypes>>;
+    fn maybe_iteration_types_of_async_generator_return_type(&self) -> Option<Id<IterationTypes>>;
     fn set_iteration_types_of_async_generator_return_type(
         &self,
         iteration_types_of_async_generator_return_type: Option<Id<IterationTypes>>,
     );
     fn maybe_iteration_types_of_iterable(&self) -> Option<Id<IterationTypes>>;
-    fn set_iteration_types_of_iterable(&self, iteration_types_of_iterable: Option<Id<IterationTypes>>);
+    fn set_iteration_types_of_iterable(
+        &self,
+        iteration_types_of_iterable: Option<Id<IterationTypes>>,
+    );
     fn maybe_iteration_types_of_iterator(&self) -> Option<Id<IterationTypes>>;
-    fn set_iteration_types_of_iterator(&self, iteration_types_of_iterator: Option<Id<IterationTypes>>);
+    fn set_iteration_types_of_iterator(
+        &self,
+        iteration_types_of_iterator: Option<Id<IterationTypes>>,
+    );
     fn maybe_iteration_types_of_async_iterable(&self) -> Option<Id<IterationTypes>>;
-    fn set_iteration_types_of_async_iterable(&self, iteration_types_of_async_iterable: Option<Id<IterationTypes>>);
+    fn set_iteration_types_of_async_iterable(
+        &self,
+        iteration_types_of_async_iterable: Option<Id<IterationTypes>>,
+    );
     fn maybe_iteration_types_of_async_iterator(&self) -> Option<Id<IterationTypes>>;
-    fn set_iteration_types_of_async_iterator(&self, iteration_types_of_async_iterator: Option<Id<IterationTypes>>);
+    fn set_iteration_types_of_async_iterator(
+        &self,
+        iteration_types_of_async_iterator: Option<Id<IterationTypes>>,
+    );
     fn maybe_iteration_types_of_iterator_result(&self) -> Option<Id<IterationTypes>>;
-    fn set_iteration_types_of_iterator_result(&self, iteration_types_of_iterator_result: Option<Id<IterationTypes>>);
+    fn set_iteration_types_of_iterator_result(
+        &self,
+        iteration_types_of_iterator_result: Option<Id<IterationTypes>>,
+    );
     fn get_by_iteration_type_cache_key(
         &self,
         key: IterationTypeCacheKey,
@@ -764,7 +782,8 @@ impl TypeInterface for BaseType {
     }
 
     fn set_restrictive_instantiation(&self, restrictive_instantiation: Option<Id<Type>>) {
-        self.restrictive_instantiation.set(restrictive_instantiation);
+        self.restrictive_instantiation
+            .set(restrictive_instantiation);
     }
 
     fn maybe_immediate_base_constraint(&self) -> Option<Id<Type>> {
@@ -772,7 +791,8 @@ impl TypeInterface for BaseType {
     }
 
     fn set_immediate_base_constraint(&self, immediate_base_constraint: Option<Id<Type>>) {
-        self.immediate_base_constraint.set(immediate_base_constraint);
+        self.immediate_base_constraint
+            .set(immediate_base_constraint);
     }
 
     fn maybe_widened(&self) -> Option<Id<Type>> {
@@ -804,7 +824,8 @@ impl TypeInterface for BaseType {
     }
 
     fn set_resolved_string_index_type(&self, resolved_string_index_type: Option<Id<Type>>) {
-        self.resolved_string_index_type.set(resolved_string_index_type);
+        self.resolved_string_index_type
+            .set(resolved_string_index_type);
     }
 
     fn maybe_synthetic_type(&self) -> Option<Id<Type>> {
@@ -827,8 +848,12 @@ impl TypeInterface for BaseType {
         self.promise_type_of_promise_constructor.get()
     }
 
-    fn set_promise_type_of_promise_constructor(&self, promise_type_of_promise_constructor: Option<Id<Type>>) {
-        self.promise_type_of_promise_constructor.set(promise_type_of_promise_constructor);
+    fn set_promise_type_of_promise_constructor(
+        &self,
+        promise_type_of_promise_constructor: Option<Id<Type>>,
+    ) {
+        self.promise_type_of_promise_constructor
+            .set(promise_type_of_promise_constructor);
     }
 
     fn maybe_promised_type_of_promise(&self) -> Option<Id<Type>> {
@@ -847,9 +872,7 @@ impl TypeInterface for BaseType {
         self.awaited_type_of_type.set(awaited_type_of_type);
     }
 
-    fn maybe_iteration_types_of_generator_return_type(
-        &self,
-    ) -> Option<Id<IterationTypes>> {
+    fn maybe_iteration_types_of_generator_return_type(&self) -> Option<Id<IterationTypes>> {
         self.iteration_types_of_generator_return_type.get()
     }
 
@@ -857,14 +880,12 @@ impl TypeInterface for BaseType {
         &self,
         iteration_types_of_generator_return_type: Option<Id<IterationTypes>>,
     ) {
-        self.iteration_types_of_generator_return_type.set(iteration_types_of_generator_return_type);
+        self.iteration_types_of_generator_return_type
+            .set(iteration_types_of_generator_return_type);
     }
 
-    fn maybe_iteration_types_of_async_generator_return_type(
-        &self,
-    ) -> Option<Id<IterationTypes>> {
-        self.iteration_types_of_async_generator_return_type
-            .get()
+    fn maybe_iteration_types_of_async_generator_return_type(&self) -> Option<Id<IterationTypes>> {
+        self.iteration_types_of_async_generator_return_type.get()
     }
 
     fn set_iteration_types_of_async_generator_return_type(
@@ -879,40 +900,60 @@ impl TypeInterface for BaseType {
         self.iteration_types_of_iterable.get()
     }
 
-    fn set_iteration_types_of_iterable(&self, iteration_types_of_iterable: Option<Id<IterationTypes>>) {
-        self.iteration_types_of_iterable.set(iteration_types_of_iterable);
+    fn set_iteration_types_of_iterable(
+        &self,
+        iteration_types_of_iterable: Option<Id<IterationTypes>>,
+    ) {
+        self.iteration_types_of_iterable
+            .set(iteration_types_of_iterable);
     }
 
     fn maybe_iteration_types_of_iterator(&self) -> Option<Id<IterationTypes>> {
         self.iteration_types_of_iterator.get()
     }
 
-    fn set_iteration_types_of_iterator(&self, iteration_types_of_iterator: Option<Id<IterationTypes>>) {
-        self.iteration_types_of_iterator.set(iteration_types_of_iterator);
+    fn set_iteration_types_of_iterator(
+        &self,
+        iteration_types_of_iterator: Option<Id<IterationTypes>>,
+    ) {
+        self.iteration_types_of_iterator
+            .set(iteration_types_of_iterator);
     }
 
     fn maybe_iteration_types_of_async_iterable(&self) -> Option<Id<IterationTypes>> {
         self.iteration_types_of_async_iterable.get()
     }
 
-    fn set_iteration_types_of_async_iterable(&self, iteration_types_of_async_iterable: Option<Id<IterationTypes>>) {
-        self.iteration_types_of_async_iterable.set(iteration_types_of_async_iterable);
+    fn set_iteration_types_of_async_iterable(
+        &self,
+        iteration_types_of_async_iterable: Option<Id<IterationTypes>>,
+    ) {
+        self.iteration_types_of_async_iterable
+            .set(iteration_types_of_async_iterable);
     }
 
     fn maybe_iteration_types_of_async_iterator(&self) -> Option<Id<IterationTypes>> {
         self.iteration_types_of_async_iterator.get()
     }
 
-    fn set_iteration_types_of_async_iterator(&self, iteration_types_of_async_iterator: Option<Id<IterationTypes>>) {
-        self.iteration_types_of_async_iterator.set(iteration_types_of_async_iterator);
+    fn set_iteration_types_of_async_iterator(
+        &self,
+        iteration_types_of_async_iterator: Option<Id<IterationTypes>>,
+    ) {
+        self.iteration_types_of_async_iterator
+            .set(iteration_types_of_async_iterator);
     }
 
     fn maybe_iteration_types_of_iterator_result(&self) -> Option<Id<IterationTypes>> {
         self.iteration_types_of_iterator_result.get()
     }
 
-    fn set_iteration_types_of_iterator_result(&self, iteration_types_of_iterator_result: Option<Id<IterationTypes>>) {
-        self.iteration_types_of_iterator_result.set(iteration_types_of_iterator_result);
+    fn set_iteration_types_of_iterator_result(
+        &self,
+        iteration_types_of_iterator_result: Option<Id<IterationTypes>>,
+    ) {
+        self.iteration_types_of_iterator_result
+            .set(iteration_types_of_iterator_result);
     }
 
     fn get_by_iteration_type_cache_key(
@@ -920,10 +961,12 @@ impl TypeInterface for BaseType {
         key: IterationTypeCacheKey,
     ) -> Option<Id<IterationTypes>> {
         match key {
-            IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => self
-                .maybe_iteration_types_of_generator_return_type(),
-            IterationTypeCacheKey::IterationTypesOfAsyncGeneratorReturnType => self
-                .maybe_iteration_types_of_async_generator_return_type(),
+            IterationTypeCacheKey::IterationTypesOfGeneratorReturnType => {
+                self.maybe_iteration_types_of_generator_return_type()
+            }
+            IterationTypeCacheKey::IterationTypesOfAsyncGeneratorReturnType => {
+                self.maybe_iteration_types_of_async_generator_return_type()
+            }
             IterationTypeCacheKey::IterationTypesOfIterable => {
                 self.maybe_iteration_types_of_iterable()
             }

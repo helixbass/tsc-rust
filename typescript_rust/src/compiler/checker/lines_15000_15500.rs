@@ -159,9 +159,9 @@ impl TypeChecker {
             IndexedAccessType::new(type_, object_type, index_type, access_flags).into(),
         );
         type_.ref_(self).set_alias_symbol(alias_symbol);
-        type_.ref_(self).set_alias_type_arguments(
-            alias_type_arguments.map(ToOwned::to_owned)
-        );
+        type_
+            .ref_(self)
+            .set_alias_type_arguments(alias_type_arguments.map(ToOwned::to_owned));
         type_
     }
 
@@ -203,9 +203,7 @@ impl TypeChecker {
         }
         access_node
             .filter(|access_node| is_property_name(&access_node.ref_(self)))
-            .and_then(|access_node| {
-                get_property_name_for_property_name_node(access_node, self)
-            })
+            .and_then(|access_node| get_property_name_for_property_name_node(access_node, self))
     }
 
     pub(super) fn is_uncalled_function_reference(
@@ -218,8 +216,12 @@ impl TypeChecker {
             .flags()
             .intersects(SymbolFlags::Function | SymbolFlags::Method)
         {
-            let parent = find_ancestor(node.ref_(self).maybe_parent(), |n| !is_access_expression(&n.ref_(self)), self)
-                .unwrap_or_else(|| node.ref_(self).parent());
+            let parent = find_ancestor(
+                node.ref_(self).maybe_parent(),
+                |n| !is_access_expression(&n.ref_(self)),
+                self,
+            )
+            .unwrap_or_else(|| node.ref_(self).parent());
             if is_call_like_expression(&parent.ref_(self)) {
                 return Ok(is_call_or_new_expression(&parent.ref_(self))
                     && is_identifier(&node.ref_(self))
@@ -247,8 +249,9 @@ impl TypeChecker {
         >,
         access_flags: AccessFlags,
     ) -> io::Result<Option<Id<Type>>> {
-        let access_expression = access_node
-            .filter(|access_node| access_node.ref_(self).kind() == SyntaxKind::ElementAccessExpression);
+        let access_expression = access_node.filter(|access_node| {
+            access_node.ref_(self).kind() == SyntaxKind::ElementAccessExpression
+        });
         let prop_name = if matches!(
             access_node,
             Some(access_node) if is_private_identifier(&access_node.ref_(self))
@@ -280,13 +283,15 @@ impl TypeChecker {
                                 let deprecated_node = access_expression
                                     .map(|access_expression| {
                                         access_expression
-                                            .ref_(self).as_element_access_expression()
+                                            .ref_(self)
+                                            .as_element_access_expression()
                                             .argument_expression
                                     })
                                     .unwrap_or_else(|| {
                                         if is_indexed_access_type_node(&access_node.ref_(self)) {
                                             access_node
-                                                .ref_(self).as_indexed_access_type_node()
+                                                .ref_(self)
+                                                .as_indexed_access_type_node()
                                                 .index_type
                                         } else {
                                             access_node
@@ -303,7 +308,8 @@ impl TypeChecker {
                 }
                 if let Some(access_expression) = access_expression {
                     let access_expression_ref = access_expression.ref_(self);
-                    let access_expression_as_element_access_expression = access_expression_ref.as_element_access_expression();
+                    let access_expression_as_element_access_expression =
+                        access_expression_ref.as_element_access_expression();
                     self.mark_property_as_referenced(
                         prop,
                         Some(access_expression),
@@ -319,8 +325,7 @@ impl TypeChecker {
                     )? {
                         self.error(
                             Some(
-                                access_expression_as_element_access_expression
-                                    .argument_expression,
+                                access_expression_as_element_access_expression.argument_expression,
                             ),
                             &Diagnostics::Cannot_assign_to_0_because_it_is_a_read_only_property,
                             Some(vec![self.symbol_to_string_(
@@ -344,9 +349,12 @@ impl TypeChecker {
                 }
                 let prop_type = self.get_type_of_symbol(prop)?;
                 return Ok(Some(
-                    if let Some(access_expression) = access_expression.filter(|&access_expression| {
-                        get_assignment_target_kind(access_expression, self) != AssignmentKind::Definite
-                    }) {
+                    if let Some(access_expression) =
+                        access_expression.filter(|&access_expression| {
+                            get_assignment_target_kind(access_expression, self)
+                                != AssignmentKind::Definite
+                        })
+                    {
                         self.get_flow_type_of_reference(
                             access_expression,
                             prop_type,
@@ -549,29 +557,33 @@ impl TypeChecker {
                                 .intersects(TypeFlags::StringLiteral | TypeFlags::NumberLiteral)
                         {
                             self.diagnostics().add(
-                                self.alloc_diagnostic(create_diagnostic_for_node(
-                                    access_expression,
-                                    &Diagnostics::Property_0_does_not_exist_on_type_1,
-                                    Some(vec![
-                                        match &*index_type.ref_(self) {
-                                            Type::LiteralType(LiteralType::StringLiteralType(
-                                                index_type,
-                                            )) => index_type.value.clone(),
-                                            Type::LiteralType(LiteralType::NumberLiteralType(
-                                                index_type,
-                                            )) => index_type.value.to_string(),
-                                            _ => panic!("Expected string or number literal type"),
-                                        },
-                                        self.type_to_string_(
-                                            object_type,
-                                            Option::<Id<Node>>::None,
-                                            None,
-                                            None,
-                                        )?,
-                                    ]),
-                                    self,
-                                )
-                                .into()),
+                                self.alloc_diagnostic(
+                                    create_diagnostic_for_node(
+                                        access_expression,
+                                        &Diagnostics::Property_0_does_not_exist_on_type_1,
+                                        Some(vec![
+                                            match &*index_type.ref_(self) {
+                                                Type::LiteralType(
+                                                    LiteralType::StringLiteralType(index_type),
+                                                ) => index_type.value.clone(),
+                                                Type::LiteralType(
+                                                    LiteralType::NumberLiteralType(index_type),
+                                                ) => index_type.value.to_string(),
+                                                _ => {
+                                                    panic!("Expected string or number literal type")
+                                                }
+                                            },
+                                            self.type_to_string_(
+                                                object_type,
+                                                Option::<Id<Node>>::None,
+                                                None,
+                                                None,
+                                            )?,
+                                        ]),
+                                        self,
+                                    )
+                                    .into(),
+                                ),
                             );
                             return Ok(Some(self.undefined_type()));
                         } else if index_type
@@ -580,7 +592,11 @@ impl TypeChecker {
                             .intersects(TypeFlags::Number | TypeFlags::String)
                         {
                             let mut types = try_map(
-                                &*object_type.ref_(self).as_resolved_type().properties().ref_(self),
+                                &*object_type
+                                    .ref_(self)
+                                    .as_resolved_type()
+                                    .properties()
+                                    .ref_(self),
                                 |&property: &Id<Symbol>, _| self.get_type_of_symbol(property),
                             )?;
                             append(&mut types, Some(self.undefined_type()));
@@ -636,7 +652,9 @@ impl TypeChecker {
                     if !took_if_branch
                         && self.no_implicit_any
                         && !matches!(
-                            self.compiler_options.ref_(self).suppress_implicit_any_index_errors,
+                            self.compiler_options
+                                .ref_(self)
+                                .suppress_implicit_any_index_errors,
                             Some(true)
                         )
                         && !access_flags.intersects(AccessFlags::SuppressNoImplicitAnyError)
@@ -829,15 +847,17 @@ impl TypeChecker {
                                             self.type_to_string_(object_type, Option::<Id<Node>>::None, None, None)?,
                                         ])
                                     ));
-                                    self.diagnostics().add(self.alloc_diagnostic(
-                                        create_diagnostic_for_node_from_message_chain(
-                                            access_expression,
-                                            error_info.unwrap(),
-                                            None,
-                                            self,
-                                        )
-                                        .into(),
-                                    ));
+                                    self.diagnostics().add(
+                                        self.alloc_diagnostic(
+                                            create_diagnostic_for_node_from_message_chain(
+                                                access_expression,
+                                                error_info.unwrap(),
+                                                None,
+                                                self,
+                                            )
+                                            .into(),
+                                        ),
+                                    );
                                 }
                             }
                         }
@@ -941,12 +961,19 @@ impl TypeChecker {
     ) -> Id<Node> {
         if access_node.ref_(self).kind() == SyntaxKind::ElementAccessExpression {
             access_node
-                .ref_(self).as_element_access_expression()
+                .ref_(self)
+                .as_element_access_expression()
                 .argument_expression
         } else if access_node.ref_(self).kind() == SyntaxKind::IndexedAccessType {
-            access_node.ref_(self).as_indexed_access_type_node().index_type
+            access_node
+                .ref_(self)
+                .as_indexed_access_type_node()
+                .index_type
         } else if access_node.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
-            access_node.ref_(self).as_computed_property_name().expression
+            access_node
+                .ref_(self)
+                .as_computed_property_name()
+                .expression
         } else {
             access_node
         }

@@ -19,11 +19,10 @@ use crate::{
     is_computed_non_literal_name, is_string_double_quoted, is_string_literal, maybe_map,
     unescape_leading_underscores, CommandLineOption, CommandLineOptionInterface,
     CommandLineOptionMapTypeValue, CommandLineOptionType, CompilerOptions, CompilerOptionsValue,
-    Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, FileMatcherPatterns, HasArena,
+    Diagnostic, Diagnostics, DidYouMeanOptionsDiagnostics, FileMatcherPatterns, HasArena, InArena,
     JsonConversionNotifier, MultiMapOrdered, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, Number, OptionsNameMap, ParsedCommandLine, ProjectReference, Push, SyntaxKind,
-    ToHashMapOfCompilerOptionsValues, WatchOptions,
-    InArena, OptionInArena,
+    NodeInterface, Number, OptionInArena, OptionsNameMap, ParsedCommandLine, ProjectReference,
+    Push, SyntaxKind, ToHashMapOfCompilerOptionsValues, WatchOptions,
 };
 
 pub(super) fn is_root_option_map(
@@ -65,18 +64,25 @@ pub(super) fn convert_object_literal_expression_to_json(
     } else {
         None
     };
-    for &element in &*node.ref_(arena).as_object_literal_expression().properties.ref_(arena) {
+    for &element in &*node
+        .ref_(arena)
+        .as_object_literal_expression()
+        .properties
+        .ref_(arena)
+    {
         if element.ref_(arena).kind() != SyntaxKind::PropertyAssignment {
-            errors.ref_mut(arena).push(arena.alloc_diagnostic(
-                create_diagnostic_for_node_in_source_file(
-                    source_file,
-                    element,
-                    &Diagnostics::Property_assignment_expected,
-                    None,
-                    arena,
-                )
-                .into(),
-            ));
+            errors.ref_mut(arena).push(
+                arena.alloc_diagnostic(
+                    create_diagnostic_for_node_in_source_file(
+                        source_file,
+                        element,
+                        &Diagnostics::Property_assignment_expected,
+                        None,
+                        arena,
+                    )
+                    .into(),
+                ),
+            );
             continue;
         }
 
@@ -85,28 +91,32 @@ pub(super) fn convert_object_literal_expression_to_json(
         if let Some(element_as_property_assignment_question_token) =
             element_as_property_assignment.question_token
         {
-            errors.ref_mut(arena).push(arena.alloc_diagnostic(
-                create_diagnostic_for_node_in_source_file(
-                    source_file,
-                    element_as_property_assignment_question_token,
-                    &Diagnostics::The_0_modifier_can_only_be_used_in_TypeScript_files,
-                    Some(vec!["?".to_owned()]),
-                    arena,
-                )
-                .into(),
-            ));
+            errors.ref_mut(arena).push(
+                arena.alloc_diagnostic(
+                    create_diagnostic_for_node_in_source_file(
+                        source_file,
+                        element_as_property_assignment_question_token,
+                        &Diagnostics::The_0_modifier_can_only_be_used_in_TypeScript_files,
+                        Some(vec!["?".to_owned()]),
+                        arena,
+                    )
+                    .into(),
+                ),
+            );
         }
         if !is_double_quoted_string(source_file, element_as_property_assignment.name(), arena) {
-            errors.ref_mut(arena).push(arena.alloc_diagnostic(
-                create_diagnostic_for_node_in_source_file(
-                    source_file,
-                    element_as_property_assignment.name(),
-                    &Diagnostics::String_literal_with_double_quotes_expected,
-                    None,
-                    arena,
-                )
-                .into(),
-            ));
+            errors.ref_mut(arena).push(
+                arena.alloc_diagnostic(
+                    create_diagnostic_for_node_in_source_file(
+                        source_file,
+                        element_as_property_assignment.name(),
+                        &Diagnostics::String_literal_with_double_quotes_expected,
+                        None,
+                        arena,
+                    )
+                    .into(),
+                ),
+            );
         }
 
         let element_name = element_as_property_assignment.name();
@@ -118,9 +128,7 @@ pub(super) fn convert_object_literal_expression_to_json(
         let text_of_key = text_of_key.as_ref();
         let key_text = text_of_key.map(|text_of_key| unescape_leading_underscores(text_of_key));
         let option = match (key_text, known_options) {
-            (Some(key_text), Some(known_options)) => {
-                known_options.get(key_text).copied()
-            }
+            (Some(key_text), Some(known_options)) => known_options.get(key_text).copied(),
             _ => None,
         };
         if let Some(key_text) = key_text {
@@ -146,16 +154,18 @@ pub(super) fn convert_object_literal_expression_to_json(
                             arena,
                         ))
                     } else {
-                        errors.ref_mut(arena).push(arena.alloc_diagnostic(
-                            create_diagnostic_for_node_in_source_file(
-                                source_file,
-                                element_as_property_assignment.name(),
-                                extra_key_diagnostics.unknown_option_diagnostic(),
-                                Some(vec![key_text.to_owned()]),
-                                arena,
-                            )
-                            .into(),
-                        ));
+                        errors.ref_mut(arena).push(
+                            arena.alloc_diagnostic(
+                                create_diagnostic_for_node_in_source_file(
+                                    source_file,
+                                    element_as_property_assignment.name(),
+                                    extra_key_diagnostics.unknown_option_diagnostic(),
+                                    Some(vec![key_text.to_owned()]),
+                                    arena,
+                                )
+                                .into(),
+                            ),
+                        );
                     }
                 }
             }
@@ -180,9 +190,11 @@ pub(super) fn convert_object_literal_expression_to_json(
                 }
             }
             if let Some(json_conversion_notifier) = json_conversion_notifier {
-                if parent_option.is_some() || is_root_option_map(known_root_options, known_options, arena)
+                if parent_option.is_some()
+                    || is_root_option_map(known_root_options, known_options, arena)
                 {
-                    let is_valid_option_value = is_compiler_options_value(option.refed(arena).as_deref(), value.as_ref());
+                    let is_valid_option_value =
+                        is_compiler_options_value(option.refed(arena).as_deref(), value.as_ref());
                     if let Some(parent_option) = parent_option {
                         if is_valid_option_value {
                             json_conversion_notifier.on_set_valid_option_key_value_in_parent(
@@ -226,20 +238,23 @@ pub(super) fn convert_array_literal_expression_to_json(
     arena: &impl HasArena,
 ) -> io::Result<Option<serde_json::Value>> {
     if !return_value {
-        elements.ref_(arena).iter().try_for_each(|&element| -> io::Result<_> {
-            convert_property_value_to_json(
-                errors.clone(),
-                source_file,
-                json_conversion_notifier,
-                return_value,
-                known_root_options,
-                element,
-                element_option,
-                arena,
-            )?;
+        elements
+            .ref_(arena)
+            .iter()
+            .try_for_each(|&element| -> io::Result<_> {
+                convert_property_value_to_json(
+                    errors.clone(),
+                    source_file,
+                    json_conversion_notifier,
+                    return_value,
+                    known_root_options,
+                    element,
+                    element_option,
+                    arena,
+                )?;
 
-            Ok(())
-        })?;
+                Ok(())
+            })?;
         return Ok(None);
     }
 
@@ -344,16 +359,18 @@ pub(super) fn convert_property_value_to_json(
 
         SyntaxKind::StringLiteral => {
             if !is_double_quoted_string(source_file, value_expression, arena) {
-                errors.ref_mut(arena).push(arena.alloc_diagnostic(
-                    create_diagnostic_for_node_in_source_file(
-                        source_file,
-                        value_expression,
-                        &Diagnostics::String_literal_with_double_quotes_expected,
-                        None,
-                        arena,
-                    )
-                    .into(),
-                ));
+                errors.ref_mut(arena).push(
+                    arena.alloc_diagnostic(
+                        create_diagnostic_for_node_in_source_file(
+                            source_file,
+                            value_expression,
+                            &Diagnostics::String_literal_with_double_quotes_expected,
+                            None,
+                            arena,
+                        )
+                        .into(),
+                    ),
+                );
             }
             report_invalid_option_value(
                 errors.clone(),
@@ -437,9 +454,13 @@ pub(super) fn convert_property_value_to_json(
 
         SyntaxKind::PrefixUnaryExpression => {
             let value_expression_ref = value_expression.ref_(arena);
-            let value_expression_as_prefix_unary_expression = value_expression_ref.as_prefix_unary_expression();
+            let value_expression_as_prefix_unary_expression =
+                value_expression_ref.as_prefix_unary_expression();
             if value_expression_as_prefix_unary_expression.operator != SyntaxKind::MinusToken
-                || value_expression_as_prefix_unary_expression.operand.ref_(arena).kind()
+                || value_expression_as_prefix_unary_expression
+                    .operand
+                    .ref_(arena)
+                    .kind()
                     != SyntaxKind::NumericLiteral
             {
             } else {
@@ -465,7 +486,8 @@ pub(super) fn convert_property_value_to_json(
                             -Into::<Number>::into(
                                 &**value_expression_as_prefix_unary_expression
                                     .operand
-                                    .ref_(arena).as_literal_like_node()
+                                    .ref_(arena)
+                                    .as_literal_like_node()
                                     .text(),
                             )
                             .value(),
@@ -575,13 +597,19 @@ pub(super) fn convert_property_value_to_json(
                     json_conversion_notifier,
                     return_value,
                     known_root_options,
-                    value_expression.ref_(arena).as_array_literal_expression().elements,
-                    option.and_then(|option| match option {
-                        CommandLineOption::CommandLineOptionOfListType(option) => {
-                            Some(option.element)
-                        }
-                        _ => None,
-                    }).refed(arena).as_deref(),
+                    value_expression
+                        .ref_(arena)
+                        .as_array_literal_expression()
+                        .elements,
+                    option
+                        .and_then(|option| match option {
+                            CommandLineOption::CommandLineOptionOfListType(option) => {
+                                Some(option.element)
+                            }
+                            _ => None,
+                        })
+                        .refed(arena)
+                        .as_deref(),
                     arena,
                 )?,
                 arena,
@@ -631,16 +659,18 @@ pub(super) fn validate_value(
             .and_then(|option| option.maybe_extra_validation())
             .and_then(|extra_validation| extra_validation(value.as_ref()));
         if let Some((diagnostic_message, args)) = diagnostic {
-            errors.ref_mut(arena).push(arena.alloc_diagnostic(
-                create_diagnostic_for_node_in_source_file(
-                    source_file,
-                    value_expression,
-                    diagnostic_message,
-                    args,
-                    arena,
-                )
-                .into(),
-            ));
+            errors.ref_mut(arena).push(
+                arena.alloc_diagnostic(
+                    create_diagnostic_for_node_in_source_file(
+                        source_file,
+                        value_expression,
+                        diagnostic_message,
+                        args,
+                        arena,
+                    )
+                    .into(),
+                ),
+            );
             return None;
         }
     }
@@ -657,19 +687,21 @@ pub(super) fn report_invalid_option_value(
     arena: &impl HasArena,
 ) {
     if matches!(is_error, Some(true)) {
-        errors.ref_mut(arena).push(arena.alloc_diagnostic(
-            create_diagnostic_for_node_in_source_file(
-                source_file,
-                value_expression,
-                &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
-                Some(vec![
-                    option.unwrap().name().to_owned(),
-                    get_compiler_option_value_type_string(option.unwrap()).to_owned(),
-                ]),
-                arena,
-            )
-            .into(),
-        ));
+        errors.ref_mut(arena).push(
+            arena.alloc_diagnostic(
+                create_diagnostic_for_node_in_source_file(
+                    source_file,
+                    value_expression,
+                    &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
+                    Some(vec![
+                        option.unwrap().name().to_owned(),
+                        get_compiler_option_value_type_string(option.unwrap()).to_owned(),
+                    ]),
+                    arena,
+                )
+                .into(),
+            ),
+        );
         *invalid_reported = Some(true);
     }
 }
@@ -768,17 +800,18 @@ pub(crate) fn convert_to_tsconfig(
 ) -> io::Result<TSConfig> {
     let get_canonical_file_name =
         create_get_canonical_file_name(host.use_case_sensitive_file_names());
-    let maybe_config_file_specs =
-        config_parse_result
-            .options
-            .ref_(arena).config_file
-            .as_ref()
-            .and_then(|config_file| {
-                config_file
-                    .ref_(arena).as_source_file()
-                    .maybe_config_file_specs()
-                    .clone()
-            });
+    let maybe_config_file_specs = config_parse_result
+        .options
+        .ref_(arena)
+        .config_file
+        .as_ref()
+        .and_then(|config_file| {
+            config_file
+                .ref_(arena)
+                .as_source_file()
+                .maybe_config_file_specs()
+                .clone()
+        });
     let matches_specs_callback: Option<MatchesSpecs> = maybe_config_file_specs
         .as_ref()
         .and_then(|config_file_specs| config_file_specs.validated_include_specs.as_ref())
@@ -863,16 +896,17 @@ pub(crate) fn convert_to_tsconfig(
             None
         },
     };
-    if let Some(config_file_specs) =
-        config_parse_result
-            .options
-            .ref_(arena).config_file
-            .and_then(|config_file| {
-                config_file
-                    .ref_(arena).as_source_file()
-                    .maybe_config_file_specs()
-                    .clone()
-            })
+    if let Some(config_file_specs) = config_parse_result
+        .options
+        .ref_(arena)
+        .config_file
+        .and_then(|config_file| {
+            config_file
+                .ref_(arena)
+                .as_source_file()
+                .maybe_config_file_specs()
+                .clone()
+        })
     {
         config.include =
             filter_same_as_default_include(config_file_specs.validated_include_specs.as_deref());
@@ -988,7 +1022,8 @@ pub(super) fn get_custom_type_map_of_command_line_option(
         | CommandLineOptionType::Object => None,
         CommandLineOptionType::List => get_custom_type_map_of_command_line_option(
             option_definition
-                .ref_(arena).as_command_line_option_of_list_type()
+                .ref_(arena)
+                .as_command_line_option_of_list_type()
                 .element,
             arena,
         ),
@@ -997,7 +1032,7 @@ pub(super) fn get_custom_type_map_of_command_line_option(
             |option_definition| match option_definition.type_() {
                 CommandLineOptionType::Map(map) => map,
                 _ => unreachable!(),
-            }
+            },
         )),
     }
 }
@@ -1024,14 +1059,24 @@ pub(super) fn serialize_compiler_options(
     path_options: Option<SerializeOptionBaseObjectPathOptions>,
     arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    serialize_option_base_object(options, &get_options_name_map(arena).ref_(arena), path_options, arena)
+    serialize_option_base_object(
+        options,
+        &get_options_name_map(arena).ref_(arena),
+        path_options,
+        arena,
+    )
 }
 
 pub(super) fn serialize_watch_options(
     options: &WatchOptions,
     arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    serialize_option_base_object(options, &get_watch_options_name_map(arena).ref_(arena), None, arena)
+    serialize_option_base_object(
+        options,
+        &get_watch_options_name_map(arena).ref_(arena),
+        None,
+        arena,
+    )
 }
 
 pub(super) fn serialize_option_base_object(
@@ -1064,7 +1109,8 @@ pub(super) fn serialize_option_base_object(
         }
         let option_definition = options_name_map.get(&name.to_lowercase()).copied();
         if let Some(option_definition) = option_definition {
-            let custom_type_map = get_custom_type_map_of_command_line_option(option_definition, arena);
+            let custom_type_map =
+                get_custom_type_map_of_command_line_option(option_definition, arena);
             match custom_type_map {
                 None => {
                     if path_options.is_some() && option_definition.ref_(arena).is_file_path() {
@@ -1088,7 +1134,10 @@ pub(super) fn serialize_option_base_object(
                     }
                 }
                 Some(custom_type_map) => {
-                    if matches!(option_definition.ref_(arena).type_(), CommandLineOptionType::List) {
+                    if matches!(
+                        option_definition.ref_(arena).type_(),
+                        CommandLineOptionType::List
+                    ) {
                         result.insert(
                             name,
                             CompilerOptionsValue::VecString(Some(
@@ -1126,7 +1175,11 @@ pub(super) fn serialize_option_base_object(
     result
 }
 
-pub fn get_compiler_options_diff_value(options: &CompilerOptions, new_line: &str, arena: &impl HasArena) -> String {
+pub fn get_compiler_options_diff_value(
+    options: &CompilerOptions,
+    new_line: &str,
+    arena: &impl HasArena,
+) -> String {
     let compiler_options_map = get_serialized_compiler_option(options, arena);
     get_overwritten_default_options(&compiler_options_map, new_line, arena)
 }
@@ -1142,25 +1195,39 @@ fn get_overwritten_default_options(
 ) -> String {
     let mut result: Vec<String> = vec![];
     let tab = make_padding(2);
-    let default_init_compiler_options_as_hash_map =
-        get_default_init_compiler_options(arena).ref_(arena).to_hash_map_of_compiler_options_values();
-    command_options_without_build(arena).ref_(arena).iter().for_each(|cmd| {
-        if !compiler_options_map.contains_key(cmd.ref_(arena).name()) {
-            return;
-        }
+    let default_init_compiler_options_as_hash_map = get_default_init_compiler_options(arena)
+        .ref_(arena)
+        .to_hash_map_of_compiler_options_values();
+    command_options_without_build(arena)
+        .ref_(arena)
+        .iter()
+        .for_each(|cmd| {
+            if !compiler_options_map.contains_key(cmd.ref_(arena).name()) {
+                return;
+            }
 
-        let new_value = compiler_options_map.get(cmd.ref_(arena).name()).unwrap();
-        let default_value = get_default_value_for_option(&cmd.ref_(arena));
-        if new_value != &default_value {
-            // TODO: this presumably needs to print new_value "as JSON"?
-            result.push(format!("{}{}: {:?}", tab, cmd.ref_(arena).name(), new_value));
-        } else if match default_init_compiler_options_as_hash_map.get(cmd.ref_(arena).name()) {
-            None => false,
-            Some(compiler_options_value) => compiler_options_value.is_some(),
-        } {
-            result.push(format!("{}{}: {:?}", tab, cmd.ref_(arena).name(), default_value));
-        }
-    });
+            let new_value = compiler_options_map.get(cmd.ref_(arena).name()).unwrap();
+            let default_value = get_default_value_for_option(&cmd.ref_(arena));
+            if new_value != &default_value {
+                // TODO: this presumably needs to print new_value "as JSON"?
+                result.push(format!(
+                    "{}{}: {:?}",
+                    tab,
+                    cmd.ref_(arena).name(),
+                    new_value
+                ));
+            } else if match default_init_compiler_options_as_hash_map.get(cmd.ref_(arena).name()) {
+                None => false,
+                Some(compiler_options_value) => compiler_options_value.is_some(),
+            } {
+                result.push(format!(
+                    "{}{}: {:?}",
+                    tab,
+                    cmd.ref_(arena).name(),
+                    default_value
+                ));
+            }
+        });
     format!("{}{}", result.join(new_line), new_line)
 }
 
@@ -1168,8 +1235,10 @@ pub(super) fn get_serialized_compiler_option(
     options: &CompilerOptions,
     arena: &impl HasArena,
 ) -> IndexMap<&'static str, CompilerOptionsValue> {
-    let compiler_options = 
-        extend_compiler_options(options, &get_default_init_compiler_options(arena).ref_(arena));
+    let compiler_options = extend_compiler_options(
+        options,
+        &get_default_init_compiler_options(arena).ref_(arena),
+    );
     serialize_compiler_options(&compiler_options, None, arena)
 }
 
@@ -1239,8 +1308,10 @@ fn write_configurations(
                 option_name = format!(
                     "\"{}\": {}{}",
                     option.ref_(arena).name(),
-                    serde_json::to_string(compiler_options_map.get(option.ref_(arena).name()).unwrap())
-                        .unwrap(),
+                    serde_json::to_string(
+                        compiler_options_map.get(option.ref_(arena).name()).unwrap()
+                    )
+                    .unwrap(),
                     {
                         seen_known_keys += 1;
                         if seen_known_keys == compiler_options_map.len() {
@@ -1254,7 +1325,8 @@ fn write_configurations(
                 option_name = format!(
                     "// \"{}\": {},",
                     option.ref_(arena).name(),
-                    serde_json::to_string(&get_default_value_for_option(&option.ref_(arena))).unwrap()
+                    serde_json::to_string(&get_default_value_for_option(&option.ref_(arena)))
+                        .unwrap()
                 );
             }
             let option_name_len = option_name.len();
@@ -1263,7 +1335,8 @@ fn write_configurations(
                 Some(format!(
                     "/* {} */",
                     option
-                        .ref_(arena).maybe_description()
+                        .ref_(arena)
+                        .maybe_description()
                         .map(|description| get_locale_specific_message(description))
                         .unwrap_or_else(|| option.ref_(arena).name().to_owned())
                 )),

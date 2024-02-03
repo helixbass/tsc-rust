@@ -20,7 +20,7 @@ use super::{
     ObjectTypeInterface, ResolvableTypeInterface, Symbol, SymbolTable, Type, TypeChecker,
     TypePredicate,
 };
-use crate::{Debug_, ObjectFlags, ScriptKind, TypeFlags, __String, HasArena};
+use crate::{Debug_, HasArena, ObjectFlags, ScriptKind, TypeFlags, __String};
 
 #[derive(Clone, Debug)]
 #[type_type(
@@ -522,16 +522,24 @@ impl ConditionalType {
         self.resolved_inferred_true_type.get()
     }
 
-    pub(crate) fn set_resolved_inferred_true_type(&self, resolved_inferred_true_type: Option<Id<Type>>) {
-        self.resolved_inferred_true_type.set(resolved_inferred_true_type);
+    pub(crate) fn set_resolved_inferred_true_type(
+        &self,
+        resolved_inferred_true_type: Option<Id<Type>>,
+    ) {
+        self.resolved_inferred_true_type
+            .set(resolved_inferred_true_type);
     }
 
     pub(crate) fn maybe_resolved_default_constraint(&self) -> Option<Id<Type>> {
         self.resolved_default_constraint.get()
     }
 
-    pub(crate) fn set_resolved_default_constraint(&self, resolved_default_constraint: Option<Id<Type>>) {
-        self.resolved_default_constraint.set(resolved_default_constraint);
+    pub(crate) fn set_resolved_default_constraint(
+        &self,
+        resolved_default_constraint: Option<Id<Type>>,
+    ) {
+        self.resolved_default_constraint
+            .set(resolved_default_constraint);
     }
 }
 
@@ -758,7 +766,8 @@ impl Signature {
     }
 
     pub fn set_canonical_signature_cache(&self, canonical_signature_cache: Option<Id<Signature>>) {
-        self.canonical_signature_cache.set(canonical_signature_cache)
+        self.canonical_signature_cache
+            .set(canonical_signature_cache)
     }
 
     pub fn maybe_base_signature_cache(&self) -> Option<Id<Signature>> {
@@ -905,7 +914,10 @@ impl TypeMapper {
         Self::Array(TypeMapperArray { sources, targets })
     }
 
-    pub fn new_function<TFunc: 'static + TypeMapperCallback>(func: TFunc, arena: &impl HasArena) -> Self {
+    pub fn new_function<TFunc: 'static + TypeMapperCallback>(
+        func: TFunc,
+        arena: &impl HasArena,
+    ) -> Self {
         Self::Function(TypeMapperFunction {
             func: arena.alloc_type_mapper_callback(Box::new(func)),
         })
@@ -1296,8 +1308,7 @@ impl Diagnostic {
 }
 
 pub trait DiagnosticInterface: DiagnosticRelatedInformationInterface {
-    fn maybe_related_information(&self)
-        -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
+    fn maybe_related_information(&self) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
     fn maybe_related_information_mut(
         &self,
     ) -> RefMut<Option<Vec<Id<DiagnosticRelatedInformation>>>>;
@@ -1376,9 +1387,7 @@ impl DiagnosticRelatedInformationInterface for BaseDiagnostic {
 }
 
 impl DiagnosticInterface for BaseDiagnostic {
-    fn maybe_related_information(
-        &self,
-    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(&self) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self.related_information.borrow()
     }
 
@@ -1506,9 +1515,7 @@ impl DiagnosticRelatedInformationInterface for Diagnostic {
 }
 
 impl DiagnosticInterface for Diagnostic {
-    fn maybe_related_information(
-        &self,
-    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(&self) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         match self {
             Diagnostic::DiagnosticWithLocation(diagnostic) => {
                 diagnostic.maybe_related_information()
@@ -1904,9 +1911,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithLocation {
-    fn maybe_related_information(
-        &self,
-    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(&self) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 
@@ -2005,9 +2010,7 @@ impl DiagnosticRelatedInformationInterface for DiagnosticWithDetachedLocation {
 }
 
 impl DiagnosticInterface for DiagnosticWithDetachedLocation {
-    fn maybe_related_information(
-        &self,
-    ) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
+    fn maybe_related_information(&self) -> Ref<Option<Vec<Id<DiagnosticRelatedInformation>>>> {
         self._diagnostic.maybe_related_information()
     }
 

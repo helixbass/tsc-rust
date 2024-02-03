@@ -4,7 +4,7 @@ use id_arena::Id;
 
 use super::{init_flow_node, Binder, ContainerFlags};
 use crate::{
-    create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
+    contains, create_symbol_table, for_each, for_each_child, get_combined_modifier_flags,
     get_immediately_invoked_function_expression, get_name_of_declaration, has_syntactic_modifier,
     is_ambient_module, is_assignment_expression, is_binary_expression, is_declaration,
     is_destructuring_assignment, is_dotted_name, is_element_access_expression,
@@ -14,9 +14,8 @@ use crate::{
     is_property_access_expression, is_string_literal_like, is_string_or_numeric_literal_like,
     is_type_of_expression, node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode,
     FlowNodeBase, FlowReduceLabel, FlowStart, HasArena, HasStatementsInterface, InArena,
-    ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, OptionInArena,
-    contains,
+    ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, OptionInArena, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind,
 };
 
 impl Binder {
@@ -35,7 +34,13 @@ impl Binder {
                     && has_export_modifier
             {
                 self.declare_symbol(
-                    &mut self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
+                    &mut self
+                        .container()
+                        .ref_(self)
+                        .symbol()
+                        .ref_(self)
+                        .exports()
+                        .ref_mut(self),
                     Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
@@ -62,7 +67,8 @@ impl Binder {
                 && (has_export_modifier
                     || self
                         .container()
-                        .ref_(self).flags()
+                        .ref_(self)
+                        .flags()
                         .intersects(NodeFlags::ExportContext))
             {
                 if self.container().ref_(self).maybe_locals().is_none()
@@ -70,7 +76,13 @@ impl Binder {
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
-                        &mut self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
+                        &mut self
+                            .container()
+                            .ref_(self)
+                            .symbol()
+                            .ref_(self)
+                            .exports()
+                            .ref_mut(self),
                         Some(self.container().ref_(self).symbol()),
                         node,
                         symbol_flags,
@@ -93,15 +105,23 @@ impl Binder {
                     None,
                     None,
                 );
-                local.ref_(self).set_export_symbol(Some(self.declare_symbol(
-                    &mut self.container().ref_(self).symbol().ref_(self).exports().ref_mut(self),
-                    Some(self.container().ref_(self).symbol()),
-                    node,
-                    symbol_flags,
-                    symbol_excludes,
-                    None,
-                    None,
-                )));
+                local.ref_(self).set_export_symbol(Some(
+                    self.declare_symbol(
+                        &mut self
+                            .container()
+                            .ref_(self)
+                            .symbol()
+                            .ref_(self)
+                            .exports()
+                            .ref_mut(self),
+                        Some(self.container().ref_(self).symbol()),
+                        node,
+                        symbol_flags,
+                        symbol_excludes,
+                        None,
+                        None,
+                    ),
+                ));
                 node.ref_(self).set_local_symbol(Some(local));
                 local
             } else {
@@ -127,7 +147,8 @@ impl Binder {
         }
         if !is_jsdoc_enum_tag(&node.ref_(self))
             && node
-                .ref_(self).as_jsdoc_typedef_or_callback_tag()
+                .ref_(self)
+                .as_jsdoc_typedef_or_callback_tag()
                 .maybe_full_name()
                 .is_some()
         {
@@ -163,7 +184,8 @@ impl Binder {
             self.set_block_scope_container(Some(node));
             if container_flags.intersects(ContainerFlags::HasLocals) {
                 self.container()
-                    .ref_(self).set_locals(Some(self.alloc_symbol_table(create_symbol_table(
+                    .ref_(self)
+                    .set_locals(Some(self.alloc_symbol_table(create_symbol_table(
                         self.arena(),
                         Option::<&[Id<Symbol>]>::None,
                     ))));
@@ -184,7 +206,8 @@ impl Binder {
             let is_iife = container_flags.intersects(ContainerFlags::IsFunctionExpression)
                 && !has_syntactic_modifier(node, ModifierFlags::Async, self)
                 && node
-                    .ref_(self).as_function_like_declaration()
+                    .ref_(self)
+                    .as_function_like_declaration()
                     .maybe_asterisk_token()
                     .is_none()
                 && get_immediately_invoked_function_expression(node, self).is_some();
@@ -197,7 +220,8 @@ impl Binder {
                         | ContainerFlags::IsObjectLiteralOrClassExpressionMethodOrAccessor,
                 ) {
                     self.current_flow()
-                        .ref_(self).as_flow_start()
+                        .ref_(self)
+                        .as_flow_start()
                         .set_node(Some(node));
                 }
             }
@@ -224,37 +248,50 @@ impl Binder {
             self.set_active_label_list(None);
             self.set_has_explicit_return(Some(false));
             self.bind_children(node);
-            node.ref_(self).set_flags(node.ref_(self).flags() & !NodeFlags::ReachabilityAndEmitFlags);
+            node.ref_(self)
+                .set_flags(node.ref_(self).flags() & !NodeFlags::ReachabilityAndEmitFlags);
             if !self
                 .current_flow()
-                .ref_(self).flags()
+                .ref_(self)
+                .flags()
                 .intersects(FlowFlags::Unreachable)
                 && container_flags.intersects(ContainerFlags::IsFunctionLike)
-                && node_is_present(match node.ref_(self).kind() {
-                    SyntaxKind::ClassStaticBlockDeclaration => {
-                        Some(node.ref_(self).as_class_static_block_declaration().body)
+                && node_is_present(
+                    match node.ref_(self).kind() {
+                        SyntaxKind::ClassStaticBlockDeclaration => {
+                            Some(node.ref_(self).as_class_static_block_declaration().body)
+                        }
+                        _ => node
+                            .ref_(self)
+                            .maybe_as_function_like_declaration()
+                            .and_then(|node| node.maybe_body()),
                     }
-                    _ => node
-                        .ref_(self).maybe_as_function_like_declaration()
-                        .and_then(|node| node.maybe_body()),
-                }.refed(self).as_deref())
+                    .refed(self)
+                    .as_deref(),
+                )
             {
-                node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::HasImplicitReturn);
+                node.ref_(self)
+                    .set_flags(node.ref_(self).flags() | NodeFlags::HasImplicitReturn);
                 if matches!(self.maybe_has_explicit_return(), Some(true)) {
-                    node.ref_(self).set_flags(node.ref_(self).flags() | NodeFlags::HasExplicitReturn);
+                    node.ref_(self)
+                        .set_flags(node.ref_(self).flags() | NodeFlags::HasExplicitReturn);
                 }
                 match node.ref_(self).kind() {
                     SyntaxKind::ClassStaticBlockDeclaration => node
-                        .ref_(self).as_class_static_block_declaration()
+                        .ref_(self)
+                        .as_class_static_block_declaration()
                         .set_end_flow_node(self.maybe_current_flow()),
                     _ => node
-                        .ref_(self).as_function_like_declaration()
+                        .ref_(self)
+                        .as_function_like_declaration()
                         .set_end_flow_node(self.maybe_current_flow()),
                 }
             }
             if node.ref_(self).kind() == SyntaxKind::SourceFile {
-                node.ref_(self).set_flags(node.ref_(self).flags() | self.emit_flags());
-                node.ref_(self).as_source_file()
+                node.ref_(self)
+                    .set_flags(node.ref_(self).flags() | self.emit_flags());
+                node.ref_(self)
+                    .as_source_file()
                     .set_end_flow_node(self.maybe_current_flow());
             }
 
@@ -272,10 +309,12 @@ impl Binder {
                 {
                     match node.ref_(self).kind() {
                         SyntaxKind::ClassStaticBlockDeclaration => node
-                            .ref_(self).as_class_static_block_declaration()
+                            .ref_(self)
+                            .as_class_static_block_declaration()
                             .set_return_flow_node(self.maybe_current_flow()),
                         _ => node
-                            .ref_(self).as_function_like_declaration()
+                            .ref_(self)
+                            .as_function_like_declaration()
                             .set_return_flow_node(self.maybe_current_flow()),
                     }
                 }
@@ -292,11 +331,12 @@ impl Binder {
         } else if container_flags.intersects(ContainerFlags::IsInterface) {
             self.set_seen_this_keyword(Some(false));
             self.bind_children(node);
-            node.ref_(self).set_flags(if self.maybe_seen_this_keyword() == Some(true) {
-                node.ref_(self).flags() | NodeFlags::ContainsThis
-            } else {
-                node.ref_(self).flags() & !NodeFlags::ContainsThis
-            });
+            node.ref_(self)
+                .set_flags(if self.maybe_seen_this_keyword() == Some(true) {
+                    node.ref_(self).flags() | NodeFlags::ContainsThis
+                } else {
+                    node.ref_(self).flags() & !NodeFlags::ContainsThis
+                });
         } else {
             self.bind_children(node);
         }
@@ -419,7 +459,9 @@ impl Binder {
                 self.bind(Some(node_as_source_file.end_of_file_token()));
             }
             SyntaxKind::Block | SyntaxKind::ModuleBlock => {
-                self.bind_each_functions_first(Some(&node.ref_(self).as_has_statements().statements().ref_(self)));
+                self.bind_each_functions_first(Some(
+                    &node.ref_(self).as_has_statements().statements().ref_(self),
+                ));
             }
             SyntaxKind::BindingElement => self.bind_binding_element_flow(node),
             SyntaxKind::ObjectLiteralExpression
@@ -478,7 +520,9 @@ impl Binder {
                 let expr_ref = expr.ref_(self);
                 let expr_as_element_access_expression = expr_ref.as_element_access_expression();
                 is_string_or_numeric_literal_like(
-                    &expr_as_element_access_expression.argument_expression.ref_(self),
+                    &expr_as_element_access_expression
+                        .argument_expression
+                        .ref_(self),
                 ) && self.is_narrowable_reference(expr_as_element_access_expression.expression)
             }
             || is_assignment_expression(expr, None, self)
@@ -488,7 +532,8 @@ impl Binder {
     pub(super) fn contains_narrowable_reference(&self, expr: Id<Node> /*Expression*/) -> bool {
         self.is_narrowable_reference(expr)
             || is_optional_chain(&expr.ref_(self))
-                && self.contains_narrowable_reference(expr.ref_(self).as_has_expression().expression())
+                && self
+                    .contains_narrowable_reference(expr.ref_(self).as_has_expression().expression())
     }
 
     pub(super) fn has_narrowable_argument(&self, expr: Id<Node> /*CallExpression*/) -> bool {
@@ -501,11 +546,13 @@ impl Binder {
             }
         }
         // }
-        if expr_as_call_expression.expression.ref_(self).kind() == SyntaxKind::PropertyAccessExpression
+        if expr_as_call_expression.expression.ref_(self).kind()
+            == SyntaxKind::PropertyAccessExpression
             && self.contains_narrowable_reference(
                 expr_as_call_expression
                     .expression
-                    .ref_(self).as_property_access_expression()
+                    .ref_(self)
+                    .as_property_access_expression()
                     .expression,
             )
         {
@@ -556,9 +603,7 @@ impl Binder {
                 self.is_narrowable_operand(expr_as_binary_expression.left)
             }
             SyntaxKind::InKeyword => self.is_narrowing_expression(expr_as_binary_expression.right),
-            SyntaxKind::CommaToken => {
-                self.is_narrowing_expression(expr_as_binary_expression.right)
-            }
+            SyntaxKind::CommaToken => self.is_narrowing_expression(expr_as_binary_expression.right),
             _ => false,
         }
     }
@@ -566,7 +611,9 @@ impl Binder {
     pub(super) fn is_narrowable_operand(&self, expr: Id<Node> /*Expression*/) -> bool {
         match expr.ref_(self).kind() {
             SyntaxKind::ParenthesizedExpression => {
-                return self.is_narrowable_operand(expr.ref_(self).as_parenthesized_expression().expression);
+                return self.is_narrowable_operand(
+                    expr.ref_(self).as_parenthesized_expression().expression,
+                );
             }
             SyntaxKind::BinaryExpression => {
                 let expr_ref = expr.ref_(self);
@@ -626,7 +673,10 @@ impl Binder {
         antecedent: Id<FlowNode>,
     ) {
         let label_as_flow_label = label.as_flow_label();
-        if !antecedent.ref_(self).flags().intersects(FlowFlags::Unreachable)
+        if !antecedent
+            .ref_(self)
+            .flags()
+            .intersects(FlowFlags::Unreachable)
             && !contains(
                 label_as_flow_label.maybe_antecedents().as_deref(),
                 &antecedent,
@@ -647,7 +697,11 @@ impl Binder {
         antecedent: Id<FlowNode>,
         expression: Option<Id<Node>>,
     ) -> Id<FlowNode> {
-        if antecedent.ref_(self).flags().intersects(FlowFlags::Unreachable) {
+        if antecedent
+            .ref_(self)
+            .flags()
+            .intersects(FlowFlags::Unreachable)
+        {
             return antecedent;
         }
         let Some(expression) = expression else {

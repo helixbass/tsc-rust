@@ -16,14 +16,14 @@ use crate::{
     is_parenthesized_expression, is_qualified_name, is_require_call, is_source_file,
     is_string_literal, is_type_alias_declaration, is_variable_like, is_variable_statement, last,
     last_or_undefined, maybe_filter, skip_outer_expressions, try_cast, try_for_each_bool,
-    AsDoubleDeref, AssignmentDeclarationKind, Debug_, HasQuestionTokenInterface, HasTypeInterface,
-    NamedDeclarationInterface, Node, NodeInterface, OuterExpressionKinds,
-    SignatureDeclarationInterface, Symbol, SyntaxKind,
-    HasArena, InArena, OptionInArena,
+    AsDoubleDeref, AssignmentDeclarationKind, Debug_, HasArena, HasQuestionTokenInterface,
+    HasTypeInterface, InArena, NamedDeclarationInterface, Node, NodeInterface, OptionInArena,
+    OuterExpressionKinds, SignatureDeclarationInterface, Symbol, SyntaxKind,
 };
 
 pub fn try_get_import_from_module_specifier(
-    node: Id<Node>, /*StringLiteralLike*/ arena: &impl HasArena
+    node: Id<Node>,
+    /*StringLiteralLike*/ arena: &impl HasArena,
 ) -> Option<Id<Node /*AnyValidImportOrReExport*/>> {
     let node_parent = node.ref_(arena).parent();
     match node_parent.ref_(arena).kind() {
@@ -38,7 +38,9 @@ pub fn try_get_import_from_module_specifier(
         }
         SyntaxKind::LiteralType => {
             Debug_.assert(is_string_literal(&node.ref_(arena)), None);
-            try_cast(node_parent.ref_(arena).parent(), |node| is_import_type_node(&node.ref_(arena)))
+            try_cast(node_parent.ref_(arena).parent(), |node| {
+                is_import_type_node(&node.ref_(arena))
+            })
         }
         _ => None,
     }
@@ -56,14 +58,18 @@ pub fn get_external_module_name(
         SyntaxKind::ImportEqualsDeclaration => {
             let node_ref = node.ref_(arena);
             let node_as_import_equals_declaration = node_ref.as_import_equals_declaration();
-            if node_as_import_equals_declaration.module_reference.ref_(arena).kind()
+            if node_as_import_equals_declaration
+                .module_reference
+                .ref_(arena)
+                .kind()
                 == SyntaxKind::ExternalModuleReference
             {
                 Some(
                     node_as_import_equals_declaration
                         .module_reference
-                        .ref_(arena).as_external_module_reference()
-                        .expression
+                        .ref_(arena)
+                        .as_external_module_reference()
+                        .expression,
                 )
             } else {
                 None
@@ -72,16 +78,24 @@ pub fn get_external_module_name(
         SyntaxKind::ImportType => {
             if is_literal_import_type_node(node, arena) {
                 Some(
-                    node.ref_(arena).as_import_type_node()
+                    node.ref_(arena)
+                        .as_import_type_node()
                         .argument
-                        .ref_(arena).as_literal_type_node()
+                        .ref_(arena)
+                        .as_literal_type_node()
                         .literal,
                 )
             } else {
                 None
             }
         }
-        SyntaxKind::CallExpression => node.ref_(arena).as_call_expression().arguments.ref_(arena).get(0).copied(),
+        SyntaxKind::CallExpression => node
+            .ref_(arena)
+            .as_call_expression()
+            .arguments
+            .ref_(arena)
+            .get(0)
+            .copied(),
         SyntaxKind::ModuleDeclaration => {
             let node_ref = node.ref_(arena);
             let node_as_module_declaration = node_ref.as_module_declaration();
@@ -102,21 +116,22 @@ pub fn get_namespace_declaration_node(
     match node.ref_(arena).kind() {
         SyntaxKind::ImportDeclaration => {
             let node_import_clause = node.ref_(arena).as_import_declaration().import_clause;
-            node_import_clause
-                .and_then(|node_import_clause| {
-                    node_import_clause
-                        .ref_(arena).as_import_clause()
-                        .named_bindings
-                        .and_then(|named_bindings| {
-                            try_cast(named_bindings, |named_bindings| {
-                                is_namespace_import(&named_bindings.ref_(arena))
-                            })
+            node_import_clause.and_then(|node_import_clause| {
+                node_import_clause
+                    .ref_(arena)
+                    .as_import_clause()
+                    .named_bindings
+                    .and_then(|named_bindings| {
+                        try_cast(named_bindings, |named_bindings| {
+                            is_namespace_import(&named_bindings.ref_(arena))
                         })
-                })
+                    })
+            })
         }
         SyntaxKind::ImportEqualsDeclaration => Some(node),
         SyntaxKind::ExportDeclaration => node
-            .ref_(arena).as_export_declaration()
+            .ref_(arena)
+            .as_export_declaration()
             .export_clause
             .and_then(|export_clause| {
                 try_cast(export_clause, |export_clause| {
@@ -133,7 +148,8 @@ pub fn is_default_import(
 ) -> bool {
     node.ref_(arena).kind() == SyntaxKind::ImportDeclaration
         && node
-            .ref_(arena).as_import_declaration()
+            .ref_(arena)
+            .as_import_declaration()
             .import_clause
             .and_then(|import_clause| import_clause.ref_(arena).as_import_clause().name)
             .is_some()
@@ -144,9 +160,11 @@ pub fn for_each_import_clause_declaration_bool(
     mut action: impl FnMut(Id<Node>) -> bool,
     arena: &impl HasArena,
 ) -> bool {
-    try_for_each_import_clause_declaration_bool(node, |node: Id<Node>| -> Result<_, ()> {
-        Ok(action(node))
-    }, arena)
+    try_for_each_import_clause_declaration_bool(
+        node,
+        |node: Id<Node>| -> Result<_, ()> { Ok(action(node)) },
+        arena,
+    )
     .unwrap()
 }
 
@@ -168,7 +186,11 @@ pub fn try_for_each_import_clause_declaration_bool<TError>(
             action(node_named_bindings)?
         } else {
             try_for_each_bool(
-                &*node_named_bindings.ref_(arena).as_named_imports().elements.ref_(arena),
+                &*node_named_bindings
+                    .ref_(arena)
+                    .as_named_imports()
+                    .elements
+                    .ref_(arena),
                 |&element, _| action(element),
             )?
         };
@@ -202,18 +224,28 @@ pub fn has_question_token(node: &Node) -> bool {
 
 pub fn is_jsdoc_construct_signature(node: Id<Node>, arena: &impl HasArena) -> bool {
     let Some(param) = (if is_jsdoc_function_type(&node.ref_(arena)) {
-        first_or_undefined(&node.ref_(arena).as_jsdoc_function_type().parameters().ref_(arena)).cloned()
+        first_or_undefined(
+            &node
+                .ref_(arena)
+                .as_jsdoc_function_type()
+                .parameters()
+                .ref_(arena),
+        )
+        .cloned()
     } else {
         None
     }) else {
         return false;
     };
-    let Some(name) = try_cast(param.ref_(arena).as_parameter_declaration().maybe_name(), |&name| {
-        matches!(
-            name,
-            Some(name) if is_identifier(&name.ref_(arena))
-        )
-    })
+    let Some(name) = try_cast(
+        param.ref_(arena).as_parameter_declaration().maybe_name(),
+        |&name| {
+            matches!(
+                name,
+                Some(name) if is_identifier(&name.ref_(arena))
+            )
+        },
+    )
     .flatten() else {
         return false;
     };
@@ -240,12 +272,14 @@ fn get_source_of_assignment(node: Id<Node>, arena: &impl HasArena) -> Option<Id<
     if !is_binary_expression(&node_as_expression_statement.expression.ref_(arena)) {
         return None;
     }
-    let node_expression_ref = node_as_expression_statement
-        .expression
-        .ref_(arena);
-    let node_expression_as_binary_expression = node_expression_ref
-        .as_binary_expression();
-    if node_expression_as_binary_expression.operator_token.ref_(arena).kind() == SyntaxKind::EqualsToken {
+    let node_expression_ref = node_as_expression_statement.expression.ref_(arena);
+    let node_expression_as_binary_expression = node_expression_ref.as_binary_expression();
+    if node_expression_as_binary_expression
+        .operator_token
+        .ref_(arena)
+        .kind()
+        == SyntaxKind::EqualsToken
+    {
         Some(get_right_most_assigned_expression(
             node_as_expression_statement.expression,
             arena,
@@ -269,21 +303,19 @@ fn get_source_of_defaulted_assignment(node: Id<Node>, arena: &impl HasArena) -> 
     {
         return None;
     }
-    let node_expression_ref = node_as_expression_statement
-        .expression.ref_(arena);
+    let node_expression_ref = node_as_expression_statement.expression.ref_(arena);
     let node_expression_as_binary_expression = node_expression_ref.as_binary_expression();
     if !is_binary_expression(&node_expression_as_binary_expression.right.ref_(arena)) {
         return None;
     }
-    let node_expression_right_ref = node_expression_as_binary_expression
-        .right
-        .ref_(arena);
-    let node_expression_right_as_binary_expression = node_expression_right_ref
-        .as_binary_expression();
+    let node_expression_right_ref = node_expression_as_binary_expression.right.ref_(arena);
+    let node_expression_right_as_binary_expression =
+        node_expression_right_ref.as_binary_expression();
     if matches!(
         node_expression_right_as_binary_expression
             .operator_token
-            .ref_(arena).kind(),
+            .ref_(arena)
+            .kind(),
         SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
     ) {
         Some(node_expression_right_as_binary_expression.right)
@@ -315,10 +347,13 @@ pub fn get_single_variable_of_variable_statement(
     if is_variable_statement(&node.ref_(arena)) {
         first_or_undefined(
             &node
-                .ref_(arena).as_variable_statement()
+                .ref_(arena)
+                .as_variable_statement()
                 .declaration_list
-                .ref_(arena).as_variable_declaration_list()
-                .declarations.ref_(arena),
+                .ref_(arena)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(arena),
         )
         .copied()
     } else {
@@ -341,13 +376,21 @@ fn get_nested_module_declaration(node: Id<Node>, arena: &impl HasArena) -> Optio
 
 pub fn get_jsdoc_comments_and_tags(
     host_node: Id<Node>,
-    no_cache: Option<bool>, arena: &impl HasArena,
+    no_cache: Option<bool>,
+    arena: &impl HasArena,
 ) -> Vec<Id<Node /*JSDoc | JSDocTag*/>> {
     let no_cache = no_cache.unwrap_or(false);
     let mut result: Option<Vec<Id<Node>>> = None;
     if is_variable_like(&host_node.ref_(arena))
         && has_initializer(&host_node.ref_(arena))
-        && has_jsdoc_nodes(&host_node.ref_(arena).as_has_initializer().maybe_initializer().unwrap().ref_(arena))
+        && has_jsdoc_nodes(
+            &host_node
+                .ref_(arena)
+                .as_has_initializer()
+                .maybe_initializer()
+                .unwrap()
+                .ref_(arena),
+        )
     {
         result = Some(vec![]);
         /*result =*/
@@ -357,10 +400,12 @@ pub fn get_jsdoc_comments_and_tags(
                 host_node,
                 *last(
                     host_node
-                        .ref_(arena).as_has_initializer()
+                        .ref_(arena)
+                        .as_has_initializer()
                         .maybe_initializer()
                         .unwrap()
-                        .ref_(arena).maybe_js_doc()
+                        .ref_(arena)
+                        .maybe_js_doc()
                         .as_deref()
                         .unwrap(),
                 ),
@@ -433,15 +478,27 @@ pub fn get_jsdoc_comments_and_tags(
 fn filter_owned_jsdoc_tags(
     host_node: Id<Node>,
     js_doc: Id<Node>, /*JSDoc | JSDocTag*/
-    arena: &impl HasArena
+    arena: &impl HasArena,
 ) -> Option<Vec<Id<Node /*JSDoc | JSDocTag*/>>> {
     if is_jsdoc(&js_doc.ref_(arena)) {
         let owned_tags = maybe_filter(
-            js_doc.ref_(arena).as_jsdoc().tags.refed(arena).as_double_deref(),
+            js_doc
+                .ref_(arena)
+                .as_jsdoc()
+                .tags
+                .refed(arena)
+                .as_double_deref(),
             |&tag: &Id<Node>| owns_jsdoc_tag(host_node, tag, arena),
         );
-        return if match (js_doc.ref_(arena).as_jsdoc().tags.as_ref(), owned_tags.as_ref()) {
-            (Some(js_doc_tags), Some(owned_tags)) if js_doc_tags.ref_(arena).len() == owned_tags.len() => true,
+        return if match (
+            js_doc.ref_(arena).as_jsdoc().tags.as_ref(),
+            owned_tags.as_ref(),
+        ) {
+            (Some(js_doc_tags), Some(owned_tags))
+                if js_doc_tags.ref_(arena).len() == owned_tags.len() =>
+            {
+                true
+            }
             (None, None) => true,
             _ => false,
         } {
@@ -457,14 +514,19 @@ fn filter_owned_jsdoc_tags(
     }
 }
 
-fn owns_jsdoc_tag(host_node: Id<Node>, tag: Id<Node> /*JSDocTag*/, arena: &impl HasArena) -> bool {
+fn owns_jsdoc_tag(
+    host_node: Id<Node>,
+    tag: Id<Node>, /*JSDocTag*/
+    arena: &impl HasArena,
+) -> bool {
     !is_jsdoc_type_tag(&tag.ref_(arena))
         || tag.ref_(arena).maybe_parent().is_none()
         || !is_jsdoc(&tag.ref_(arena).parent().ref_(arena))
         || !matches!(
             tag.ref_(arena).parent().ref_(arena).maybe_parent(),
             Some(grandparent) if is_parenthesized_expression(&grandparent.ref_(arena))
-        ) || matches!(
+        )
+        || matches!(
             tag.ref_(arena).parent().ref_(arena).maybe_parent(),
             Some(grandparent) if grandparent == host_node
         )
@@ -514,7 +576,10 @@ pub fn get_next_jsdoc_comment_location(node: Id<Node>, arena: &impl HasArena) ->
     None
 }
 
-pub fn get_parameter_symbol_from_jsdoc(node: Id<Node> /*JSDocParameterTag*/, arena: &impl HasArena) -> Option<Id<Symbol>> {
+pub fn get_parameter_symbol_from_jsdoc(
+    node: Id<Node>, /*JSDocParameterTag*/
+    arena: &impl HasArena,
+) -> Option<Id<Symbol>> {
     if node.ref_(arena).maybe_symbol().is_some() {
         return node.ref_(arena).maybe_symbol();
     }
@@ -523,21 +588,23 @@ pub fn get_parameter_symbol_from_jsdoc(node: Id<Node> /*JSDocParameterTag*/, are
     if !is_identifier(&node_as_jsdoc_property_like_tag.name.ref_(arena)) {
         return None;
     }
-    let node_name_ref = node_as_jsdoc_property_like_tag
-        .name
-        .ref_(arena);
-    let name = &node_name_ref
-        .as_identifier()
-        .escaped_text;
+    let node_name_ref = node_as_jsdoc_property_like_tag.name.ref_(arena);
+    let name = &node_name_ref.as_identifier().escaped_text;
     let decl = get_host_signature_from_jsdoc(node, arena);
     let decl = decl?;
     let parameter = find(
-        &decl.ref_(arena).as_signature_declaration().parameters().ref_(arena),
+        &decl
+            .ref_(arena)
+            .as_signature_declaration()
+            .parameters()
+            .ref_(arena),
         |p: &Id<Node>, _| {
             let p_name = p.ref_(arena).as_parameter_declaration().name();
-            p_name.ref_(arena).kind() == SyntaxKind::Identifier && &p_name.ref_(arena).as_identifier().escaped_text == name
+            p_name.ref_(arena).kind() == SyntaxKind::Identifier
+                && &p_name.ref_(arena).as_identifier().escaped_text == name
         },
-    ).copied();
+    )
+    .copied();
     parameter.and_then(|parameter| parameter.ref_(arena).maybe_symbol())
 }
 
@@ -548,7 +615,10 @@ pub fn get_effective_container_for_jsdoc_template_tag(
     let node_parent = node.ref_(arena).parent();
     if is_jsdoc(&node_parent.ref_(arena)) {
         if let Some(node_parent_tags) = node_parent.ref_(arena).as_jsdoc().tags {
-            let type_alias = find(&node_parent_tags.ref_(arena), |tag, _| is_jsdoc_type_alias(&tag.ref_(arena))).copied();
+            let type_alias = find(&node_parent_tags.ref_(arena), |tag, _| {
+                is_jsdoc_type_alias(&tag.ref_(arena))
+            })
+            .copied();
             if type_alias.is_some() {
                 return type_alias;
             }
@@ -557,7 +627,10 @@ pub fn get_effective_container_for_jsdoc_template_tag(
     get_host_signature_from_jsdoc(node, arena)
 }
 
-pub fn get_host_signature_from_jsdoc(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*SignatureDeclaration*/>> {
+pub fn get_host_signature_from_jsdoc(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*SignatureDeclaration*/>> {
     let host = get_effective_jsdoc_host(node, arena);
     host.filter(|host| is_function_like(Some(&host.ref_(arena))))
 }
@@ -566,12 +639,12 @@ pub fn get_effective_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option
     let host = get_jsdoc_host(node, arena)?;
     get_source_of_defaulted_assignment(host, arena).or_else(|| {
         get_source_of_assignment(host, arena).or_else(|| {
-            get_single_initializer_of_variable_statement_or_property_declaration(host, arena).or_else(
-                || {
-                    get_single_variable_of_variable_statement(host, arena)
-                        .or_else(|| get_nested_module_declaration(host, arena).or_else(|| Some(host)))
-                },
-            )
+            get_single_initializer_of_variable_statement_or_property_declaration(host, arena)
+                .or_else(|| {
+                    get_single_variable_of_variable_statement(host, arena).or_else(|| {
+                        get_nested_module_declaration(host, arena).or_else(|| Some(host))
+                    })
+                })
         })
     })
 }
@@ -585,57 +658,94 @@ pub fn get_jsdoc_host(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /
     matches!(
         last_or_undefined(&host_js_doc),
         Some(&last) if js_doc == last
-    ).then_some(host)
+    )
+    .then_some(host)
 }
 
 pub fn get_jsdoc_root(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*JSDoc*/>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), |node| is_jsdoc(&node.ref_(arena)), arena)
+    find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |node| is_jsdoc(&node.ref_(arena)),
+        arena,
+    )
 }
 
 pub fn get_type_parameter_from_js_doc(
     node: Id<Node>, /*TypeParameterDeclaration & { parent: JSDocTemplateTag }*/
     arena: &impl HasArena,
 ) -> Option<Id<Node /*TypeParameterDeclaration*/>> {
-    let node_name_ref = node.ref_(arena).as_type_parameter_declaration().name().ref_(arena);
+    let node_name_ref = node
+        .ref_(arena)
+        .as_type_parameter_declaration()
+        .name()
+        .ref_(arena);
     let name = &node_name_ref.as_identifier().escaped_text;
-    let node_parent_parent_parent = node.ref_(arena).parent().ref_(arena).parent().ref_(arena).parent();
+    let node_parent_parent_parent = node
+        .ref_(arena)
+        .parent()
+        .ref_(arena)
+        .parent()
+        .ref_(arena)
+        .parent();
     let type_parameters = node_parent_parent_parent
-        .ref_(arena).as_has_type_parameters()
+        .ref_(arena)
+        .as_has_type_parameters()
         .maybe_type_parameters();
-    type_parameters
-        .and_then(|type_parameters| {
-            find(&type_parameters.ref_(arena), |p, _| {
-                &p.ref_(arena).as_type_parameter_declaration()
-                    .name()
-                    .ref_(arena).as_identifier()
-                    .escaped_text
-                    == name
-            }).copied()
+    type_parameters.and_then(|type_parameters| {
+        find(&type_parameters.ref_(arena), |p, _| {
+            &p.ref_(arena)
+                .as_type_parameter_declaration()
+                .name()
+                .ref_(arena)
+                .as_identifier()
+                .escaped_text
+                == name
         })
+        .copied()
+    })
 }
 
-pub fn has_rest_parameter(node: Id<Node> /*SignatureDeclaration | JSDocSignature*/, arena: &impl HasArena) -> bool {
+pub fn has_rest_parameter(
+    node: Id<Node>, /*SignatureDeclaration | JSDocSignature*/
+    arena: &impl HasArena,
+) -> bool {
     let Some(last) = (match node.ref_(arena).kind() {
         SyntaxKind::JSDocSignature => {
-            last_or_undefined(&node.ref_(arena).as_jsdoc_signature().parameters.ref_(arena)).copied()
+            last_or_undefined(&node.ref_(arena).as_jsdoc_signature().parameters.ref_(arena))
+                .copied()
         }
-        _ => last_or_undefined(&node.ref_(arena).as_signature_declaration().parameters().ref_(arena)).copied(),
+        _ => last_or_undefined(
+            &node
+                .ref_(arena)
+                .as_signature_declaration()
+                .parameters()
+                .ref_(arena),
+        )
+        .copied(),
     }) else {
         return false;
     };
     is_rest_parameter(last, arena)
 }
 
-pub fn is_rest_parameter(node: Id<Node> /*ParameterDeclaration | JSDocParameterTag*/, arena: &impl HasArena) -> bool {
+pub fn is_rest_parameter(
+    node: Id<Node>, /*ParameterDeclaration | JSDocParameterTag*/
+    arena: &impl HasArena,
+) -> bool {
     let type_: Option<Id<Node>> = if is_jsdoc_parameter_tag(&node.ref_(arena)) {
-        node.ref_(arena).as_jsdoc_property_like_tag()
+        node.ref_(arena)
+            .as_jsdoc_property_like_tag()
             .type_expression
             .map(|type_expression| type_expression.ref_(arena).as_jsdoc_type_expression().type_)
     } else {
         node.ref_(arena).as_parameter_declaration().maybe_type()
     };
     node.ref_(arena).kind() == SyntaxKind::Parameter
-        && node.ref_(arena).as_parameter_declaration().dot_dot_dot_token.is_some()
+        && node
+            .ref_(arena)
+            .as_parameter_declaration()
+            .dot_dot_dot_token
+            .is_some()
         || type_
             .filter(|type_| type_.ref_(arena).kind() == SyntaxKind::JSDocVariadicType)
             .is_some()
@@ -661,7 +771,10 @@ pub fn get_assignment_target_kind(mut node: Id<Node>, arena: &impl HasArena) -> 
             SyntaxKind::BinaryExpression => {
                 let parent_ref = parent.ref_(arena);
                 let parent_as_binary_expression = parent_ref.as_binary_expression();
-                let binary_operator = parent_as_binary_expression.operator_token.ref_(arena).kind();
+                let binary_operator = parent_as_binary_expression
+                    .operator_token
+                    .ref_(arena)
+                    .kind();
                 return if is_assignment_operator(binary_operator)
                     && parent_as_binary_expression.left == node
                 {
@@ -795,7 +908,10 @@ pub fn walk_up_parenthesized_types(node: Id<Node>, arena: &impl HasArena) -> Opt
     walk_up(node, SyntaxKind::ParenthesizedType, arena)
 }
 
-pub fn walk_up_parenthesized_expressions(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
+pub fn walk_up_parenthesized_expressions(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node>> {
     walk_up(node, SyntaxKind::ParenthesizedExpression, arena)
 }
 
@@ -816,7 +932,11 @@ pub fn walk_up_parenthesized_types_and_get_parent_and_child(
     (child, node)
 }
 
-pub fn skip_parentheses(node: Id<Node>, exclude_jsdoc_type_assertions: Option<bool>, arena: &impl HasArena) -> Id<Node> {
+pub fn skip_parentheses(
+    node: Id<Node>,
+    exclude_jsdoc_type_assertions: Option<bool>,
+    arena: &impl HasArena,
+) -> Id<Node> {
     let exclude_jsdoc_type_assertions = exclude_jsdoc_type_assertions.unwrap_or(false);
     let flags = if exclude_jsdoc_type_assertions {
         OuterExpressionKinds::Parentheses | OuterExpressionKinds::ExcludeJSDocTypeAssertion
@@ -840,7 +960,11 @@ pub fn is_delete_target(node: Id<Node>, arena: &impl HasArena) -> bool {
     )
 }
 
-pub fn is_node_descendant_of(node: Id<Node>, ancestor: Option<Id<Node>>, arena: &impl HasArena) -> bool {
+pub fn is_node_descendant_of(
+    node: Id<Node>,
+    ancestor: Option<Id<Node>>,
+    arena: &impl HasArena,
+) -> bool {
     maybe_is_node_descendant_of(Some(node), ancestor, arena)
 }
 
@@ -871,7 +995,10 @@ pub fn is_declaration_name(name: Id<Node>, arena: &impl HasArena) -> bool {
         )
 }
 
-pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Option<Id<Node /*Declaration*/>> {
+pub fn get_declaration_from_name(
+    name: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*Declaration*/>> {
     let parent = name.ref_(arena).parent();
     match name.ref_(arena).kind() {
         SyntaxKind::StringLiteral
@@ -901,8 +1028,15 @@ pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Optio
             } else {
                 let bin_exp = parent.ref_(arena).parent();
                 if is_binary_expression(&bin_exp.ref_(arena))
-                    && get_assignment_declaration_kind(bin_exp, arena) != AssignmentDeclarationKind::None
-                    && (bin_exp.ref_(arena).as_binary_expression().left.ref_(arena).maybe_symbol().is_some()
+                    && get_assignment_declaration_kind(bin_exp, arena)
+                        != AssignmentDeclarationKind::None
+                    && (bin_exp
+                        .ref_(arena)
+                        .as_binary_expression()
+                        .left
+                        .ref_(arena)
+                        .maybe_symbol()
+                        .is_some()
                         || bin_exp.ref_(arena).maybe_symbol().is_some())
                     && matches!(
                         get_name_of_declaration(Some(bin_exp), arena),
@@ -937,8 +1071,15 @@ pub fn get_declaration_from_name(name: Id<Node>, arena: &impl HasArena) -> Optio
             } else {
                 let bin_exp = parent.ref_(arena).parent();
                 if is_binary_expression(&bin_exp.ref_(arena))
-                    && get_assignment_declaration_kind(bin_exp, arena) != AssignmentDeclarationKind::None
-                    && (bin_exp.ref_(arena).as_binary_expression().left.ref_(arena).maybe_symbol().is_some()
+                    && get_assignment_declaration_kind(bin_exp, arena)
+                        != AssignmentDeclarationKind::None
+                    && (bin_exp
+                        .ref_(arena)
+                        .as_binary_expression()
+                        .left
+                        .ref_(arena)
+                        .maybe_symbol()
+                        .is_some()
                         || bin_exp.ref_(arena).maybe_symbol().is_some())
                     && matches!(
                         get_name_of_declaration(Some(bin_exp), arena),

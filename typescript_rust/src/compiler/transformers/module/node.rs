@@ -1,14 +1,14 @@
-use std::{io, mem, any::Any, cell::Cell};
+use std::{any::Any, cell::Cell, io, mem};
 
 use id_arena::Id;
 
 use crate::{
     EmitHint, Node, NodeInterface, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, _d, is_source_file,
-    transform_ecmascript_module, transform_module, try_map, Debug_, ModuleKind, SyntaxKind,
-    HasArena, AllArenas, InArena, static_arena, downcast_transformer_ref,
-    TransformNodesTransformationResult, CoreTransformationContext,
+    TransformerFactoryInterface, TransformerInterface, _d, downcast_transformer_ref,
+    is_source_file, static_arena, transform_ecmascript_module, transform_module, try_map,
+    AllArenas, CoreTransformationContext, Debug_, HasArena, InArena, ModuleKind, SyntaxKind,
+    TransformNodesTransformationResult,
 };
 
 struct TransformNodeModule {
@@ -24,15 +24,22 @@ struct TransformNodeModule {
 }
 
 impl TransformNodeModule {
-    fn new(context: Id<TransformNodesTransformationResult>, arena: *const AllArenas) -> Transformer {
+    fn new(
+        context: Id<TransformNodesTransformationResult>,
+        arena: *const AllArenas,
+    ) -> Transformer {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
-        let esm_transform = transform_ecmascript_module(arena_ref).ref_(arena_ref).call(context.clone());
+        let esm_transform = transform_ecmascript_module(arena_ref)
+            .ref_(arena_ref)
+            .call(context.clone());
 
         let esm_on_substitute_node = context_ref.pop_overridden_on_substitute_node();
         let esm_on_emit_node = context_ref.pop_overridden_on_emit_node();
 
-        let cjs_transform = transform_module(arena_ref).ref_(arena_ref).call(context.clone());
+        let cjs_transform = transform_module(arena_ref)
+            .ref_(arena_ref)
+            .call(context.clone());
 
         let cjs_on_substitute_node = context_ref.pop_overridden_on_substitute_node();
         let cjs_on_emit_node = context_ref.pop_overridden_on_emit_node();
@@ -50,16 +57,14 @@ impl TransformNodeModule {
         }));
 
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
-            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(TransformNodeModuleOnEmitNodeOverrider::new(
-                ret,
-                previous_on_emit_node,
-            )))
+            arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
+                TransformNodeModuleOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+            ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
-            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(TransformNodeModuleOnSubstituteNodeOverrider::new(
-                ret,
-                previous_on_substitute_node,
-            )))
+            arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
+                TransformNodeModuleOnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+            ))
         });
         context_ref.enable_substitution(SyntaxKind::SourceFile);
         context_ref.enable_emit_notification(SyntaxKind::SourceFile);
@@ -75,7 +80,8 @@ impl TransformNodeModule {
     }
 
     fn get_module_transform_for_file(&self, file: Id<Node> /*SourceFile*/) -> Transformer {
-        if file.ref_(self).as_source_file().maybe_implied_node_format() == Some(ModuleKind::ESNext) {
+        if file.ref_(self).as_source_file().maybe_implied_node_format() == Some(ModuleKind::ESNext)
+        {
             self.esm_transform.clone()
         } else {
             self.cjs_transform.clone()
@@ -90,7 +96,10 @@ impl TransformNodeModule {
         }
 
         self.set_current_source_file(Some(node));
-        let result = self.get_module_transform_for_file(node).ref_(self).call(node)?;
+        let result = self
+            .get_module_transform_for_file(node)
+            .ref_(self)
+            .call(node)?;
         self.set_current_source_file(None);
         Debug_.assert(is_source_file(&result.ref_(self)), None);
         Ok(result)
@@ -113,9 +122,7 @@ impl TransformNodeModule {
             try_map(
                 &node_as_bundle.source_files,
                 |source_file: &Option<Id<Node>>, _| -> io::Result<_> {
-                    Ok(Some(
-                        self.transform_source_file(source_file.unwrap())?,
-                    ))
+                    Ok(Some(self.transform_source_file(source_file.unwrap())?))
                 },
             )?,
             Some(node_as_bundle.prepends.clone()),
@@ -171,25 +178,29 @@ impl TransformationContextOnEmitNodeOverrider for TransformNodeModuleOnEmitNodeO
             self.transform_node_module()
                 .set_current_source_file(Some(node));
         }
-        let Some(current_source_file) = self.transform_node_module().maybe_current_source_file() else {
+        let Some(current_source_file) = self.transform_node_module().maybe_current_source_file()
+        else {
             return self
                 .previous_on_emit_node
-                .ref_(self).on_emit_node(hint, node, emit_callback);
+                .ref_(self)
+                .on_emit_node(hint, node, emit_callback);
         };
         if current_source_file
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_implied_node_format()
             == Some(ModuleKind::ESNext)
         {
-            return self.transform_node_module().esm_on_emit_node.ref_(self).on_emit_node(
-                hint,
-                node,
-                emit_callback,
-            );
+            return self
+                .transform_node_module()
+                .esm_on_emit_node
+                .ref_(self)
+                .on_emit_node(hint, node, emit_callback);
         }
         self.transform_node_module()
             .cjs_on_emit_node
-            .ref_(self).on_emit_node(hint, node, emit_callback)
+            .ref_(self)
+            .on_emit_node(hint, node, emit_callback)
     }
 }
 
@@ -228,28 +239,33 @@ impl TransformationContextOnSubstituteNodeOverrider
             self.transform_node_module()
                 .set_current_source_file(Some(node));
             self.previous_on_substitute_node
-                .ref_(self).on_substitute_node(hint, node)
+                .ref_(self)
+                .on_substitute_node(hint, node)
         } else {
             let current_source_file = self.transform_node_module().maybe_current_source_file();
             if current_source_file.is_none() {
                 return self
                     .previous_on_substitute_node
-                    .ref_(self).on_substitute_node(hint, node);
+                    .ref_(self)
+                    .on_substitute_node(hint, node);
             }
             let current_source_file = current_source_file.unwrap();
             if current_source_file
-                .ref_(self).as_source_file()
+                .ref_(self)
+                .as_source_file()
                 .maybe_implied_node_format()
                 == Some(ModuleKind::ESNext)
             {
                 return self
                     .transform_node_module()
                     .esm_on_substitute_node
-                    .ref_(self).on_substitute_node(hint, node);
+                    .ref_(self)
+                    .on_substitute_node(hint, node);
             }
             self.transform_node_module()
                 .cjs_on_substitute_node
-                .ref_(self).on_substitute_node(hint, node)
+                .ref_(self)
+                .on_substitute_node(hint, node)
         }
     }
 }

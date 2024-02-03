@@ -150,11 +150,19 @@ mod _NodeArrayDeriveTraceScope {
 pub use _NodeArrayDeriveTraceScope::NodeArray;
 
 pub trait NodeArrayExt {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>, arena: &impl HasArena) -> Self;
+    fn set_text_range(
+        self,
+        location: Option<&impl ReadonlyTextRange>,
+        arena: &impl HasArena,
+    ) -> Self;
 }
 
 impl NodeArrayExt for Id<NodeArray> {
-    fn set_text_range(self, location: Option<&impl ReadonlyTextRange>, arena: &impl HasArena) -> Self {
+    fn set_text_range(
+        self,
+        location: Option<&impl ReadonlyTextRange>,
+        arena: &impl HasArena,
+    ) -> Self {
         set_text_range_node_array(self, location, arena)
     }
 }
@@ -339,7 +347,8 @@ impl Identifier {
     }
 
     pub fn set_generated_import_reference(&self, generated_import_reference: Option<Id<Node>>) {
-        self.generated_import_reference.set(generated_import_reference);
+        self.generated_import_reference
+            .set(generated_import_reference);
     }
 
     pub fn maybe_is_in_jsdoc_namespace(&self) -> Option<bool> {

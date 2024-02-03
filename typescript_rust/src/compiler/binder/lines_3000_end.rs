@@ -9,21 +9,21 @@ use crate::{
     get_element_or_property_access_name, get_expando_initializer, get_jsdoc_type_tag,
     get_leftmost_access_expression, get_name_of_declaration, get_name_or_argument,
     get_ranges_where, get_right_most_assigned_expression, has_dynamic_name, has_syntactic_modifier,
-    id_text, index_of, is_assignment_expression, is_async_function, is_binary_expression,
-    is_bindable_object_define_property_call, is_bindable_static_name_expression,
-    is_binding_pattern, is_block, is_block_or_catch_scoped, is_call_expression,
-    is_conditional_type_node, is_enum_const, is_enum_declaration, is_exports_identifier,
-    is_function_declaration, is_function_symbol, is_identifier, is_in_js_file,
-    is_jsdoc_template_tag, is_module_exports_access_expression,
+    id_text, index_of, index_of_eq, is_assignment_expression, is_async_function,
+    is_binary_expression, is_bindable_object_define_property_call,
+    is_bindable_static_name_expression, is_binding_pattern, is_block, is_block_or_catch_scoped,
+    is_call_expression, is_conditional_type_node, is_enum_const, is_enum_declaration,
+    is_exports_identifier, is_function_declaration, is_function_symbol, is_identifier,
+    is_in_js_file, is_jsdoc_template_tag, is_module_exports_access_expression,
     is_object_literal_or_class_expression_method_or_accessor, is_parameter_declaration,
     is_parameter_property_declaration, is_private_identifier, is_property_access_expression,
     is_prototype_access, is_require_call, is_require_variable_declaration, is_source_file,
     is_statement, is_statement_but_not_declaration, is_variable_declaration, is_variable_statement,
-    maybe_is_function_like_declaration, set_parent, should_preserve_const_enums, slice_after, some,
-    symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags, FlowNodeBase, HasArena,
-    HasInitializerInterface, InArena, InternalSymbolName, ModifierFlags, NamedDeclarationInterface,
-    Node, NodeFlags, NodeInterface, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
-    OptionInArena, index_of_eq, slice_after_eq,
+    maybe_is_function_like_declaration, set_parent, should_preserve_const_enums, slice_after,
+    slice_after_eq, some, symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags,
+    FlowNodeBase, HasArena, HasInitializerInterface, InArena, InternalSymbolName, ModifierFlags,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind,
 };
 
 impl Binder {
@@ -38,7 +38,8 @@ impl Binder {
         self.bind_property_assignment(
             node_as_binary_expression
                 .left
-                .ref_(self).as_has_expression()
+                .ref_(self)
+                .as_has_expression()
                 .expression(),
             node_as_binary_expression.left,
             false,
@@ -52,7 +53,8 @@ impl Binder {
     ) {
         let namespace_symbol = self.lookup_symbol_for_property_access(
             node.ref_(self).as_call_expression().arguments.ref_(self)[0]
-                .ref_(self).as_property_access_expression()
+                .ref_(self)
+                .as_property_access_expression()
                 .expression,
             None,
         );
@@ -95,7 +97,14 @@ impl Binder {
             node_as_call_expression.arguments.ref_(self)[0],
             None,
         );
-        let is_toplevel = node.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile;
+        let is_toplevel = node
+            .ref_(self)
+            .parent()
+            .ref_(self)
+            .parent()
+            .ref_(self)
+            .kind()
+            == SyntaxKind::SourceFile;
         namespace_symbol = self.bind_potentially_missing_namespaces(
             namespace_symbol,
             node_as_call_expression.arguments.ref_(self)[0],
@@ -116,7 +125,8 @@ impl Binder {
             .lookup_symbol_for_property_access(
                 node_as_binary_expression
                     .left
-                    .ref_(self).as_has_expression()
+                    .ref_(self)
+                    .as_has_expression()
                     .expression(),
                 self.maybe_container(),
             )
@@ -124,17 +134,13 @@ impl Binder {
                 self.lookup_symbol_for_property_access(
                     node_as_binary_expression
                         .left
-                        .ref_(self).as_has_expression()
+                        .ref_(self)
+                        .as_has_expression()
                         .expression(),
                     self.maybe_block_scope_container(),
                 )
             });
-        if !is_in_js_file(Some(&node.ref_(self)))
-            && !is_function_symbol(
-                parent_symbol,
-                self,
-            )
-        {
+        if !is_in_js_file(Some(&node.ref_(self))) && !is_function_symbol(parent_symbol, self) {
             return;
         }
         let root_expr = get_leftmost_access_expression(node_as_binary_expression.left, self);
@@ -155,15 +161,18 @@ impl Binder {
         if is_identifier(
             &node_as_binary_expression
                 .left
-                .ref_(self).as_has_expression()
-                .expression().ref_(self),
+                .ref_(self)
+                .as_has_expression()
+                .expression()
+                .ref_(self),
         ) && self.maybe_container() == Some(self.file())
             && is_exports_or_module_exports_or_alias(
                 self,
                 self.file(),
                 node_as_binary_expression
                     .left
-                    .ref_(self).as_has_expression()
+                    .ref_(self)
+                    .as_has_expression()
                     .expression(),
             )
         {
@@ -178,7 +187,8 @@ impl Binder {
                 parent_symbol,
                 node_as_binary_expression
                     .left
-                    .ref_(self).as_has_expression()
+                    .ref_(self)
+                    .as_has_expression()
                     .expression(),
                 self.is_top_level_namespace_assignment(node_as_binary_expression.left),
                 false,
@@ -243,23 +253,33 @@ impl Binder {
                         } else {
                             let file = self.file();
                             let file_ref = file.ref_(self);
-                            if file_ref.as_source_file().maybe_js_global_augmentations().is_none() {
-                                file_ref.as_source_file().set_js_global_augmentations(
-                                    Some(self.alloc_symbol_table(create_symbol_table(
+                            if file_ref
+                                .as_source_file()
+                                .maybe_js_global_augmentations()
+                                .is_none()
+                            {
+                                file_ref.as_source_file().set_js_global_augmentations(Some(
+                                    self.alloc_symbol_table(create_symbol_table(
                                         self.arena(),
                                         Option::<&[Id<Symbol>]>::None,
-                                    )))
-                                );
+                                    )),
+                                ));
                             }
-                            Some(self.declare_symbol(
-                                &mut file_ref.as_source_file().maybe_js_global_augmentations().unwrap().ref_mut(self),
-                                parent,
-                                id,
-                                flags,
-                                exclude_flags,
-                                None,
-                                None,
-                            ))
+                            Some(
+                                self.declare_symbol(
+                                    &mut file_ref
+                                        .as_source_file()
+                                        .maybe_js_global_augmentations()
+                                        .unwrap()
+                                        .ref_mut(self),
+                                    parent,
+                                    id,
+                                    flags,
+                                    exclude_flags,
+                                    None,
+                                    None,
+                                ),
+                            )
                         }
                     }
                 },
@@ -297,22 +317,21 @@ impl Binder {
 
         let namespace_symbol_ref = namespace_symbol.ref_(self);
         let symbol_table = {
-            let symbol_table =
-                if is_prototype_property {
-                    if namespace_symbol_ref.maybe_members().is_none() {
-                        namespace_symbol_ref.set_members(Some(self.alloc_symbol_table(
-                            create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                        )));
-                    }
-                    namespace_symbol_ref.maybe_members()
-                } else {
-                    if namespace_symbol_ref.maybe_exports().is_none() {
-                        namespace_symbol_ref.set_exports(Some(self.alloc_symbol_table(
-                            create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                        )));
-                    }
-                    namespace_symbol_ref.maybe_exports()
-                };
+            let symbol_table = if is_prototype_property {
+                if namespace_symbol_ref.maybe_members().is_none() {
+                    namespace_symbol_ref.set_members(Some(self.alloc_symbol_table(
+                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                    )));
+                }
+                namespace_symbol_ref.maybe_members()
+            } else {
+                if namespace_symbol_ref.maybe_exports().is_none() {
+                    namespace_symbol_ref.set_exports(Some(self.alloc_symbol_table(
+                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                    )));
+                }
+                namespace_symbol_ref.maybe_exports()
+            };
             let symbol_table = symbol_table.clone().unwrap();
             symbol_table
         };
@@ -320,7 +339,9 @@ impl Binder {
         let mut includes = SymbolFlags::None;
         let mut excludes = SymbolFlags::None;
         if maybe_is_function_like_declaration(
-            get_assigned_expando_initializer(Some(declaration), self).refed(self).as_deref(),
+            get_assigned_expando_initializer(Some(declaration), self)
+                .refed(self)
+                .as_deref(),
         ) {
             includes = SymbolFlags::Method;
             excludes = SymbolFlags::MethodExcludes;
@@ -332,8 +353,10 @@ impl Binder {
             if some(
                 Some(
                     &*declaration_as_call_expression.arguments.ref_(self)[2]
-                        .ref_(self).as_object_literal_expression()
-                        .properties.ref_(self),
+                        .ref_(self)
+                        .as_object_literal_expression()
+                        .properties
+                        .ref_(self),
                 ),
                 Some(|&p: &Id<Node>| {
                     let id = get_name_of_declaration(Some(p), self);
@@ -349,8 +372,10 @@ impl Binder {
             if some(
                 Some(
                     &*declaration_as_call_expression.arguments.ref_(self)[2]
-                        .ref_(self).as_object_literal_expression()
-                        .properties.ref_(self),
+                        .ref_(self)
+                        .as_object_literal_expression()
+                        .properties
+                        .ref_(self),
                 ),
                 Some(|&p: &Id<Node>| {
                     let id = get_name_of_declaration(Some(p), self);
@@ -387,11 +412,20 @@ impl Binder {
     ) -> bool {
         if is_binary_expression(&property_access.ref_(self).parent().ref_(self)) {
             self.get_parent_of_binary_expression(property_access.ref_(self).parent())
-                .ref_(self).parent()
-                .ref_(self).kind()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
                 == SyntaxKind::SourceFile
         } else {
-            property_access.ref_(self).parent().ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile
+            property_access
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .kind()
+                == SyntaxKind::SourceFile
         }
     }
 
@@ -438,11 +472,21 @@ impl Binder {
         }
         let init = node.and_then(|node| {
             if is_variable_declaration(&node.ref_(self)) {
-                node.ref_(self).as_variable_declaration().maybe_initializer()
+                node.ref_(self)
+                    .as_variable_declaration()
+                    .maybe_initializer()
             } else if is_binary_expression(&node.ref_(self)) {
                 Some(node.ref_(self).as_binary_expression().right)
-            } else if is_property_access_expression(&node.ref_(self)) && is_binary_expression(&node.ref_(self).parent().ref_(self)) {
-                Some(node.ref_(self).parent().ref_(self).as_binary_expression().right)
+            } else if is_property_access_expression(&node.ref_(self))
+                && is_binary_expression(&node.ref_(self).parent().ref_(self))
+            {
+                Some(
+                    node.ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_binary_expression()
+                        .right,
+                )
             } else {
                 None
             }
@@ -450,18 +494,24 @@ impl Binder {
         let init = init.map(|init| get_right_most_assigned_expression(init, self));
         if let Some(init) = init {
             let node = node.unwrap();
-            let is_prototype_assignment =
-                is_prototype_access(if is_variable_declaration(&node.ref_(self)) {
+            let is_prototype_assignment = is_prototype_access(
+                if is_variable_declaration(&node.ref_(self)) {
                     node.ref_(self).as_variable_declaration().name()
                 } else if is_binary_expression(&node.ref_(self)) {
                     node.ref_(self).as_binary_expression().left
                 } else {
                     node
-                }, self);
+                },
+                self,
+            );
             return get_expando_initializer(
                 if is_binary_expression(&init.ref_(self))
                     && matches!(
-                        init.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
+                        init.ref_(self)
+                            .as_binary_expression()
+                            .operator_token
+                            .ref_(self)
+                            .kind(),
                         SyntaxKind::BarBarToken | SyntaxKind::QuestionQuestionToken
                     )
                 {
@@ -491,7 +541,11 @@ impl Binder {
     ) -> Option<Id<Symbol>> {
         let lookup_container = lookup_container.unwrap_or_else(|| self.container());
         if is_identifier(&node.ref_(self)) {
-            lookup_symbol_for_name(self, lookup_container, &node.ref_(self).as_identifier().escaped_text)
+            lookup_symbol_for_name(
+                self,
+                lookup_container,
+                &node.ref_(self).as_identifier().escaped_text,
+            )
         } else {
             let symbol = self.lookup_symbol_for_property_access(
                 node.ref_(self).as_has_expression().expression(),
@@ -549,7 +603,8 @@ impl Binder {
     pub(super) fn bind_call_expression(&self, node: Id<Node> /*CallExpression*/) {
         if self
             .file()
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_common_js_module_indicator()
             .is_none()
             && is_require_call(node, false, self)
@@ -594,20 +649,23 @@ impl Binder {
                 set_parent(&name.ref_(self), Some(node));
             }
             self.file()
-                .ref_(self).as_source_file()
+                .ref_(self)
+                .as_source_file()
                 .bind_diagnostics_mut()
-                .push(self.alloc_diagnostic(
-                    self.create_diagnostic_for_node(
-                        symbol_export
-                            .ref_(self)
-                            .maybe_declarations()
-                            .as_ref()
-                            .unwrap()[0],
-                        &Diagnostics::Duplicate_identifier_0,
-                        Some(vec![symbol_name(prototype_symbol, self)]),
-                    )
-                    .into(),
-                ));
+                .push(
+                    self.alloc_diagnostic(
+                        self.create_diagnostic_for_node(
+                            symbol_export
+                                .ref_(self)
+                                .maybe_declarations()
+                                .as_ref()
+                                .unwrap()[0],
+                            &Diagnostics::Duplicate_identifier_0,
+                            Some(vec![symbol_name(prototype_symbol, self)]),
+                        )
+                        .into(),
+                    ),
+                );
         }
         symbol_exports.insert(
             prototype_symbol.ref_(self).escaped_name().to_owned(),
@@ -681,7 +739,9 @@ impl Binder {
             return;
         }
         let node_name = match node.ref_(self).kind() {
-            SyntaxKind::JSDocParameterTag => Some(node.ref_(self).as_jsdoc_property_like_tag().name),
+            SyntaxKind::JSDocParameterTag => {
+                Some(node.ref_(self).as_jsdoc_property_like_tag().name)
+            }
             _ => node.ref_(self).as_named_declaration().maybe_name(),
         };
         if self.maybe_in_strict_mode() == Some(true)
@@ -697,7 +757,13 @@ impl Binder {
                 format!(
                     "__{}",
                     index_of_eq(
-                        &*node.ref_(self).parent().ref_(self).as_signature_declaration().parameters().ref_(self),
+                        &*node
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .as_signature_declaration()
+                            .parameters()
+                            .ref_(self),
                         &node,
                     )
                 ),
@@ -713,11 +779,21 @@ impl Binder {
         if is_parameter_property_declaration(node, node.ref_(self).parent(), self) {
             let class_declaration = node.ref_(self).parent().ref_(self).parent();
             self.declare_symbol(
-                &mut class_declaration.ref_(self).symbol().ref_(self).members().ref_mut(self),
+                &mut class_declaration
+                    .ref_(self)
+                    .symbol()
+                    .ref_(self)
+                    .members()
+                    .ref_mut(self),
                 Some(class_declaration.ref_(self).symbol()),
                 node,
                 SymbolFlags::Property
-                    | if node.ref_(self).as_parameter_declaration().question_token.is_some() {
+                    | if node
+                        .ref_(self)
+                        .as_parameter_declaration()
+                        .question_token
+                        .is_some()
+                    {
                         SymbolFlags::Optional
                     } else {
                         SymbolFlags::None
@@ -730,7 +806,11 @@ impl Binder {
     }
 
     pub(super) fn bind_function_declaration(&self, node: Id<Node> /*FunctionDeclaration*/) {
-        if !self.file().ref_(self).as_source_file().is_declaration_file()
+        if !self
+            .file()
+            .ref_(self)
+            .as_source_file()
+            .is_declaration_file()
             && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
         {
             if is_async_function(node, self) {
@@ -759,7 +839,11 @@ impl Binder {
         &self,
         node: Id<Node>, /*FunctionExpression (actually also ArrowFunction)*/
     ) -> Id<Symbol> {
-        if !self.file().ref_(self).as_source_file().is_declaration_file()
+        if !self
+            .file()
+            .ref_(self)
+            .as_source_file()
+            .is_declaration_file()
             && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
         {
             if is_async_function(node, self) {
@@ -783,7 +867,11 @@ impl Binder {
         symbol_flags: SymbolFlags,
         symbol_excludes: SymbolFlags,
     ) -> Option<Id<Symbol>> {
-        if !self.file().ref_(self).as_source_file().is_declaration_file()
+        if !self
+            .file()
+            .ref_(self)
+            .as_source_file()
+            .is_declaration_file()
             && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
             && is_async_function(node, self)
         {
@@ -813,11 +901,13 @@ impl Binder {
     ) -> Option<Id<Node /*ConditionalTypeNode*/>> {
         let extends_type = find_ancestor(
             Some(node),
-            |n| matches!(
-                n.ref_(self).maybe_parent(),
-                Some(parent) if is_conditional_type_node(&parent.ref_(self))
-                    && parent.ref_(self).as_conditional_type_node().extends_type == n
-            ),
+            |n| {
+                matches!(
+                    n.ref_(self).maybe_parent(),
+                    Some(parent) if is_conditional_type_node(&parent.ref_(self))
+                        && parent.ref_(self).as_conditional_type_node().extends_type == n
+                )
+            },
             self,
         );
         extends_type.map(|extends_type| extends_type.ref_(self).parent())
@@ -825,7 +915,8 @@ impl Binder {
 
     pub(super) fn bind_type_parameter(&self, node: Id<Node> /*TypeParameterDeclaration*/) {
         if is_jsdoc_template_tag(&node.ref_(self).parent().ref_(self)) {
-            let container = get_effective_container_for_jsdoc_template_tag(node.ref_(self).parent(), self);
+            let container =
+                get_effective_container_for_jsdoc_template_tag(node.ref_(self).parent(), self);
             if let Some(container) = container {
                 let container_ref = container.ref_(self);
                 let mut container_locals = container_ref.maybe_locals_mut();
@@ -900,7 +991,8 @@ impl Binder {
     pub(super) fn check_unreachable(&self, node: Id<Node>) -> bool {
         if !self
             .current_flow()
-            .ref_(self).flags()
+            .ref_(self)
+            .flags()
             .intersects(FlowFlags::Unreachable)
         {
             return false;
@@ -925,23 +1017,33 @@ impl Binder {
                             )
                             .intersects(NodeFlags::BlockScoped)
                             || node
-                                .ref_(self).as_variable_statement()
+                                .ref_(self)
+                                .as_variable_statement()
                                 .declaration_list
-                                .ref_(self).as_variable_declaration_list()
+                                .ref_(self)
+                                .as_variable_declaration_list()
                                 .declarations
-                                .ref_(self).iter()
+                                .ref_(self)
+                                .iter()
                                 .any(|d| {
-                                    d.ref_(self).as_variable_declaration().maybe_initializer().is_some()
+                                    d.ref_(self)
+                                        .as_variable_declaration()
+                                        .maybe_initializer()
+                                        .is_some()
                                 }));
 
-                    each_unreachable_range(node, |start, end| {
-                        self.error_or_suggestion_on_range(
-                            is_error,
-                            start,
-                            end,
-                            &Diagnostics::Unreachable_code_detected,
-                        )
-                    }, self);
+                    each_unreachable_range(
+                        node,
+                        |start, end| {
+                            self.error_or_suggestion_on_range(
+                                is_error,
+                                start,
+                                end,
+                                &Diagnostics::Unreachable_code_detected,
+                            )
+                        },
+                        self,
+                    );
                 }
             }
         }
@@ -949,8 +1051,15 @@ impl Binder {
     }
 }
 
-fn each_unreachable_range(node: Id<Node>, mut cb: impl FnMut(Id<Node>, Id<Node>), arena: &impl HasArena) {
-    if is_statement(node, arena) && is_executable_statement(node, arena) && is_block(&node.ref_(arena).parent().ref_(arena)) {
+fn each_unreachable_range(
+    node: Id<Node>,
+    mut cb: impl FnMut(Id<Node>, Id<Node>),
+    arena: &impl HasArena,
+) {
+    if is_statement(node, arena)
+        && is_executable_statement(node, arena)
+        && is_block(&node.ref_(arena).parent().ref_(arena))
+    {
         let node_parent = node.ref_(arena).parent();
         let node_parent_ref = node_parent.ref_(arena);
         let statements = &node_parent_ref.as_block().statements;
@@ -972,12 +1081,20 @@ fn is_executable_statement(s: Id<Node> /*Statement*/, arena: &impl HasArena) -> 
         && !is_enum_declaration(&s.ref_(arena))
         && !(is_variable_statement(&s.ref_(arena))
             && !get_combined_node_flags(s, arena).intersects(NodeFlags::Let | NodeFlags::Const)
-            && s.ref_(arena).as_variable_statement()
+            && s.ref_(arena)
+                .as_variable_statement()
                 .declaration_list
-                .ref_(arena).as_variable_declaration_list()
+                .ref_(arena)
+                .as_variable_declaration_list()
                 .declarations
-                .ref_(arena).iter()
-                .any(|d| d.ref_(arena).as_variable_declaration().maybe_initializer().is_none()))
+                .ref_(arena)
+                .iter()
+                .any(|d| {
+                    d.ref_(arena)
+                        .as_variable_declaration()
+                        .maybe_initializer()
+                        .is_none()
+                }))
 }
 
 fn is_purely_type_declaration(s: Id<Node> /*Statement*/, arena: &impl HasArena) -> bool {
@@ -994,32 +1111,39 @@ fn is_purely_type_declaration(s: Id<Node> /*Statement*/, arena: &impl HasArena) 
 pub fn is_exports_or_module_exports_or_alias(
     binder: &Binder,
     source_file: Id<Node>, /*SourceFile*/
-    mut node: Id<Node>,        /*Expression*/
+    mut node: Id<Node>,    /*Expression*/
 ) -> bool {
     let mut i = 0;
     let mut q = vec![node];
     while !q.is_empty() && i < 100 {
         i += 1;
         node = q.remove(0);
-        if is_exports_identifier(&node.ref_(binder)) || is_module_exports_access_expression(node, binder) {
+        if is_exports_identifier(&node.ref_(binder))
+            || is_module_exports_access_expression(node, binder)
+        {
             return true;
         } else if is_identifier(&node.ref_(binder)) {
-            let symbol =
-                lookup_symbol_for_name(binder, source_file, &node.ref_(binder).as_identifier().escaped_text);
+            let symbol = lookup_symbol_for_name(
+                binder,
+                source_file,
+                &node.ref_(binder).as_identifier().escaped_text,
+            );
             if let Some(symbol) = symbol {
-                if let Some(symbol_value_declaration) =
-                    symbol.ref_(binder)
+                if let Some(symbol_value_declaration) = symbol
+                    .ref_(binder)
                     .maybe_value_declaration()
                     .filter(|value_declaration| {
                         is_variable_declaration(&value_declaration.ref_(binder))
                             && value_declaration
-                                .ref_(binder).as_variable_declaration()
+                                .ref_(binder)
+                                .as_variable_declaration()
                                 .maybe_initializer()
                                 .is_some()
                     })
                 {
                     let init = symbol_value_declaration
-                        .ref_(binder).as_variable_declaration()
+                        .ref_(binder)
+                        .as_variable_declaration()
                         .maybe_initializer()
                         .unwrap();
                     q.push(init);
@@ -1042,20 +1166,20 @@ pub(super) fn lookup_symbol_for_name(
     name: &str, /*__String*/
 ) -> Option<Id<Symbol>> {
     let container_locals = container.ref_(binder).maybe_locals();
-    let local = container_locals
-        .and_then(|locals| locals.ref_(binder).get(name).cloned());
+    let local = container_locals.and_then(|locals| locals.ref_(binder).get(name).cloned());
     if let Some(local) = local {
         return Some(
             local
-                .ref_(binder).maybe_export_symbol()
+                .ref_(binder)
+                .maybe_export_symbol()
                 .unwrap_or_else(|| local.clone()),
         );
     }
     if is_source_file(&container.ref_(binder)) {
         let container_ref = container.ref_(binder);
         let container_as_source_file = container_ref.as_source_file();
-        if let Some(container_js_global_augmentations) = container_as_source_file
-            .maybe_js_global_augmentations()
+        if let Some(container_js_global_augmentations) =
+            container_as_source_file.maybe_js_global_augmentations()
         {
             let container_js_global_augmentations = container_js_global_augmentations.ref_(binder);
             if container_js_global_augmentations.contains_key(name) {
@@ -1064,7 +1188,8 @@ pub(super) fn lookup_symbol_for_name(
         };
     }
     container
-        .ref_(binder).maybe_symbol()
+        .ref_(binder)
+        .maybe_symbol()
         .and_then(|symbol| symbol.ref_(binder).maybe_exports().clone())
         .and_then(|exports| exports.ref_(binder).get(name).cloned())
 }

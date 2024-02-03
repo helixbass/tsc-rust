@@ -11,9 +11,10 @@ use crate::{
     TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
     get_object_flags, get_source_file_of_node, is_call_signature_declaration,
     is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
-    try_some, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext, InferenceFlags,
-    InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature, Symbol, SymbolFlags,
-    Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction, WideningContext, AllArenas,
+    try_some, AllArenas, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext,
+    InferenceFlags, InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature,
+    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    WideningContext,
 };
 
 impl TypeChecker {
@@ -446,10 +447,13 @@ impl TypeChecker {
                         || is_method_signature(&param.ref_(self).parent().ref_(self))
                         || is_function_type_node(&param.ref_(self).parent().ref_(self)))
                     && param
-                        .ref_(self).parent()
-                        .ref_(self).as_signature_declaration()
+                        .ref_(self)
+                        .parent()
+                        .ref_(self)
+                        .as_signature_declaration()
                         .parameters()
-                        .ref_(self).into_iter()
+                        .ref_(self)
+                        .into_iter()
                         .position(|&parameter: &Id<Node>| param == parameter)
                         .is_some()
                     && (self
@@ -457,14 +461,16 @@ impl TypeChecker {
                             Some(param),
                             &param_as_parameter_declaration
                                 .name()
-                                .ref_(self).as_identifier()
+                                .ref_(self)
+                                .as_identifier()
                                 .escaped_text,
                             SymbolFlags::Type,
                             None,
                             Some(
                                 &*param_as_parameter_declaration
                                     .name()
-                                    .ref_(self).as_identifier()
+                                    .ref_(self)
+                                    .as_identifier()
                                     .escaped_text,
                             ),
                             true,
@@ -479,17 +485,23 @@ impl TypeChecker {
                     let new_name = format!(
                         "arg{}",
                         param
-                            .ref_(self).parent()
-                            .ref_(self).as_signature_declaration()
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .as_signature_declaration()
                             .parameters()
-                            .ref_(self).into_iter()
+                            .ref_(self)
+                            .into_iter()
                             .position(|&parameter: &Id<Node>| param == parameter)
                             .unwrap()
                             .to_string()
                     );
                     let type_name = format!(
                         "{}{}",
-                        declaration_name_to_string(Some(param_as_parameter_declaration.name()), self),
+                        declaration_name_to_string(
+                            Some(param_as_parameter_declaration.name()),
+                            self
+                        ),
                         if param_as_parameter_declaration.dot_dot_dot_token.is_some() {
                             "[]"
                         } else {
@@ -505,7 +517,8 @@ impl TypeChecker {
                     return Ok(());
                 }
                 diagnostic = if declaration
-                    .ref_(self).as_parameter_declaration()
+                    .ref_(self)
+                    .as_parameter_declaration()
                     .dot_dot_dot_token
                     .is_some()
                 {
@@ -545,7 +558,12 @@ impl TypeChecker {
             | SyntaxKind::SetAccessor
             | SyntaxKind::FunctionExpression
             | SyntaxKind::ArrowFunction => {
-                if self.no_implicit_any && declaration.ref_(self).as_named_declaration().maybe_name().is_none()
+                if self.no_implicit_any
+                    && declaration
+                        .ref_(self)
+                        .as_named_declaration()
+                        .maybe_name()
+                        .is_none()
                 {
                     if widening_kind == Some(WideningKind::GeneratorYield) {
                         self.error(
@@ -597,7 +615,8 @@ impl TypeChecker {
             declaration,
             diagnostic,
             Some(vec![
-                declaration_name_to_string(get_name_of_declaration(Some(declaration), self), self).into_owned(),
+                declaration_name_to_string(get_name_of_declaration(Some(declaration), self), self)
+                    .into_owned(),
                 type_as_string,
             ]),
         );
@@ -682,8 +701,11 @@ impl TypeChecker {
         if let Some(source_type_predicate) = source_type_predicate {
             if let Some(target_type_predicate) = target_type_predicate {
                 if self.type_predicate_kinds_match(source_type_predicate, target_type_predicate) {
-                    if let Some(source_type_predicate_type) = source_type_predicate.ref_(self).type_ {
-                        if let Some(target_type_predicate_type) = target_type_predicate.ref_(self).type_ {
+                    if let Some(source_type_predicate_type) = source_type_predicate.ref_(self).type_
+                    {
+                        if let Some(target_type_predicate_type) =
+                            target_type_predicate.ref_(self).type_
+                        {
                             callback(source_type_predicate_type, target_type_predicate_type)?;
                             took_if_branch = true;
                         }
@@ -763,12 +785,16 @@ impl TypeChecker {
             None,
             None,
         ));
-        context.ref_(self).set_mapper(self.make_function_type_mapper(
-            CreateInferenceContextWorkerMapperCallback::new(context.clone()),
-        ));
-        context.ref_(self).set_non_fixing_mapper(self.make_function_type_mapper(
-            CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
-        ));
+        context
+            .ref_(self)
+            .set_mapper(self.make_function_type_mapper(
+                CreateInferenceContextWorkerMapperCallback::new(context.clone()),
+            ));
+        context
+            .ref_(self)
+            .set_non_fixing_mapper(self.make_function_type_mapper(
+                CreateInferenceContextWorkerNonFixingMapperCallback::new(context.clone()),
+            ));
         context
     }
 
@@ -825,9 +851,10 @@ impl TypeChecker {
         &self,
         context: Id<InferenceContext>,
     ) -> Option<Id<InferenceContext>> {
-        let inferences = filter(&context.ref_(self).inferences(), |inference: &Id<InferenceInfo>| {
-            self.has_inference_candidates(&inference.ref_(self))
-        });
+        let inferences = filter(
+            &context.ref_(self).inferences(),
+            |inference: &Id<InferenceInfo>| self.has_inference_candidates(&inference.ref_(self)),
+        );
         if !inferences.is_empty() {
             Some(self.create_inference_context_worker(
                 map(&inferences, |inference: &Id<InferenceInfo>, _| {
@@ -1058,12 +1085,11 @@ impl TypeChecker {
         Ok(
             !get_object_flags(&type_.ref_(self)).intersects(ObjectFlags::NonInferrableType)
                 || self.is_object_literal_type(type_)
-                    && self
-                        .get_properties_of_type(type_)?
-                        .into_iter()
-                        .try_any(|prop: Id<Symbol>| {
+                    && self.get_properties_of_type(type_)?.into_iter().try_any(
+                        |prop: Id<Symbol>| {
                             self.is_partially_inferable_type(self.get_type_of_symbol(prop)?)
-                        })?
+                        },
+                    )?
                 || self.is_tuple_type(type_)
                     && try_some(
                         Some(&self.get_type_arguments(type_)?),

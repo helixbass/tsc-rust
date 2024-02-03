@@ -9,9 +9,8 @@ use crate::{
     is_binding_pattern, is_entity_name_expression, is_export_assignment, is_export_declaration,
     is_external_module, is_internal_declaration, return_ok_default_if_none, some, try_map_defined,
     try_visit_nodes, AllAccessorDeclarations, Debug_, GetSymbolAccessibilityDiagnostic, HasArena,
-    HasTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec,
-    NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind,
-    InArena,
+    HasTypeInterface, InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeInterface, OptionTry, SignatureDeclarationInterface, SyntaxKind,
 };
 
 impl TransformDeclarations {
@@ -24,8 +23,10 @@ impl TransformDeclarations {
         if !for_each_bool(
             &*input_as_variable_statement
                 .declaration_list
-                .ref_(self).as_variable_declaration_list()
-                .declarations.ref_(self),
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(self),
             |&declaration: &Id<Node>, _| self.get_binding_name_visible(declaration),
         ) {
             return Ok(None);
@@ -33,7 +34,8 @@ impl TransformDeclarations {
         let nodes = return_ok_default_if_none!(Some(try_visit_nodes(
             input_as_variable_statement
                 .declaration_list
-                .ref_(self).as_variable_declaration_list()
+                .ref_(self)
+                .as_variable_declaration_list()
                 .declarations,
             Some(|node: Id<Node>| self.visit_declaration_subtree(node)),
             Option::<fn(Id<Node>) -> bool>::None,
@@ -49,7 +51,8 @@ impl TransformDeclarations {
                 input,
                 Some(
                     self.factory
-                        .ref_(self).create_node_array(self.ensure_modifiers(input), None),
+                        .ref_(self)
+                        .create_node_array(self.ensure_modifiers(input), None),
                 ),
                 self.factory.ref_(self).update_variable_declaration_list(
                     input_as_variable_statement.declaration_list,
@@ -109,15 +112,18 @@ impl TransformDeclarations {
         self.set_error_name_node(node.ref_(self).as_named_declaration().maybe_name());
         Debug_.assert(
             self.resolver.ref_(self).is_late_bound(
-                get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self).unwrap(),
+                get_parse_tree_node(Some(node), Option::<fn(Id<Node>) -> bool>::None, self)
+                    .unwrap(),
             )?,
             None,
         );
         let decl = node;
         let entity_name = decl
-            .ref_(self).as_named_declaration()
+            .ref_(self)
+            .as_named_declaration()
             .name()
-            .ref_(self).as_has_expression()
+            .ref_(self)
+            .as_has_expression()
             .expression();
         self.check_entity_name_visibility(entity_name, self.enclosing_declaration())?;
         if self.maybe_suppress_new_diagnostic_contexts() != Some(true) {
@@ -152,7 +158,8 @@ impl TransformDeclarations {
         }
         Some(
             self.factory
-                .ref_(self).create_modifiers_from_modifier_flags(new_flags)
+                .ref_(self)
+                .create_modifiers_from_modifier_flags(new_flags)
                 .into(),
         )
     }
@@ -167,7 +174,9 @@ impl TransformDeclarations {
         };
         let parent_is_file = node.ref_(self).parent().ref_(self).kind() == SyntaxKind::SourceFile;
         if !parent_is_file
-            || self.is_bundled_emit() && parent_is_file && is_external_module(&node.ref_(self).parent().ref_(self))
+            || self.is_bundled_emit()
+                && parent_is_file
+                && is_external_module(&node.ref_(self).parent().ref_(self))
         {
             mask ^= ModifierFlags::Ambient;
             additions = ModifierFlags::None;
@@ -194,7 +203,10 @@ impl TransformDeclarations {
             {
                 accessor_type = get_type_annotation_from_accessor(accessors_second_accessor, self);
                 self.set_get_symbol_accessibility_diagnostic(
-                    create_get_symbol_accessibility_diagnostic_for_node(accessors_second_accessor, self),
+                    create_get_symbol_accessibility_diagnostic_for_node(
+                        accessors_second_accessor,
+                        self,
+                    ),
                 );
             }
         }
@@ -208,7 +220,7 @@ impl TransformDeclarations {
         Ok(self.factory.ref_(self).create_node_array(
             nodes.try_map(|nodes| -> io::Result<_> {
                 let mut ret = vec![];
-                for &clause in &*nodes.ref_(self){
+                for &clause in &*nodes.ref_(self) {
                     let clause_ref = clause.ref_(self);
                     let clause_as_heritage_clause = clause_ref.as_heritage_clause();
                     let clause = self.factory.ref_(self).update_heritage_clause(
@@ -218,10 +230,12 @@ impl TransformDeclarations {
                                 Some(
                                     clause_as_heritage_clause
                                         .types
-                                        .ref_(self).iter()
+                                        .ref_(self)
+                                        .iter()
                                         .filter(|t| {
                                             let t_ref = t.ref_(self);
-                                            let t_as_expression_with_type_arguments = t_ref.as_expression_with_type_arguments();
+                                            let t_as_expression_with_type_arguments =
+                                                t_ref.as_expression_with_type_arguments();
                                             is_entity_name_expression(
                                                 t_as_expression_with_type_arguments.expression,
                                                 self,
@@ -229,7 +243,8 @@ impl TransformDeclarations {
                                                 == SyntaxKind::ExtendsKeyword
                                                 && t_as_expression_with_type_arguments
                                                     .expression
-                                                    .ref_(self).kind()
+                                                    .ref_(self)
+                                                    .kind()
                                                     == SyntaxKind::NullKeyword
                                         })
                                         .cloned()
@@ -246,7 +261,13 @@ impl TransformDeclarations {
                     );
                     if
                     /*clause.types &&*/
-                    !clause.ref_(self).as_heritage_clause().types.ref_(self).is_empty() {
+                    !clause
+                        .ref_(self)
+                        .as_heritage_clause()
+                        .types
+                        .ref_(self)
+                        .is_empty()
+                    {
                         ret.push(clause);
                     }
                 }
@@ -303,13 +324,23 @@ pub(super) fn get_type_annotation_from_accessor(
 ) -> Option<Id<Node /*TypeNode*/>> {
     // if (accessor) {
     if accessor.ref_(arena).kind() == SyntaxKind::GetAccessor {
-        accessor.ref_(arena).as_get_accessor_declaration().maybe_type()
+        accessor
+            .ref_(arena)
+            .as_get_accessor_declaration()
+            .maybe_type()
     } else {
         let accessor_ref = accessor.ref_(arena);
         let accessor_as_set_accessor_declaration = accessor_ref.as_set_accessor_declaration();
-        if !accessor_as_set_accessor_declaration.parameters().ref_(arena).is_empty() {
-            accessor_as_set_accessor_declaration.parameters().ref_(arena)[0]
-                .ref_(arena).as_parameter_declaration()
+        if !accessor_as_set_accessor_declaration
+            .parameters()
+            .ref_(arena)
+            .is_empty()
+        {
+            accessor_as_set_accessor_declaration
+                .parameters()
+                .ref_(arena)[0]
+                .ref_(arena)
+                .as_parameter_declaration()
                 .maybe_type()
         } else {
             None

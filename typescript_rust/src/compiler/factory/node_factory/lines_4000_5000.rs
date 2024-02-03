@@ -3,21 +3,20 @@ use local_macros::generate_node_factory_method_wrapper;
 
 use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_children_flags};
 use crate::{
-    escape_leading_underscores, get_jsdoc_type_alias_name,
-    has_node_array_changed, has_option_node_array_changed, is_variable_declaration, AssertClause,
-    AssertEntry, BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory,
-    CaseClause, CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration,
-    ExportSpecifier, ExternalModuleReference, HasTypeArgumentsInterface, HeritageClause,
-    ImportSpecifier, JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType,
-    JSDocImplementsTag, JSDocLink, JSDocLinkCode, JSDocLinkPlain, JSDocMemberName,
-    JSDocNameReference, JSDocPropertyLikeTag, JSDocSeeTag, JSDocSignature, JSDocTemplateTag,
-    JSDocText, JSDocTypeExpression, JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes,
-    JsxClosingElement, JsxClosingFragment, JsxElement, JsxExpression, JsxFragment,
-    JsxOpeningElement, JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
+    escape_leading_underscores, get_jsdoc_type_alias_name, has_node_array_changed,
+    has_option_node_array_changed, is_variable_declaration, AssertClause, AssertEntry,
+    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause,
+    CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    ExternalModuleReference, HasTypeArgumentsInterface, HeritageClause, ImportSpecifier, InArena,
+    JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
+    JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,
+    JSDocSeeTag, JSDocSignature, JSDocTemplateTag, JSDocText, JSDocTypeExpression,
+    JSDocTypeLiteral, JSDocTypedefTag, JsxAttribute, JsxAttributes, JsxClosingElement,
+    JsxClosingFragment, JsxElement, JsxExpression, JsxFragment, JsxOpeningElement,
+    JsxOpeningFragment, JsxSelfClosingElement, JsxSpreadAttribute, JsxText,
     LiteralLikeNodeInterface, MissingDeclaration, NamedExports, NamedImports, NamespaceExport,
-    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, StrOrRcNode,
-    StringOrNodeArray, SyntaxKind, TransformFlags,
-    InArena, OptionInArena,
+    NamespaceImport, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeInterface, OptionInArena,
+    StrOrRcNode, StringOrNodeArray, SyntaxKind, TransformFlags,
 };
 
 impl NodeFactory {
@@ -70,9 +69,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_assert_entry = node_ref.as_assert_entry();
-        if node_as_assert_entry.name != name
-            || node_as_assert_entry.value != value
-        {
+        if node_as_assert_entry.name != name || node_as_assert_entry.value != value {
             self.update(self.create_assert_entry(name, value), node)
         } else {
             node
@@ -213,10 +210,12 @@ impl NodeFactory {
             is_export_equals,
             if matches!(is_export_equals, Some(true)) {
                 self.parenthesizer_rules()
-                    .ref_(self).parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, expression)
+                    .ref_(self)
+                    .parenthesize_right_side_of_binary(SyntaxKind::EqualsToken, None, expression)
             } else {
                 self.parenthesizer_rules()
-                    .ref_(self).parenthesize_expression_of_export_default(expression)
+                    .ref_(self)
+                    .parenthesize_expression_of_export_default(expression)
             },
         );
         node.add_transform_flags(propagate_child_flags(Some(node.expression), self));
@@ -512,7 +511,11 @@ impl NodeFactory {
         let default_tag_name = get_default_tag_name_for_kind(node.ref_(self).kind());
         let node_ref = node.ref_(self);
         let node_as_jsdoc_tag = node_ref.as_jsdoc_tag();
-        if node_as_jsdoc_tag.tag_name().ref_(self).as_identifier().escaped_text
+        if node_as_jsdoc_tag
+            .tag_name()
+            .ref_(self)
+            .as_identifier()
+            .escaped_text
             == escape_leading_underscores(default_tag_name)
         {
             node_as_jsdoc_tag.tag_name()
@@ -707,7 +710,8 @@ impl NodeFactory {
         let node = self.create_base_node(SyntaxKind::JSDocMemberName);
         let node = JSDocMemberName::new(node, left, right);
         node.add_transform_flags(
-            propagate_child_flags(Some(node.left), self) | propagate_child_flags(Some(node.right), self),
+            propagate_child_flags(Some(node.left), self)
+                | propagate_child_flags(Some(node.right), self),
         );
         node
     }
@@ -882,8 +886,7 @@ impl NodeFactory {
         let type_arguments = type_arguments.map(Into::into);
         if node_as_jsx_self_closing_element.tag_name != tag_name
             || has_option_node_array_changed(
-                node_as_jsx_self_closing_element
-                    .maybe_type_arguments(),
+                node_as_jsx_self_closing_element.maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
             || node_as_jsx_self_closing_element.attributes != attributes
@@ -935,8 +938,7 @@ impl NodeFactory {
         let type_arguments = type_arguments.map(Into::into);
         if node_as_jsx_opening_element.tag_name != tag_name
             || has_option_node_array_changed(
-                node_as_jsx_opening_element
-                    .maybe_type_arguments(),
+                node_as_jsx_opening_element.maybe_type_arguments(),
                 type_arguments.as_ref(),
             )
             || node_as_jsx_opening_element.attributes != attributes
@@ -1100,9 +1102,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_jsx_attribute = node_ref.as_jsx_attribute();
-        if node_as_jsx_attribute.name != name
-            || node_as_jsx_attribute.initializer != initializer
-        {
+        if node_as_jsx_attribute.name != name || node_as_jsx_attribute.initializer != initializer {
             self.update(self.create_jsx_attribute(name, initializer), node)
         } else {
             node
@@ -1117,7 +1117,8 @@ impl NodeFactory {
         let node = self.create_base_node(SyntaxKind::JsxAttributes);
         let node = JsxAttributes::new(node, self.create_node_array(Some(properties), None));
         node.add_transform_flags(
-            propagate_children_flags(Some(&node.properties.ref_(self))) | TransformFlags::ContainsJsx,
+            propagate_children_flags(Some(&node.properties.ref_(self)))
+                | TransformFlags::ContainsJsx,
         );
         node
     }
@@ -1210,7 +1211,8 @@ impl NodeFactory {
         let node = CaseClause::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self)
+                .parenthesize_expression_for_disallowed_comma(expression),
             self.create_node_array(Some(statements), None),
         );
         node.add_transform_flags(

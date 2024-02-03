@@ -18,10 +18,9 @@ use crate::{
     is_this_property, some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
     Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
-    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, HasArena,
-    InArena, Node, NodeInterface, ObjectFlags, OptionTry, Symbol, SymbolInterface, SyntaxKind,
-    Type, TypeChecker, TypeFlags, TypeInterface,
-    OptionInArena, AllArenas,
+    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, AllArenas,
+    HasArena, InArena, Node, NodeInterface, ObjectFlags, OptionInArena, OptionTry, Symbol,
+    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -33,7 +32,12 @@ impl TypeChecker {
         let jsx_element_attrib_prop_interface_sym =
             jsx_namespace.try_and_then(|jsx_namespace| {
                 self.get_symbol(
-                    &jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap().ref_(self),
+                    &jsx_namespace
+                        .ref_(self)
+                        .maybe_exports()
+                        .as_ref()
+                        .unwrap()
+                        .ref_(self),
                     name_of_attrib_prop_container,
                     SymbolFlags::Type,
                 )
@@ -97,7 +101,12 @@ impl TypeChecker {
         }
         let jsx_namespace = jsx_namespace.unwrap();
         let ret = self.get_symbol(
-            &jsx_namespace.ref_(self).maybe_exports().as_ref().unwrap().ref_(self),
+            &jsx_namespace
+                .ref_(self)
+                .maybe_exports()
+                .as_ref()
+                .unwrap()
+                .ref_(self),
             &JsxNames::LibraryManagedAttributes,
             SymbolFlags::Type,
         )?;
@@ -229,15 +238,16 @@ impl TypeChecker {
                     self.assignable_relation.clone(),
                     Some(
                         opening_like_element
-                            .ref_(self).as_jsx_opening_like_element()
+                            .ref_(self)
+                            .as_jsx_opening_like_element()
                             .tag_name(),
                     ),
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
-                        opening_like_element,
-                    )))),
+                    Some(self.alloc_check_type_containing_message_chain(Box::new(
+                        GenerateInitialErrorChain::new(opening_like_element),
+                    ))),
                     None,
                 )?;
             }
@@ -250,15 +260,16 @@ impl TypeChecker {
                     self.assignable_relation.clone(),
                     Some(
                         opening_like_element
-                            .ref_(self).as_jsx_opening_like_element()
+                            .ref_(self)
+                            .as_jsx_opening_like_element()
                             .tag_name(),
                     ),
                     Some(Cow::Borrowed(
                         &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
                     )),
-                    Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
-                        opening_like_element,
-                    )))),
+                    Some(self.alloc_check_type_containing_message_chain(Box::new(
+                        GenerateInitialErrorChain::new(opening_like_element),
+                    ))),
                     None,
                 )?;
             }
@@ -284,15 +295,16 @@ impl TypeChecker {
                 self.assignable_relation.clone(),
                 Some(
                     opening_like_element
-                        .ref_(self).as_jsx_opening_like_element()
+                        .ref_(self)
+                        .as_jsx_opening_like_element()
                         .tag_name(),
                 ),
                 Some(Cow::Borrowed(
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),
-                Some(self.alloc_check_type_containing_message_chain(Box::new(GenerateInitialErrorChain::new(
-                    opening_like_element,
-                )))),
+                Some(self.alloc_check_type_containing_message_chain(Box::new(
+                    GenerateInitialErrorChain::new(opening_like_element),
+                ))),
                 None,
             )?;
         }
@@ -393,7 +405,13 @@ impl TypeChecker {
     }
 
     pub(super) fn check_jsx_preconditions(&self, error_node: Id<Node>) {
-        if self.compiler_options.ref_(self).jsx.unwrap_or(JsxEmit::None) == JsxEmit::None {
+        if self
+            .compiler_options
+            .ref_(self)
+            .jsx
+            .unwrap_or(JsxEmit::None)
+            == JsxEmit::None
+        {
             self.error(
                 Some(error_node),
                 &Diagnostics::Cannot_use_JSX_unless_the_jsx_flag_is_provided,
@@ -424,13 +442,14 @@ impl TypeChecker {
             .get_jsx_namespace_container_for_implicit_import(Some(node))?
             .is_none()
         {
-            let jsx_factory_ref_err = if
-            /*diagnostics &&*/
-            self.compiler_options.ref_(self).jsx == Some(JsxEmit::React) {
-                Some(&*Diagnostics::Cannot_find_name_0)
-            } else {
-                None
-            };
+            let jsx_factory_ref_err =
+                if
+                /*diagnostics &&*/
+                self.compiler_options.ref_(self).jsx == Some(JsxEmit::React) {
+                    Some(&*Diagnostics::Cannot_find_name_0)
+                } else {
+                    None
+                };
             let jsx_factory_namespace = self.get_jsx_namespace_(Some(node));
             let jsx_factory_location = if is_node_opening_like_element {
                 node.ref_(self).as_jsx_opening_like_element().tag_name()
@@ -601,12 +620,19 @@ impl TypeChecker {
         {
             return true;
         }
-        if is_in_js_file(symbol.ref_(self).maybe_value_declaration().refed(self).as_deref()) {
+        if is_in_js_file(
+            symbol
+                .ref_(self)
+                .maybe_value_declaration()
+                .refed(self)
+                .as_deref(),
+        ) {
             let parent = symbol
                 .ref_(self)
                 .maybe_value_declaration()
                 .unwrap()
-                .ref_(self).maybe_parent();
+                .ref_(self)
+                .maybe_parent();
             return matches!(
                 parent,
                 Some(parent) if is_binary_expression(&parent.ref_(self)) &&
@@ -654,11 +680,7 @@ impl TypeChecker {
         prop: Id<Symbol>,
         error_node: Option<Id<Node>>,
     ) -> io::Result<bool> {
-        let flags = get_declaration_modifier_flags_from_symbol(
-            prop,
-            Some(writing),
-            self,
-        );
+        let flags = get_declaration_modifier_flags_from_symbol(prop, Some(writing), self);
 
         if is_super {
             if self.language_version < ScriptTarget::ES2015 {
@@ -701,7 +723,10 @@ impl TypeChecker {
             && (is_this_property(location, self)
                 || is_this_initialized_object_binding_expression(Some(location), self)
                 || is_object_binding_pattern(&location.ref_(self).parent().ref_(self))
-                    && is_this_initialized_declaration(location.ref_(self).parent().ref_(self).maybe_parent(), self))
+                    && is_this_initialized_declaration(
+                        location.ref_(self).parent().ref_(self).maybe_parent(),
+                        self,
+                    ))
         {
             let declaring_class_declaration = get_class_like_declaration_of_symbol(
                 self.get_parent_of_symbol(prop)?.unwrap(),
@@ -791,7 +816,8 @@ impl TypeChecker {
                 match this_parameter {
                     None => true,
                     Some(this_parameter) => this_parameter
-                        .ref_(self).as_parameter_declaration()
+                        .ref_(self)
+                        .as_parameter_declaration()
                         .maybe_type()
                         .is_none(),
                 }
@@ -820,7 +846,8 @@ impl TypeChecker {
             let this_type = self.get_type_from_type_node_(
                 this_parameter
                     .unwrap()
-                    .ref_(self).as_parameter_declaration()
+                    .ref_(self)
+                    .as_parameter_declaration()
                     .maybe_type()
                     .unwrap(),
             )?;
@@ -911,9 +938,9 @@ impl GenerateInitialErrorChain {
 impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
     fn get(&self) -> io::Result<Option<Rc<RefCell<DiagnosticMessageChain>>>> {
         let component_name = get_text_of_node(
-            self
-                .opening_like_element
-                .ref_(self).as_jsx_opening_like_element()
+            self.opening_like_element
+                .ref_(self)
+                .as_jsx_opening_like_element()
                 .tag_name(),
             None,
             self,

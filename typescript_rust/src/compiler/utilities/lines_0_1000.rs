@@ -33,17 +33,16 @@ use crate::{
     is_private_identifier, is_prologue_directive, is_source_file, is_string_literal,
     is_string_or_numeric_literal_like, is_white_space_like, maybe_text_char_at_index,
     module_resolution_option_declarations, node_is_synthesized,
-    options_affecting_program_structure, skip_trivia, starts_with_use_strict, text_char_at_index,
-    text_substring, trim_string_start, AllArenas, CharacterCodes, CommandLineOption,
-    CommentDirective, CommentDirectiveType, CommentDirectivesMap, CompilerOptions, Debug_,
-    EmitFlags, EmitTextWriter, HasArena, HasStatementsInterface, InArena, IndexInfo,
-    LiteralLikeNodeInterface, ModeAwareCache, ModuleKind, NamedDeclarationInterface, Node,
-    NodeArray, NodeFlags, NodeInterface, PackageId, ProjectReference, ReadonlyCollection,
-    ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind,
-    SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber, Symbol,
-    SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind, TextRange,
-    TokenFlags, Type, UnderscoreEscapedMap, OptionInArena,
-    per_arena,
+    options_affecting_program_structure, per_arena, skip_trivia, starts_with_use_strict,
+    text_char_at_index, text_substring, trim_string_start, AllArenas, CharacterCodes,
+    CommandLineOption, CommentDirective, CommentDirectiveType, CommentDirectivesMap,
+    CompilerOptions, Debug_, EmitFlags, EmitTextWriter, HasArena, HasStatementsInterface, InArena,
+    IndexInfo, LiteralLikeNodeInterface, ModeAwareCache, ModuleKind, NamedDeclarationInterface,
+    Node, NodeArray, NodeFlags, NodeInterface, OptionInArena, PackageId, ProjectReference,
+    ReadonlyCollection, ReadonlyTextRange, ResolvedModuleFull, ResolvedTypeReferenceDirective,
+    ScriptKind, SignatureDeclarationInterface, SourceFileLike, SourceTextAsChars, StringOrNumber,
+    Symbol, SymbolFlags, SymbolInterface, SymbolTable, SymbolTracker, SymbolWriter, SyntaxKind,
+    TextRange, TokenFlags, Type, UnderscoreEscapedMap,
 };
 
 pub fn resolving_empty_array(arena: &impl HasArena) -> Id<Vec<Id<Type>>> {
@@ -92,10 +91,7 @@ pub fn create_symbol_table(
     if let Some(symbols) = symbols {
         for symbol in symbols {
             let &symbol: &Id<Symbol> = symbol.borrow();
-            result.insert(
-                symbol.ref_(arena).escaped_name().to_owned(),
-                symbol.clone(),
-            );
+            result.insert(symbol.ref_(arena).escaped_name().to_owned(), symbol.clone());
         }
     }
     result
@@ -125,7 +121,8 @@ struct SingleLineStringWriter {
 impl SingleLineStringWriter {
     pub fn new(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
         arena.alloc_emit_text_writer(Box::new(Self {
-            _dyn_symbol_tracker_wrapper: arena.alloc_symbol_tracker(Box::new(SingleLineStringWriterSymbolTracker)),
+            _dyn_symbol_tracker_wrapper: arena
+                .alloc_symbol_tracker(Box::new(SingleLineStringWriterSymbolTracker)),
             str: Default::default(),
         }))
     }
@@ -266,80 +263,101 @@ impl SymbolTracker for SingleLineStringWriter {
         enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
     ) -> Option<io::Result<bool>> {
-        self._dyn_symbol_tracker_wrapper
-            .ref_(self).track_symbol(symbol, enclosing_declaration, meaning)
+        self._dyn_symbol_tracker_wrapper.ref_(self).track_symbol(
+            symbol,
+            enclosing_declaration,
+            meaning,
+        )
     }
 
     fn is_track_symbol_supported(&self) -> bool {
-        self._dyn_symbol_tracker_wrapper.ref_(self).is_track_symbol_supported()
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .is_track_symbol_supported()
     }
 
     fn disable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.ref_(self).disable_track_symbol();
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .disable_track_symbol();
     }
 
     fn reenable_track_symbol(&self) {
-        self._dyn_symbol_tracker_wrapper.ref_(self).reenable_track_symbol();
+        self._dyn_symbol_tracker_wrapper
+            .ref_(self)
+            .reenable_track_symbol();
     }
 
     fn report_inaccessible_this_error(&self) {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).report_inaccessible_this_error()
+            .ref_(self)
+            .report_inaccessible_this_error()
     }
 
     fn is_report_inaccessible_this_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_inaccessible_this_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_this_error_supported()
     }
 
     fn report_inaccessible_unique_symbol_error(&self) {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).report_inaccessible_unique_symbol_error()
+            .ref_(self)
+            .report_inaccessible_unique_symbol_error()
     }
 
     fn is_report_inaccessible_unique_symbol_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_inaccessible_unique_symbol_error_supported()
+            .ref_(self)
+            .is_report_inaccessible_unique_symbol_error_supported()
     }
 
     fn report_private_in_base_of_class_expression(&self, _property_name: &str) {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).report_private_in_base_of_class_expression(_property_name)
+            .ref_(self)
+            .report_private_in_base_of_class_expression(_property_name)
     }
 
     fn is_report_private_in_base_of_class_expression_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_private_in_base_of_class_expression_supported()
+            .ref_(self)
+            .is_report_private_in_base_of_class_expression_supported()
     }
 
     fn is_report_cyclic_structure_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_cyclic_structure_error_supported()
+            .ref_(self)
+            .is_report_cyclic_structure_error_supported()
     }
 
     fn is_report_likely_unsafe_import_required_error_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_likely_unsafe_import_required_error_supported()
+            .ref_(self)
+            .is_report_likely_unsafe_import_required_error_supported()
     }
 
     fn is_report_nonlocal_augmentation_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_nonlocal_augmentation_supported()
+            .ref_(self)
+            .is_report_nonlocal_augmentation_supported()
     }
 
     fn is_report_non_serializable_property_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_report_non_serializable_property_supported()
+            .ref_(self)
+            .is_report_non_serializable_property_supported()
     }
 
     fn is_module_resolver_host_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_module_resolver_host_supported()
+            .ref_(self)
+            .is_module_resolver_host_supported()
     }
 
     fn is_track_referenced_ambient_module_supported(&self) -> bool {
         self._dyn_symbol_tracker_wrapper
-            .ref_(self).is_track_referenced_ambient_module_supported()
+            .ref_(self)
+            .is_track_referenced_ambient_module_supported()
     }
 }
 
@@ -456,7 +474,8 @@ pub fn options_have_changes(
     !ptr::eq(old_options, new_options)
         && option_declarations.iter().any(|o| {
             /* !is_json_equal(*/
-            get_compiler_option_value(old_options, &o.ref_(arena)) != get_compiler_option_value(new_options, &o.ref_(arena))
+            get_compiler_option_value(old_options, &o.ref_(arena))
+                != get_compiler_option_value(new_options, &o.ref_(arena))
             /*)*/
         })
 }
@@ -734,7 +753,11 @@ pub fn has_changes_in_resolutions<TValue: Clone>(
             old_resolutions.get(
                 name,
                 old_source_file.and_then(|old_source_file| {
-                    get_mode_for_resolution_at_index(old_source_file.ref_(arena).as_source_file(), i, arena)
+                    get_mode_for_resolution_at_index(
+                        old_source_file.ref_(arena).as_source_file(),
+                        i,
+                        arena,
+                    )
                 }),
             )
         });
@@ -759,26 +782,35 @@ pub fn has_changes_in_resolutions<TValue: Clone>(
 
 pub fn contains_parse_error(node: Id<Node>, arena: &impl HasArena) -> bool {
     aggregate_child_data(node, arena);
-    node.ref_(arena).flags()
+    node.ref_(arena)
+        .flags()
         .intersects(NodeFlags::ThisNodeOrAnySubNodesHasError)
 }
 
 fn aggregate_child_data(node: Id<Node>, arena: &impl HasArena) {
-    if !node.ref_(arena).flags().intersects(NodeFlags::HasAggregatedChildData) {
-        let this_node_or_any_sub_nodes_has_error =
-            node.ref_(arena).flags().intersects(NodeFlags::ThisNodeHasError)
-                || for_each_child_bool(
-                    node,
-                    |child| contains_parse_error(child, arena),
-                    Option::<fn(Id<NodeArray>) -> bool>::None,
-                    arena,
-                );
+    if !node
+        .ref_(arena)
+        .flags()
+        .intersects(NodeFlags::HasAggregatedChildData)
+    {
+        let this_node_or_any_sub_nodes_has_error = node
+            .ref_(arena)
+            .flags()
+            .intersects(NodeFlags::ThisNodeHasError)
+            || for_each_child_bool(
+                node,
+                |child| contains_parse_error(child, arena),
+                Option::<fn(Id<NodeArray>) -> bool>::None,
+                arena,
+            );
 
         if this_node_or_any_sub_nodes_has_error {
-            node.ref_(arena).set_flags(node.ref_(arena).flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
+            node.ref_(arena)
+                .set_flags(node.ref_(arena).flags() | NodeFlags::ThisNodeOrAnySubNodesHasError);
         }
 
-        node.ref_(arena).set_flags(node.ref_(arena).flags() | NodeFlags::HasAggregatedChildData);
+        node.ref_(arena)
+            .set_flags(node.ref_(arena).flags() | NodeFlags::HasAggregatedChildData);
     }
 }
 
@@ -792,7 +824,10 @@ pub fn get_source_file_of_node(
     node
 }
 
-pub fn maybe_get_source_file_of_node(mut node: Option<Id<Node>>, arena: &impl HasArena) -> Option<Id<Node /*SourceFile*/>> {
+pub fn maybe_get_source_file_of_node(
+    mut node: Option<Id<Node>>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*SourceFile*/>> {
     // node.map(|node| get_source_file_of_node(node.borrow()))
     while matches!(
         node,
@@ -803,10 +838,14 @@ pub fn maybe_get_source_file_of_node(mut node: Option<Id<Node>>, arena: &impl Ha
     node
 }
 
-pub fn get_source_file_of_module(module: Id<Symbol>, arena: &impl HasArena) -> Option<Id<Node /*SourceFile*/>> {
+pub fn get_source_file_of_module(
+    module: Id<Symbol>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*SourceFile*/>> {
     maybe_get_source_file_of_node(
         module
-            .ref_(arena).maybe_value_declaration()
+            .ref_(arena)
+            .maybe_value_declaration()
             .or_else(|| get_non_augmentation_declaration(module, arena)),
         arena,
     )
@@ -832,8 +871,10 @@ pub fn node_pos_to_string(node: Id<Node>, arena: &impl HasArena) -> String {
     let file = get_source_file_of_node(node, arena);
     let file_ref = file.ref_(arena);
     let file_as_source_file = file_ref.as_source_file();
-    let loc =
-        get_line_and_character_of_position(file_as_source_file, node.ref_(arena).pos().try_into().unwrap());
+    let loc = get_line_and_character_of_position(
+        file_as_source_file,
+        node.ref_(arena).pos().try_into().unwrap(),
+    );
     format!(
         "{}({},{})",
         file_as_source_file.file_name(),
@@ -904,10 +945,7 @@ fn insert_statements_after_prologue(
         }
         statement_index += 1;
     }
-    to.splice(
-        statement_index..statement_index,
-        from.into_iter().copied(),
-    );
+    to.splice(statement_index..statement_index, from.into_iter().copied());
 }
 
 fn insert_statement_after_prologue(
@@ -930,7 +968,8 @@ fn insert_statement_after_prologue(
 }
 
 fn is_any_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_prologue_directive(node, arena) || get_emit_flags(node, arena).intersects(EmitFlags::CustomPrologue)
+    is_prologue_directive(node, arena)
+        || get_emit_flags(node, arena).intersects(EmitFlags::CustomPrologue)
 }
 
 pub fn insert_statements_after_standard_prologue(
@@ -1055,10 +1094,9 @@ pub fn get_token_pos_of_node(
     if is_jsdoc_node(&node.ref_(arena)) || node.ref_(arena).kind() == SyntaxKind::JsxText {
         return skip_trivia(
             &source_file
-                .unwrap_or_else(
-                    || get_source_file_of_node(node, arena),
-                )
-                .ref_(arena).as_source_file()
+                .unwrap_or_else(|| get_source_file_of_node(node, arena))
+                .ref_(arena)
+                .as_source_file()
                 .text_as_chars(),
             node.ref_(arena).pos(),
             Some(false),
@@ -1068,7 +1106,12 @@ pub fn get_token_pos_of_node(
     }
 
     if include_js_doc.unwrap_or(false) && has_jsdoc_nodes(&node.ref_(arena)) {
-        return get_token_pos_of_node(node.ref_(arena).maybe_js_doc().unwrap()[0], source_file, None, arena);
+        return get_token_pos_of_node(
+            node.ref_(arena).maybe_js_doc().unwrap()[0],
+            source_file,
+            None,
+            arena,
+        );
     }
 
     if node.ref_(arena).kind() == SyntaxKind::SyntaxList {
@@ -1086,10 +1129,9 @@ pub fn get_token_pos_of_node(
 
     skip_trivia(
         &source_file
-            .unwrap_or_else(
-                || get_source_file_of_node(node, arena),
-            )
-            .ref_(arena).as_source_file()
+            .unwrap_or_else(|| get_source_file_of_node(node, arena))
+            .ref_(arena)
+            .as_source_file()
             .text_as_chars(),
         node.ref_(arena).pos(),
         Some(false),
@@ -1098,7 +1140,11 @@ pub fn get_token_pos_of_node(
     )
 }
 
-pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<Id<Node>>, arena: &impl HasArena) -> isize {
+pub fn get_non_decorator_token_pos_of_node(
+    node: Id<Node>,
+    source_file: Option<Id<Node>>,
+    arena: &impl HasArena,
+) -> isize {
     if node_is_missing(Some(&node.ref_(arena))) || node.ref_(arena).maybe_decorators().is_none() {
         return get_token_pos_of_node(node, source_file, None, arena);
     }
@@ -1106,9 +1152,15 @@ pub fn get_non_decorator_token_pos_of_node(node: Id<Node>, source_file: Option<I
     skip_trivia(
         &source_file
             .unwrap_or_else(|| get_source_file_of_node(node, arena))
-            .ref_(arena).as_source_file()
+            .ref_(arena)
+            .as_source_file()
             .text_as_chars(),
-        node.ref_(arena).maybe_decorators().as_ref().unwrap().ref_(arena).end(),
+        node.ref_(arena)
+            .maybe_decorators()
+            .as_ref()
+            .unwrap()
+            .ref_(arena)
+            .end(),
         None,
         None,
         None,
@@ -1131,7 +1183,12 @@ pub fn get_source_text_of_node_from_source_file(
 }
 
 fn is_jsdoc_type_expression_or_child(node: Id<Node>, arena: &impl HasArena) -> bool {
-    find_ancestor(Some(node), |node| is_jsdoc_type_expression(&node.ref_(arena)), arena).is_some()
+    find_ancestor(
+        Some(node),
+        |node| is_jsdoc_type_expression(&node.ref_(arena)),
+        arena,
+    )
+    .is_some()
 }
 
 pub fn is_export_namespace_as_default_declaration(node: Id<Node>, arena: &impl HasArena) -> bool {
@@ -1150,7 +1207,8 @@ pub fn is_export_namespace_as_default_declaration(node: Id<Node>, arena: &impl H
     let node_export_clause_as_namespace_export = node_export_clause_ref.as_namespace_export();
     node_export_clause_as_namespace_export
         .name
-        .ref_(arena).as_identifier()
+        .ref_(arena)
+        .as_identifier()
         .escaped_text
         == "default"
 }
@@ -1200,7 +1258,11 @@ pub fn get_text_of_node_from_source_text(
     text.into()
 }
 
-pub fn get_text_of_node(node: Id<Node>, include_trivia: Option<bool>, arena: &impl HasArena) -> Cow<'static, str> {
+pub fn get_text_of_node(
+    node: Id<Node>,
+    include_trivia: Option<bool>,
+    arena: &impl HasArena,
+) -> Cow<'static, str> {
     let include_trivia = include_trivia.unwrap_or(false);
     get_source_text_of_node_from_source_file(
         get_source_file_of_node(node, arena),
@@ -1225,7 +1287,8 @@ pub fn index_of_node(node_array: &[Id<Node>], node: Id<Node>, arena: &impl HasAr
 }
 
 pub fn get_emit_flags(node: Id<Node>, arena: &impl HasArena) -> EmitFlags {
-    node.ref_(arena).maybe_emit_node()
+    node.ref_(arena)
+        .maybe_emit_node()
         .and_then(|emit_node| emit_node.ref_(arena).flags)
         .unwrap_or(EmitFlags::None)
 }
@@ -1493,9 +1556,12 @@ pub fn get_literal_text(
                 _ => panic!("Unexpected TemplateLiteralLikeNode kind"),
             }
         }
-        Node::NumericLiteral(_) | Node::BigIntLiteral(_) => {
-            node.ref_(arena).as_literal_like_node().text().to_owned().into()
-        }
+        Node::NumericLiteral(_) | Node::BigIntLiteral(_) => node
+            .ref_(arena)
+            .as_literal_like_node()
+            .text()
+            .to_owned()
+            .into(),
         _ => Debug_.fail(Some(&format!(
             "Literal kind '{:?}' not accounted for.",
             node.ref_(arena).kind()
@@ -1503,10 +1569,7 @@ pub fn get_literal_text(
     }
 }
 
-fn can_use_original_text(
-    node: &Node, /*LiteralLikeNode*/
-    flags: GetLiteralTextFlags,
-) -> bool {
+fn can_use_original_text(node: &Node /*LiteralLikeNode*/, flags: GetLiteralTextFlags) -> bool {
     if node_is_synthesized(node)
         || node.maybe_parent().is_none()
         || flags.intersects(GetLiteralTextFlags::TerminateUnterminatedLiterals)
@@ -1549,7 +1612,10 @@ pub fn make_identifier_from_module_name(module_name: &str) -> String {
         .into_owned()
 }
 
-pub fn is_block_or_catch_scoped(declaration: Id<Node> /*Declaration*/, arena: &impl HasArena) -> bool {
+pub fn is_block_or_catch_scoped(
+    declaration: Id<Node>, /*Declaration*/
+    arena: &impl HasArena,
+) -> bool {
     get_combined_node_flags(declaration, arena).intersects(NodeFlags::BlockScoped)
         || is_catch_clause_variable_declaration_or_binding_element(declaration, arena)
 }
@@ -1565,25 +1631,47 @@ pub fn is_catch_clause_variable_declaration_or_binding_element(
 
 pub fn is_ambient_module(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_module_declaration(&node.ref_(arena))
-        && (node.ref_(arena).as_module_declaration().name.ref_(arena).kind() == SyntaxKind::StringLiteral
+        && (node
+            .ref_(arena)
+            .as_module_declaration()
+            .name
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::StringLiteral
             || is_global_scope_augmentation(&node.ref_(arena)))
 }
 
 pub fn is_module_with_string_literal_name(node: Id<Node>, arena: &impl HasArena) -> bool {
     is_module_declaration(&node.ref_(arena))
-        && node.ref_(arena).as_module_declaration().name.ref_(arena).kind() == SyntaxKind::StringLiteral
+        && node
+            .ref_(arena)
+            .as_module_declaration()
+            .name
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::StringLiteral
 }
 
 pub fn is_non_global_ambient_module(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_module_declaration(&node.ref_(arena)) && is_string_literal(&node.ref_(arena).as_module_declaration().name.ref_(arena))
+    is_module_declaration(&node.ref_(arena))
+        && is_string_literal(&node.ref_(arena).as_module_declaration().name.ref_(arena))
 }
 
 pub fn is_effective_module_declaration(node: &Node) -> bool {
     is_module_declaration(node) || is_identifier(node)
 }
 
-pub fn is_shorthand_ambient_module_symbol(module_symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
-    is_shorthand_ambient_module(module_symbol.ref_(arena).maybe_value_declaration().refed(arena).as_deref())
+pub fn is_shorthand_ambient_module_symbol(
+    module_symbol: Id<Symbol>,
+    arena: &impl HasArena,
+) -> bool {
+    is_shorthand_ambient_module(
+        module_symbol
+            .ref_(arena)
+            .maybe_value_declaration()
+            .refed(arena)
+            .as_deref(),
+    )
 }
 
 fn is_shorthand_ambient_module(node: Option<&Node>) -> bool {
@@ -1611,28 +1699,54 @@ pub fn is_external_module_augmentation(node: Id<Node>, arena: &impl HasArena) ->
     is_ambient_module(node, arena) && is_module_augmentation_external(node, arena)
 }
 
-pub fn is_module_augmentation_external(node: Id<Node> /*AmbientModuleDeclaration*/, arena: &impl HasArena) -> bool {
+pub fn is_module_augmentation_external(
+    node: Id<Node>, /*AmbientModuleDeclaration*/
+    arena: &impl HasArena,
+) -> bool {
     match node.ref_(arena).parent().ref_(arena).kind() {
         SyntaxKind::SourceFile => is_external_module(&node.ref_(arena).parent().ref_(arena)),
         SyntaxKind::ModuleBlock => {
             is_ambient_module(node.ref_(arena).parent().ref_(arena).parent(), arena)
-                && is_source_file(&node.ref_(arena).parent().ref_(arena).parent().ref_(arena).parent().ref_(arena))
-                && !is_external_module(&node.ref_(arena).parent().ref_(arena).parent().ref_(arena).parent().ref_(arena))
+                && is_source_file(
+                    &node
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena),
+                )
+                && !is_external_module(
+                    &node
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena)
+                        .parent()
+                        .ref_(arena),
+                )
         }
         _ => false,
     }
 }
 
-pub fn get_non_augmentation_declaration(symbol: Id<Symbol>, arena: &impl HasArena) -> Option<Id<Node /*Declaration*/>> {
+pub fn get_non_augmentation_declaration(
+    symbol: Id<Symbol>,
+    arena: &impl HasArena,
+) -> Option<Id<Node /*Declaration*/>> {
     symbol
-        .ref_(arena).maybe_declarations()
+        .ref_(arena)
+        .maybe_declarations()
         .as_ref()
         .and_then(|declarations| {
             declarations
                 .into_iter()
                 .find(|&&d| {
                     !is_external_module_augmentation(d, arena)
-                        && !(is_module_declaration(&d.ref_(arena)) && is_global_scope_augmentation(&d.ref_(arena)))
+                        && !(is_module_declaration(&d.ref_(arena))
+                            && is_global_scope_augmentation(&d.ref_(arena)))
                 })
                 .copied()
         })
@@ -1785,10 +1899,20 @@ pub fn is_any_import_or_re_export(node: &Node) -> bool {
     is_any_import_syntax(node) || is_export_declaration(node)
 }
 
-pub fn get_enclosing_block_scope_container(node: Id<Node>, arena: &impl HasArena) -> Option<Id<Node>> {
-    find_ancestor(node.ref_(arena).maybe_parent(), |current| {
-        is_block_scope(&current.ref_(arena), current.ref_(arena).maybe_parent().refed(arena).as_deref())
-    }, arena)
+pub fn get_enclosing_block_scope_container(
+    node: Id<Node>,
+    arena: &impl HasArena,
+) -> Option<Id<Node>> {
+    find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |current| {
+            is_block_scope(
+                &current.ref_(arena),
+                current.ref_(arena).maybe_parent().refed(arena).as_deref(),
+            )
+        },
+        arena,
+    )
 }
 
 pub fn for_each_enclosing_block_scope_container(
@@ -1803,7 +1927,10 @@ pub fn for_each_enclosing_block_scope_container(
     }
 }
 
-pub fn declaration_name_to_string(name: Option<Id<Node>>, arena: &impl HasArena) -> Cow<'static, str> {
+pub fn declaration_name_to_string(
+    name: Option<Id<Node>>,
+    arena: &impl HasArena,
+) -> Cow<'static, str> {
     match name {
         None => "(Missing)".into(),
         Some(name) => {
@@ -1816,22 +1943,37 @@ pub fn declaration_name_to_string(name: Option<Id<Node>>, arena: &impl HasArena)
     }
 }
 
-pub fn get_name_from_index_info(info: Id<IndexInfo>, arena: &impl HasArena) -> Option<Cow<'static, str>> {
+pub fn get_name_from_index_info(
+    info: Id<IndexInfo>,
+    arena: &impl HasArena,
+) -> Option<Cow<'static, str>> {
     info.ref_(arena).declaration.map(|info_declaration| {
         declaration_name_to_string(
             info_declaration
-                .ref_(arena).as_index_signature_declaration()
-                .parameters().ref_(arena)[0]
-                .ref_(arena).as_parameter_declaration()
+                .ref_(arena)
+                .as_index_signature_declaration()
+                .parameters()
+                .ref_(arena)[0]
+                .ref_(arena)
+                .as_parameter_declaration()
                 .maybe_name(),
             arena,
         )
     })
 }
 
-pub fn is_computed_non_literal_name(name: Id<Node> /*PropertyName*/, arena: &impl HasArena) -> bool {
+pub fn is_computed_non_literal_name(
+    name: Id<Node>, /*PropertyName*/
+    arena: &impl HasArena,
+) -> bool {
     name.ref_(arena).kind() == SyntaxKind::ComputedPropertyName
-        && !is_string_or_numeric_literal_like(&name.ref_(arena).as_computed_property_name().expression.ref_(arena))
+        && !is_string_or_numeric_literal_like(
+            &name
+                .ref_(arena)
+                .as_computed_property_name()
+                .expression
+                .ref_(arena),
+        )
 }
 
 pub fn get_text_of_property_name(
@@ -1840,16 +1982,16 @@ pub fn get_text_of_property_name(
 ) -> String /*__String*/ {
     match name.ref_(arena).kind() {
         SyntaxKind::Identifier => name.ref_(arena).as_identifier().escaped_text.clone(),
-        SyntaxKind::PrivateIdentifier => {
-            name.ref_(arena).as_private_identifier().escaped_text.clone()
-        }
+        SyntaxKind::PrivateIdentifier => name
+            .ref_(arena)
+            .as_private_identifier()
+            .escaped_text
+            .clone(),
         SyntaxKind::StringLiteral => {
-            escape_leading_underscores(&name.ref_(arena).as_string_literal().text())
-                .into_owned()
+            escape_leading_underscores(&name.ref_(arena).as_string_literal().text()).into_owned()
         }
         SyntaxKind::NumericLiteral => {
-            escape_leading_underscores(&name.ref_(arena).as_numeric_literal().text())
-                .into_owned()
+            escape_leading_underscores(&name.ref_(arena).as_numeric_literal().text()).into_owned()
         }
         SyntaxKind::NoSubstitutionTemplateLiteral => {
             escape_leading_underscores(&name.ref_(arena).as_template_literal_like_node().text())

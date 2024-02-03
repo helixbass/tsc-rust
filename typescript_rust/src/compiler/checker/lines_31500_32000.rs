@@ -7,15 +7,14 @@ use super::{
     IterationUse, TypeFacts, WideningKind,
 };
 use crate::{
-    create_symbol_table, get_effective_return_type_node,
-    get_effective_type_annotation_node, get_function_flags, is_import_call, is_omitted_expression,
-    is_transient_symbol, last, node_is_missing, push_if_unique_eq, some,
-    try_for_each_return_statement, try_for_each_yield_expression, CheckFlags, Diagnostics,
-    FunctionFlags, HasArena, HasTypeInterface, InArena, InferenceContext,
-    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionTry, Signature, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction,
-    OptionInArena,
+    create_symbol_table, get_effective_return_type_node, get_effective_type_annotation_node,
+    get_function_flags, is_import_call, is_omitted_expression, is_transient_symbol, last,
+    node_is_missing, push_if_unique_eq, some, try_for_each_return_statement,
+    try_for_each_yield_expression, CheckFlags, Diagnostics, FunctionFlags, HasArena,
+    HasTypeInterface, InArena, InferenceContext, NamedDeclarationInterface, Node, NodeFlags,
+    NodeInterface, OptionInArena, OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface,
+    SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -49,7 +48,8 @@ impl TypeChecker {
                 .maybe_value_declaration()
                 .unwrap();
             if declaration
-                .ref_(self).as_parameter_declaration()
+                .ref_(self)
+                .as_parameter_declaration()
                 .maybe_type()
                 .is_some()
             {
@@ -98,7 +98,9 @@ impl TypeChecker {
     ) -> io::Result<()> {
         if let Some(context_type_parameters) = context.ref_(self).maybe_type_parameters().as_ref() {
             if signature.ref_(self).maybe_type_parameters().is_none() {
-                signature.ref_(self).set_type_parameters(Some(context_type_parameters.clone()));
+                signature
+                    .ref_(self)
+                    .set_type_parameters(Some(context_type_parameters.clone()));
             } else {
                 return Ok(());
             }
@@ -113,9 +115,9 @@ impl TypeChecker {
                 ),
             } {
                 if parameter.is_none() {
-                    signature.ref_(self).set_this_parameter(
-                        Some(self.create_symbol_with_type(context_this_parameter, None))
-                    );
+                    signature.ref_(self).set_this_parameter(Some(
+                        self.create_symbol_with_type(context_this_parameter, None),
+                    ));
                 }
                 self.assign_parameter_type(
                     signature.ref_(self).maybe_this_parameter().unwrap(),
@@ -602,10 +604,14 @@ impl TypeChecker {
         let mut next_types: Vec<Id<Type>> = vec![];
         let is_async = get_function_flags(Some(func), self).intersects(FunctionFlags::Async);
         try_for_each_yield_expression(
-            func.ref_(self).as_function_like_declaration().maybe_body().unwrap(),
+            func.ref_(self)
+                .as_function_like_declaration()
+                .maybe_body()
+                .unwrap(),
             |yield_expression: Id<Node>| -> io::Result<_> {
                 let yield_expression_ref = yield_expression.ref_(self);
-                let yield_expression_as_yield_expression = yield_expression_ref.as_yield_expression();
+                let yield_expression_as_yield_expression =
+                    yield_expression_ref.as_yield_expression();
                 let yield_expression_type = if let Some(yield_expression_expression) =
                     yield_expression_as_yield_expression.expression
                 {
@@ -635,7 +641,8 @@ impl TypeChecker {
                         },
                         yield_expression_as_yield_expression.expression,
                     )?;
-                    next_type = iteration_types.map(|iteration_types| iteration_types.ref_(self).next_type());
+                    next_type = iteration_types
+                        .map(|iteration_types| iteration_types.ref_(self).next_type());
                 } else {
                     next_type = self.get_contextual_type_(yield_expression, None)?;
                 }
@@ -662,9 +669,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Type>>> {
         let node_ref = node.ref_(self);
         let node_as_yield_expression = node_ref.as_yield_expression();
-        let error_node = node_as_yield_expression
-            .expression
-            .unwrap_or(node);
+        let error_node = node_as_yield_expression.expression.unwrap_or(node);
         let yielded_type = if node_as_yield_expression.asterisk_token.is_some() {
             self.check_iterated_type_or_element_type(
                 if is_async {
@@ -781,7 +786,8 @@ impl TypeChecker {
             let operand_type = self.get_type_of_expression(
                 node_as_switch_statement
                     .expression
-                    .ref_(self).as_type_of_expression()
+                    .ref_(self)
+                    .as_type_of_expression()
                     .expression,
             )?;
             let witnesses = self
@@ -848,7 +854,10 @@ impl TypeChecker {
         let mut has_return_with_no_expression = self.function_has_implicit_return(func)?;
         let mut has_return_of_type_never = false;
         try_for_each_return_statement(
-            func.ref_(self).as_function_like_declaration().maybe_body().unwrap(),
+            func.ref_(self)
+                .as_function_like_declaration()
+                .maybe_body()
+                .unwrap(),
             |return_statement: Id<Node>| -> io::Result<_> {
                 let expr = return_statement.ref_(self).as_return_statement().expression;
                 if let Some(expr) = expr {
@@ -931,20 +940,27 @@ impl TypeChecker {
         if func.ref_(self).kind() == SyntaxKind::MethodSignature || {
             let func_ref = func.ref_(self);
             let func_as_function_like_declaration = func_ref.as_function_like_declaration();
-            node_is_missing(func_as_function_like_declaration.maybe_body().refed(self).as_deref())
-                || func_as_function_like_declaration
+            node_is_missing(
+                func_as_function_like_declaration
                     .maybe_body()
-                    .unwrap()
-                    .ref_(self).kind()
-                    != SyntaxKind::Block
+                    .refed(self)
+                    .as_deref(),
+            ) || func_as_function_like_declaration
+                .maybe_body()
+                .unwrap()
+                .ref_(self)
+                .kind()
+                != SyntaxKind::Block
                 || !self.function_has_implicit_return(func)?
         } {
             return Ok(());
         }
 
-        let has_explicit_return = func.ref_(self).flags().intersects(NodeFlags::HasExplicitReturn);
-        let error_node =
-            get_effective_return_type_node(func, self).unwrap_or(func);
+        let has_explicit_return = func
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::HasExplicitReturn);
+        let error_node = get_effective_return_type_node(func, self).unwrap_or(func);
 
         if matches!(
             type_,

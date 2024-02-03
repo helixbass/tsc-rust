@@ -10,9 +10,9 @@ use crate::{
     is_parameter, is_parenthesized_expression, is_part_of_type_query,
     is_shorthand_property_assignment, is_type_reference_node, is_void_expression, last,
     parameter_is_this_keyword, some, string_contains, CharacterCodes, CompilerOptions, Debug_,
-    FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface, PseudoBigInt,
-    ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind, HasArena, InArena,
+    FindAncestorCallbackReturn, ForEachChildRecursivelyCallbackReturn, HasArena, InArena,
+    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    PseudoBigInt, ReadonlyTextRange, Symbol, SymbolInterface, SyntaxKind,
 };
 
 pub fn skip_type_checking(
@@ -132,16 +132,26 @@ pub fn is_valid_type_only_alias_use_site(use_site: Id<Node>, arena: &impl HasAre
         || is_part_of_type_query(use_site, arena)
         || is_identifier_in_non_emitting_heritage_clause(use_site, arena)
         || is_part_of_possibly_valid_type_or_abstract_computed_property_name(use_site, arena)
-        || !(is_expression_node(use_site, arena) || is_shorthand_property_name_use_site(use_site, arena))
+        || !(is_expression_node(use_site, arena)
+            || is_shorthand_property_name_use_site(use_site, arena))
 }
 
 fn is_shorthand_property_name_use_site(use_site: Id<Node>, arena: &impl HasArena) -> bool {
     is_identifier(&use_site.ref_(arena))
         && is_shorthand_property_assignment(&use_site.ref_(arena).parent().ref_(arena))
-        && use_site.ref_(arena).parent().ref_(arena).as_shorthand_property_assignment().name() == use_site
+        && use_site
+            .ref_(arena)
+            .parent()
+            .ref_(arena)
+            .as_shorthand_property_assignment()
+            .name()
+            == use_site
 }
 
-fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(mut node: Id<Node>, arena: &impl HasArena) -> bool {
+fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(
+    mut node: Id<Node>,
+    arena: &impl HasArena,
+) -> bool {
     while matches!(
         node.ref_(arena).kind(),
         SyntaxKind::Identifier | SyntaxKind::PropertyAccessExpression
@@ -154,7 +164,13 @@ fn is_part_of_possibly_valid_type_or_abstract_computed_property_name(mut node: I
     if has_syntactic_modifier(node.ref_(arena).parent(), ModifierFlags::Abstract, arena) {
         return true;
     }
-    let container_kind = node.ref_(arena).parent().ref_(arena).parent().ref_(arena).kind();
+    let container_kind = node
+        .ref_(arena)
+        .parent()
+        .ref_(arena)
+        .parent()
+        .ref_(arena)
+        .kind();
     matches!(
         container_kind,
         SyntaxKind::InterfaceDeclaration | SyntaxKind::TypeLiteral
@@ -165,13 +181,17 @@ fn is_identifier_in_non_emitting_heritage_clause(node: Id<Node>, arena: &impl Ha
     if node.ref_(arena).kind() != SyntaxKind::Identifier {
         return false;
     }
-    let heritage_clause = find_ancestor(node.ref_(arena).maybe_parent(), |parent| match parent.ref_(arena).kind() {
-        SyntaxKind::HeritageClause => true.into(),
-        SyntaxKind::PropertyAccessExpression | SyntaxKind::ExpressionWithTypeArguments => {
-            false.into()
-        }
-        _ => FindAncestorCallbackReturn::Quit,
-    }, arena);
+    let heritage_clause = find_ancestor(
+        node.ref_(arena).maybe_parent(),
+        |parent| match parent.ref_(arena).kind() {
+            SyntaxKind::HeritageClause => true.into(),
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ExpressionWithTypeArguments => {
+                false.into()
+            }
+            _ => FindAncestorCallbackReturn::Quit,
+        },
+        arena,
+    );
     matches!(
         heritage_clause,
         Some(heritage_clause) if heritage_clause.ref_(arena).as_heritage_clause().token == SyntaxKind::ImplementsKeyword ||
@@ -180,7 +200,14 @@ fn is_identifier_in_non_emitting_heritage_clause(node: Id<Node>, arena: &impl Ha
 }
 
 pub fn is_identifier_type_reference(node: Id<Node>, arena: &impl HasArena) -> bool {
-    is_type_reference_node(&node.ref_(arena)) && is_identifier(&node.ref_(arena).as_type_reference_node().type_name.ref_(arena))
+    is_type_reference_node(&node.ref_(arena))
+        && is_identifier(
+            &node
+                .ref_(arena)
+                .as_type_reference_node()
+                .type_name
+                .ref_(arena),
+        )
 }
 
 pub fn array_is_homogeneous<TItem, TComparer: FnMut(&TItem, &TItem) -> bool>(
@@ -238,10 +265,7 @@ pub fn set_parent(child: &Node, parent: Option<Id<Node>>) -> &Node {
     child
 }
 
-pub fn maybe_set_parent(
-    child: Option<&Node>,
-    parent: Option<Id<Node>>,
-) -> Option<&Node> {
+pub fn maybe_set_parent(child: Option<&Node>, parent: Option<Id<Node>>) -> Option<&Node> {
     if let Some(child) = child {
         if let Some(parent) = parent {
             child.set_parent(Some(parent.clone()));
@@ -300,7 +324,10 @@ fn bind_jsdoc(
                     bind_parent_to_child_ignoring_jsdoc(incremental, &child.ref_(arena), parent)
                 },
                 Option::<
-                    fn(Id<NodeArray>, Id<Node>) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
+                    fn(
+                        Id<NodeArray>,
+                        Id<Node>,
+                    ) -> Option<ForEachChildRecursivelyCallbackReturn<()>>,
                 >::None,
                 arena,
             );
@@ -323,7 +350,10 @@ pub fn is_packed_array_literal(_node: Id<Node> /*Expression*/) -> bool {
     unimplemented!()
 }
 
-pub fn expression_result_is_unused(mut node: Id<Node> /*Expression*/, arena: &impl HasArena) -> bool {
+pub fn expression_result_is_unused(
+    mut node: Id<Node>, /*Expression*/
+    arena: &impl HasArena,
+) -> bool {
     Debug_.assert_is_defined(&node.ref_(arena).maybe_parent(), None);
     loop {
         let parent = node.ref_(arena).parent();
@@ -348,14 +378,28 @@ pub fn expression_result_is_unused(mut node: Id<Node> /*Expression*/, arena: &im
             return true;
         }
         if is_comma_list_expression(&parent.ref_(arena)) {
-            if node != *last(&parent.ref_(arena).as_comma_list_expression().elements.ref_(arena)) {
+            if node
+                != *last(
+                    &parent
+                        .ref_(arena)
+                        .as_comma_list_expression()
+                        .elements
+                        .ref_(arena),
+                )
+            {
                 return true;
             }
             node = parent;
             continue;
         }
         if is_binary_expression(&parent.ref_(arena))
-            && parent.ref_(arena).as_binary_expression().operator_token.ref_(arena).kind() == SyntaxKind::CommaToken
+            && parent
+                .ref_(arena)
+                .as_binary_expression()
+                .operator_token
+                .ref_(arena)
+                .kind()
+                == SyntaxKind::CommaToken
         {
             if node == parent.ref_(arena).as_binary_expression().left {
                 return true;
@@ -378,7 +422,10 @@ pub fn get_containing_node_array(_node: Id<Node>) -> Option<Id<NodeArray>> {
     unimplemented!()
 }
 
-pub fn has_context_sensitive_parameters(node: Id<Node> /*FunctionLikeDeclaration*/, arena: &impl HasArena) -> bool {
+pub fn has_context_sensitive_parameters(
+    node: Id<Node>, /*FunctionLikeDeclaration*/
+    arena: &impl HasArena,
+) -> bool {
     let node_ref = node.ref_(arena);
     let node_as_function_like_declaration = node_ref.as_function_like_declaration();
     if node_as_function_like_declaration
@@ -416,7 +463,8 @@ pub fn is_catch_clause_variable_declaration(node: Id<Node>, arena: &impl HasAren
 
 pub fn is_parameter_or_catch_clause_variable(symbol: Id<Symbol>, arena: &impl HasArena) -> bool {
     let declaration = symbol
-        .ref_(arena).maybe_value_declaration()
+        .ref_(arena)
+        .maybe_value_declaration()
         .map(|symbol_value_declaration| get_root_declaration(symbol_value_declaration, arena));
     matches!(
         declaration,

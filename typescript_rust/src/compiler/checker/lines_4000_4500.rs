@@ -8,14 +8,13 @@ use crate::{
     get_source_file_of_node, is_ambient_module, is_external_module,
     is_external_module_import_equals_declaration, is_external_or_common_js_module, is_in_js_file,
     is_namespace_reexport_declaration, is_umd_export_symbol, length, node_is_present,
-    some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
+    push_if_unique_eq, some, try_for_each_entry, try_maybe_for_each, BaseInterfaceType,
     BaseIntrinsicType, BaseObjectType, BaseType, CharacterCodes, FunctionLikeDeclarationInterface,
-    HasArena, InArena, IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags, OptionTry,
-    ResolvableTypeInterface, ResolvedTypeInterface, Signature, SignatureFlags, Symbol,
-    SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId, SymbolInterface,
-    SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypeParameter,
-    OptionInArena,
-    push_if_unique_eq,
+    HasArena, InArena, IndexInfo, InternalSymbolName, Node, NodeInterface, ObjectFlags,
+    OptionInArena, OptionTry, ResolvableTypeInterface, ResolvedTypeInterface, Signature,
+    SignatureFlags, Symbol, SymbolAccessibility, SymbolAccessibilityResult, SymbolFlags, SymbolId,
+    SymbolInterface, SymbolTable, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypeParameter,
 };
 
 impl TypeChecker {
@@ -30,15 +29,12 @@ impl TypeChecker {
         ) {
             return Ok(Some(symbol));
         }
-        let export_equals = container
-            .ref_(self)
-            .maybe_exports()
-            .and_then(|exports| {
-                exports
-                    .ref_(self)
-                    .get(InternalSymbolName::ExportEquals)
-                    .cloned()
-            });
+        let export_equals = container.ref_(self).maybe_exports().and_then(|exports| {
+            exports
+                .ref_(self)
+                .get(InternalSymbolName::ExportEquals)
+                .cloned()
+        });
         if matches!(export_equals, Some(export_equals) if self.get_symbol_if_same_reference(export_equals, symbol)?.is_some())
         {
             return Ok(Some(container));
@@ -114,7 +110,14 @@ impl TypeChecker {
         let members = node.ref_(self).as_class_like_declaration().members();
         for member in &*members.ref_(self) {
             if member.ref_(self).kind() == SyntaxKind::Constructor
-                && node_is_present(member.ref_(self).as_constructor_declaration().maybe_body().refed(self).as_deref())
+                && node_is_present(
+                    member
+                        .ref_(self)
+                        .as_constructor_declaration()
+                        .maybe_body()
+                        .refed(self)
+                        .as_deref(),
+                )
             {
                 return Some(member.clone());
             }
@@ -260,7 +263,9 @@ impl TypeChecker {
             index_infos,
         );
         if members != self.empty_symbols() {
-            type_.set_properties(self.alloc_vec_symbol(self.get_named_members(&members.ref_(self))?));
+            type_.set_properties(
+                self.alloc_vec_symbol(self.get_named_members(&members.ref_(self))?),
+            );
         }
         // type_
 
@@ -334,7 +339,10 @@ impl TypeChecker {
         }
         let construct_signatures =
             filter(&*type_construct_signatures, |signature: &Id<Signature>| {
-                !signature.ref_(self).flags.intersects(SignatureFlags::Abstract)
+                !signature
+                    .ref_(self)
+                    .flags
+                    .intersects(SignatureFlags::Abstract)
             });
         if type_construct_signatures.len() == construct_signatures.len() {
             return Ok(type_);
@@ -488,9 +496,7 @@ impl TypeChecker {
         enclosing_declaration: Option<Id<Node>>,
         meaning: SymbolFlags,
         use_only_external_aliasing: bool,
-        visited_symbol_tables_map: Option<
-            &mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>,
-        >,
+        visited_symbol_tables_map: Option<&mut HashMap<SymbolId, Id<Vec<Id<SymbolTable>>>>>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut visited_symbol_tables_map_default = HashMap::new();
         let visited_symbol_tables_map =
@@ -506,8 +512,8 @@ impl TypeChecker {
         if links.ref_(self).accessible_chain_cache.is_none() {
             links.ref_mut(self).accessible_chain_cache = Some(HashMap::new());
         }
-        let first_relevant_location = self
-            .for_each_symbol_table_in_scope(enclosing_declaration, |_, _, _, node| node);
+        let first_relevant_location =
+            self.for_each_symbol_table_in_scope(enclosing_declaration, |_, _, _, node| node);
         let key = format!(
             "{}|{}|{}",
             if use_only_external_aliasing { 0 } else { 1 },
@@ -547,7 +553,8 @@ impl TypeChecker {
                 )
             },
         )?;
-        links.ref_mut(self)
+        links
+            .ref_mut(self)
             .accessible_chain_cache
             .as_mut()
             .unwrap()
@@ -1178,9 +1185,11 @@ impl TypeChecker {
         &self,
         declaration: Id<Node>,
     ) -> io::Result<Option<Id<Symbol>>> {
-        let node = find_ancestor(Some(declaration), |node| {
-            self.has_external_module_symbol(node)
-        }, self);
+        let node = find_ancestor(
+            Some(declaration),
+            |node| self.has_external_module_symbol(node),
+            self,
+        );
         node.try_and_then(|node| self.get_symbol_of_node(node))
     }
 

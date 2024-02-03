@@ -5,11 +5,11 @@ use local_macros::generate_node_factory_method_wrapper;
 
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
-    are_option_rcs_equal, every, has_node_array_changed,
-    is_binary_expression, is_comma_list_expression, is_comma_token, is_custom_prologue,
-    is_hoisted_function, is_hoisted_variable_statement, is_outer_expression, is_parse_tree_node,
-    is_prologue_directive, is_statement_or_block, node_is_synthesized, same_flat_map_id_node,
-    set_original_node, single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, CallBinding,
+    are_option_rcs_equal, every, has_node_array_changed, is_binary_expression,
+    is_comma_list_expression, is_comma_token, is_custom_prologue, is_hoisted_function,
+    is_hoisted_variable_statement, is_outer_expression, is_parse_tree_node, is_prologue_directive,
+    is_statement_or_block, node_is_synthesized, same_flat_map_id_node, set_original_node,
+    single_or_undefined, BaseNodeFactory, BaseUnparsedNode, Bundle, CallBinding,
     CommaListExpression, Debug_, EnumMember, FileReference, HasInitializerInterface,
     HasStatementsInterface, InputFiles, LanguageVariant, LiteralLikeNodeInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeFactory,
@@ -24,9 +24,8 @@ use crate::{
     is_parenthesized_expression, is_property_access_expression, is_statement, is_string_literal,
     is_super_keyword, is_super_property, reduce_left_no_initial_value, return_ok_default_if_none,
     set_emit_flags, set_text_range, skip_outer_expressions, skip_parentheses, try_visit_node,
-    EmitFlags, MapOrDefault, Matches, NumberOrRcNode, OptionTry,
+    EmitFlags, HasArena, InArena, MapOrDefault, Matches, NumberOrRcNode, OptionInArena, OptionTry,
     ReadonlyTextRangeConcrete, SyntheticReferenceExpression, VecExt,
-    HasArena, InArena, OptionInArena,
 };
 
 impl NodeFactory {
@@ -45,7 +44,8 @@ impl NodeFactory {
         let node = PropertyAssignment::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_expression_for_disallowed_comma(initializer),
+                .ref_(self)
+                .parenthesize_expression_for_disallowed_comma(initializer),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.name()), self)
@@ -67,13 +67,10 @@ impl NodeFactory {
         }
         let original_ref = original.ref_(self);
         let original_as_property_assignment = original_ref.as_property_assignment();
-        if let Some(original_question_token) =
-            original_as_property_assignment.question_token
-        {
+        if let Some(original_question_token) = original_as_property_assignment.question_token {
             updated.question_token = Some(original_question_token.clone());
         }
-        if let Some(original_exclamation_token) =
-            original_as_property_assignment.exclamation_token
+        if let Some(original_exclamation_token) = original_as_property_assignment.exclamation_token
         {
             updated.exclamation_token = Some(original_exclamation_token.clone());
         }
@@ -116,7 +113,8 @@ impl NodeFactory {
             node,
             object_assignment_initializer.map(|object_assignment_initializer| {
                 self.parenthesizer_rules()
-                    .ref_(self).parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
+                    .ref_(self)
+                    .parenthesize_expression_for_disallowed_comma(object_assignment_initializer)
             }),
         );
         node.add_transform_flags(
@@ -138,7 +136,8 @@ impl NodeFactory {
             updated.set_modifiers(Some(original_modifiers));
         }
         let original_ref = original.ref_(self);
-        let original_as_shorthand_property_assignment = original_ref.as_shorthand_property_assignment();
+        let original_as_shorthand_property_assignment =
+            original_ref.as_shorthand_property_assignment();
         if let Some(original_equals_token) = original_as_shorthand_property_assignment
             .equals_token
             .as_ref()
@@ -169,7 +168,8 @@ impl NodeFactory {
         let node_ref = node.ref_(self);
         let node_as_shorthand_property_assignment = node_ref.as_shorthand_property_assignment();
         if node_as_shorthand_property_assignment.name() != name
-            || node_as_shorthand_property_assignment.object_assignment_initializer != object_assignment_initializer
+            || node_as_shorthand_property_assignment.object_assignment_initializer
+                != object_assignment_initializer
         {
             self.finish_update_shorthand_property_assignment(
                 self.create_shorthand_property_assignment_raw(name, object_assignment_initializer),
@@ -189,7 +189,8 @@ impl NodeFactory {
         let node = SpreadAssignment::new(
             node,
             self.parenthesizer_rules()
-                .ref_(self).parenthesize_expression_for_disallowed_comma(expression),
+                .ref_(self)
+                .parenthesize_expression_for_disallowed_comma(expression),
         );
         node.add_transform_flags(
             propagate_child_flags(Some(node.expression.clone()), self)
@@ -225,7 +226,8 @@ impl NodeFactory {
             self.as_name(Some(name)).unwrap(),
             initializer.map(|initializer| {
                 self.parenthesizer_rules()
-                    .ref_(self).parenthesize_expression_for_disallowed_comma(initializer)
+                    .ref_(self)
+                    .parenthesize_expression_for_disallowed_comma(initializer)
             }),
         );
         node.add_transform_flags(
@@ -244,9 +246,7 @@ impl NodeFactory {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_enum_member = node_ref.as_enum_member();
-        if node_as_enum_member.name != name
-            || node_as_enum_member.initializer != initializer
-        {
+        if node_as_enum_member.name != name || node_as_enum_member.initializer != initializer {
             self.update(self.create_enum_member(name, initializer), node)
         } else {
             node
@@ -262,7 +262,8 @@ impl NodeFactory {
     ) -> SourceFile {
         let node = self
             .base_factory
-            .ref_(self).create_base_source_file_node(SyntaxKind::SourceFile);
+            .ref_(self)
+            .create_base_source_file_node(SyntaxKind::SourceFile);
         let node = SourceFile::new(
             node,
             self.create_node_array(Some(statements), None),
@@ -305,7 +306,9 @@ impl NodeFactory {
         node.set_transform_flags(TransformFlags::None);
         node.set_original(None);
         node.set_emit_node(None);
-        self.base_factory.ref_(self).update_cloned_node(node.base_node());
+        self.base_factory
+            .ref_(self)
+            .update_cloned_node(node.base_node());
 
         node.set_statements(self.create_node_array(Some(statements), None));
         node.set_end_of_file_token(source_as_source_file.end_of_file_token());
@@ -532,7 +535,13 @@ impl NodeFactory {
             && node.ref_(self).maybe_id().is_none()
         {
             if is_comma_list_expression(&node.ref_(self)) {
-                return node.ref_(self).as_comma_list_expression().elements.ref_(self).to_vec().into();
+                return node
+                    .ref_(self)
+                    .as_comma_list_expression()
+                    .elements
+                    .ref_(self)
+                    .to_vec()
+                    .into();
             }
             if is_binary_expression(&node.ref_(self)) {
                 let node_ref = node.ref_(self);
@@ -559,9 +568,11 @@ impl NodeFactory {
         let node = CommaListExpression::new(
             node,
             self.create_node_array(
-                Some(same_flat_map_id_node(elements, |element: Id<Node>, _| {
-                    self.flatten_comma_elements(element)
-                }, self)),
+                Some(same_flat_map_id_node(
+                    elements,
+                    |element: Id<Node>, _| self.flatten_comma_elements(element),
+                    self,
+                )),
                 None,
             ),
         );
@@ -590,7 +601,8 @@ impl NodeFactory {
         let node = self
             .create_base_node(SyntaxKind::EndOfDeclarationMarker)
             .alloc(self.arena());
-        node.ref_(self).set_emit_node(Some(self.alloc_emit_node(_d())));
+        node.ref_(self)
+            .set_emit_node(Some(self.alloc_emit_node(_d())));
         node.ref_(self).set_original(Some(original));
         node
     }
@@ -599,7 +611,8 @@ impl NodeFactory {
         let node = self
             .create_base_node(SyntaxKind::MergeDeclarationMarker)
             .alloc(self.arena());
-        node.ref_(self).set_emit_node(Some(self.alloc_emit_node(_d())));
+        node.ref_(self)
+            .set_emit_node(Some(self.alloc_emit_node(_d())));
         node.ref_(self).set_original(Some(original));
         node
     }
@@ -628,12 +641,20 @@ impl NodeFactory {
         clone.ref_(self).set_pos(-1);
         clone.ref_(self).set_end(-1);
         clone.ref_(self).set_id(0);
-        clone.ref_(self).set_modifier_flags_cache(ModifierFlags::None);
+        clone
+            .ref_(self)
+            .set_modifier_flags_cache(ModifierFlags::None);
         clone.ref_(self).set_parent(None);
-        self.base_factory.ref_(self).update_cloned_node(clone.ref_(self).base_node());
+        self.base_factory
+            .ref_(self)
+            .update_cloned_node(clone.ref_(self).base_node());
 
-        clone.ref_(self).set_flags(clone.ref_(self).flags() | (node.ref_(self).flags() & !NodeFlags::Synthesized));
-        clone.ref_(self).set_transform_flags(node.ref_(self).transform_flags());
+        clone.ref_(self).set_flags(
+            clone.ref_(self).flags() | (node.ref_(self).flags() & !NodeFlags::Synthesized),
+        );
+        clone
+            .ref_(self)
+            .set_transform_flags(node.ref_(self).transform_flags());
         set_original_node(clone, Some(node), self);
 
         clone
@@ -730,7 +751,11 @@ impl NodeFactory {
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Id<Node> {
         let arguments_list = arguments_list.into();
-        self.create_method_call(target, "bind", vec![this_arg].and_extend(arguments_list.ref_(self)))
+        self.create_method_call(
+            target,
+            "bind",
+            vec![this_arg].and_extend(arguments_list.ref_(self)),
+        )
     }
 
     pub fn create_function_call_call(
@@ -740,7 +765,11 @@ impl NodeFactory {
         arguments_list: impl Into<NodeArrayOrVec /*Expression*/>,
     ) -> Id<Node> {
         let arguments_list = arguments_list.into();
-        self.create_method_call(target, "call", vec![this_arg].and_extend(arguments_list.ref_(self)))
+        self.create_method_call(
+            target,
+            "call",
+            vec![this_arg].and_extend(arguments_list.ref_(self)),
+        )
     }
 
     pub fn create_function_apply_call(
@@ -899,7 +928,11 @@ impl NodeFactory {
             }
             SyntaxKind::TypeAssertionExpression => self.update_type_assertion(
                 outer_expression,
-                outer_expression.ref_(self).as_type_assertion().type_.clone(),
+                outer_expression
+                    .ref_(self)
+                    .as_type_assertion()
+                    .type_
+                    .clone(),
                 expression,
             ),
             SyntaxKind::AsExpression => self.update_as_expression(
@@ -923,7 +956,9 @@ impl NodeFactory {
             && node_is_synthesized(&ReadonlyTextRangeConcrete::from_text_range(
                 &*get_source_map_range(&node.ref_(self), self).ref_(self),
             ))
-            && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(node, self)))
+            && node_is_synthesized(&ReadonlyTextRangeConcrete::from(get_comment_range(
+                node, self,
+            )))
             && !get_synthetic_leading_comments(node, self).is_non_empty()
             && !get_synthetic_trailing_comments(node, self).is_non_empty()
     }
@@ -962,13 +997,18 @@ impl NodeFactory {
         }
         let outermost_labeled_statement = outermost_labeled_statement.unwrap();
         let outermost_labeled_statement_ref = outermost_labeled_statement.ref_(self);
-        let outermost_labeled_statement_as_labeled_statement = outermost_labeled_statement_ref.as_labeled_statement();
+        let outermost_labeled_statement_as_labeled_statement =
+            outermost_labeled_statement_ref.as_labeled_statement();
         let updated = self.update_labeled_statement(
             outermost_labeled_statement,
             outermost_labeled_statement_as_labeled_statement
                 .label
                 .clone(),
-            if is_labeled_statement(&outermost_labeled_statement_as_labeled_statement.statement.ref_(self)) {
+            if is_labeled_statement(
+                &outermost_labeled_statement_as_labeled_statement
+                    .statement
+                    .ref_(self),
+            ) {
                 self.restore_enclosing_label(
                     node,
                     Some(outermost_labeled_statement_as_labeled_statement.statement),
@@ -1004,9 +1044,12 @@ impl NodeFactory {
                 }
                 true
             }
-            SyntaxKind::ObjectLiteralExpression => {
-                !target.ref_(self).as_object_literal_expression().properties.ref_(self).is_empty()
-            }
+            SyntaxKind::ObjectLiteralExpression => !target
+                .ref_(self)
+                .as_object_literal_expression()
+                .properties
+                .ref_(self)
+                .is_empty(),
             _ => true,
         }
     }
@@ -1039,7 +1082,8 @@ impl NodeFactory {
             this_arg = self.create_void_zero();
             target = self
                 .parenthesizer_rules()
-                .ref_(self).parenthesize_left_side_of_access(callee);
+                .ref_(self)
+                .parenthesize_left_side_of_access(callee);
         } else if is_property_access_expression(&callee.ref_(self)) {
             let callee_ref = callee.ref_(self);
             let callee_as_property_access_expression = callee_ref.as_property_access_expression();
@@ -1059,7 +1103,10 @@ impl NodeFactory {
                             this_arg.clone(),
                             callee_as_property_access_expression.expression.clone(),
                         )
-                        .set_text_range(Some(&*callee_as_property_access_expression.expression.ref_(self)), self),
+                        .set_text_range(
+                            Some(&*callee_as_property_access_expression.expression.ref_(self)),
+                            self,
+                        ),
                         callee_as_property_access_expression.name.clone(),
                     )
                     .set_text_range(Some(&*callee.ref_(self)), self);
@@ -1086,7 +1133,10 @@ impl NodeFactory {
                             this_arg.clone(),
                             callee_as_element_access_expression.expression.clone(),
                         )
-                        .set_text_range(Some(&*callee_as_element_access_expression.expression.ref_(self)), self),
+                        .set_text_range(
+                            Some(&*callee_as_element_access_expression.expression.ref_(self)),
+                            self,
+                        ),
                         callee_as_element_access_expression
                             .argument_expression
                             .clone(),
@@ -1100,7 +1150,8 @@ impl NodeFactory {
             this_arg = self.create_void_zero();
             target = self
                 .parenthesizer_rules()
-                .ref_(self).parenthesize_left_side_of_access(expression);
+                .ref_(self)
+                .parenthesize_left_side_of_access(expression);
         }
 
         CallBinding { target, this_arg }
@@ -1160,9 +1211,9 @@ impl NodeFactory {
     ) -> Id<Node> {
         let mut emit_flags = emit_flags.unwrap_or_default();
         let node_name = get_name_of_declaration(node, self);
-        if let Some(node_name) = node_name
-            .filter(|node_name| is_identifier(&node_name.ref_(self)) && !is_generated_identifier(&node_name.ref_(self)))
-        {
+        if let Some(node_name) = node_name.filter(|node_name| {
+            is_identifier(&node_name.ref_(self)) && !is_generated_identifier(&node_name.ref_(self))
+        }) {
             let name = self
                 .clone_node(node_name)
                 .set_text_range(Some(&*node_name.ref_(self)), self)
@@ -1322,7 +1373,8 @@ impl NodeFactory {
         is_string_literal(&node_as_expression_statement.expression.ref_(self))
             && *node_as_expression_statement
                 .expression
-                .ref_(self).as_string_literal()
+                .ref_(self)
+                .as_string_literal()
                 .text()
                 == "use strict"
     }
@@ -1445,7 +1497,9 @@ impl NodeFactory {
 
     pub fn lift_to_block(&self, nodes: &[Id<Node>]) -> Id<Node /*Statement*/> {
         Debug_.assert(
-            every(nodes, |node: &Id<Node>, _| is_statement_or_block(&node.ref_(self))),
+            every(nodes, |node: &Id<Node>, _| {
+                is_statement_or_block(&node.ref_(self))
+            }),
             Some("Cannot lift nodes to a Block."),
         );
         single_or_undefined(Some(nodes))
@@ -1557,12 +1611,18 @@ impl NodeFactory {
                 );
             } else {
                 let mut left_prologues: HashMap<String, bool> = _d();
-                for left_prologue in statements.ref_(self).iter().take(left_standard_prologue_end) {
+                for left_prologue in statements
+                    .ref_(self)
+                    .iter()
+                    .take(left_standard_prologue_end)
+                {
                     left_prologues.insert(
                         left_prologue
-                            .ref_(self).as_expression_statement()
+                            .ref_(self)
+                            .as_expression_statement()
                             .expression
-                            .ref_(self).as_string_literal()
+                            .ref_(self)
+                            .as_string_literal()
                             .text()
                             .clone(),
                         true,
@@ -1571,9 +1631,11 @@ impl NodeFactory {
                 for right_prologue in declarations.iter().take(right_standard_prologue_end).rev() {
                     if !left_prologues.contains_key(
                         &*right_prologue
-                            .ref_(self).as_expression_statement()
+                            .ref_(self)
+                            .as_expression_statement()
                             .expression
-                            .ref_(self).as_string_literal()
+                            .ref_(self)
+                            .as_string_literal()
                             .text(),
                     ) {
                         left.insert(0, right_prologue.clone());

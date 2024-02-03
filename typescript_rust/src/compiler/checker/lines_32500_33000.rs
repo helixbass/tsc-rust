@@ -9,12 +9,12 @@ use crate::{
     is_assignment_operator, is_binary_expression, is_if_statement, is_in_js_file,
     is_private_identifier_property_access_expression, is_spread_assignment, push_or_replace,
     skip_parentheses, skip_trivia, text_span_contains_position, token_to_string,
-    walk_up_parenthesized_expressions, AccessFlags, AssignmentDeclarationKind,
+    walk_up_parenthesized_expressions, AccessFlags, AllArenas, AssignmentDeclarationKind,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_,
     DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, HasArena, InArena,
     LeftOrRight, NamedDeclarationInterface, Node, NodeArray, NodeInterface, Number, ObjectFlags,
     OptionTry, ReadonlyTextRange, ScriptTarget, SourceFileLike, Symbol, SyntaxKind, TextSpan, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction, AllArenas,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {
@@ -85,7 +85,11 @@ impl TypeChecker {
                     if property.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
                         property
                     } else {
-                        property.ref_(self).as_has_initializer().maybe_initializer().unwrap()
+                        property
+                            .ref_(self)
+                            .as_has_initializer()
+                            .maybe_initializer()
+                            .unwrap()
                     },
                     type_,
                     None,
@@ -108,7 +112,8 @@ impl TypeChecker {
                     if let Some(all_properties) = all_properties {
                         for other_property in &*all_properties.ref_(self) {
                             if !is_spread_assignment(&other_property.ref_(self)) {
-                                non_rest_names.push(other_property.ref_(self).as_named_declaration().name());
+                                non_rest_names
+                                    .push(other_property.ref_(self).as_named_declaration().name());
                             }
                         }
                     }
@@ -160,15 +165,19 @@ impl TypeChecker {
             self.undefined_type(),
             Some(node)
         )? /*|| errorType*/;
-        let mut in_bounds_type = if self.compiler_options.ref_(self).no_unchecked_indexed_access == Some(true)
-        {
-            None
-        } else {
-            Some(possibly_out_of_bounds_type.clone())
-        };
+        let mut in_bounds_type =
+            if self.compiler_options.ref_(self).no_unchecked_indexed_access == Some(true) {
+                None
+            } else {
+                Some(possibly_out_of_bounds_type.clone())
+            };
         for i in 0..elements.ref_(self).len() {
             let mut type_ = possibly_out_of_bounds_type.clone();
-            if node_as_array_literal_expression.elements.ref_(self)[i].ref_(self).kind() == SyntaxKind::SpreadElement {
+            if node_as_array_literal_expression.elements.ref_(self)[i]
+                .ref_(self)
+                .kind()
+                == SyntaxKind::SpreadElement
+            {
                 in_bounds_type = Some(in_bounds_type.try_unwrap_or_else(|| {
                     self.check_iterated_type_or_element_type(
                         IterationUse::Destructuring,
@@ -253,11 +262,21 @@ impl TypeChecker {
             } else {
                 let rest_expression = element.ref_(self).as_spread_element().expression;
                 if rest_expression.ref_(self).kind() == SyntaxKind::BinaryExpression
-                    && rest_expression.ref_(self).as_binary_expression().operator_token.ref_(self).kind()
+                    && rest_expression
+                        .ref_(self)
+                        .as_binary_expression()
+                        .operator_token
+                        .ref_(self)
+                        .kind()
                         == SyntaxKind::EqualsToken
                 {
                     self.error(
-                        Some(rest_expression.ref_(self).as_binary_expression().operator_token),
+                        Some(
+                            rest_expression
+                                .ref_(self)
+                                .as_binary_expression()
+                                .operator_token,
+                        ),
                         &Diagnostics::A_rest_element_cannot_have_an_initializer,
                         None,
                     );
@@ -303,9 +322,7 @@ impl TypeChecker {
         if expr_or_assignment.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
             let expr_or_assignment_ref = expr_or_assignment.ref_(self);
             let prop = expr_or_assignment_ref.as_shorthand_property_assignment();
-            if let Some(prop_object_assignment_initializer) =
-                prop.object_assignment_initializer
-            {
+            if let Some(prop_object_assignment_initializer) = prop.object_assignment_initializer {
                 if self.strict_null_checks
                     && !self
                         .get_falsy_flags(self.check_expression(
@@ -325,15 +342,26 @@ impl TypeChecker {
                     Option::<Id<Node>>::None,
                 )?;
             }
-            target = expr_or_assignment.ref_(self).as_shorthand_property_assignment().name();
+            target = expr_or_assignment
+                .ref_(self)
+                .as_shorthand_property_assignment()
+                .name();
         } else {
             target = expr_or_assignment;
         }
 
         if target.ref_(self).kind() == SyntaxKind::BinaryExpression
-            && target.ref_(self).as_binary_expression().operator_token.ref_(self).kind() == SyntaxKind::EqualsToken
+            && target
+                .ref_(self)
+                .as_binary_expression()
+                .operator_token
+                .ref_(self)
+                .kind()
+                == SyntaxKind::EqualsToken
         {
-            self.check_binary_expression().ref_(self).call(target, check_mode)?;
+            self.check_binary_expression()
+                .ref_(self)
+                .call(target, check_mode)?;
             target = target.ref_(self).as_binary_expression().left;
         }
         if target.ref_(self).kind() == SyntaxKind::ObjectLiteralExpression {
@@ -352,12 +380,15 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         let target_type = self.check_expression(target, check_mode, None)?;
-        let error = if target.ref_(self).parent().ref_(self).kind() == SyntaxKind::SpreadAssignment {
+        let error = if target.ref_(self).parent().ref_(self).kind() == SyntaxKind::SpreadAssignment
+        {
             &*Diagnostics::The_target_of_an_object_rest_assignment_must_be_a_variable_or_a_property_access
         } else {
             &*Diagnostics::The_left_hand_side_of_an_assignment_expression_must_be_a_variable_or_a_property_access
         };
-        let optional_error = if target.ref_(self).parent().ref_(self).kind() == SyntaxKind::SpreadAssignment {
+        let optional_error = if target.ref_(self).parent().ref_(self).kind()
+            == SyntaxKind::SpreadAssignment
+        {
             &*Diagnostics::The_target_of_an_object_rest_assignment_may_not_be_an_optional_property_access
         } else {
             &*Diagnostics::The_left_hand_side_of_an_assignment_expression_may_not_be_an_optional_property_access
@@ -416,7 +447,9 @@ impl TypeChecker {
             SyntaxKind::BinaryExpression => {
                 let node_ref = node.ref_(self);
                 let node_as_binary_expression = node_ref.as_binary_expression();
-                if is_assignment_operator(node_as_binary_expression.operator_token.ref_(self).kind()) {
+                if is_assignment_operator(
+                    node_as_binary_expression.operator_token.ref_(self).kind(),
+                ) {
                     return false;
                 }
                 self.is_side_effect_free(node_as_binary_expression.left)
@@ -465,7 +498,11 @@ impl TypeChecker {
         if operator_token.ref_(self).kind() == SyntaxKind::QuestionQuestionToken {
             if is_binary_expression(&left.ref_(self))
                 && matches!(
-                    left.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
+                    left.ref_(self)
+                        .as_binary_expression()
+                        .operator_token
+                        .ref_(self)
+                        .kind(),
                     SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
                 )
             {
@@ -473,16 +510,29 @@ impl TypeChecker {
                     left,
                     &Diagnostics::_0_and_1_operations_cannot_be_mixed_without_parentheses,
                     Some(vec![
-                        token_to_string(left.ref_(self).as_binary_expression().operator_token.ref_(self).kind())
+                        token_to_string(
+                            left.ref_(self)
+                                .as_binary_expression()
+                                .operator_token
+                                .ref_(self)
+                                .kind(),
+                        )
+                        .unwrap()
+                        .to_owned(),
+                        token_to_string(operator_token.ref_(self).kind())
                             .unwrap()
                             .to_owned(),
-                        token_to_string(operator_token.ref_(self).kind()).unwrap().to_owned(),
                     ]),
                 );
             }
             if is_binary_expression(&right.ref_(self))
                 && matches!(
-                    right.ref_(self).as_binary_expression().operator_token.ref_(self).kind(),
+                    right
+                        .ref_(self)
+                        .as_binary_expression()
+                        .operator_token
+                        .ref_(self)
+                        .kind(),
                     SyntaxKind::BarBarToken | SyntaxKind::AmpersandAmpersandToken
                 )
             {
@@ -490,10 +540,19 @@ impl TypeChecker {
                     right,
                     &Diagnostics::_0_and_1_operations_cannot_be_mixed_without_parentheses,
                     Some(vec![
-                        token_to_string(right.ref_(self).as_binary_expression().operator_token.ref_(self).kind())
+                        token_to_string(
+                            right
+                                .ref_(self)
+                                .as_binary_expression()
+                                .operator_token
+                                .ref_(self)
+                                .kind(),
+                        )
+                        .unwrap()
+                        .to_owned(),
+                        token_to_string(operator_token.ref_(self).kind())
                             .unwrap()
                             .to_owned(),
-                        token_to_string(operator_token.ref_(self).kind()).unwrap().to_owned(),
                     ]),
                 );
             }
@@ -933,7 +992,8 @@ impl TypeChecker {
                     let sf_as_source_file = sf_ref.as_source_file();
                     let source_text = sf_as_source_file.text_as_chars();
                     let start = skip_trivia(&source_text, left.ref_(self).pos(), None, None, None);
-                    let is_in_diag_2657 = sf_as_source_file.parse_diagnostics()
+                    let is_in_diag_2657 = sf_as_source_file
+                        .parse_diagnostics()
                         .ref_(self)
                         .iter()
                         .any(|diag| {
@@ -1012,9 +1072,11 @@ impl CheckBinaryExpressionStateMachine {
         if is_binary_expression(&node.ref_(self)) {
             return Ok(Some(node));
         }
-        let type_ = self
-            .type_checker
-            .ref_(self).check_expression(node, (*state).borrow().check_mode, None)?;
+        let type_ = self.type_checker.ref_(self).check_expression(
+            node,
+            (*state).borrow().check_mode,
+            None,
+        )?;
         self.set_last_result(&mut state.borrow_mut(), Some(type_));
         Ok(None)
     }
@@ -1083,7 +1145,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
         let node_ref = node.ref_(self);
         let node_as_binary_expression = node_ref.as_binary_expression();
-        if is_in_js_file(Some(&node.ref_(self))) && get_assigned_expando_initializer(Some(node), self).is_some() {
+        if is_in_js_file(Some(&node.ref_(self)))
+            && get_assigned_expando_initializer(Some(node), self).is_some()
+        {
             {
                 let mut state = state.borrow_mut();
                 state.skip = true;
@@ -1100,7 +1164,8 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
         }
 
         self.type_checker
-            .ref_(self).check_grammar_nullish_coalesce_with_logical_expression(node);
+            .ref_(self)
+            .check_grammar_nullish_coalesce_with_logical_expression(node);
 
         let operator = node_as_binary_expression.operator_token.ref_(self).kind();
         if operator == SyntaxKind::EqualsToken
@@ -1114,16 +1179,23 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 state.skip = true;
                 self.set_last_result(
                     &mut state,
-                    Some(self.type_checker.ref_(self).check_destructuring_assignment(
-                        node_as_binary_expression.left,
-                        self.type_checker.ref_(self).check_expression(
-                            node_as_binary_expression.right,
-                            check_mode,
-                            None,
-                        )?,
-                        check_mode,
-                        Some(node_as_binary_expression.right.ref_(self).kind() == SyntaxKind::ThisKeyword),
-                    )?),
+                    Some(
+                        self.type_checker
+                            .ref_(self)
+                            .check_destructuring_assignment(
+                                node_as_binary_expression.left,
+                                self.type_checker.ref_(self).check_expression(
+                                    node_as_binary_expression.right,
+                                    check_mode,
+                                    None,
+                                )?,
+                                check_mode,
+                                Some(
+                                    node_as_binary_expression.right.ref_(self).kind()
+                                        == SyntaxKind::ThisKeyword,
+                                ),
+                            )?,
+                    ),
                 );
             }
             return Ok(state);
@@ -1166,9 +1238,11 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 let node_ref = node.ref_(self);
                 let node_as_binary_expression = node_ref.as_binary_expression();
                 if operator == SyntaxKind::AmpersandAmpersandToken {
-                    let parent = walk_up_parenthesized_expressions(node.ref_(self).parent(), self).unwrap();
+                    let parent =
+                        walk_up_parenthesized_expressions(node.ref_(self).parent(), self).unwrap();
                     self.type_checker
-                        .ref_(self).check_testing_known_truthy_callable_or_awaitable_type(
+                        .ref_(self)
+                        .check_testing_known_truthy_callable_or_awaitable_type(
                             node_as_binary_expression.left,
                             left_type,
                             if is_if_statement(&parent.ref_(self)) {
@@ -1179,7 +1253,8 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                         )?;
                 }
                 self.type_checker
-                    .ref_(self).check_truthiness_of_type(left_type, node_as_binary_expression.left);
+                    .ref_(self)
+                    .check_truthiness_of_type(left_type, node_as_binary_expression.left);
             }
         }
 
@@ -1217,14 +1292,18 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
 
             let node_ref = node.ref_(self);
             let node_as_binary_expression = node_ref.as_binary_expression();
-            result = Some(self.type_checker.ref_(self).check_binary_like_expression_worker(
-                node_as_binary_expression.left,
-                node_as_binary_expression.operator_token,
-                node_as_binary_expression.right,
-                left_type,
-                right_type,
-                Some(node),
-            )?);
+            result = Some(
+                self.type_checker
+                    .ref_(self)
+                    .check_binary_like_expression_worker(
+                        node_as_binary_expression.left,
+                        node_as_binary_expression.operator_token,
+                        node_as_binary_expression.right,
+                        left_type,
+                        right_type,
+                        Some(node),
+                    )?,
+            );
         }
 
         {

@@ -4,26 +4,23 @@ use id_arena::Id;
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
-    add_range, create_base_node_factory, create_scanner, is_arrow_function, is_class_declaration,
-    is_class_expression, is_constructor_declaration, is_enum_declaration, is_export_assignment,
-    is_export_declaration, is_function_declaration, is_function_expression,
+    add_range, create_base_node_factory, create_scanner, get_parse_node_factory, is_arrow_function,
+    is_class_declaration, is_class_expression, is_constructor_declaration, is_enum_declaration,
+    is_export_assignment, is_export_declaration, is_function_declaration, is_function_expression,
     is_get_accessor_declaration, is_import_declaration, is_import_equals_declaration,
     is_index_signature_declaration, is_interface_declaration, is_method_declaration,
     is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
-    is_type_alias_declaration, is_variable_statement,
-    get_parse_node_factory, set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete,
-    BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
-    FunctionLikeDeclarationInterface, GetOrInsertDefault, HasInitializerInterface,
-    HasMembersInterface, HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface,
-    InputFiles, InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
+    is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_eq, per_arena,
+    set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, BuildInfo,
+    ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode, FunctionLikeDeclarationInterface,
+    GetOrInsertDefault, HasArena, HasInitializerInterface, HasMembersInterface,
+    HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InArena, InputFiles,
+    InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
     NodeInterface, PseudoBigInt, Scanner, ScriptTarget, SignatureDeclarationInterface,
     SourceMapRange, StrOrRcNode, StringOrBool, StringOrNumberOrBoolOrRcNode, StringOrRcNode,
     SyntaxKind, TransformFlags,
-    HasArena, InArena,
-    maybe_append_if_unique_eq,
-    per_arena,
 };
 
 impl NodeFactory {
@@ -400,14 +397,22 @@ impl From<Id<Node>> for SyntaxKindOrRcNode {
     }
 }
 
-pub(super) fn update_without_original(updated: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+pub(super) fn update_without_original(
+    updated: Id<Node>,
+    original: Id<Node>,
+    arena: &impl HasArena,
+) -> Id<Node> {
     if updated != original {
         set_text_range(&*updated.ref_(arena), Some(&*original.ref_(arena)));
     }
     updated
 }
 
-pub(super) fn update_with_original(updated: Id<Node>, original: Id<Node>, arena: &impl HasArena) -> Id<Node> {
+pub(super) fn update_with_original(
+    updated: Id<Node>,
+    original: Id<Node>,
+    arena: &impl HasArena,
+) -> Id<Node> {
     if updated != original {
         set_original_node(updated, Some(original), arena);
         set_text_range(&*updated.ref_(arena), Some(&*original.ref_(arena)));
@@ -521,7 +526,10 @@ pub(super) fn get_cooked_text(
     })
 }
 
-pub(super) fn propagate_identifier_name_flags(node: Id<Node> /*Identifier*/, arena: &impl HasArena) -> TransformFlags {
+pub(super) fn propagate_identifier_name_flags(
+    node: Id<Node>, /*Identifier*/
+    arena: &impl HasArena,
+) -> TransformFlags {
     propagate_child_flags(Some(node), arena) & !TransformFlags::ContainsPossibleTopLevelAwait
 }
 
@@ -532,14 +540,22 @@ pub(super) fn propagate_property_name_flags_of_child(
     transform_flags | (node.transform_flags() & TransformFlags::PropertyNamePropagatingFlags)
 }
 
-pub(super) fn propagate_child_flags(child: Option<Id<Node>>, arena: &impl HasArena) -> TransformFlags {
+pub(super) fn propagate_child_flags(
+    child: Option<Id<Node>>,
+    arena: &impl HasArena,
+) -> TransformFlags {
     let Some(child) = child else {
         return TransformFlags::None;
     };
-    let child_flags =
-        child.ref_(arena).transform_flags() & !get_transform_flags_subtree_exclusions(child.ref_(arena).kind());
-    if is_named_declaration(&child.ref_(arena)) && is_property_name(&child.ref_(arena).as_named_declaration().name().ref_(arena)) {
-        propagate_property_name_flags_of_child(&child.ref_(arena).as_named_declaration().name().ref_(arena), child_flags)
+    let child_flags = child.ref_(arena).transform_flags()
+        & !get_transform_flags_subtree_exclusions(child.ref_(arena).kind());
+    if is_named_declaration(&child.ref_(arena))
+        && is_property_name(&child.ref_(arena).as_named_declaration().name().ref_(arena))
+    {
+        propagate_property_name_flags_of_child(
+            &child.ref_(arena).as_named_declaration().name().ref_(arena),
+            child_flags,
+        )
     } else {
         child_flags
     }
@@ -556,7 +572,9 @@ pub(super) fn aggregate_children_flags(children: Id<NodeArray>, arena: &impl Has
     for &child in children.ref_(arena).iter() {
         subtree_flags |= propagate_child_flags(Some(child), arena);
     }
-    children.ref_(arena).set_transform_flags(Some(subtree_flags));
+    children
+        .ref_(arena)
+        .set_transform_flags(Some(subtree_flags));
 }
 
 pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> TransformFlags {
@@ -736,7 +754,9 @@ pub fn create_input_files(
     old_file_of_current_emit: Option<bool>,
     arena: &impl HasArena,
 ) -> Id<Node /*InputFiles*/> {
-    let mut node: InputFiles = get_parse_node_factory(arena).create_input_files_raw().into();
+    let mut node: InputFiles = get_parse_node_factory(arena)
+        .create_input_files_raw()
+        .into();
     match javascript_text_or_read_file_text.into() {
         StringOrReadFileCallback::ReadFileCallback(javascript_text_or_read_file_text) => {
             node.initialize_with_read_file_callback(
@@ -788,14 +808,19 @@ impl From<Id<Box<dyn ReadFileCallback>>> for StringOrReadFileCallback {
     }
 }
 
-pub fn set_original_node(node: Id<Node>, original: Option<Id<Node>>, arena: &impl HasArena) -> Id<Node> {
+pub fn set_original_node(
+    node: Id<Node>,
+    original: Option<Id<Node>>,
+    arena: &impl HasArena,
+) -> Id<Node> {
     node.ref_(arena).set_original(original);
     if let Some(original) = original {
         let emit_node = original.ref_(arena).maybe_emit_node();
         if let Some(emit_node) = emit_node {
             let node_emit_node = {
                 if node.ref_(arena).maybe_emit_node().is_none() {
-                    node.ref_(arena).set_emit_node(Some(arena.alloc_emit_node(Default::default())));
+                    node.ref_(arena)
+                        .set_emit_node(Some(arena.alloc_emit_node(Default::default())));
                 }
                 node.ref_(arena).maybe_emit_node().unwrap()
             };

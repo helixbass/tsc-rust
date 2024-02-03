@@ -73,7 +73,8 @@ impl Binder {
             self.arena(),
             Option::<&[Id<Symbol>]>::None,
         ))));
-        type_literal_symbol_ref.members()
+        type_literal_symbol_ref
+            .members()
             .ref_mut(self)
             .insert(symbol.ref_(self).escaped_name().to_owned(), symbol);
     }
@@ -89,7 +90,13 @@ impl Binder {
             let node_as_object_literal_expression = node_ref.as_object_literal_expression();
             for prop in &*node_as_object_literal_expression.properties.ref_(self) {
                 if prop.ref_(self).kind() == SyntaxKind::SpreadAssignment
-                    || prop.ref_(self).as_named_declaration().name().ref_(self).kind() != SyntaxKind::Identifier
+                    || prop
+                        .ref_(self)
+                        .as_named_declaration()
+                        .name()
+                        .ref_(self)
+                        .kind()
+                        != SyntaxKind::Identifier
                 {
                     continue;
                 }
@@ -214,7 +221,8 @@ impl Binder {
             _ => {
                 {
                     let block_scope_container_ref = block_scope_container.ref_(self);
-                    let mut block_scope_container_locals = block_scope_container_ref.maybe_locals_mut();
+                    let mut block_scope_container_locals =
+                        block_scope_container_ref.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals = Some(self.alloc_symbol_table(
                             create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
@@ -249,10 +257,14 @@ impl Binder {
         for &type_alias in delayed_type_aliases {
             let host = type_alias.ref_(self).parent().ref_(self).parent();
             self.set_container(Some(
-                find_ancestor(host.ref_(self).maybe_parent(), |n| {
-                    self.get_container_flags(n)
-                        .intersects(ContainerFlags::IsContainer)
-                }, self)
+                find_ancestor(
+                    host.ref_(self).maybe_parent(),
+                    |n| {
+                        self.get_container_flags(n)
+                            .intersects(ContainerFlags::IsContainer)
+                    },
+                    self,
+                )
                 .unwrap_or_else(|| self.file()),
             ));
             self.set_block_scope_container(Some(
@@ -268,7 +280,8 @@ impl Binder {
             let decl_name = get_name_of_declaration(Some(type_alias), self);
             if (is_jsdoc_enum_tag(&type_alias.ref_(self))
                 || type_alias
-                    .ref_(self).as_jsdoc_typedef_or_callback_tag()
+                    .ref_(self)
+                    .as_jsdoc_typedef_or_callback_tag()
                     .maybe_full_name()
                     .is_none())
                 && matches!(
@@ -277,25 +290,35 @@ impl Binder {
                 )
             {
                 let decl_name = decl_name.unwrap();
-                let is_top_level = self.is_top_level_namespace_assignment(decl_name.ref_(self).parent());
+                let is_top_level =
+                    self.is_top_level_namespace_assignment(decl_name.ref_(self).parent());
                 if is_top_level {
                     self.bind_potentially_missing_namespaces(
                         self.file().ref_(self).maybe_symbol(),
                         decl_name.ref_(self).parent(),
                         is_top_level,
-                        find_ancestor(Some(decl_name), |d| {
-                            is_property_access_expression(&d.ref_(self))
-                                && d.ref_(self).as_property_access_expression()
-                                    .name
-                                    .ref_(self).as_member_name()
-                                    .escaped_text()
-                                    == "prototype"
-                        }, self)
+                        find_ancestor(
+                            Some(decl_name),
+                            |d| {
+                                is_property_access_expression(&d.ref_(self))
+                                    && d.ref_(self)
+                                        .as_property_access_expression()
+                                        .name
+                                        .ref_(self)
+                                        .as_member_name()
+                                        .escaped_text()
+                                        == "prototype"
+                            },
+                            self,
+                        )
                         .is_some(),
                         false,
                     );
                     let old_container = self.maybe_container();
-                    match get_assignment_declaration_property_access_kind(decl_name.ref_(self).parent(), self) {
+                    match get_assignment_declaration_property_access_kind(
+                        decl_name.ref_(self).parent(),
+                        self,
+                    ) {
                         AssignmentDeclarationKind::ExportsProperty
                         | AssignmentDeclarationKind::ModuleExports => {
                             if !is_external_or_common_js_module(&self.file().ref_(self)) {
@@ -306,17 +329,25 @@ impl Binder {
                         }
                         AssignmentDeclarationKind::ThisProperty => {
                             self.set_container(Some(
-                                decl_name.ref_(self).parent().ref_(self).as_has_expression().expression(),
+                                decl_name
+                                    .ref_(self)
+                                    .parent()
+                                    .ref_(self)
+                                    .as_has_expression()
+                                    .expression(),
                             ));
                         }
                         AssignmentDeclarationKind::PrototypeProperty => {
                             self.set_container(Some(
                                 decl_name
-                                    .ref_(self).parent()
-                                    .ref_(self).as_has_expression()
+                                    .ref_(self)
+                                    .parent()
+                                    .ref_(self)
+                                    .as_has_expression()
                                     .expression()
-                                    .ref_(self).as_property_access_expression()
-                                    .name
+                                    .ref_(self)
+                                    .as_property_access_expression()
+                                    .name,
                             ));
                         }
                         AssignmentDeclarationKind::Property => {
@@ -324,20 +355,39 @@ impl Binder {
                                 if is_exports_or_module_exports_or_alias(
                                     self,
                                     self.file(),
-                                    decl_name.ref_(self).parent().ref_(self).as_has_expression().expression(),
+                                    decl_name
+                                        .ref_(self)
+                                        .parent()
+                                        .ref_(self)
+                                        .as_has_expression()
+                                        .expression(),
                                 ) {
                                     self.file()
                                 } else if is_property_access_expression(
-                                    &decl_name.ref_(self).parent().ref_(self).as_has_expression().expression().ref_(self),
+                                    &decl_name
+                                        .ref_(self)
+                                        .parent()
+                                        .ref_(self)
+                                        .as_has_expression()
+                                        .expression()
+                                        .ref_(self),
                                 ) {
                                     decl_name
-                                        .ref_(self).parent()
-                                        .ref_(self).as_has_expression()
+                                        .ref_(self)
+                                        .parent()
+                                        .ref_(self)
+                                        .as_has_expression()
                                         .expression()
-                                        .ref_(self).as_property_access_expression()
+                                        .ref_(self)
+                                        .as_property_access_expression()
                                         .name
                                 } else {
-                                    decl_name.ref_(self).parent().ref_(self).as_has_expression().expression()
+                                    decl_name
+                                        .ref_(self)
+                                        .parent()
+                                        .ref_(self)
+                                        .as_has_expression()
+                                        .expression()
                                 },
                             ));
                         }
@@ -357,7 +407,8 @@ impl Binder {
                 }
             } else if is_jsdoc_enum_tag(&type_alias.ref_(self))
                 || match type_alias
-                    .ref_(self).as_jsdoc_typedef_or_callback_tag()
+                    .ref_(self)
+                    .as_jsdoc_typedef_or_callback_tag()
                     .maybe_full_name()
                 {
                     None => true,
@@ -373,7 +424,8 @@ impl Binder {
             } else {
                 self.bind(
                     type_alias
-                        .ref_(self).as_jsdoc_typedef_or_callback_tag()
+                        .ref_(self)
+                        .as_jsdoc_typedef_or_callback_tag()
                         .maybe_full_name(),
                 );
             }
@@ -389,7 +441,11 @@ impl Binder {
         &self,
         node: Id<Node>, /*Identifier (and whatever ThisKeyword is) */
     ) {
-        if self.file().ref_(self).as_source_file().parse_diagnostics()
+        if self
+            .file()
+            .ref_(self)
+            .as_source_file()
+            .parse_diagnostics()
             .ref_(self)
             .is_empty()
             && !node.ref_(self).flags().intersects(NodeFlags::Ambient)
@@ -397,24 +453,32 @@ impl Binder {
             && !is_identifier_name(node, self)
         {
             let node_original_keyword_kind = node
-                .ref_(self).maybe_as_identifier()
+                .ref_(self)
+                .maybe_as_identifier()
                 .and_then(|node| node.original_keyword_kind);
             if matches!(self.maybe_in_strict_mode(), Some(true))
                 && matches!(node_original_keyword_kind, Some(original_keyword_kind) if original_keyword_kind >= SyntaxKind::FirstFutureReservedWord && original_keyword_kind <= SyntaxKind::LastFutureReservedWord)
             {
                 self.file()
-                    .ref_(self).as_source_file()
+                    .ref_(self)
+                    .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(self.alloc_diagnostic(
-                        self.create_diagnostic_for_node(
-                            node,
-                            self.get_strict_mode_identifier_message(node),
-                            Some(vec![declaration_name_to_string(Some(node), self).into_owned()]),
-                        )
-                        .into(),
-                    ));
+                    .push(
+                        self.alloc_diagnostic(
+                            self.create_diagnostic_for_node(
+                                node,
+                                self.get_strict_mode_identifier_message(node),
+                                Some(vec![
+                                    declaration_name_to_string(Some(node), self).into_owned()
+                                ]),
+                            )
+                            .into(),
+                        ),
+                    );
             } else if matches!(node_original_keyword_kind, Some(SyntaxKind::AwaitKeyword)) {
-                if is_external_module(&self.file().ref_(self)) && is_in_top_level_context(node, self) {
+                if is_external_module(&self.file().ref_(self))
+                    && is_in_top_level_context(node, self)
+                {
                     self.file()
                         .ref_(self).as_source_file()
                         .bind_diagnostics_mut()
@@ -467,7 +531,8 @@ impl Binder {
 
         if self
             .file()
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_external_module_indicator()
             .is_some()
         {
@@ -482,18 +547,23 @@ impl Binder {
             let file = self.file();
             let file_ref = file.ref_(self);
             let file_as_source_file = file_ref.as_source_file();
-            if file_as_source_file.parse_diagnostics()
+            if file_as_source_file
+                .parse_diagnostics()
                 .ref_(self)
                 .is_empty()
             {
-                file_as_source_file.bind_diagnostics_mut().push(self.alloc_diagnostic(
-                    self.create_diagnostic_for_node(
-                        node,
-                        &Diagnostics::constructor_is_a_reserved_word,
-                        Some(vec![declaration_name_to_string(Some(node), self).into_owned()]),
-                    )
-                    .into(),
-                ));
+                file_as_source_file.bind_diagnostics_mut().push(
+                    self.alloc_diagnostic(
+                        self.create_diagnostic_for_node(
+                            node,
+                            &Diagnostics::constructor_is_a_reserved_word,
+                            Some(vec![
+                                declaration_name_to_string(Some(node), self).into_owned()
+                            ]),
+                        )
+                        .into(),
+                    ),
+                );
             }
         }
     }
@@ -516,13 +586,12 @@ impl Binder {
         let node_ref = node.ref_(self);
         let node_as_catch_clause = node_ref.as_catch_clause();
         if self.maybe_in_strict_mode() == Some(true) {
-            if let Some(node_variable_declaration) =
-                node_as_catch_clause.variable_declaration
-            {
+            if let Some(node_variable_declaration) = node_as_catch_clause.variable_declaration {
                 self.check_strict_mode_eval_or_arguments(
                     node,
                     node_variable_declaration
-                        .ref_(self).as_variable_declaration()
+                        .ref_(self)
+                        .as_variable_declaration()
                         .maybe_name(),
                 );
             }
@@ -537,8 +606,11 @@ impl Binder {
         let node_as_delete_expression = node_ref.as_delete_expression();
         if self.maybe_in_strict_mode() == Some(true) {
             if node_as_delete_expression.expression.ref_(self).kind() == SyntaxKind::Identifier {
-                let span =
-                    get_error_span_for_node(self.file(), node_as_delete_expression.expression, self);
+                let span = get_error_span_for_node(
+                    self.file(),
+                    node_as_delete_expression.expression,
+                    self,
+                );
                 self.file()
                     .ref_(self).as_source_file()
                     .bind_diagnostics_mut()
@@ -557,10 +629,11 @@ impl Binder {
     }
 
     pub(super) fn is_eval_or_arguments_identifier(&self, node: Id<Node>) -> bool {
-        is_identifier(&node.ref_(self)) && matches!(
-            &*node.ref_(self).as_identifier().escaped_text,
-            "eval" | "arguments"
-        )
+        is_identifier(&node.ref_(self))
+            && matches!(
+                &*node.ref_(self).as_identifier().escaped_text,
+                "eval" | "arguments"
+            )
     }
 
     pub(super) fn check_strict_mode_eval_or_arguments(
@@ -576,18 +649,21 @@ impl Binder {
             if self.is_eval_or_arguments_identifier(identifier) {
                 let span = get_error_span_for_node(self.file(), name, self);
                 self.file()
-                    .ref_(self).as_source_file()
+                    .ref_(self)
+                    .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(self.alloc_diagnostic(
-                        create_file_diagnostic(
-                            self.file(),
-                            span.start,
-                            span.length,
-                            self.get_strict_mode_eval_or_arguments_message(context_node),
-                            Some(vec![id_text(&identifier.ref_(self)).to_owned()]),
-                        )
-                        .into(),
-                    ));
+                    .push(
+                        self.alloc_diagnostic(
+                            create_file_diagnostic(
+                                self.file(),
+                                span.start,
+                                span.length,
+                                self.get_strict_mode_eval_or_arguments_message(context_node),
+                                Some(vec![id_text(&identifier.ref_(self)).to_owned()]),
+                            )
+                            .into(),
+                        ),
+                    );
             }
         }
     }
@@ -602,7 +678,8 @@ impl Binder {
 
         if self
             .file()
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_external_module_indicator()
             .is_some()
         {
@@ -634,7 +711,8 @@ impl Binder {
 
         if self
             .file()
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .maybe_external_module_indicator()
             .is_some()
         {
@@ -659,18 +737,21 @@ impl Binder {
             )) {
                 let error_span = get_error_span_for_node(self.file(), node, self);
                 self.file()
-                    .ref_(self).as_source_file()
+                    .ref_(self)
+                    .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(self.alloc_diagnostic(
-                        create_file_diagnostic(
-                            self.file(),
-                            error_span.start,
-                            error_span.length,
-                            self.get_strict_mode_block_scope_function_declaration_message(node),
-                            None,
-                        )
-                        .into(),
-                    ));
+                    .push(
+                        self.alloc_diagnostic(
+                            create_file_diagnostic(
+                                self.file(),
+                                error_span.start,
+                                error_span.length,
+                                self.get_strict_mode_block_scope_function_declaration_message(node),
+                                None,
+                            )
+                            .into(),
+                        ),
+                    );
             }
         }
     }
@@ -684,16 +765,19 @@ impl Binder {
                 .intersects(TokenFlags::Octal)
             {
                 self.file()
-                    .ref_(self).as_source_file()
+                    .ref_(self)
+                    .as_source_file()
                     .bind_diagnostics_mut()
-                    .push(self.alloc_diagnostic(
-                        self.create_diagnostic_for_node(
-                            node,
-                            &Diagnostics::Octal_literals_are_not_allowed_in_strict_mode,
-                            None,
-                        )
-                        .into(),
-                    ));
+                    .push(
+                        self.alloc_diagnostic(
+                            self.create_diagnostic_for_node(
+                                node,
+                                &Diagnostics::Octal_literals_are_not_allowed_in_strict_mode,
+                                None,
+                            )
+                            .into(),
+                        ),
+                    );
             }
         }
     }
@@ -766,9 +850,13 @@ impl Binder {
         message: &DiagnosticMessage,
         args: Option<Vec<String>>,
     ) {
-        let span = get_span_of_token_at_position(&self.file().ref_(self), node.ref_(self).pos().try_into().unwrap());
+        let span = get_span_of_token_at_position(
+            &self.file().ref_(self),
+            node.ref_(self).pos().try_into().unwrap(),
+        );
         self.file()
-            .ref_(self).as_source_file()
+            .ref_(self)
+            .as_source_file()
             .bind_diagnostics_mut()
             .push(self.alloc_diagnostic(
                 create_file_diagnostic(self.file(), span.start, span.length, message, args).into(),
@@ -819,15 +907,17 @@ impl Binder {
         );
         if is_error {
             self.file()
-                .ref_(self).as_source_file()
+                .ref_(self)
+                .as_source_file()
                 .bind_diagnostics_mut()
                 .push(diag);
         } else {
             diag.ref_(self).set_category(DiagnosticCategory::Suggestion);
             let file = self.file();
             let file_ref = file.ref_(self);
-            let mut file_bind_suggestion_diagnostics =
-                file_ref.as_source_file().maybe_bind_suggestion_diagnostics();
+            let mut file_bind_suggestion_diagnostics = file_ref
+                .as_source_file()
+                .maybe_bind_suggestion_diagnostics();
             if file_bind_suggestion_diagnostics.is_none() {
                 *file_bind_suggestion_diagnostics = Some(vec![]);
             }

@@ -1,13 +1,11 @@
-use std::{io, any::Any};
+use std::{any::Any, io};
 
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, visit_each_child, Node, NodeInterface, TransformFlags, TransformationContext,
-    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
-    VisitResult,
-    HasArena, AllArenas, InArena,
-    TransformNodesTransformationResult,
+    chain_bundle, visit_each_child, AllArenas, HasArena, InArena, Node, NodeInterface,
+    TransformFlags, TransformNodesTransformationResult, TransformationContext, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 struct TransformESNext {
@@ -26,12 +24,18 @@ impl TransformESNext {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult /*<Node>*/ {
         if !node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsESNext)
         {
             return Some(node.into());
@@ -39,7 +43,13 @@ impl TransformESNext {
         #[allow(clippy::match_single_binding)]
         match node.ref_(self).kind() {
             _ => Some(
-                visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self).into(),
+                visit_each_child(
+                    node,
+                    |node: Id<Node>| self.visitor(node),
+                    &*self.context.ref_(self),
+                    self,
+                )
+                .into(),
             ),
         }
     }

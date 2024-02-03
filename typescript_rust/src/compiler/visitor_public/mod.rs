@@ -6,11 +6,10 @@ use crate::{
     is_block, is_statement, set_text_range_pos_end, single_or_undefined, Debug_,
     HasInitializerInterface, HasTypeInterface, NamedDeclarationInterface, Node, NodeArray,
     NodeArrayExt, NodeExt, NodeInterface, NonEmpty, OptionTry, ReadonlyTextRange,
-    SingleNodeOrVecNode, TransformationContext, VisitResult, VisitResultInterface,
-    _d, get_emit_flags, get_emit_script_target, get_factory, is_binding_pattern, is_concise_body,
-    is_parameter_declaration, return_ok_default_if_none, EmitFlags, LexicalEnvironmentFlags,
-    ScriptTarget,
-    HasArena, InArena, OptionInArena,
+    SingleNodeOrVecNode, TransformationContext, VisitResult, VisitResultInterface, _d,
+    get_emit_flags, get_emit_script_target, get_factory, is_binding_pattern, is_concise_body,
+    is_parameter_declaration, return_ok_default_if_none, EmitFlags, HasArena, InArena,
+    LexicalEnvironmentFlags, OptionInArena, ScriptTarget,
 };
 
 mod try_visit_each_child;
@@ -175,8 +174,7 @@ pub fn maybe_visit_nodes(
     }
 
     if let Some(updated) = updated {
-        let updated_array =
-            get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
+        let updated_array = get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
         set_text_range_pos_end(&*updated_array.ref_(arena), pos, end);
         return Some(updated_array);
     }
@@ -275,8 +273,7 @@ pub fn try_maybe_visit_nodes(
     }
 
     if let Some(updated) = updated {
-        let updated_array =
-            get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
+        let updated_array = get_factory(arena).create_node_array(Some(updated), has_trailing_comma);
         set_text_range_pos_end(&*updated_array.ref_(arena), pos, end);
         return Ok(Some(updated_array));
     }
@@ -514,7 +511,8 @@ pub fn visit_parameter_list_full(
         if context
             .get_lexical_environment_flags()
             .intersects(LexicalEnvironmentFlags::VariablesHoistedInParameters)
-            && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
+            && get_emit_script_target(&context.get_compiler_options().ref_(arena))
+                >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
                 updated.unwrap(),
@@ -601,7 +599,8 @@ pub fn try_visit_parameter_list_full(
         if context
             .get_lexical_environment_flags()
             .intersects(LexicalEnvironmentFlags::VariablesHoistedInParameters)
-            && get_emit_script_target(&context.get_compiler_options().ref_(arena)) >= ScriptTarget::ES2015
+            && get_emit_script_target(&context.get_compiler_options().ref_(arena))
+                >= ScriptTarget::ES2015
         {
             updated = Some(add_default_value_assignments_if_needed(
                 updated.unwrap(),
@@ -630,15 +629,16 @@ fn add_default_value_assignments_if_needed(
                 .push(updated);
         }
     }
-    result.map_or(
-        parameters,
-        |result| {
-            context
-                .factory()
-                .ref_(arena).create_node_array(Some(result), Some(parameters.ref_(arena).has_trailing_comma))
-                .set_text_range(Some(&*parameters.ref_(arena)), arena)
-        },
-    )
+    result.map_or(parameters, |result| {
+        context
+            .factory()
+            .ref_(arena)
+            .create_node_array(
+                Some(result),
+                Some(parameters.ref_(arena).has_trailing_comma),
+            )
+            .set_text_range(Some(&*parameters.ref_(arena)), arena)
+    })
 }
 
 fn add_default_value_assignment_if_needed(
@@ -653,7 +653,12 @@ fn add_default_value_assignment_if_needed(
         .is_some()
     {
         parameter
-    } else if is_binding_pattern(parameter_as_parameter_declaration.maybe_name().refed(arena).as_deref()) {
+    } else if is_binding_pattern(
+        parameter_as_parameter_declaration
+            .maybe_name()
+            .refed(arena)
+            .as_deref(),
+    ) {
         add_default_value_assignment_for_binding_pattern(parameter, context, arena)
     } else if let Some(parameter_initializer) =
         parameter_as_parameter_declaration.maybe_initializer()
@@ -678,49 +683,56 @@ fn add_default_value_assignment_for_binding_pattern(
     let parameter_ref = parameter.ref_(arena);
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
-    context.add_initialization_statement(factory.ref_(arena).create_variable_statement(
-        Option::<Id<NodeArray>>::None,
-        factory.ref_(arena).create_variable_declaration_list(
-            vec![
-                    factory.ref_(arena).create_variable_declaration(
-                        parameter_as_parameter_declaration.maybe_name(),
-                        None,
-                        parameter_as_parameter_declaration.maybe_type(),
-                        Some(
-                            parameter_as_parameter_declaration.maybe_initializer().map_or_else(
-                                || factory.ref_(arena).get_generated_name_for_node(
-                                    Some(parameter),
-                                    None,
-                                ),
-                                |parameter_initializer| factory.ref_(arena).create_conditional_expression(
-                                    factory.ref_(arena).create_strict_equality(
-                                        factory.ref_(arena).get_generated_name_for_node(
-                                            Some(parameter),
-                                            None,
+    context.add_initialization_statement(
+        factory.ref_(arena).create_variable_statement(
+            Option::<Id<NodeArray>>::None,
+            factory.ref_(arena).create_variable_declaration_list(
+                vec![factory.ref_(arena).create_variable_declaration(
+                    parameter_as_parameter_declaration.maybe_name(),
+                    None,
+                    parameter_as_parameter_declaration.maybe_type(),
+                    Some(
+                        parameter_as_parameter_declaration
+                            .maybe_initializer()
+                            .map_or_else(
+                                || {
+                                    factory
+                                        .ref_(arena)
+                                        .get_generated_name_for_node(Some(parameter), None)
+                                },
+                                |parameter_initializer| {
+                                    factory.ref_(arena).create_conditional_expression(
+                                        factory.ref_(arena).create_strict_equality(
+                                            factory
+                                                .ref_(arena)
+                                                .get_generated_name_for_node(Some(parameter), None),
+                                            factory.ref_(arena).create_void_zero(),
                                         ),
-                                        factory.ref_(arena).create_void_zero()
-                                    ),
-                                    None,
-                                    parameter_initializer,
-                                    None,
-                                    factory.ref_(arena).get_generated_name_for_node(
-                                        Some(parameter),
                                         None,
-                                    ),
-                                )
-                            )
-                        )
+                                        parameter_initializer,
+                                        None,
+                                        factory
+                                            .ref_(arena)
+                                            .get_generated_name_for_node(Some(parameter), None),
+                                    )
+                                },
+                            ),
                     ),
-                ],
-            None,
+                )],
+                None,
+            ),
         ),
-    ));
+    );
     factory.ref_(arena).update_parameter_declaration(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
         parameter.ref_(arena).maybe_modifiers(),
         parameter_as_parameter_declaration.dot_dot_dot_token,
-        Some(factory.ref_(arena).get_generated_name_for_node(Some(parameter), None)),
+        Some(
+            factory
+                .ref_(arena)
+                .get_generated_name_for_node(Some(parameter), None),
+        ),
         parameter_as_parameter_declaration.question_token,
         parameter_as_parameter_declaration.maybe_type(),
         None,
@@ -739,14 +751,19 @@ fn add_default_value_assignment_for_initializer(
     let factory = context.factory();
     context.add_initialization_statement(
         factory.ref_(arena).create_if_statement(
-            factory.ref_(arena).create_type_check(factory.ref_(arena).clone_node(name), "undefined"),
             factory
-                .ref_(arena).create_block(
+                .ref_(arena)
+                .create_type_check(factory.ref_(arena).clone_node(name), "undefined"),
+            factory
+                .ref_(arena)
+                .create_block(
                     vec![factory.ref_(arena).create_expression_statement(
                         factory
-                            .ref_(arena).create_assignment(
+                            .ref_(arena)
+                            .create_assignment(
                                 factory
-                                    .ref_(arena).clone_node(name)
+                                    .ref_(arena)
+                                    .clone_node(name)
                                     .set_emit_flags(EmitFlags::NoSourceMap, arena),
                                 initializer.set_emit_flags(
                                     EmitFlags::NoSourceMap
@@ -836,21 +853,40 @@ pub fn visit_function_body_full(
             )
         }
     };
-    let updated = node_visitor(node, Some(&mut visitor), Some(&|node: Id<Node>| is_concise_body(node, arena)), None);
+    let updated = node_visitor(
+        node,
+        Some(&mut visitor),
+        Some(&|node: Id<Node>| is_concise_body(node, arena)),
+        None,
+    );
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
-            return Some(context.factory().ref_(arena).create_block(declarations, None));
+            return Some(
+                context
+                    .factory()
+                    .ref_(arena)
+                    .create_block(declarations, None),
+            );
         }
         let updated = updated.unwrap();
         let block = context
             .factory()
-            .ref_(arena).converters()
+            .ref_(arena)
+            .converters()
             .convert_to_function_block(updated, None);
         let statements = get_factory(arena)
-            .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
+            .merge_lexical_environment(
+                block.ref_(arena).as_block().statements.clone(),
+                Some(&declarations),
+            )
             .as_node_array();
-        return Some(context.factory().ref_(arena).update_block(block, statements));
+        return Some(
+            context
+                .factory()
+                .ref_(arena)
+                .update_block(block, statements),
+        );
     }
     updated
 }
@@ -909,21 +945,40 @@ pub fn try_visit_function_body_full(
                 )
             }
         };
-    let updated = node_visitor(node, Some(&mut visitor), Some(&|node: Id<Node>| is_concise_body(node, arena)), None)?;
+    let updated = node_visitor(
+        node,
+        Some(&mut visitor),
+        Some(&|node: Id<Node>| is_concise_body(node, arena)),
+        None,
+    )?;
     let declarations = context.end_lexical_environment();
     if let Some(declarations) = declarations.non_empty() {
         if updated.is_none() {
-            return Ok(Some(context.factory().ref_(arena).create_block(declarations, None)));
+            return Ok(Some(
+                context
+                    .factory()
+                    .ref_(arena)
+                    .create_block(declarations, None),
+            ));
         }
         let updated = updated.unwrap();
         let block = context
             .factory()
-            .ref_(arena).converters()
+            .ref_(arena)
+            .converters()
             .convert_to_function_block(updated, None);
         let statements = get_factory(arena)
-            .merge_lexical_environment(block.ref_(arena).as_block().statements.clone(), Some(&declarations))
+            .merge_lexical_environment(
+                block.ref_(arena).as_block().statements.clone(),
+                Some(&declarations),
+            )
             .as_node_array();
-        return Ok(Some(context.factory().ref_(arena).update_block(block, statements)));
+        return Ok(Some(
+            context
+                .factory()
+                .ref_(arena)
+                .update_block(block, statements),
+        ));
     }
     Ok(updated)
 }
@@ -955,11 +1010,25 @@ pub fn try_visit_iteration_body(
     /*some(declarations)*/
     {
         if is_block(&updated.ref_(arena)) {
-            declarations.extend(updated.ref_(arena).as_block().statements.ref_(arena).iter().cloned());
-            return Ok(context.factory().ref_(arena).update_block(updated, declarations));
+            declarations.extend(
+                updated
+                    .ref_(arena)
+                    .as_block()
+                    .statements
+                    .ref_(arena)
+                    .iter()
+                    .cloned(),
+            );
+            return Ok(context
+                .factory()
+                .ref_(arena)
+                .update_block(updated, declarations));
         }
         declarations.push(updated);
-        return Ok(context.factory().ref_(arena).create_block(declarations, None));
+        return Ok(context
+            .factory()
+            .ref_(arena)
+            .create_block(declarations, None));
     }
     Ok(updated)
 }

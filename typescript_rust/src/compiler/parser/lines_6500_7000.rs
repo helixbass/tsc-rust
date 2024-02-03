@@ -4,10 +4,10 @@ use super::{ParserType, ParsingContext, SignatureFlags};
 use crate::{
     append, is_async_modifier, is_class_member_modifier, is_keyword, is_modifier_kind,
     modifiers_to_flags, some, token_is_identifier_or_keyword, ArrayBindingPattern, AsDoubleDeref,
-    Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionLikeDeclarationInterface,
-    HasTypeInterface, HasTypeParametersInterface, ModifierFlags, Node, NodeArray, NodeFlags,
-    NodeInterface, ObjectBindingPattern, SyntaxKind, VariableDeclarationList,
-    HasArena, InArena, OptionInArena,
+    Debug_, Decorator, DiagnosticMessage, Diagnostics, FunctionLikeDeclarationInterface, HasArena,
+    HasTypeInterface, HasTypeParametersInterface, InArena, ModifierFlags, Node, NodeArray,
+    NodeFlags, NodeInterface, ObjectBindingPattern, OptionInArena, SyntaxKind,
+    VariableDeclarationList,
 };
 
 impl ParserType {
@@ -21,7 +21,9 @@ impl ParserType {
         );
         self.parse_expected(SyntaxKind::CloseBraceToken, None, None);
         self.finish_node(
-            self.factory().ref_(self).create_object_binding_pattern_raw(elements),
+            self.factory()
+                .ref_(self)
+                .create_object_binding_pattern_raw(elements),
             pos,
             None,
         )
@@ -37,7 +39,9 @@ impl ParserType {
         );
         self.parse_expected(SyntaxKind::CloseBracketToken, None, None);
         self.finish_node(
-            self.factory().ref_(self).create_array_binding_pattern_raw(elements),
+            self.factory()
+                .ref_(self)
+                .create_array_binding_pattern_raw(elements),
             pos,
             None,
         )
@@ -102,7 +106,10 @@ impl ParserType {
             type_,
             initializer,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_variable_declaration_list(
@@ -151,7 +158,8 @@ impl ParserType {
 
         self.finish_node(
             self.factory()
-                .ref_(self).create_variable_declaration_list_raw(declarations, Some(flags)),
+                .ref_(self)
+                .create_variable_declaration_list_raw(declarations, Some(flags)),
             pos,
             None,
         )
@@ -172,9 +180,13 @@ impl ParserType {
         self.parse_semicolon();
         let node = self
             .factory()
-            .ref_(self).create_variable_statement_raw(modifiers, declaration_list.alloc(self.arena()));
+            .ref_(self)
+            .create_variable_statement_raw(modifiers, declaration_list.alloc(self.arena()));
         node.set_decorators(decorators);
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_function_declaration(
@@ -225,7 +237,10 @@ impl ParserType {
             type_,
             body,
         );
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_constructor_name(&self) -> bool {
@@ -260,15 +275,21 @@ impl ParserType {
                     SignatureFlags::None,
                     Some(&Diagnostics::or_expected),
                 );
-                let mut node = self.factory().ref_(self).create_constructor_declaration_raw(
-                    decorators,
-                    modifiers,
-                    Some(parameters),
-                    body,
-                );
+                let mut node = self
+                    .factory()
+                    .ref_(self)
+                    .create_constructor_declaration_raw(
+                        decorators,
+                        modifiers,
+                        Some(parameters),
+                        body,
+                    );
                 node.set_type_parameters(type_parameters);
                 node.set_type(type_);
-                return Some(self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc));
+                return Some(self.with_jsdoc(
+                    self.finish_node(node, pos, None).alloc(self.arena()),
+                    has_jsdoc,
+                ));
             }
             None
         })
@@ -316,7 +337,10 @@ impl ParserType {
             body,
         );
         node.set_exclamation_token(exclamation_token);
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn parse_property_declaration(
@@ -404,21 +428,27 @@ impl ParserType {
             self.parse_function_block_or_semicolon(SignatureFlags::None, None);
         let node: Node = if kind == SyntaxKind::GetAccessor {
             self.factory()
-                .ref_(self).create_get_accessor_declaration_raw(
+                .ref_(self)
+                .create_get_accessor_declaration_raw(
                     decorators, modifiers, name, parameters, type_, body,
                 )
                 .into()
         } else {
             let mut node_as_set_accessor_declaration = self
                 .factory()
-                .ref_(self).create_set_accessor_declaration_raw(decorators, modifiers, name, parameters, body);
+                .ref_(self)
+                .create_set_accessor_declaration_raw(decorators, modifiers, name, parameters, body);
             if let Some(type_) = type_ {
                 node_as_set_accessor_declaration.set_type(Some(type_));
             }
             node_as_set_accessor_declaration.into()
         };
-        node.as_has_type_parameters().set_type_parameters(type_parameters);
-        self.with_jsdoc(self.finish_node(node, pos, None).alloc(self.arena()), has_jsdoc)
+        node.as_has_type_parameters()
+            .set_type_parameters(type_parameters);
+        self.with_jsdoc(
+            self.finish_node(node, pos, None).alloc(self.arena()),
+            has_jsdoc,
+        )
     }
 
     pub(super) fn is_class_member_start(&self) -> bool {
@@ -487,7 +517,8 @@ impl ParserType {
         self.with_jsdoc(
             self.finish_node(
                 self.factory()
-                    .ref_(self).create_class_static_block_declaration_raw(decorators, modifiers, body),
+                    .ref_(self)
+                    .create_class_static_block_declaration_raw(decorators, modifiers, body),
                 pos,
                 None,
             )
@@ -530,7 +561,11 @@ impl ParserType {
             return None;
         }
         let expression = self.do_in_decorator_context(|| self.parse_decorator_expression());
-        Some(self.finish_node(self.factory().ref_(self).create_decorator_raw(expression), pos, None))
+        Some(self.finish_node(
+            self.factory().ref_(self).create_decorator_raw(expression),
+            pos,
+            None,
+        ))
     }
 
     pub(super) fn parse_decorators(&self) -> Option<Id<NodeArray> /*<Decorator>*/> {
@@ -626,7 +661,9 @@ impl ParserType {
             self.next_token();
             let modifier = self
                 .finish_node(
-                    self.factory().ref_(self).create_token_raw(SyntaxKind::AsyncKeyword),
+                    self.factory()
+                        .ref_(self)
+                        .create_token_raw(SyntaxKind::AsyncKeyword),
                     pos,
                     None,
                 )
@@ -642,7 +679,9 @@ impl ParserType {
             self.next_token();
             return self
                 .finish_node(
-                    self.factory().ref_(self).create_semicolon_class_element_raw(),
+                    self.factory()
+                        .ref_(self)
+                        .create_semicolon_class_element_raw(),
                     pos,
                     None,
                 )
@@ -713,7 +752,8 @@ impl ParserType {
             );
             if is_ambient {
                 for m in &*modifiers.unwrap().ref_(self) {
-                    m.ref_(self).set_flags(m.ref_(self).flags() | NodeFlags::Ambient);
+                    m.ref_(self)
+                        .set_flags(m.ref_(self).flags() | NodeFlags::Ambient);
                 }
                 return self.do_inside_of_context(NodeFlags::Ambient, || {
                     self.parse_property_or_method_declaration(pos, has_jsdoc, decorators, modifiers)

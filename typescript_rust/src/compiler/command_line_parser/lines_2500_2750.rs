@@ -14,10 +14,9 @@ use crate::{
     get_normalized_absolute_path, get_ts_config_prop_array, normalize_path, normalize_slashes,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     CompilerOptionsValue, ConfigFileSpecs, Debug_, Diagnostic, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, Node,
-    NodeInterface, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
+    ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, InArena, Node,
+    NodeInterface, OptionInArena, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
-    InArena, OptionInArena,
 };
 
 pub(crate) fn convert_to_options_with_absolute_paths(
@@ -66,7 +65,8 @@ pub(super) fn convert_to_option_value_with_absolute_paths(
                 if option
                     .as_command_line_option_of_list_type()
                     .element
-                    .ref_(arena).is_file_path()
+                    .ref_(arena)
+                    .is_file_path()
                     && !values.is_empty()
                 {
                     return CompilerOptionsValue::VecString(Some(
@@ -171,7 +171,8 @@ pub(super) fn parse_json_config_file_content_worker(
     mut extended_config_cache: Option<&mut HashMap<String, ExtendedConfigCacheEntry>>,
     arena: &impl HasArena,
 ) -> io::Result<ParsedCommandLine> {
-    let existing_options = existing_options.unwrap_or_else(|| arena.alloc_compiler_options(Default::default()));
+    let existing_options =
+        existing_options.unwrap_or_else(|| arena.alloc_compiler_options(Default::default()));
     let resolution_stack_default = vec![];
     let resolution_stack = resolution_stack.unwrap_or(&resolution_stack_default);
     let extra_file_extensions_default = vec![];
@@ -201,7 +202,10 @@ pub(super) fn parse_json_config_file_content_worker(
         &existing_options.ref_(arena),
         &parsed_config
             .options
-            .map_or_else(|| arena.alloc_compiler_options(Default::default()), |options| options.clone())
+            .map_or_else(
+                || arena.alloc_compiler_options(Default::default()),
+                |options| options.clone(),
+            )
             .ref_(arena),
     );
     let watch_options: Option<Rc<WatchOptions>> =
@@ -229,7 +233,8 @@ pub(super) fn parse_json_config_file_content_worker(
     ));
     if let Some(source_file) = source_file {
         source_file
-            .ref_(arena).as_source_file()
+            .ref_(arena)
+            .as_source_file()
             .set_config_file_specs(Some(config_file_specs.clone()));
     }
     set_config_file_in_options(&mut options, source_file);
@@ -330,21 +335,30 @@ pub(super) fn get_config_file_specs(
                 let diagnostic_message = &Diagnostics::The_files_list_in_config_file_0_is_empty;
                 let node_value = first_defined(
                     get_ts_config_prop_array(Some(source_file), "files", arena),
-                    |property, _| property.ref_(arena).as_property_assignment().maybe_initializer(),
+                    |property, _| {
+                        property
+                            .ref_(arena)
+                            .as_property_assignment()
+                            .maybe_initializer()
+                    },
                 );
-                let error: Id<Diagnostic> = arena.alloc_diagnostic(if let Some(node_value) = node_value {
-                    create_diagnostic_for_node_in_source_file(
-                        source_file,
-                        node_value,
-                        diagnostic_message,
-                        Some(vec![file_name.to_owned()]),
-                        arena,
-                    )
-                    .into()
-                } else {
-                    create_compiler_diagnostic(diagnostic_message, Some(vec![file_name.to_owned()]))
+                let error: Id<Diagnostic> =
+                    arena.alloc_diagnostic(if let Some(node_value) = node_value {
+                        create_diagnostic_for_node_in_source_file(
+                            source_file,
+                            node_value,
+                            diagnostic_message,
+                            Some(vec![file_name.to_owned()]),
+                            arena,
+                        )
                         .into()
-                });
+                    } else {
+                        create_compiler_diagnostic(
+                            diagnostic_message,
+                            Some(vec![file_name.to_owned()]),
+                        )
+                        .into()
+                    });
                 errors.push(error);
             } else {
                 create_compiler_diagnostic_only_if_json(
@@ -601,13 +615,15 @@ pub(super) fn get_prop_from_raw(
                 serde_json::Value::Null => PropOfRaw::NoProp,
                 serde_json::Value::Array(result) => {
                     if source_file.is_none() && !every(result, |item, _| validate_element(item)) {
-                        errors.push(arena.alloc_diagnostic(
-                            create_compiler_diagnostic(
-                                &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
-                                Some(vec![prop.to_owned(), element_type_name.to_owned()]),
-                            )
-                            .into(),
-                        ));
+                        errors.push(
+                            arena.alloc_diagnostic(
+                                create_compiler_diagnostic(
+                                    &Diagnostics::Compiler_option_0_requires_a_value_of_type_1,
+                                    Some(vec![prop.to_owned(), element_type_name.to_owned()]),
+                                )
+                                .into(),
+                            ),
+                        );
                     }
                     PropOfRaw::Array(result.clone())
                 }

@@ -5,12 +5,11 @@ use indexmap::IndexMap;
 
 use super::spec_to_diagnostic;
 use crate::{
-    CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionMapTypeValue,
+    per_arena, CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionMapTypeValue,
     CommandLineOptionOfListType, CommandLineOptionType, CompilerOptionsValue, Diagnostics,
-    ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
+    HasArena, ImportsNotUsedAsValues, JsxEmit, ModuleKind, ModuleResolutionKind, NewLineKind,
     PollingWatchKind, ScriptTarget, StringOrDiagnosticMessage, TsConfigOnlyOption,
     WatchDirectoryKind, WatchFileKind,
-    HasArena, per_arena,
 };
 
 macro_rules! command_line_option_per_arena {
@@ -18,12 +17,9 @@ macro_rules! command_line_option_per_arena {
         $crate::per_arena!(
             $crate::CommandLineOption,
             $arena,
-            $arena.alloc_command_line_option(
-                $builder
-                    .build().unwrap().try_into().unwrap()
-            )
+            $arena.alloc_command_line_option($builder.build().unwrap().try_into().unwrap())
         )
-    }
+    };
 }
 
 pub(crate) fn compile_on_save_command_line_option(arena: &impl HasArena) -> Id<CommandLineOption> {
@@ -359,7 +355,9 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
     )
 }
 
-pub(crate) fn target_option_declaration(arena: &impl HasArena) -> Id<CommandLineOption /*CommandLineOptionOfCustomType*/> {
+pub(crate) fn target_option_declaration(
+    arena: &impl HasArena,
+) -> Id<CommandLineOption /*CommandLineOptionOfCustomType*/> {
     command_line_option_per_arena!(
         arena,
         CommandLineOptionBaseBuilder::default()
@@ -391,7 +389,9 @@ pub(crate) fn target_option_declaration(arena: &impl HasArena) -> Id<CommandLine
     )
 }
 
-pub(crate) fn command_options_without_build(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption>>> {
+pub(crate) fn command_options_without_build(
+    arena: &impl HasArena,
+) -> Id<Vec<Id<CommandLineOption>>> {
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,

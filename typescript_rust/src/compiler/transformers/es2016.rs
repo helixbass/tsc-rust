@@ -1,15 +1,15 @@
-use std::{io, any::Any};
+use std::{any::Any, io};
 
 use id_arena::Id;
 
 use crate::{
     chain_bundle, compiler::factory::utilities_public::set_text_range_id_node,
     is_element_access_expression, is_expression, is_property_access_expression,
-    maybe_visit_each_child, visit_each_child, visit_node, BaseNodeFactorySynthetic, Node,
-    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformationContext, Transformer,
-    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
-    HasArena, AllArenas, InArena, static_arena,
-    TransformNodesTransformationResult, CoreTransformationContext,
+    maybe_visit_each_child, static_arena, visit_each_child, visit_node, AllArenas,
+    BaseNodeFactorySynthetic, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
+    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    TransformerInterface, VisitResult,
 };
 
 struct TransformES2016 {
@@ -34,12 +34,18 @@ impl TransformES2016 {
             return node;
         }
 
-        visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self)
+        visit_each_child(
+            node,
+            |node: Id<Node>| self.visitor(node),
+            &*self.context.ref_(self),
+            self,
+        )
     }
 
     fn visitor(&self, node: Id<Node>) -> VisitResult {
         if !node
-            .ref_(self).transform_flags()
+            .ref_(self)
+            .transform_flags()
             .intersects(TransformFlags::ContainsES2016)
         {
             return Some(node.into());
@@ -60,12 +66,23 @@ impl TransformES2016 {
         &self,
         node: Id<Node>, /*BinaryExpression*/
     ) -> Id<Node /*Expression*/> {
-        match node.ref_(self).as_binary_expression().operator_token.ref_(self).kind() {
+        match node
+            .ref_(self)
+            .as_binary_expression()
+            .operator_token
+            .ref_(self)
+            .kind()
+        {
             SyntaxKind::AsteriskAsteriskEqualsToken => {
                 self.visit_exponentiation_assignment_expression(node)
             }
             SyntaxKind::AsteriskAsteriskToken => self.visit_exponentiation_expression(node),
-            _ => visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self),
+            _ => visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            ),
         }
     }
 
@@ -117,7 +134,11 @@ impl TransformES2016 {
                                 .argument_expression
                                 .clone(),
                         ),
-                        Some(&*left_as_element_access_expression.argument_expression.ref_(self)),
+                        Some(
+                            &*left_as_element_access_expression
+                                .argument_expression
+                                .ref_(self),
+                        ),
                         self,
                     ),
                 ),
@@ -126,7 +147,8 @@ impl TransformES2016 {
             );
             value = set_text_range_id_node(
                 self.factory
-                    .ref_(self).create_element_access_expression(expression_temp, argument_expression_temp),
+                    .ref_(self)
+                    .create_element_access_expression(expression_temp, argument_expression_temp),
                 Some(&*left.ref_(self)),
                 self,
             );
@@ -202,7 +224,8 @@ impl TransformES2016 {
         );
         set_text_range_id_node(
             self.factory
-                .ref_(self).create_global_method_call("Math", "pow", vec![left, right]),
+                .ref_(self)
+                .create_global_method_call("Math", "pow", vec![left, right]),
             Some(&*node.ref_(self)),
             self,
         )

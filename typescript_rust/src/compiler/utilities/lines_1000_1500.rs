@@ -7,7 +7,7 @@ use id_arena::Id;
 use regex::Regex;
 
 use crate::{
-    concatenate, create_file_diagnostic, create_scanner, create_text_span,
+    concatenate, contains, create_file_diagnostic, create_scanner, create_text_span,
     create_text_span_from_bounds, every, for_each_child_bool, get_combined_modifier_flags,
     get_combined_node_flags, get_emit_flags, get_end_line_position, get_leading_comment_ranges,
     get_line_and_character_of_position, get_source_file_of_node, get_trailing_comment_ranges,
@@ -22,16 +22,16 @@ use crate::{
     Debug_, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
     DiagnosticRelatedInformation, DiagnosticWithLocation, EmitFlags,
     FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasTypeArgumentsInterface,
-    ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
-    ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind, TextRange,
-    TextSpan, contains,
-    InArena, OptionInArena,
+    InArena, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeFlags, NodeInterface,
+    OptionInArena, ReadonlyTextRange, ScriptKind, SourceFileLike, SourceTextAsChars, SyntaxKind,
+    TextRange, TextSpan,
 };
 
 pub fn create_diagnostic_for_node(
     node: Id<Node>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>, arena: &impl HasArena,
+    args: Option<Vec<String>>,
+    arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node, arena);
     create_diagnostic_for_node_in_source_file(source_file, node, message, args, arena)
@@ -50,14 +50,21 @@ pub fn create_diagnostic_for_node_array(
         None,
         None,
     );
-    create_file_diagnostic(source_file.arena_id(), start, nodes.end() - start, message, args)
+    create_file_diagnostic(
+        source_file.arena_id(),
+        start,
+        nodes.end() - start,
+        message,
+        args,
+    )
 }
 
 pub fn create_diagnostic_for_node_in_source_file(
     source_file: Id<Node>, /*SourceFile*/
     node: Id<Node>,
     message: &DiagnosticMessage,
-    args: Option<Vec<String>>, arena: &impl HasArena,
+    args: Option<Vec<String>>,
+    arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
     let span = get_error_span_for_node(source_file, node, arena);
     create_file_diagnostic(source_file, span.start, span.length, message, args)
@@ -66,7 +73,8 @@ pub fn create_diagnostic_for_node_in_source_file(
 pub fn create_diagnostic_for_node_from_message_chain(
     node: Id<Node>,
     message_chain: DiagnosticMessageChain,
-    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>, arena: &impl HasArena,
+    related_information: Option<Vec<Id<DiagnosticRelatedInformation>>>,
+    arena: &impl HasArena,
 ) -> DiagnosticWithLocation {
     let source_file = get_source_file_of_node(node, arena);
     let span = get_error_span_for_node(source_file, node, arena);
@@ -195,7 +203,7 @@ pub fn get_span_of_token_at_position(
 fn get_error_span_for_arrow_function(
     source_file: Id<Node>, /*SourceFile*/
     node: Id<Node>,        /*ArrowFunction*/
-    arena: &impl HasArena
+    arena: &impl HasArena,
 ) -> TextSpan {
     let source_file_ref = source_file.ref_(arena);
     let source_file_as_source_file = source_file_ref.as_source_file();
@@ -239,7 +247,8 @@ fn get_error_span_for_arrow_function(
 
 pub fn get_error_span_for_node(
     source_file: Id<Node>, /*SourceFile*/
-    node: Id<Node>, arena: &impl HasArena,
+    node: Id<Node>,
+    arena: &impl HasArena,
 ) -> TextSpan {
     let mut error_node: Option<Id<Node>> = Some(node);
     let source_file_ref = source_file.ref_(arena);
@@ -292,7 +301,9 @@ pub fn get_error_span_for_node(
                 None,
             );
             let end = if !node_as_case_clause.statements.ref_(arena).is_empty() {
-                node_as_case_clause.statements.ref_(arena)[0].ref_(arena).pos()
+                node_as_case_clause.statements.ref_(arena)[0]
+                    .ref_(arena)
+                    .pos()
             } else {
                 node_ref.end()
             };
@@ -309,7 +320,9 @@ pub fn get_error_span_for_node(
                 None,
             );
             let end = if !node_as_default_clause.statements.ref_(arena).is_empty() {
-                node_as_default_clause.statements.ref_(arena)[0].ref_(arena).pos()
+                node_as_default_clause.statements.ref_(arena)[0]
+                    .ref_(arena)
+                    .pos()
             } else {
                 node_ref.end()
             };
@@ -319,7 +332,10 @@ pub fn get_error_span_for_node(
     }
 
     if error_node.is_none() {
-        return get_span_of_token_at_position(&source_file_ref, node.ref_(arena).pos().try_into().unwrap());
+        return get_span_of_token_at_position(
+            &source_file_ref,
+            node.ref_(arena).pos().try_into().unwrap(),
+        );
     }
     let error_node = error_node.unwrap();
 
@@ -400,7 +416,12 @@ pub fn is_let(node: Id<Node>, arena: &impl HasArena) -> bool {
 
 pub fn is_super_call(n: Id<Node>, arena: &impl HasArena) -> bool {
     n.ref_(arena).kind() == SyntaxKind::CallExpression
-        && n.ref_(arena).as_call_expression().expression.ref_(arena).kind() == SyntaxKind::SuperKeyword
+        && n.ref_(arena)
+            .as_call_expression()
+            .expression
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::SuperKeyword
 }
 
 pub fn is_import_call(n: Id<Node>, arena: &impl HasArena) -> bool {
@@ -419,7 +440,13 @@ pub fn is_import_meta(n: Id<Node>, arena: &impl HasArena) -> bool {
     let n_ref = n.ref_(arena);
     let n_as_meta_property = n_ref.as_meta_property();
     n_as_meta_property.keyword_token == SyntaxKind::ImportKeyword
-        && n_ref.as_meta_property().name.ref_(arena).as_identifier().escaped_text == "meta"
+        && n_ref
+            .as_meta_property()
+            .name
+            .ref_(arena)
+            .as_identifier()
+            .escaped_text
+            == "meta"
 }
 
 pub fn is_literal_import_type_node(n: Id<Node>, arena: &impl HasArena) -> bool {
@@ -438,7 +465,13 @@ pub fn is_literal_import_type_node(n: Id<Node>, arena: &impl HasArena) -> bool {
 
 pub fn is_prologue_directive(node: Id<Node>, arena: &impl HasArena) -> bool {
     node.ref_(arena).kind() == SyntaxKind::ExpressionStatement
-        && node.ref_(arena).as_expression_statement().expression.ref_(arena).kind() == SyntaxKind::StringLiteral
+        && node
+            .ref_(arena)
+            .as_expression_statement()
+            .expression
+            .ref_(arena)
+            .kind()
+            == SyntaxKind::StringLiteral
 }
 
 pub fn is_custom_prologue(node: Id<Node /*Statement*/>, arena: &impl HasArena) -> bool {
@@ -456,15 +489,21 @@ fn is_hoisted_variable(node: Id<Node> /*VariableDeclaration*/, arena: &impl HasA
         && node_as_variable_declaration.maybe_initializer().is_none()
 }
 
-pub fn is_hoisted_variable_statement(node: Id<Node> /*Statement*/, arena: &impl HasArena) -> bool {
+pub fn is_hoisted_variable_statement(
+    node: Id<Node>, /*Statement*/
+    arena: &impl HasArena,
+) -> bool {
     is_custom_prologue(node, arena)
         && is_variable_statement(&node.ref_(arena))
         && every(
             &node
-                .ref_(arena).as_variable_statement()
+                .ref_(arena)
+                .as_variable_statement()
                 .declaration_list
-                .ref_(arena).as_variable_declaration_list()
-                .declarations.ref_(arena),
+                .ref_(arena)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(arena),
             |&declaration, _| is_hoisted_variable(declaration, arena),
         )
 }
@@ -539,7 +578,9 @@ lazy_static! {
 }
 
 pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
-    if SyntaxKind::FirstTypeNode <= node.ref_(arena).kind() && node.ref_(arena).kind() <= SyntaxKind::LastTypeNode {
+    if SyntaxKind::FirstTypeNode <= node.ref_(arena).kind()
+        && node.ref_(arena).kind() <= SyntaxKind::LastTypeNode
+    {
         return true;
     }
 
@@ -571,11 +612,24 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
 
         SyntaxKind::Identifier => {
             if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::QualifiedName
-                && node.ref_(arena).parent().ref_(arena).as_qualified_name().right == node
+                && node
+                    .ref_(arena)
+                    .parent()
+                    .ref_(arena)
+                    .as_qualified_name()
+                    .right
+                    == node
             {
                 node = node.ref_(arena).parent();
-            } else if node.ref_(arena).parent().ref_(arena).kind() == SyntaxKind::PropertyAccessExpression
-                && node.ref_(arena).parent().ref_(arena).as_property_access_expression().name == node
+            } else if node.ref_(arena).parent().ref_(arena).kind()
+                == SyntaxKind::PropertyAccessExpression
+                && node
+                    .ref_(arena)
+                    .parent()
+                    .ref_(arena)
+                    .as_property_access_expression()
+                    .name
+                    == node
             {
                 node = node.ref_(arena).parent();
             }
@@ -600,7 +654,9 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
             }
             match parent.ref_(arena).kind() {
                 SyntaxKind::ExpressionWithTypeArguments => {
-                    return !is_expression_with_type_arguments_in_class_extends_clause(parent, arena);
+                    return !is_expression_with_type_arguments_in_class_extends_clause(
+                        parent, arena,
+                    );
                 }
                 SyntaxKind::TypeParameter => {
                     return matches!(
@@ -650,18 +706,22 @@ pub fn is_part_of_type_node(mut node: Id<Node>, arena: &impl HasArena) -> bool {
                 SyntaxKind::CallExpression => {
                     return contains(
                         parent
-                            .ref_(arena).as_call_expression()
+                            .ref_(arena)
+                            .as_call_expression()
                             .maybe_type_arguments()
-                            .refed(arena).as_double_deref(),
+                            .refed(arena)
+                            .as_double_deref(),
                         &node,
                     );
                 }
                 SyntaxKind::NewExpression => {
                     return contains(
                         parent
-                            .ref_(arena).as_new_expression()
+                            .ref_(arena)
+                            .as_new_expression()
                             .maybe_type_arguments()
-                            .refed(arena).as_double_deref(),
+                            .refed(arena)
+                            .as_double_deref(),
                         &node,
                     );
                 }
@@ -693,9 +753,11 @@ pub fn for_each_return_statement(
     mut visitor: impl FnMut(Id<Node>),
     arena: &impl HasArena,
 ) {
-    try_for_each_return_statement(body, |node: Id<Node>| -> Result<_, ()> {
-        Ok(visitor(node))
-    }, arena)
+    try_for_each_return_statement(
+        body,
+        |node: Id<Node>| -> Result<_, ()> { Ok(visitor(node)) },
+        arena,
+    )
     .unwrap()
 }
 
@@ -783,10 +845,16 @@ fn for_each_return_statement_bool_traverse(
     }
 }
 
-pub fn for_each_yield_expression(body: Id<Node> /*Block*/, mut visitor: impl FnMut(Id<Node>), arena: &impl HasArena) {
-    try_for_each_yield_expression(body, |node: Id<Node>| -> Result<(), ()> {
-        Ok(visitor(node))
-    }, arena)
+pub fn for_each_yield_expression(
+    body: Id<Node>, /*Block*/
+    mut visitor: impl FnMut(Id<Node>),
+    arena: &impl HasArena,
+) {
+    try_for_each_yield_expression(
+        body,
+        |node: Id<Node>| -> Result<(), ()> { Ok(visitor(node)) },
+        arena,
+    )
     .unwrap()
 }
 
@@ -854,9 +922,11 @@ pub fn get_rest_parameter_element_type(
     match node.ref_(arena).kind() {
         SyntaxKind::ArrayType => Some(node.ref_(arena).as_array_type_node().element_type),
         SyntaxKind::TypeReference => single_or_undefined(
-            node.ref_(arena).as_type_reference_node()
+            node.ref_(arena)
+                .as_type_reference_node()
                 .maybe_type_arguments()
-                .refed(arena).as_double_deref(),
+                .refed(arena)
+                .as_double_deref(),
         )
         .cloned(),
         _ => None,

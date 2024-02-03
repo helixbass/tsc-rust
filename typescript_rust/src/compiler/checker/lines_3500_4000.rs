@@ -14,11 +14,11 @@ use crate::{
     is_exports_identifier, is_external_module, is_external_module_name_relative, is_import_call,
     is_import_declaration, is_module_exports_access_expression, is_object_literal_expression,
     is_type_literal_node, is_variable_declaration, length, mangle_scoped_package_name,
-    node_is_synthesized, push_if_unique_eq, return_ok_default_if_none,
-    return_ok_none_if_none, try_for_each_entry, try_map_defined, unescape_leading_underscores,
-    Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName,
-    ModuleKind, Node, NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind,
-    Symbol, SymbolFlags, SymbolInterface, SymbolTable,
+    node_is_synthesized, push_if_unique_eq, return_ok_default_if_none, return_ok_none_if_none,
+    try_for_each_entry, try_map_defined, unescape_leading_underscores, Diagnostics, HasArena,
+    HasInitializerInterface, HasTypeInterface, InArena, InternalSymbolName, ModuleKind, Node,
+    NodeInterface, ObjectFlags, OptionTry, ResolvedModuleFull, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable,
 };
 
 impl TypeChecker {
@@ -140,9 +140,7 @@ impl TypeChecker {
             return Ok(Some(exported));
         }
         let links = self.get_symbol_links(exported);
-        if let Some(links_cjs_export_merged) = links.ref_(self)
-            .cjs_export_merged
-        {
+        if let Some(links_cjs_export_merged) = links.ref_(self).cjs_export_merged {
             return Ok(Some(links_cjs_export_merged));
         }
         let merged = if exported
@@ -157,17 +155,15 @@ impl TypeChecker {
         merged
             .ref_(self)
             .set_flags(merged.ref_(self).flags() | SymbolFlags::ValueModule);
-        let merged_exports = {
-            if merged.ref_(self).maybe_exports().is_none() {
-                merged.ref_(self).set_exports(
-                    Some(self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
-                        Option::<&[Id<Symbol>]>::None,
-                    )))
-                );
-            }
-            merged.ref_(self).exports()
-        };
+        let merged_exports =
+            {
+                if merged.ref_(self).maybe_exports().is_none() {
+                    merged.ref_(self).set_exports(Some(self.alloc_symbol_table(
+                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                    )));
+                }
+                merged.ref_(self).exports()
+            };
         for (name, &s) in &*module_symbol.ref_(self).exports().ref_(self) {
             if name == InternalSymbolName::ExportEquals {
                 continue;
@@ -179,7 +175,9 @@ impl TypeChecker {
             };
             merged_exports.ref_mut(self).insert(name.clone(), value);
         }
-        self.get_symbol_links(merged).ref_mut(self).cjs_export_merged = Some(merged.clone());
+        self.get_symbol_links(merged)
+            .ref_mut(self)
+            .cjs_export_merged = Some(merged.clone());
         links.ref_mut(self).cjs_export_merged = Some(merged.clone());
         Ok(Some(merged.clone()))
     }
@@ -227,9 +225,16 @@ impl TypeChecker {
                 || is_import_call(reference_parent, self)
             {
                 let reference = if is_import_call(reference_parent, self) {
-                    reference_parent.ref_(self).as_call_expression().arguments.ref_(self)[0]
+                    reference_parent
+                        .ref_(self)
+                        .as_call_expression()
+                        .arguments
+                        .ref_(self)[0]
                 } else {
-                    reference_parent.ref_(self).as_import_declaration().module_specifier
+                    reference_parent
+                        .ref_(self)
+                        .as_import_declaration()
+                        .module_specifier
                 };
                 let type_ = self.get_type_of_symbol(symbol)?;
                 let default_only_type = self.get_type_with_synthetic_default_only(
@@ -246,7 +251,10 @@ impl TypeChecker {
                     )?));
                 }
 
-                if matches!(get_es_module_interop(&self.compiler_options.ref_(self)), Some(true)) {
+                if matches!(
+                    get_es_module_interop(&self.compiler_options.ref_(self)),
+                    Some(true)
+                ) {
                     let mut sigs =
                         self.get_signatures_of_structured_type(type_, SignatureKind::Call)?;
                     if
@@ -317,14 +325,14 @@ impl TypeChecker {
             result.ref_(self).set_const_enum_only_module(Some(true));
         }
         if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
-            result.ref_(self).set_members(
-                Some(self.alloc_symbol_table(symbol_members.ref_(self).clone()))
-            );
+            result.ref_(self).set_members(Some(
+                self.alloc_symbol_table(symbol_members.ref_(self).clone()),
+            ));
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
-            result.ref_(self).set_exports(
-                Some(self.alloc_symbol_table(symbol_exports.ref_(self).clone()))
-            );
+            result.ref_(self).set_exports(Some(
+                self.alloc_symbol_table(symbol_exports.ref_(self).clone()),
+            ));
         }
         let resolved_module_type = self.resolve_structured_type_members(module_type)?;
         result_links.type_ = Some(
@@ -344,7 +352,9 @@ impl TypeChecker {
     }
 
     pub(super) fn has_export_assignment_symbol(&self, module_symbol: Id<Symbol>) -> bool {
-        module_symbol.ref_(self).exports()
+        module_symbol
+            .ref_(self)
+            .exports()
             .ref_(self)
             .get(InternalSymbolName::ExportEquals)
             .is_some()
@@ -458,10 +468,7 @@ impl TypeChecker {
             || self.is_tuple_type(resolved_external_module_type))
     }
 
-    pub(super) fn get_exports_of_symbol(
-        &self,
-        symbol: Id<Symbol>,
-    ) -> io::Result<Id<SymbolTable>> {
+    pub(super) fn get_exports_of_symbol(&self, symbol: Id<Symbol>) -> io::Result<Id<SymbolTable>> {
         Ok(
             if symbol
                 .ref_(self)
@@ -523,7 +530,8 @@ impl TypeChecker {
                             ExportCollisionTracker {
                                 specifier_text: get_text_of_node(
                                     export_node
-                                        .ref_(self).as_export_declaration()
+                                        .ref_(self)
+                                        .as_export_declaration()
                                         .module_specifier
                                         .unwrap(),
                                     None,
@@ -544,8 +552,7 @@ impl TypeChecker {
                     ) {
                         let collision_tracker = lookup_table.get_mut(id).unwrap();
                         if collision_tracker.exports_with_duplicate.is_none() {
-                            collision_tracker.exports_with_duplicate =
-                                Some(vec![export_node]);
+                            collision_tracker.exports_with_duplicate = Some(vec![export_node]);
                         } else {
                             collision_tracker
                                 .exports_with_duplicate
@@ -604,7 +611,8 @@ impl TypeChecker {
                 for &node in export_stars_declarations {
                     let resolved_module = self.resolve_external_module_name_(
                         node,
-                        node.ref_(self).as_export_declaration()
+                        node.ref_(self)
+                            .as_export_declaration()
                             .module_specifier
                             .unwrap(),
                         None,
@@ -665,7 +673,8 @@ impl TypeChecker {
 
     pub(super) fn get_symbol_of_node(&self, node: Id<Node>) -> io::Result<Option<Id<Symbol>>> {
         Ok(self.get_merged_symbol(
-            node.ref_(self).maybe_symbol()
+            node.ref_(self)
+                .maybe_symbol()
                 .try_map(|node_symbol| self.get_late_bound_symbol(node_symbol))?,
         ))
     }
@@ -691,8 +700,10 @@ impl TypeChecker {
         let id = get_node_id(&containing_file.ref_(self));
         let links = self.get_symbol_links(symbol);
         let mut results: Option<Vec<Id<Symbol>>> = None;
-        if let Some(links_extended_containers_by_file) =
-            (*links.ref_(self)).borrow().extended_containers_by_file.as_ref()
+        if let Some(links_extended_containers_by_file) = (*links.ref_(self))
+            .borrow()
+            .extended_containers_by_file
+            .as_ref()
         {
             results = links_extended_containers_by_file.get(&id).map(Clone::clone);
             if results.is_some() {
@@ -701,8 +712,11 @@ impl TypeChecker {
         }
         if
         /*containingFile &&*/
-        let Some(containing_file_imports) =
-            containing_file.ref_(self).as_source_file().maybe_imports().as_ref()
+        let Some(containing_file_imports) = containing_file
+            .ref_(self)
+            .as_source_file()
+            .maybe_imports()
+            .as_ref()
         {
             for &import_ref in containing_file_imports {
                 if node_is_synthesized(&*import_ref.ref_(self)) {
@@ -880,13 +894,17 @@ impl TypeChecker {
                     if is_binary_expression(&d_parent.ref_(self)) {
                         let d_parent_ref = d_parent.ref_(self);
                         let d_parent_as_binary_expression = d_parent_ref.as_binary_expression();
-                        if d_parent_as_binary_expression.operator_token.ref_(self).kind()
+                        if d_parent_as_binary_expression
+                            .operator_token
+                            .ref_(self)
+                            .kind()
                             == SyntaxKind::EqualsToken
                             && is_access_expression(&d_parent_as_binary_expression.left.ref_(self))
                         {
                             let d_parent_left_expression = d_parent_as_binary_expression
                                 .left
-                                .ref_(self).as_has_expression()
+                                .ref_(self)
+                                .as_has_expression()
                                 .expression();
                             if is_entity_name_expression(d_parent_left_expression, self) {
                                 if is_module_exports_access_expression(
@@ -894,10 +912,12 @@ impl TypeChecker {
                                     self,
                                 ) || is_exports_identifier(&d_parent_left_expression.ref_(self))
                                 {
-                                    return self.get_symbol_of_node(get_source_file_of_node(d, self));
+                                    return self
+                                        .get_symbol_of_node(get_source_file_of_node(d, self));
                                 }
                                 self.check_expression_cached(d_parent_left_expression, None)?;
-                                return Ok(self.get_node_links(d_parent_left_expression)
+                                return Ok(self
+                                    .get_node_links(d_parent_left_expression)
                                     .ref_(self)
                                     .resolved_symbol
                                     .clone());
@@ -947,9 +967,11 @@ impl TypeChecker {
                         let first_decl_parent_as_variable_declaration =
                             first_decl_parent_ref.as_variable_declaration();
                         if is_object_literal_expression(&first_decl.ref_(self))
-                            && first_decl_parent_as_variable_declaration.maybe_initializer() == Some(first_decl)
+                            && first_decl_parent_as_variable_declaration.maybe_initializer()
+                                == Some(first_decl)
                             || is_type_literal_node(&first_decl.ref_(self))
-                                && first_decl_parent_as_variable_declaration.maybe_type() == Some(first_decl)
+                                && first_decl_parent_as_variable_declaration.maybe_type()
+                                    == Some(first_decl)
                         {
                             return self.get_symbol_of_node(first_decl_parent);
                         }

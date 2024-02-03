@@ -7,9 +7,9 @@ use crate::{
     get_emit_flags, insert_statement_after_custom_prologue,
     insert_statements_after_custom_prologue, is_binding_pattern, is_expression, last_or_undefined,
     some, try_flatten_destructuring_binding, try_visit_node, EmitFlags, FlattenLevel,
-    GeneratedIdentifierFlags, HasInitializerInterface, Matches, NamedDeclarationInterface, Node,
-    NodeArray, NodeExt, NodeInterface, Number, SyntaxKind,
-    HasArena, InArena, OptionInArena,
+    GeneratedIdentifierFlags, HasArena, HasInitializerInterface, InArena, Matches,
+    NamedDeclarationInterface, Node, NodeArray, NodeExt, NodeInterface, Number, OptionInArena,
+    SyntaxKind,
 };
 
 impl TransformES2015 {
@@ -25,12 +25,12 @@ impl TransformES2015 {
             if let Some(if_statement_else_statement) = if_statement.else_statement {
                 return self
                     .is_sufficiently_covered_by_return_statements(if_statement.then_statement)
-                    && self.is_sufficiently_covered_by_return_statements(
-                        if_statement_else_statement,
-                    );
+                    && self
+                        .is_sufficiently_covered_by_return_statements(if_statement_else_statement);
             }
         } else if statement.ref_(self).kind() == SyntaxKind::Block {
-            let last_statement = last_or_undefined(&statement.ref_(self).as_block().statements.ref_(self)).copied();
+            let last_statement =
+                last_or_undefined(&statement.ref_(self).as_block().statements.ref_(self)).copied();
             if last_statement.matches(|last_statement| {
                 self.is_sufficiently_covered_by_return_statements(last_statement)
             }) {
@@ -43,7 +43,8 @@ impl TransformES2015 {
 
     pub(super) fn create_actual_this(&self) -> Id<Node> {
         self.factory
-            .ref_(self).create_this()
+            .ref_(self)
+            .create_this()
             .set_emit_flags(EmitFlags::NoSubstitution, self)
     }
 
@@ -84,14 +85,24 @@ impl TransformES2015 {
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         if node_as_parameter_declaration.dot_dot_dot_token.is_some() {
             None
-        } else if is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self).as_deref()) {
+        } else if is_binding_pattern(
+            node_as_parameter_declaration
+                .maybe_name()
+                .refed(self)
+                .as_deref(),
+        ) {
             Some(
                 self.factory
-                    .ref_(self).create_parameter_declaration(
+                    .ref_(self)
+                    .create_parameter_declaration(
                         Option::<Id<NodeArray>>::None,
                         Option::<Id<NodeArray>>::None,
                         None,
-                        Some(self.factory.ref_(self).get_generated_name_for_node(Some(node), None)),
+                        Some(
+                            self.factory
+                                .ref_(self)
+                                .get_generated_name_for_node(Some(node), None),
+                        ),
                         None,
                         None,
                         None,
@@ -102,7 +113,8 @@ impl TransformES2015 {
         } else if node_as_parameter_declaration.maybe_initializer().is_some() {
             Some(
                 self.factory
-                    .ref_(self).create_parameter_declaration(
+                    .ref_(self)
+                    .create_parameter_declaration(
                         Option::<Id<NodeArray>>::None,
                         Option::<Id<NodeArray>>::None,
                         None,
@@ -126,7 +138,12 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_parameter_declaration = node_ref.as_parameter_declaration();
         node_as_parameter_declaration.maybe_initializer().is_some()
-            || is_binding_pattern(node_as_parameter_declaration.maybe_name().refed(self).as_deref())
+            || is_binding_pattern(
+                node_as_parameter_declaration
+                    .maybe_name()
+                    .refed(self)
+                    .as_deref(),
+            )
     }
 
     pub(super) fn add_default_value_assignments_if_needed(
@@ -191,7 +208,8 @@ impl TransformES2015 {
                 statements,
                 Some(
                     self.factory
-                        .ref_(self).create_variable_statement(
+                        .ref_(self)
+                        .create_variable_statement(
                             Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 try_flatten_destructuring_binding(
@@ -201,7 +219,8 @@ impl TransformES2015 {
                                     FlattenLevel::All,
                                     Some(
                                         self.factory
-                                            .ref_(self).get_generated_name_for_node(Some(parameter), None),
+                                            .ref_(self)
+                                            .get_generated_name_for_node(Some(parameter), None),
                                     ),
                                     None,
                                     None,
@@ -220,10 +239,12 @@ impl TransformES2015 {
                 statements,
                 Some(
                     self.factory
-                        .ref_(self).create_expression_statement(
+                        .ref_(self)
+                        .create_expression_statement(
                             self.factory.ref_(self).create_assignment(
                                 self.factory
-                                    .ref_(self).get_generated_name_for_node(Some(parameter), None),
+                                    .ref_(self)
+                                    .get_generated_name_for_node(Some(parameter), None),
                                 try_visit_node(
                                     initializer,
                                     Some(|node: Id<Node>| self.visitor(node)),
@@ -256,16 +277,21 @@ impl TransformES2015 {
         )?;
         let statement = self
             .factory
-            .ref_(self).create_if_statement(
+            .ref_(self)
+            .create_if_statement(
                 self.factory
-                    .ref_(self).create_type_check(self.factory.ref_(self).clone_node(name), "undefined"),
+                    .ref_(self)
+                    .create_type_check(self.factory.ref_(self).clone_node(name), "undefined"),
                 self.factory
-                    .ref_(self).create_block(
+                    .ref_(self)
+                    .create_block(
                         vec![self.factory.ref_(self).create_expression_statement(
                             self.factory
-                                .ref_(self).create_assignment(
+                                .ref_(self)
+                                .create_assignment(
                                     self.factory
-                                        .ref_(self).clone_node(name)
+                                        .ref_(self)
+                                        .clone_node(name)
                                         .set_text_range(Some(&*name.ref_(self)), self)
                                         .and_set_parent(name.ref_(self).maybe_parent(), self)
                                         .set_emit_flags(EmitFlags::NoSourceMap, self),
@@ -311,7 +337,10 @@ impl TransformES2015 {
         in_constructor_with_synthesized_super: bool,
     ) -> bool {
         node.matches(|node| {
-            node.ref_(self).as_parameter_declaration().dot_dot_dot_token.is_some()
+            node.ref_(self)
+                .as_parameter_declaration()
+                .dot_dot_dot_token
+                .is_some()
         }) && !in_constructor_with_synthesized_super
     }
 
@@ -324,10 +353,9 @@ impl TransformES2015 {
         let node_ref = node.ref_(self);
         let node_as_function_like_declaration = node_ref.as_function_like_declaration();
         let mut prologue_statements: Vec<Id<Node /*Statement*/>> = Default::default();
-        let parameter = last_or_undefined(&node_as_function_like_declaration.parameters().ref_(self)).cloned();
-        if !self
-            .should_add_rest_parameter(parameter, in_constructor_with_synthesized_super)
-        {
+        let parameter =
+            last_or_undefined(&node_as_function_like_declaration.parameters().ref_(self)).cloned();
+        if !self.should_add_rest_parameter(parameter, in_constructor_with_synthesized_super) {
             return Ok(false);
         }
         let parameter = parameter.unwrap();
@@ -337,12 +365,14 @@ impl TransformES2015 {
         let parameter_name = parameter_as_parameter_declaration.name();
         let declaration_name = if parameter_name.ref_(self).kind() == SyntaxKind::Identifier {
             self.factory
-                .ref_(self).clone_node(parameter_name)
+                .ref_(self)
+                .clone_node(parameter_name)
                 .set_text_range(Some(&*parameter_name.ref_(self)), self)
                 .and_set_parent(parameter_name.ref_(self).maybe_parent(), self)
         } else {
             self.factory
-                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None)
+                .ref_(self)
+                .create_temp_variable(Option::<fn(Id<Node>)>::None, None)
         }
         .set_emit_flags(EmitFlags::NoSourceMap, self);
 
@@ -351,12 +381,17 @@ impl TransformES2015 {
         } else {
             declaration_name
         };
-        let rest_index = node_as_function_like_declaration.parameters().ref_(self).len() - 1;
+        let rest_index = node_as_function_like_declaration
+            .parameters()
+            .ref_(self)
+            .len()
+            - 1;
         let temp = self.factory.ref_(self).create_loop_variable(None);
 
         prologue_statements.push(
             self.factory
-                .ref_(self).create_variable_statement(
+                .ref_(self)
+                .create_variable_statement(
                     Option::<Id<NodeArray>>::None,
                     self.factory.ref_(self).create_variable_declaration_list(
                         vec![self.factory.ref_(self).create_variable_declaration(
@@ -365,7 +400,8 @@ impl TransformES2015 {
                             None,
                             Some(
                                 self.factory
-                                    .ref_(self).create_array_literal_expression(Some(vec![]), None),
+                                    .ref_(self)
+                                    .create_array_literal_expression(Some(vec![]), None),
                             ),
                         )],
                         None,
@@ -377,10 +413,12 @@ impl TransformES2015 {
 
         let for_statement =
             self.factory
-                .ref_(self).create_for_statement(
+                .ref_(self)
+                .create_for_statement(
                     Some(
                         self.factory
-                            .ref_(self).create_variable_declaration_list(
+                            .ref_(self)
+                            .create_variable_declaration_list(
                                 vec![self.factory.ref_(self).create_variable_declaration(
                                     Some(temp.clone()),
                                     None,
@@ -396,7 +434,8 @@ impl TransformES2015 {
                     ),
                     Some(
                         self.factory
-                            .ref_(self).create_less_than(
+                            .ref_(self)
+                            .create_less_than(
                                 temp.clone(),
                                 self.factory.ref_(self).create_property_access_expression(
                                     self.factory.ref_(self).create_identifier("arguments"),
@@ -407,13 +446,15 @@ impl TransformES2015 {
                     ),
                     Some(
                         self.factory
-                            .ref_(self).create_postfix_increment(temp.clone())
+                            .ref_(self)
+                            .create_postfix_increment(temp.clone())
                             .set_text_range(Some(&*parameter.ref_(self)), self),
                     ),
                     self.factory.ref_(self).create_block(
                         vec![self
                             .factory
-                            .ref_(self).create_expression_statement(self.factory.ref_(self).create_assignment(
+                            .ref_(self)
+                            .create_expression_statement(self.factory.ref_(self).create_assignment(
                                 self.factory.ref_(self).create_element_access_expression(
                                     expression_name.clone(),
                                     if rest_index == 0 {
@@ -446,7 +487,8 @@ impl TransformES2015 {
         if parameter_name.ref_(self).kind() != SyntaxKind::Identifier {
             prologue_statements.push(
                 self.factory
-                    .ref_(self).create_variable_statement(
+                    .ref_(self)
+                    .create_variable_statement(
                         Option::<Id<NodeArray>>::None,
                         self.factory.ref_(self).create_variable_declaration_list(
                             try_flatten_destructuring_binding(

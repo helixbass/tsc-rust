@@ -12,13 +12,12 @@ use crate::{
     is_jsx_attribute_like, is_jsx_attributes, is_jsx_element, is_jsx_opening_element,
     is_object_literal_expression, is_object_literal_method, is_property_assignment,
     is_property_declaration, is_property_signature, is_this_initialized_declaration, map,
-    return_ok_default_if_none, some, try_filter, try_map, unescape_leading_underscores,
+    return_ok_default_if_none, some, try_filter, try_map, unescape_leading_underscores, AllArenas,
     AssignmentDeclarationKind, CheckFlags, ContextFlags, Debug_, HasArena, InArena,
     InferenceContext, InferenceInfo, JsxReferenceKind, Node, NodeFlags, NodeInterface, Number,
     OptionTry, Signature, Symbol, SymbolFlags, SymbolInterface, SyntaxKind,
     TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface, TypeMapper,
     TypeSystemPropertyName, UnionOrIntersectionTypeInterface, UnionReduction,
-    AllArenas,
 };
 
 impl TypeChecker {
@@ -35,34 +34,40 @@ impl TypeChecker {
                     self.get_symbol_for_expression(binary_expression_as_binary_expression.left)?;
                 let decl = lhs_symbol
                     .and_then(|lhs_symbol| lhs_symbol.ref_(self).maybe_value_declaration());
-                if let Some(decl) = decl
-                    .filter(|decl| is_property_declaration(&decl.ref_(self)) || is_property_signature(&decl.ref_(self)))
-                {
+                if let Some(decl) = decl.filter(|decl| {
+                    is_property_declaration(&decl.ref_(self))
+                        || is_property_signature(&decl.ref_(self))
+                }) {
                     let overall_annotation = get_effective_type_annotation_node(decl, self);
-                    return Ok(
-                        if let Some(overall_annotation) = overall_annotation {
-                            Some(
-                                self.instantiate_type(
-                                    self.get_type_from_type_node_(overall_annotation)?,
-                                    (*self.get_symbol_links(lhs_symbol.unwrap()).ref_(self))
-                                        .borrow()
-                                        .mapper
-                                        .clone(),
-                                )?,
-                            )
-                        } else {
-                            None
-                        }
-                        .try_or_else(|| -> io::Result<_> {
-                            Ok(if decl.ref_(self).as_has_initializer().maybe_initializer().is_some() {
+                    return Ok(if let Some(overall_annotation) = overall_annotation {
+                        Some(
+                            self.instantiate_type(
+                                self.get_type_from_type_node_(overall_annotation)?,
+                                (*self.get_symbol_links(lhs_symbol.unwrap()).ref_(self))
+                                    .borrow()
+                                    .mapper
+                                    .clone(),
+                            )?,
+                        )
+                    } else {
+                        None
+                    }
+                    .try_or_else(|| -> io::Result<_> {
+                        Ok(
+                            if decl
+                                .ref_(self)
+                                .as_has_initializer()
+                                .maybe_initializer()
+                                .is_some()
+                            {
                                 Some(self.get_type_of_expression(
                                     binary_expression_as_binary_expression.left,
                                 )?)
                             } else {
                                 None
-                            })
-                        })?,
-                    );
+                            },
+                        )
+                    })?);
                 }
                 if kind == AssignmentDeclarationKind::None {
                     return Ok(Some(self.get_type_of_expression(
@@ -76,14 +81,16 @@ impl TypeChecker {
                     self.get_contextual_type_for_this_property_assignment(binary_expression)?
                 } else if binary_expression_as_binary_expression
                     .left
-                    .ref_(self).maybe_symbol()
+                    .ref_(self)
+                    .maybe_symbol()
                     .is_none()
                 {
                     Some(self.get_type_of_expression(binary_expression_as_binary_expression.left)?)
                 } else {
                     let decl = return_ok_default_if_none!(binary_expression_as_binary_expression
                         .left
-                        .ref_(self).symbol()
+                        .ref_(self)
+                        .symbol()
                         .ref_(self)
                         .maybe_value_declaration());
                     let lhs = cast(
@@ -93,7 +100,9 @@ impl TypeChecker {
                     let overall_annotation = get_effective_type_annotation_node(decl, self);
                     if let Some(overall_annotation) = overall_annotation {
                         return Ok(Some(self.get_type_from_type_node_(overall_annotation)?));
-                    } else if is_identifier(&lhs.ref_(self).as_has_expression().expression().ref_(self)) {
+                    } else if is_identifier(
+                        &lhs.ref_(self).as_has_expression().expression().ref_(self),
+                    ) {
                         let id = lhs.ref_(self).as_has_expression().expression();
                         let parent_symbol = self.resolve_name_(
                             Some(id),
@@ -142,7 +151,8 @@ impl TypeChecker {
             | AssignmentDeclarationKind::PrototypeProperty => {
                 let mut value_declaration = binary_expression_as_binary_expression
                     .left
-                    .ref_(self).maybe_symbol()
+                    .ref_(self)
+                    .maybe_symbol()
                     .and_then(|binary_expression_left_symbol| {
                         binary_expression_left_symbol
                             .ref_(self)
@@ -160,8 +170,7 @@ impl TypeChecker {
                 let annotated = value_declaration.and_then(|value_declaration| {
                     get_effective_type_annotation_node(value_declaration, self)
                 });
-                annotated
-                    .try_map(|annotated| self.get_type_from_type_node_(annotated))?
+                annotated.try_map(|annotated| self.get_type_from_type_node_(annotated))?
             }
             AssignmentDeclarationKind::ModuleExports => {
                 let mut value_declaration: Option<Id<Node>> = None;
@@ -177,8 +186,7 @@ impl TypeChecker {
                 let annotated = value_declaration.and_then(|value_declaration| {
                     get_effective_type_annotation_node(value_declaration, self)
                 });
-                annotated
-                    .try_map(|annotated| self.get_type_from_type_node_(annotated))?
+                annotated.try_map(|annotated| self.get_type_from_type_node_(annotated))?
             }
             AssignmentDeclarationKind::ObjectDefinePropertyValue
             | AssignmentDeclarationKind::ObjectDefinePropertyExports
@@ -204,17 +212,21 @@ impl TypeChecker {
             || !is_identifier(
                 &declaration_as_binary_expression
                     .left
-                    .ref_(self).as_has_expression()
-                    .expression().ref_(self),
+                    .ref_(self)
+                    .as_has_expression()
+                    .expression()
+                    .ref_(self),
             )
         {
             return Ok(false);
         }
         let name = &declaration_as_binary_expression
             .left
-            .ref_(self).as_has_expression()
+            .ref_(self)
+            .as_has_expression()
             .expression()
-            .ref_(self).as_identifier()
+            .ref_(self)
+            .as_identifier()
             .escaped_text
             .clone();
         let symbol = self.resolve_name_(
@@ -226,9 +238,10 @@ impl TypeChecker {
             true,
             Some(true),
         )?;
-        Ok(is_this_initialized_declaration(symbol.and_then(|symbol| {
-            symbol.ref_(self).maybe_value_declaration()
-        }), self))
+        Ok(is_this_initialized_declaration(
+            symbol.and_then(|symbol| symbol.ref_(self).maybe_value_declaration()),
+            self,
+        ))
     }
 
     pub(super) fn get_contextual_type_for_this_property_assignment(
@@ -248,8 +261,10 @@ impl TypeChecker {
             .ref_(self)
             .maybe_value_declaration()
         {
-            let annotated =
-                get_effective_type_annotation_node(binary_expression_symbol_value_declaration, self);
+            let annotated = get_effective_type_annotation_node(
+                binary_expression_symbol_value_declaration,
+                self,
+            );
             if let Some(annotated) = annotated {
                 let type_ = self.get_type_from_type_node_(annotated)?;
                 // if (type) {
@@ -261,11 +276,14 @@ impl TypeChecker {
             Some(binary_expression_as_binary_expression.left),
             |node: &Id<Node>| is_access_expression(&node.ref_(self)),
         );
-        if !is_object_literal_method(get_this_container(
-            this_access.ref_(self).as_has_expression().expression(),
-            false,
+        if !is_object_literal_method(
+            get_this_container(
+                this_access.ref_(self).as_has_expression().expression(),
+                false,
+                self,
+            ),
             self,
-        ), self) {
+        ) {
             return Ok(None);
         }
         let this_type =
@@ -278,10 +296,14 @@ impl TypeChecker {
 
     pub(super) fn is_circular_mapped_property(&self, symbol: Id<Symbol>) -> bool {
         get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Mapped)
-            && (*symbol.ref_(self).as_mapped_symbol().symbol_links().ref_(self))
-                .borrow()
-                .type_
-                .is_none()
+            && (*symbol
+                .ref_(self)
+                .as_mapped_symbol()
+                .symbol_links()
+                .ref_(self))
+            .borrow()
+            .type_
+            .is_none()
             && self.find_resolution_cycle_start_index(&symbol.into(), TypeSystemPropertyName::Type)
                 >= 0
     }
@@ -343,7 +365,11 @@ impl TypeChecker {
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
         Debug_.assert(is_object_literal_method(node, self), None);
-        if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
+        if node
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::InWithStatement)
+        {
             return Ok(None);
         }
         self.get_contextual_type_for_object_literal_element_(node, context_flags)
@@ -449,7 +475,8 @@ impl TypeChecker {
         let attributes_type = self.get_apparent_type_of_contextual_type(
             node_as_jsx_element
                 .opening_element
-                .ref_(self).as_jsx_opening_element()
+                .ref_(self)
+                .as_jsx_opening_element()
                 .tag_name,
             None,
         )?;
@@ -466,7 +493,8 @@ impl TypeChecker {
         }
         let attributes_type = attributes_type.unwrap();
         let jsx_children_property_name = jsx_children_property_name.unwrap();
-        let real_children = get_semantic_jsx_children(&node_as_jsx_element.children.ref_(self), self);
+        let real_children =
+            get_semantic_jsx_children(&node_as_jsx_element.children.ref_(self), self);
         let child_index = real_children
             .iter()
             .position(|&real_child| real_child == child)
@@ -529,9 +557,11 @@ impl TypeChecker {
             self.get_type_of_property_of_contextual_type(
                 attributes_type,
                 &attribute
-                    .ref_(self).as_jsx_attribute()
+                    .ref_(self)
+                    .as_jsx_attribute()
                     .name
-                    .ref_(self).as_identifier()
+                    .ref_(self)
+                    .as_identifier()
                     .escaped_text,
             )?
         } else {
@@ -553,9 +583,8 @@ impl TypeChecker {
             | SyntaxKind::NullKeyword
             | SyntaxKind::Identifier
             | SyntaxKind::UndefinedKeyword => true,
-            SyntaxKind::PropertyAccessExpression | SyntaxKind::ParenthesizedExpression => {
-                self.is_possibly_discriminant_value(node.ref_(self).as_has_expression().expression())
-            }
+            SyntaxKind::PropertyAccessExpression | SyntaxKind::ParenthesizedExpression => self
+                .is_possibly_discriminant_value(node.ref_(self).as_has_expression().expression()),
             SyntaxKind::JsxExpression => match node.ref_(self).as_jsx_expression().expression {
                 None => true,
                 Some(node_expression) => self.is_possibly_discriminant_value(node_expression),
@@ -642,7 +671,7 @@ impl TypeChecker {
 
     pub(super) fn discriminate_contextual_type_by_jsx_attributes(
         &self,
-        node: Id<Node>,               /*JsxAttributes*/
+        node: Id<Node>,            /*JsxAttributes*/
         contextual_type: Id<Type>, /*UnionType*/
     ) -> io::Result<Id<Type>> {
         Ok(self.discriminate_type_by_discriminable_items(
@@ -814,7 +843,8 @@ impl TypeChecker {
                         inference_context.ref_(self).non_fixing_mapper(),
                     )?));
                 }
-                let inference_context_return_mapper = inference_context.ref_(self).maybe_return_mapper();
+                let inference_context_return_mapper =
+                    inference_context.ref_(self).maybe_return_mapper();
                 if let Some(inference_context_return_mapper) = inference_context_return_mapper {
                     return Ok(Some(self.instantiate_instantiable_types(
                         contextual_type,
@@ -864,7 +894,11 @@ impl TypeChecker {
         node: Id<Node>, /*Expression*/
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Option<Id<Type>>> {
-        if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
+        if node
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::InWithStatement)
+        {
             return Ok(None);
         }
         if let Some(node_contextual_type) = node.ref_(self).maybe_contextual_type() {
@@ -912,9 +946,17 @@ impl TypeChecker {
                     self.get_apparent_type_of_contextual_type(array_literal, context_flags)?;
                 self.get_contextual_type_for_element_expression(
                     type_,
-                    index_of_node(&array_literal.ref_(self).as_array_literal_expression().elements.ref_(self), node, self)
-                        .try_into()
-                        .unwrap(),
+                    index_of_node(
+                        &array_literal
+                            .ref_(self)
+                            .as_array_literal_expression()
+                            .elements
+                            .ref_(self),
+                        node,
+                        self,
+                    )
+                    .try_into()
+                    .unwrap(),
                 )?
             }
             SyntaxKind::ConditionalExpression => {
@@ -925,7 +967,10 @@ impl TypeChecker {
                     parent.ref_(self).parent().ref_(self).kind() == SyntaxKind::TemplateExpression,
                     None,
                 );
-                self.get_contextual_type_for_substitution_expression(parent.ref_(self).parent(), node)?
+                self.get_contextual_type_for_substitution_expression(
+                    parent.ref_(self).parent(),
+                    node,
+                )?
             }
             SyntaxKind::ParenthesizedExpression => {
                 let tag = if is_in_js_file(Some(&parent.ref_(self))) {
@@ -938,10 +983,12 @@ impl TypeChecker {
                     Some(tag) => {
                         if is_jsdoc_type_tag(&tag.ref_(self))
                             && is_const_type_reference(
-                                tag.ref_(self).as_base_jsdoc_type_like_tag()
+                                tag.ref_(self)
+                                    .as_base_jsdoc_type_like_tag()
                                     .type_expression
                                     .unwrap()
-                                    .ref_(self).as_jsdoc_type_expression()
+                                    .ref_(self)
+                                    .as_jsdoc_type_expression()
                                     .type_,
                                 self,
                             )
@@ -950,10 +997,12 @@ impl TypeChecker {
                         } else {
                             Some(
                                 self.get_type_from_type_node_(
-                                    tag.ref_(self).as_base_jsdoc_type_like_tag()
+                                    tag.ref_(self)
+                                        .as_base_jsdoc_type_like_tag()
                                         .type_expression
                                         .unwrap()
-                                        .ref_(self).as_jsdoc_type_expression()
+                                        .ref_(self)
+                                        .as_jsdoc_type_expression()
                                         .type_,
                                 )?,
                             )
@@ -981,10 +1030,18 @@ impl TypeChecker {
     }
 
     pub(super) fn get_inference_context(&self, node: Id<Node>) -> Option<Id<InferenceContext>> {
-        let ancestor = find_ancestor(Some(node), |n: Id<Node>| {
-            n.ref_(self).maybe_inference_context().is_some()
-        }, self);
-        ancestor.map(|ancestor| ancestor.ref_(self).maybe_inference_context().clone().unwrap())
+        let ancestor = find_ancestor(
+            Some(node),
+            |n: Id<Node>| n.ref_(self).maybe_inference_context().is_some(),
+            self,
+        );
+        ancestor.map(|ancestor| {
+            ancestor
+                .ref_(self)
+                .maybe_inference_context()
+                .clone()
+                .unwrap()
+        })
     }
 
     pub(super) fn get_contextual_jsx_element_attributes_type(
@@ -993,10 +1050,20 @@ impl TypeChecker {
         context_flags: Option<ContextFlags>,
     ) -> io::Result<Id<Type>> {
         if is_jsx_opening_element(&node.ref_(self))
-            && node.ref_(self).parent().ref_(self).maybe_contextual_type().is_some()
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .maybe_contextual_type()
+                .is_some()
             && context_flags != Some(ContextFlags::Completions)
         {
-            return Ok(node.ref_(self).parent().ref_(self).maybe_contextual_type().unwrap());
+            return Ok(node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .maybe_contextual_type()
+                .unwrap());
         }
         self.get_contextual_type_for_argument_at_index_(node, 0)
     }

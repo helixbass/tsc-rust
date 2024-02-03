@@ -12,10 +12,10 @@ use crate::{
     BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface, HasArena,
     HasTypeArgumentsInterface, InArena, InterfaceTypeInterface,
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, Node, NodeFlags, NodeInterface,
-    Number, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, Symbol, SymbolFlags, SymbolInterface,
-    SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeMapper, TypeReferenceInterface, TypeSystemPropertyName, UnionReduction,
-    OptionInArena,
+    Number, ObjectFlags, ObjectFlagsTypeInterface, OptionInArena, OptionTry, Symbol, SymbolFlags,
+    SymbolInterface, SymbolTable, SyntaxKind, TransientSymbolInterface, Type, TypeChecker,
+    TypeFlags, TypeInterface, TypeMapper, TypeReferenceInterface, TypeSystemPropertyName,
+    UnionReduction,
 };
 
 impl TypeChecker {
@@ -104,7 +104,10 @@ impl TypeChecker {
                 if declaration.ref_(self).kind() == SyntaxKind::InterfaceDeclaration
                     && get_interface_base_type_nodes(declaration, self).is_some()
                 {
-                    for &node in &*get_interface_base_type_nodes(declaration, self).unwrap().ref_(self) {
+                    for &node in &*get_interface_base_type_nodes(declaration, self)
+                        .unwrap()
+                        .ref_(self)
+                    {
                         let base_type =
                             self.get_reduced_type(self.get_type_from_type_node_(node)?)?;
                         if !self.is_error_type(base_type) {
@@ -112,21 +115,20 @@ impl TypeChecker {
                                 if type_ != base_type
                                     && !self.has_base_type(base_type, Some(type_))?
                                 {
-                                    let mut resolved_base_types =
-                                        type_
-                                            .ref_(self)
-                                            .as_interface_type()
-                                            .maybe_resolved_base_types()
-                                            .unwrap()
-                                            .ref_(self)
-                                            .clone();
+                                    let mut resolved_base_types = type_
+                                        .ref_(self)
+                                        .as_interface_type()
+                                        .maybe_resolved_base_types()
+                                        .unwrap()
+                                        .ref_(self)
+                                        .clone();
                                     resolved_base_types.push(base_type);
                                     type_
                                         .ref_(self)
                                         .as_interface_type()
-                                        .set_resolved_base_types(
-                                        Some(self.alloc_vec_type(resolved_base_types))
-                                    );
+                                        .set_resolved_base_types(Some(
+                                            self.alloc_vec_type(resolved_base_types),
+                                        ));
                                 } else {
                                     self.report_circular_base_type(declaration, type_)?;
                                 }
@@ -155,7 +157,11 @@ impl TypeChecker {
         let symbol_declarations = symbol_declarations.as_deref().unwrap();
         for &declaration in symbol_declarations {
             if declaration.ref_(self).kind() == SyntaxKind::InterfaceDeclaration {
-                if declaration.ref_(self).flags().intersects(NodeFlags::ContainsThis) {
+                if declaration
+                    .ref_(self)
+                    .flags()
+                    .intersects(NodeFlags::ContainsThis)
+                {
                     return Ok(false);
                 }
                 let base_type_nodes = get_interface_base_type_nodes(declaration, self);
@@ -212,15 +218,13 @@ impl TypeChecker {
             } else {
                 ObjectFlags::Interface
             };
-            let merged = self.merge_js_symbols(
-                symbol,
-                symbol
-                    .ref_(self)
-                    .maybe_value_declaration()
-                    .try_and_then(|value_declaration| {
-                        self.get_assigned_class_symbol(value_declaration)
-                    })?,
-            )?;
+            let merged =
+                self.merge_js_symbols(
+                    symbol,
+                    symbol.ref_(self).maybe_value_declaration().try_and_then(
+                        |value_declaration| self.get_assigned_class_symbol(value_declaration),
+                    )?,
+                )?;
             if let Some(merged) = merged {
                 symbol = merged.clone();
                 links = merged.ref_(self).as_transient_symbol().symbol_links();
@@ -336,7 +340,10 @@ impl TypeChecker {
                 Some("Type alias symbol with no valid declaration found"),
             );
             let type_node = if is_jsdoc_type_alias(&declaration.ref_(self)) {
-                declaration.ref_(self).as_jsdoc_type_like_tag().maybe_type_expression()
+                declaration
+                    .ref_(self)
+                    .as_jsdoc_type_like_tag()
+                    .maybe_type_expression()
             } else {
                 Some(declaration.ref_(self).as_type_alias_declaration().type_)
             };
@@ -364,9 +371,11 @@ impl TypeChecker {
                     self.error(
                         Some(
                             declaration
-                                .ref_(self).as_jsdoc_type_like_tag()
+                                .ref_(self)
+                                .as_jsdoc_type_like_tag()
                                 .type_expression()
-                                .ref_(self).as_jsdoc_type_expression()
+                                .ref_(self)
+                                .as_jsdoc_type_expression()
                                 .type_,
                         ),
                         &Diagnostics::Type_alias_0_circularly_references_itself,
@@ -382,7 +391,8 @@ impl TypeChecker {
                     self.error(
                         Some(if is_named_declaration(&declaration.ref_(self)) {
                             declaration
-                                .ref_(self).as_named_declaration()
+                                .ref_(self)
+                                .as_named_declaration()
                                 .maybe_name()
                                 .unwrap_or(declaration)
                         } else {
@@ -434,7 +444,8 @@ impl TypeChecker {
                 let expr_ref = expr.ref_(self);
                 let expr_as_prefix_unary_expression = expr_ref.as_prefix_unary_expression();
                 expr_as_prefix_unary_expression.operator == SyntaxKind::MinusToken
-                    && expr_as_prefix_unary_expression.operand.ref_(self).kind() == SyntaxKind::NumericLiteral
+                    && expr_as_prefix_unary_expression.operand.ref_(self).kind()
+                        == SyntaxKind::NumericLiteral
             }
             SyntaxKind::Identifier => {
                 node_is_missing(Some(&expr.ref_(self)))
@@ -461,7 +472,12 @@ impl TypeChecker {
         if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
             for declaration in symbol_declarations {
                 if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
-                    for &member in &*declaration.ref_(self).as_enum_declaration().members.ref_(self) {
+                    for &member in &*declaration
+                        .ref_(self)
+                        .as_enum_declaration()
+                        .members
+                        .ref_(self)
+                    {
                         if matches!(
                             member.ref_(self).as_enum_member().initializer,
                             Some(initializer) if is_string_literal_like(&initializer.ref_(self))
@@ -515,7 +531,12 @@ impl TypeChecker {
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for declaration in symbol_declarations {
                     if declaration.ref_(self).kind() == SyntaxKind::EnumDeclaration {
-                        for &member in &*declaration.ref_(self).as_enum_declaration().members.ref_(self) {
+                        for &member in &*declaration
+                            .ref_(self)
+                            .as_enum_declaration()
+                            .members
+                            .ref_(self)
+                        {
                             let value = self.get_enum_member_value(member)?;
                             let member_type =
                                 self.get_fresh_type_of_literal_type(self.get_enum_literal_type(
@@ -653,17 +674,23 @@ impl TypeChecker {
             | SyntaxKind::UndefinedKeyword
             | SyntaxKind::NeverKeyword
             | SyntaxKind::LiteralType => true,
-            SyntaxKind::ArrayType => self.is_thisless_type(node.ref_(self).as_array_type_node().element_type),
+            SyntaxKind::ArrayType => {
+                self.is_thisless_type(node.ref_(self).as_array_type_node().element_type)
+            }
             SyntaxKind::TypeReference => {
                 match node
-                    .ref_(self).as_type_reference_node()
+                    .ref_(self)
+                    .as_type_reference_node()
                     .maybe_type_arguments()
-                    .refed(self).as_deref()
+                    .refed(self)
+                    .as_deref()
                 {
                     None => true,
-                    Some(type_arguments) => every(type_arguments, |&type_argument: &Id<Node>, _| {
-                        self.is_thisless_type(type_argument)
-                    }),
+                    Some(type_arguments) => {
+                        every(type_arguments, |&type_argument: &Id<Node>, _| {
+                            self.is_thisless_type(type_argument)
+                        })
+                    }
                 }
             }
             _ => false,
@@ -705,9 +732,11 @@ impl TypeChecker {
                 Some(return_type) if self.is_thisless_type(return_type)
             ))
             && node
-                .ref_(self).as_signature_declaration()
+                .ref_(self)
+                .as_signature_declaration()
                 .parameters()
-                .ref_(self).iter()
+                .ref_(self)
+                .iter()
                 .all(|&parameter: &Id<Node>| self.is_thisless_variable_like_declaration(parameter))
             && type_parameters
                 .iter()
@@ -843,20 +872,26 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*DeclarationName*/
     ) -> io::Result<bool> {
-        if !is_computed_property_name(&node.ref_(self)) && !is_element_access_expression(&node.ref_(self)) {
+        if !is_computed_property_name(&node.ref_(self))
+            && !is_element_access_expression(&node.ref_(self))
+        {
             return Ok(false);
         }
         let expr = if is_computed_property_name(&node.ref_(self)) {
             node.ref_(self).as_computed_property_name().expression
         } else {
-            node.ref_(self).as_element_access_expression().argument_expression
+            node.ref_(self)
+                .as_element_access_expression()
+                .argument_expression
         };
         Ok(is_entity_name_expression(expr, self)
-            && self.is_type_usable_as_property_name(if is_computed_property_name(&node.ref_(self)) {
-                self.check_computed_property_name(node)?
-            } else {
-                self.check_expression_cached(expr, None)?
-            }))
+            && self.is_type_usable_as_property_name(
+                if is_computed_property_name(&node.ref_(self)) {
+                    self.check_computed_property_name(node)?
+                } else {
+                    self.check_expression_cached(expr, None)?
+                },
+            ))
     }
 
     pub(super) fn is_late_bound_name(&self, name: &str /*__String*/) -> bool {

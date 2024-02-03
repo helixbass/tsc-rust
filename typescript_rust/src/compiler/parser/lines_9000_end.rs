@@ -10,13 +10,13 @@ use regex::{Captures, Regex};
 
 use crate::{
     file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,
-    map, to_pragma_name, trim_string, AmdDependency, CheckJsDirective, CommentRange, Debug_,
-    DiagnosticMessage, Diagnostics, Extension, FileReference, HasStatementsInterface,
-    IncrementalParserSyntaxCursorReparseTopLevelAwait, IncrementalParserType, Node, NodeArray,
-    NodeInterface, ParserType, PragmaArgument, PragmaArgumentName, PragmaArgumentWithCapturedSpan,
-    PragmaArguments, PragmaKindFlags, PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue,
-    ReadonlyPragmaMap, ReadonlyTextRange, ScriptTarget, SourceTextAsChars, SyntaxKind, TextRange,
-    HasArena, InArena, AllArenas,
+    map, to_pragma_name, trim_string, AllArenas, AmdDependency, CheckJsDirective, CommentRange,
+    Debug_, DiagnosticMessage, Diagnostics, Extension, FileReference, HasArena,
+    HasStatementsInterface, InArena, IncrementalParserSyntaxCursorReparseTopLevelAwait,
+    IncrementalParserType, Node, NodeArray, NodeInterface, ParserType, PragmaArgument,
+    PragmaArgumentName, PragmaArgumentWithCapturedSpan, PragmaArguments, PragmaKindFlags,
+    PragmaName, PragmaPseudoMapEntry, PragmaSpec, PragmaValue, ReadonlyPragmaMap,
+    ReadonlyTextRange, ScriptTarget, SourceTextAsChars, SyntaxKind, TextRange,
 };
 
 impl IncrementalParserType {
@@ -40,7 +40,10 @@ pub enum IncrementalParserSyntaxCursor {
 
 impl IncrementalParserSyntaxCursor {
     pub fn create(source_file: Id<Node>, arena: &impl HasArena) -> Self {
-        Self::Created(IncrementalParserSyntaxCursorCreated::new(source_file, arena))
+        Self::Created(IncrementalParserSyntaxCursorCreated::new(
+            source_file,
+            arena,
+        ))
     }
 }
 
@@ -143,7 +146,8 @@ impl IncrementalParserSyntaxCursorCreated {
     }
 
     fn visit_array(&self, position_as_isize: isize, array: Id<NodeArray>) -> bool {
-        if position_as_isize >= array.ref_(self).pos() && position_as_isize < array.ref_(self).end() {
+        if position_as_isize >= array.ref_(self).pos() && position_as_isize < array.ref_(self).end()
+        {
             for (i, child) in array.ref_(self).iter().enumerate() {
                 let child = *child;
                 // if (child) {
@@ -153,7 +157,9 @@ impl IncrementalParserSyntaxCursorCreated {
                     self.set_current(Some(child.clone()));
                     return true;
                 } else {
-                    if child.ref_(self).pos() < position_as_isize && position_as_isize < child.ref_(self).end() {
+                    if child.ref_(self).pos() < position_as_isize
+                        && position_as_isize < child.ref_(self).end()
+                    {
                         for_each_child_bool(
                             child,
                             |node: Id<Node>| self.visit_node(position_as_isize, node),
@@ -185,7 +191,8 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCre
                     self.set_current_array_index(Some(self.current_array_index() + 1));
                     self.set_current(
                         self.current_array()
-                            .ref_(self).get(self.current_array_index())
+                            .ref_(self)
+                            .get(self.current_array_index())
                             .map(Clone::clone),
                     );
                 }
@@ -601,7 +608,8 @@ pub(crate) fn tag_names_are_equivalent(
     }
 
     if lhs.ref_(arena).kind() == SyntaxKind::Identifier {
-        return lhs.ref_(arena).as_identifier().escaped_text == rhs.ref_(arena).as_identifier().escaped_text;
+        return lhs.ref_(arena).as_identifier().escaped_text
+            == rhs.ref_(arena).as_identifier().escaped_text;
     }
 
     if lhs.ref_(arena).kind() == SyntaxKind::ThisKeyword {
@@ -614,11 +622,13 @@ pub(crate) fn tag_names_are_equivalent(
     let rhs_as_property_access_expression = rhs_ref.as_property_access_expression();
     lhs_as_property_access_expression
         .name
-        .ref_(arena).as_member_name()
+        .ref_(arena)
+        .as_member_name()
         .escaped_text()
         == rhs_as_property_access_expression
             .name
-            .ref_(arena).as_member_name()
+            .ref_(arena)
+            .as_member_name()
             .escaped_text()
         && tag_names_are_equivalent(
             lhs_as_property_access_expression.expression,

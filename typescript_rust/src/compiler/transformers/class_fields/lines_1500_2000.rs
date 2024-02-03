@@ -1,4 +1,5 @@
 use std::cell::RefMut;
+
 use id_arena::Id;
 
 use super::{
@@ -18,11 +19,9 @@ use crate::{
     is_property_assignment, is_property_declaration, is_property_name, is_set_accessor_declaration,
     is_shorthand_property_assignment, is_simple_copiable_expression,
     is_simple_inlineable_expression, is_spread_assignment, is_spread_element, is_super_property,
-    is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node, Debug_,
-    GeneratedIdentifierFlags, GetOrInsertDefault, NodeArray, NodeCheckFlags, PrivateIdentifierKind,
-    SyntaxKind, VisitResult,
-    HasArena, InArena,
-    CoreTransformationContext,
+    is_this_property, skip_partially_emitted_expressions, visit_each_child, visit_node,
+    CoreTransformationContext, Debug_, GeneratedIdentifierFlags, GetOrInsertDefault, HasArena,
+    InArena, NodeArray, NodeCheckFlags, PrivateIdentifierKind, SyntaxKind, VisitResult,
 };
 
 impl TransformClassFields {
@@ -41,7 +40,9 @@ impl TransformClassFields {
                 node,
                 self.factory.ref_(self).create_void_zero(),
                 visit_node(
-                    node.ref_(self).as_element_access_expression().argument_expression,
+                    node.ref_(self)
+                        .as_element_access_expression()
+                        .argument_expression,
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_expression(node, self)),
                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -65,21 +66,40 @@ impl TransformClassFields {
             let inner_expression = skip_partially_emitted_expressions(expression, self);
             let inlinable = is_simple_inlineable_expression(&inner_expression.ref_(self));
             let already_transformed = is_assignment_expression(inner_expression, None, self)
-                && is_generated_identifier(&inner_expression.ref_(self).as_binary_expression().left.ref_(self));
+                && is_generated_identifier(
+                    &inner_expression
+                        .ref_(self)
+                        .as_binary_expression()
+                        .left
+                        .ref_(self),
+                );
             if !already_transformed && !inlinable && should_hoist {
-                let generated_name = self.factory.ref_(self).get_generated_name_for_node(Some(name), None);
+                let generated_name = self
+                    .factory
+                    .ref_(self)
+                    .get_generated_name_for_node(Some(name), None);
                 if self
                     .resolver
-                    .ref_(self).get_node_check_flags(name)
+                    .ref_(self)
+                    .get_node_check_flags(name)
                     .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
                 {
-                    self.context.ref_(self).add_block_scoped_variable(generated_name);
+                    self.context
+                        .ref_(self)
+                        .add_block_scoped_variable(generated_name);
                 } else {
-                    self.context.ref_(self).hoist_variable_declaration(generated_name);
+                    self.context
+                        .ref_(self)
+                        .hoist_variable_declaration(generated_name);
                 }
-                return Some(self.factory.ref_(self).create_assignment(generated_name, expression));
+                return Some(
+                    self.factory
+                        .ref_(self)
+                        .create_assignment(generated_name, expression),
+                );
             }
-            return (!(inlinable || is_identifier(&inner_expression.ref_(self)))).then_some(expression);
+            return (!(inlinable || is_identifier(&inner_expression.ref_(self))))
+                .then_some(expression);
         }
         None
     }
@@ -97,16 +117,18 @@ impl TransformClassFields {
     }
 
     pub(super) fn get_class_lexical_environment(&self) -> Id<ClassLexicalEnvironment> {
-        if let Some(current_class_lexical_environment) = self.maybe_current_class_lexical_environment() {
+        if let Some(current_class_lexical_environment) =
+            self.maybe_current_class_lexical_environment()
+        {
             return current_class_lexical_environment;
         }
-        self.set_current_class_lexical_environment(Some(self.alloc_class_lexical_environment(Default::default())));
+        self.set_current_class_lexical_environment(Some(
+            self.alloc_class_lexical_environment(Default::default()),
+        ));
         self.maybe_current_class_lexical_environment().unwrap()
     }
 
-    pub(super) fn get_private_identifier_environment(
-        &self,
-    ) -> Id<PrivateIdentifierEnvironment> {
+    pub(super) fn get_private_identifier_environment(&self) -> Id<PrivateIdentifierEnvironment> {
         let lex = self.get_class_lexical_environment();
         let ret = lex
             .ref_mut(self)
@@ -116,9 +138,7 @@ impl TransformClassFields {
         ret
     }
 
-    pub(super) fn get_pending_expressions(
-        &self,
-    ) -> RefMut<Vec<Id<Node>>> {
+    pub(super) fn get_pending_expressions(&self) -> RefMut<Vec<Id<Node>>> {
         self.maybe_pending_expressions_mut()
             .get_or_insert_default_();
         self.pending_expressions_mut()
@@ -162,24 +182,28 @@ impl TransformClassFields {
                 let variable_name = self.create_hoisted_variable_for_private_name(&text, node);
                 private_env.ref_mut(self).identifiers.insert(
                     private_name.clone(),
-                    self.alloc_private_identifier_info(PrivateIdentifierStaticFieldInfo::new(
-                        class_constructor.clone(),
-                        is_valid,
-                        variable_name,
-                    )
-                    .into()),
+                    self.alloc_private_identifier_info(
+                        PrivateIdentifierStaticFieldInfo::new(
+                            class_constructor.clone(),
+                            is_valid,
+                            variable_name,
+                        )
+                        .into(),
+                    ),
                 );
             } else if is_method_declaration(&node.ref_(self)) {
                 let function_name = self.create_hoisted_variable_for_private_name(&text, node);
                 private_env.ref_mut(self).identifiers.insert(
                     private_name.clone(),
-                    self.alloc_private_identifier_info(PrivateIdentifierMethodInfo::new(
-                        class_constructor.clone(),
-                        true,
-                        is_valid,
-                        function_name,
-                    )
-                    .into()),
+                    self.alloc_private_identifier_info(
+                        PrivateIdentifierMethodInfo::new(
+                            class_constructor.clone(),
+                            true,
+                            is_valid,
+                            function_name,
+                        )
+                        .into(),
+                    ),
                 );
             } else if is_get_accessor_declaration(&node.ref_(self)) {
                 let getter_name =
@@ -200,14 +224,16 @@ impl TransformClassFields {
                 } else {
                     private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
-                            class_constructor.clone(),
-                            true,
-                            is_valid,
-                            Some(getter_name),
-                            None,
-                        )
-                        .into()),
+                        self.alloc_private_identifier_info(
+                            PrivateIdentifierAccessorInfo::new(
+                                class_constructor.clone(),
+                                true,
+                                is_valid,
+                                Some(getter_name),
+                                None,
+                            )
+                            .into(),
+                        ),
                     );
                 }
             } else if is_set_accessor_declaration(&node.ref_(self)) {
@@ -229,14 +255,16 @@ impl TransformClassFields {
                 } else {
                     private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
-                            class_constructor.clone(),
-                            true,
-                            is_valid,
-                            None,
-                            Some(setter_name),
-                        )
-                        .into()),
+                        self.alloc_private_identifier_info(
+                            PrivateIdentifierAccessorInfo::new(
+                                class_constructor.clone(),
+                                true,
+                                is_valid,
+                                None,
+                                Some(setter_name),
+                            )
+                            .into(),
+                        ),
                     );
                 }
             } else {
@@ -246,7 +274,9 @@ impl TransformClassFields {
             let weak_map_name = self.create_hoisted_variable_for_private_name(&text, node);
             private_env.ref_mut(self).identifiers.insert(
                 private_name.clone(),
-                self.alloc_private_identifier_info(PrivateIdentifierInstanceFieldInfo::new(weak_map_name.clone(), is_valid).into()),
+                self.alloc_private_identifier_info(
+                    PrivateIdentifierInstanceFieldInfo::new(weak_map_name.clone(), is_valid).into(),
+                ),
             );
 
             assignment_expressions.push(self.factory.ref_(self).create_assignment(
@@ -266,13 +296,15 @@ impl TransformClassFields {
 
             private_env.ref_mut(self).identifiers.insert(
                 private_name.clone(),
-                self.alloc_private_identifier_info(PrivateIdentifierMethodInfo::new(
-                    weak_set_name.clone(),
-                    false,
-                    is_valid,
-                    self.create_hoisted_variable_for_private_name(&text, node),
-                )
-                .into()),
+                self.alloc_private_identifier_info(
+                    PrivateIdentifierMethodInfo::new(
+                        weak_set_name.clone(),
+                        false,
+                        is_valid,
+                        self.create_hoisted_variable_for_private_name(&text, node),
+                    )
+                    .into(),
+                ),
             );
         } else if is_accessor(&node.ref_(self)) {
             Debug_.assert(
@@ -300,14 +332,16 @@ impl TransformClassFields {
                 } else {
                     private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
-                            weak_set_name.clone(),
-                            false,
-                            is_valid,
-                            Some(getter_name),
-                            None,
-                        )
-                        .into()),
+                        self.alloc_private_identifier_info(
+                            PrivateIdentifierAccessorInfo::new(
+                                weak_set_name.clone(),
+                                false,
+                                is_valid,
+                                Some(getter_name),
+                                None,
+                            )
+                            .into(),
+                        ),
                     );
                 }
             } else {
@@ -329,14 +363,16 @@ impl TransformClassFields {
                 } else {
                     private_env.ref_mut(self).identifiers.insert(
                         private_name.clone(),
-                        self.alloc_private_identifier_info(PrivateIdentifierAccessorInfo::new(
-                            weak_set_name.clone(),
-                            false,
-                            is_valid,
-                            None,
-                            Some(setter_name),
-                        )
-                        .into()),
+                        self.alloc_private_identifier_info(
+                            PrivateIdentifierAccessorInfo::new(
+                                weak_set_name.clone(),
+                                false,
+                                is_valid,
+                                None,
+                                Some(setter_name),
+                            )
+                            .into(),
+                        ),
                     );
                 }
             }
@@ -368,12 +404,17 @@ impl TransformClassFields {
 
         if self
             .resolver
-            .ref_(self).get_node_check_flags(node)
+            .ref_(self)
+            .get_node_check_flags(node)
             .intersects(NodeCheckFlags::BlockScopedBindingInLoop)
         {
-            self.context.ref_(self).add_block_scoped_variable(identifier);
+            self.context
+                .ref_(self)
+                .add_block_scoped_variable(identifier);
         } else {
-            self.context.ref_(self).hoist_variable_declaration(identifier);
+            self.context
+                .ref_(self)
+                .hoist_variable_declaration(identifier);
         }
 
         identifier
@@ -416,16 +457,15 @@ impl TransformClassFields {
         }
         for env in self.class_lexical_environment_stack().iter().rev() {
             let env = continue_if_none!(env);
-            let info = env
-                .ref_(self)
-                .private_identifier_environment
-                .and_then(|env_private_identifier_environment| {
+            let info = env.ref_(self).private_identifier_environment.and_then(
+                |env_private_identifier_environment| {
                     env_private_identifier_environment
                         .ref_(self)
                         .identifiers
                         .get(&name_as_private_identifier.escaped_text)
                         .cloned()
-                });
+                },
+            );
             if info.is_some() {
                 return info;
             }
@@ -439,14 +479,25 @@ impl TransformClassFields {
     ) -> Id<Node> {
         let node_ref = node.ref_(self);
         let node_as_property_access_expression = node_ref.as_property_access_expression();
-        let parameter = self.factory.ref_(self).get_generated_name_for_node(Some(node), None);
-        let Some(info) = self.access_private_identifier(node_as_property_access_expression.name()) else {
-            return visit_each_child(node, |node: Id<Node>| self.visitor(node), &*self.context.ref_(self), self);
+        let parameter = self
+            .factory
+            .ref_(self)
+            .get_generated_name_for_node(Some(node), None);
+        let Some(info) = self.access_private_identifier(node_as_property_access_expression.name())
+        else {
+            return visit_each_child(
+                node,
+                |node: Id<Node>| self.visitor(node),
+                &*self.context.ref_(self),
+                self,
+            );
         };
         let mut receiver = node_as_property_access_expression.expression;
         if is_this_property(node, self)
             || is_super_property(node, self)
-            || !is_simple_copiable_expression(&node_as_property_access_expression.expression.ref_(self))
+            || !is_simple_copiable_expression(
+                &node_as_property_access_expression.expression.ref_(self),
+            )
         {
             receiver = self.factory.ref_(self).create_temp_variable(
                 Some(|node: Id<Node>| {
@@ -511,12 +562,21 @@ impl TransformClassFields {
                     {
                         let name = if is_element_access_expression(&target.ref_(self)) {
                             Some(visit_node(
-                                target.ref_(self).as_element_access_expression().argument_expression,
+                                target
+                                    .ref_(self)
+                                    .as_element_access_expression()
+                                    .argument_expression,
                                 Some(|node: Id<Node>| self.visitor(node)),
                                 Some(|node: Id<Node>| is_expression(node, self)),
                                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                             ))
-                        } else if is_identifier(&target.ref_(self).as_property_access_expression().name().ref_(self)) {
+                        } else if is_identifier(
+                            &target
+                                .ref_(self)
+                                .as_property_access_expression()
+                                .name()
+                                .ref_(self),
+                        ) {
                             Some(self.factory.ref_(self).create_string_literal_from_node(
                                 target.ref_(self).as_property_access_expression().name(),
                             ))
@@ -526,16 +586,18 @@ impl TransformClassFields {
                         if let Some(name) = name {
                             let temp = self
                                 .factory
-                                .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
-                            wrapped = Some(self.factory.ref_(self).create_assignment_target_wrapper(
-                                temp.clone(),
-                                self.factory.ref_(self).create_reflect_set_call(
-                                    super_class_reference.clone(),
-                                    name,
-                                    temp,
-                                    Some(class_constructor.clone()),
-                                ),
-                            ));
+                                .ref_(self)
+                                .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+                            wrapped =
+                                Some(self.factory.ref_(self).create_assignment_target_wrapper(
+                                    temp.clone(),
+                                    self.factory.ref_(self).create_reflect_set_call(
+                                        super_class_reference.clone(),
+                                        name,
+                                        temp,
+                                        Some(class_constructor.clone()),
+                                    ),
+                                ));
                         }
                     }
                 }
@@ -580,7 +642,8 @@ impl TransformClassFields {
         &self,
         node: Id<Node>, /*ObjectLiteralElementLike*/
     ) -> VisitResult {
-        if is_object_binding_or_assignment_element(&node.ref_(self)) && !is_shorthand_property_assignment(&node.ref_(self))
+        if is_object_binding_or_assignment_element(&node.ref_(self))
+            && !is_shorthand_property_assignment(&node.ref_(self))
         {
             let target = get_target_of_binding_or_assignment_element(node, self);
             let mut wrapped: Option<Id<Node /*LeftHandSideExpression*/>> = _d();
@@ -611,13 +674,21 @@ impl TransformClassFields {
                         {
                             let name = if is_element_access_expression(&target.ref_(self)) {
                                 Some(visit_node(
-                                    target.ref_(self).as_element_access_expression().argument_expression,
+                                    target
+                                        .ref_(self)
+                                        .as_element_access_expression()
+                                        .argument_expression,
                                     Some(|node: Id<Node>| self.visitor(node)),
                                     Some(|node| is_expression(node, self)),
                                     Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
                                 ))
-                            } else if is_identifier(&target.ref_(self).as_property_access_expression().name().ref_(self))
-                            {
+                            } else if is_identifier(
+                                &target
+                                    .ref_(self)
+                                    .as_property_access_expression()
+                                    .name()
+                                    .ref_(self),
+                            ) {
                                 Some(self.factory.ref_(self).create_string_literal_from_node(
                                     target.ref_(self).as_property_access_expression().name(),
                                 ))
@@ -627,16 +698,18 @@ impl TransformClassFields {
                             if let Some(name) = name {
                                 let temp = self
                                     .factory
-                                    .ref_(self).create_temp_variable(Option::<fn(Id<Node>)>::None, None);
-                                wrapped = Some(self.factory.ref_(self).create_assignment_target_wrapper(
-                                    temp.clone(),
-                                    self.factory.ref_(self).create_reflect_set_call(
-                                        super_class_reference.clone(),
-                                        name,
-                                        temp,
-                                        Some(class_constructor.clone()),
-                                    ),
-                                ));
+                                    .ref_(self)
+                                    .create_temp_variable(Option::<fn(Id<Node>)>::None, None);
+                                wrapped =
+                                    Some(self.factory.ref_(self).create_assignment_target_wrapper(
+                                        temp.clone(),
+                                        self.factory.ref_(self).create_reflect_set_call(
+                                            super_class_reference.clone(),
+                                            name,
+                                            temp,
+                                            Some(class_constructor.clone()),
+                                        ),
+                                    ));
                             }
                         }
                     }
@@ -648,7 +721,8 @@ impl TransformClassFields {
                 let initializer = get_initializer_of_binding_or_assignment_element(node, self);
                 return Some(
                     self.factory
-                        .ref_(self).update_property_assignment(
+                        .ref_(self)
+                        .update_property_assignment(
                             node,
                             visit_node(
                                 node_as_property_assignment.name(),
@@ -687,7 +761,8 @@ impl TransformClassFields {
                 let node_as_spread_assignment = node_ref.as_spread_assignment();
                 return Some(
                     self.factory
-                        .ref_(self).update_spread_assignment(
+                        .ref_(self)
+                        .update_spread_assignment(
                             node,
                             wrapped.unwrap_or_else(|| {
                                 visit_node(

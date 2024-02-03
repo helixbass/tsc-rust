@@ -23,10 +23,8 @@ use crate::{
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
     TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
-    __String, get_line_and_character_of_position, AllArenas, HasArena, LineAndCharacter,
-    ProgramBuildInfo,
-    InArena,
-    ref_unwrapped, ref_mut_unwrapped,
+    __String, get_line_and_character_of_position, ref_mut_unwrapped, ref_unwrapped, AllArenas,
+    HasArena, InArena, LineAndCharacter, ProgramBuildInfo,
 };
 
 #[derive(Clone, Debug)]
@@ -485,20 +483,25 @@ impl SourceFile {
         &self,
         external_module_indicator: Option<Id<Node>>,
     ) {
-        self.contents.external_module_indicator.set(external_module_indicator);
+        self.contents
+            .external_module_indicator
+            .set(external_module_indicator);
     }
 
     pub(crate) fn maybe_common_js_module_indicator(&self) -> Option<Id<Node>> {
         self.contents.common_js_module_indicator.get()
     }
 
-    pub(crate) fn set_common_js_module_indicator(&self, common_js_module_indicator: Option<Id<Node>>) {
-        self.contents.common_js_module_indicator.set(common_js_module_indicator);
+    pub(crate) fn set_common_js_module_indicator(
+        &self,
+        common_js_module_indicator: Option<Id<Node>>,
+    ) {
+        self.contents
+            .common_js_module_indicator
+            .set(common_js_module_indicator);
     }
 
-    pub(crate) fn maybe_js_global_augmentations(
-        &self,
-    ) -> Option<Id<SymbolTable>> {
+    pub(crate) fn maybe_js_global_augmentations(&self) -> Option<Id<SymbolTable>> {
         self.contents.js_global_augmentations.get()
     }
 
@@ -506,7 +509,9 @@ impl SourceFile {
         &self,
         js_global_augmentations: Option<Id<SymbolTable>>,
     ) {
-        self.contents.js_global_augmentations.set(js_global_augmentations);
+        self.contents
+            .js_global_augmentations
+            .set(js_global_augmentations);
     }
 
     pub fn identifiers(&self) -> Rc<RefCell<HashMap<String, String>>> {
@@ -557,9 +562,7 @@ impl SourceFile {
         ref_unwrapped(&self.contents.bind_diagnostics)
     }
 
-    pub fn bind_diagnostics_mut(
-        &self,
-    ) -> RefMut<Vec<Id<Diagnostic>>> {
+    pub fn bind_diagnostics_mut(&self) -> RefMut<Vec<Id<Diagnostic>>> {
         ref_mut_unwrapped(&self.contents.bind_diagnostics)
     }
 
@@ -652,9 +655,7 @@ impl SourceFile {
         self.contents.module_augmentations.borrow_mut()
     }
 
-    pub fn maybe_pattern_ambient_modules(
-        &self,
-    ) -> RefMut<Option<Vec<Id<PatternAmbientModule>>>> {
+    pub fn maybe_pattern_ambient_modules(&self) -> RefMut<Option<Vec<Id<PatternAmbientModule>>>> {
         self.contents.pattern_ambient_modules.borrow_mut()
     }
 
@@ -701,7 +702,9 @@ impl SourceFile {
     }
 
     pub fn set_local_jsx_fragment_factory(&self, local_jsx_fragment_factory: Option<Id<Node>>) {
-        self.contents.local_jsx_fragment_factory.set(local_jsx_fragment_factory);
+        self.contents
+            .local_jsx_fragment_factory
+            .set(local_jsx_fragment_factory);
     }
 
     pub fn set_end_flow_node(&self, end_flow_node: Option<Id<FlowNode>>) {
@@ -720,9 +723,7 @@ impl SourceFile {
         *self.contents.config_file_specs.borrow_mut() = config_file_specs;
     }
 
-    pub fn maybe_exported_modules_from_declaration_emit(
-        &self,
-    ) -> RefMut<Option<Vec<Id<Symbol>>>> {
+    pub fn maybe_exported_modules_from_declaration_emit(&self) -> RefMut<Option<Vec<Id<Symbol>>>> {
         self.contents
             .exported_modules_from_declaration_emit
             .borrow_mut()
@@ -911,8 +912,8 @@ impl InputFiles {
     ) {
         let javascript_map_text_or_declaration_path =
             Debug_.check_defined(javascript_map_text_or_declaration_path, None);
-        self.initialized_state =
-            self.alloc_input_files_initialized_state(InputFilesInitializedState::InitializedWithReadFileCallback(
+        self.initialized_state = self.alloc_input_files_initialized_state(
+            InputFilesInitializedState::InitializedWithReadFileCallback(
                 InputFilesInitializedWithReadFileCallback::new(
                     read_file_callback,
                     declaration_text_or_javascript_path.clone(),
@@ -921,7 +922,8 @@ impl InputFiles {
                     declaration_map_path.clone(),
                     declaration_map_text_or_build_info_path.clone(),
                 ),
-            ));
+            ),
+        );
         self.javascript_path = Some(declaration_text_or_javascript_path);
         self.javascript_map_path = javascript_map_path;
         self.declaration_path = Some(javascript_map_text_or_declaration_path);
@@ -943,15 +945,17 @@ impl InputFiles {
         build_info: Option<Id<BuildInfo>>,
         old_file_of_current_emit: Option<bool>,
     ) {
-        self.initialized_state = self.alloc_input_files_initialized_state(InputFilesInitializedState::InitializedWithString(
-            InputFilesInitializedWithString::new(
-                javascript_text_or_read_file_text,
-                javascript_map_text_or_declaration_path,
-                declaration_text_or_javascript_path,
-                declaration_map_text_or_build_info_path,
-                build_info,
+        self.initialized_state = self.alloc_input_files_initialized_state(
+            InputFilesInitializedState::InitializedWithString(
+                InputFilesInitializedWithString::new(
+                    javascript_text_or_read_file_text,
+                    javascript_map_text_or_declaration_path,
+                    declaration_text_or_javascript_path,
+                    declaration_map_text_or_build_info_path,
+                    build_info,
+                ),
             ),
-        ));
+        );
         self.javascript_map_path = javascript_map_path;
         self.declaration_map_path = declaration_map_path;
         self.javascript_path = javascript_path;
@@ -1134,7 +1138,8 @@ impl InputFilesInitializedWithReadFileCallback {
     ) -> Option<Id<BuildInfo>> {
         if self.build_info.get().is_none() {
             let result = get_text();
-            self.build_info.set(Some(result.map(|result| get_build_info(&result))));
+            self.build_info
+                .set(Some(result.map(|result| get_build_info(&result))));
         }
         self.build_info.get().unwrap()
     }

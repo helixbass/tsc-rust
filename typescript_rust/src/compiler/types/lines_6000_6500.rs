@@ -15,9 +15,8 @@ use serde::Serialize;
 
 use super::{DiagnosticMessage, ModuleResolutionKind, Node};
 use crate::{
-    hash_map_to_compiler_options, CompilerHost, Diagnostic, MapLike,
-    Number, OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
-    AllArenas, InArena,
+    hash_map_to_compiler_options, AllArenas, CompilerHost, Diagnostic, InArena, MapLike, Number,
+    OptionsNameMap, ParseCommandLineWorkerDiagnostics, Program, StringOrPattern,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -2082,7 +2081,11 @@ mod _ParsedCommandLineDeriveTraceScope {
     }
 
     impl ParsedCommandLineBuilder {
-        pub fn errors(&mut self, value: impl Into<Vec<Id<Diagnostic>>>, arena: &impl HasArena) -> &mut Self {
+        pub fn errors(
+            &mut self,
+            value: impl Into<Vec<Id<Diagnostic>>>,
+            arena: &impl HasArena,
+        ) -> &mut Self {
             self.errors = Some(arena.alloc_vec_diagnostic(value.into()));
             self
         }
@@ -2725,12 +2728,14 @@ impl CommandLineOption {
             Self::CommandLineOptionOfNumberType(_) => CompilerOptionsValue::Usize(None),
             Self::CommandLineOptionOfBooleanType(_) => CompilerOptionsValue::Bool(None),
             Self::TsConfigOnlyOption(_) => CompilerOptionsValue::MapLikeVecString(None),
-            Self::CommandLineOptionOfListType(list_type) => match list_type.element.ref_(self).type_() {
-                CommandLineOptionType::String => CompilerOptionsValue::VecString(None),
-                CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
-                CommandLineOptionType::Map(_) => CompilerOptionsValue::VecString(None),
-                _ => panic!("Unexpected element type"),
-            },
+            Self::CommandLineOptionOfListType(list_type) => {
+                match list_type.element.ref_(self).type_() {
+                    CommandLineOptionType::String => CompilerOptionsValue::VecString(None),
+                    CommandLineOptionType::Object => CompilerOptionsValue::VecPluginImport(None),
+                    CommandLineOptionType::Map(_) => CompilerOptionsValue::VecString(None),
+                    _ => panic!("Unexpected element type"),
+                }
+            }
         }
     }
 
@@ -2779,59 +2784,63 @@ impl CommandLineOption {
                     _ => unreachable!(),
                 })
             }
-            Self::CommandLineOptionOfListType(list_type) => match list_type.element.ref_(self).type_() {
-                CommandLineOptionType::String => CompilerOptionsValue::VecString(match value {
-                    serde_json::Value::Array(value) => Some(
-                        value
-                            .into_iter()
-                            .map(|item| match item {
-                                serde_json::Value::String(value) => value.clone(),
-                                _ => unreachable!(),
-                            })
-                            .collect(),
-                    ),
-                    serde_json::Value::Null => None,
-                    _ => unreachable!(),
-                }),
-                CommandLineOptionType::Object => {
-                    CompilerOptionsValue::VecPluginImport(match value {
+            Self::CommandLineOptionOfListType(list_type) => {
+                match list_type.element.ref_(self).type_() {
+                    CommandLineOptionType::String => CompilerOptionsValue::VecString(match value {
                         serde_json::Value::Array(value) => Some(
                             value
                                 .into_iter()
-                                .map(|_item| {
-                                    unimplemented!();
+                                .map(|item| match item {
+                                    serde_json::Value::String(value) => value.clone(),
+                                    _ => unreachable!(),
                                 })
                                 .collect(),
                         ),
                         serde_json::Value::Null => None,
                         _ => unreachable!(),
-                    })
-                }
-                CommandLineOptionType::Map(map) => CompilerOptionsValue::VecString(match value {
-                    serde_json::Value::Array(value) => Some(
-                        value
-                            .into_iter()
-                            .filter_map(|item| match item {
-                                serde_json::Value::String(value) => map
-                                    .get(&&*value.to_lowercase())
-                                    .map(|map_value| match map_value {
-                                        CommandLineOptionMapTypeValue::StaticStr(map_value) => {
-                                            (*map_value).to_owned()
-                                        }
-                                        CommandLineOptionMapTypeValue::String(map_value) => {
-                                            map_value.clone()
-                                        }
+                    }),
+                    CommandLineOptionType::Object => {
+                        CompilerOptionsValue::VecPluginImport(match value {
+                            serde_json::Value::Array(value) => Some(
+                                value
+                                    .into_iter()
+                                    .map(|_item| {
+                                        unimplemented!();
+                                    })
+                                    .collect(),
+                            ),
+                            serde_json::Value::Null => None,
+                            _ => unreachable!(),
+                        })
+                    }
+                    CommandLineOptionType::Map(map) => {
+                        CompilerOptionsValue::VecString(match value {
+                            serde_json::Value::Array(value) => Some(
+                                value
+                                    .into_iter()
+                                    .filter_map(|item| match item {
+                                        serde_json::Value::String(value) => map
+                                            .get(&&*value.to_lowercase())
+                                            .map(|map_value| match map_value {
+                                                CommandLineOptionMapTypeValue::StaticStr(
+                                                    map_value,
+                                                ) => (*map_value).to_owned(),
+                                                CommandLineOptionMapTypeValue::String(
+                                                    map_value,
+                                                ) => map_value.clone(),
+                                                _ => unreachable!(),
+                                            }),
                                         _ => unreachable!(),
-                                    }),
-                                _ => unreachable!(),
-                            })
-                            .collect(),
-                    ),
-                    serde_json::Value::Null => None,
-                    _ => unreachable!(),
-                }),
-                _ => panic!("Unexpected element type"),
-            },
+                                    })
+                                    .collect(),
+                            ),
+                            serde_json::Value::Null => None,
+                            _ => unreachable!(),
+                        })
+                    }
+                    _ => panic!("Unexpected element type"),
+                }
+            }
         }
     }
 }

@@ -12,10 +12,9 @@ use crate::{
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_logging,
     is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined,
     relative_complement, skip_type_checking, try_for_each, try_for_each_child, try_maybe_for_each,
-    CancellationToken, Diagnostic, Diagnostics, HasStatementsInterface,
-    ImportsNotUsedAsValues, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
+    CancellationToken, Diagnostic, Diagnostics, HasStatementsInterface, ImportsNotUsedAsValues,
+    InArena, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, OptionInArena,
     SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
-    InArena, OptionInArena,
 };
 
 impl TypeChecker {
@@ -53,10 +52,13 @@ impl TypeChecker {
                 |jsdoc: &Id<Node>, _| -> io::Result<Option<()>> {
                     let jsdoc_ref = jsdoc.ref_(self);
                     let tags = jsdoc_ref.as_jsdoc().tags;
-                    try_maybe_for_each(tags.refed(self).as_deref(), |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
-                        self.check_source_element(Some(tag))?;
-                        Ok(None)
-                    })?;
+                    try_maybe_for_each(
+                        tags.refed(self).as_deref(),
+                        |&tag: &Id<Node>, _| -> io::Result<Option<()>> {
+                            self.check_source_element(Some(tag))?;
+                            Ok(None)
+                        },
+                    )?;
                     Ok(None)
                 },
             )?;
@@ -71,7 +73,9 @@ impl TypeChecker {
                     | SyntaxKind::InterfaceDeclaration
                     | SyntaxKind::FunctionDeclaration
             ) {
-                cancellation_token.ref_(self).throw_if_cancellation_requested();
+                cancellation_token
+                    .ref_(self)
+                    .throw_if_cancellation_requested();
             }
         }
         if kind >= SyntaxKind::FirstStatement
@@ -345,8 +349,19 @@ impl TypeChecker {
         self.check_source_element(node_as_base_jsdoc_unary_type.type_)?;
 
         let parent = node.ref_(self).parent();
-        if is_parameter(&parent.ref_(self)) && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self)) {
-            if *last(&parent.ref_(self).parent().ref_(self).as_jsdoc_function_type().parameters().ref_(self)) != parent {
+        if is_parameter(&parent.ref_(self))
+            && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self))
+        {
+            if *last(
+                &parent
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_jsdoc_function_type()
+                    .parameters()
+                    .ref_(self),
+            ) != parent
+            {
                 self.error(
                     Some(node),
                     &Diagnostics::A_rest_parameter_must_be_last_in_a_parameter_list,
@@ -400,31 +415,42 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JSDocVariadicType*/
     ) -> io::Result<Id<Type>> {
-        let type_ =
-            self.get_type_from_type_node_(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap())?;
+        let type_ = self
+            .get_type_from_type_node_(node.ref_(self).as_base_jsdoc_unary_type().type_.unwrap())?;
         let parent = node.ref_(self).parent();
         let param_tag = node.ref_(self).parent().ref_(self).parent();
-        if is_jsdoc_type_expression(&node.ref_(self).parent().ref_(self)) && is_jsdoc_parameter_tag(&param_tag.ref_(self)) {
+        if is_jsdoc_type_expression(&node.ref_(self).parent().ref_(self))
+            && is_jsdoc_parameter_tag(&param_tag.ref_(self))
+        {
             let host = get_host_signature_from_jsdoc(param_tag, self);
-            let is_callback_tag = is_jsdoc_callback_tag(&param_tag.ref_(self).parent().ref_(self).parent().ref_(self));
+            let is_callback_tag = is_jsdoc_callback_tag(
+                &param_tag.ref_(self).parent().ref_(self).parent().ref_(self),
+            );
             if host.is_some() || is_callback_tag {
                 let last_param_declaration = if is_callback_tag {
                     last_or_undefined(
                         &*param_tag
-                            .ref_(self).parent()
-                            .ref_(self).parent()
-                            .ref_(self).as_jsdoc_callback_tag()
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .parent()
+                            .ref_(self)
+                            .as_jsdoc_callback_tag()
                             .type_expression
-                            .ref_(self).as_jsdoc_signature()
-                            .parameters.ref_(self),
+                            .ref_(self)
+                            .as_jsdoc_signature()
+                            .parameters
+                            .ref_(self),
                     )
                     .copied()
                 } else {
                     last_or_undefined(
                         &**host
                             .unwrap()
-                            .ref_(self).as_signature_declaration()
-                            .parameters().ref_(self),
+                            .ref_(self)
+                            .as_signature_declaration()
+                            .parameters()
+                            .ref_(self),
                     )
                     .copied()
                 };
@@ -445,7 +471,9 @@ impl TypeChecker {
                 }
             }
         }
-        if is_parameter(&parent.ref_(self)) && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self)) {
+        if is_parameter(&parent.ref_(self))
+            && is_jsdoc_function_type(&parent.ref_(self).parent().ref_(self))
+        {
             return Ok(self.create_array_type(type_, None));
         }
         self.add_optionality(type_, None, None)
@@ -464,11 +492,7 @@ impl TypeChecker {
                 links.deferred_nodes = Some(IndexMap::new());
             }
             let id = get_node_id(&node.ref_(self));
-            links
-                .deferred_nodes
-                .as_mut()
-                .unwrap()
-                .insert(id, node);
+            links.deferred_nodes.as_mut().unwrap().insert(id, node);
         }
     }
 
@@ -568,7 +592,9 @@ impl TypeChecker {
         }
         match kind {
             UnusedKind::Local => self.compiler_options.ref_(self).no_unused_locals == Some(true),
-            UnusedKind::Parameter => self.compiler_options.ref_(self).no_unused_parameters == Some(true),
+            UnusedKind::Parameter => {
+                self.compiler_options.ref_(self).no_unused_parameters == Some(true)
+            }
             // _ => Debug_.assert_never(kind, None),
         }
     }
@@ -593,9 +619,16 @@ impl TypeChecker {
             .flags
             .intersects(NodeCheckFlags::TypeChecked)
         {
-            if skip_type_checking(&node.ref_(self), &self.compiler_options.ref_(self), |file_name| {
-                TypeCheckerHost::is_source_of_project_reference_redirect(&*self.host.ref_(self), file_name)
-            }) {
+            if skip_type_checking(
+                &node.ref_(self),
+                &self.compiler_options.ref_(self),
+                |file_name| {
+                    TypeCheckerHost::is_source_of_project_reference_redirect(
+                        &*self.host.ref_(self),
+                        file_name,
+                    )
+                },
+            ) {
                 return Ok(());
             }
 
@@ -633,7 +666,10 @@ impl TypeChecker {
                         if !contains_parse_error(containing_node, self)
                             && self.unused_is_error(
                                 kind,
-                                containing_node.ref_(self).flags().intersects(NodeFlags::Ambient),
+                                containing_node
+                                    .ref_(self)
+                                    .flags()
+                                    .intersects(NodeFlags::Ambient),
                             )
                         {
                             self.diagnostics().add(diag);
@@ -671,7 +707,8 @@ impl TypeChecker {
             }
 
             {
-                let mut potential_new_target_collisions = self.potential_new_target_collisions_mut();
+                let mut potential_new_target_collisions =
+                    self.potential_new_target_collisions_mut();
                 if !potential_new_target_collisions.is_empty() {
                     for_each(
                         &*potential_new_target_collisions,
@@ -755,7 +792,9 @@ impl TypeChecker {
                 let deferred_global_diagnostics = relative_complement(
                     &previous_global_diagnostics,
                     &current_global_diagnostics,
-                    |a: &Id<Diagnostic>, b: &Id<Diagnostic>| compare_diagnostics(&*a.ref_(self), &*b.ref_(self), self),
+                    |a: &Id<Diagnostic>, b: &Id<Diagnostic>| {
+                        compare_diagnostics(&*a.ref_(self), &*b.ref_(self), self)
+                    },
                 );
                 return Ok(concatenate(
                     deferred_global_diagnostics,

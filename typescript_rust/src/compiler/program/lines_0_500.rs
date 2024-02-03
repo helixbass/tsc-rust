@@ -1,5 +1,10 @@
 use std::{
-    borrow::{Borrow, Cow}, cell::{RefCell, Cell}, cmp, collections::HashMap, convert::TryInto, io, time,
+    borrow::{Borrow, Cow},
+    cell::{Cell, RefCell},
+    cmp,
+    collections::HashMap,
+    convert::TryInto,
+    io, time,
     time::SystemTime,
 };
 
@@ -14,13 +19,11 @@ use crate::{
     get_new_line_character, get_normalized_path_components, get_path_from_path_components,
     get_position_of_line_and_character, get_sys, is_build_info_file, is_rooted_disk_path,
     is_watch_set, missing_file_modified_time, normalize_path, pad_left,
-    sort_and_deduplicate_diagnostics, trim_string_end, write_file_ensuring_directories,
-    CancellationToken, CompilerHost, CompilerOptions, Debug_, Diagnostic,
-    DiagnosticCategory, DiagnosticInterface, DiagnosticMessageText,
-    DiagnosticRelatedInformationInterface, Extension, LineAndCharacter, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, Node, NodeInterface, OptionTry, Path, ProgramOrBuilderProgram,
-    ScriptTarget, SourceFileLike, System,
-    HasArena, InArena, AllArenas,
+    sort_and_deduplicate_diagnostics, trim_string_end, write_file_ensuring_directories, AllArenas,
+    CancellationToken, CompilerHost, CompilerOptions, Debug_, Diagnostic, DiagnosticCategory,
+    DiagnosticInterface, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Extension,
+    HasArena, InArena, LineAndCharacter, ModuleResolutionHost, ModuleResolutionHostOverrider, Node,
+    NodeInterface, OptionTry, Path, ProgramOrBuilderProgram, ScriptTarget, SourceFileLike, System,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -128,7 +131,11 @@ pub fn create_compiler_host_worker(
     let existing_directories: HashMap<String, bool> = HashMap::new();
     let get_canonical_file_name =
         create_get_canonical_file_name(system.ref_(arena).use_case_sensitive_file_names());
-    let new_line = get_new_line_character(options.ref_(arena).new_line, Some(|| system.ref_(arena).new_line().to_owned()), arena);
+    let new_line = get_new_line_character(
+        options.ref_(arena).new_line,
+        Some(|| system.ref_(arena).new_line().to_owned()),
+        arena,
+    );
 
     CompilerHostConcrete {
         set_parent_nodes,
@@ -172,7 +179,10 @@ impl CompilerHostConcrete {
         self.read_file_override.get()
     }
 
-    fn set_read_file_override(&self, read_file_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+    fn set_read_file_override(
+        &self,
+        read_file_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    ) {
         self.read_file_override.set(read_file_override);
     }
 
@@ -180,7 +190,10 @@ impl CompilerHostConcrete {
         self.file_exists_override.get()
     }
 
-    fn set_file_exists_override(&self, file_exists_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+    fn set_file_exists_override(
+        &self,
+        file_exists_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    ) {
         self.file_exists_override.set(file_exists_override);
     }
 
@@ -190,15 +203,22 @@ impl CompilerHostConcrete {
         self.directory_exists_override.get()
     }
 
-    fn set_directory_exists_override(&self, directory_exists_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
-        self.directory_exists_override.set(directory_exists_override);
+    fn set_directory_exists_override(
+        &self,
+        directory_exists_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    ) {
+        self.directory_exists_override
+            .set(directory_exists_override);
     }
 
     fn maybe_realpath_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
         self.realpath_override.get()
     }
 
-    fn set_realpath_override(&self, realpath_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+    fn set_realpath_override(
+        &self,
+        realpath_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    ) {
         self.realpath_override.set(realpath_override);
     }
 
@@ -206,7 +226,10 @@ impl CompilerHostConcrete {
         self.get_directories_override.get()
     }
 
-    fn set_get_directories_override(&self, get_directories_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+    fn set_get_directories_override(
+        &self,
+        get_directories_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    ) {
         self.get_directories_override.set(get_directories_override);
     }
 
@@ -214,7 +237,10 @@ impl CompilerHostConcrete {
         self.write_file_override.get()
     }
 
-    fn set_write_file_override(&self, write_file_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+    fn set_write_file_override(
+        &self,
+        write_file_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    ) {
         self.write_file_override.set(write_file_override);
     }
 
@@ -224,8 +250,12 @@ impl CompilerHostConcrete {
         self.create_directory_override.get()
     }
 
-    fn set_create_directory_override(&self, create_directory_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
-        self.create_directory_override.set(create_directory_override);
+    fn set_create_directory_override(
+        &self,
+        create_directory_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+    ) {
+        self.create_directory_override
+            .set(create_directory_override);
     }
 
     fn compute_hash(&self, data: &str) -> String {
@@ -254,10 +284,13 @@ impl CompilerHostConcrete {
         data: &str,
         write_byte_order_mark: bool,
     ) -> io::Result<()> {
-        if !is_watch_set(&self.options.ref_(self)) || !self.system.ref_(self).is_get_modified_time_supported() {
+        if !is_watch_set(&self.options.ref_(self))
+            || !self.system.ref_(self).is_get_modified_time_supported()
+        {
             return self
                 .system
-                .ref_(self).write_file(file_name, data, Some(write_byte_order_mark));
+                .ref_(self)
+                .write_file(file_name, data, Some(write_byte_order_mark));
         }
 
         let mut output_fingerprints = self.output_fingerprints.borrow_mut();
@@ -283,11 +316,13 @@ impl CompilerHostConcrete {
         }
 
         self.system
-            .ref_(self).write_file(file_name, data, Some(write_byte_order_mark))?;
+            .ref_(self)
+            .write_file(file_name, data, Some(write_byte_order_mark))?;
 
         let mtime_after = self
             .system
-            .ref_(self).get_modified_time(file_name)
+            .ref_(self)
+            .get_modified_time(file_name)
             .unwrap_or_else(|| missing_file_modified_time());
 
         output_fingerprints.insert(
@@ -349,7 +384,9 @@ impl ModuleResolutionHost for CompilerHostConcrete {
     }
 
     fn trace(&self, s: &str) {
-        self.system.ref_(self).write(&format!("{}{}", s, self.new_line));
+        self.system
+            .ref_(self)
+            .write(&format!("{}{}", s, self.new_line));
     }
 
     fn is_trace_supported(&self) -> bool {
@@ -358,7 +395,9 @@ impl ModuleResolutionHost for CompilerHostConcrete {
 
     fn directory_exists(&self, directory_name: &str) -> Option<bool> {
         if let Some(directory_exists_override) = self.maybe_directory_exists_override() {
-            directory_exists_override.ref_(self).directory_exists(directory_name)
+            directory_exists_override
+                .ref_(self)
+                .directory_exists(directory_name)
         } else {
             self.directory_exists_non_overridden(directory_name)
         }
@@ -376,7 +415,8 @@ impl ModuleResolutionHost for CompilerHostConcrete {
         &self,
         overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        if self.maybe_directory_exists_override().is_some() && overriding_directory_exists.is_some() {
+        if self.maybe_directory_exists_override().is_some() && overriding_directory_exists.is_some()
+        {
             panic!(
                 "Trying to re-override set_overriding_directory_exists(), need eg a stack instead?"
             );
@@ -605,10 +645,13 @@ impl CompilerHost for CompilerHostConcrete {
         includes: &[String],
         depth: Option<usize>,
     ) -> Option<io::Result<Vec<String>>> {
-        Some(
-            self.system
-                .ref_(self).read_directory(path, Some(extensions), excludes, Some(includes), depth),
-        )
+        Some(self.system.ref_(self).read_directory(
+            path,
+            Some(extensions),
+            excludes,
+            Some(includes),
+            depth,
+        ))
     }
 
     fn is_read_directory_implemented(&self) -> bool {
@@ -637,7 +680,8 @@ impl CompilerHost for CompilerHostConcrete {
         &self,
         overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
-        if self.maybe_create_directory_override().is_some() && overriding_create_directory.is_some() {
+        if self.maybe_create_directory_override().is_some() && overriding_create_directory.is_some()
+        {
             panic!(
                 "Trying to re-override set_overriding_create_directory(), need eg a stack instead?"
             );
@@ -683,21 +727,29 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
     arena: &impl HasArena,
 ) /*-> */
 {
-    let overrider: Id<Box<dyn ModuleResolutionHostOverrider>> = arena.alloc_module_resolution_host_overrider(Box::new(
-        ChangeCompilerHostLikeToUseCacheOverrider::new(host.clone(), to_path, get_source_file),
-    ));
+    let overrider: Id<Box<dyn ModuleResolutionHostOverrider>> = arena
+        .alloc_module_resolution_host_overrider(Box::new(
+            ChangeCompilerHostLikeToUseCacheOverrider::new(host.clone(), to_path, get_source_file),
+        ));
 
-    host.ref_(arena).set_overriding_read_file(Some(overrider.clone()));
+    host.ref_(arena)
+        .set_overriding_read_file(Some(overrider.clone()));
 
-    host.ref_(arena).set_overriding_file_exists(Some(overrider.clone()));
+    host.ref_(arena)
+        .set_overriding_file_exists(Some(overrider.clone()));
 
     if host.ref_(arena).is_write_file_supported() {
-        host.ref_(arena).set_overriding_write_file(Some(overrider.clone()));
+        host.ref_(arena)
+            .set_overriding_write_file(Some(overrider.clone()));
     }
 
-    if host.ref_(arena).is_directory_exists_supported() && host.ref_(arena).is_create_directory_supported() {
-        host.ref_(arena).set_overriding_directory_exists(Some(overrider.clone()));
-        host.ref_(arena).set_overriding_create_directory(Some(overrider.clone()));
+    if host.ref_(arena).is_directory_exists_supported()
+        && host.ref_(arena).is_create_directory_supported()
+    {
+        host.ref_(arena)
+            .set_overriding_directory_exists(Some(overrider.clone()));
+        host.ref_(arena)
+            .set_overriding_create_directory(Some(overrider.clone()));
     }
 
     // return {
@@ -754,7 +806,12 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
     }
 
     fn set_read_file_cache(&self, key: Path, file_name: &str) -> Option<String> {
-        let new_value = self.host.ref_(self).read_file_non_overridden(file_name).ok().flatten();
+        let new_value = self
+            .host
+            .ref_(self)
+            .read_file_non_overridden(file_name)
+            .ok()
+            .flatten();
         self.read_file_cache
             .borrow_mut()
             .insert(key.to_string(), new_value.clone());
@@ -856,7 +913,8 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
         }
         let new_value = self
             .host
-            .ref_(self).directory_exists_non_overridden(directory)
+            .ref_(self)
+            .directory_exists_non_overridden(directory)
             .unwrap();
         self.directory_exists_cache
             .borrow_mut()
@@ -867,7 +925,9 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     fn create_directory(&self, directory: &str) -> io::Result<()> {
         let key = self.to_path.ref_(self).call(directory);
         self.directory_exists_cache.borrow_mut().remove(&*key);
-        self.host.ref_(self).create_directory_non_overridden(directory)?;
+        self.host
+            .ref_(self)
+            .create_directory_non_overridden(directory)?;
 
         Ok(())
     }
@@ -920,21 +980,11 @@ pub fn get_pre_emit_diagnostics(
     );
     add_range(
         &mut diagnostics,
-        Some(&program.ref_(arena).get_options_diagnostics(cancellation_token.clone())),
-        None,
-        None,
-    );
-    add_range(
-        &mut diagnostics,
         Some(
-            &program.ref_(arena).get_syntactic_diagnostics(source_file, cancellation_token.clone()),
+            &program
+                .ref_(arena)
+                .get_options_diagnostics(cancellation_token.clone()),
         ),
-        None,
-        None,
-    );
-    add_range(
-        &mut diagnostics,
-        Some(&program.ref_(arena).get_global_diagnostics(cancellation_token.clone())?),
         None,
         None,
     );
@@ -942,7 +992,28 @@ pub fn get_pre_emit_diagnostics(
         &mut diagnostics,
         Some(
             &program
-                .ref_(arena).get_semantic_diagnostics(source_file, cancellation_token.clone())?,
+                .ref_(arena)
+                .get_syntactic_diagnostics(source_file, cancellation_token.clone()),
+        ),
+        None,
+        None,
+    );
+    add_range(
+        &mut diagnostics,
+        Some(
+            &program
+                .ref_(arena)
+                .get_global_diagnostics(cancellation_token.clone())?,
+        ),
+        None,
+        None,
+    );
+    add_range(
+        &mut diagnostics,
+        Some(
+            &program
+                .ref_(arena)
+                .get_semantic_diagnostics(source_file, cancellation_token.clone())?,
         ),
         None,
         None,
@@ -952,10 +1023,9 @@ pub fn get_pre_emit_diagnostics(
         add_range(
             &mut diagnostics,
             Some(
-                &program.ref_(arena).get_declaration_diagnostics(
-                    source_file,
-                    cancellation_token.clone(),
-                )?,
+                &program
+                    .ref_(arena)
+                    .get_declaration_diagnostics(source_file, cancellation_token.clone())?,
             ),
             None,
             None,
@@ -993,7 +1063,11 @@ pub fn format_diagnostic(
         "{} TS{}: {}{}",
         diagnostic_category_name(diagnostic.category(), None),
         diagnostic.code(),
-        flatten_diagnostic_message_text(Some(diagnostic.message_text()), &host.get_new_line(), None),
+        flatten_diagnostic_message_text(
+            Some(diagnostic.message_text()),
+            &host.get_new_line(),
+            None
+        ),
         host.get_new_line()
     );
 
@@ -1255,7 +1329,8 @@ pub fn format_diagnostics_with_color_and_context(
             ));
         }
         let diagnostic_ref = diagnostic.ref_(arena);
-        if let Some(diagnostic_related_information) = diagnostic_ref.maybe_related_information().as_ref()
+        if let Some(diagnostic_related_information) =
+            diagnostic_ref.maybe_related_information().as_ref()
         {
             output.push_str(&host.get_new_line());
             for related_information in diagnostic_related_information {

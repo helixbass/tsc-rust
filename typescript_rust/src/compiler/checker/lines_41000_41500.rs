@@ -31,11 +31,21 @@ impl TypeChecker {
     ) -> io::Result<Option<Vec<Id<IndexInfo>>>> {
         if is_identifier(&node.ref_(self))
             && is_property_access_expression(&node.ref_(self).parent().ref_(self))
-            && node.ref_(self).parent().ref_(self).as_property_access_expression().name == node
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_property_access_expression()
+                .name
+                == node
         {
             let key_type = self.get_literal_type_from_property_name(node)?;
             let object_type = self.get_type_of_expression(
-                node.ref_(self).parent().ref_(self).as_property_access_expression().expression,
+                node.ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_property_access_expression()
+                    .expression,
             )?;
             let object_types = if object_type.ref_(self).flags().intersects(TypeFlags::Union) {
                 object_type.ref_(self).as_union_type().types().to_owned()
@@ -64,7 +74,10 @@ impl TypeChecker {
         if let Some(location) = location {
             if location.ref_(self).kind() == SyntaxKind::ShorthandPropertyAssignment {
                 return self.resolve_entity_name(
-                    location.ref_(self).as_shorthand_property_assignment().name(),
+                    location
+                        .ref_(self)
+                        .as_shorthand_property_assignment()
+                        .name(),
                     SymbolFlags::Value | SymbolFlags::Alias,
                     None,
                     None,
@@ -83,13 +96,20 @@ impl TypeChecker {
             let node_ref = node.ref_(self);
             let node_as_export_specifier = node_ref.as_export_specifier();
             if node
-                .ref_(self).parent()
-                .ref_(self).parent()
-                .ref_(self).as_export_declaration()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_export_declaration()
                 .module_specifier
                 .is_some()
             {
-                self.get_external_module_member(node.ref_(self).parent().ref_(self).parent(), node, None)?
+                self.get_external_module_member(
+                    node.ref_(self).parent().ref_(self).parent(),
+                    node,
+                    None,
+                )?
             } else {
                 self.resolve_entity_name(
                     node_as_export_specifier
@@ -123,7 +143,11 @@ impl TypeChecker {
             return Ok(self.error_type());
         }
 
-        if node.ref_(self).flags().intersects(NodeFlags::InWithStatement) {
+        if node
+            .ref_(self)
+            .flags()
+            .intersects(NodeFlags::InWithStatement)
+        {
             return Ok(self.error_type());
         }
 
@@ -213,7 +237,13 @@ impl TypeChecker {
         }
 
         if is_meta_property(&node.ref_(self).parent().ref_(self))
-            && node.ref_(self).parent().ref_(self).as_meta_property().keyword_token == node.ref_(self).kind()
+            && node
+                .ref_(self)
+                .parent()
+                .ref_(self)
+                .as_meta_property()
+                .keyword_token
+                == node.ref_(self).kind()
         {
             return self.check_meta_property_keyword(node.ref_(self).parent());
         }
@@ -242,8 +272,13 @@ impl TypeChecker {
             )?));
         }
         if expr.ref_(self).parent().ref_(self).kind() == SyntaxKind::BinaryExpression {
-            let iterated_type =
-                self.get_type_of_expression(expr.ref_(self).parent().ref_(self).as_binary_expression().right)?;
+            let iterated_type = self.get_type_of_expression(
+                expr.ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_binary_expression()
+                    .right,
+            )?;
             return Ok(Some(self.check_destructuring_assignment(
                 expr,
                 iterated_type, /*|| errorType*/
@@ -252,14 +287,19 @@ impl TypeChecker {
             )?));
         }
         if expr.ref_(self).parent().ref_(self).kind() == SyntaxKind::PropertyAssignment {
-            let node = cast_present(expr.ref_(self).parent().ref_(self).parent(), |node: &Id<Node>| {
-                is_object_literal_expression(&node.ref_(self))
-            });
+            let node = cast_present(
+                expr.ref_(self).parent().ref_(self).parent(),
+                |node: &Id<Node>| is_object_literal_expression(&node.ref_(self)),
+            );
             let type_of_parent_object_literal = self
                 .get_type_of_assignment_pattern_(node)?
                 .unwrap_or_else(|| self.error_type());
             let property_index = index_of_node(
-                &node.ref_(self).as_object_literal_expression().properties.ref_(self),
+                &node
+                    .ref_(self)
+                    .as_object_literal_expression()
+                    .properties
+                    .ref_(self),
                 expr.ref_(self).parent(),
                 self,
             );
@@ -288,9 +328,11 @@ impl TypeChecker {
             type_of_array_literal,
             {
                 let ret = node
-                    .ref_(self).as_array_literal_expression()
+                    .ref_(self)
+                    .as_array_literal_expression()
                     .elements
-                    .ref_(self).iter()
+                    .ref_(self)
+                    .iter()
                     .position(|&element| element == expr)
                     .unwrap();
                 ret
@@ -476,7 +518,11 @@ impl TypeChecker {
         if is_generated_identifier(&node_in.ref_(self)) {
             return Ok(false);
         }
-        let Some(node) = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), self) else {
+        let Some(node) = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
+            self,
+        ) else {
             return Ok(false);
         };
         let Some(parent) = node.ref_(self).maybe_parent() else {
@@ -531,7 +577,10 @@ impl TypeChecker {
                 )?
             });
         }
-        let ret = (*symbol_links.ref_(self)).borrow().exports_some_value.unwrap();
+        let ret = (*symbol_links.ref_(self))
+            .borrow()
+            .exports_some_value
+            .unwrap();
         Ok(ret)
     }
 
@@ -548,7 +597,13 @@ impl TypeChecker {
         node: Id<Node>, /*Identifier*/
     ) -> bool {
         is_module_or_enum_declaration(&node.ref_(self).parent().ref_(self))
-            && node == node.ref_(self).parent().ref_(self).as_named_declaration().name()
+            && node
+                == node
+                    .ref_(self)
+                    .parent()
+                    .ref_(self)
+                    .as_named_declaration()
+                    .name()
     }
 
     pub(super) fn get_referenced_export_container(
@@ -556,7 +611,11 @@ impl TypeChecker {
         node_in: Id<Node>, /*Identifier*/
         prefix_locals: Option<bool>,
     ) -> io::Result<Option<Id<Node /*SourceFile | ModuleDeclaration | EnumDeclaration*/>>> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), self);
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
+            self,
+        );
         if let Some(node) = node {
             let symbol = self.get_referenced_value_symbol(
                 node,
@@ -596,7 +655,8 @@ impl TypeChecker {
                             .ref_(self)
                             .maybe_value_declaration()
                             .filter(|parent_symbol_value_declaration| {
-                                parent_symbol_value_declaration.ref_(self).kind() == SyntaxKind::SourceFile
+                                parent_symbol_value_declaration.ref_(self).kind()
+                                    == SyntaxKind::SourceFile
                             })
                         {
                             let symbol_file = parent_symbol_value_declaration;
@@ -609,13 +669,17 @@ impl TypeChecker {
                             });
                         }
                     }
-                    return try_find_ancestor(node.ref_(self).maybe_parent(), |n| -> io::Result<_> {
-                        Ok(is_module_or_enum_declaration(&n.ref_(self))
-                            && matches!(
-                                self.get_symbol_of_node(n)?,
-                                Some(symbol) if symbol == parent_symbol
-                            ))
-                    }, self);
+                    return try_find_ancestor(
+                        node.ref_(self).maybe_parent(),
+                        |n| -> io::Result<_> {
+                            Ok(is_module_or_enum_declaration(&n.ref_(self))
+                                && matches!(
+                                    self.get_symbol_of_node(n)?,
+                                    Some(symbol) if symbol == parent_symbol
+                                ))
+                        },
+                        self,
+                    );
                 }
             }
         }
@@ -627,12 +691,17 @@ impl TypeChecker {
         node_in: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if let Some(node_in_generated_import_reference) = node_in
-            .ref_(self).as_identifier()
+            .ref_(self)
+            .as_identifier()
             .maybe_generated_import_reference()
         {
             return Ok(Some(node_in_generated_import_reference));
         }
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), self);
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
+            self,
+        );
         if let Some(node) = node {
             let symbol = self.get_referenced_value_symbol(node, None)?;
             if self.is_non_local_alias(symbol, Some(SymbolFlags::Value))
@@ -670,7 +739,9 @@ impl TypeChecker {
             if let Some(symbol_value_declaration) = symbol
                 .ref_(self)
                 .maybe_value_declaration()
-                .filter(|symbol_value_declaration| !is_source_file(&symbol_value_declaration.ref_(self)))
+                .filter(|symbol_value_declaration| {
+                    !is_source_file(&symbol_value_declaration.ref_(self))
+                })
             {
                 let links = self.get_symbol_links(symbol);
                 if (*links.ref_(self))
@@ -679,7 +750,8 @@ impl TypeChecker {
                     .is_none()
                 {
                     let container =
-                        get_enclosing_block_scope_container(symbol_value_declaration, self).unwrap();
+                        get_enclosing_block_scope_container(symbol_value_declaration, self)
+                            .unwrap();
                     if is_statement_with_locals(&container.ref_(self))
                         || self.is_symbol_of_destructured_element_of_catch_binding(symbol)
                     {
@@ -706,9 +778,15 @@ impl TypeChecker {
                                 .ref_(self)
                                 .flags
                                 .intersects(NodeCheckFlags::BlockScopedBindingInLoop);
-                            let in_loop_initializer = is_iteration_statement(container, false, self);
-                            let in_loop_body_block = container.ref_(self).kind() == SyntaxKind::Block
-                                && is_iteration_statement(container.ref_(self).parent(), false, self);
+                            let in_loop_initializer =
+                                is_iteration_statement(container, false, self);
+                            let in_loop_body_block = container.ref_(self).kind()
+                                == SyntaxKind::Block
+                                && is_iteration_statement(
+                                    container.ref_(self).parent(),
+                                    false,
+                                    self,
+                                );
 
                             links.ref_mut(self).is_declaration_with_colliding_name = Some(
                                 !is_block_scoped_container_top_level(&container.ref_(self))
@@ -731,7 +809,11 @@ impl TypeChecker {
         node_in: Id<Node>, /*Identifier*/
     ) -> io::Result<Option<Id<Node /*Declaration*/>>> {
         if !is_generated_identifier(&node_in.ref_(self)) {
-            let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_identifier(&node.ref_(self))), self);
+            let node = get_parse_tree_node(
+                Some(node_in),
+                Some(|node: Id<Node>| is_identifier(&node.ref_(self))),
+                self,
+            );
             if let Some(node) = node {
                 let symbol = self.get_referenced_value_symbol(node, None)?;
                 if let Some(symbol) = symbol.try_filter(|&symbol| {
@@ -749,7 +831,8 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*Declaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node| is_declaration(node, self)), self);
+        let node =
+            get_parse_tree_node(Some(node_in), Some(|node| is_declaration(node, self)), self);
         if let Some(node) = node {
             let symbol = self.get_symbol_of_node(node)?;
             if let Some(symbol) = symbol {
@@ -792,7 +875,14 @@ impl TypeChecker {
             SyntaxKind::ExportAssignment => {
                 if
                 /*(node as ExportAssignment).expression &&*/
-                node.ref_(self).as_export_assignment().expression.ref_(self).kind() == SyntaxKind::Identifier {
+                node
+                    .ref_(self)
+                    .as_export_assignment()
+                    .expression
+                    .ref_(self)
+                    .kind()
+                    == SyntaxKind::Identifier
+                {
                     self.is_alias_resolved_to_value(self.get_symbol_of_node(node)?)?
                 } else {
                     true
@@ -806,7 +896,11 @@ impl TypeChecker {
         &self,
         node_in: Id<Node>, /*ImportEqualsDeclaration*/
     ) -> io::Result<bool> {
-        let node = get_parse_tree_node(Some(node_in), Some(|node: Id<Node>| is_import_equals_declaration(&node.ref_(self))), self);
+        let node = get_parse_tree_node(
+            Some(node_in),
+            Some(|node: Id<Node>| is_import_equals_declaration(&node.ref_(self))),
+            self,
+        );
         if match node {
             None => true,
             Some(node) => {
