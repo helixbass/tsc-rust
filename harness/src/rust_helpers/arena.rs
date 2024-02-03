@@ -10,7 +10,7 @@ use crate::{
     documents::TextDocument,
     fakes::{ParseConfigHost, System},
     harness::harness_io::NodeIO,
-    vfs::{FileSystem, FileSystemResolverHost, StringComparer},
+    vfs::{FileSystem, FileSystemResolver, FileSystemResolverHost, StringComparer},
     Compiler::TestFile,
     MetaValue, RunnerBaseSub,
     Utils::{DiagnosticMessageReplacer, Replacer},
@@ -33,6 +33,7 @@ pub struct AllArenasHarness {
     systems: RefCell<Arena<System>>,
     parse_config_hosts: RefCell<Arena<ParseConfigHost>>,
     string_comparers: RefCell<Arena<Box<dyn StringComparer>>>,
+    file_system_resolvers: RefCell<Arena<FileSystemResolver>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -229,6 +230,22 @@ pub trait HasArenaHarness: HasArena {
         string_comparer: Box<dyn StringComparer>,
     ) -> Id<Box<dyn StringComparer>> {
         self.arena_harness().alloc_string_comparer(string_comparer)
+    }
+
+    fn file_system_resolver(
+        &self,
+        file_system_resolver: Id<FileSystemResolver>,
+    ) -> Ref<FileSystemResolver> {
+        self.arena_harness()
+            .file_system_resolver(file_system_resolver)
+    }
+
+    fn alloc_file_system_resolver(
+        &self,
+        file_system_resolver: FileSystemResolver,
+    ) -> Id<FileSystemResolver> {
+        self.arena_harness()
+            .alloc_file_system_resolver(file_system_resolver)
     }
 }
 
@@ -493,6 +510,27 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.string_comparers.borrow_mut().alloc(string_comparer);
         id
     }
+
+    fn file_system_resolver(
+        &self,
+        file_system_resolver: Id<FileSystemResolver>,
+    ) -> Ref<FileSystemResolver> {
+        Ref::map(
+            self.file_system_resolvers.borrow(),
+            |file_system_resolvers| &file_system_resolvers[file_system_resolver],
+        )
+    }
+
+    fn alloc_file_system_resolver(
+        &self,
+        file_system_resolver: FileSystemResolver,
+    ) -> Id<FileSystemResolver> {
+        let id = self
+            .file_system_resolvers
+            .borrow_mut()
+            .alloc(file_system_resolver);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -635,6 +673,14 @@ impl InArenaHarness for Id<Box<dyn StringComparer>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Box<dyn StringComparer>> {
         has_arena.string_comparer(*self)
+    }
+}
+
+impl InArenaHarness for Id<FileSystemResolver> {
+    type Item = FileSystemResolver;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, FileSystemResolver> {
+        has_arena.file_system_resolver(*self)
     }
 }
 

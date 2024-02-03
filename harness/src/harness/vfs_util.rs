@@ -425,7 +425,7 @@ pub mod vfs {
             &self,
             source: &str,
             target: &str,
-            resolver: Gc<FileSystemResolver>,
+            resolver: Id<FileSystemResolver>,
         ) -> io::Result<()> {
             if self.is_readonly() {
                 return io_error_from_name("EROFS");
@@ -862,9 +862,9 @@ pub mod vfs {
                 if let (Some(source), Some(resolver)) = (source, resolver) {
                     node_as_directory_inode.set_source(None);
                     node_as_directory_inode.set_resolver(None);
-                    for name in resolver.readdir_sync(&source) {
+                    for name in resolver.ref_(self).readdir_sync(&source) {
                         let path = vpath::combine(&source, &[Some(&name)]);
-                        let stats = resolver.stat_sync(&path);
+                        let stats = resolver.ref_(self).stat_sync(&path);
                         match stats.mode & S_IFMT {
                             S_IFDIR => {
                                 let dir =
@@ -960,7 +960,7 @@ pub mod vfs {
             if let (Some(node_source), Some(node_resolver)) =
                 (node.maybe_source(), node.maybe_resolver())
             {
-                let ret = node_resolver.stat_sync(&node_source).size;
+                let ret = node_resolver.ref_(self).stat_sync(&node_source).size;
                 node.set_size(Some(ret));
                 return ret;
             }
@@ -985,7 +985,7 @@ pub mod vfs {
                     node.set_source(None);
                     node.set_resolver(None);
                     node.set_size(None);
-                    resolver.read_file_sync(&source)
+                    resolver.ref_(self).read_file_sync(&source)
                 } else if let (Some(_shadow_root), Some(node_shadow_root)) =
                     (self._shadow_root.as_ref(), node.shadow_root.as_ref())
                 {
@@ -1855,14 +1855,14 @@ pub mod vfs {
     #[derive(Clone)]
     pub struct Mount {
         pub source: String,
-        pub resolver: Gc<FileSystemResolver>,
+        pub resolver: Id<FileSystemResolver>,
         pub meta: Option<HashMap<String, Id<documents::TextDocument>>>,
     }
 
     impl Mount {
         pub fn new(
             source: String,
-            resolver: Gc<FileSystemResolver>,
+            resolver: Id<FileSystemResolver>,
             options: Option<MountOptions>,
         ) -> Self {
             let options = options.unwrap_or_default();
@@ -2117,7 +2117,7 @@ pub mod vfs {
         buffer: RefCell<Option<Buffer>>,
         #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        resolver: GcCell<Option<Gc<FileSystemResolver>>>,
+        resolver: GcCell<Option<Id<FileSystemResolver>>>,
         pub shadow_root: Option<Gc<Inode /*FileInode*/>>,
         meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
@@ -2196,11 +2196,11 @@ pub mod vfs {
             *self.source.borrow_mut() = source;
         }
 
-        pub fn maybe_resolver(&self) -> Option<Gc<FileSystemResolver>> {
+        pub fn maybe_resolver(&self) -> Option<Id<FileSystemResolver>> {
             self.resolver.borrow().clone()
         }
 
-        pub fn set_resolver(&self, resolver: Option<Gc<FileSystemResolver>>) {
+        pub fn set_resolver(&self, resolver: Option<Id<FileSystemResolver>>) {
             *self.resolver.borrow_mut() = resolver;
         }
 
@@ -2225,7 +2225,7 @@ pub mod vfs {
         links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>>,
         #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        resolver: GcCell<Option<Gc<FileSystemResolver>>>,
+        resolver: GcCell<Option<Id<FileSystemResolver>>>,
         pub shadow_root: Option<Gc<Inode /*DirectoryInode*/>>,
         meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
@@ -2302,11 +2302,11 @@ pub mod vfs {
             *self.source.borrow_mut() = source;
         }
 
-        pub fn maybe_resolver(&self) -> Option<Gc<FileSystemResolver>> {
+        pub fn maybe_resolver(&self) -> Option<Id<FileSystemResolver>> {
             self.resolver.borrow().clone()
         }
 
-        pub fn set_resolver(&self, resolver: Option<Gc<FileSystemResolver>>) {
+        pub fn set_resolver(&self, resolver: Option<Id<FileSystemResolver>>) {
             *self.resolver.borrow_mut() = resolver;
         }
 
@@ -2472,7 +2472,7 @@ pub mod vfs {
             set_built_local_host(Some(host.clone()));
         }
         if maybe_built_local_ci().is_none() {
-            let resolver = Gc::new(create_resolver(host));
+            let resolver = arena.alloc_file_system_resolver(create_resolver(host));
             set_built_local_ci(Some(
                 arena.alloc_file_system(FileSystem::new(
                     true,
