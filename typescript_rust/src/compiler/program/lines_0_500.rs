@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     borrow::Cow,
     cell::{Cell, RefCell},
     cmp,
@@ -481,6 +482,10 @@ impl ModuleResolutionHost for CompilerHostConcrete {
 
 impl CompilerHost for CompilerHostConcrete {
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+        self
+    }
+
+    fn as_dyn_any(&self) -> &dyn Any {
         self
     }
 

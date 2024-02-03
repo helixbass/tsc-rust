@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
     fmt, io,
@@ -15,11 +16,10 @@ use super::{
     TextRange,
 };
 use crate::{
-    ref_unwrapped, CancellationToken, Cloneable, HasArena, InArena,
-    ModuleResolutionCache, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    ParseConfigHost, ParsedCommandLine, Path, ProgramBuildInfo, ReadonlyTextRange,
-    ResolveModuleNameResolutionHost, SourceFileLike, SourceTextAsChars, StringOrNumber,
-    SymlinkCache,
+    ref_unwrapped, CancellationToken, Cloneable, HasArena, InArena, ModuleResolutionCache,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, ParseConfigHost, ParsedCommandLine,
+    Path, ProgramBuildInfo, ReadonlyTextRange, ResolveModuleNameResolutionHost, SourceFileLike,
+    SourceTextAsChars, StringOrNumber, SymlinkCache,
 };
 
 pub trait ModuleResolutionHost {
@@ -317,8 +317,9 @@ pub struct ResolvedTypeReferenceDirectiveWithFailedLookupLocations {
     pub failed_lookup_locations: Vec<String>,
 }
 
-pub trait CompilerHost: ModuleResolutionHost {
+pub trait CompilerHost: ModuleResolutionHost + Any {
     fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost;
+    fn as_dyn_any(&self) -> &dyn Any;
     fn get_source_file(
         &self,
         file_name: &str,
