@@ -2,9 +2,9 @@ use gc::{Finalize, Gc, Trace};
 use regex::Regex;
 use std::cell::Cell;
 
-use typescript_rust::{map, normalize_slashes};
+use typescript_rust::{map, normalize_slashes, HasArena, AllArenas};
 
-use crate::{user_specified_root, with_io, FileBasedTest, ListFilesOptions};
+use crate::{user_specified_root, FileBasedTest, ListFilesOptions, get_io, HasArenaHarness, AllArenasHarness};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TestRunnerKind {
@@ -72,22 +72,20 @@ impl RunnerBase {
         regex: Option<&Regex>,
         options: Option<EnumerateFilesOptions>,
     ) -> Vec<String> {
-        with_io(|IO| {
-            map(
-                IO.list_files(
-                    &format!("{}{}", user_specified_root, folder),
-                    regex,
-                    Some(ListFilesOptions {
-                        recursive: Some(if let Some(options) = &options {
-                            options.recursive
-                        } else {
-                            false
-                        }),
+        map(
+            get_io(self).list_files(
+                &format!("{}{}", user_specified_root, folder),
+                regex,
+                Some(ListFilesOptions {
+                    recursive: Some(if let Some(options) = &options {
+                        options.recursive
+                    } else {
+                        false
                     }),
-                ),
-                |file, _| normalize_slashes(file.to_str().unwrap()),
-            )
-        })
+                }),
+            ),
+            |file, _| normalize_slashes(file.to_str().unwrap()),
+        )
     }
 
     pub fn kind(&self) -> TestRunnerKind {
@@ -114,6 +112,18 @@ impl RunnerBase {
 
     pub fn initialize_tests(&self) {
         self.sub.initialize_tests(self)
+    }
+}
+
+impl HasArena for RunnerBase {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
+impl HasArenaHarness for RunnerBase {
+    fn arena_harness(&self) -> &AllArenasHarness {
+        unimplemented!()
     }
 }
 

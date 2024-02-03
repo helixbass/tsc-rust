@@ -12,6 +12,7 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub extern crate debug_cell;
 pub extern crate id_arena;
 
 mod compiler;

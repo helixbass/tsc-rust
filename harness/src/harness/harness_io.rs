@@ -16,10 +16,10 @@ use typescript_rust::{
     normalize_slashes, option_declarations, ordered_remove_item_at, path_join, starts_with,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Extension, FileSystemEntries, StatLike,
-    HasArena, AllArenas,
+    HasArena, AllArenas, id_arena::Id, per_arena,
 };
 
-use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest};
+use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest, HasArenaHarness, InArenaHarness};
 
 pub trait IO: vfs::FileSystemResolverHost {
     fn new_line(&self) -> &'static str;
@@ -46,47 +46,38 @@ pub struct ListFilesOptions {
     pub recursive: Option<bool>,
 }
 
-thread_local! {
-    // static IO_: GcCell<Gc<Box<dyn IO>>> = GcCell::new(create_node_io());
-    static IO_: GcCell<Gc<Box<NodeIO>>> = GcCell::new(create_node_io());
+pub fn get_io_id(arena: &impl HasArenaHarness) -> Id<NodeIO> {
+    per_arena!(
+        NodeIO,
+        arena,
+        create_node_io(arena)
+    )
 }
 
-pub fn with_io<TReturn, TCallback: FnMut(&dyn IO) -> TReturn>(mut callback: TCallback) -> TReturn {
-    IO_.with(|io| callback(&***io.borrow()))
-}
-
-// pub fn get_io() -> Gc<Box<dyn IO>> {
-pub fn get_io() -> Gc<Box<NodeIO>> {
-    IO_.with(|io| io.borrow().clone())
+pub fn get_io(arena: &impl HasArenaHarness) -> debug_cell::Ref<NodeIO> {
+    get_io_id(arena).ref_(arena)
 }
 
 pub const harness_new_line: &'static str = "\r\n";
 
-fn create_node_io() -> Gc<Box<NodeIO>> {
-    NodeIO::new()
+fn create_node_io(arena: &impl HasArenaHarness) -> Id<NodeIO> {
+    NodeIO::new(arena)
 }
 
 #[derive(Trace, Finalize)]
 // struct NodeIO {
-pub struct NodeIO {
-    _dyn_wrapper: GcCell<Option<Gc<Box<dyn vfs::FileSystemResolverHost>>>>,
-}
+pub struct NodeIO;
 
 impl NodeIO {
-    pub fn new() -> Gc<Box<Self>> {
-        let dyn_wrapper: Gc<Box<dyn vfs::FileSystemResolverHost>> = Gc::new(Box::new(Self {
-            _dyn_wrapper: Default::default(),
-        }));
-        let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
-        *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
-        downcasted
+    pub fn new(arena: &impl HasArenaHarness) -> Id<Self> {
+        arena.alloc_node_io(Self)
     }
 
-    fn files_in_folder<TFolder: AsRef<StdPath>>(
+    fn files_in_folder(
         &self,
         spec: Option<&Regex>,
         options: Option<ListFilesOptions>,
-        folder: TFolder,
+        folder: impl AsRef<StdPath>,
     ) -> Vec<PathBuf> {
         let folder = folder.as_ref();
         let options = options.unwrap_or_else(|| ListFilesOptions { recursive: None });
@@ -286,11 +277,11 @@ pub mod Compiler {
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
         DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
         GetOrInsertDefault, NewLineKind, ScriptKind, ScriptReferenceHost,
-        StringOrDiagnosticMessage, TextSpan, HasArena,
+        StringOrDiagnosticMessage, TextSpan, HasArena, AllArenas,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
-    use crate::{compiler, documents, fakes, get_io, vfs, vpath, with_io, Utils, IO};
+    use crate::{compiler, documents, fakes, get_io, vfs, vpath, Utils, IO, HasArenaHarness, AllArenasHarness};
 
     #[derive(Default)]
     pub struct WriterAggregator {
@@ -577,7 +568,7 @@ pub mod Compiler {
         compiler_options: Option<&CompilerOptions>,
         current_directory: Option<&str>,
         symlinks: Option<&vfs::FileSet>,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<compiler::CompilationResult> {
         let mut options: CompilerOptionsAndHarnessOptions =
             if let Some(compiler_options) = compiler_options {
@@ -651,7 +642,7 @@ pub mod Compiler {
             .map(|file| Gc::new(documents::TextDocument::from_test_file(file)))
             .collect::<Vec<_>>();
         let fs = Gc::new(vfs::create_from_file_system(
-            get_io().as_file_system_resolver_host(),
+            get_io(arena).as_file_system_resolver_host(),
             !use_case_sensitive_file_names,
             Some(vfs::FileSystemCreateOptions {
                 documents: Some(docs),
@@ -836,6 +827,7 @@ pub mod Compiler {
     pub fn compile_declaration_files(
         context: Option<&DeclarationCompilationContext>,
         symlinks: Option<&vfs::FileSet>,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<Option<CompileDeclarationFilesReturn>> {
         let context = return_ok_default_if_none!(context);
         let decl_input_files = &context.decl_input_files;
@@ -850,6 +842,7 @@ pub mod Compiler {
             Some(options),
             current_directory,
             symlinks,
+            arena,
         )?;
         Ok(Some(CompileDeclarationFilesReturn {
             decl_input_files: decl_input_files.to_owned(),
@@ -879,7 +872,7 @@ pub mod Compiler {
         }
 
         fn get_new_line(&self) -> &str {
-            with_io(|IO| IO.new_line())
+            get_io(self).new_line()
         }
 
         fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -887,11 +880,23 @@ pub mod Compiler {
         }
     }
 
+    impl HasArena for MinimalDiagnosticsToStringFormatDiagnosticsHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for MinimalDiagnosticsToStringFormatDiagnosticsHost {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
+        }
+    }
+
     pub fn get_error_baseline(
         input_files: &[Gc<TestFile>],
         diagnostics: &[Gc<Diagnostic>],
         pretty: Option<bool>,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<String> {
         let mut output_lines = "".to_owned();
         for value in iterate_error_baseline(
@@ -910,7 +915,7 @@ pub mod Compiler {
         if pretty == Some(true) {
             output_lines.push_str(&get_error_summary_text(
                 get_error_count_for_summary(diagnostics, arena),
-                with_io(|IO| IO.new_line()),
+                get_io(arena).new_line(),
             ));
         }
         Ok(output_lines)
@@ -923,7 +928,7 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         diagnostics: &[Gc<Diagnostic>],
         options: Option<IterateErrorBaselineOptions>,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<Vec<(String, String, usize)>> {
         let diagnostics: Vec<_> = sort(diagnostics, |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| {
             compare_diagnostics(&**a, &**b, arena)
@@ -951,8 +956,8 @@ pub mod Compiler {
                     )?,
                     None,
                 ),
-                with_io(|IO| IO.new_line()),
-                with_io(|IO| IO.new_line()),
+                get_io(arena).new_line(),
+                get_io(arena).new_line(),
             ),
             diagnostics.len(),
         ));
@@ -1146,13 +1151,13 @@ pub mod Compiler {
         "\r\n"
     }
 
-    struct FormatDiagnsoticHost<'iterate_error_baseline> {
-        options: Option<&'iterate_error_baseline IterateErrorBaselineOptions>,
+    struct FormatDiagnsoticHost<'a> {
+        options: Option<&'a IterateErrorBaselineOptions>,
         get_canonical_file_name: fn(&str) -> String,
     }
 
-    impl<'iterate_error_baseline> FormatDiagnsoticHost<'iterate_error_baseline> {
-        pub fn new(options: Option<&'iterate_error_baseline IterateErrorBaselineOptions>) -> Self {
+    impl<'a> FormatDiagnsoticHost<'a> {
+        pub fn new(options: Option<&'a IterateErrorBaselineOptions>) -> Self {
             Self {
                 options,
                 get_canonical_file_name: create_get_canonical_file_name(
@@ -1164,9 +1169,7 @@ pub mod Compiler {
         }
     }
 
-    impl<'iterate_error_baseline> FormatDiagnosticsHost
-        for FormatDiagnsoticHost<'iterate_error_baseline>
-    {
+    impl FormatDiagnosticsHost for FormatDiagnsoticHost<'_> {
         fn get_current_directory(&self) -> io::Result<String> {
             Ok(self
                 .options
@@ -1175,11 +1178,23 @@ pub mod Compiler {
         }
 
         fn get_new_line(&self) -> &str {
-            with_io(|IO| IO.new_line())
+            get_io(self).new_line()
         }
 
         fn get_canonical_file_name(&self, file_name: &str) -> String {
             (self.get_canonical_file_name)(file_name)
+        }
+    }
+
+    impl HasArena for FormatDiagnsoticHost<'_> {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for FormatDiagnsoticHost<'_> {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
         }
     }
 
@@ -1190,11 +1205,11 @@ pub mod Compiler {
         errors_reported: &mut usize,
         total_errors_reported_in_non_library_files: &mut usize,
         error: &Diagnostic,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
         let message = flatten_diagnostic_message_text(
             Some(error.message_text()),
-            with_io(|IO| IO.new_line()),
+            get_io(arena).new_line(),
             None,
         );
 
@@ -1238,7 +1253,7 @@ pub mod Compiler {
                     },
                     flatten_diagnostic_message_text(
                         Some(info.message_text()),
-                        with_io(|IO| IO.new_line()),
+                        get_io(arena).new_line(),
                         None,
                     )
                 ));
@@ -1271,7 +1286,7 @@ pub mod Compiler {
         input_files: &[Gc<TestFile>],
         errors: &[Gc<Diagnostic>],
         pretty: Option<bool>,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
         lazy_static! {
             static ref ts_extension_regex: Regex = Regex::new(r"\.tsx?$").unwrap();
@@ -1287,6 +1302,7 @@ pub mod Compiler {
             }
             .as_deref(),
             None,
+            arena,
         );
 
         Ok(())
@@ -1301,7 +1317,7 @@ pub mod Compiler {
         to_be_compiled: &[Gc<TestFile>],
         other_files: &[Gc<TestFile>],
         harness_settings: &TestCaseParser::CompilerSettings,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
         if options.no_emit != Some(true)
             && options.emit_declaration_only != Some(true)
@@ -1383,7 +1399,7 @@ pub mod Compiler {
             None,
         )?;
         let decl_file_compilation_result =
-            compile_declaration_files(decl_file_context.as_ref(), result.symlinks.as_ref())?;
+            compile_declaration_files(decl_file_context.as_ref(), result.symlinks.as_ref(), arena)?;
 
         if let Some(decl_file_compilation_result) =
             decl_file_compilation_result.filter(|decl_file_compilation_result| {
@@ -1414,6 +1430,7 @@ pub mod Compiler {
                 .then(|| format!("{}\r\n\r\n{}", ts_code, js_code))
                 .as_deref(),
             None,
+            arena,
         );
 
         Ok(())
@@ -1991,8 +2008,8 @@ pub mod Baseline {
 
     use pretty_assertions::StrComparison;
 
-    use super::{user_specified_root, with_io, IO};
-    use crate::Utils;
+    use super::{user_specified_root, IO, get_io};
+    use crate::{Utils, HasArenaHarness};
 
     const no_content: &'static str = "<no content>";
 
@@ -2054,6 +2071,7 @@ pub mod Baseline {
         actual: Option<&str>,
         relative_file_name: &str,
         opts: Option<&BaselineOptions>,
+        arena: &impl HasArenaHarness,
     ) -> CompareToBaselineReturn {
         // if (actual === undefined) {
         //     return undefined!;
@@ -2068,8 +2086,8 @@ pub mod Baseline {
         let actual = actual.unwrap_or(no_content);
 
         let mut expected = "<no content>".to_owned();
-        if with_io(|IO| IO.file_exists(&ref_file_name)) {
-            expected = with_io(|io| IO::read_file(&*io, ref_file_name.as_ref())).unwrap();
+        if get_io(arena).file_exists(&ref_file_name) {
+            expected = IO::read_file(&*get_io(arena), ref_file_name.as_ref()).unwrap();
         }
 
         CompareToBaselineReturn {
@@ -2089,23 +2107,20 @@ pub mod Baseline {
         relative_file_name: &str,
         actual_file_name: &str,
         opts: Option<&BaselineOptions>,
+        arena: &impl HasArenaHarness,
     ) {
-        create_directory_structure(&with_io(|IO| {
-            IO.directory_name(actual_file_name.as_ref()).unwrap()
-        }));
+        create_directory_structure(&get_io(arena).directory_name(actual_file_name.as_ref()).unwrap(), arena);
 
-        if with_io(|IO| IO.file_exists(actual_file_name)) {
-            with_io(|IO| {
-                IO.delete_file(actual_file_name.as_ref());
-            });
+        if get_io(arena).file_exists(actual_file_name) {
+            get_io(arena).delete_file(actual_file_name.as_ref());
         }
 
         let encoded_actual = Utils::encode_string(actual);
         if expected != encoded_actual {
             if actual == no_content {
-                with_io(|IO| IO.write_file(format!("{}.delete", actual_file_name).as_ref(), ""));
+                get_io(arena).write_file(format!("{}.delete", actual_file_name).as_ref(), "");
             } else {
-                with_io(|IO| IO.write_file(actual_file_name.as_ref(), &encoded_actual));
+                get_io(arena).write_file(actual_file_name.as_ref(), &encoded_actual);
             }
             if
             /* !!require &&*/
@@ -2120,15 +2135,15 @@ pub mod Baseline {
                 );
             } else {
                 // TODO: this looks like a bug, `expected` would never be a file path, no?
-                if with_io(|IO| !IO.file_exists(expected)) {
+                if !get_io(arena).file_exists(expected) {
                     panic!(
                         "New baseline created at {}",
-                        with_io(|IO| IO.join_path(&[
+                        get_io(arena).join_path(&[
                             "tests".as_ref(),
                             "baselines".as_ref(),
                             "local".as_ref(),
                             relative_file_name.as_ref(),
-                        ]))
+                        ])
                     );
                 } else {
                     panic!("The baseline file {} has changed.", relative_file_name);
@@ -2137,9 +2152,9 @@ pub mod Baseline {
         }
     }
 
-    fn create_directory_structure(dir_name: &str) {
+    fn create_directory_structure(dir_name: &str, arena: &impl HasArenaHarness) {
         if file_cache.with(|file_cache_| file_cache_.borrow().get(dir_name).copied() == Some(true))
-            || with_io(|IO| IO.directory_exists(dir_name))
+            || get_io(arena).directory_exists(dir_name)
         {
             file_cache.with(|file_cache_| {
                 file_cache_.borrow_mut().insert(dir_name.to_owned(), true);
@@ -2147,13 +2162,11 @@ pub mod Baseline {
             return;
         }
 
-        let parent_directory = with_io(|IO| IO.directory_name(dir_name.as_ref()).unwrap());
+        let parent_directory = get_io(arena).directory_name(dir_name.as_ref()).unwrap();
         if !parent_directory.is_empty() && parent_directory != dir_name {
-            create_directory_structure(&parent_directory);
+            create_directory_structure(&parent_directory, arena);
         }
-        with_io(|IO| {
-            IO.create_directory(dir_name.as_ref()).unwrap();
-        });
+        get_io(arena).create_directory(dir_name.as_ref()).unwrap();
         file_cache.with(|file_cache_| {
             file_cache_.borrow_mut().insert(dir_name.to_owned(), true);
         });
@@ -2163,6 +2176,7 @@ pub mod Baseline {
         relative_file_name: &str,
         actual: Option<&str>,
         opts: Option<BaselineOptions>,
+        arena: &impl HasArenaHarness,
     ) {
         let actual_file_name = local_path(
             relative_file_name,
@@ -2173,13 +2187,14 @@ pub mod Baseline {
         // if actual.is_none() {
         //     panic!("The generated content was \"undefined\". Return \"null\" if no baselining is required.\"");
         // }
-        let comparison = compare_to_baseline(actual, relative_file_name, opts.as_ref());
+        let comparison = compare_to_baseline(actual, relative_file_name, opts.as_ref(), arena);
         write_comparison(
             &comparison.expected,
             &comparison.actual,
             relative_file_name,
             &actual_file_name,
             opts.as_ref(),
+            arena,
         );
     }
 }
