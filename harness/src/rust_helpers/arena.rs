@@ -5,11 +5,12 @@ use typescript_rust::{
 };
 
 use crate::{
-    collections::SortOptionsComparer,
+    collections::{Metadata, SortOptionsComparer},
     compiler::CompilationOutput,
     documents::TextDocument,
     harness::harness_io::NodeIO,
     vfs::{FileSystem, FileSystemResolverHost},
+    MetaValue,
 };
 
 pub struct AllArenasHarness {
@@ -20,6 +21,8 @@ pub struct AllArenasHarness {
     compilation_outputs: RefCell<Arena<CompilationOutput>>,
     file_systems: RefCell<Arena<FileSystem>>,
     sort_options_comparer_strings: RefCell<Arena<Box<dyn SortOptionsComparer<String>>>>,
+    metadata_strings: RefCell<Arena<Metadata<String>>>,
+    metadata_metavalues: RefCell<Arena<Metadata<MetaValue>>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -94,6 +97,44 @@ pub trait HasArenaHarness: HasArena {
     ) -> Id<Box<dyn SortOptionsComparer<String>>> {
         self.arena_harness()
             .alloc_sort_options_comparer_string(sort_options_comparer_string)
+    }
+
+    fn metadata_string(&self, metadata_string: Id<Metadata<String>>) -> Ref<Metadata<String>> {
+        self.arena_harness().metadata_string(metadata_string)
+    }
+
+    fn metadata_string_mut(
+        &self,
+        metadata_string: Id<Metadata<String>>,
+    ) -> RefMut<Metadata<String>> {
+        self.arena_harness().metadata_string_mut(metadata_string)
+    }
+
+    fn alloc_metadata_string(&self, metadata_string: Metadata<String>) -> Id<Metadata<String>> {
+        self.arena_harness().alloc_metadata_string(metadata_string)
+    }
+
+    fn metadata_metavalue(
+        &self,
+        metadata_metavalue: Id<Metadata<MetaValue>>,
+    ) -> Ref<Metadata<MetaValue>> {
+        self.arena_harness().metadata_metavalue(metadata_metavalue)
+    }
+
+    fn metadata_metavalue_mut(
+        &self,
+        metadata_metavalue: Id<Metadata<MetaValue>>,
+    ) -> RefMut<Metadata<MetaValue>> {
+        self.arena_harness()
+            .metadata_metavalue_mut(metadata_metavalue)
+    }
+
+    fn alloc_metadata_metavalue(
+        &self,
+        metadata_metavalue: Metadata<MetaValue>,
+    ) -> Id<Metadata<MetaValue>> {
+        self.arena_harness()
+            .alloc_metadata_metavalue(metadata_metavalue)
     }
 }
 
@@ -202,6 +243,56 @@ impl HasArenaHarness for AllArenasHarness {
             .alloc(sort_options_comparer_string);
         id
     }
+
+    fn metadata_string(&self, metadata_string: Id<Metadata<String>>) -> Ref<Metadata<String>> {
+        Ref::map(self.metadata_strings.borrow(), |metadata_strings| {
+            &metadata_strings[metadata_string]
+        })
+    }
+
+    fn metadata_string_mut(
+        &self,
+        metadata_string: Id<Metadata<String>>,
+    ) -> RefMut<Metadata<String>> {
+        RefMut::map(self.metadata_strings.borrow_mut(), |metadata_strings| {
+            &mut metadata_strings[metadata_string]
+        })
+    }
+
+    fn alloc_metadata_string(&self, metadata_string: Metadata<String>) -> Id<Metadata<String>> {
+        let id = self.metadata_strings.borrow_mut().alloc(metadata_string);
+        id
+    }
+
+    fn metadata_metavalue(
+        &self,
+        metadata_metavalue: Id<Metadata<MetaValue>>,
+    ) -> Ref<Metadata<MetaValue>> {
+        Ref::map(self.metadata_metavalues.borrow(), |metadata_metavalues| {
+            &metadata_metavalues[metadata_metavalue]
+        })
+    }
+
+    fn metadata_metavalue_mut(
+        &self,
+        metadata_metavalue: Id<Metadata<MetaValue>>,
+    ) -> RefMut<Metadata<MetaValue>> {
+        RefMut::map(
+            self.metadata_metavalues.borrow_mut(),
+            |metadata_metavalues| &mut metadata_metavalues[metadata_metavalue],
+        )
+    }
+
+    fn alloc_metadata_metavalue(
+        &self,
+        metadata_metavalue: Metadata<MetaValue>,
+    ) -> Id<Metadata<MetaValue>> {
+        let id = self
+            .metadata_metavalues
+            .borrow_mut()
+            .alloc(metadata_metavalue);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -264,6 +355,30 @@ impl InArenaHarness for Id<Box<dyn SortOptionsComparer<String>>> {
         has_arena: &'a impl HasArenaHarness,
     ) -> Ref<'a, Box<dyn SortOptionsComparer<String>>> {
         has_arena.sort_options_comparer_string(*self)
+    }
+}
+
+impl InArenaHarness for Id<Metadata<String>> {
+    type Item = Metadata<String>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Metadata<String>> {
+        has_arena.metadata_string(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArenaHarness) -> RefMut<'a, Metadata<String>> {
+        has_arena.metadata_string_mut(*self)
+    }
+}
+
+impl InArenaHarness for Id<Metadata<MetaValue>> {
+    type Item = Metadata<MetaValue>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Metadata<MetaValue>> {
+        has_arena.metadata_metavalue(*self)
+    }
+
+    fn ref_mut<'a>(&self, has_arena: &'a impl HasArenaHarness) -> RefMut<'a, Metadata<MetaValue>> {
+        has_arena.metadata_metavalue_mut(*self)
     }
 }
 

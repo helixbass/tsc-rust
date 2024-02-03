@@ -8,7 +8,7 @@ pub mod collections {
         io,
     };
 
-    use gc::{Finalize, Gc, GcCell, Trace};
+    use gc::{Finalize, Trace};
     use typescript_rust::{binary_search, id_arena::Id, AllArenas, Comparison, HasArena};
 
     use crate::{AllArenasHarness, HasArenaHarness, InArenaHarness};
@@ -498,7 +498,7 @@ pub mod collections {
 
     // #[derive(Trace, Finalize)]
     pub struct Metadata<TValue: Trace + Finalize + 'static> {
-        _parent: Option<Gc<GcCell<Metadata<TValue>>>>,
+        _parent: Option<Id<Metadata<TValue>>>,
         _map: HashMap<String, TValue>,
         _version: usize,
         // #[unsafe_ignore_trace]
@@ -515,8 +515,11 @@ pub mod collections {
     }
     impl<TValue: Trace + Finalize + 'static> Finalize for Metadata<TValue> {}
 
-    impl<TValue: Clone + Trace + Finalize + 'static> Metadata<TValue> {
-        pub fn new(parent: Option<Gc<GcCell<Metadata<TValue>>>>) -> Self {
+    impl<TValue: Clone + Trace + Finalize + 'static> Metadata<TValue>
+    where
+        Id<Metadata<TValue>>: InArenaHarness<Item = Metadata<TValue>>,
+    {
+        pub fn new(parent: Option<Id<Metadata<TValue>>>) -> Self {
             Self {
                 _parent: parent,
                 _map: HashMap::new(),
@@ -529,8 +532,8 @@ pub mod collections {
         pub fn size(&self) -> usize {
             if self._size.get().is_none()
                 || matches!(
-                    self._parent.clone(),
-                    Some(_parent) if self._parent_version.get() != Some((*_parent).borrow()._version)
+                    self._parent,
+                    Some(_parent) if self._parent_version.get() != Some(_parent.ref_(self)._version)
                 )
             {
                 self._size.set(Some(
@@ -538,16 +541,16 @@ pub mod collections {
                         + self
                             ._parent
                             .clone()
-                            .map_or(0, |_parent| (*_parent).borrow().size()),
+                            .map_or(0, |_parent| _parent.ref_(self).size()),
                 ));
                 if let Some(_parent) = self._parent.clone() {
-                    self._parent_version.set(Some((*_parent).borrow()._version));
+                    self._parent_version.set(Some(_parent.ref_(self)._version));
                 }
             }
             self._size.get().unwrap()
         }
 
-        pub fn parent(&self) -> Option<Gc<GcCell<Metadata<TValue>>>> {
+        pub fn parent(&self) -> Option<Id<Metadata<TValue>>> {
             self._parent.clone()
         }
 
@@ -555,7 +558,7 @@ pub mod collections {
             self._map.contains_key(&*Self::_escape_key(key))
                 || matches!(
                     self._parent.clone(),
-                    Some(_parent) if (*_parent).borrow().has(key)
+                    Some(_parent) if _parent.ref_(self).has(key)
                 )
         }
 
@@ -567,7 +570,7 @@ pub mod collections {
                 .or_else(|| {
                     self._parent
                         .clone()
-                        .and_then(|_parent| (*_parent).borrow().get(key))
+                        .and_then(|_parent| _parent.ref_(self).get(key))
                 });
             value
         }
@@ -602,8 +605,8 @@ pub mod collections {
             for (key, value) in &self._map {
                 callback(value, &Self::_unescape_key(key), self)
             }
-            if let Some(_parent) = self._parent.clone() {
-                (*_parent).borrow().for_each(callback);
+            if let Some(_parent) = self._parent {
+                _parent.ref_(self).for_each(callback);
             }
         }
 
@@ -625,6 +628,18 @@ pub mod collections {
             } else {
                 text
             }
+        }
+    }
+
+    impl<TValue: Clone + Trace + Finalize + 'static> HasArena for Metadata<TValue> {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl<TValue: Clone + Trace + Finalize + 'static> HasArenaHarness for Metadata<TValue> {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
         }
     }
 }

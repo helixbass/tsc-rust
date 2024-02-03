@@ -12,7 +12,7 @@ pub mod vfs {
     use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
     use local_macros::enum_unwrapped;
     use typescript_rust::{
-        get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
+        debug_cell, get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
         millis_since_epoch_to_system_time, AllArenas, Buffer, Comparison, FileSystemEntries,
         HasArena, InArena, Node,
     };
@@ -145,7 +145,7 @@ pub mod vfs {
 
             if let Some(meta) = meta {
                 for (key, value) in meta {
-                    ret.meta().borrow_mut().set(&key, value);
+                    ret.meta_mut().set(&key, value);
                 }
             }
 
@@ -192,15 +192,23 @@ pub mod vfs {
             self._dir_stack.borrow_mut()
         }
 
-        pub fn meta(&self) -> Gc<GcCell<collections::Metadata<String>>> {
+        pub fn meta_id(&self) -> Id<collections::Metadata<String>> {
             self._lazy.meta.borrow_mut().get_or_insert_with(|| {
-                Gc::new(GcCell::new(collections::Metadata::new(
+                self.alloc_metadata_string(collections::Metadata::new(
                     self._shadow_root
                         .as_ref()
-                        .map(|_shadow_root| _shadow_root.ref_(self).meta()),
-                )))
+                        .map(|_shadow_root| _shadow_root.ref_(self).meta_id()),
+                ))
             });
             self._lazy.meta.borrow().clone().unwrap()
+        }
+
+        pub fn meta(&self) -> debug_cell::Ref<collections::Metadata<String>> {
+            self.meta_id().ref_(self)
+        }
+
+        pub fn meta_mut(&self) -> debug_cell::RefMut<collections::Metadata<String>> {
+            self.meta_id().ref_mut(self)
         }
 
         pub fn is_readonly(&self) -> bool {
@@ -268,10 +276,7 @@ pub mod vfs {
             *self._time.borrow_mut() = value;
         }
 
-        pub fn filemeta(
-            &self,
-            path: &str,
-        ) -> io::Result<Gc<GcCell<collections::Metadata<MetaValue>>>> {
+        pub fn filemeta(&self, path: &str) -> io::Result<Id<collections::Metadata<MetaValue>>> {
             let WalkResult { node, .. } = self
                 ._walk(
                     &self._resolve(path),
@@ -286,7 +291,7 @@ pub mod vfs {
             Ok(self._filemeta(node))
         }
 
-        pub fn _filemeta(&self, node: &Inode) -> Gc<GcCell<collections::Metadata<MetaValue>>> {
+        pub fn _filemeta(&self, node: &Inode) -> Id<collections::Metadata<MetaValue>> {
             node.meta_mut()
                 .get_or_insert_with(|| {
                     let parent_meta = if let (Some(node_shadow_root), Some(_shadow_root)) = (
@@ -297,7 +302,7 @@ pub mod vfs {
                     } else {
                         None
                     };
-                    Gc::new(GcCell::new(collections::Metadata::new(parent_meta)))
+                    self.alloc_metadata_metavalue(collections::Metadata::new(parent_meta))
                 })
                 .clone()
         }
@@ -1175,7 +1180,7 @@ pub mod vfs {
         ) -> io::Result<()> {
             if let Some(meta) = entry_meta {
                 let filemeta = self.filemeta(path)?;
-                let mut filemeta = filemeta.borrow_mut();
+                let mut filemeta = filemeta.ref_mut(self);
                 for (key, value) in meta {
                     filemeta.set(key, value.clone().into());
                 }
@@ -1320,7 +1325,7 @@ pub mod vfs {
     struct FileSystemLazy {
         links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>>,
         shadows: GcCell<Option<HashMap<u32, Gc<Inode>>>>,
-        meta: Gc<GcCell<Option<Gc<GcCell<collections::Metadata<String>>>>>>,
+        meta: Gc<GcCell<Option<Id<collections::Metadata<String>>>>>,
     }
 
     // TODO: revisit this, SystemTime Trace wasn't implemented and unsafe_ignore_trace didn't seem
@@ -1488,9 +1493,7 @@ pub mod vfs {
         let fs = FileSystem::shadow(get_built_local(host, ignore_case, arena)?, None, arena)?;
         if let Some(meta) = meta {
             for key in meta.keys() {
-                fs.meta()
-                    .borrow_mut()
-                    .set(key, meta.get(key).unwrap().clone());
+                fs.meta_mut().set(key, meta.get(key).unwrap().clone());
             }
         }
         if let Some(time) = time {
@@ -1509,7 +1512,7 @@ pub mod vfs {
                     Some("utf8"),
                 )?;
                 fs.filemeta(&document.ref_(arena).file)?
-                    .borrow_mut()
+                    .ref_mut(arena)
                     .set("document", document.clone().into());
                 let document_ref = document.ref_(arena);
                 let symlink = document_ref.meta.get("symlink");
@@ -2004,9 +2007,7 @@ pub mod vfs {
             }
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
             match self {
                 Self::FileInode(value) => value.meta_mut(),
                 Self::DirectoryInode(value) => value.meta_mut(),
@@ -2088,7 +2089,7 @@ pub mod vfs {
         source: RefCell<Option<String>>,
         resolver: GcCell<Option<Gc<FileSystemResolver>>>,
         pub shadow_root: Option<Gc<Inode /*FileInode*/>>,
-        meta: GcCell<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>>,
+        meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
     impl FileInode {
@@ -2173,9 +2174,7 @@ pub mod vfs {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -2198,7 +2197,7 @@ pub mod vfs {
         source: RefCell<Option<String>>,
         resolver: GcCell<Option<Gc<FileSystemResolver>>>,
         pub shadow_root: Option<Gc<Inode /*DirectoryInode*/>>,
-        meta: GcCell<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>>,
+        meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
     impl DirectoryInode {
@@ -2281,9 +2280,7 @@ pub mod vfs {
             *self.resolver.borrow_mut() = resolver;
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
             self.meta.borrow_mut()
         }
     }
@@ -2303,7 +2300,7 @@ pub mod vfs {
         nlink: Cell<usize>,
         pub symlink: Option<String>,
         pub shadow_root: Option<Gc<Inode /*SymlinkInode*/>>,
-        meta: GcCell<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>>,
+        meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
     impl SymlinkInode {
@@ -2361,9 +2358,7 @@ pub mod vfs {
             self.symlink.as_ref().unwrap()
         }
 
-        pub fn meta_mut(
-            &self,
-        ) -> GcCellRefMut<Option<Gc<GcCell<collections::Metadata<MetaValue>>>>> {
+        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
             self.meta.borrow_mut()
         }
     }

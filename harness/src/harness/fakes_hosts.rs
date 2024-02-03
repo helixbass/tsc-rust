@@ -482,7 +482,6 @@ pub mod fakes {
                         .vfs
                         .ref_(arena)
                         .meta()
-                        .borrow()
                         .get("defaultLibLocation")
                         .unwrap_or_else(|| "".to_owned());
                     value
@@ -698,7 +697,7 @@ pub mod fakes {
             let document = self.alloc_text_document(document);
             self.vfs()
                 .filemeta(file_name)?
-                .borrow_mut()
+                .ref_mut(self)
                 .set("document", document.clone().into());
             let mut _outputs_map = self._outputs_map.borrow_mut();
             let mut outputs = self.outputs.borrow_mut();
@@ -775,7 +774,7 @@ pub mod fakes {
             if let Some(cache_key) = cache_key.as_ref() {
                 let meta = self.vfs().filemeta(&canonical_file_name)?;
                 let source_file_from_metadata = meta
-                    .borrow()
+                    .ref_(self)
                     .get(cache_key)
                     .map(|value| value.as_node().clone());
                 if let Some(source_file_from_metadata) =
@@ -840,7 +839,7 @@ pub mod fakes {
                 if fs != self.vfs_id() {
                     fs.ref_(self)
                         .filemeta(&canonical_file_name)?
-                        .borrow_mut()
+                        .ref_mut(self)
                         .set(cache_key, parsed.clone().into());
                 }
             }
