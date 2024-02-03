@@ -1,10 +1,10 @@
 pub mod SourceMapRecorder {
     use gc::Gc;
     use typescript_rust::{
-        Node, Program, SourceMapEmitResult, _d, are_option_gcs_equal, compute_line_starts,
-        decode_mappings, ends_with, get_line_info, is_source_mapping, try_get_source_mapping_url,
-        BoolExt, Debug_, Extension, Mapping, MappingsDecoder, RawSourceMap, ScriptReferenceHost,
-        SourceFileLike, SourceTextAsChars,
+        Node, Program, SourceMapEmitResult, _d, compute_line_starts, decode_mappings, ends_with,
+        get_line_info, id_arena::Id, is_source_mapping, try_get_source_mapping_url, BoolExt,
+        Debug_, Extension, HasArena, InArena, Mapping, MappingsDecoder, RawSourceMap,
+        ScriptReferenceHost, SourceFileLike, SourceTextAsChars,
     };
 
     use crate::{documents, Compiler, Utils};
@@ -221,11 +221,12 @@ pub mod SourceMapRecorder {
         program: &Program,
         js_files: &[Gc<documents::TextDocument>],
         declaration_files: &[Gc<documents::TextDocument>],
+        arena: &impl HasArena,
     ) -> String {
         let mut source_map_recorder = Compiler::WriterAggregator::default();
 
         for (i, source_map_data) in source_map_data_list.into_iter().enumerate() {
-            let mut prev_source_file: Option<Gc<Node /*SourceFile*/>> = _d();
+            let mut prev_source_file: Option<Id<Node /*SourceFile*/>> = _d();
             let current_file: Gc<documents::TextDocument>;
             if ends_with(&source_map_data.source_map.file, Extension::Dts.to_str()) {
                 if source_map_data_list.len() > js_files.len() {
@@ -255,11 +256,15 @@ pub mod SourceMapRecorder {
                                 [decoded_source_mapping.source_index.unwrap()],
                         )
                     });
-                if !are_option_gcs_equal(current_source_file.as_ref(), prev_source_file.as_ref()) {
+                if current_source_file != prev_source_file {
                     if let Some(current_source_file) = current_source_file.as_ref() {
                         source_map_span_writer.record_new_source_file_span(
                             &decoded_source_mapping,
-                            current_source_file.as_source_file().text_as_chars().clone(),
+                            current_source_file
+                                .ref_(arena)
+                                .as_source_file()
+                                .text_as_chars()
+                                .clone(),
                         );
                     }
                     prev_source_file = current_source_file;

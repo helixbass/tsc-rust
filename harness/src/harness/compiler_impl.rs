@@ -5,10 +5,10 @@ pub mod compiler {
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
         file_extension_is, filter, get_declaration_emit_extension_for_path, get_output_extension,
-        get_pre_emit_diagnostics, is_option_str_empty, length, some, Comparison, CompilerOptions,
-        CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
-        DiagnosticRelatedInformation, EmitResult, Extension, ModuleKind, NewLineKind, Node,
-        NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike, id_arena::Id, HasArena,
+        get_pre_emit_diagnostics, id_arena::Id, is_option_str_empty, length, some, Comparison,
+        CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
+        DiagnosticRelatedInformation, EmitResult, Extension, HasArena, InArena, ModuleKind,
+        NewLineKind, Node, NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike,
     };
 
     use crate::{
@@ -42,7 +42,7 @@ pub mod compiler {
 
     impl CompilationResult {
         pub fn new(
-            host: Gc<Box<fakes::CompilerHost>>,
+            host: Id<Box<dyn typescript_rust::CompilerHost>>,
             options: Id<CompilerOptions>,
             program: Option<Id<Program>>,
             result: Option<EmitResult>,
@@ -277,6 +277,7 @@ pub mod compiler {
                         .cloned()
                         .collect::<Vec<_>>(),
                     &self.dts.values().cloned().collect::<Vec<_>>(),
+                    self,
                 )
             })
         }
@@ -347,7 +348,7 @@ pub mod compiler {
     }
 
     pub fn compile_files(
-        host: Gc<Box<fakes::CompilerHost>>,
+        host: Id<Box<dyn typescript_rust::CompilerHost>>,
         root_files: Option<&[String]>,
         compiler_options: &CompilerOptions,
         arena: &impl HasArena,
@@ -389,38 +390,45 @@ pub mod compiler {
                 && compiler_options.declaration == Some(true));
 
         let pre_program = if !skip_error_comparison {
-            Some(create_program(CreateProgramOptions {
-                root_names: root_files.map_or_else(|| vec![], ToOwned::to_owned),
-                options: {
-                    let mut options = compiler_options.clone();
-                    options.trace_resolution = Some(false);
-                    Gc::new(options)
+            Some(create_program(
+                CreateProgramOptions {
+                    root_names: root_files.map_or_else(|| vec![], ToOwned::to_owned),
+                    options: {
+                        let mut options = compiler_options.clone();
+                        options.trace_resolution = Some(false);
+                        arena.alloc_compiler_options(options)
+                    },
+                    host: Some(host),
+                    project_references: None,
+                    old_program: None,
+                    config_file_parsing_diagnostics: None,
                 },
-                host: Some(host.as_dyn_compiler_host()),
-                project_references: None,
-                old_program: None,
-                config_file_parsing_diagnostics: None,
-            }, arena)?)
+                arena,
+            )?)
         } else {
             None
         };
         let pre_errors = pre_program.clone().try_map(|pre_program| {
-            get_pre_emit_diagnostics(&pre_program.into(), Option::<&Node>::None, None, arena)
+            get_pre_emit_diagnostics(&pre_program.into(), None, None, arena)
         })?;
 
-        let compiler_options = Gc::new(compiler_options);
-        let program = create_program(CreateProgramOptions {
-            root_names: root_files.map_or_else(|| vec![], ToOwned::to_owned),
-            options: compiler_options.clone(),
-            host: Some(host.as_dyn_compiler_host()),
-            project_references: None,
-            old_program: None,
-            config_file_parsing_diagnostics: None,
-        }, arena)?;
+        let compiler_options = arena.alloc_compiler_options(compiler_options);
+        let program = create_program(
+            CreateProgramOptions {
+                root_names: root_files.map_or_else(|| vec![], ToOwned::to_owned),
+                options: compiler_options.clone(),
+                host: Some(host),
+                project_references: None,
+                old_program: None,
+                config_file_parsing_diagnostics: None,
+            },
+            arena,
+        )?;
 
-        let emit_result = program.emit(None, None, None, None, None, None)?;
-        let post_errors =
-            get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None, arena)?;
+        let emit_result = program
+            .ref_(arena)
+            .emit(None, None, None, None, None, None)?;
+        let post_errors = get_pre_emit_diagnostics(&program.clone().into(), None, None, arena)?;
         let longer_errors = if length(pre_errors.as_deref()) > post_errors.len() {
             pre_errors.as_ref().unwrap()
         } else {

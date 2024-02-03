@@ -745,12 +745,12 @@ pub trait HasArena {
             .alloc_source_map_generator(source_map_generator)
     }
 
-    fn get_canonical_file_name(
+    fn get_canonical_file_name_ref(
         &self,
         get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     ) -> Ref<Box<dyn GetCanonicalFileName>> {
         self.arena()
-            .get_canonical_file_name(get_canonical_file_name)
+            .get_canonical_file_name_ref(get_canonical_file_name)
     }
 
     fn alloc_get_canonical_file_name(
@@ -3244,7 +3244,7 @@ impl HasArena for AllArenas {
     }
 
     #[track_caller]
-    fn get_canonical_file_name(
+    fn get_canonical_file_name_ref(
         &self,
         get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     ) -> Ref<Box<dyn GetCanonicalFileName>> {
@@ -6133,7 +6133,7 @@ impl InArena for Id<Box<dyn GetCanonicalFileName>> {
     type Item = Box<dyn GetCanonicalFileName>;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn GetCanonicalFileName>> {
-        has_arena.get_canonical_file_name(*self)
+        has_arena.get_canonical_file_name_ref(*self)
     }
 }
 

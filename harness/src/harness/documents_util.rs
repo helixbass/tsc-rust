@@ -1,9 +1,12 @@
 pub mod documents {
-    use std::collections::HashMap;
+    use std::{
+        cell::{Ref, RefCell},
+        collections::HashMap,
+    };
 
     use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
     use typescript_rust::{
-        GetOrInsertDefault, _d, compute_line_starts, gc_cell_ref_unwrapped, SourceTextAsChars,
+        GetOrInsertDefault, _d, compute_line_starts, ref_unwrapped, SourceTextAsChars,
     };
 
     use crate::Compiler;
@@ -15,7 +18,8 @@ pub mod documents {
         pub text: String,
         pub text_as_chars: SourceTextAsChars,
 
-        _line_starts: GcCell<Option<Vec<usize>>>,
+        #[unsafe_ignore_trace]
+        _line_starts: RefCell<Option<Vec<usize>>>,
         _test_file: GcCell<Option<Gc<Compiler::TestFile>>>,
     }
 
@@ -36,11 +40,11 @@ pub mod documents {
             }
         }
 
-        pub fn line_starts(&self) -> GcCellRef<Vec<usize>> {
+        pub fn line_starts(&self) -> Ref<Vec<usize>> {
             self._line_starts
                 .borrow_mut()
                 .get_or_insert_with(|| compute_line_starts(&self.text_as_chars));
-            gc_cell_ref_unwrapped(&self._line_starts)
+            ref_unwrapped(&self._line_starts)
         }
 
         pub fn from_test_file(file: &Compiler::TestFile) -> Self {

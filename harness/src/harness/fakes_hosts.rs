@@ -11,11 +11,11 @@ pub mod fakes {
     use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
     use typescript_rust::{
         continue_if_err, create_source_file, generate_djb2_hash, get_default_lib_file_name,
-        get_new_line_character, match_files, millis_since_epoch_to_system_time, not_implemented,
-        return_ok_default_if_none, CompilerOptions, ConvertToTSConfigHost,
-        DirectoryWatcherCallback, ExitStatus, FileSystemEntries, FileWatcher, FileWatcherCallback,
-        ModuleResolutionHost, ModuleResolutionHostOverrider, Node, ScriptTarget, System as _,
-        WatchOptions, id_arena::Id, HasArena,
+        get_new_line_character, id_arena::Id, match_files, millis_since_epoch_to_system_time,
+        not_implemented, return_ok_default_if_none, AllArenas, CompilerOptions,
+        ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus, FileSystemEntries,
+        FileWatcher, FileWatcherCallback, HasArena, InArena, ModuleResolutionHost,
+        ModuleResolutionHostOverrider, Node, ScriptTarget, System as _, WatchOptions,
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
@@ -421,6 +421,7 @@ pub mod fakes {
         directory_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
         read_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
         write_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        #[unsafe_ignore_trace]
         realpath_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
         get_directories_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
     }
@@ -433,14 +434,14 @@ pub mod fakes {
             arena: &impl HasArena,
         ) -> io::Result<Id<Box<dyn typescript_rust::CompilerHost>>> {
             let sys = sys.into();
-            let options = options.unwrap_or_else(|| arena.alloc_compiler_options(get_default_compiler_options()));
+            let options = options
+                .unwrap_or_else(|| arena.alloc_compiler_options(get_default_compiler_options()));
             let set_parent_nodes = set_parent_nodes.unwrap_or(false);
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
                 RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
             };
             Ok(arena.alloc_compiler_host(Box::new(Self {
-                _dyn_wrapper: Default::default(),
                 sys: sys.clone(),
                 default_lib_location: {
                     let value = sys
@@ -452,7 +453,7 @@ pub mod fakes {
                     value
                 },
                 _new_line: get_new_line_character(
-                    options.new_line,
+                    options.ref_(arena).new_line,
                     Some(|| sys.new_line.to_owned()),
                     arena,
                 ),
@@ -518,7 +519,10 @@ pub mod fakes {
             self.realpath_override.get()
         }
 
-        fn set_realpath_override(&self, realpath_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+        fn set_realpath_override(
+            &self,
+            realpath_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
+        ) {
             self.realpath_override.set(realpath_override);
         }
 
@@ -605,7 +609,7 @@ pub mod fakes {
             source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             if let Some(write_file_override) = self.maybe_write_file_override() {
-                write_file_override.write_file(
+                write_file_override.ref_(self).write_file(
                     file_name,
                     data,
                     write_byte_order_mark,
@@ -979,6 +983,12 @@ pub mod fakes {
 
         fn use_case_sensitive_file_names(&self) -> Option<bool> {
             Some(typescript_rust::CompilerHost::use_case_sensitive_file_names(self))
+        }
+    }
+
+    impl HasArena for CompilerHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
         }
     }
 

@@ -1,6 +1,8 @@
-use std::cell::RefCell;
-
-use typescript_rust::{AllArenas, debug_cell::{RefCell, Ref, RefMut}, id_arena::{Arena, Id}, HasArena};
+use typescript_rust::{
+    debug_cell::{Ref, RefCell, RefMut},
+    id_arena::{Arena, Id},
+    AllArenas, HasArena,
+};
 
 use crate::harness::harness_io::NodeIO;
 

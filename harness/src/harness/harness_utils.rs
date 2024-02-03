@@ -1,9 +1,10 @@
+use std::cell::Cell;
+
 use gc::{Finalize, Gc, GcCell, Trace};
 use once_cell::sync::Lazy;
-use std::cell::Cell;
 use typescript_rust::{
-    are_option_gcs_equal, create_get_canonical_file_name, for_each_child, Node, NodeArray,
-    NodeInterface, ReadonlyTextRange, id_arena::Id, HasArena, InArena,
+    create_get_canonical_file_name, for_each_child, id_arena::Id, HasArena, InArena, Node,
+    NodeArray, NodeInterface, ReadonlyTextRange,
 };
 
 pub fn encode_string(s: &str) -> String {
@@ -29,10 +30,7 @@ pub fn canonicalize_for_harness(file_name: &str) -> String {
 }
 
 pub fn assert_invariants(node: Option<Id<Node>>, parent: Option<Id<Node>>, arena: &impl HasArena) {
-    let mut queue: Vec<(Option<Id<Node>>, Option<Id<Node>>)> = vec![(
-        node,
-        parent,
-    )];
+    let mut queue: Vec<(Option<Id<Node>>, Option<Id<Node>>)> = vec![(node, parent)];
     let mut i = 0;
     while i < queue.len() {
         let (node, parent) = queue[i].clone();
@@ -50,15 +48,24 @@ fn assert_invariants_worker(
     if let Some(node) = node {
         assert!(!(node.ref_(arena).pos() < 0), "node.pos < 0");
         assert!(!(node.ref_(arena).end() < 0), "node.end < 0");
-        assert!(!(node.ref_(arena).end() < node.ref_(arena).pos()), "node.end < node.pos");
         assert!(
-            node.ref_(arena).maybe_parent() == parent
+            !(node.ref_(arena).end() < node.ref_(arena).pos()),
+            "node.end < node.pos"
+        );
+        assert!(
+            node.ref_(arena).maybe_parent() == parent,
             "node,parent !== parent"
         );
 
         if let Some(parent) = parent {
-            assert!(!(node.ref_(arena).pos() < parent.ref_(arena).pos()), "node.pos < parent.pos");
-            assert!(!(node.ref_(arena).end() > parent.ref_(arena).end()), "node.end > parent.end");
+            assert!(
+                !(node.ref_(arena).pos() < parent.ref_(arena).pos()),
+                "node.pos < parent.pos"
+            );
+            assert!(
+                !(node.ref_(arena).end() > parent.ref_(arena).end()),
+                "node.end > parent.end"
+            );
         }
 
         for_each_child(
@@ -74,13 +81,25 @@ fn assert_invariants_worker(
         for_each_child(
             node,
             |child: Id<Node>| {
-                assert!(!(child.ref_(arena).pos() < current_pos.get()), "child.pos < currentPos");
+                assert!(
+                    !(child.ref_(arena).pos() < current_pos.get()),
+                    "child.pos < currentPos"
+                );
                 current_pos.set(child.ref_(arena).end());
             },
             Some(|array: Id<NodeArray>| {
-                assert!(!(array.ref_(arena).pos() < node.ref_(arena).pos()), "array.pos < node.pos");
-                assert!(!(array.ref_(arena).end() > node.ref_(arena).end()), "array.end > node.end");
-                assert!(!(array.ref_(arena).pos() < current_pos.get()), "array.pos < currentPos");
+                assert!(
+                    !(array.ref_(arena).pos() < node.ref_(arena).pos()),
+                    "array.pos < node.pos"
+                );
+                assert!(
+                    !(array.ref_(arena).end() > node.ref_(arena).end()),
+                    "array.end > node.end"
+                );
+                assert!(
+                    !(array.ref_(arena).pos() < current_pos.get()),
+                    "array.pos < currentPos"
+                );
 
                 for item in &*array.ref_(arena) {
                     assert!(
@@ -99,14 +118,10 @@ fn assert_invariants_worker(
         for_each_child(
             node,
             |child: Id<Node>| {
-                child_nodes_and_arrays
-                    .borrow_mut()
-                    .push(child.into());
+                child_nodes_and_arrays.borrow_mut().push(child.into());
             },
             Some(|array: Id<NodeArray>| {
-                child_nodes_and_arrays
-                    .borrow_mut()
-                    .push(array.into());
+                child_nodes_and_arrays.borrow_mut().push(array.into());
             }),
             arena,
         );

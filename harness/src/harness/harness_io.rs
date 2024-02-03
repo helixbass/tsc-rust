@@ -11,15 +11,15 @@ use gc::{Finalize, Gc, GcCell, Trace};
 use regex::Regex;
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
-    ends_with, equate_strings_case_insensitive, find, find_index, for_each, fs_exists_sync,
-    fs_mkdir_sync, fs_readdir_sync, fs_stat_sync, fs_unlink_sync, get_base_file_name, get_sys, map,
-    normalize_slashes, option_declarations, ordered_remove_item_at, path_join, starts_with,
-    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
-    CommandLineOptionType, Extension, FileSystemEntries, StatLike,
-    HasArena, AllArenas, id_arena::Id, per_arena, debug_cell,
+    debug_cell, ends_with, equate_strings_case_insensitive, find, find_index, for_each,
+    fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_stat_sync, fs_unlink_sync,
+    get_base_file_name, get_sys, id_arena::Id, map, normalize_slashes, option_declarations,
+    ordered_remove_item_at, path_join, per_arena, starts_with, AllArenas, CommandLineOption,
+    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Extension,
+    FileSystemEntries, HasArena, InArena, StatLike,
 };
 
-use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest, HasArenaHarness, InArenaHarness};
+use crate::{vfs, vpath, HasArenaHarness, InArenaHarness, RunnerBase, StringOrFileBasedTest};
 
 pub trait IO: vfs::FileSystemResolverHost {
     fn new_line(&self) -> &'static str;
@@ -37,8 +37,6 @@ pub trait IO: vfs::FileSystemResolverHost {
         options: Option<ListFilesOptions>,
     ) -> Vec<PathBuf>;
     fn join_path(&self, components: &[&StdPath]) -> String;
-    // fn as_file_system_resolver_host(self: Rc<Self>) -> Rc<dyn vfs::FileSystemResolverHost>;
-    fn as_file_system_resolver_host(&self) -> Gc<Box<dyn vfs::FileSystemResolverHost>>;
 }
 
 #[derive(Copy, Clone)]
@@ -47,11 +45,7 @@ pub struct ListFilesOptions {
 }
 
 pub fn get_io_id(arena: &impl HasArenaHarness) -> Id<NodeIO> {
-    per_arena!(
-        NodeIO,
-        arena,
-        create_node_io(arena)
-    )
+    per_arena!(NodeIO, arena, create_node_io(arena))
 }
 
 pub fn get_io(arena: &impl HasArenaHarness) -> debug_cell::Ref<NodeIO> {
@@ -123,15 +117,19 @@ impl IO for NodeIO {
     }
 
     fn get_current_directory(&self) -> io::Result<String> {
-        get_sys(self).get_current_directory()
+        get_sys(self).ref_(self).get_current_directory()
     }
 
     fn read_file(&self, path: &StdPath) -> Option<String> {
-        get_sys(self).read_file(path.to_str().unwrap()).unwrap()
+        get_sys(self)
+            .ref_(self)
+            .read_file(path.to_str().unwrap())
+            .unwrap()
     }
 
     fn write_file(&self, path: &StdPath, content: &str) {
         get_sys(self)
+            .ref_(self)
             .write_file(path.to_str().unwrap(), content, None)
             .unwrap()
     }
@@ -161,10 +159,6 @@ impl IO for NodeIO {
     ) -> Vec<PathBuf> {
         self.files_in_folder(spec, options, path)
     }
-
-    fn as_file_system_resolver_host(&self) -> Gc<Box<dyn vfs::FileSystemResolverHost>> {
-        self._dyn_wrapper.borrow().clone().unwrap()
-    }
 }
 
 impl vfs::FileSystemResolverHost for NodeIO {
@@ -175,7 +169,8 @@ impl vfs::FileSystemResolverHost for NodeIO {
             .into_iter()
             .map(|os_string| os_string.into_string().unwrap())
             .collect::<Vec<_>>();
-        let use_case_sensitive_file_names = get_sys(self).use_case_sensitive_file_names();
+        let use_case_sensitive_file_names =
+            get_sys(self).ref_(self).use_case_sensitive_file_names();
         entries.sort_by(|a: &String, b: &String| {
             comparison_to_ordering(if use_case_sensitive_file_names {
                 compare_strings_case_sensitive(a, b)
@@ -212,19 +207,19 @@ impl vfs::FileSystemResolverHost for NodeIO {
     }
 
     fn get_file_size(&self, path: &str) -> usize {
-        get_sys(self).get_file_size(path).unwrap()
+        get_sys(self).ref_(self).get_file_size(path).unwrap()
     }
 
     fn read_file(&self, path: &str) -> Option<String> {
-        get_sys(self).read_file(path).ok().flatten()
+        get_sys(self).ref_(self).read_file(path).ok().flatten()
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        get_sys(self).file_exists(path)
+        get_sys(self).ref_(self).file_exists(path)
     }
 
     fn directory_exists(&self, path: &str) -> bool {
-        get_sys(self).directory_exists(path)
+        get_sys(self).ref_(self).directory_exists(path)
     }
 
     fn get_workspace_root(&self) -> String {
@@ -259,29 +254,33 @@ pub fn set_light_mode(flag: bool) {
 }
 
 pub mod Compiler {
-    use std::{cmp, collections::HashMap, convert::TryInto, io, borrow::Cow, cell::RefCell};
+    use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io};
 
     use gc::{Finalize, Gc, GcCell, Trace};
     use regex::Regex;
     use typescript_rust::{
         NonEmpty, _d, combine_paths, compare_diagnostics, compare_paths, compute_line_starts,
-        count_where, create_get_canonical_file_name, create_source_file, diagnostic_category_name,
-        file_extension_is, flatten_diagnostic_message_text, for_each, format_diagnostics,
-        format_diagnostics_with_color_and_context, format_location, get_allow_js_compiler_option,
-        get_base_file_name, get_declaration_emit_extension_for_path, get_emit_script_target,
-        get_error_count_for_summary, get_error_summary_text, get_normalized_absolute_path, map,
-        normalize_slashes, option_declarations, parse_custom_type_option, parse_list_type_option,
-        regex, remove_file_extension, return_ok_default_if_none, sort, starts_with, text_span_end,
-        to_path, CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
+        count_where, create_get_canonical_file_name, create_source_file, debug_cell,
+        diagnostic_category_name, file_extension_is, flatten_diagnostic_message_text, for_each,
+        format_diagnostics, format_diagnostics_with_color_and_context, format_location,
+        get_allow_js_compiler_option, get_base_file_name, get_declaration_emit_extension_for_path,
+        get_emit_script_target, get_error_count_for_summary, get_error_summary_text,
+        get_normalized_absolute_path, id_arena::Id, map, normalize_slashes, option_declarations,
+        parse_custom_type_option, parse_list_type_option, per_arena, regex, remove_file_extension,
+        return_ok_default_if_none, sort, starts_with, text_span_end, to_path, AllArenas,
+        CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
         CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
         DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
-        GetOrInsertDefault, NewLineKind, ScriptKind, ScriptReferenceHost,
-        StringOrDiagnosticMessage, TextSpan, HasArena, AllArenas, id_arena::Id, debug_cell, per_arena,
+        GetOrInsertDefault, HasArena, InArena, NewLineKind, ScriptKind, ScriptReferenceHost,
+        StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
-    use crate::{compiler, documents, fakes, get_io, vfs, vpath, Utils, IO, HasArenaHarness, AllArenasHarness};
+    use crate::{
+        compiler, documents, fakes, get_io, vfs, vpath, AllArenasHarness, HasArenaHarness, Utils,
+        IO,
+    };
 
     #[derive(Default)]
     pub struct WriterAggregator {
@@ -396,77 +395,161 @@ pub mod Compiler {
         }
     }
 
-    pub(crate) fn harness_option_declarations(arena: &impl HasArena) -> debug_cell::Ref<Vec<Id<CommandLineOption>>> {
+    pub(crate) fn harness_option_declarations(
+        arena: &impl HasArena,
+    ) -> debug_cell::Ref<Vec<Id<CommandLineOption>>> {
         per_arena!(
             Vec<Id<CommandLineOption>>,
             arena,
-            arena.alloc_vec_command_line_option(
-                vec![
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+            arena.alloc_vec_command_line_option(vec![
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("allowNonTsExtensions".to_string())
                         .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .default_value_description(StringOrDiagnosticMessage::String(
+                            "false".to_string()
+                        ))
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("useCaseSensitiveFileNames".to_string())
                         .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .default_value_description(StringOrDiagnosticMessage::String(
+                            "false".to_string()
+                        ))
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("baselineFile".to_string())
                         .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("includeBuiltFile".to_string())
                         .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("fileName".to_string())
                         .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("libFiles".to_string())
                         .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("noErrorTruncation".to_string())
                         .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .default_value_description(StringOrDiagnosticMessage::String(
+                            "false".to_string()
+                        ))
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("suppressOutputPathCheck".to_string())
                         .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .default_value_description(StringOrDiagnosticMessage::String(
+                            "false".to_string()
+                        ))
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("noImplicitReferences".to_string())
                         .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .default_value_description(StringOrDiagnosticMessage::String(
+                            "false".to_string()
+                        ))
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("currentDirectory".to_string())
                         .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("symlink".to_string())
                         .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("link".to_string())
                         .type_(CommandLineOptionType::String)
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("noTypesAndSymbols".to_string())
                         .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .default_value_description(StringOrDiagnosticMessage::String(
+                            "false".to_string()
+                        ))
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+                arena.alloc_command_line_option(
+                    CommandLineOptionBaseBuilder::default()
                         .name("fullEmitPaths".to_string())
                         .type_(CommandLineOptionType::Boolean)
-                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                        .build().unwrap().try_into().unwrap()),
-                ]
-            )
+                        .default_value_description(StringOrDiagnosticMessage::String(
+                            "false".to_string()
+                        ))
+                        .build()
+                        .unwrap()
+                        .try_into()
+                        .unwrap()
+                ),
+            ])
         )
     }
 
@@ -479,13 +562,11 @@ pub mod Compiler {
                 .borrow_mut()
                 .get_or_insert_with(|| {
                     let mut options_index_ = HashMap::new();
-                    option_declarations.with(|option_declarations_| {
-                        for option in &**option_declarations_ {
-                            options_index_.insert(option.name().to_lowercase(), option.clone());
-                        }
-                    });
-                    for option in harness_option_declarations(arena) {
-                        options_index_.insert(option.name().to_lowercase(), option.clone());
+                    for &option in &*option_declarations(arena).ref_(arena) {
+                        options_index_.insert(option.ref_(arena).name().to_lowercase(), option);
+                    }
+                    for &option in &*harness_option_declarations(arena) {
+                        options_index_.insert(option.ref_(arena).name().to_lowercase(), option);
                     }
                     options_index_
                 })
@@ -505,13 +586,13 @@ pub mod Compiler {
                 let mut errors: Vec<Id<Diagnostic>> = vec![];
                 if HarnessOptions::is_harness_option(name) {
                     options.harness_options.set_value_from_command_line_option(
-                        option,
-                        option_value(option, value, &mut errors, arena),
+                        &option.ref_(arena),
+                        option_value(&option.ref_(arena), value, &mut errors, arena),
                     );
                 } else {
                     options.compiler_options.set_value_from_command_line_option(
-                        option,
-                        option_value(option, value, &mut errors, arena),
+                        &option.ref_(arena),
+                        option_value(&option.ref_(arena), value, &mut errors, arena),
                     );
                 }
                 if !errors.is_empty() {
@@ -551,10 +632,15 @@ pub mod Compiler {
                 Some(numver_value.unwrap()).into()
             }
             CommandLineOptionType::Object => unimplemented!(),
-            CommandLineOptionType::List => {
-                CompilerOptionsValue::VecString(parse_list_type_option(option, Some(value), errors, arena))
+            CommandLineOptionType::List => CompilerOptionsValue::VecString(parse_list_type_option(
+                option,
+                Some(value),
+                errors,
+                arena,
+            )),
+            CommandLineOptionType::Map(_) => {
+                parse_custom_type_option(option, Some(value), errors, arena)
             }
-            CommandLineOptionType::Map(_) => parse_custom_type_option(option, Some(value), errors, arena),
         }
     }
 
@@ -657,10 +743,18 @@ pub mod Compiler {
         if let Some(symlinks) = symlinks {
             fs.apply(symlinks)?;
         }
-        let host =
-            fakes::CompilerHost::new(fs, Some(Gc::new(options.compiler_options.clone())), None, arena)?;
-        let mut result =
-            compiler::compile_files(host, Some(&program_file_names), &options.compiler_options, arena)?;
+        let host = fakes::CompilerHost::new(
+            fs,
+            Some(arena.alloc_compiler_options(options.compiler_options.clone())),
+            None,
+            arena,
+        )?;
+        let mut result = compiler::compile_files(
+            host,
+            Some(&program_file_names),
+            &options.compiler_options,
+            arena,
+        )?;
         result.symlinks = symlinks.cloned();
         Ok(result)
     }
@@ -685,9 +779,10 @@ pub mod Compiler {
         harness_settings: &TestCaseParser::CompilerSettings, /*& HarnessOptions*/
         options: Id<CompilerOptions>,
         current_directory: Option<&str>,
+        arena: &impl HasArena,
     ) -> io::Result<Option<DeclarationCompilationContext>> {
-        if options.declaration == Some(true) && result.diagnostics.is_empty() {
-            if options.emit_declaration_only == Some(true) {
+        if options.ref_(arena).declaration == Some(true) && result.diagnostics.is_empty() {
+            if options.ref_(arena).emit_declaration_only == Some(true) {
                 if !result.js.is_empty() || result.dts.is_empty() {
                     panic!(
                         "Only declaration files should be generated when emitDeclarationOnly:true"
@@ -701,28 +796,30 @@ pub mod Compiler {
         let mut decl_input_files: Vec<Gc<TestFile>> = _d();
         let mut decl_other_files: Vec<Gc<TestFile>> = _d();
 
-        if options.declaration == Some(true)
+        if options.ref_(arena).declaration == Some(true)
             && result.diagnostics.is_empty()
             && !result.dts.is_empty()
         {
             for file in input_files {
                 add_dts_file(
-                    &options,
+                    &options.ref_(arena),
                     result,
                     &decl_input_files.clone(),
                     &decl_other_files,
                     file.clone(),
                     &mut decl_input_files,
+                    arena,
                 )?;
             }
             for file in other_files {
                 add_dts_file(
-                    &options,
+                    &options.ref_(arena),
                     result,
                     &decl_input_files,
                     &decl_other_files.clone(),
                     file.clone(),
                     &mut decl_other_files,
+                    arena,
                 )?;
             }
             return Ok(Some(DeclarationCompilationContext {
@@ -747,13 +844,14 @@ pub mod Compiler {
         decl_other_files: &[Gc<TestFile>],
         file: Gc<TestFile>,
         dts_files: &mut Vec<Gc<TestFile>>,
+        arena: &impl HasArena,
     ) -> io::Result<()> {
         if vpath::is_declaration(&file.unit_name) || vpath::is_json(&file.unit_name) {
             dts_files.push(file);
         } else if vpath::is_type_script(&file.unit_name)
             || vpath::is_java_script(&file.unit_name) && get_allow_js_compiler_option(options)
         {
-            let decl_file = find_result_code_file(result, options, &file.unit_name)?;
+            let decl_file = find_result_code_file(result, options, &file.unit_name, arena)?;
             if let Some(decl_file) = decl_file.filter(|decl_file| {
                 find_unit(&decl_file.file, decl_input_files).is_none()
                     && find_unit(&decl_file.file, decl_other_files).is_none()
@@ -773,14 +871,20 @@ pub mod Compiler {
         result: &compiler::CompilationResult,
         options: &CompilerOptions,
         file_name: &str,
+        arena: &impl HasArena,
     ) -> io::Result<Option<Gc<documents::TextDocument>>> {
-        let source_file = result.program.as_ref().unwrap().get_source_file(file_name);
+        let source_file = result
+            .program
+            .unwrap()
+            .ref_(arena)
+            .get_source_file(file_name);
         assert!(
             source_file.is_some(),
             "Program has no source file with name '{file_name}'",
         );
         let source_file = source_file.unwrap();
-        let source_file_as_source_file = source_file.as_source_file();
+        let source_file_ref = source_file.ref_(arena);
+        let source_file_as_source_file = source_file_ref.as_source_file();
         let out_file = options
             .out_file
             .as_ref()
@@ -796,8 +900,8 @@ pub mod Compiler {
                     source_file_path = source_file_path.replace(
                         &result
                             .program
-                            .as_ref()
                             .unwrap()
+                            .ref_(arena)
                             .get_common_source_directory(),
                         "",
                     );
@@ -837,13 +941,13 @@ pub mod Compiler {
         let decl_input_files = &context.decl_input_files;
         let decl_other_files = &context.decl_other_files;
         let harness_settings = context.harness_settings.as_ref();
-        let options = &context.options;
+        let options = context.options;
         let current_directory = context.current_directory.as_deref();
         let output = compile_files(
             decl_input_files,
             decl_other_files,
             harness_settings,
-            Some(options),
+            Some(&options.ref_(arena)),
             current_directory,
             symlinks,
             arena,
@@ -935,7 +1039,7 @@ pub mod Compiler {
         arena: &impl HasArenaHarness,
     ) -> io::Result<Vec<(String, String, usize)>> {
         let diagnostics: Vec<_> = sort(diagnostics, |a: &Id<Diagnostic>, b: &Id<Diagnostic>| {
-            compare_diagnostics(&**a, &**b, arena)
+            compare_diagnostics(&*a.ref_(arena), &*b.ref_(arena), arena)
         })
         .into();
         let mut output_lines = "".to_owned();
@@ -955,7 +1059,7 @@ pub mod Compiler {
                 Utils::remove_test_path_prefixes(
                     &*minimal_diagnostics_to_string(
                         &diagnostics,
-                        options.as_ref().and_then(|options| options.pretty)
+                        options.as_ref().and_then(|options| options.pretty),
                         arena,
                     )?,
                     None,
@@ -966,7 +1070,9 @@ pub mod Compiler {
             diagnostics.len(),
         ));
 
-        let mut global_errors = diagnostics.iter().filter(|err| err.maybe_file().is_none());
+        let mut global_errors = diagnostics
+            .iter()
+            .filter(|err| err.ref_(arena).maybe_file().is_none());
         global_errors.try_for_each(|diagnostic| {
             output_error_text(
                 &format_diagnsotic_host,
@@ -974,7 +1080,7 @@ pub mod Compiler {
                 &mut first_line,
                 &mut errors_reported,
                 &mut total_errors_reported_in_non_library_files,
-                diagnostic,
+                &diagnostic.ref_(arena),
                 arena,
             )
         })?;
@@ -992,12 +1098,12 @@ pub mod Compiler {
             .filter(|_f| /*f.content !== undefined*/ true)
         {
             let file_errors = diagnostics.iter().filter(|e| {
-                let err_fn = e.maybe_file();
+                let err_fn = e.ref_(arena).maybe_file();
                 matches!(
                     err_fn.as_ref(),
                     Some(err_fn) if compare_paths(
                         &Utils::remove_test_path_prefixes(
-                            &err_fn.as_source_file().file_name(),
+                            &err_fn.ref_(arena).as_source_file().file_name(),
                             None,
                         ),
                         &Utils::remove_test_path_prefixes(
@@ -1052,8 +1158,8 @@ pub mod Compiler {
                 ));
                 for &err_diagnostic in &file_errors {
                     let err = TextSpan {
-                        start: err_diagnostic.start(),
-                        length: err_diagnostic.length(),
+                        start: err_diagnostic.ref_(arena).start(),
+                        length: err_diagnostic.ref_(arena).length(),
                     };
                     let end = text_span_end(&err);
                     let this_line_start_as_isize: isize = this_line_start.try_into().unwrap();
@@ -1086,7 +1192,7 @@ pub mod Compiler {
                                 &mut first_line,
                                 &mut errors_reported,
                                 &mut total_errors_reported_in_non_library_files,
-                                err_diagnostic,
+                                &err_diagnostic.ref_(arena),
                                 arena,
                             )?;
                             marked_error_count += 1;
@@ -1119,9 +1225,9 @@ pub mod Compiler {
             Some(&diagnostics),
             |diagnostic: &Id<Diagnostic>, _| {
                 matches!(
-                    diagnostic.maybe_file().as_ref(),
-                    Some(diagnostic_file) if is_default_library_file(&diagnostic_file.as_source_file().file_name()) ||
-                        is_built_file(&diagnostic_file.as_source_file().file_name())
+                    diagnostic.ref_(arena).maybe_file(),
+                    Some(diagnostic_file) if is_default_library_file(&diagnostic_file.ref_(arena).as_source_file().file_name()) ||
+                        is_built_file(&diagnostic_file.ref_(arena).as_source_file().file_name())
                 )
             },
         );
@@ -1130,8 +1236,8 @@ pub mod Compiler {
             Some(&diagnostics),
             |diagnostic: &Id<Diagnostic>, _| {
                 matches!(
-                    diagnostic.maybe_file().as_ref(),
-                    Some(diagnostic_file) if diagnostic_file.as_source_file().file_name().contains("test262-harness")
+                    diagnostic.ref_(arena).maybe_file(),
+                    Some(diagnostic_file) if diagnostic_file.ref_(arena).as_source_file().file_name().contains("test262-harness")
                 )
             },
         );
@@ -1240,13 +1346,13 @@ pub mod Compiler {
             for info in error_related_information {
                 err_lines.push(format!(
                     "!!! related TS{}{}: {}",
-                    info.code(),
-                    if let Some(info_file) = info.maybe_file().as_ref() {
+                    info.ref_(arena).code(),
+                    if let Some(info_file) = info.ref_(arena).maybe_file() {
                         format!(
                             " {}",
                             format_location(
                                 info_file,
-                                info.start(),
+                                info.ref_(arena).start(),
                                 format_diagnsotic_host,
                                 Some(|a: &str, _b: &str| a.to_owned()),
                                 arena,
@@ -1256,7 +1362,7 @@ pub mod Compiler {
                         "".to_owned()
                     },
                     flatten_diagnostic_message_text(
-                        Some(info.message_text()),
+                        Some(info.ref_(arena).message_text()),
                         get_io(arena).new_line(),
                         None,
                     )
@@ -1270,7 +1376,9 @@ pub mod Compiler {
 
         if match error.maybe_file().as_ref() {
             None => true,
-            Some(error_file) => !is_default_library_file(&error_file.as_source_file().file_name()),
+            Some(error_file) => {
+                !is_default_library_file(&error_file.ref_(arena).as_source_file().file_name())
+            }
         } {
             *total_errors_reported_in_non_library_files += 1;
         }
@@ -1323,8 +1431,8 @@ pub mod Compiler {
         harness_settings: &TestCaseParser::CompilerSettings,
         arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
-        if options.no_emit != Some(true)
-            && options.emit_declaration_only != Some(true)
+        if options.ref_(arena).no_emit != Some(true)
+            && options.ref_(arena).emit_declaration_only != Some(true)
             && result.js.is_empty()
             && result.diagnostics.is_empty()
         {
@@ -1359,7 +1467,7 @@ pub mod Compiler {
                 let file_parse_result = create_source_file(
                     &file.file,
                     file.text.clone(),
-                    get_emit_script_target(&options),
+                    get_emit_script_target(&options.ref_(arena)),
                     Some(false),
                     Some(if file.file.ends_with("x") {
                         ScriptKind::JSX
@@ -1368,10 +1476,11 @@ pub mod Compiler {
                     }),
                     arena,
                 )?;
-                let file_parse_result_parse_diagnostics =
-                    file_parse_result.as_source_file().parse_diagnostics();
-                let file_parse_result_parse_diagnostics =
-                    (*file_parse_result_parse_diagnostics).borrow();
+                let file_parse_result_parse_diagnostics = file_parse_result
+                    .ref_(arena)
+                    .as_source_file()
+                    .parse_diagnostics()
+                    .ref_(arena);
                 if !file_parse_result_parse_diagnostics.is_empty() {
                     js_code.push_str(&get_error_baseline(
                         &[file.as_test_file()],
@@ -1401,6 +1510,7 @@ pub mod Compiler {
             harness_settings,
             options.clone(),
             None,
+            arena,
         )?;
         let decl_file_compilation_result =
             compile_declaration_files(decl_file_context.as_ref(), result.symlinks.as_ref(), arena)?;
@@ -1497,7 +1607,11 @@ pub struct FileBasedTest {
 
 pub type FileBasedTestConfiguration = HashMap<String, String>;
 
-fn split_vary_by_setting_value(text: &str, vary_by: &str) -> Option<Vec<String>> {
+fn split_vary_by_setting_value(
+    text: &str,
+    vary_by: &str,
+    arena: &impl HasArena,
+) -> Option<Vec<String>> {
     if text.is_empty() {
         return None;
     }
@@ -1527,7 +1641,7 @@ fn split_vary_by_setting_value(text: &str, vary_by: &str) -> Option<Vec<String>>
     }
 
     let mut variations: Vec<Variation> = vec![];
-    let values = get_vary_by_star_setting_values(vary_by);
+    let values = get_vary_by_star_setting_values(vary_by, arena);
 
     for include in includes {
         let value = values.as_ref().and_then(|values| values.get(&&*include));
@@ -1632,27 +1746,26 @@ thread_local! {
 
 fn get_vary_by_star_setting_values(
     vary_by: &str,
+    arena: &impl HasArena,
 ) -> Option<HashMap<&'static str, CommandLineOptionMapTypeValueOrUsize>> {
-    let option = option_declarations.with(|option_declarations_| {
-        for_each(
-            &**option_declarations_,
-            |decl: &Id<CommandLineOption>, _| {
-                if equate_strings_case_insensitive(decl.name(), vary_by) {
-                    Some(decl.clone())
-                } else {
-                    None
-                }
-            },
-        )
-    })?;
-    if let CommandLineOptionType::Map(option_type) = option.type_() {
+    let option = for_each(
+        &*option_declarations(arena).ref_(arena),
+        |decl: &Id<CommandLineOption>, _| {
+            if equate_strings_case_insensitive(decl.ref_(arena).name(), vary_by) {
+                Some(decl.clone())
+            } else {
+                None
+            }
+        },
+    )?;
+    if let CommandLineOptionType::Map(option_type) = option.ref_(arena).type_() {
         return Some(HashMap::from_iter(
             option_type
                 .into_iter()
                 .map(|(key, value)| (*key, value.clone().into())),
         ));
     }
-    if matches!(option.type_(), CommandLineOptionType::Boolean) {
+    if matches!(option.ref_(arena).type_(), CommandLineOptionType::Boolean) {
         return Some(boolean_vary_by_star_setting_values.with(
             |boolean_vary_by_star_setting_values_| {
                 boolean_vary_by_star_setting_values_
@@ -1688,9 +1801,10 @@ impl From<usize> for CommandLineOptionMapTypeValueOrUsize {
     }
 }
 
-pub fn get_file_based_test_configurations<TVaryBy: AsRef<str>>(
+pub fn get_file_based_test_configurations(
     settings: &TestCaseParser::CompilerSettings,
-    vary_by: &[TVaryBy],
+    vary_by: &[impl AsRef<str>],
+    arena: &impl HasArena,
 ) -> Option<Vec<FileBasedTestConfiguration>> {
     let mut vary_by_entries: Option<Vec<(String, Vec<String>)>> = None;
     let mut variation_count = 1;
@@ -1698,7 +1812,7 @@ pub fn get_file_based_test_configurations<TVaryBy: AsRef<str>>(
         let vary_by_key = vary_by_key.as_ref();
         if settings.contains_key(vary_by_key) {
             let entries =
-                split_vary_by_setting_value(settings.get(vary_by_key).unwrap(), vary_by_key);
+                split_vary_by_setting_value(settings.get(vary_by_key).unwrap(), vary_by_key, arena);
             if let Some(entries) = entries {
                 variation_count *= entries.len();
                 if variation_count > 25 {
@@ -1755,8 +1869,8 @@ pub mod TestCaseParser {
     use typescript_rust::{
         for_each, get_base_file_name, get_directory_path, get_normalized_absolute_path,
         normalize_path, ordered_remove_item_at, parse_json_source_file_config_file_content,
-        parse_json_text, ModuleResolutionHost, ParseConfigHost, ParsedCommandLine,
-        HasArena,
+        parse_json_text, HasArena, InArena, ModuleResolutionHost, ParseConfigHost,
+        ParsedCommandLine,
     };
 
     use super::get_config_name_from_file_name;
@@ -1923,7 +2037,7 @@ pub mod TestCaseParser {
                     base_dir = get_normalized_absolute_path(&base_dir, Some(root_dir));
                 }
                 ts_config = Some(parse_json_source_file_config_file_content(
-                    &config_json,
+                    config_json,
                     &parse_config_host,
                     &base_dir,
                     None,
@@ -1934,9 +2048,9 @@ pub mod TestCaseParser {
                     None,
                     arena,
                 )?);
-                let mut options = (*ts_config.as_ref().unwrap().options).clone();
+                let mut options = ts_config.as_ref().unwrap().options.ref_(arena).clone();
                 options.config_file_path = Some(data.name.clone());
-                ts_config.as_mut().unwrap().options = Gc::new(options);
+                ts_config.as_mut().unwrap().options = arena.alloc_compiler_options(options);
                 ts_config_file_unit_data = Some(data.clone());
 
                 indexes_to_remove.push(i);
@@ -2012,8 +2126,8 @@ pub mod Baseline {
 
     use pretty_assertions::StrComparison;
 
-    use super::{user_specified_root, IO, get_io};
-    use crate::{Utils, HasArenaHarness};
+    use super::{get_io, user_specified_root, IO};
+    use crate::{vfs::FileSystemResolverHost, HasArenaHarness, Utils};
 
     const no_content: &'static str = "<no content>";
 
@@ -2113,7 +2227,12 @@ pub mod Baseline {
         opts: Option<&BaselineOptions>,
         arena: &impl HasArenaHarness,
     ) {
-        create_directory_structure(&get_io(arena).directory_name(actual_file_name.as_ref()).unwrap(), arena);
+        create_directory_structure(
+            &get_io(arena)
+                .directory_name(actual_file_name.as_ref())
+                .unwrap(),
+            arena,
+        );
 
         if get_io(arena).file_exists(actual_file_name) {
             get_io(arena).delete_file(actual_file_name.as_ref());
