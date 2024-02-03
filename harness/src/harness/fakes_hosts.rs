@@ -494,9 +494,11 @@ pub mod fakes {
                 ),
                 _source_files: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                            sys.vfs.ref_(arena).string_comparer.clone(),
-                        ))),
+                        comparer: arena.alloc_sort_options_comparer_string(Box::new(
+                            SortOptionsComparerFromStringComparer::new(
+                                sys.vfs.ref_(arena).string_comparer.clone(),
+                            ),
+                        )),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
                     Option::<HashMap<String, Id<Node>>>::None,
@@ -504,9 +506,11 @@ pub mod fakes {
                 _set_parent_nodes: set_parent_nodes,
                 _outputs_map: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                            sys.vfs.ref_(arena).string_comparer.clone(),
-                        ))),
+                        comparer: arena.alloc_sort_options_comparer_string(Box::new(
+                            SortOptionsComparerFromStringComparer::new(
+                                sys.vfs.ref_(arena).string_comparer.clone(),
+                            ),
+                        )),
                         sort: None,
                     },
                     Option::<HashMap<String, usize>>::None,

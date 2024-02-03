@@ -9,14 +9,16 @@ pub mod collections {
     };
 
     use gc::{Finalize, Gc, GcCell, Trace};
-    use typescript_rust::{binary_search, Comparison};
+    use typescript_rust::{binary_search, id_arena::Id, AllArenas, Comparison, HasArena};
+
+    use crate::{AllArenasHarness, HasArenaHarness, InArenaHarness};
 
     pub trait SortOptionsComparer<TKey>: Trace + Finalize {
         fn call(&self, a: &TKey, b: &TKey) -> Comparison;
     }
 
     pub struct SortOptions<TKey: 'static> {
-        pub comparer: Gc<Box<dyn SortOptionsComparer<TKey>>>,
+        pub comparer: Id<Box<dyn SortOptionsComparer<TKey>>>,
         pub sort: Option<SortOptionsSort>,
     }
 
@@ -28,7 +30,7 @@ pub mod collections {
 
     #[derive(Trace, Finalize)]
     pub struct SortedMap<TKey: Trace + Finalize + 'static, TValue: Trace + Finalize> {
-        _comparer: Gc<Box<dyn SortOptionsComparer<TKey>>>,
+        _comparer: Id<Box<dyn SortOptionsComparer<TKey>>>,
         _keys: Vec<TKey>,
         _values: Vec<TValue>,
         _order: Option<Vec<usize>>,
@@ -37,7 +39,11 @@ pub mod collections {
         _copy_on_write: Cell<bool>,
     }
 
-    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> SortedMap<TKey, TValue> {
+    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> SortedMap<TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
+    {
         pub fn new<TIterable: IntoIterator<Item = (TKey, TValue)>>(
             comparer: SortOptions<TKey>,
             iterable: Option<TIterable>,
@@ -87,7 +93,7 @@ pub mod collections {
                 &self._keys,
                 key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| self._comparer.call(a, b),
+                |a: &TKey, b: &TKey| self._comparer.ref_(self).call(a, b),
                 None,
             ) >= 0
         }
@@ -97,7 +103,7 @@ pub mod collections {
                 &self._keys,
                 key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| self._comparer.call(a, b),
+                |a: &TKey, b: &TKey| self._comparer.ref_(self).call(a, b),
                 None,
             );
             if index >= 0 {
@@ -116,7 +122,7 @@ pub mod collections {
                 &self._keys,
                 key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| self._comparer.call(a, b),
+                |a: &TKey, b: &TKey| self._comparer.ref_(self).call(a, b),
                 None,
             );
             if index >= 0 {
@@ -132,7 +138,7 @@ pub mod collections {
                 &self._keys,
                 &key,
                 |key: &TKey, _| key,
-                |a: &TKey, b: &TKey| self._comparer.call(a, b),
+                |a: &TKey, b: &TKey| self._comparer.ref_(self).call(a, b),
                 None,
             );
             if index >= 0 {
@@ -256,29 +262,40 @@ pub mod collections {
         }
     }
 
-    pub struct Keys<
-        'sorted_map,
-        TKey: Trace + Finalize + 'static,
-        TValue: 'sorted_map + Trace + Finalize,
-    > {
-        _keys: &'sorted_map Vec<TKey>,
+    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> HasArena for SortedMap<TKey, TValue> {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl<TKey: Trace + Finalize, TValue: Trace + Finalize> HasArenaHarness for SortedMap<TKey, TValue> {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
+        }
+    }
+
+    pub struct Keys<'a, TKey: Trace + Finalize + 'static, TValue: 'a + Trace + Finalize>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
+    {
+        _keys: &'a Vec<TKey>,
         indices: Option<Vec<usize>>,
         version: usize,
-        sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+        sorted_map: &'a SortedMap<TKey, TValue>,
         current_index: usize,
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Keys<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Keys<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
         pub fn new(
-            _keys: &'sorted_map Vec<TKey>,
+            _keys: &'a Vec<TKey>,
             indices: Option<Vec<usize>>,
             version: usize,
-            sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+            sorted_map: &'a SortedMap<TKey, TValue>,
         ) -> Self {
             Self {
                 _keys,
@@ -290,13 +307,13 @@ pub mod collections {
         }
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Iterator for Keys<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Iterator
+        for Keys<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
-        type Item = &'sorted_map TKey;
+        type Item = &'a TKey;
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.current_index >= self._keys.len() {
@@ -312,11 +329,10 @@ pub mod collections {
         }
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Drop for Keys<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Drop for Keys<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
         fn drop(&mut self) {
             if self.version == self.sorted_map._version {
@@ -325,29 +341,28 @@ pub mod collections {
         }
     }
 
-    pub struct Values<
-        'sorted_map,
-        TKey: Trace + Finalize + 'static,
-        TValue: 'sorted_map + Trace + Finalize,
-    > {
-        _values: &'sorted_map Vec<TValue>,
+    pub struct Values<'a, TKey: Trace + Finalize + 'static, TValue: 'a + Trace + Finalize>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
+    {
+        _values: &'a Vec<TValue>,
         indices: Option<Vec<usize>>,
         version: usize,
-        sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+        sorted_map: &'a SortedMap<TKey, TValue>,
         current_index: usize,
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Values<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Values<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
         pub fn new(
-            _values: &'sorted_map Vec<TValue>,
+            _values: &'a Vec<TValue>,
             indices: Option<Vec<usize>>,
             version: usize,
-            sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+            sorted_map: &'a SortedMap<TKey, TValue>,
         ) -> Self {
             Self {
                 _values,
@@ -359,13 +374,13 @@ pub mod collections {
         }
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Iterator for Values<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Iterator
+        for Values<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
-        type Item = &'sorted_map TValue;
+        type Item = &'a TValue;
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.current_index >= self._values.len() {
@@ -381,11 +396,11 @@ pub mod collections {
         }
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Drop for Values<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Drop
+        for Values<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
         fn drop(&mut self) {
             if self.version == self.sorted_map._version {
@@ -394,31 +409,30 @@ pub mod collections {
         }
     }
 
-    pub struct Entries<
-        'sorted_map,
-        TKey: Trace + Finalize + 'static,
-        TValue: 'sorted_map + Trace + Finalize,
-    > {
-        _keys: &'sorted_map Vec<TKey>,
-        _values: &'sorted_map Vec<TValue>,
+    pub struct Entries<'a, TKey: Trace + Finalize + 'static, TValue: 'a + Trace + Finalize>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
+    {
+        _keys: &'a Vec<TKey>,
+        _values: &'a Vec<TValue>,
         indices: Option<Vec<usize>>,
         version: usize,
-        sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+        sorted_map: &'a SortedMap<TKey, TValue>,
         current_index: usize,
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Entries<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Entries<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
         pub fn new(
-            _keys: &'sorted_map Vec<TKey>,
-            _values: &'sorted_map Vec<TValue>,
+            _keys: &'a Vec<TKey>,
+            _values: &'a Vec<TValue>,
             indices: Option<Vec<usize>>,
             version: usize,
-            sorted_map: &'sorted_map SortedMap<TKey, TValue>,
+            sorted_map: &'a SortedMap<TKey, TValue>,
         ) -> Self {
             Self {
                 _keys,
@@ -431,13 +445,13 @@ pub mod collections {
         }
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Iterator for Entries<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Iterator
+        for Entries<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
-        type Item = (&'sorted_map TKey, &'sorted_map TValue);
+        type Item = (&'a TKey, &'a TValue);
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.current_index >= self._keys.len() {
@@ -459,11 +473,11 @@ pub mod collections {
         }
     }
 
-    impl<
-            'sorted_map,
-            TKey: 'sorted_map + Trace + Finalize,
-            TValue: 'sorted_map + Trace + Finalize,
-        > Drop for Entries<'sorted_map, TKey, TValue>
+    impl<'a, TKey: 'a + Trace + Finalize, TValue: 'a + Trace + Finalize> Drop
+        for Entries<'a, TKey, TValue>
+    where
+        Id<Box<dyn SortOptionsComparer<TKey>>>:
+            InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
         fn drop(&mut self) {
             if self.version == self.sorted_map._version {

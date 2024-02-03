@@ -797,7 +797,7 @@ pub mod vfs {
                 .get_or_insert_with(|| {
                     let mut _lazy_links = collections::SortedMap::new(
                         collections::SortOptions {
-                            comparer: Gc::new(Box::new(
+                            comparer: self.alloc_sort_options_comparer_string(Box::new(
                                 SortOptionsComparerFromStringComparer::new(
                                     self.string_comparer.clone(),
                                 ),
@@ -825,9 +825,11 @@ pub mod vfs {
             if node_as_directory_inode.maybe_links().is_none() {
                 let mut links = collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                            self.string_comparer.clone(),
-                        ))),
+                        comparer: self.alloc_sort_options_comparer_string(Box::new(
+                            SortOptionsComparerFromStringComparer::new(
+                                self.string_comparer.clone(),
+                            ),
+                        )),
                         sort: None,
                     },
                     Option::<HashMap<String, Gc<Inode>>>::None,

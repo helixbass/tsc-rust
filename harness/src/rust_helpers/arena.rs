@@ -5,6 +5,7 @@ use typescript_rust::{
 };
 
 use crate::{
+    collections::SortOptionsComparer,
     compiler::CompilationOutput,
     documents::TextDocument,
     harness::harness_io::NodeIO,
@@ -18,6 +19,7 @@ pub struct AllArenasHarness {
     text_documents: RefCell<Arena<TextDocument>>,
     compilation_outputs: RefCell<Arena<CompilationOutput>>,
     file_systems: RefCell<Arena<FileSystem>>,
+    sort_options_comparer_strings: RefCell<Arena<Box<dyn SortOptionsComparer<String>>>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -76,6 +78,22 @@ pub trait HasArenaHarness: HasArena {
 
     fn alloc_file_system(&self, file_system: FileSystem) -> Id<FileSystem> {
         self.arena_harness().alloc_file_system(file_system)
+    }
+
+    fn sort_options_comparer_string(
+        &self,
+        sort_options_comparer_string: Id<Box<dyn SortOptionsComparer<String>>>,
+    ) -> Ref<Box<dyn SortOptionsComparer<String>>> {
+        self.arena_harness()
+            .sort_options_comparer_string(sort_options_comparer_string)
+    }
+
+    fn alloc_sort_options_comparer_string(
+        &self,
+        sort_options_comparer_string: Box<dyn SortOptionsComparer<String>>,
+    ) -> Id<Box<dyn SortOptionsComparer<String>>> {
+        self.arena_harness()
+            .alloc_sort_options_comparer_string(sort_options_comparer_string)
     }
 }
 
@@ -161,6 +179,29 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.file_systems.borrow_mut().alloc(file_system);
         id
     }
+
+    fn sort_options_comparer_string(
+        &self,
+        sort_options_comparer_string: Id<Box<dyn SortOptionsComparer<String>>>,
+    ) -> Ref<Box<dyn SortOptionsComparer<String>>> {
+        Ref::map(
+            self.sort_options_comparer_strings.borrow(),
+            |sort_options_comparer_strings| {
+                &sort_options_comparer_strings[sort_options_comparer_string]
+            },
+        )
+    }
+
+    fn alloc_sort_options_comparer_string(
+        &self,
+        sort_options_comparer_string: Box<dyn SortOptionsComparer<String>>,
+    ) -> Id<Box<dyn SortOptionsComparer<String>>> {
+        let id = self
+            .sort_options_comparer_strings
+            .borrow_mut()
+            .alloc(sort_options_comparer_string);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -212,6 +253,17 @@ impl InArenaHarness for Id<FileSystem> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, FileSystem> {
         has_arena.file_system(*self)
+    }
+}
+
+impl InArenaHarness for Id<Box<dyn SortOptionsComparer<String>>> {
+    type Item = Box<dyn SortOptionsComparer<String>>;
+
+    fn ref_<'a>(
+        &self,
+        has_arena: &'a impl HasArenaHarness,
+    ) -> Ref<'a, Box<dyn SortOptionsComparer<String>>> {
+        has_arena.sort_options_comparer_string(*self)
     }
 }
 

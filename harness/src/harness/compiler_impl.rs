@@ -1,7 +1,7 @@
 pub mod compiler {
     use std::{collections::HashMap, io, ptr};
 
-    use gc::{Finalize, Gc, Trace};
+    use gc::{Finalize, Trace};
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
         debug_cell, file_extension_is, filter, get_declaration_emit_extension_for_path,
@@ -63,27 +63,33 @@ pub mod compiler {
 
             let mut js = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                        host_as_fakes_compiler_host.vfs().string_comparer.clone(),
-                    ))),
+                    comparer: arena.alloc_sort_options_comparer_string(Box::new(
+                        SortOptionsComparerFromStringComparer::new(
+                            host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                        ),
+                    )),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Id<documents::TextDocument>>>::None,
             );
             let mut dts = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                        host_as_fakes_compiler_host.vfs().string_comparer.clone(),
-                    ))),
+                    comparer: arena.alloc_sort_options_comparer_string(Box::new(
+                        SortOptionsComparerFromStringComparer::new(
+                            host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                        ),
+                    )),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Id<documents::TextDocument>>>::None,
             );
             let mut maps = collections::SortedMap::new(
                 collections::SortOptions {
-                    comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                        host_as_fakes_compiler_host.vfs().string_comparer.clone(),
-                    ))),
+                    comparer: arena.alloc_sort_options_comparer_string(Box::new(
+                        SortOptionsComparerFromStringComparer::new(
+                            host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                        ),
+                    )),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Id<documents::TextDocument>>>::None,
@@ -110,9 +116,11 @@ pub mod compiler {
                 maps,
                 _inputs_and_outputs: collections::SortedMap::new(
                     collections::SortOptions {
-                        comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                            host_as_fakes_compiler_host.vfs().string_comparer.clone(),
-                        ))),
+                        comparer: arena.alloc_sort_options_comparer_string(Box::new(
+                            SortOptionsComparerFromStringComparer::new(
+                                host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                            ),
+                        )),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
                     Option::<HashMap<String, Id<CompilationOutput>>>::None,
