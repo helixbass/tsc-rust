@@ -12,6 +12,7 @@ use crate::{
     vfs::{FileSystem, FileSystemResolverHost},
     Compiler::TestFile,
     MetaValue, RunnerBaseSub,
+    Utils::{DiagnosticMessageReplacer, Replacer},
 };
 
 pub struct AllArenasHarness {
@@ -26,6 +27,8 @@ pub struct AllArenasHarness {
     metadata_metavalues: RefCell<Arena<Metadata<MetaValue>>>,
     runner_base_subs: RefCell<Arena<Box<dyn RunnerBaseSub>>>,
     test_files: RefCell<Arena<TestFile>>,
+    replacers: RefCell<Arena<Box<dyn Replacer>>>,
+    diagnostic_message_replacers: RefCell<Arena<DiagnosticMessageReplacer>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -160,6 +163,30 @@ pub trait HasArenaHarness: HasArena {
 
     fn alloc_test_file(&self, test_file: TestFile) -> Id<TestFile> {
         self.arena_harness().alloc_test_file(test_file)
+    }
+
+    fn replacer(&self, replacer: Id<Box<dyn Replacer>>) -> Ref<Box<dyn Replacer>> {
+        self.arena_harness().replacer(replacer)
+    }
+
+    fn alloc_replacer(&self, replacer: Box<dyn Replacer>) -> Id<Box<dyn Replacer>> {
+        self.arena_harness().alloc_replacer(replacer)
+    }
+
+    fn diagnostic_message_replacer(
+        &self,
+        diagnostic_message_replacer: Id<DiagnosticMessageReplacer>,
+    ) -> Ref<DiagnosticMessageReplacer> {
+        self.arena_harness()
+            .diagnostic_message_replacer(diagnostic_message_replacer)
+    }
+
+    fn alloc_diagnostic_message_replacer(
+        &self,
+        diagnostic_message_replacer: DiagnosticMessageReplacer,
+    ) -> Id<DiagnosticMessageReplacer> {
+        self.arena_harness()
+            .alloc_diagnostic_message_replacer(diagnostic_message_replacer)
     }
 }
 
@@ -346,6 +373,38 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.test_files.borrow_mut().alloc(test_file);
         id
     }
+
+    fn replacer(&self, replacer: Id<Box<dyn Replacer>>) -> Ref<Box<dyn Replacer>> {
+        Ref::map(self.replacers.borrow(), |replacers| &replacers[replacer])
+    }
+
+    fn alloc_replacer(&self, replacer: Box<dyn Replacer>) -> Id<Box<dyn Replacer>> {
+        let id = self.replacers.borrow_mut().alloc(replacer);
+        id
+    }
+
+    fn diagnostic_message_replacer(
+        &self,
+        diagnostic_message_replacer: Id<DiagnosticMessageReplacer>,
+    ) -> Ref<DiagnosticMessageReplacer> {
+        Ref::map(
+            self.diagnostic_message_replacers.borrow(),
+            |diagnostic_message_replacers| {
+                &diagnostic_message_replacers[diagnostic_message_replacer]
+            },
+        )
+    }
+
+    fn alloc_diagnostic_message_replacer(
+        &self,
+        diagnostic_message_replacer: DiagnosticMessageReplacer,
+    ) -> Id<DiagnosticMessageReplacer> {
+        let id = self
+            .diagnostic_message_replacers
+            .borrow_mut()
+            .alloc(diagnostic_message_replacer);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -448,6 +507,22 @@ impl InArenaHarness for Id<TestFile> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, TestFile> {
         has_arena.test_file(*self)
+    }
+}
+
+impl InArenaHarness for Id<Box<dyn Replacer>> {
+    type Item = Box<dyn Replacer>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Box<dyn Replacer>> {
+        has_arena.replacer(*self)
+    }
+}
+
+impl InArenaHarness for Id<DiagnosticMessageReplacer> {
+    type Item = DiagnosticMessageReplacer;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, DiagnosticMessageReplacer> {
+        has_arena.diagnostic_message_replacer(*self)
     }
 }
 

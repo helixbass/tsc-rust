@@ -1,12 +1,14 @@
 use std::borrow::Cow;
 
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Trace};
 use itertools::Itertools;
-use once_cell::unsync::Lazy;
 use regex::{Captures, Regex, SubCaptureMatches};
 use typescript_rust::{
-    format_string_from_args, reg_exp_escape, regex, DiagnosticMessage, Diagnostics, Owned,
+    format_string_from_args, id_arena::Id, per_arena, reg_exp_escape, regex, AllArenas,
+    DiagnosticMessage, Diagnostics, HasArena, Owned,
 };
+
+use crate::{AllArenasHarness, HasArenaHarness, InArenaHarness};
 
 fn test_path_prefix_reg_exp() -> &'static Regex {
     regex!(r"(?:(file:/{3})|/)\.(ts|lib|src)/")
@@ -43,7 +45,7 @@ pub fn maybe_remove_test_path_prefixes(
 
 fn create_diagnostic_message_replacer(
     diagnostic_message: &'static DiagnosticMessage,
-    replacer: Gc<Box<dyn Replacer>>,
+    replacer: Id<Box<dyn Replacer>>,
 ) -> DiagnosticMessageReplacer {
     let message_parts = regex!(r#"\{\d+\}"#).split(&diagnostic_message.message);
     let reg_exp = Regex::new(&format!(
@@ -57,16 +59,16 @@ fn create_diagnostic_message_replacer(
     DiagnosticMessageReplacer::new(reg_exp, replacer, diagnostic_message)
 }
 
-struct DiagnosticMessageReplacer {
+pub struct DiagnosticMessageReplacer {
     reg_exp: Regex,
-    replacer: Gc<Box<dyn Replacer>>,
+    replacer: Id<Box<dyn Replacer>>,
     diagnostic_message: &'static DiagnosticMessage,
 }
 
 impl DiagnosticMessageReplacer {
     fn new(
         reg_exp: Regex,
-        replacer: Gc<Box<dyn Replacer>>,
+        replacer: Id<Box<dyn Replacer>>,
         diagnostic_message: &'static DiagnosticMessage,
     ) -> Self {
         Self {
@@ -82,31 +84,47 @@ impl DiagnosticMessageReplacer {
         self.reg_exp.replace(text, |captures: &Captures| {
             format_string_from_args(
                 &self.diagnostic_message.message,
-                self.replacer.call(captures.iter(), args.clone()),
+                self.replacer.ref_(self).call(captures.iter(), args.clone()),
             )
         })
     }
 }
 
-trait Replacer: Trace + Finalize {
+impl HasArena for DiagnosticMessageReplacer {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
+impl HasArenaHarness for DiagnosticMessageReplacer {
+    fn arena_harness(&self) -> &AllArenasHarness {
+        unimplemented!()
+    }
+}
+
+pub trait Replacer: Trace + Finalize {
     fn call(&self, message_args: SubCaptureMatches<'_, '_>, args: Vec<String>) -> Vec<String>;
 }
 
-thread_local! {
-    static replace_types_version_message: Lazy<DiagnosticMessageReplacer> = Lazy::new(|| {
-        create_diagnostic_message_replacer(
-            &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
-            ReplaceTypesVersionMessageReplacer::new()
+fn replace_types_version_message(arena: &impl HasArenaHarness) -> Id<DiagnosticMessageReplacer> {
+    per_arena!(
+        DiagnosticMessageReplacer,
+        arena,
+        arena.alloc_diagnostic_message_replacer(
+            create_diagnostic_message_replacer(
+                &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
+                ReplaceTypesVersionMessageReplacer::new(arena)
+            )
         )
-    });
+    )
 }
 
 #[derive(Trace, Finalize)]
 struct ReplaceTypesVersionMessageReplacer;
 
 impl ReplaceTypesVersionMessageReplacer {
-    pub fn new() -> Gc<Box<dyn Replacer>> {
-        Gc::new(Box::new(Self))
+    pub fn new(arena: &impl HasArenaHarness) -> Id<Box<dyn Replacer>> {
+        arena.alloc_replacer(Box::new(Self))
     }
 }
 
@@ -124,15 +142,15 @@ impl Replacer for ReplaceTypesVersionMessageReplacer {
     }
 }
 
-pub fn sanitize_trace_resolution_log_entry(text: &str) -> String {
+pub fn sanitize_trace_resolution_log_entry(text: &str, arena: &impl HasArenaHarness) -> String {
     if !text.is_empty() {
-        replace_types_version_message.with(|replace_types_version_message_| {
-            remove_test_path_prefixes(
-                &replace_types_version_message_.call(text, ["3.1.0-dev"].owned()),
-                None,
-            )
-            .into_owned()
-        })
+        remove_test_path_prefixes(
+            &replace_types_version_message(arena)
+                .ref_(arena)
+                .call(text, ["3.1.0-dev"].owned()),
+            None,
+        )
+        .into_owned()
     } else {
         text.to_owned()
     }
