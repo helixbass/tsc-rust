@@ -1,5 +1,6 @@
 pub mod fakes {
     use std::{
+        any::Any,
         borrow::Cow,
         cell::{Cell, Ref, RefCell},
         collections::HashMap,
@@ -559,6 +560,10 @@ pub mod fakes {
 
     impl typescript_rust::CompilerHost for CompilerHost {
         fn as_dyn_module_resolution_host(&self) -> &dyn ModuleResolutionHost {
+            self
+        }
+
+        fn as_dyn_any(&self) -> &dyn Any {
             self
         }
 

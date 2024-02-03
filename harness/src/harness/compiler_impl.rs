@@ -26,7 +26,7 @@ pub mod compiler {
     }
 
     pub struct CompilationResult {
-        pub host: Gc<Box<fakes::CompilerHost>>,
+        pub host: Id<Box<dyn typescript_rust::CompilerHost /*fakes::CompilerHost*/>>,
         pub program: Option<Id<Program>>,
         pub result: Option<EmitResult>,
         pub options: Id<CompilerOptions>,
@@ -49,6 +49,11 @@ pub mod compiler {
             diagnostics: Vec<Id<Diagnostic>>,
             arena: &impl HasArena,
         ) -> io::Result<Self> {
+            let host_as_fakes_compiler_host = host
+                .ref_(arena)
+                .as_dyn_any()
+                .downcast_ref::<fakes::CompilerHost>()
+                .unwrap();
             let options = if let Some(program) = program {
                 program.ref_(arena).get_compiler_options()
             } else {
@@ -58,7 +63,7 @@ pub mod compiler {
             let mut js = collections::SortedMap::new(
                 collections::SortOptions {
                     comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                        host.vfs().string_comparer.clone(),
+                        host_as_fakes_compiler_host.vfs().string_comparer.clone(),
                     ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
@@ -67,7 +72,7 @@ pub mod compiler {
             let mut dts = collections::SortedMap::new(
                 collections::SortOptions {
                     comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                        host.vfs().string_comparer.clone(),
+                        host_as_fakes_compiler_host.vfs().string_comparer.clone(),
                     ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
@@ -76,13 +81,13 @@ pub mod compiler {
             let mut maps = collections::SortedMap::new(
                 collections::SortOptions {
                     comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                        host.vfs().string_comparer.clone(),
+                        host_as_fakes_compiler_host.vfs().string_comparer.clone(),
                     ))),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Gc<documents::TextDocument>>>::None,
             );
-            for document in &*host.outputs() {
+            for document in &*host_as_fakes_compiler_host.outputs() {
                 if vpath::is_java_script(&document.file)
                     || file_extension_is(&document.file, Extension::Json.to_str())
                 {
@@ -94,18 +99,18 @@ pub mod compiler {
                 }
             }
             let mut ret = Self {
-                host: host.clone(),
-                program: program.clone(),
+                host,
+                program,
                 result,
                 diagnostics,
-                options: options.clone(),
+                options,
                 js,
                 dts,
                 maps,
                 _inputs_and_outputs: collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                            host.vfs().string_comparer.clone(),
+                            host_as_fakes_compiler_host.vfs().string_comparer.clone(),
                         ))),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
@@ -249,12 +254,20 @@ pub mod compiler {
             Ok(ret)
         }
 
+        fn host_as_fakes_compiler_host(&self) -> &fakes::CompilerHost {
+            self.host
+                .ref_(self)
+                .as_dyn_any()
+                .downcast_ref::<fakes::CompilerHost>()
+                .unwrap()
+        }
+
         pub fn vfs(&self) -> Gc<vfs::FileSystem> {
-            self.host.vfs()
+            self.host_as_fakes_compiler_host().vfs()
         }
 
         pub fn traces(&self) -> Ref<Vec<String>> {
-            self.host.traces()
+            self.host_as_fakes_compiler_host().traces()
         }
 
         pub fn common_source_directory(&self) -> io::Result<String> {
