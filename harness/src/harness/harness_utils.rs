@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 use std::cell::Cell;
 use typescript_rust::{
     are_option_gcs_equal, create_get_canonical_file_name, for_each_child, Node, NodeArray,
-    NodeInterface, ReadonlyTextRange,
+    NodeInterface, ReadonlyTextRange, id_arena::Id, HasArena, InArena,
 };
 
 pub fn encode_string(s: &str) -> String {
@@ -28,86 +28,87 @@ pub fn canonicalize_for_harness(file_name: &str) -> String {
     (*Lazy::force(&INSTANCE))(file_name)
 }
 
-pub fn assert_invariants(node: Option<&Node>, parent: Option<&Node>) {
-    let mut queue: Vec<(Option<Gc<Node>>, Option<Gc<Node>>)> = vec![(
-        node.map(|node| node.node_wrapper()),
-        parent.map(|parent| parent.node_wrapper()),
+pub fn assert_invariants(node: Option<Id<Node>>, parent: Option<Id<Node>>, arena: &impl HasArena) {
+    let mut queue: Vec<(Option<Id<Node>>, Option<Id<Node>>)> = vec![(
+        node,
+        parent,
     )];
     let mut i = 0;
     while i < queue.len() {
         let (node, parent) = queue[i].clone();
-        assert_invariants_worker(&mut queue, node.as_deref(), parent.as_deref());
+        assert_invariants_worker(&mut queue, node, parent, arena);
         i += 1;
     }
 }
 
 fn assert_invariants_worker(
-    queue: &mut Vec<(Option<Gc<Node>>, Option<Gc<Node>>)>,
-    node: Option<&Node>,
-    parent: Option<&Node>,
+    queue: &mut Vec<(Option<Id<Node>>, Option<Id<Node>>)>,
+    node: Option<Id<Node>>,
+    parent: Option<Id<Node>>,
+    arena: &impl HasArena,
 ) {
     if let Some(node) = node {
-        assert!(!(node.pos() < 0), "node.pos < 0");
-        assert!(!(node.end() < 0), "node.end < 0");
-        assert!(!(node.end() < node.pos()), "node.end < node.pos");
+        assert!(!(node.ref_(arena).pos() < 0), "node.pos < 0");
+        assert!(!(node.ref_(arena).end() < 0), "node.end < 0");
+        assert!(!(node.ref_(arena).end() < node.ref_(arena).pos()), "node.end < node.pos");
         assert!(
-            are_option_gcs_equal(
-                node.maybe_parent().as_ref(),
-                parent.map(|parent| parent.node_wrapper()).as_ref()
-            ),
+            node.ref_(arena).maybe_parent() == parent
             "node,parent !== parent"
         );
 
         if let Some(parent) = parent {
-            assert!(!(node.pos() < parent.pos()), "node.pos < parent.pos");
-            assert!(!(node.end() > parent.end()), "node.end > parent.end");
+            assert!(!(node.ref_(arena).pos() < parent.ref_(arena).pos()), "node.pos < parent.pos");
+            assert!(!(node.ref_(arena).end() > parent.ref_(arena).end()), "node.end > parent.end");
         }
 
         for_each_child(
             node,
-            |child: &Node| {
-                queue.push((Some(child.node_wrapper()), Some(node.node_wrapper())));
+            |child: Id<Node>| {
+                queue.push((Some(child), Some(node)));
             },
-            Option::<fn(&NodeArray)>::None,
+            Option::<fn(Id<NodeArray>)>::None,
+            arena,
         );
 
         let current_pos = Cell::new(0);
         for_each_child(
             node,
-            |child: &Node| {
-                assert!(!(child.pos() < current_pos.get()), "child.pos < currentPos");
-                current_pos.set(child.end());
+            |child: Id<Node>| {
+                assert!(!(child.ref_(arena).pos() < current_pos.get()), "child.pos < currentPos");
+                current_pos.set(child.ref_(arena).end());
             },
-            Some(|array: &NodeArray| {
-                assert!(!(array.pos() < node.pos()), "array.pos < node.pos");
-                assert!(!(array.end() > node.end()), "array.end > node.end");
-                assert!(!(array.pos() < current_pos.get()), "array.pos < currentPos");
+            Some(|array: Id<NodeArray>| {
+                assert!(!(array.ref_(arena).pos() < node.ref_(arena).pos()), "array.pos < node.pos");
+                assert!(!(array.ref_(arena).end() > node.ref_(arena).end()), "array.end > node.end");
+                assert!(!(array.ref_(arena).pos() < current_pos.get()), "array.pos < currentPos");
 
-                for item in array {
+                for item in &*array.ref_(arena) {
                     assert!(
-                        !(item.pos() < current_pos.get()),
+                        !(item.ref_(arena).pos() < current_pos.get()),
                         "array[i].pos < currentPos"
                     );
-                    current_pos.set(item.end());
+                    current_pos.set(item.ref_(arena).end());
                 }
 
-                current_pos.set(array.end());
+                current_pos.set(array.ref_(arena).end());
             }),
+            arena,
         );
 
         let child_nodes_and_arrays: GcCell<Vec<RcNodeOrNodeArray>> = Default::default();
         for_each_child(
             node,
-            |child: &Node| {
+            |child: Id<Node>| {
                 child_nodes_and_arrays
                     .borrow_mut()
-                    .push(child.node_wrapper().into());
+                    .push(child.into());
             },
-            Some(|array: &NodeArray| {
+            Some(|array: Id<NodeArray>| {
                 child_nodes_and_arrays
                     .borrow_mut()
-                    .push(array.rc_wrapper().into());
+                    .push(array.into());
             }),
+            arena,
         );
 
         // for (const childName in node) {
@@ -127,18 +128,18 @@ fn assert_invariants_worker(
 
 #[derive(Trace, Finalize)]
 enum RcNodeOrNodeArray {
-    RcNode(Gc<Node>),
-    NodeArray(Gc<NodeArray>),
+    RcNode(Id<Node>),
+    NodeArray(Id<NodeArray>),
 }
 
-impl From<Gc<Node>> for RcNodeOrNodeArray {
-    fn from(value: Gc<Node>) -> Self {
+impl From<Id<Node>> for RcNodeOrNodeArray {
+    fn from(value: Id<Node>) -> Self {
         Self::RcNode(value)
     }
 }
 
-impl From<Gc<NodeArray>> for RcNodeOrNodeArray {
-    fn from(value: Gc<NodeArray>) -> Self {
+impl From<Id<NodeArray>> for RcNodeOrNodeArray {
+    fn from(value: Id<NodeArray>) -> Self {
         Self::NodeArray(value)
     }
 }

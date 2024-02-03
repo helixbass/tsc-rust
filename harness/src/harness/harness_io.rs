@@ -16,7 +16,7 @@ use typescript_rust::{
     normalize_slashes, option_declarations, ordered_remove_item_at, path_join, starts_with,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CommandLineOptionType, Extension, FileSystemEntries, StatLike,
-    HasArena, AllArenas, id_arena::Id, per_arena,
+    HasArena, AllArenas, id_arena::Id, per_arena, debug_cell,
 };
 
 use crate::{vfs, vpath, RunnerBase, StringOrFileBasedTest, HasArenaHarness, InArenaHarness};
@@ -259,7 +259,7 @@ pub fn set_light_mode(flag: bool) {
 }
 
 pub mod Compiler {
-    use std::{cmp, collections::HashMap, convert::TryInto, io};
+    use std::{cmp, collections::HashMap, convert::TryInto, io, borrow::Cow, cell::RefCell};
 
     use gc::{Finalize, Gc, GcCell, Trace};
     use regex::Regex;
@@ -277,7 +277,7 @@ pub mod Compiler {
         CompilerOptionsValue, Diagnostic, DiagnosticInterface,
         DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
         GetOrInsertDefault, NewLineKind, ScriptKind, ScriptReferenceHost,
-        StringOrDiagnosticMessage, TextSpan, HasArena, AllArenas,
+        StringOrDiagnosticMessage, TextSpan, HasArena, AllArenas, id_arena::Id, debug_cell, per_arena,
     };
 
     use super::{is_built_file, is_default_library_file, Baseline, TestCaseParser};
@@ -396,78 +396,84 @@ pub mod Compiler {
         }
     }
 
-    thread_local! {
-        pub(crate) static harness_option_declarations: Vec<Gc<CommandLineOption>> = vec![
-            CommandLineOptionBaseBuilder::default()
-                .name("allowNonTsExtensions".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("useCaseSensitiveFileNames".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("baselineFile".to_string())
-                .type_(CommandLineOptionType::String)
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("includeBuiltFile".to_string())
-                .type_(CommandLineOptionType::String)
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("fileName".to_string())
-                .type_(CommandLineOptionType::String)
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("libFiles".to_string())
-                .type_(CommandLineOptionType::String)
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("noErrorTruncation".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("suppressOutputPathCheck".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("noImplicitReferences".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("currentDirectory".to_string())
-                .type_(CommandLineOptionType::String)
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("symlink".to_string())
-                .type_(CommandLineOptionType::String)
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("link".to_string())
-                .type_(CommandLineOptionType::String)
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("noTypesAndSymbols".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-            CommandLineOptionBaseBuilder::default()
-                .name("fullEmitPaths".to_string())
-                .type_(CommandLineOptionType::Boolean)
-                .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap(),
-        ];
+    pub(crate) fn harness_option_declarations(arena: &impl HasArena) -> debug_cell::Ref<Vec<Id<CommandLineOption>>> {
+        per_arena!(
+            Vec<Id<CommandLineOption>>,
+            arena,
+            arena.alloc_vec_command_line_option(
+                vec![
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("allowNonTsExtensions".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("useCaseSensitiveFileNames".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("baselineFile".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("includeBuiltFile".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("fileName".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("libFiles".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("noErrorTruncation".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("suppressOutputPathCheck".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("noImplicitReferences".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("currentDirectory".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("symlink".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("link".to_string())
+                        .type_(CommandLineOptionType::String)
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("noTypesAndSymbols".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
+                        .name("fullEmitPaths".to_string())
+                        .type_(CommandLineOptionType::Boolean)
+                        .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
+                        .build().unwrap().try_into().unwrap()),
+                ]
+            )
+        )
     }
 
     thread_local! {
-        static options_index: GcCell<Option<HashMap<String, Gc<CommandLineOption>>>> = GcCell::new(None);
+        static options_index: RefCell<Option<HashMap<String, Id<CommandLineOption>>>> = RefCell::new(None);
     }
-    fn get_command_line_option(name: &str) -> Option<Gc<CommandLineOption>> {
+    fn get_command_line_option(name: &str, arena: &impl HasArena) -> Option<Id<CommandLineOption>> {
         options_index.with(|options_index_| {
             options_index_
                 .borrow_mut()
@@ -478,11 +484,9 @@ pub mod Compiler {
                             options_index_.insert(option.name().to_lowercase(), option.clone());
                         }
                     });
-                    harness_option_declarations.with(|harness_option_declarations_| {
-                        for option in harness_option_declarations_ {
-                            options_index_.insert(option.name().to_lowercase(), option.clone());
-                        }
-                    });
+                    for option in harness_option_declarations(arena) {
+                        options_index_.insert(option.name().to_lowercase(), option.clone());
+                    }
                     options_index_
                 })
                 .get(&name.to_lowercase())
@@ -496,9 +500,9 @@ pub mod Compiler {
         arena: &impl HasArena,
     ) {
         for (name, value) in settings {
-            let option = get_command_line_option(name);
+            let option = get_command_line_option(name, arena);
             if let Some(option) = option.as_ref() {
-                let mut errors: Vec<Gc<Diagnostic>> = vec![];
+                let mut errors: Vec<Id<Diagnostic>> = vec![];
                 if HarnessOptions::is_harness_option(name) {
                     options.harness_options.set_value_from_command_line_option(
                         option,
@@ -522,7 +526,7 @@ pub mod Compiler {
     fn option_value(
         option: &CommandLineOption,
         value: &str,
-        errors: &mut Vec<Gc<Diagnostic>>,
+        errors: &mut Vec<Id<Diagnostic>>,
         arena: &impl HasArena,
     ) -> CompilerOptionsValue {
         match option.type_() {
@@ -654,9 +658,9 @@ pub mod Compiler {
             fs.apply(symlinks)?;
         }
         let host =
-            fakes::CompilerHost::new(fs, Some(Gc::new(options.compiler_options.clone())), None)?;
+            fakes::CompilerHost::new(fs, Some(Gc::new(options.compiler_options.clone())), None, arena)?;
         let mut result =
-            compiler::compile_files(host, Some(&program_file_names), &options.compiler_options)?;
+            compiler::compile_files(host, Some(&program_file_names), &options.compiler_options, arena)?;
         result.symlinks = symlinks.cloned();
         Ok(result)
     }
@@ -670,7 +674,7 @@ pub mod Compiler {
         pub decl_input_files: Vec<Gc<TestFile>>,
         pub decl_other_files: Vec<Gc<TestFile>>,
         pub harness_settings: Option<TestCaseParser::CompilerSettings /*& HarnessOptions*/>,
-        pub options: Gc<CompilerOptions>,
+        pub options: Id<CompilerOptions>,
         pub current_directory: Option<String>,
     }
 
@@ -679,7 +683,7 @@ pub mod Compiler {
         other_files: &[Gc<TestFile>],
         result: &compiler::CompilationResult,
         harness_settings: &TestCaseParser::CompilerSettings, /*& HarnessOptions*/
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         current_directory: Option<&str>,
     ) -> io::Result<Option<DeclarationCompilationContext>> {
         if options.declaration == Some(true) && result.diagnostics.is_empty() {
@@ -852,7 +856,7 @@ pub mod Compiler {
     }
 
     pub fn minimal_diagnostics_to_string(
-        diagnostics: &[Gc<Diagnostic>],
+        diagnostics: &[Id<Diagnostic>],
         pretty: Option<bool>,
         arena: &impl HasArena,
     ) -> io::Result<String> {
@@ -871,8 +875,8 @@ pub mod Compiler {
             Ok("".to_owned())
         }
 
-        fn get_new_line(&self) -> &str {
-            get_io(self).new_line()
+        fn get_new_line(&self) -> Cow<str> {
+            get_io(self).new_line().into()
         }
 
         fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -894,7 +898,7 @@ pub mod Compiler {
 
     pub fn get_error_baseline(
         input_files: &[Gc<TestFile>],
-        diagnostics: &[Gc<Diagnostic>],
+        diagnostics: &[Id<Diagnostic>],
         pretty: Option<bool>,
         arena: &impl HasArenaHarness,
     ) -> io::Result<String> {
@@ -926,11 +930,11 @@ pub mod Compiler {
 
     pub fn iterate_error_baseline(
         input_files: &[Gc<TestFile>],
-        diagnostics: &[Gc<Diagnostic>],
+        diagnostics: &[Id<Diagnostic>],
         options: Option<IterateErrorBaselineOptions>,
         arena: &impl HasArenaHarness,
     ) -> io::Result<Vec<(String, String, usize)>> {
-        let diagnostics: Vec<_> = sort(diagnostics, |a: &Gc<Diagnostic>, b: &Gc<Diagnostic>| {
+        let diagnostics: Vec<_> = sort(diagnostics, |a: &Id<Diagnostic>, b: &Id<Diagnostic>| {
             compare_diagnostics(&**a, &**b, arena)
         })
         .into();
@@ -1113,7 +1117,7 @@ pub mod Compiler {
 
         let num_library_diagnostics = count_where(
             Some(&diagnostics),
-            |diagnostic: &Gc<Diagnostic>, _| {
+            |diagnostic: &Id<Diagnostic>, _| {
                 matches!(
                     diagnostic.maybe_file().as_ref(),
                     Some(diagnostic_file) if is_default_library_file(&diagnostic_file.as_source_file().file_name()) ||
@@ -1124,7 +1128,7 @@ pub mod Compiler {
 
         let num_test262_harness_diagnostics = count_where(
             Some(&diagnostics),
-            |diagnostic: &Gc<Diagnostic>, _| {
+            |diagnostic: &Id<Diagnostic>, _| {
                 matches!(
                     diagnostic.maybe_file().as_ref(),
                     Some(diagnostic_file) if diagnostic_file.as_source_file().file_name().contains("test262-harness")
@@ -1177,8 +1181,8 @@ pub mod Compiler {
                 .unwrap_or_else(|| "".to_owned()))
         }
 
-        fn get_new_line(&self) -> &str {
-            get_io(self).new_line()
+        fn get_new_line(&self) -> Cow<str> {
+            get_io(self).new_line().into()
         }
 
         fn get_canonical_file_name(&self, file_name: &str) -> String {
@@ -1284,7 +1288,7 @@ pub mod Compiler {
     pub fn do_error_baseline(
         baseline_path: &str,
         input_files: &[Gc<TestFile>],
-        errors: &[Gc<Diagnostic>],
+        errors: &[Id<Diagnostic>],
         pretty: Option<bool>,
         arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
@@ -1311,7 +1315,7 @@ pub mod Compiler {
     pub fn do_js_emit_baseline(
         baseline_path: &str,
         header: &str,
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         result: &compiler::CompilationResult,
         ts_config_files: &[Gc<TestFile>],
         to_be_compiled: &[Gc<TestFile>],
@@ -1632,7 +1636,7 @@ fn get_vary_by_star_setting_values(
     let option = option_declarations.with(|option_declarations_| {
         for_each(
             &**option_declarations_,
-            |decl: &Gc<CommandLineOption>, _| {
+            |decl: &Id<CommandLineOption>, _| {
                 if equate_strings_case_insensitive(decl.name(), vary_by) {
                     Some(decl.clone())
                 } else {

@@ -2,6 +2,7 @@ pub mod vfs {
     use derive_builder::Builder;
     use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
     use local_macros::enum_unwrapped;
+    use typescript_rust::id_arena::Id;
     use std::borrow::Cow;
     use std::cell::{Cell, Ref, RefCell, RefMut};
     use std::collections::HashMap;
@@ -11,11 +12,11 @@ pub mod vfs {
 
     use typescript_rust::{
         get_sys, io_error_from_name, is_option_str_empty, millis_since_epoch_to_system_time,
-        Buffer, Comparison, FileSystemEntries, Node,
+        Buffer, Comparison, FileSystemEntries, Node, HasArena, AllArenas,
     };
 
     use crate::collections::SortOptionsComparer;
-    use crate::{collections, documents, vpath};
+    use crate::{collections, documents, vpath, HasArenaHarness, AllArenasHarness};
 
     pub const built_folder: &'static str = "/.ts";
 
@@ -675,10 +676,10 @@ pub mod vfs {
             })
         }
 
-        pub fn write_file_sync<'data, TData: Into<StringOrRefBuffer<'data>>>(
+        pub fn write_file_sync<'a>(
             &self,
             path: &str,
-            data: TData,
+            data: impl Into<StringOrRefBuffer<'a>>,
             encoding: Option<&str>,
         ) -> io::Result<()> {
             let data = data.into();
@@ -726,7 +727,7 @@ pub mod vfs {
 
             node.as_file_inode().set_buffer(Some(match data {
                 StringOrRefBuffer::Buffer(data) => data.clone(),
-                StringOrRefBuffer::String(data) => get_sys()
+                StringOrRefBuffer::String(data) => get_sys(self)
                     .buffer_from(data, Some(encoding.unwrap_or("utf8")))
                     .unwrap(),
             }));
@@ -1214,15 +1215,27 @@ pub mod vfs {
         }
     }
 
+    impl HasArena for FileSystem {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for FileSystem {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
+        }
+    }
+
     #[derive(Clone, Trace, Finalize)]
     pub enum MetaValue {
         RcTextDocument(Gc<documents::TextDocument>),
-        RcNode(Gc<Node>),
+        Node(Id<Node>),
     }
 
     impl MetaValue {
-        pub fn as_rc_node(&self) -> &Gc<Node> {
-            enum_unwrapped!(self, [MetaValue, RcNode])
+        pub fn as_node(&self) -> &Id<Node> {
+            enum_unwrapped!(self, [MetaValue, Node])
         }
     }
 
@@ -1232,9 +1245,9 @@ pub mod vfs {
         }
     }
 
-    impl From<Gc<Node>> for MetaValue {
-        fn from(value: Gc<Node>) -> Self {
-            Self::RcNode(value)
+    impl From<Id<Node>> for MetaValue {
+        fn from(value: Id<Node>) -> Self {
+            Self::Node(value)
         }
     }
 
@@ -1399,9 +1412,15 @@ pub mod vfs {
         }
 
         pub fn read_file_sync(&self, path: &str) -> Buffer {
-            get_sys()
+            get_sys(self)
                 .buffer_from(self.host.read_file(path).unwrap(), Some("utf8"))
                 .unwrap()
+        }
+    }
+
+    impl HasArena for FileSystemResolver {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
         }
     }
 

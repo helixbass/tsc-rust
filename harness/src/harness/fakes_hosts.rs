@@ -15,7 +15,7 @@ pub mod fakes {
         return_ok_default_if_none, CompilerOptions, ConvertToTSConfigHost,
         DirectoryWatcherCallback, ExitStatus, FileSystemEntries, FileWatcher, FileWatcherCallback,
         ModuleResolutionHost, ModuleResolutionHostOverrider, Node, ScriptTarget, System as _,
-        WatchOptions,
+        WatchOptions, id_arena::Id, HasArena,
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
@@ -404,7 +404,6 @@ pub mod fakes {
 
     #[derive(Trace, Finalize)]
     pub struct CompilerHost {
-        _dyn_wrapper: GcCell<Option<Gc<Box<dyn typescript_rust::CompilerHost>>>>,
         pub sys: Gc<System>,
         pub default_lib_location: String,
         outputs: GcCell<Vec<Gc<documents::TextDocument>>>,
@@ -414,32 +413,33 @@ pub mod fakes {
         pub should_assert_invariants: bool,
 
         _set_parent_nodes: bool,
-        _source_files: GcCell<collections::SortedMap<String, Gc<Node /*SourceFile*/>>>,
+        _source_files: GcCell<collections::SortedMap<String, Id<Node /*SourceFile*/>>>,
         _parse_config_host: GcCell<Option<Gc<ParseConfigHost>>>,
         _new_line: String,
 
-        file_exists_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
-        directory_exists_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
-        read_file_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
-        write_file_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
-        realpath_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
-        get_directories_override: GcCell<Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>>,
+        file_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        directory_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        read_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        write_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        realpath_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        get_directories_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
     }
 
     impl CompilerHost {
         pub fn new(
             sys: impl Into<RcSystemOrRcFileSystem>,
-            options: Option<Gc<CompilerOptions>>,
+            options: Option<Id<CompilerOptions>>,
             set_parent_nodes: Option<bool>,
-        ) -> io::Result<Gc<Box<Self>>> {
+            arena: &impl HasArena,
+        ) -> io::Result<Id<Box<dyn typescript_rust::CompilerHost>>> {
             let sys = sys.into();
-            let options = options.unwrap_or_else(|| Gc::new(get_default_compiler_options()));
+            let options = options.unwrap_or_else(|| arena.alloc_compiler_options(get_default_compiler_options()));
             let set_parent_nodes = set_parent_nodes.unwrap_or(false);
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
                 RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
             };
-            let dyn_wrapper: Gc<Box<dyn typescript_rust::CompilerHost>> = Gc::new(Box::new(Self {
+            Ok(arena.alloc_compiler_host(Box::new(Self {
                 _dyn_wrapper: Default::default(),
                 sys: sys.clone(),
                 default_lib_location: {
@@ -454,6 +454,7 @@ pub mod fakes {
                 _new_line: get_new_line_character(
                     options.new_line,
                     Some(|| sys.new_line.to_owned()),
+                    arena,
                 ),
                 _source_files: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
@@ -462,7 +463,7 @@ pub mod fakes {
                         ))),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
-                    Option::<HashMap<String, Gc<Node>>>::None,
+                    Option::<HashMap<String, Id<Node>>>::None,
                 )),
                 _set_parent_nodes: set_parent_nodes,
                 _outputs_map: GcCell::new(collections::SortedMap::new(
@@ -484,14 +485,7 @@ pub mod fakes {
                 write_file_override: Default::default(),
                 realpath_override: Default::default(),
                 get_directories_override: Default::default(),
-            }));
-            let downcasted: Gc<Box<Self>> = unsafe { mem::transmute(dyn_wrapper.clone()) };
-            *downcasted._dyn_wrapper.borrow_mut() = Some(dyn_wrapper);
-            Ok(downcasted)
-        }
-
-        pub fn as_dyn_compiler_host(&self) -> Gc<Box<dyn typescript_rust::CompilerHost>> {
-            self._dyn_wrapper.borrow().clone().unwrap()
+            })))
         }
 
         pub fn outputs(&self) -> GcCellRef<Vec<Gc<documents::TextDocument>>> {
@@ -502,31 +496,35 @@ pub mod fakes {
             self.traces.borrow()
         }
 
-        fn maybe_file_exists_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
+        fn maybe_file_exists_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
             self.file_exists_override.borrow().clone()
         }
 
         fn maybe_directory_exists_override(
             &self,
-        ) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
+        ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
             self.directory_exists_override.borrow().clone()
         }
 
-        fn maybe_read_file_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
+        fn maybe_read_file_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
             self.read_file_override.borrow().clone()
         }
 
-        fn maybe_write_file_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
+        fn maybe_write_file_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
             self.write_file_override.borrow().clone()
         }
 
-        fn maybe_realpath_override(&self) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
-            self.realpath_override.borrow().clone()
+        fn maybe_realpath_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
+            self.realpath_override.get()
+        }
+
+        fn set_realpath_override(&self, realpath_override: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>) {
+            self.realpath_override.set(realpath_override);
         }
 
         fn maybe_get_directories_override(
             &self,
-        ) -> Option<Gc<Box<dyn ModuleResolutionHostOverrider>>> {
+        ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
             self.get_directories_override.borrow().clone()
         }
 
@@ -604,7 +602,7 @@ pub mod fakes {
             data: &str,
             write_byte_order_mark: bool,
             on_error: Option<&mut dyn FnMut(&str)>,
-            source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             if let Some(write_file_override) = self.maybe_write_file_override() {
                 write_file_override.write_file(
@@ -631,7 +629,7 @@ pub mod fakes {
             content: &str,
             write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             let mut content = content.to_owned();
             if write_byte_order_mark {
@@ -668,7 +666,7 @@ pub mod fakes {
 
         fn set_overriding_write_file(
             &self,
-            overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut write_file_override = self.write_file_override.borrow_mut();
             if write_file_override.is_some() && overriding_write_file.is_some() {
@@ -699,7 +697,7 @@ pub mod fakes {
             language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+        ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
             let canonical_file_name = self.get_canonical_file_name(&vpath::resolve(
                 &typescript_rust::CompilerHost::get_current_directory(self)?,
                 &[Some(file_name)],
@@ -728,7 +726,7 @@ pub mod fakes {
                 let source_file_from_metadata = meta
                     .borrow()
                     .get(cache_key)
-                    .map(|value| value.as_rc_node().clone());
+                    .map(|value| value.as_node().clone());
                 if let Some(source_file_from_metadata) =
                     source_file_from_metadata.filter(|source_file_from_metadata| {
                         source_file_from_metadata.get_full_text(None) == content
@@ -747,9 +745,10 @@ pub mod fakes {
                 language_version,
                 Some(self._set_parent_nodes || self.should_assert_invariants),
                 None,
+                self,
             )?;
             if self.should_assert_invariants {
-                Utils::assert_invariants(Some(&parsed), None);
+                Utils::assert_invariants(Some(&parsed), None, self);
             }
 
             self._source_files
@@ -816,7 +815,7 @@ pub mod fakes {
 
         fn set_overriding_create_directory(
             &self,
-            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -845,7 +844,7 @@ pub mod fakes {
 
         fn set_overriding_file_exists(
             &self,
-            overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut file_exists_override = self.file_exists_override.borrow_mut();
             if file_exists_override.is_some() && overriding_file_exists.is_some() {
@@ -874,7 +873,7 @@ pub mod fakes {
 
         fn set_overriding_directory_exists(
             &self,
-            overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut directory_exists_override = self.directory_exists_override.borrow_mut();
             if directory_exists_override.is_some() && overriding_directory_exists.is_some() {
@@ -903,7 +902,7 @@ pub mod fakes {
 
         fn set_overriding_get_directories(
             &self,
-            overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut get_directories_override = self.get_directories_override.borrow_mut();
             if get_directories_override.is_some() && overriding_get_directories.is_some() {
@@ -924,10 +923,10 @@ pub mod fakes {
 
         fn set_overriding_read_file(
             &self,
-            overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut read_file_override = self.read_file_override.borrow_mut();
-            if read_file_override.is_some() && overriding_read_file.is_some() {
+            if self.maybe_read_file_override().is_some() && overriding_read_file.is_some() {
                 panic!(
                     "Trying to re-override set_overriding_read_file(), need eg a stack instead?"
                 );
@@ -965,13 +964,13 @@ pub mod fakes {
 
         fn set_overriding_realpath(
             &self,
-            overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             let mut realpath_override = self.realpath_override.borrow_mut();
-            if realpath_override.is_some() && overriding_realpath.is_some() {
+            if self.maybe_realpath_override().is_some() && overriding_realpath.is_some() {
                 panic!("Trying to re-override set_overriding_realpath(), need eg a stack instead?");
             }
-            *realpath_override = overriding_realpath;
+            self.set_realpath_override(overriding_realpath);
         }
 
         fn get_current_directory(&self) -> Option<io::Result<String>> {

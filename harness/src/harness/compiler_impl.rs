@@ -8,7 +8,7 @@ pub mod compiler {
         get_pre_emit_diagnostics, is_option_str_empty, length, some, Comparison, CompilerOptions,
         CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
         DiagnosticRelatedInformation, EmitResult, Extension, ModuleKind, NewLineKind, Node,
-        NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike,
+        NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike, id_arena::Id, HasArena,
     };
 
     use crate::{
@@ -27,10 +27,10 @@ pub mod compiler {
 
     pub struct CompilationResult {
         pub host: Gc<Box<fakes::CompilerHost>>,
-        pub program: Option<Gc<Box<Program>>>,
+        pub program: Option<Id<Program>>,
         pub result: Option<EmitResult>,
-        pub options: Gc<CompilerOptions>,
-        pub diagnostics: Vec<Gc<Diagnostic>>,
+        pub options: Id<CompilerOptions>,
+        pub diagnostics: Vec<Id<Diagnostic>>,
         pub js: collections::SortedMap<String, Gc<documents::TextDocument>>,
         pub dts: collections::SortedMap<String, Gc<documents::TextDocument>>,
         pub maps: collections::SortedMap<String, Gc<documents::TextDocument>>,
@@ -43,10 +43,10 @@ pub mod compiler {
     impl CompilationResult {
         pub fn new(
             host: Gc<Box<fakes::CompilerHost>>,
-            options: Gc<CompilerOptions>,
-            program: Option<Gc<Box<Program>>>,
+            options: Id<CompilerOptions>,
+            program: Option<Id<Program>>,
             result: Option<EmitResult>,
-            diagnostics: Vec<Gc<Diagnostic>>,
+            diagnostics: Vec<Id<Diagnostic>>,
         ) -> io::Result<Self> {
             let options = if let Some(program) = program.as_ref() {
                 program.get_compiler_options()
@@ -350,6 +350,7 @@ pub mod compiler {
         host: Gc<Box<fakes::CompilerHost>>,
         root_files: Option<&[String]>,
         compiler_options: &CompilerOptions,
+        arena: &impl HasArena,
     ) -> io::Result<CompilationResult> {
         let mut compiler_options = compiler_options.clone();
         if compiler_options
@@ -399,12 +400,12 @@ pub mod compiler {
                 project_references: None,
                 old_program: None,
                 config_file_parsing_diagnostics: None,
-            })?)
+            }, arena)?)
         } else {
             None
         };
         let pre_errors = pre_program.clone().try_map(|pre_program| {
-            get_pre_emit_diagnostics(&pre_program.into(), Option::<&Node>::None, None)
+            get_pre_emit_diagnostics(&pre_program.into(), Option::<&Node>::None, None, arena)
         })?;
 
         let compiler_options = Gc::new(compiler_options);
@@ -415,11 +416,11 @@ pub mod compiler {
             project_references: None,
             old_program: None,
             config_file_parsing_diagnostics: None,
-        })?;
+        }, arena)?;
 
         let emit_result = program.emit(None, None, None, None, None, None)?;
         let post_errors =
-            get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None)?;
+            get_pre_emit_diagnostics(&program.clone().into(), Option::<&Node>::None, None, arena)?;
         let longer_errors = if length(pre_errors.as_deref()) > post_errors.len() {
             pre_errors.as_ref().unwrap()
         } else {
@@ -442,7 +443,7 @@ pub mod compiler {
         ) {
             let mut errors = shorter_errors.unwrap().clone();
             errors.push({
-                let diagnostic: Gc<Diagnostic> = Gc::new(
+                let diagnostic: Id<Diagnostic> = Gc::new(
                     create_compiler_diagnostic(
                         &DiagnosticMessage::new(
                             0, // -1
@@ -461,7 +462,7 @@ pub mod compiler {
                 add_related_info(
                     &diagnostic,
                     {
-                        let mut related_info: Vec<Gc<DiagnosticRelatedInformation>> = vec![
+                        let mut related_info: Vec<Id<DiagnosticRelatedInformation>> = vec![
                             Gc::new(
                                 create_compiler_diagnostic(
                                     &DiagnosticMessage::new(
@@ -478,9 +479,9 @@ pub mod compiler {
                         related_info.append(
                             &mut filter(
                                 &longer_errors.into_iter().map(|error| Gc::new((**error).clone().into())).collect::<Vec<_>>(),
-                                |p: &Gc<DiagnosticRelatedInformation>| !some(
+                                |p: &Id<DiagnosticRelatedInformation>| !some(
                                     shorter_errors.map(|shorter_errors| &**shorter_errors),
-                                    Some(|p2: &Gc<Diagnostic>| compare_diagnostics(&**p, &**p2) == Comparison::EqualTo)
+                                    Some(|p2: &Id<Diagnostic>| compare_diagnostics(&**p, &**p2, arena) == Comparison::EqualTo)
                                 )
                             )
                         );
