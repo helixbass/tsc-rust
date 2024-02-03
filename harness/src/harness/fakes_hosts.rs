@@ -455,24 +455,33 @@ pub mod fakes {
     pub struct CompilerHost {
         pub sys: Id<System>,
         pub default_lib_location: String,
-        outputs: GcCell<Vec<Id<documents::TextDocument>>>,
-        _outputs_map: GcCell<collections::SortedMap<String, usize>>,
+        #[unsafe_ignore_trace]
+        outputs: RefCell<Vec<Id<documents::TextDocument>>>,
+        #[unsafe_ignore_trace]
+        _outputs_map: RefCell<collections::SortedMap<String, usize>>,
         #[unsafe_ignore_trace]
         traces: RefCell<Vec<String>>,
         pub should_assert_invariants: bool,
 
         _set_parent_nodes: bool,
-        _source_files: GcCell<collections::SortedMap<String, Id<Node /*SourceFile*/>>>,
-        _parse_config_host: GcCell<Option<Id<ParseConfigHost>>>,
+        #[unsafe_ignore_trace]
+        _source_files: RefCell<collections::SortedMap<String, Id<Node /*SourceFile*/>>>,
+        #[unsafe_ignore_trace]
+        _parse_config_host: Cell<Option<Id<ParseConfigHost>>>,
         _new_line: String,
 
-        file_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        directory_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        read_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        write_file_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        #[unsafe_ignore_trace]
+        file_exists_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        #[unsafe_ignore_trace]
+        directory_exists_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        #[unsafe_ignore_trace]
+        read_file_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        #[unsafe_ignore_trace]
+        write_file_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
         #[unsafe_ignore_trace]
         realpath_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
-        get_directories_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
+        #[unsafe_ignore_trace]
+        get_directories_override: Cell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
     }
 
     impl CompilerHost {
@@ -509,7 +518,7 @@ pub mod fakes {
                     Some(|| sys.ref_(arena).new_line.to_owned()),
                     arena,
                 ),
-                _source_files: GcCell::new(collections::SortedMap::new(
+                _source_files: RefCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: arena.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
@@ -521,7 +530,7 @@ pub mod fakes {
                     Option::<HashMap<String, Id<Node>>>::None,
                 )),
                 _set_parent_nodes: set_parent_nodes,
-                _outputs_map: GcCell::new(collections::SortedMap::new(
+                _outputs_map: RefCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: arena.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
@@ -545,7 +554,7 @@ pub mod fakes {
             })))
         }
 
-        pub fn outputs(&self) -> GcCellRef<Vec<Id<documents::TextDocument>>> {
+        pub fn outputs(&self) -> Ref<Vec<Id<documents::TextDocument>>> {
             self.outputs.borrow()
         }
 
@@ -554,21 +563,21 @@ pub mod fakes {
         }
 
         fn maybe_file_exists_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-            self.file_exists_override.borrow().clone()
+            self.file_exists_override.get()
         }
 
         fn maybe_directory_exists_override(
             &self,
         ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-            self.directory_exists_override.borrow().clone()
+            self.directory_exists_override.get()
         }
 
         fn maybe_read_file_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-            self.read_file_override.borrow().clone()
+            self.read_file_override.get()
         }
 
         fn maybe_write_file_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-            self.write_file_override.borrow().clone()
+            self.write_file_override.get()
         }
 
         fn maybe_realpath_override(&self) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
@@ -585,7 +594,7 @@ pub mod fakes {
         fn maybe_get_directories_override(
             &self,
         ) -> Option<Id<Box<dyn ModuleResolutionHostOverrider>>> {
-            self.get_directories_override.borrow().clone()
+            self.get_directories_override.get()
         }
 
         pub fn vfs_id(&self) -> Id<vfs::FileSystem> {
@@ -597,15 +606,15 @@ pub mod fakes {
         }
 
         pub fn parse_config_host(&self) -> io::Result<Id<ParseConfigHost>> {
-            let mut parse_config_host = self._parse_config_host.borrow_mut();
-            if parse_config_host.is_none() {
-                *parse_config_host =
-                    Some(self.alloc_fakes_parse_config_host(ParseConfigHost::new(
+            if self._parse_config_host.get().is_none() {
+                self._parse_config_host.set(Some(
+                    self.alloc_fakes_parse_config_host(ParseConfigHost::new(
                         self.sys.clone(),
                         self,
-                    )?));
+                    )?),
+                ));
             }
-            Ok(parse_config_host.as_ref().unwrap().clone())
+            Ok(self._parse_config_host.get().unwrap())
         }
 
         pub fn delete_file(&self, file_name: &str) {
@@ -743,13 +752,12 @@ pub mod fakes {
             &self,
             overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
-            let mut write_file_override = self.write_file_override.borrow_mut();
-            if write_file_override.is_some() && overriding_write_file.is_some() {
+            if self.write_file_override.get().is_some() && overriding_write_file.is_some() {
                 panic!(
                     "Trying to re-override set_overriding_write_file(), need eg a stack instead?"
                 );
             }
-            *write_file_override = overriding_write_file;
+            self.write_file_override.set(overriding_write_file);
         }
 
         fn get_default_lib_location(&self) -> io::Result<Option<String>> {
@@ -925,13 +933,12 @@ pub mod fakes {
             &self,
             overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
-            let mut file_exists_override = self.file_exists_override.borrow_mut();
-            if file_exists_override.is_some() && overriding_file_exists.is_some() {
+            if self.file_exists_override.get().is_some() && overriding_file_exists.is_some() {
                 panic!(
                     "Trying to re-override set_overriding_file_exists(), need eg a stack instead?"
                 );
             }
-            *file_exists_override = overriding_file_exists;
+            self.file_exists_override.set(overriding_file_exists);
         }
 
         fn directory_exists(&self, directory_name: &str) -> Option<bool> {
@@ -956,13 +963,15 @@ pub mod fakes {
             &self,
             overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
-            let mut directory_exists_override = self.directory_exists_override.borrow_mut();
-            if directory_exists_override.is_some() && overriding_directory_exists.is_some() {
+            if self.directory_exists_override.get().is_some()
+                && overriding_directory_exists.is_some()
+            {
                 panic!(
                     "Trying to re-override set_overriding_directory_exists(), need eg a stack instead?"
                 );
             }
-            *directory_exists_override = overriding_directory_exists;
+            self.directory_exists_override
+                .set(overriding_directory_exists);
         }
 
         fn get_directories(&self, path: &str) -> Option<Vec<String>> {
@@ -985,13 +994,14 @@ pub mod fakes {
             &self,
             overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
-            let mut get_directories_override = self.get_directories_override.borrow_mut();
-            if get_directories_override.is_some() && overriding_get_directories.is_some() {
+            if self.get_directories_override.get().is_some() && overriding_get_directories.is_some()
+            {
                 panic!(
                     "Trying to re-override set_overriding_get_directories(), need eg a stack instead?"
                 );
             }
-            *get_directories_override = overriding_get_directories;
+            self.get_directories_override
+                .set(overriding_get_directories);
         }
 
         fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
@@ -1006,13 +1016,12 @@ pub mod fakes {
             &self,
             overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
-            let mut read_file_override = self.read_file_override.borrow_mut();
             if self.maybe_read_file_override().is_some() && overriding_read_file.is_some() {
                 panic!(
                     "Trying to re-override set_overriding_read_file(), need eg a stack instead?"
                 );
             }
-            *read_file_override = overriding_read_file;
+            self.read_file_override.set(overriding_read_file);
         }
 
         fn read_file_non_overridden(&self, path: &str) -> io::Result<Option<String>> {

@@ -1,6 +1,6 @@
 pub mod documents {
     use std::{
-        cell::{Ref, RefCell},
+        cell::{OnceCell, Ref, RefCell},
         collections::HashMap,
     };
 
@@ -21,7 +21,8 @@ pub mod documents {
 
         #[unsafe_ignore_trace]
         _line_starts: RefCell<Option<Vec<usize>>>,
-        _test_file: GcCell<Option<Id<Compiler::TestFile>>>,
+        #[unsafe_ignore_trace]
+        _test_file: OnceCell<Id<Compiler::TestFile>>,
     }
 
     impl TextDocument {
@@ -58,16 +59,13 @@ pub mod documents {
         }
 
         pub fn as_test_file(&self) -> Id<Compiler::TestFile> {
-            self._test_file
-                .borrow_mut()
-                .get_or_insert_with(|| {
-                    self.alloc_test_file(Compiler::TestFile {
-                        unit_name: self.file.clone(),
-                        content: self.text.clone(),
-                        file_options: Some(self.meta.clone()),
-                    })
+            *self._test_file.get_or_init(|| {
+                self.alloc_test_file(Compiler::TestFile {
+                    unit_name: self.file.clone(),
+                    content: self.text.clone(),
+                    file_options: Some(self.meta.clone()),
                 })
-                .clone()
+            })
         }
     }
 

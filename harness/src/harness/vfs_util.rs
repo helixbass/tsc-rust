@@ -9,7 +9,7 @@ pub mod vfs {
     };
 
     use derive_builder::Builder;
-    use gc::{Finalize, GcCell, GcCellRefMut, Trace};
+    use gc::{Finalize, Trace};
     use local_macros::enum_unwrapped;
     use typescript_rust::{
         debug_cell, get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
@@ -125,7 +125,8 @@ pub mod vfs {
 
         #[unsafe_ignore_trace]
         _cwd: RefCell<Option<String>>,
-        _time: GcCell<TimestampOrNowOrSystemTimeOrCallback>,
+        #[unsafe_ignore_trace]
+        _time: RefCell<TimestampOrNowOrSystemTimeOrCallback>,
         _shadow_root: Option<Id<FileSystem>>,
         #[unsafe_ignore_trace]
         _dir_stack: RefCell<Option<Vec<String>>>,
@@ -152,7 +153,7 @@ pub mod vfs {
                 ignore_case,
                 string_comparer: arena
                     .alloc_string_comparer(Box::new(StringComparerFileSystem::new(ignore_case))),
-                _time: GcCell::new(time),
+                _time: RefCell::new(time),
                 _cwd: Default::default(),
                 _dir_stack: Default::default(),
                 _lazy: Default::default(),
@@ -175,7 +176,7 @@ pub mod vfs {
                 None => true,
                 Some(cwd) => cwd.is_empty() || !vpath::is_root(cwd),
             } {
-                if let Some(lazy_links) = ret._lazy.links.borrow().as_ref() {
+                if let Some(lazy_links) = ret._lazy.links.get() {
                     for name in lazy_links.ref_(arena).keys() {
                         cwd = Some(if let Some(cwd_present) = cwd {
                             vpath::resolve(name, &[Some(&cwd_present)])
@@ -312,8 +313,8 @@ pub mod vfs {
         }
 
         pub fn _filemeta(&self, node: &Inode) -> Id<collections::Metadata<MetaValue>> {
-            node.meta_mut()
-                .get_or_insert_with(|| {
+            if node.meta().is_none() {
+                node.set_meta({
                     let parent_meta = if let (Some(node_shadow_root), Some(_shadow_root)) = (
                         node.maybe_shadow_root().as_ref(),
                         self._shadow_root.as_ref(),
@@ -326,9 +327,10 @@ pub mod vfs {
                     } else {
                         None
                     };
-                    self.alloc_metadata_metavalue(collections::Metadata::new(parent_meta))
-                })
-                .clone()
+                    Some(self.alloc_metadata_metavalue(collections::Metadata::new(parent_meta)))
+                });
+            }
+            node.meta().unwrap()
         }
 
         pub fn cwd(&self) -> io::Result<String> {
@@ -835,10 +837,8 @@ pub mod vfs {
         }
 
         fn _get_root_links(&self) -> Id<collections::SortedMap<String, Id<Inode>>> {
-            self._lazy
-                .links
-                .borrow_mut()
-                .get_or_insert_with(|| {
+            if self._lazy.links.get().is_none() {
+                self._lazy.links.set({
                     let mut _lazy_links = collections::SortedMap::new(
                         collections::SortOptions {
                             comparer: self.alloc_sort_options_comparer_string(Box::new(
@@ -860,9 +860,10 @@ pub mod vfs {
                             &mut _lazy_links,
                         );
                     }
-                    self.alloc_links(_lazy_links)
-                })
-                .clone()
+                    Some(self.alloc_links(_lazy_links))
+                });
+            }
+            self._lazy.links.get().unwrap()
         }
 
         fn _get_links(
@@ -1396,8 +1397,10 @@ pub mod vfs {
 
     #[derive(Default, Trace, Finalize)]
     struct FileSystemLazy {
-        links: GcCell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
-        shadows: GcCell<Option<HashMap<u32, Id<Inode>>>>,
+        #[unsafe_ignore_trace]
+        links: Cell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
+        #[unsafe_ignore_trace]
+        shadows: RefCell<Option<HashMap<u32, Id<Inode>>>>,
         #[unsafe_ignore_trace]
         meta: Cell<Option<Id<collections::Metadata<String>>>>,
     }
@@ -2081,11 +2084,19 @@ pub mod vfs {
             }
         }
 
-        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
+        pub fn meta(&self) -> Option<Id<collections::Metadata<MetaValue>>> {
             match self {
-                Self::FileInode(value) => value.meta_mut(),
-                Self::DirectoryInode(value) => value.meta_mut(),
-                Self::SymlinkInode(value) => value.meta_mut(),
+                Self::FileInode(value) => value.meta(),
+                Self::DirectoryInode(value) => value.meta(),
+                Self::SymlinkInode(value) => value.meta(),
+            }
+        }
+
+        pub fn set_meta(&self, meta: Option<Id<collections::Metadata<MetaValue>>>) {
+            match self {
+                Self::FileInode(value) => value.set_meta(meta),
+                Self::DirectoryInode(value) => value.set_meta(meta),
+                Self::SymlinkInode(value) => value.set_meta(meta),
             }
         }
 
@@ -2161,9 +2172,11 @@ pub mod vfs {
         buffer: RefCell<Option<Buffer>>,
         #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        resolver: GcCell<Option<Id<FileSystemResolver>>>,
+        #[unsafe_ignore_trace]
+        resolver: Cell<Option<Id<FileSystemResolver>>>,
         pub shadow_root: Option<Id<Inode /*FileInode*/>>,
-        meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
+        #[unsafe_ignore_trace]
+        meta: Cell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
     impl FileInode {
@@ -2241,15 +2254,19 @@ pub mod vfs {
         }
 
         pub fn maybe_resolver(&self) -> Option<Id<FileSystemResolver>> {
-            self.resolver.borrow().clone()
+            self.resolver.get()
         }
 
         pub fn set_resolver(&self, resolver: Option<Id<FileSystemResolver>>) {
-            *self.resolver.borrow_mut() = resolver;
+            self.resolver.set(resolver);
         }
 
-        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
-            self.meta.borrow_mut()
+        pub fn meta(&self) -> Option<Id<collections::Metadata<MetaValue>>> {
+            self.meta.get()
+        }
+
+        pub fn set_meta(&self, meta: Option<Id<collections::Metadata<MetaValue>>>) {
+            self.meta.set(meta);
         }
     }
 
@@ -2266,12 +2283,15 @@ pub mod vfs {
         pub birthtime_ms: u128,
         #[unsafe_ignore_trace]
         nlink: Cell<usize>,
-        links: GcCell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
+        #[unsafe_ignore_trace]
+        links: Cell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
         #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
-        resolver: GcCell<Option<Id<FileSystemResolver>>>,
+        #[unsafe_ignore_trace]
+        resolver: Cell<Option<Id<FileSystemResolver>>>,
         pub shadow_root: Option<Id<Inode /*DirectoryInode*/>>,
-        meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
+        #[unsafe_ignore_trace]
+        meta: Cell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
     impl DirectoryInode {
@@ -2328,11 +2348,11 @@ pub mod vfs {
         }
 
         pub fn maybe_links(&self) -> Option<Id<collections::SortedMap<String, Id<Inode>>>> {
-            self.links.borrow().clone()
+            self.links.get()
         }
 
         pub fn set_links(&self, links: Option<Id<collections::SortedMap<String, Id<Inode>>>>) {
-            *self.links.borrow_mut() = links;
+            self.links.set(links);
         }
 
         pub fn maybe_source(&self) -> Option<String> {
@@ -2344,15 +2364,19 @@ pub mod vfs {
         }
 
         pub fn maybe_resolver(&self) -> Option<Id<FileSystemResolver>> {
-            self.resolver.borrow().clone()
+            self.resolver.get()
         }
 
         pub fn set_resolver(&self, resolver: Option<Id<FileSystemResolver>>) {
-            *self.resolver.borrow_mut() = resolver;
+            self.resolver.set(resolver);
         }
 
-        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
-            self.meta.borrow_mut()
+        pub fn meta(&self) -> Option<Id<collections::Metadata<MetaValue>>> {
+            self.meta.get()
+        }
+
+        pub fn set_meta(&self, meta: Option<Id<collections::Metadata<MetaValue>>>) {
+            self.meta.set(meta);
         }
     }
 
@@ -2371,7 +2395,8 @@ pub mod vfs {
         nlink: Cell<usize>,
         pub symlink: Option<String>,
         pub shadow_root: Option<Id<Inode /*SymlinkInode*/>>,
-        meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
+        #[unsafe_ignore_trace]
+        meta: Cell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
     impl SymlinkInode {
@@ -2429,8 +2454,12 @@ pub mod vfs {
             self.symlink.as_ref().unwrap()
         }
 
-        pub fn meta_mut(&self) -> GcCellRefMut<Option<Id<collections::Metadata<MetaValue>>>> {
-            self.meta.borrow_mut()
+        pub fn meta(&self) -> Option<Id<collections::Metadata<MetaValue>>> {
+            self.meta.get()
+        }
+
+        pub fn set_meta(&self, meta: Option<Id<collections::Metadata<MetaValue>>>) {
+            self.meta.set(meta);
         }
     }
 
@@ -2464,39 +2493,81 @@ pub mod vfs {
     }
 
     thread_local! {
-        static built_local_host_: RefCell<Option<IdForFileSystemResolverHost>> = Default::default();
-        static built_local_ci_: GcCell<Option<Id<FileSystem>>> = Default::default();
-        static built_local_cs_: GcCell<Option<Id<FileSystem>>> = Default::default();
+        static BUILT_LOCAL_HOST_PER_ARENA: RefCell<HashMap<*const AllArenasHarness, IdForFileSystemResolverHost>> = RefCell::new(HashMap::new());
+        static BUILT_LOCAL_CI_PER_ARENA: RefCell<HashMap<*const AllArenasHarness, Id<FileSystem>>> = RefCell::new(HashMap::new());
+        static BUILT_LOCAL_CS_PER_ARENA: RefCell<HashMap<*const AllArenasHarness, Id<FileSystem>>> = RefCell::new(HashMap::new());
     }
 
-    fn maybe_built_local_host() -> Option<IdForFileSystemResolverHost> {
-        built_local_host_.with(|built_local_host| built_local_host.borrow().clone())
-    }
-
-    fn set_built_local_host(value: Option<IdForFileSystemResolverHost>) {
-        built_local_host_.with(|built_local_host| {
-            *built_local_host.borrow_mut() = value;
+    fn maybe_built_local_host(arena: &impl HasArenaHarness) -> Option<IdForFileSystemResolverHost> {
+        BUILT_LOCAL_HOST_PER_ARENA.with(|per_arena| {
+            let per_arena = per_arena.borrow();
+            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            per_arena.get(&arena_ptr).copied()
         })
     }
 
-    fn maybe_built_local_ci() -> Option<Id<FileSystem>> {
-        built_local_ci_.with(|built_local_ci| built_local_ci.borrow().clone())
+    fn set_built_local_host(
+        value: Option<IdForFileSystemResolverHost>,
+        arena: &impl HasArenaHarness,
+    ) {
+        BUILT_LOCAL_HOST_PER_ARENA.with(|per_arena| {
+            let mut per_arena = per_arena.borrow_mut();
+            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            match value {
+                Some(value) => {
+                    per_arena.insert(arena_ptr, value);
+                }
+                None => {
+                    per_arena.remove(&arena_ptr);
+                }
+            }
+        });
     }
 
-    fn set_built_local_ci(value: Option<Id<FileSystem>>) {
-        built_local_ci_.with(|built_local_ci| {
-            *built_local_ci.borrow_mut() = value;
+    fn maybe_built_local_ci(arena: &impl HasArenaHarness) -> Option<Id<FileSystem>> {
+        BUILT_LOCAL_CI_PER_ARENA.with(|per_arena| {
+            let per_arena = per_arena.borrow();
+            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            per_arena.get(&arena_ptr).copied()
         })
     }
 
-    fn maybe_built_local_cs() -> Option<Id<FileSystem>> {
-        built_local_cs_.with(|built_local_cs| built_local_cs.borrow().clone())
+    fn set_built_local_ci(value: Option<Id<FileSystem>>, arena: &impl HasArenaHarness) {
+        BUILT_LOCAL_CI_PER_ARENA.with(|per_arena| {
+            let mut per_arena = per_arena.borrow_mut();
+            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            match value {
+                Some(value) => {
+                    per_arena.insert(arena_ptr, value);
+                }
+                None => {
+                    per_arena.remove(&arena_ptr);
+                }
+            }
+        });
     }
 
-    fn set_built_local_cs(value: Option<Id<FileSystem>>) {
-        built_local_cs_.with(|built_local_cs| {
-            *built_local_cs.borrow_mut() = value;
+    fn maybe_built_local_cs(arena: &impl HasArenaHarness) -> Option<Id<FileSystem>> {
+        BUILT_LOCAL_CS_PER_ARENA.with(|per_arena| {
+            let per_arena = per_arena.borrow(;
+            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            per_arena.get(&arena_ptr).copied()
         })
+    }
+
+    fn set_built_local_cs(value: Option<Id<FileSystem>>, arena: &impl HasArenaHarness) {
+        BUILT_LOCAL_CS_PER_ARENA.with(|per_arena| {
+            let mut per_arena = per_arena.borrow_mut();
+            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            match value {
+                Some(value) => {
+                    per_arena.insert(arena_ptr, value);
+                }
+                None => {
+                    per_arena.remove(&arena_ptr);
+                }
+            }
+        });
     }
 
     fn get_built_local(
@@ -2505,90 +2576,102 @@ pub mod vfs {
         arena: &impl HasArenaHarness,
     ) -> io::Result<Id<FileSystem>> {
         if !matches!(
-            maybe_built_local_host(),
+            maybe_built_local_host(arena),
             Some(built_local_host) if built_local_host == host
         ) {
-            set_built_local_ci(None);
-            set_built_local_cs(None);
-            set_built_local_host(Some(host.clone()));
+            set_built_local_ci(None, arena);
+            set_built_local_cs(None, arena);
+            set_built_local_host(Some(host.clone()), arena);
         }
-        if maybe_built_local_ci().is_none() {
+        if maybe_built_local_ci(arena).is_none() {
             let resolver = arena.alloc_file_system_resolver(create_resolver(host));
-            set_built_local_ci(Some(
-                arena.alloc_file_system(FileSystem::new(
-                    true,
-                    Some(FileSystemOptions {
-                        files: Some(FileSet::from_iter(IntoIterator::into_iter([
-                            (
+            set_built_local_ci(
+                Some(
+                    arena.alloc_file_system(FileSystem::new(
+                        true,
+                        Some(FileSystemOptions {
+                            files: Some(FileSet::from_iter(IntoIterator::into_iter([
+                                (
+                                    built_folder.to_owned(),
+                                    Some(
+                                        Mount::new(
+                                            // vpath::resolve(
+                                            //     &host.get_workspace_root(),
+                                            //     &[Some("built/local")],
+                                            // ),
+                                            "/Users/jrosse/prj/TypeScript/built/local/".to_owned(),
+                                            resolver.clone(),
+                                            None,
+                                        )
+                                        .into(),
+                                    ),
+                                ),
+                                (
+                                    test_lib_folder.to_owned(),
+                                    Some(
+                                        Mount::new(
+                                            // vpath::resolve(
+                                            //     &host.get_workspace_root(),
+                                            //     &[Some("tests/lib")],
+                                            // ),
+                                            "/Users/jrosse/prj/TypeScript/tests/lib".to_owned(),
+                                            resolver.clone(),
+                                            None,
+                                        )
+                                        .into(),
+                                    ),
+                                ),
+                                (
+                                    projects_folder.to_owned(),
+                                    Some(
+                                        Mount::new(
+                                            vpath::resolve(
+                                                &host.ref_(arena).get_workspace_root(),
+                                                &[Some("tests/projects")],
+                                            ),
+                                            resolver.clone(),
+                                            None,
+                                        )
+                                        .into(),
+                                    ),
+                                ),
+                                (src_folder.to_owned(), Some(FileSet::new().into())),
+                            ]))),
+                            cwd: Some(src_folder.to_owned()),
+                            meta: Some(HashMap::from_iter(IntoIterator::into_iter([(
+                                "defaultLibLocation".to_owned(),
                                 built_folder.to_owned(),
-                                Some(
-                                    Mount::new(
-                                        // vpath::resolve(
-                                        //     &host.get_workspace_root(),
-                                        //     &[Some("built/local")],
-                                        // ),
-                                        "/Users/jrosse/prj/TypeScript/built/local/".to_owned(),
-                                        resolver.clone(),
-                                        None,
-                                    )
-                                    .into(),
-                                ),
-                            ),
-                            (
-                                test_lib_folder.to_owned(),
-                                Some(
-                                    Mount::new(
-                                        // vpath::resolve(
-                                        //     &host.get_workspace_root(),
-                                        //     &[Some("tests/lib")],
-                                        // ),
-                                        "/Users/jrosse/prj/TypeScript/tests/lib".to_owned(),
-                                        resolver.clone(),
-                                        None,
-                                    )
-                                    .into(),
-                                ),
-                            ),
-                            (
-                                projects_folder.to_owned(),
-                                Some(
-                                    Mount::new(
-                                        vpath::resolve(
-                                            &host.ref_(arena).get_workspace_root(),
-                                            &[Some("tests/projects")],
-                                        ),
-                                        resolver.clone(),
-                                        None,
-                                    )
-                                    .into(),
-                                ),
-                            ),
-                            (src_folder.to_owned(), Some(FileSet::new().into())),
-                        ]))),
-                        cwd: Some(src_folder.to_owned()),
-                        meta: Some(HashMap::from_iter(IntoIterator::into_iter([(
-                            "defaultLibLocation".to_owned(),
-                            built_folder.to_owned(),
-                        )]))),
-                        time: None,
-                    }),
-                    arena,
-                )?),
-            ));
-            maybe_built_local_ci().unwrap().ref_(arena).make_readonly();
+                            )]))),
+                            time: None,
+                        }),
+                        arena,
+                    )?),
+                ),
+                arena,
+            );
+            maybe_built_local_ci(arena)
+                .unwrap()
+                .ref_(arena)
+                .make_readonly();
         }
         if ignore_case {
-            return Ok(maybe_built_local_ci().unwrap());
+            return Ok(maybe_built_local_ci(arena).unwrap());
         }
-        if maybe_built_local_cs().is_none() {
-            set_built_local_cs(Some(arena.alloc_file_system(FileSystem::shadow(
-                maybe_built_local_ci().unwrap(),
-                Some(false),
+        if maybe_built_local_cs(arena).is_none() {
+            set_built_local_cs(
+                Some(arena.alloc_file_system(FileSystem::shadow(
+                    maybe_built_local_ci(arena).unwrap(),
+                    Some(false),
+                    arena,
+                )?)),
                 arena,
-            )?)));
-            maybe_built_local_cs().unwrap().ref_(arena).make_readonly();
+            );
+            maybe_built_local_cs(arena)
+                .unwrap()
+                .ref_(arena)
+                .make_readonly();
         }
-        Ok(maybe_built_local_cs().unwrap())
+        Ok(maybe_built_local_cs(arena).unwrap())
     }
 
     fn normalize_file_set_entry(value: Option<&FileSetValue>) -> Option<Cow<'_, FileSetValue>> {

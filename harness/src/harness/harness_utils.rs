@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use gc::{Finalize, GcCell, Trace};
 use once_cell::sync::Lazy;
@@ -114,7 +114,7 @@ fn assert_invariants_worker(
             arena,
         );
 
-        let child_nodes_and_arrays: GcCell<Vec<RcNodeOrNodeArray>> = Default::default();
+        let child_nodes_and_arrays: RefCell<Vec<RcNodeOrNodeArray>> = Default::default();
         for_each_child(
             node,
             |child: Id<Node>| {
