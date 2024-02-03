@@ -10,7 +10,7 @@ use crate::{
     documents::TextDocument,
     fakes::{ParseConfigHost, System},
     harness::harness_io::NodeIO,
-    vfs::{FileSystem, FileSystemResolverHost},
+    vfs::{FileSystem, FileSystemResolverHost, StringComparer},
     Compiler::TestFile,
     MetaValue, RunnerBaseSub,
     Utils::{DiagnosticMessageReplacer, Replacer},
@@ -32,6 +32,7 @@ pub struct AllArenasHarness {
     diagnostic_message_replacers: RefCell<Arena<DiagnosticMessageReplacer>>,
     systems: RefCell<Arena<System>>,
     parse_config_hosts: RefCell<Arena<ParseConfigHost>>,
+    string_comparers: RefCell<Arena<Box<dyn StringComparer>>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -214,6 +215,20 @@ pub trait HasArenaHarness: HasArena {
     ) -> Id<ParseConfigHost> {
         self.arena_harness()
             .alloc_fakes_parse_config_host(parse_config_host)
+    }
+
+    fn string_comparer(
+        &self,
+        string_comparer: Id<Box<dyn StringComparer>>,
+    ) -> Ref<Box<dyn StringComparer>> {
+        self.arena_harness().string_comparer(string_comparer)
+    }
+
+    fn alloc_string_comparer(
+        &self,
+        string_comparer: Box<dyn StringComparer>,
+    ) -> Id<Box<dyn StringComparer>> {
+        self.arena_harness().alloc_string_comparer(string_comparer)
     }
 }
 
@@ -461,6 +476,23 @@ impl HasArenaHarness for AllArenasHarness {
             .alloc(parse_config_host);
         id
     }
+
+    fn string_comparer(
+        &self,
+        string_comparer: Id<Box<dyn StringComparer>>,
+    ) -> Ref<Box<dyn StringComparer>> {
+        Ref::map(self.string_comparers.borrow(), |string_comparers| {
+            &string_comparers[string_comparer]
+        })
+    }
+
+    fn alloc_string_comparer(
+        &self,
+        string_comparer: Box<dyn StringComparer>,
+    ) -> Id<Box<dyn StringComparer>> {
+        let id = self.string_comparers.borrow_mut().alloc(string_comparer);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -595,6 +627,14 @@ impl InArenaHarness for Id<ParseConfigHost> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, ParseConfigHost> {
         has_arena.fakes_parse_config_host(*self)
+    }
+}
+
+impl InArenaHarness for Id<Box<dyn StringComparer>> {
+    type Item = Box<dyn StringComparer>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Box<dyn StringComparer>> {
+        has_arena.string_comparer(*self)
     }
 }
 

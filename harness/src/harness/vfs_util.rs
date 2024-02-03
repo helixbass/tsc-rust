@@ -90,25 +90,37 @@ pub mod vfs {
 
     #[derive(Trace, Finalize)]
     pub struct SortOptionsComparerFromStringComparer {
-        string_comparer: Gc<Box<dyn StringComparer>>,
+        string_comparer: Id<Box<dyn StringComparer>>,
     }
 
     impl SortOptionsComparerFromStringComparer {
-        pub fn new(string_comparer: Gc<Box<dyn StringComparer>>) -> Self {
+        pub fn new(string_comparer: Id<Box<dyn StringComparer>>) -> Self {
             Self { string_comparer }
         }
     }
 
     impl SortOptionsComparer<String> for SortOptionsComparerFromStringComparer {
         fn call(&self, a: &String, b: &String) -> Comparison {
-            self.string_comparer.call(a, b)
+            self.string_comparer.ref_(self).call(a, b)
+        }
+    }
+
+    impl HasArena for SortOptionsComparerFromStringComparer {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for SortOptionsComparerFromStringComparer {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
         }
     }
 
     #[derive(Trace, Finalize)]
     pub struct FileSystem {
         pub ignore_case: bool,
-        pub string_comparer: Gc<Box<dyn StringComparer>>,
+        pub string_comparer: Id<Box<dyn StringComparer>>,
         _lazy: FileSystemLazy,
 
         #[unsafe_ignore_trace]
@@ -122,7 +134,11 @@ pub mod vfs {
     }
 
     impl FileSystem {
-        pub fn new(ignore_case: bool, options: Option<FileSystemOptions>) -> io::Result<Self> {
+        pub fn new(
+            ignore_case: bool,
+            options: Option<FileSystemOptions>,
+            arena: &impl HasArenaHarness,
+        ) -> io::Result<Self> {
             let options = options.unwrap_or_default();
             let FileSystemOptions {
                 time,
@@ -134,7 +150,8 @@ pub mod vfs {
 
             let ret = Self {
                 ignore_case,
-                string_comparer: Gc::new(Box::new(StringComparerFileSystem::new(ignore_case))),
+                string_comparer: arena
+                    .alloc_string_comparer(Box::new(StringComparerFileSystem::new(ignore_case))),
                 _time: GcCell::new(time),
                 _cwd: Default::default(),
                 _dir_stack: Default::default(),
@@ -246,6 +263,7 @@ pub mod vfs {
                     cwd: None,
                     meta: None,
                 }),
+                arena,
             )?;
             fs._shadow_root = Some(this.clone());
             fs.set_cwd(this.ref_(arena).maybe_cwd().clone());
@@ -1142,7 +1160,10 @@ pub mod vfs {
                 self.pushd(Some(&vpath::dirname(&path)))?;
                 match entry {
                     FileSetValue::Symlink(entry) => {
-                        if self.string_comparer.call(&vpath::dirname(&path), &path)
+                        if self
+                            .string_comparer
+                            .ref_(self)
+                            .call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be symbolic links.");
@@ -1154,7 +1175,10 @@ pub mod vfs {
                         self._apply_file_extended_options(&path, entry.meta.as_ref())?;
                     }
                     FileSetValue::Link(entry) => {
-                        if self.string_comparer.call(&vpath::dirname(&path), &path)
+                        if self
+                            .string_comparer
+                            .ref_(self)
+                            .call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be hard links.");
@@ -1206,7 +1230,10 @@ pub mod vfs {
 
                 match value.as_deref() {
                     None | Some(FileSetValue::Rmdir(_)) | Some(FileSetValue::Unlink(_)) => {
-                        if self.string_comparer.call(&vpath::dirname(&path), &path)
+                        if self
+                            .string_comparer
+                            .ref_(self)
+                            .call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be deleted.");
@@ -1214,7 +1241,10 @@ pub mod vfs {
                         self.rimraf_sync(&path);
                     }
                     Some(FileSetValue::File(value)) => {
-                        if self.string_comparer.call(&vpath::dirname(&path), &path)
+                        if self
+                            .string_comparer
+                            .ref_(self)
+                            .call(&vpath::dirname(&path), &path)
                             == Comparison::EqualTo
                         {
                             panic!("Roots cannot be files.");
@@ -2501,6 +2531,7 @@ pub mod vfs {
                         )]))),
                         time: None,
                     }),
+                    arena,
                 )?),
             ));
             maybe_built_local_ci().unwrap().ref_(arena).make_readonly();
