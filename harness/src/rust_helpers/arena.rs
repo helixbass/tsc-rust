@@ -5,8 +5,10 @@ use typescript_rust::{
 };
 
 use crate::{
-    compiler::CompilationOutput, documents::TextDocument, harness::harness_io::NodeIO,
-    vfs::FileSystemResolverHost,
+    compiler::CompilationOutput,
+    documents::TextDocument,
+    harness::harness_io::NodeIO,
+    vfs::{FileSystem, FileSystemResolverHost},
 };
 
 pub struct AllArenasHarness {
@@ -15,6 +17,7 @@ pub struct AllArenasHarness {
     file_system_resolver_hosts: RefCell<Arena<Box<dyn FileSystemResolverHost>>>,
     text_documents: RefCell<Arena<TextDocument>>,
     compilation_outputs: RefCell<Arena<CompilationOutput>>,
+    file_systems: RefCell<Arena<FileSystem>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -65,6 +68,14 @@ pub trait HasArenaHarness: HasArena {
     ) -> Id<CompilationOutput> {
         self.arena_harness()
             .alloc_compilation_output(compilation_output)
+    }
+
+    fn file_system(&self, file_system: Id<FileSystem>) -> Ref<FileSystem> {
+        self.arena_harness().file_system(file_system)
+    }
+
+    fn alloc_file_system(&self, file_system: FileSystem) -> Id<FileSystem> {
+        self.arena_harness().alloc_file_system(file_system)
     }
 }
 
@@ -139,6 +150,17 @@ impl HasArenaHarness for AllArenasHarness {
             .alloc(compilation_output);
         id
     }
+
+    fn file_system(&self, file_system: Id<FileSystem>) -> Ref<FileSystem> {
+        Ref::map(self.file_systems.borrow(), |file_systems| {
+            &file_systems[file_system]
+        })
+    }
+
+    fn alloc_file_system(&self, file_system: FileSystem) -> Id<FileSystem> {
+        let id = self.file_systems.borrow_mut().alloc(file_system);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -182,6 +204,14 @@ impl InArenaHarness for Id<CompilationOutput> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, CompilationOutput> {
         has_arena.compilation_output(*self)
+    }
+}
+
+impl InArenaHarness for Id<FileSystem> {
+    type Item = FileSystem;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, FileSystem> {
+        has_arena.file_system(*self)
     }
 }
 

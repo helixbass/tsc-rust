@@ -11,12 +11,13 @@ pub mod fakes {
 
     use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
     use typescript_rust::{
-        continue_if_err, create_source_file, generate_djb2_hash, get_default_lib_file_name,
-        get_new_line_character, id_arena::Id, match_files, millis_since_epoch_to_system_time,
-        not_implemented, return_ok_default_if_none, AllArenas, CompilerOptions,
-        ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus, FileSystemEntries,
-        FileWatcher, FileWatcherCallback, HasArena, InArena, ModuleResolutionHost,
-        ModuleResolutionHostOverrider, Node, ScriptTarget, System as _, WatchOptions,
+        continue_if_err, create_source_file, debug_cell, generate_djb2_hash,
+        get_default_lib_file_name, get_new_line_character, id_arena::Id, match_files,
+        millis_since_epoch_to_system_time, not_implemented, return_ok_default_if_none, AllArenas,
+        CompilerOptions, ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus,
+        FileSystemEntries, FileWatcher, FileWatcherCallback, HasArena, InArena,
+        ModuleResolutionHost, ModuleResolutionHostOverrider, Node, ScriptTarget, System as _,
+        WatchOptions,
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
@@ -36,7 +37,7 @@ pub mod fakes {
 
     #[derive(Trace, Finalize)]
     pub struct System {
-        pub vfs: Gc<vfs::FileSystem>,
+        pub vfs: Id<vfs::FileSystem>,
         pub args: Vec<String>,
         #[unsafe_ignore_trace]
         output: RefCell<Vec<String>>,
@@ -51,20 +52,24 @@ pub mod fakes {
     }
 
     impl System {
-        pub fn new(vfs: Gc<vfs::FileSystem>, options: Option<SystemOptions>) -> io::Result<Self> {
+        pub fn new(
+            vfs: Id<vfs::FileSystem>,
+            options: Option<SystemOptions>,
+            arena: &impl HasArenaHarness,
+        ) -> io::Result<Self> {
             let SystemOptions {
                 executing_file_path,
                 new_line,
                 env,
             } = options.unwrap_or_default();
             let new_line = new_line.unwrap_or("\r\n");
-            let use_case_sensitive_file_names = !vfs.ignore_case;
+            let use_case_sensitive_file_names = !vfs.ref_(arena).ignore_case;
             Ok(Self {
                 args: Default::default(),
                 output: Default::default(),
                 exit_code: Default::default(),
-                vfs: if vfs.is_readonly() {
-                    Gc::new(vfs::FileSystem::shadow(vfs, None)?)
+                vfs: if vfs.ref_(arena).is_readonly() {
+                    arena.alloc_file_system(vfs::FileSystem::shadow(vfs, None, arena)?)
                 } else {
                     vfs
                 },
@@ -79,9 +84,11 @@ pub mod fakes {
         pub fn get_accessible_file_system_entries(&self, path: &str) -> FileSystemEntries {
             let mut files: Vec<String> = vec![];
             let mut directories: Vec<String> = vec![];
-            for file in self.vfs.readdir_sync(path).unwrap_or_default() {
-                let stats =
-                    continue_if_err!(self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)])));
+            for file in self.vfs.ref_(self).readdir_sync(path).unwrap_or_default() {
+                let stats = continue_if_err!(self
+                    .vfs
+                    .ref_(self)
+                    .stat_sync(&vpath::combine(path, &[Some(&file)])));
                 if stats.is_file() {
                     files.push(file);
                 } else if stats.is_directory() {
@@ -93,8 +100,8 @@ pub mod fakes {
 
         fn _get_stats(&self, path: &str) -> Option<vfs::Stats> {
             // try {
-            if self.vfs.exists_sync(path).ok()? {
-                Some(self.vfs.stat_sync(path).ok()?)
+            if self.vfs.ref_(self).exists_sync(path).ok()? {
+                Some(self.vfs.ref_(self).stat_sync(path).ok()?)
             } else {
                 None
             }
@@ -131,6 +138,7 @@ pub mod fakes {
             // try {
             let content = self
                 .vfs
+                .ref_(self)
                 .read_file_sync(path, Some("utf8"))
                 .ok()
                 .map(|string_or_buffer| string_or_buffer.as_string_owned());
@@ -147,8 +155,8 @@ pub mod fakes {
             data: &str,
             write_byte_order_mark: Option<bool>,
         ) -> io::Result<()> {
-            self.vfs.mkdirp_sync(&vpath::dirname(path))?;
-            self.vfs.write_file_sync(
+            self.vfs.ref_(self).mkdirp_sync(&vpath::dirname(path))?;
+            self.vfs.ref_(self).write_file_sync(
                 path,
                 if write_byte_order_mark == Some(true) {
                     Utils::add_utf8_byte_order_mark(data.to_owned())
@@ -165,7 +173,7 @@ pub mod fakes {
         }
 
         fn delete_file(&self, path: &str) {
-            self.vfs.unlink_sync(path);
+            self.vfs.ref_(self).unlink_sync(path);
         }
 
         fn file_exists(&self, path: &str) -> bool {
@@ -179,15 +187,19 @@ pub mod fakes {
         }
 
         fn create_directory(&self, path: &str) -> io::Result<()> {
-            self.vfs.mkdirp_sync(path)?;
+            self.vfs.ref_(self).mkdirp_sync(path)?;
 
             Ok(())
         }
 
         fn get_directories(&self, path: &str) -> Vec<String> {
             let mut result: Vec<String> = Default::default();
-            for file in self.vfs.readdir_sync(path).unwrap_or_default() {
-                match self.vfs.stat_sync(&vpath::combine(path, &[Some(&file)])) {
+            for file in self.vfs.ref_(self).readdir_sync(path).unwrap_or_default() {
+                match self
+                    .vfs
+                    .ref_(self)
+                    .stat_sync(&vpath::combine(path, &[Some(&file)]))
+                {
                     Err(_) => break,
                     Ok(value) if value.is_directory() => {
                         result.push(file);
@@ -235,7 +247,7 @@ pub mod fakes {
         }
 
         fn resolve_path(&self, path: &str) -> io::Result<String> {
-            Ok(vpath::resolve(&self.vfs.cwd()?, &[Some(path)]))
+            Ok(vpath::resolve(&self.vfs.ref_(self).cwd()?, &[Some(path)]))
         }
 
         fn get_executing_file_path(&self) -> Cow<'static, str> {
@@ -259,7 +271,7 @@ pub mod fakes {
         }
 
         fn set_modified_time(&self, path: &str, time: SystemTime) {
-            self.vfs.utimes_sync(path, time, time);
+            self.vfs.ref_(self).utimes_sync(path, time, time);
         }
 
         fn is_create_hash_supported(&self) -> bool {
@@ -271,7 +283,7 @@ pub mod fakes {
         }
 
         fn realpath(&self, path: &str) -> Option<String> {
-            match self.vfs.realpath_sync(path) {
+            match self.vfs.ref_(self).realpath_sync(path) {
                 Err(_) => Some(path.to_owned()),
                 Ok(value) => Some(value),
             }
@@ -286,7 +298,9 @@ pub mod fakes {
         }
 
         fn now(&self) -> Option<SystemTime> {
-            Some(millis_since_epoch_to_system_time(self.vfs.time()))
+            Some(millis_since_epoch_to_system_time(
+                self.vfs.ref_(self).time(),
+            ))
         }
 
         fn args(&self) -> &[String] {
@@ -337,11 +351,23 @@ pub mod fakes {
 
     impl ConvertToTSConfigHost for System {
         fn get_current_directory(&self) -> io::Result<String> {
-            self.vfs.cwd()
+            self.vfs.ref_(self).cwd()
         }
 
         fn use_case_sensitive_file_names(&self) -> bool {
             self.use_case_sensitive_file_names
+        }
+    }
+
+    impl HasArena for System {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for System {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
         }
     }
 
@@ -351,16 +377,21 @@ pub mod fakes {
     }
 
     impl ParseConfigHost {
-        pub fn new(sys: impl Into<RcSystemOrRcFileSystem>) -> io::Result<Self> {
+        pub fn new(
+            sys: impl Into<RcSystemOrRcFileSystem>,
+            arena: &impl HasArenaHarness,
+        ) -> io::Result<Self> {
             let sys = sys.into();
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => {
+                    Gc::new(System::new(sys, None, arena)?)
+                }
             };
             Ok(Self { sys })
         }
 
-        pub fn vfs(&self) -> Gc<vfs::FileSystem> {
+        pub fn vfs(&self) -> Id<vfs::FileSystem> {
             self.sys.vfs.clone()
         }
 
@@ -432,7 +463,7 @@ pub mod fakes {
             sys: impl Into<RcSystemOrRcFileSystem>,
             options: Option<Id<CompilerOptions>>,
             set_parent_nodes: Option<bool>,
-            arena: &impl HasArena,
+            arena: &impl HasArenaHarness,
         ) -> io::Result<Id<Box<dyn typescript_rust::CompilerHost>>> {
             let sys = sys.into();
             let options = options
@@ -440,13 +471,16 @@ pub mod fakes {
             let set_parent_nodes = set_parent_nodes.unwrap_or(false);
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
-                RcSystemOrRcFileSystem::RcFileSystem(sys) => Gc::new(System::new(sys, None)?),
+                RcSystemOrRcFileSystem::RcFileSystem(sys) => {
+                    Gc::new(System::new(sys, None, arena)?)
+                }
             };
             Ok(arena.alloc_compiler_host(Box::new(Self {
                 sys: sys.clone(),
                 default_lib_location: {
                     let value = sys
                         .vfs
+                        .ref_(arena)
                         .meta()
                         .borrow()
                         .get("defaultLibLocation")
@@ -461,7 +495,7 @@ pub mod fakes {
                 _source_files: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                            sys.vfs.string_comparer.clone(),
+                            sys.vfs.ref_(arena).string_comparer.clone(),
                         ))),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
@@ -471,7 +505,7 @@ pub mod fakes {
                 _outputs_map: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: Gc::new(Box::new(SortOptionsComparerFromStringComparer::new(
-                            sys.vfs.string_comparer.clone(),
+                            sys.vfs.ref_(arena).string_comparer.clone(),
                         ))),
                         sort: None,
                     },
@@ -533,14 +567,18 @@ pub mod fakes {
             self.get_directories_override.borrow().clone()
         }
 
-        pub fn vfs(&self) -> Gc<vfs::FileSystem> {
-            self.sys.vfs.clone()
+        pub fn vfs_id(&self) -> Id<vfs::FileSystem> {
+            self.sys.vfs
+        }
+
+        pub fn vfs(&self) -> debug_cell::Ref<vfs::FileSystem> {
+            self.vfs_id().ref_(self)
         }
 
         pub fn parse_config_host(&self) -> io::Result<Gc<ParseConfigHost>> {
             let mut parse_config_host = self._parse_config_host.borrow_mut();
             if parse_config_host.is_none() {
-                *parse_config_host = Some(Gc::new(ParseConfigHost::new(self.sys.clone())?));
+                *parse_config_host = Some(Gc::new(ParseConfigHost::new(self.sys.clone(), self)?));
             }
             Ok(parse_config_host.as_ref().unwrap().clone())
         }
@@ -770,14 +808,14 @@ pub mod fakes {
             if let Some(cache_key) = cache_key.as_ref() {
                 let stats = self.vfs().stat_sync(&canonical_file_name)?;
 
-                let mut fs = self.vfs();
-                while let Some(fs_shadow_root) = fs.shadow_root() {
+                let mut fs = self.vfs_id();
+                while let Some(fs_shadow_root) = fs.ref_(self).shadow_root() {
                     let shadow_root_stats =
-                        if match fs_shadow_root.exists_sync(&canonical_file_name) {
+                        if match fs_shadow_root.ref_(self).exists_sync(&canonical_file_name) {
                             Err(_) => break,
                             Ok(value) => value,
                         } {
-                            match fs_shadow_root.stat_sync(&canonical_file_name) {
+                            match fs_shadow_root.ref_(self).stat_sync(&canonical_file_name) {
                                 Err(_) => break,
                                 Ok(value) => value,
                             }
@@ -795,8 +833,9 @@ pub mod fakes {
                     fs = fs_shadow_root;
                 }
 
-                if !Gc::ptr_eq(&fs, &self.vfs()) {
-                    fs.filemeta(&canonical_file_name)?
+                if fs != self.vfs_id() {
+                    fs.ref_(self)
+                        .filemeta(&canonical_file_name)?
                         .borrow_mut()
                         .set(cache_key, parsed.clone().into());
                 }
@@ -1009,7 +1048,7 @@ pub mod fakes {
 
     pub enum RcSystemOrRcFileSystem {
         RcSystem(Gc<System>),
-        RcFileSystem(Gc<vfs::FileSystem>),
+        RcFileSystem(Id<vfs::FileSystem>),
     }
 
     impl From<Gc<System>> for RcSystemOrRcFileSystem {
@@ -1018,8 +1057,8 @@ pub mod fakes {
         }
     }
 
-    impl From<Gc<vfs::FileSystem>> for RcSystemOrRcFileSystem {
-        fn from(value: Gc<vfs::FileSystem>) -> Self {
+    impl From<Id<vfs::FileSystem>> for RcSystemOrRcFileSystem {
+        fn from(value: Id<vfs::FileSystem>) -> Self {
             Self::RcFileSystem(value)
         }
     }

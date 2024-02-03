@@ -114,7 +114,7 @@ pub mod vfs {
         #[unsafe_ignore_trace]
         _cwd: RefCell<Option<String>>,
         _time: GcCell<TimestampOrNowOrSystemTimeOrCallback>,
-        _shadow_root: Option<Gc<FileSystem>>,
+        _shadow_root: Option<Id<FileSystem>>,
         #[unsafe_ignore_trace]
         _dir_stack: RefCell<Option<Vec<String>>>,
         #[unsafe_ignore_trace]
@@ -197,7 +197,7 @@ pub mod vfs {
                 Gc::new(GcCell::new(collections::Metadata::new(
                     self._shadow_root
                         .as_ref()
-                        .map(|_shadow_root| _shadow_root.meta()),
+                        .map(|_shadow_root| _shadow_root.ref_(self).meta()),
                 )))
             });
             self._lazy.meta.borrow().clone().unwrap()
@@ -214,29 +214,33 @@ pub mod vfs {
             self
         }
 
-        pub fn shadow_root(&self) -> Option<Gc<FileSystem>> {
+        pub fn shadow_root(&self) -> Option<Id<FileSystem>> {
             self._shadow_root.clone()
         }
 
-        pub fn shadow(this: Gc<Self>, ignore_case: Option<bool>) -> io::Result<Self> {
-            let ignore_case = ignore_case.unwrap_or(this.ignore_case);
-            if !this.is_readonly() {
+        pub fn shadow(
+            this: Id<Self>,
+            ignore_case: Option<bool>,
+            arena: &impl HasArenaHarness,
+        ) -> io::Result<Self> {
+            let ignore_case = ignore_case.unwrap_or(this.ref_(arena).ignore_case);
+            if !this.ref_(arena).is_readonly() {
                 panic!("Cannot shadow a mutable file system.");
             }
-            if ignore_case && !this.ignore_case {
+            if ignore_case && !this.ref_(arena).ignore_case {
                 panic!("Cannot create a case-insensitive file system from a case-sensitive one.");
             }
             let mut fs = FileSystem::new(
                 ignore_case,
                 Some(FileSystemOptions {
-                    time: Some(this._time.borrow().clone()),
+                    time: Some(this.ref_(arena)._time.borrow().clone()),
                     files: None,
                     cwd: None,
                     meta: None,
                 }),
             )?;
             fs._shadow_root = Some(this.clone());
-            fs.set_cwd(this.maybe_cwd().clone());
+            fs.set_cwd(this.ref_(arena).maybe_cwd().clone());
             Ok(fs)
         }
 
@@ -289,7 +293,7 @@ pub mod vfs {
                         node.maybe_shadow_root().as_ref(),
                         self._shadow_root.as_ref(),
                     ) {
-                        Some(_shadow_root._filemeta(node_shadow_root))
+                        Some(_shadow_root.ref_(self)._filemeta(node_shadow_root))
                     } else {
                         None
                     };
@@ -804,7 +808,7 @@ pub mod vfs {
                     );
                     if let Some(_shadow_root) = self._shadow_root.as_ref() {
                         self._copy_shadow_links(
-                            _shadow_root._get_root_links().borrow().entries(),
+                            _shadow_root.ref_(self)._get_root_links().borrow().entries(),
                             &mut _lazy_links,
                         );
                     }
@@ -863,7 +867,11 @@ pub mod vfs {
                     node_as_directory_inode.shadow_root.as_ref(),
                 ) {
                     self._copy_shadow_links(
-                        _shadow_root._get_links(node_shadow_root).borrow().entries(),
+                        _shadow_root
+                            .ref_(self)
+                            ._get_links(node_shadow_root)
+                            .borrow()
+                            .entries(),
                         &mut links,
                     );
                 }
@@ -934,7 +942,7 @@ pub mod vfs {
             if let (Some(_shadow_root), Some(node_shadow_root)) =
                 (self._shadow_root.as_ref(), node.shadow_root.as_ref())
             {
-                let ret = _shadow_root._get_size(node_shadow_root);
+                let ret = _shadow_root.ref_(self)._get_size(node_shadow_root);
                 node.set_size(Some(ret));
                 return ret;
             }
@@ -956,7 +964,10 @@ pub mod vfs {
                 } else if let (Some(_shadow_root), Some(node_shadow_root)) =
                     (self._shadow_root.as_ref(), node.shadow_root.as_ref())
                 {
-                    _shadow_root._get_buffer(node_shadow_root).clone()
+                    _shadow_root
+                        .ref_(self)
+                        ._get_buffer(node_shadow_root)
+                        .clone()
                 } else {
                     Buffer::new() /*.allocUnsafe(0)*/
                 }
@@ -1472,7 +1483,7 @@ pub mod vfs {
             time,
             meta,
         } = options.unwrap_or_default();
-        let fs = FileSystem::shadow(get_built_local(host, ignore_case, arena)?, None)?;
+        let fs = FileSystem::shadow(get_built_local(host, ignore_case, arena)?, None, arena)?;
         if let Some(meta) = meta {
             for key in meta.keys() {
                 fs.meta()
@@ -2386,8 +2397,8 @@ pub mod vfs {
 
     thread_local! {
         static built_local_host_: RefCell<Option<IdForFileSystemResolverHost>> = Default::default();
-        static built_local_ci_: GcCell<Option<Gc<FileSystem>>> = Default::default();
-        static built_local_cs_: GcCell<Option<Gc<FileSystem>>> = Default::default();
+        static built_local_ci_: GcCell<Option<Id<FileSystem>>> = Default::default();
+        static built_local_cs_: GcCell<Option<Id<FileSystem>>> = Default::default();
     }
 
     fn maybe_built_local_host() -> Option<IdForFileSystemResolverHost> {
@@ -2400,21 +2411,21 @@ pub mod vfs {
         })
     }
 
-    fn maybe_built_local_ci() -> Option<Gc<FileSystem>> {
+    fn maybe_built_local_ci() -> Option<Id<FileSystem>> {
         built_local_ci_.with(|built_local_ci| built_local_ci.borrow().clone())
     }
 
-    fn set_built_local_ci(value: Option<Gc<FileSystem>>) {
+    fn set_built_local_ci(value: Option<Id<FileSystem>>) {
         built_local_ci_.with(|built_local_ci| {
             *built_local_ci.borrow_mut() = value;
         })
     }
 
-    fn maybe_built_local_cs() -> Option<Gc<FileSystem>> {
+    fn maybe_built_local_cs() -> Option<Id<FileSystem>> {
         built_local_cs_.with(|built_local_cs| built_local_cs.borrow().clone())
     }
 
-    fn set_built_local_cs(value: Option<Gc<FileSystem>>) {
+    fn set_built_local_cs(value: Option<Id<FileSystem>>) {
         built_local_cs_.with(|built_local_cs| {
             *built_local_cs.borrow_mut() = value;
         })
@@ -2424,7 +2435,7 @@ pub mod vfs {
         host: IdForFileSystemResolverHost,
         ignore_case: bool,
         arena: &impl HasArenaHarness,
-    ) -> io::Result<Gc<FileSystem>> {
+    ) -> io::Result<Id<FileSystem>> {
         if !matches!(
             maybe_built_local_host(),
             Some(built_local_host) if built_local_host == host
@@ -2435,75 +2446,78 @@ pub mod vfs {
         }
         if maybe_built_local_ci().is_none() {
             let resolver = Gc::new(create_resolver(host));
-            set_built_local_ci(Some(Gc::new(FileSystem::new(
-                true,
-                Some(FileSystemOptions {
-                    files: Some(FileSet::from_iter(IntoIterator::into_iter([
-                        (
+            set_built_local_ci(Some(
+                arena.alloc_file_system(FileSystem::new(
+                    true,
+                    Some(FileSystemOptions {
+                        files: Some(FileSet::from_iter(IntoIterator::into_iter([
+                            (
+                                built_folder.to_owned(),
+                                Some(
+                                    Mount::new(
+                                        // vpath::resolve(
+                                        //     &host.get_workspace_root(),
+                                        //     &[Some("built/local")],
+                                        // ),
+                                        "/Users/jrosse/prj/TypeScript/built/local/".to_owned(),
+                                        resolver.clone(),
+                                        None,
+                                    )
+                                    .into(),
+                                ),
+                            ),
+                            (
+                                test_lib_folder.to_owned(),
+                                Some(
+                                    Mount::new(
+                                        // vpath::resolve(
+                                        //     &host.get_workspace_root(),
+                                        //     &[Some("tests/lib")],
+                                        // ),
+                                        "/Users/jrosse/prj/TypeScript/tests/lib".to_owned(),
+                                        resolver.clone(),
+                                        None,
+                                    )
+                                    .into(),
+                                ),
+                            ),
+                            (
+                                projects_folder.to_owned(),
+                                Some(
+                                    Mount::new(
+                                        vpath::resolve(
+                                            &host.ref_(arena).get_workspace_root(),
+                                            &[Some("tests/projects")],
+                                        ),
+                                        resolver.clone(),
+                                        None,
+                                    )
+                                    .into(),
+                                ),
+                            ),
+                            (src_folder.to_owned(), Some(FileSet::new().into())),
+                        ]))),
+                        cwd: Some(src_folder.to_owned()),
+                        meta: Some(HashMap::from_iter(IntoIterator::into_iter([(
+                            "defaultLibLocation".to_owned(),
                             built_folder.to_owned(),
-                            Some(
-                                Mount::new(
-                                    // vpath::resolve(
-                                    //     &host.get_workspace_root(),
-                                    //     &[Some("built/local")],
-                                    // ),
-                                    "/Users/jrosse/prj/TypeScript/built/local/".to_owned(),
-                                    resolver.clone(),
-                                    None,
-                                )
-                                .into(),
-                            ),
-                        ),
-                        (
-                            test_lib_folder.to_owned(),
-                            Some(
-                                Mount::new(
-                                    // vpath::resolve(
-                                    //     &host.get_workspace_root(),
-                                    //     &[Some("tests/lib")],
-                                    // ),
-                                    "/Users/jrosse/prj/TypeScript/tests/lib".to_owned(),
-                                    resolver.clone(),
-                                    None,
-                                )
-                                .into(),
-                            ),
-                        ),
-                        (
-                            projects_folder.to_owned(),
-                            Some(
-                                Mount::new(
-                                    vpath::resolve(
-                                        &host.ref_(arena).get_workspace_root(),
-                                        &[Some("tests/projects")],
-                                    ),
-                                    resolver.clone(),
-                                    None,
-                                )
-                                .into(),
-                            ),
-                        ),
-                        (src_folder.to_owned(), Some(FileSet::new().into())),
-                    ]))),
-                    cwd: Some(src_folder.to_owned()),
-                    meta: Some(HashMap::from_iter(IntoIterator::into_iter([(
-                        "defaultLibLocation".to_owned(),
-                        built_folder.to_owned(),
-                    )]))),
-                    time: None,
-                }),
-            )?)));
-            maybe_built_local_ci().unwrap().make_readonly();
+                        )]))),
+                        time: None,
+                    }),
+                )?),
+            ));
+            maybe_built_local_ci().unwrap().ref_(arena).make_readonly();
         }
         if ignore_case {
             return Ok(maybe_built_local_ci().unwrap());
         }
         if maybe_built_local_cs().is_none() {
-            set_built_local_cs(Some(Gc::new(FileSystem::shadow(
+            set_built_local_cs(Some(arena.alloc_file_system(FileSystem::shadow(
                 maybe_built_local_ci().unwrap(),
                 Some(false),
+                arena,
             )?)));
-            maybe_built_local_cs().unwrap().make_readonly();
+            maybe_built_local_cs().unwrap().ref_(arena).make_readonly();
         }
         Ok(maybe_built_local_cs().unwrap())
     }

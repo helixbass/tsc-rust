@@ -261,8 +261,12 @@ pub mod compiler {
             })
         }
 
-        pub fn vfs(&self) -> Gc<vfs::FileSystem> {
-            self.host_as_fakes_compiler_host().vfs()
+        pub fn vfs_id(&self) -> Id<vfs::FileSystem> {
+            self.host_as_fakes_compiler_host().vfs_id()
+        }
+
+        pub fn vfs(&self) -> debug_cell::Ref<vfs::FileSystem> {
+            self.vfs_id().ref_(self)
         }
 
         pub fn traces(&self) -> Vec<String> {

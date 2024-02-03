@@ -731,7 +731,7 @@ pub mod Compiler {
             .chain(other_files.into_iter())
             .map(|file| arena.alloc_text_document(documents::TextDocument::from_test_file(file)))
             .collect::<Vec<_>>();
-        let fs = Gc::new(vfs::create_from_file_system(
+        let fs = arena.alloc_file_system(vfs::create_from_file_system(
             get_io_id(arena),
             !use_case_sensitive_file_names,
             Some(vfs::FileSystemCreateOptions {
@@ -742,7 +742,7 @@ pub mod Compiler {
             arena,
         )?);
         if let Some(symlinks) = symlinks {
-            fs.apply(symlinks)?;
+            fs.ref_(arena).apply(symlinks)?;
         }
         let host = fakes::CompilerHost::new(
             fs,
