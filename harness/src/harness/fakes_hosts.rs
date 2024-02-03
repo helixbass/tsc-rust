@@ -9,7 +9,7 @@ pub mod fakes {
         time::SystemTime,
     };
 
-    use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
+    use gc::{Finalize, GcCell, GcCellRef, Trace};
     use typescript_rust::{
         continue_if_err, create_source_file, debug_cell, generate_djb2_hash,
         get_default_lib_file_name, get_new_line_character, id_arena::Id, match_files,
@@ -463,7 +463,7 @@ pub mod fakes {
 
         _set_parent_nodes: bool,
         _source_files: GcCell<collections::SortedMap<String, Id<Node /*SourceFile*/>>>,
-        _parse_config_host: GcCell<Option<Gc<ParseConfigHost>>>,
+        _parse_config_host: GcCell<Option<Id<ParseConfigHost>>>,
         _new_line: String,
 
         file_exists_override: GcCell<Option<Id<Box<dyn ModuleResolutionHostOverrider>>>>,
@@ -596,10 +596,14 @@ pub mod fakes {
             self.vfs_id().ref_(self)
         }
 
-        pub fn parse_config_host(&self) -> io::Result<Gc<ParseConfigHost>> {
+        pub fn parse_config_host(&self) -> io::Result<Id<ParseConfigHost>> {
             let mut parse_config_host = self._parse_config_host.borrow_mut();
             if parse_config_host.is_none() {
-                *parse_config_host = Some(Gc::new(ParseConfigHost::new(self.sys.clone(), self)?));
+                *parse_config_host =
+                    Some(self.alloc_fakes_parse_config_host(ParseConfigHost::new(
+                        self.sys.clone(),
+                        self,
+                    )?));
             }
             Ok(parse_config_host.as_ref().unwrap().clone())
         }

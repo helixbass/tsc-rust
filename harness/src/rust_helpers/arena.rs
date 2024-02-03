@@ -8,7 +8,7 @@ use crate::{
     collections::{Metadata, SortOptionsComparer},
     compiler::CompilationOutput,
     documents::TextDocument,
-    fakes::System,
+    fakes::{ParseConfigHost, System},
     harness::harness_io::NodeIO,
     vfs::{FileSystem, FileSystemResolverHost},
     Compiler::TestFile,
@@ -31,6 +31,7 @@ pub struct AllArenasHarness {
     replacers: RefCell<Arena<Box<dyn Replacer>>>,
     diagnostic_message_replacers: RefCell<Arena<DiagnosticMessageReplacer>>,
     systems: RefCell<Arena<System>>,
+    parse_config_hosts: RefCell<Arena<ParseConfigHost>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -197,6 +198,22 @@ pub trait HasArenaHarness: HasArena {
 
     fn alloc_fakes_system(&self, system: System) -> Id<System> {
         self.arena_harness().alloc_fakes_system(system)
+    }
+
+    fn fakes_parse_config_host(
+        &self,
+        parse_config_host: Id<ParseConfigHost>,
+    ) -> Ref<ParseConfigHost> {
+        self.arena_harness()
+            .fakes_parse_config_host(parse_config_host)
+    }
+
+    fn alloc_fakes_parse_config_host(
+        &self,
+        parse_config_host: ParseConfigHost,
+    ) -> Id<ParseConfigHost> {
+        self.arena_harness()
+            .alloc_fakes_parse_config_host(parse_config_host)
     }
 }
 
@@ -424,6 +441,26 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.systems.borrow_mut().alloc(system);
         id
     }
+
+    fn fakes_parse_config_host(
+        &self,
+        parse_config_host: Id<ParseConfigHost>,
+    ) -> Ref<ParseConfigHost> {
+        Ref::map(self.parse_config_hosts.borrow(), |parse_config_hosts| {
+            &parse_config_hosts[parse_config_host]
+        })
+    }
+
+    fn alloc_fakes_parse_config_host(
+        &self,
+        parse_config_host: ParseConfigHost,
+    ) -> Id<ParseConfigHost> {
+        let id = self
+            .parse_config_hosts
+            .borrow_mut()
+            .alloc(parse_config_host);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -550,6 +587,14 @@ impl InArenaHarness for Id<System> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, System> {
         has_arena.fakes_system(*self)
+    }
+}
+
+impl InArenaHarness for Id<ParseConfigHost> {
+    type Item = ParseConfigHost;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, ParseConfigHost> {
+        has_arena.fakes_parse_config_host(*self)
     }
 }
 
