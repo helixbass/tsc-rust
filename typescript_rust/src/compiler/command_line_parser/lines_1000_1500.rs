@@ -520,7 +520,8 @@ pub(super) fn create_unknown_option_error(
         |candidate: &Id<CommandLineOption>| {
             Some(get_option_name(&candidate.ref_(arena)).to_owned())
         },
-    );
+    )
+    .copied();
     match possible_option {
         Some(possible_option) => create_diagnostics(
             diagnostics.unknown_did_you_mean_diagnostic(),
