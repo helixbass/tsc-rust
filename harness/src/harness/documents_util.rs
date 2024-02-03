@@ -4,10 +4,13 @@ pub mod documents {
         collections::HashMap,
     };
 
-    use gc::{Finalize, Gc, GcCell, Trace};
-    use typescript_rust::{_d, compute_line_starts, ref_unwrapped, SourceTextAsChars};
+    use gc::{Finalize, GcCell, Trace};
+    use typescript_rust::{
+        _d, compute_line_starts, id_arena::Id, ref_unwrapped, AllArenas, HasArena,
+        SourceTextAsChars,
+    };
 
-    use crate::Compiler;
+    use crate::{AllArenasHarness, Compiler, HasArenaHarness};
 
     #[derive(Trace, Finalize)]
     pub struct TextDocument {
@@ -18,7 +21,7 @@ pub mod documents {
 
         #[unsafe_ignore_trace]
         _line_starts: RefCell<Option<Vec<usize>>>,
-        _test_file: GcCell<Option<Gc<Compiler::TestFile>>>,
+        _test_file: GcCell<Option<Id<Compiler::TestFile>>>,
     }
 
     impl TextDocument {
@@ -54,17 +57,29 @@ pub mod documents {
             )
         }
 
-        pub fn as_test_file(&self) -> Gc<Compiler::TestFile> {
+        pub fn as_test_file(&self) -> Id<Compiler::TestFile> {
             self._test_file
                 .borrow_mut()
                 .get_or_insert_with(|| {
-                    Gc::new(Compiler::TestFile {
+                    self.alloc_test_file(Compiler::TestFile {
                         unit_name: self.file.clone(),
                         content: self.text.clone(),
                         file_options: Some(self.meta.clone()),
                     })
                 })
                 .clone()
+        }
+    }
+
+    impl HasArena for TextDocument {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for TextDocument {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
         }
     }
 }

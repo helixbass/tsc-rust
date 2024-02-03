@@ -255,7 +255,7 @@ pub fn set_light_mode(flag: bool) {
 pub mod Compiler {
     use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io};
 
-    use gc::{Finalize, Gc, Trace};
+    use gc::{Finalize, Trace};
     use regex::Regex;
     use typescript_rust::{
         NonEmpty, _d, combine_paths, compare_diagnostics, compare_paths, compute_line_starts,
@@ -652,8 +652,8 @@ pub mod Compiler {
     }
 
     pub fn compile_files(
-        input_files: &[Gc<TestFile>],
-        other_files: &[Gc<TestFile>],
+        input_files: &[Id<TestFile>],
+        other_files: &[Id<TestFile>],
         harness_settings: Option<&TestCaseParser::CompilerSettings>,
         compiler_options: Option<&CompilerOptions>,
         current_directory: Option<&str>,
@@ -707,7 +707,7 @@ pub mod Compiler {
             .unwrap_or(true);
         let mut program_file_names = input_files
             .into_iter()
-            .map(|file| file.unit_name.clone())
+            .map(|file| file.ref_(arena).unit_name.clone())
             .filter(|file_name| !file_extension_is(file_name, Extension::Json.to_str()))
             .collect::<Vec<_>>();
 
@@ -729,7 +729,10 @@ pub mod Compiler {
         let docs = input_files
             .into_iter()
             .chain(other_files.into_iter())
-            .map(|file| arena.alloc_text_document(documents::TextDocument::from_test_file(file)))
+            .map(|file| {
+                arena
+                    .alloc_text_document(documents::TextDocument::from_test_file(&file.ref_(arena)))
+            })
             .collect::<Vec<_>>();
         let fs = arena.alloc_file_system(vfs::create_from_file_system(
             get_io_id(arena),
@@ -766,16 +769,16 @@ pub mod Compiler {
     }
 
     pub struct DeclarationCompilationContext {
-        pub decl_input_files: Vec<Gc<TestFile>>,
-        pub decl_other_files: Vec<Gc<TestFile>>,
+        pub decl_input_files: Vec<Id<TestFile>>,
+        pub decl_other_files: Vec<Id<TestFile>>,
         pub harness_settings: Option<TestCaseParser::CompilerSettings /*& HarnessOptions*/>,
         pub options: Id<CompilerOptions>,
         pub current_directory: Option<String>,
     }
 
     pub fn prepare_declaration_compilation_context(
-        input_files: &[Gc<TestFile>],
-        other_files: &[Gc<TestFile>],
+        input_files: &[Id<TestFile>],
+        other_files: &[Id<TestFile>],
         result: &compiler::CompilationResult,
         harness_settings: &TestCaseParser::CompilerSettings, /*& HarnessOptions*/
         options: Id<CompilerOptions>,
@@ -794,8 +797,8 @@ pub mod Compiler {
             }
         }
 
-        let mut decl_input_files: Vec<Gc<TestFile>> = _d();
-        let mut decl_other_files: Vec<Gc<TestFile>> = _d();
+        let mut decl_input_files: Vec<Id<TestFile>> = _d();
+        let mut decl_other_files: Vec<Id<TestFile>> = _d();
 
         if options.ref_(arena).declaration == Some(true)
             && result.diagnostics.is_empty()
@@ -841,23 +844,27 @@ pub mod Compiler {
     fn add_dts_file(
         options: &CompilerOptions,
         result: &compiler::CompilationResult,
-        decl_input_files: &[Gc<TestFile>],
-        decl_other_files: &[Gc<TestFile>],
-        file: Gc<TestFile>,
-        dts_files: &mut Vec<Gc<TestFile>>,
+        decl_input_files: &[Id<TestFile>],
+        decl_other_files: &[Id<TestFile>],
+        file: Id<TestFile>,
+        dts_files: &mut Vec<Id<TestFile>>,
         arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
-        if vpath::is_declaration(&file.unit_name) || vpath::is_json(&file.unit_name) {
-            dts_files.push(file);
-        } else if vpath::is_type_script(&file.unit_name)
-            || vpath::is_java_script(&file.unit_name) && get_allow_js_compiler_option(options)
+        if vpath::is_declaration(&file.ref_(arena).unit_name)
+            || vpath::is_json(&file.ref_(arena).unit_name)
         {
-            let decl_file = find_result_code_file(result, options, &file.unit_name, arena)?;
+            dts_files.push(file);
+        } else if vpath::is_type_script(&file.ref_(arena).unit_name)
+            || vpath::is_java_script(&file.ref_(arena).unit_name)
+                && get_allow_js_compiler_option(options)
+        {
+            let decl_file =
+                find_result_code_file(result, options, &file.ref_(arena).unit_name, arena)?;
             if let Some(decl_file) = decl_file.filter(|decl_file| {
-                find_unit(&decl_file.ref_(arena).file, decl_input_files).is_none()
-                    && find_unit(&decl_file.ref_(arena).file, decl_other_files).is_none()
+                find_unit(&decl_file.ref_(arena).file, decl_input_files, arena).is_none()
+                    && find_unit(&decl_file.ref_(arena).file, decl_other_files, arena).is_none()
             }) {
-                dts_files.push(Gc::new(TestFile {
+                dts_files.push(arena.alloc_test_file(TestFile {
                     unit_name: decl_file.ref_(arena).file.clone(),
                     content: Utils::remove_byte_order_mark(decl_file.ref_(arena).text.clone()),
                     file_options: None,
@@ -921,15 +928,19 @@ pub mod Compiler {
         Ok(result.dts.get(&d_ts_file_name).cloned())
     }
 
-    fn find_unit(file_name: &str, units: &[Gc<TestFile>]) -> Option<Gc<TestFile>> {
-        for_each(units, |unit: &Gc<TestFile>, _| {
-            (unit.unit_name == file_name).then(|| unit.clone())
+    fn find_unit(
+        file_name: &str,
+        units: &[Id<TestFile>],
+        arena: &impl HasArenaHarness,
+    ) -> Option<Id<TestFile>> {
+        for_each(units, |unit: &Id<TestFile>, _| {
+            (unit.ref_(arena).unit_name == file_name).then(|| unit.clone())
         })
     }
 
     pub struct CompileDeclarationFilesReturn {
-        pub decl_input_files: Vec<Gc<TestFile>>,
-        pub decl_other_files: Vec<Gc<TestFile>>,
+        pub decl_input_files: Vec<Id<TestFile>>,
+        pub decl_other_files: Vec<Id<TestFile>>,
         pub decl_result: compiler::CompilationResult,
     }
 
@@ -1002,7 +1013,7 @@ pub mod Compiler {
     }
 
     pub fn get_error_baseline(
-        input_files: &[Gc<TestFile>],
+        input_files: &[Id<TestFile>],
         diagnostics: &[Id<Diagnostic>],
         pretty: Option<bool>,
         arena: &impl HasArenaHarness,
@@ -1034,7 +1045,7 @@ pub mod Compiler {
     pub const global_errors_marker: &'static str = "__globalErrors";
 
     pub fn iterate_error_baseline(
-        input_files: &[Gc<TestFile>],
+        input_files: &[Id<TestFile>],
         diagnostics: &[Id<Diagnostic>],
         options: Option<IterateErrorBaselineOptions>,
         arena: &impl HasArenaHarness,
@@ -1108,7 +1119,7 @@ pub mod Compiler {
                             None,
                         ),
                         &Utils::remove_test_path_prefixes(
-                            &input_file.unit_name,
+                            &input_file.ref_(arena).unit_name,
                             None,
                         ),
                         Some(
@@ -1122,13 +1133,14 @@ pub mod Compiler {
             output_lines.push_str(&format!(
                 "{}==== {} ({} errors) ====",
                 new_line(&mut first_line),
-                input_file.unit_name,
+                input_file.ref_(arena).unit_name,
                 file_errors.len(),
             ));
 
             let mut marked_error_count = 0;
 
-            let input_file_content_as_chars = input_file.content.chars().collect::<Vec<_>>();
+            let input_file_content_as_chars =
+                input_file.ref_(arena).content.chars().collect::<Vec<_>>();
             let line_starts = compute_line_starts(&input_file_content_as_chars);
             let mut lines = input_file_content_as_chars
                 .split(|ch| *ch == '\n')
@@ -1206,11 +1218,12 @@ pub mod Compiler {
                 marked_error_count,
                 file_errors.len(),
                 "count of errors in {}",
-                input_file.unit_name
+                input_file.ref_(arena).unit_name
             );
-            let is_dupe = dupe_case.contains_key(&sanitize_test_file_path(&input_file.unit_name));
+            let is_dupe =
+                dupe_case.contains_key(&sanitize_test_file_path(&input_file.ref_(arena).unit_name));
             ret.push((
-                check_duplicated_file_name(&input_file.unit_name, &mut dupe_case),
+                check_duplicated_file_name(&input_file.ref_(arena).unit_name, &mut dupe_case),
                 output_lines.clone(),
                 errors_reported,
             ));
@@ -1396,7 +1409,7 @@ pub mod Compiler {
 
     pub fn do_error_baseline(
         baseline_path: &str,
-        input_files: &[Gc<TestFile>],
+        input_files: &[Id<TestFile>],
         errors: &[Id<Diagnostic>],
         pretty: Option<bool>,
         arena: &impl HasArenaHarness,
@@ -1426,9 +1439,9 @@ pub mod Compiler {
         header: &str,
         options: Id<CompilerOptions>,
         result: &compiler::CompilationResult,
-        ts_config_files: &[Gc<TestFile>],
-        to_be_compiled: &[Gc<TestFile>],
-        other_files: &[Gc<TestFile>],
+        ts_config_files: &[Id<TestFile>],
+        to_be_compiled: &[Id<TestFile>],
+        other_files: &[Id<TestFile>],
         harness_settings: &TestCaseParser::CompilerSettings,
         arena: &impl HasArenaHarness,
     ) -> io::Result<()> {
@@ -1450,11 +1463,11 @@ pub mod Compiler {
         for (i, ts_source) in ts_sources.iter().enumerate() {
             ts_code.push_str(&format!(
                 "//// [{}]\r\n",
-                get_base_file_name(&ts_source.unit_name, None, None)
+                get_base_file_name(&ts_source.ref_(arena).unit_name, None, None)
             ));
             ts_code.push_str(&format!(
                 "{}{}",
-                ts_source.content,
+                ts_source.ref_(arena).content,
                 if i < ts_sources.len() - 1 { "\r\n" } else { "" }
             ));
         }

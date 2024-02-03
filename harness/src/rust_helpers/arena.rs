@@ -10,6 +10,7 @@ use crate::{
     documents::TextDocument,
     harness::harness_io::NodeIO,
     vfs::{FileSystem, FileSystemResolverHost},
+    Compiler::TestFile,
     MetaValue, RunnerBaseSub,
 };
 
@@ -24,6 +25,7 @@ pub struct AllArenasHarness {
     metadata_strings: RefCell<Arena<Metadata<String>>>,
     metadata_metavalues: RefCell<Arena<Metadata<MetaValue>>>,
     runner_base_subs: RefCell<Arena<Box<dyn RunnerBaseSub>>>,
+    test_files: RefCell<Arena<TestFile>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -150,6 +152,14 @@ pub trait HasArenaHarness: HasArena {
         runner_base_sub: Box<dyn RunnerBaseSub>,
     ) -> Id<Box<dyn RunnerBaseSub>> {
         self.arena_harness().alloc_runner_base_sub(runner_base_sub)
+    }
+
+    fn test_file(&self, test_file: Id<TestFile>) -> Ref<TestFile> {
+        self.arena_harness().test_file(test_file)
+    }
+
+    fn alloc_test_file(&self, test_file: TestFile) -> Id<TestFile> {
+        self.arena_harness().alloc_test_file(test_file)
     }
 }
 
@@ -325,6 +335,17 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.runner_base_subs.borrow_mut().alloc(runner_base_sub);
         id
     }
+
+    fn test_file(&self, test_file: Id<TestFile>) -> Ref<TestFile> {
+        Ref::map(self.test_files.borrow(), |test_files| {
+            &test_files[test_file]
+        })
+    }
+
+    fn alloc_test_file(&self, test_file: TestFile) -> Id<TestFile> {
+        let id = self.test_files.borrow_mut().alloc(test_file);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -419,6 +440,14 @@ impl InArenaHarness for Id<Box<dyn RunnerBaseSub>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Box<dyn RunnerBaseSub>> {
         has_arena.runner_base_sub(*self)
+    }
+}
+
+impl InArenaHarness for Id<TestFile> {
+    type Item = TestFile;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, TestFile> {
+        has_arena.test_file(*self)
     }
 }
 
