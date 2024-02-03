@@ -8,6 +8,7 @@ use crate::{
     collections::{Metadata, SortOptionsComparer},
     compiler::CompilationOutput,
     documents::TextDocument,
+    fakes::System,
     harness::harness_io::NodeIO,
     vfs::{FileSystem, FileSystemResolverHost},
     Compiler::TestFile,
@@ -29,6 +30,7 @@ pub struct AllArenasHarness {
     test_files: RefCell<Arena<TestFile>>,
     replacers: RefCell<Arena<Box<dyn Replacer>>>,
     diagnostic_message_replacers: RefCell<Arena<DiagnosticMessageReplacer>>,
+    systems: RefCell<Arena<System>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -187,6 +189,14 @@ pub trait HasArenaHarness: HasArena {
     ) -> Id<DiagnosticMessageReplacer> {
         self.arena_harness()
             .alloc_diagnostic_message_replacer(diagnostic_message_replacer)
+    }
+
+    fn fakes_system(&self, system: Id<System>) -> Ref<System> {
+        self.arena_harness().fakes_system(system)
+    }
+
+    fn alloc_fakes_system(&self, system: System) -> Id<System> {
+        self.arena_harness().alloc_fakes_system(system)
     }
 }
 
@@ -405,6 +415,15 @@ impl HasArenaHarness for AllArenasHarness {
             .alloc(diagnostic_message_replacer);
         id
     }
+
+    fn fakes_system(&self, system: Id<System>) -> Ref<System> {
+        Ref::map(self.systems.borrow(), |systems| &systems[system])
+    }
+
+    fn alloc_fakes_system(&self, system: System) -> Id<System> {
+        let id = self.systems.borrow_mut().alloc(system);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -523,6 +542,14 @@ impl InArenaHarness for Id<DiagnosticMessageReplacer> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, DiagnosticMessageReplacer> {
         has_arena.diagnostic_message_replacer(*self)
+    }
+}
+
+impl InArenaHarness for Id<System> {
+    type Item = System;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, System> {
+        has_arena.fakes_system(*self)
     }
 }
 

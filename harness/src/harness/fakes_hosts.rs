@@ -373,7 +373,7 @@ pub mod fakes {
 
     #[derive(Trace, Finalize)]
     pub struct ParseConfigHost {
-        pub sys: Gc<System>,
+        pub sys: Id<System>,
     }
 
     impl ParseConfigHost {
@@ -385,28 +385,28 @@ pub mod fakes {
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
                 RcSystemOrRcFileSystem::RcFileSystem(sys) => {
-                    Gc::new(System::new(sys, None, arena)?)
+                    arena.alloc_fakes_system(System::new(sys, None, arena)?)
                 }
             };
             Ok(Self { sys })
         }
 
         pub fn vfs(&self) -> Id<vfs::FileSystem> {
-            self.sys.vfs.clone()
+            self.sys.ref_(self).vfs
         }
 
         pub fn directory_exists(&self, directory_name: &str) -> bool {
-            self.sys.directory_exists(directory_name)
+            self.sys.ref_(self).directory_exists(directory_name)
         }
     }
 
     impl typescript_rust::ParseConfigHost for ParseConfigHost {
         fn use_case_sensitive_file_names(&self) -> bool {
-            self.sys.use_case_sensitive_file_names()
+            self.sys.ref_(self).use_case_sensitive_file_names()
         }
 
         fn file_exists(&self, file_name: &str) -> bool {
-            self.sys.file_exists(file_name)
+            self.sys.ref_(self).file_exists(file_name)
         }
 
         fn read_directory(
@@ -417,12 +417,17 @@ pub mod fakes {
             includes: &[String],
             depth: Option<usize>,
         ) -> io::Result<Vec<String>> {
-            self.sys
-                .read_directory(root_dir, Some(extensions), excludes, Some(includes), depth)
+            self.sys.ref_(self).read_directory(
+                root_dir,
+                Some(extensions),
+                excludes,
+                Some(includes),
+                depth,
+            )
         }
 
         fn read_file(&self, path: &str) -> io::Result<Option<String>> {
-            self.sys.read_file(path)
+            self.sys.ref_(self).read_file(path)
         }
 
         fn is_trace_supported(&self) -> bool {
@@ -434,9 +439,21 @@ pub mod fakes {
         }
     }
 
+    impl HasArena for ParseConfigHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
+    impl HasArenaHarness for ParseConfigHost {
+        fn arena_harness(&self) -> &AllArenasHarness {
+            unimplemented!()
+        }
+    }
+
     #[derive(Trace, Finalize)]
     pub struct CompilerHost {
-        pub sys: Gc<System>,
+        pub sys: Id<System>,
         pub default_lib_location: String,
         outputs: GcCell<Vec<Id<documents::TextDocument>>>,
         _outputs_map: GcCell<collections::SortedMap<String, usize>>,
@@ -472,13 +489,14 @@ pub mod fakes {
             let sys = match sys {
                 RcSystemOrRcFileSystem::RcSystem(sys) => sys,
                 RcSystemOrRcFileSystem::RcFileSystem(sys) => {
-                    Gc::new(System::new(sys, None, arena)?)
+                    arena.alloc_fakes_system(System::new(sys, None, arena)?)
                 }
             };
             Ok(arena.alloc_compiler_host(Box::new(Self {
                 sys: sys.clone(),
                 default_lib_location: {
                     let value = sys
+                        .ref_(arena)
                         .vfs
                         .ref_(arena)
                         .meta()
@@ -488,14 +506,14 @@ pub mod fakes {
                 },
                 _new_line: get_new_line_character(
                     options.ref_(arena).new_line,
-                    Some(|| sys.new_line.to_owned()),
+                    Some(|| sys.ref_(arena).new_line.to_owned()),
                     arena,
                 ),
                 _source_files: GcCell::new(collections::SortedMap::new(
                     collections::SortOptions {
                         comparer: arena.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
-                                sys.vfs.ref_(arena).string_comparer.clone(),
+                                sys.ref_(arena).vfs.ref_(arena).string_comparer.clone(),
                             ),
                         )),
                         sort: Some(collections::SortOptionsSort::Insertion),
@@ -507,7 +525,7 @@ pub mod fakes {
                     collections::SortOptions {
                         comparer: arena.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
-                                sys.vfs.ref_(arena).string_comparer.clone(),
+                                sys.ref_(arena).vfs.ref_(arena).string_comparer.clone(),
                             ),
                         )),
                         sort: None,
@@ -571,7 +589,7 @@ pub mod fakes {
         }
 
         pub fn vfs_id(&self) -> Id<vfs::FileSystem> {
-            self.sys.vfs
+            self.sys.ref_(self).vfs
         }
 
         pub fn vfs(&self) -> debug_cell::Ref<vfs::FileSystem> {
@@ -587,15 +605,15 @@ pub mod fakes {
         }
 
         pub fn delete_file(&self, file_name: &str) {
-            self.sys.delete_file(file_name);
+            self.sys.ref_(self).delete_file(file_name);
         }
 
         pub fn get_modified_time(&self, file_name: &str) -> SystemTime {
-            self.sys.get_modified_time(file_name).unwrap()
+            self.sys.ref_(self).get_modified_time(file_name).unwrap()
         }
 
         pub fn set_modified_time(&self, file_name: &str, time: SystemTime) {
-            self.sys.set_modified_time(file_name, time);
+            self.sys.ref_(self).set_modified_time(file_name, time);
         }
     }
 
@@ -609,11 +627,11 @@ pub mod fakes {
         }
 
         fn get_current_directory(&self) -> io::Result<String> {
-            self.sys.get_current_directory()
+            self.sys.ref_(self).get_current_directory()
         }
 
         fn use_case_sensitive_file_names(&self) -> bool {
-            self.sys.use_case_sensitive_file_names()
+            self.sys.ref_(self).use_case_sensitive_file_names()
         }
 
         fn get_new_line(&self) -> String {
@@ -621,7 +639,7 @@ pub mod fakes {
         }
 
         fn get_canonical_file_name(&self, file_name: &str) -> String {
-            if self.sys.use_case_sensitive_file_names() {
+            if self.sys.ref_(self).use_case_sensitive_file_names() {
                 file_name.to_owned()
             } else {
                 file_name.to_lowercase()
@@ -636,10 +654,13 @@ pub mod fakes {
             include: &[String],
             depth: Option<usize>,
         ) -> Option<io::Result<Vec<String>>> {
-            Some(
-                self.sys
-                    .read_directory(path, Some(extensions), exclude, Some(include), depth),
-            )
+            Some(self.sys.ref_(self).read_directory(
+                path,
+                Some(extensions),
+                exclude,
+                Some(include),
+                depth,
+            ))
         }
 
         fn is_read_directory_implemented(&self) -> bool {
@@ -686,7 +707,7 @@ pub mod fakes {
                 content = Utils::add_utf8_byte_order_mark(content);
             }
             // TODO: is this correct to ignore here?
-            let _ = self.sys.write_file(file_name, &content, None);
+            let _ = self.sys.ref_(self).write_file(file_name, &content, None);
 
             let content_as_chars = content.chars().collect();
             let mut document =
@@ -893,7 +914,7 @@ pub mod fakes {
         }
 
         fn file_exists_non_overridden(&self, file_name: &str) -> bool {
-            self.sys.file_exists(file_name)
+            self.sys.ref_(self).file_exists(file_name)
         }
 
         fn set_overriding_file_exists(
@@ -924,7 +945,7 @@ pub mod fakes {
         }
 
         fn directory_exists_non_overridden(&self, directory_name: &str) -> Option<bool> {
-            Some(self.sys.directory_exists(directory_name))
+            Some(self.sys.ref_(self).directory_exists(directory_name))
         }
 
         fn set_overriding_directory_exists(
@@ -953,7 +974,7 @@ pub mod fakes {
         }
 
         fn get_directories_non_overridden(&self, path: &str) -> Option<Vec<String>> {
-            Some(self.sys.get_directories(path))
+            Some(self.sys.ref_(self).get_directories(path))
         }
 
         fn set_overriding_get_directories(
@@ -991,7 +1012,7 @@ pub mod fakes {
         }
 
         fn read_file_non_overridden(&self, path: &str) -> io::Result<Option<String>> {
-            self.sys.read_file(path)
+            self.sys.ref_(self).read_file(path)
         }
 
         fn trace(&self, s: &str) {
@@ -1011,11 +1032,11 @@ pub mod fakes {
         }
 
         fn realpath_non_overridden(&self, path: &str) -> Option<String> {
-            self.sys.realpath(path)
+            self.sys.ref_(self).realpath(path)
         }
 
         fn is_realpath_supported(&self) -> bool {
-            self.sys.is_realpath_supported()
+            self.sys.ref_(self).is_realpath_supported()
         }
 
         fn set_overriding_realpath(
@@ -1050,12 +1071,12 @@ pub mod fakes {
     }
 
     pub enum RcSystemOrRcFileSystem {
-        RcSystem(Gc<System>),
+        RcSystem(Id<System>),
         RcFileSystem(Id<vfs::FileSystem>),
     }
 
-    impl From<Gc<System>> for RcSystemOrRcFileSystem {
-        fn from(value: Gc<System>) -> Self {
+    impl From<Id<System>> for RcSystemOrRcFileSystem {
+        fn from(value: Id<System>) -> Self {
             Self::RcSystem(value)
         }
     }
