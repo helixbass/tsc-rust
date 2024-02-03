@@ -9,8 +9,8 @@ use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use crate::{
-    CompilerOptions, EmitHelperFactory, EmitHint, EmitResolver, Node,
-    NodeFactory, NodeId, ReadonlyTextRangeConcrete, TransformationContext,
+    EmitHelperFactory, EmitHint, EmitResolver, Node, NodeFactory, NodeId,
+    ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, downcast_transformer_ref,
     get_emit_script_target, get_original_node, get_original_node_id, id_text,
@@ -133,7 +133,7 @@ pub enum CodeBlock {
 }
 
 impl CodeBlock {
-    pub fn kind(&self) -> CodeBlockKind {
+    pub(super) fn kind(&self) -> CodeBlockKind {
         match self {
             Self::ExceptionBlock(value) => value.kind,
             Self::LabeledBlock(value) => value.kind,
@@ -208,9 +208,9 @@ impl From<WithBlock> for CodeBlock {
     }
 }
 
-pub(super) struct ExceptionBlock {
-    pub kind: CodeBlockKind, /*CodeBlockKind.Exception*/
-    pub state: ExceptionBlockState,
+pub struct ExceptionBlock {
+    pub(super) kind: CodeBlockKind, /*CodeBlockKind.Exception*/
+    pub(super) state: ExceptionBlockState,
     pub start_label: Label,
     pub catch_variable: Option<Id<Node /*Identifier*/>>,
     pub catch_label: Option<Label>,
@@ -239,8 +239,8 @@ impl ExceptionBlock {
     }
 }
 
-pub(super) struct LabeledBlock {
-    pub kind: CodeBlockKind, /*CodeBlockKind.Labeled*/
+pub struct LabeledBlock {
+    pub(super) kind: CodeBlockKind, /*CodeBlockKind.Labeled*/
     pub label_text: String,
     pub is_script: bool,
     pub break_label: Label,
@@ -257,8 +257,8 @@ impl LabeledBlock {
     }
 }
 
-pub(super) struct SwitchBlock {
-    pub kind: CodeBlockKind, /*CodeBlockKind.Switch*/
+pub struct SwitchBlock {
+    pub(super) kind: CodeBlockKind, /*CodeBlockKind.Switch*/
     pub is_script: bool,
     pub break_label: Label,
 }
@@ -273,9 +273,10 @@ impl SwitchBlock {
     }
 }
 
-pub(super) struct LoopBlock {
-    pub kind: CodeBlockKind, /*CodeBlockKind.Loop*/
+pub struct LoopBlock {
+    pub(super) kind: CodeBlockKind, /*CodeBlockKind.Loop*/
     pub continue_label: Label,
+    #[allow(dead_code)]
     pub is_script: bool,
     pub break_label: Label,
 }
@@ -291,9 +292,10 @@ impl LoopBlock {
     }
 }
 
-pub(super) struct WithBlock {
-    pub kind: CodeBlockKind, /*CodeBlockKind.With*/
+pub struct WithBlock {
+    pub(super) kind: CodeBlockKind, /*CodeBlockKind.With*/
     pub expression: Id<Node /*Identifier*/>,
+    #[allow(dead_code)]
     pub start_label: Label,
     pub end_label: Label,
 }
@@ -339,7 +341,6 @@ pub(super) struct TransformGenerators {
     pub(super) _arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
-    pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) language_version: ScriptTarget,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
     pub(super) renamed_catch_variables: RefCell<Option<HashMap<String, bool>>>,
@@ -383,7 +384,6 @@ impl TransformGenerators {
             _arena: arena,
             factory: context_ref.factory(),
             language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
-            compiler_options,
             resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
             renamed_catch_variables: _d(),

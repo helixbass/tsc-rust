@@ -1,7 +1,6 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
-
 
 use super::{IterationTypeKind, TypeFacts};
 use crate::{
@@ -9,7 +8,7 @@ use crate::{
     find, get_check_flags, get_object_flags, is_optional_chain, is_outermost_optional_chain, last,
     length, some, try_every, try_reduce_left_no_initial_value, CheckFlags, Debug_, ElementFlags,
     HasArena, InArena, InterfaceTypeInterface, Node, NodeInterface, Number, ObjectFlags,
-    ObjectFlagsTypeInterface, OptionTry, PeekMoreExt, PeekableExt, Signature, Symbol, SymbolFlags,
+    ObjectFlagsTypeInterface, OptionTry, PeekableExt, Signature, Symbol, SymbolFlags,
     SymbolInterface, SymbolTable, SyntaxKind, Ternary, TransientSymbolInterface, Type, TypeChecker,
     TypeFlags, TypeInterface, TypePredicate, UnionReduction,
 };

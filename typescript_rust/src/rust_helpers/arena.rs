@@ -7580,7 +7580,7 @@ macro_rules! per_arena {
     ($type:ty, $arena:expr, $initializer:expr $(,)?) => {{
         use std::cell::RefCell;
         use std::collections::HashMap;
-        use id_arena::Id;
+        use $crate::id_arena::Id;
         use $crate::AllArenas;
 
         thread_local! {

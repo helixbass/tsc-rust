@@ -13,8 +13,8 @@ use super::{
     ReverseMappedType, Signature, Symbol, SymbolTable, Type, TypeChecker, TypeInterface,
 };
 use crate::{
-    EvolvingArrayType, FreshObjectLiteralTypeInterface, HasArena, InArena, Number, TypeId,
-    TypeMapper, __String, ref_mut_unwrapped, ref_unwrapped,
+    EvolvingArrayType, FreshObjectLiteralTypeInterface, InArena, Number, TypeId, TypeMapper,
+    __String, ref_mut_unwrapped, ref_unwrapped,
 };
 
 pub trait LiteralTypeInterface: TypeInterface {

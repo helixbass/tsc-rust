@@ -5,8 +5,8 @@ use super::{get_default_tag_name_for_kind, propagate_child_flags, propagate_chil
 use crate::{
     escape_leading_underscores, get_jsdoc_type_alias_name, has_node_array_changed,
     has_option_node_array_changed, is_variable_declaration, AssertClause, AssertEntry,
-    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, BaseNodeFactory, CaseClause,
-    CatchClause, Debug_, DefaultClause, ExportAssignment, ExportDeclaration, ExportSpecifier,
+    BaseJSDocTag, BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseNode, CaseClause, CatchClause,
+    Debug_, DefaultClause, ExportAssignment, ExportDeclaration, ExportSpecifier,
     ExternalModuleReference, HasTypeArgumentsInterface, HeritageClause, ImportSpecifier, InArena,
     JSDoc, JSDocAugmentsTag, JSDocCallbackTag, JSDocFunctionType, JSDocImplementsTag, JSDocLink,
     JSDocLinkCode, JSDocLinkPlain, JSDocMemberName, JSDocNameReference, JSDocPropertyLikeTag,

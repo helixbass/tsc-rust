@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -16,10 +16,10 @@ use crate::{
     is_private_identifier, is_static, is_string_literal_like, length, maybe_for_each,
     maybe_get_source_file_of_node, node_is_missing, node_is_present, set_parent,
     should_preserve_const_enums, AsDoubleDeref, Diagnostics, EnumKind,
-    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
-    HasTypeParametersInterface, InArena, InterfaceTypeInterface, ModifierFlags,
-    NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface, Number,
-    OptionInArena, OptionTry, ReadonlyTextRange, StringOrNumber, Symbol, SymbolFlags,
+    FunctionLikeDeclarationInterface, HasInitializerInterface, HasTypeParametersInterface, InArena,
+    InterfaceTypeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeCheckFlags,
+    NodeFlags, NodeInterface, Number, OptionInArena, OptionTry, ReadonlyTextRange, StringOrNumber,
+    Symbol, SymbolFlags,
 };
 
 impl TypeChecker {

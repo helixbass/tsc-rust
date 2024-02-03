@@ -233,7 +233,7 @@ impl Deref for NodeArrayOrVecRef<'_> {
     fn deref(&self) -> &Self::Target {
         match self {
             NodeArrayOrVecRef::NodeArray(node_array) => node_array.deref(),
-            NodeArrayOrVecRef::Vec(vec) => vec.deref(),
+            NodeArrayOrVecRef::Vec(vec) => vec,
         }
     }
 }

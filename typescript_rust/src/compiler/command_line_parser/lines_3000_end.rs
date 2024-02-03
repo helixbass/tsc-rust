@@ -1189,7 +1189,7 @@ pub(super) fn remove_wildcard_files_with_lower_priority_extension(
             return;
         }
         let lower_priority_path = key_mapper(&change_extension(file, ext.to_str()));
-        wildcard_files.remove(&lower_priority_path);
+        wildcard_files.shift_remove(&lower_priority_path);
     }
 }
 

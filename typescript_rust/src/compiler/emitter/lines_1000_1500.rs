@@ -247,7 +247,7 @@ impl Printer {
                 ));
             }
         }
-        self.writer.set(writer).clone();
+        self.writer.set(writer);
         self.set_source_map_generator(source_map_generator.clone());
         self.set_source_maps_disabled(writer.is_none() || source_map_generator.is_none());
     }

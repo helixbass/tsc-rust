@@ -10,18 +10,17 @@ use id_arena::Id;
 use crate::{
     chain_bundle, downcast_transformer_ref, get_original_node_id, id_text, is_identifier,
     is_private_identifier, is_property_access_expression, is_property_assignment,
-    node_is_synthesized, ref_mut_unwrapped, static_arena, string_to_token, AllArenas, BoolExt, CompilerOptions, CoreTransformationContext, EmitHint,
-    HasArena, InArena, JsxEmit, Matches, NamedDeclarationInterface, Node, NodeExt, NodeFactory,
-    NodeId, NodeInterface, SyntaxKind, TransformNodesTransformationResult, TransformationContext,
+    node_is_synthesized, ref_mut_unwrapped, static_arena, string_to_token, AllArenas, BoolExt,
+    CoreTransformationContext, EmitHint, HasArena, InArena, JsxEmit, Matches,
+    NamedDeclarationInterface, Node, NodeExt, NodeFactory, NodeId, NodeInterface, SyntaxKind,
+    TransformNodesTransformationResult, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
 };
 
 struct TransformES5 {
     _arena: *const AllArenas,
-    context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
-    compiler_options: Id<CompilerOptions>,
     no_substitution: RefCell<Option<HashMap<NodeId, bool>>>,
 }
 
@@ -36,8 +35,6 @@ impl TransformES5 {
         let ret = arena_ref.alloc_transformer(Box::new(Self {
             _arena: arena,
             factory: context_ref.factory(),
-            compiler_options: compiler_options.clone(),
-            context: context.clone(),
             no_substitution: Default::default(),
         }));
         if matches!(

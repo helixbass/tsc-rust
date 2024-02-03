@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -7,9 +7,8 @@ use crate::{
     escape_leading_underscores, every, find_index, has_static_modifier, id_text,
     is_element_access_expression, is_private_identifier, is_property_access_expression,
     is_string_literal_like, Debug_, SymbolFlags, SymbolInterface, SyntaxKind, __String, contains,
-    is_access_expression, is_optional_chain, map, try_map, HasArena, InArena, Node, NodeInterface,
-    OptionTry, Symbol, Type, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
-    UnionReduction,
+    is_access_expression, is_optional_chain, map, try_map, InArena, Node, NodeInterface, OptionTry,
+    Symbol, Type, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface, UnionReduction,
 };
 
 impl GetFlowTypeOfReference {

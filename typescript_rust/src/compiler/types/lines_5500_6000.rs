@@ -364,6 +364,7 @@ pub struct IndexedAccessType {
     pub object_type: Id<Type>,
     pub index_type: Id<Type>,
     pub(crate) access_flags: AccessFlags,
+    #[allow(dead_code)]
     pub(crate) constraint: Option<Id<Type>>,
     simplified_for_reading: Cell<Option<Id<Type>>>,
     simplified_for_writing: Cell<Option<Id<Type>>>,

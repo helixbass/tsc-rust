@@ -11,19 +11,19 @@ use local_macros::enum_unwrapped;
 
 use crate::{
     chain_bundle, get_emit_script_target, get_use_define_for_class_fields, is_expression,
-    is_private_identifier, is_statement, visit_each_child, visit_node,
-    CompilerOptions, Debug_, EmitHint, EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeId,
-    NodeInterface, NonEmpty, ScriptTarget, SingleNodeOrVecNode, SyntaxKind, TransformFlags,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, UnderscoreEscapedMap, VecExt, VisitResult,
-    _d, downcast_transformer_ref, get_emit_flags, get_original_node, is_arrow_function,
-    is_get_accessor, is_identifier, is_modifier, is_set_accessor, is_simple_inlineable_expression,
-    is_static_modifier, is_super_property, maybe_filter, maybe_visit_nodes, move_range_pos,
-    ref_mut_unwrapped, ref_unwrapped, set_comment_range, static_arena, visit_function_body,
-    visit_parameter_list, AllArenas, AsDoubleDeref, CoreTransformationContext, EmitFlags, HasArena,
-    HasInitializerInterface, InArena, NamedDeclarationInterface, NodeCheckFlags, OptionInArena,
-    ReadonlyTextRangeConcrete, TransformNodesTransformationResult,
+    is_private_identifier, is_statement, visit_each_child, visit_node, Debug_, EmitHint,
+    EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeId, NodeInterface, NonEmpty,
+    ScriptTarget, SingleNodeOrVecNode, SyntaxKind, TransformFlags, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
+    UnderscoreEscapedMap, VecExt, VisitResult, _d, downcast_transformer_ref, get_emit_flags,
+    get_original_node, is_arrow_function, is_get_accessor, is_identifier, is_modifier,
+    is_set_accessor, is_simple_inlineable_expression, is_static_modifier, is_super_property,
+    maybe_filter, maybe_visit_nodes, move_range_pos, ref_mut_unwrapped, ref_unwrapped,
+    set_comment_range, static_arena, visit_function_body, visit_parameter_list, AllArenas,
+    AsDoubleDeref, CoreTransformationContext, EmitFlags, HasArena, HasInitializerInterface,
+    InArena, NamedDeclarationInterface, NodeCheckFlags, OptionInArena, ReadonlyTextRangeConcrete,
+    TransformNodesTransformationResult,
 };
 
 bitflags! {
@@ -60,7 +60,7 @@ pub(super) trait PrivateIdentifierInfoInterface {
     fn maybe_variable_name(&self) -> Option<Id<Node>>;
 }
 
-pub(super) struct PrivateIdentifierAccessorInfo {
+pub struct PrivateIdentifierAccessorInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
@@ -110,7 +110,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierAccessorInfo {
     }
 }
 
-pub(super) struct PrivateIdentifierMethodInfo {
+pub struct PrivateIdentifierMethodInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
@@ -157,7 +157,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierMethodInfo {
     }
 }
 
-pub(super) struct PrivateIdentifierInstanceFieldInfo {
+pub struct PrivateIdentifierInstanceFieldInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
@@ -197,7 +197,7 @@ impl PrivateIdentifierInfoInterface for PrivateIdentifierInstanceFieldInfo {
     }
 }
 
-pub(super) struct PrivateIdentifierStaticFieldInfo {
+pub struct PrivateIdentifierStaticFieldInfo {
     brand_check_identifier: Id<Node /*Identifier*/>,
     is_static: bool,
     is_valid: bool,
@@ -346,7 +346,7 @@ pub struct PrivateIdentifierEnvironment {
 
 #[derive(Default)]
 pub struct ClassLexicalEnvironment {
-    pub facts: ClassFacts,
+    pub(super) facts: ClassFacts,
     pub class_constructor: Option<Id<Node /*Identifier*/>>,
     pub super_class_reference: Option<Id<Node /*Identifier*/>>,
     pub private_identifier_environment: Option<Id<PrivateIdentifierEnvironment>>,
@@ -368,7 +368,6 @@ pub(super) struct TransformClassFields {
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
-    pub(super) compiler_options: Id<CompilerOptions>,
     pub(super) language_version: ScriptTarget,
     pub(super) use_define_for_class_fields: bool,
     pub(super) should_transform_private_elements_or_class_static_blocks: bool,
@@ -404,7 +403,6 @@ impl TransformClassFields {
             resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
             use_define_for_class_fields,
-            compiler_options,
             should_transform_private_elements_or_class_static_blocks: language_version
                 < ScriptTarget::ESNext,
             should_transform_super_in_static_initializers: (language_version

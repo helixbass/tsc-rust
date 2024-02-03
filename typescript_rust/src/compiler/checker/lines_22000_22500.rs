@@ -2,15 +2,13 @@ use std::{cmp, io};
 
 use id_arena::Id;
 
-
-
 use super::InferTypes;
 use crate::{
     every, find, flat_map, get_object_flags, try_some, DiagnosticMessage, Diagnostics,
-    ElementFlags, HasArena, InArena, InferenceContext, InferenceFlags, InferenceInfo,
-    InferencePriority, Node, NodeInterface, ObjectFlags, OptionTry, PeekMoreExt,
-    Signature, SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Ternary, Type,
-    TypeChecker, TypeFlags, TypeInterface, UnionReduction, VecExt,
+    ElementFlags, InArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
+    Node, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
+    UnionReduction, VecExt,
 };
 
 impl InferTypes {

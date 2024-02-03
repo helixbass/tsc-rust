@@ -22,13 +22,12 @@ use crate::{
     BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral,
     BinaryExpression, BoolOrRcNode, ClassLikeDeclarationBase, ClassLikeDeclarationInterface,
     Debug_, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena,
-    HasInitializerInterface, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, Identifier, InArena, InterfaceOrClassLikeDeclarationInterface,
-    LiteralLikeNodeInterface, Node, NodeArray, NodeArrayOrVec, NodeConverters, NodeFactory,
-    NodeInterface, Number, NumericLiteral, OptionInArena, ParenthesizerRules,
-    PostfixUnaryExpression, PrefixUnaryExpression, PrivateIdentifier, ReadonlyTextRange,
-    RegularExpressionLiteral, SignatureDeclarationInterface, StringLiteral, StringOrNodeArray,
-    SyntaxKind, TokenFlags, TransformFlags,
+    HasInitializerInterface, HasTypeInterface, HasTypeParametersInterface, Identifier, InArena,
+    InterfaceOrClassLikeDeclarationInterface, LiteralLikeNodeInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeConverters, NodeFactory, NodeInterface, Number, NumericLiteral,
+    OptionInArena, ParenthesizerRules, PostfixUnaryExpression, PrefixUnaryExpression,
+    PrivateIdentifier, ReadonlyTextRange, RegularExpressionLiteral, SignatureDeclarationInterface,
+    StringLiteral, StringOrNodeArray, SyntaxKind, TokenFlags, TransformFlags,
 };
 
 thread_local! {

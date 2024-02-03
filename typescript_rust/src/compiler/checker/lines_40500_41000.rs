@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -60,7 +60,7 @@ impl TypeChecker {
         let mut location = Some(location);
         self.populate_symbols(&mut location, meaning, &mut symbols, &mut is_static_symbol)?;
 
-        symbols.remove(InternalSymbolName::This);
+        symbols.shift_remove(InternalSymbolName::This);
         Ok(self.symbols_to_array(&symbols))
     }
 

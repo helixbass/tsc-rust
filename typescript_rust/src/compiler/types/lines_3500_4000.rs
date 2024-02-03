@@ -21,9 +21,10 @@ use crate::{
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
-    __String, get_line_and_character_of_position, ref_mut_unwrapped, ref_unwrapped, AllArenas,
-    HasArena, InArena, LineAndCharacter, ProgramBuildInfo,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags,
+    TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
+    get_line_and_character_of_position, ref_mut_unwrapped, ref_unwrapped, AllArenas, HasArena,
+    InArena, LineAndCharacter, ProgramBuildInfo,
 };
 
 #[derive(Clone, Debug)]
@@ -1072,7 +1073,7 @@ impl Default for InputFilesInitializedState {
 }
 
 #[derive(Debug)]
-struct InputFilesInitializedWithReadFileCallback {
+pub struct InputFilesInitializedWithReadFileCallback {
     read_file_callback: Id<Box<dyn ReadFileCallback>>,
     cache: RefCell<HashMap<String, Option<String>>>,
     declaration_text_or_javascript_path: String,
@@ -1151,7 +1152,7 @@ impl HasArena for InputFilesInitializedWithReadFileCallback {
 }
 
 #[derive(Debug)]
-struct InputFilesInitializedWithString {
+pub struct InputFilesInitializedWithString {
     javascript_text: String,
     javascript_map_text: Option<String>,
     declaration_text: String,
@@ -1580,6 +1581,7 @@ pub struct Program {
     pub(crate) symlinks: Cell<Option<Id<SymlinkCache>>>,
     pub(crate) common_source_directory: RefCell<Option<String>>,
     pub(crate) diagnostics_producing_type_checker: Cell<Option<Id<TypeChecker>>>,
+    #[allow(dead_code)]
     pub(crate) no_diagnostics_type_checker: Cell<Option<Id<TypeChecker>>>,
     #[allow(dead_code)]
     pub(crate) classifiable_names: RefCell<Option<HashSet<__String>>>,

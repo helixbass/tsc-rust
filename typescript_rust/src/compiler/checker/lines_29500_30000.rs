@@ -26,7 +26,7 @@ use crate::{
     DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags,
     HasArena, InArena, InferenceContext, InferenceFlags, Node, NodeArray, NodeInterface,
     OptionInArena, ReadonlyTextRange, RelationComparisonResult, ScriptTarget, Signature,
-    SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
+    SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
     UsizeOrNegativeInfinity,
 };
 

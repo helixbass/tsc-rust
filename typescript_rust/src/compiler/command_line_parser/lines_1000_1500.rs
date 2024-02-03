@@ -2,7 +2,6 @@ use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use id_arena::Id;
 use indexmap::IndexMap;
-use itertools::Itertools;
 use local_macros::enum_unwrapped;
 
 use super::{
@@ -35,6 +34,7 @@ pub fn option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn semantic_diagnostics_option_declarations(
     arena: &impl HasArena,
 ) -> Id<Vec<Id<CommandLineOption>>> {
@@ -52,6 +52,7 @@ pub(crate) fn semantic_diagnostics_option_declarations(
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn affects_emit_option_declarations(
     arena: &impl HasArena,
 ) -> Id<Vec<Id<CommandLineOption>>> {
@@ -124,6 +125,7 @@ pub(crate) fn options_affecting_program_structure(
     )
 }
 
+#[allow(dead_code)]
 pub(crate) fn transpile_option_value_compiler_options(
     arena: &impl HasArena,
 ) -> Id<Vec<Id<CommandLineOption>>> {

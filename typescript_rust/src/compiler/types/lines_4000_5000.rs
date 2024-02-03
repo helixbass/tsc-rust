@@ -424,7 +424,7 @@ impl fmt::Debug for TypeChecker {
     }
 }
 
-pub(crate) trait OutofbandVarianceMarkerHandler {
+pub trait OutofbandVarianceMarkerHandler {
     fn call(&self, value: bool);
 }
 

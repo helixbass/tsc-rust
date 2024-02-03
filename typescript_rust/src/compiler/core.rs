@@ -1706,7 +1706,7 @@ mod _MultiMapOrderedDeriveTraceScope {
                     Entry::Occupied(mut values) => {
                         unordered_remove_item(values.get_mut(), value, comparer);
                         if values.get().is_empty() {
-                            values.remove_entry();
+                            values.shift_remove_entry();
                         }
                     }
                     _ => (),

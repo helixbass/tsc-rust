@@ -43,7 +43,7 @@ pub struct CheckTypeRelatedTo {
     pub maybe_count: Cell<usize>,
     pub source_depth: Cell<usize>,
     pub target_depth: Cell<usize>,
-    pub expanding_flags: Cell<ExpandingFlags>,
+    pub(super) expanding_flags: Cell<ExpandingFlags>,
     pub overflow: Cell<bool>,
     pub override_next_error_info: Cell<usize>,
     pub last_skipped_info: Cell<Option<(Id<Type>, Id<Type>)>>,

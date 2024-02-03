@@ -511,9 +511,8 @@ impl TransformNodesTransformationResult {
         &self,
         lexical_environment_variable_declarations: Option<Vec<Id<Node>>>,
     ) {
-        self.set_lexical_environment_variable_declarations(
-            lexical_environment_variable_declarations,
-        );
+        *self.lexical_environment_variable_declarations.borrow_mut() =
+            lexical_environment_variable_declarations;
     }
 
     fn lexical_environment_function_declarations(&self) -> Ref<Option<Vec<Id<Node>>>> {
@@ -547,6 +546,7 @@ impl TransformNodesTransformationResult {
         *self.lexical_environment_statements.borrow_mut() = lexical_environment_statements;
     }
 
+    #[allow(dead_code)]
     fn lexical_environment_variable_declarations_stack(&self) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
         ref_unwrapped(&self.lexical_environment_variable_declarations_stack)
     }
@@ -566,6 +566,7 @@ impl TransformNodesTransformationResult {
             .borrow_mut() = lexical_environment_variable_declarations_stack;
     }
 
+    #[allow(dead_code)]
     fn lexical_environment_function_declarations_stack(&self) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
         ref_unwrapped(&self.lexical_environment_function_declarations_stack)
     }
@@ -585,6 +586,7 @@ impl TransformNodesTransformationResult {
             .borrow_mut() = lexical_environment_function_declarations_stack;
     }
 
+    #[allow(dead_code)]
     fn lexical_environment_statements_stack(&self) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
         ref_unwrapped(&self.lexical_environment_statements_stack)
     }
@@ -600,6 +602,7 @@ impl TransformNodesTransformationResult {
         )
     }
 
+    #[allow(dead_code)]
     fn block_scoped_variable_declarations_stack(&self) -> Ref<Vec<Option<Vec<Id<Node>>>>> {
         ref_unwrapped(&self.block_scoped_variable_declarations_stack)
     }

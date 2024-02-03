@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -18,7 +18,7 @@ use crate::{
     ExternalEmitHelpers, HasArena, HasInitializerInterface, InArena, ModifierFlags,
     ModuleInstanceState, ModuleKind, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     OptionInArena, OptionTry, ScriptTarget, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SyntaxKind, Type, TypeChecker, TypeFlags,
 };
 
 impl TypeChecker {

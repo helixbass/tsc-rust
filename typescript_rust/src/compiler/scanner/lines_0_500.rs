@@ -690,7 +690,7 @@ pub(super) fn make_reverse_map(
 ) -> HashMap<SyntaxKind, &'static str> {
     let mut result = HashMap::new();
     for (key, val) in source.iter() {
-        result.insert(*val, key.clone());
+        result.insert(*val, *key);
     }
     result
 }

@@ -17,11 +17,11 @@ use crate::{
     is_default_clause, is_function_like, is_identifier, is_if_statement, is_internal_name,
     is_iteration_statement, is_labeled_statement, is_property_declaration, is_return_statement,
     is_switch_statement, is_try_statement, is_with_statement, ref_unwrapped, static_arena,
-    try_maybe_visit_each_child, AllArenas, CompilerOptions,
-    CoreTransformationContext, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver,
-    GeneratedIdentifierFlags, GetOrInsertDefault, HasArena, InArena, Matches, Node, NodeExt,
-    NodeFactory, NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars,
-    SyntaxKind, TransformFlags, TransformNodesTransformationResult, TransformationContext,
+    try_maybe_visit_each_child, AllArenas, CompilerOptions, CoreTransformationContext, EmitFlags,
+    EmitHelperFactory, EmitHint, EmitResolver, GeneratedIdentifierFlags, GetOrInsertDefault,
+    HasArena, InArena, Matches, Node, NodeExt, NodeFactory, NodeInterface, OptionTry,
+    ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SyntaxKind, TransformFlags,
+    TransformNodesTransformationResult, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     VisitResult,
@@ -77,9 +77,9 @@ pub struct ConvertedLoopState {
     #[builder(default)]
     pub labeled_non_local_continues: Option<IndexMap<String, String>>,
     #[builder(default)]
-    pub non_local_jumps: Option<Jump>,
+    pub(super) non_local_jumps: Option<Jump>,
     #[builder(default)]
-    pub allowed_non_labeled_jumps: Option<Jump>,
+    pub(super) allowed_non_labeled_jumps: Option<Jump>,
     #[builder(default)]
     pub arguments_name: Option<Id<Node /*Identifier*/>>,
     #[builder(default)]
@@ -91,7 +91,7 @@ pub struct ConvertedLoopState {
     #[builder(default)]
     pub condition_variable: Option<Id<Node /*Identifier*/>>,
     pub loop_parameters: Vec<Id<Node /*ParameterDeclaration*/>>,
-    pub loop_out_parameters: Vec<LoopOutParameter>,
+    pub(super) loop_out_parameters: Vec<LoopOutParameter>,
 }
 
 bitflags! {

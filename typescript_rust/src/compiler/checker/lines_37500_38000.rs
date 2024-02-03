@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -9,9 +9,8 @@ use crate::{
     append, is_class_static_block_declaration, some, ObjectTypeInterface, Signature, SignatureKind,
     SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
     get_containing_function_or_class_static_block, get_function_flags, try_map, Diagnostics,
-    FunctionFlags, HasArena, InArena, IterationTypeCacheKey, IterationTypes,
-    IterationTypesResolver, Node, NodeInterface, OptionTry, Symbol, Type, TypeChecker, TypeFlags,
-    TypeInterface,
+    FunctionFlags, InArena, IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node,
+    NodeInterface, OptionTry, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {

@@ -731,12 +731,12 @@ impl Binder {
     }
 }
 
-pub(crate) struct BindBinaryExpressionFlow {
+pub struct BindBinaryExpressionFlow {
     trampoline: BinaryExpressionTrampoline<BindBinaryExpressionFlowStateMachine>,
 }
 
 impl BindBinaryExpressionFlow {
-    pub fn new(
+    pub(crate) fn new(
         trampoline: BinaryExpressionTrampoline<BindBinaryExpressionFlowStateMachine>,
     ) -> Self {
         Self { trampoline }

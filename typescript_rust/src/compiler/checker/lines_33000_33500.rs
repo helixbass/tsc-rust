@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -9,9 +9,9 @@ use crate::{
     is_jsdoc_typedef_tag, is_jsx_self_closing_element, is_object_literal_expression,
     is_parenthesized_expression, is_property_access_expression, token_to_string,
     unescape_leading_underscores, AssignmentDeclarationKind, Diagnostic, DiagnosticMessage,
-    Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InArena, InferenceContext, Node,
-    NodeFlags, NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
+    Diagnostics, ExternalEmitHelpers, FunctionFlags, InArena, InferenceContext, Node, NodeFlags,
+    NodeInterface, OptionTry, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction,
 };
 
 impl TypeChecker {

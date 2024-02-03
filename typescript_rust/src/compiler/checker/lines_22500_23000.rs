@@ -10,10 +10,9 @@ use crate::{
     is_assignment_expression, is_binary_expression, is_binding_element, is_identifier,
     is_optional_chain, is_string_or_numeric_literal_like, is_this_in_type_query,
     is_variable_declaration, is_write_only_access, node_is_missing, return_ok_default_if_none,
-    try_for_each, try_reduce_left, FindAncestorCallbackReturn, FlowNode, HasArena,
-    HasInitializerInterface, HasTypeInterface, InArena, Node, NodeInterface, Number, ObjectFlags,
-    OptionTry, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags,
-    TypeId, TypeInterface,
+    try_for_each, try_reduce_left, FindAncestorCallbackReturn, FlowNode, HasInitializerInterface,
+    HasTypeInterface, InArena, Node, NodeInterface, Number, ObjectFlags, OptionTry, Symbol,
+    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {

@@ -6,7 +6,7 @@ use crate::{
     has_node_array_changed, has_option_node_array_changed, has_option_str_or_node_changed,
     has_static_modifier, is_computed_property_name, is_exclamation_token, is_question_token,
     is_this_identifier, modifiers_to_flags, ArrayTypeNode, AsDoubleDeref, BaseNode,
-    BaseNodeFactory, CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
+    CallSignatureDeclaration, ClassStaticBlockDeclaration, ComputedPropertyName,
     ConditionalTypeNode, ConstructSignatureDeclaration, ConstructorDeclaration,
     ConstructorTypeNode, Decorator, FunctionLikeDeclarationInterface, FunctionTypeNode,
     GetAccessorDeclaration, HasArena, HasInitializerInterface, HasQuestionTokenInterface,

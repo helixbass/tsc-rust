@@ -16,7 +16,7 @@ use crate::{
     is_private_identifier, is_static, node_is_present, return_ok_default_if_none, try_for_each,
     DiagnosticMessageChain, Diagnostics, ExternalEmitHelpers, FunctionFlags, HasArena, InArena,
     ModifierFlags, NamedDeclarationInterface, Node, NodeInterface, OptionInArena, ScriptTarget,
-    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeInterface,
+    SignatureDeclarationInterface, SymbolInterface, SyntaxKind, Type, TypeChecker,
     TypePredicateKind,
 };
 

@@ -13,7 +13,7 @@ use crate::{
     is_function_like, is_identifier, is_optional_chain, is_private_identifier,
     is_private_identifier_class_element_declaration, is_static, length, some, try_for_each,
     try_for_each_bool, try_for_each_child, try_some, AsDoubleDeref, ClassLikeDeclarationInterface,
-    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn, HasArena,
+    DiagnosticMessage, Diagnostics, ExternalEmitHelpers, FindAncestorCallbackReturn,
     HasInitializerInterface, HasTypeArgumentsInterface, InArena, IndexInfo, InterfaceTypeInterface,
     ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeArray, NodeFlags,
     NodeInterface, ObjectFlags, OptionInArena, OptionTry, ReadonlyTextRange, ScriptTarget,

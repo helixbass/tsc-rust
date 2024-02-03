@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -17,7 +17,7 @@ use crate::{
     is_right_side_of_qualified_name_or_property_access, is_set_accessor, is_spread_assignment,
     is_static, is_string_literal_like, is_variable_declaration, is_write_access, node_is_decorated,
     should_preserve_const_enums, try_find, try_for_each_child, try_map, AssignmentKind,
-    ContextFlags, Diagnostics, FindAncestorCallbackReturn, HasArena, HasInitializerInterface,
+    ContextFlags, Diagnostics, FindAncestorCallbackReturn, HasInitializerInterface,
     HasTypeInterface, InArena, ModifierFlags, Node, NodeArray, NodeCheckFlags, NodeFlags,
     NodeInterface, ObjectFlags, OptionTry, ScriptTarget, Signature, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,

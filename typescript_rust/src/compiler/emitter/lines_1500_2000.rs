@@ -7,10 +7,9 @@ use crate::{
     compare_emit_helpers, get_emit_helpers, get_external_helpers_module_name,
     has_recorded_external_helpers, is_source_file, is_template_literal_kind, is_unparsed_source,
     stable_sort, BundleFileSection, BundleFileSectionKind, Debug_, EmitHelper, EmitHelperBase,
-    EmitHelperText, EmitHint, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, InArena,
-    ListFormat, ModuleKind, NamedDeclarationInterface, Node, NodeInterface, Printer,
-    ReadonlyTextRange, SnippetElement, SnippetKind, SortedArray, SourceFileLike, SyntaxKind,
-    TextRange,
+    EmitHelperText, EmitHint, GetOrInsertDefault, HasArena, InArena, ListFormat, ModuleKind,
+    NamedDeclarationInterface, Node, NodeInterface, Printer, ReadonlyTextRange, SnippetElement,
+    SnippetKind, SortedArray, SourceFileLike, SyntaxKind, TextRange,
 };
 
 impl Printer {

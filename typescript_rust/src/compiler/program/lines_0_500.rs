@@ -22,7 +22,8 @@ use crate::{
     sort_and_deduplicate_diagnostics, trim_string_end, write_file_ensuring_directories, AllArenas,
     CancellationToken, CompilerHost, CompilerOptions, Debug_, Diagnostic, DiagnosticCategory,
     DiagnosticInterface, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Extension,
-    HasArena, InArena, LineAndCharacter, ModuleResolutionHost, ModuleResolutionHostOverrider, Node, OptionTry, Path, ProgramOrBuilderProgram, ScriptTarget, SourceFileLike, System,
+    HasArena, InArena, LineAndCharacter, ModuleResolutionHost, ModuleResolutionHostOverrider, Node,
+    OptionTry, Path, ProgramOrBuilderProgram, ScriptTarget, SourceFileLike, System,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(
@@ -765,6 +766,7 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
 struct ChangeCompilerHostLikeToUseCacheOverrider {
     host: Id<Box<dyn CompilerHost>>,
     to_path: Id<Box<dyn ToPath>>,
+    #[allow(dead_code)]
     get_source_file: Option<Id<Box<dyn GetSourceFile>>>,
     read_file_cache: RefCell<HashMap<String, Option<String>>>,
     file_exists_cache: RefCell<HashMap<String, bool>>,

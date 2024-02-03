@@ -22,8 +22,8 @@ use crate::{
     is_module_block, is_module_declaration, is_named_exports, is_property_access_expression,
     is_source_file, is_string_a_non_contextual_keyword, is_string_literal, is_variable_declaration,
     is_variable_declaration_list, is_variable_statement, length, map, map_defined,
-    needs_scope_marker, node_has_name, ordered_remove_item_at,
-    set_text_range_id_node, unescape_leading_underscores, AllArenas, HasArena,
+    needs_scope_marker, node_has_name, ordered_remove_item_at, set_text_range_id_node,
+    unescape_leading_underscores, AllArenas, HasArena,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, InternalSymbolName,
     LiteralLikeNodeInterface, ModifierFlags, Node, NodeArray, NodeArrayOrVec, NodeBuilder,
     NodeBuilderFlags, NodeFlags, NodeInterface, OptionInArena, StrOrRcNode, Symbol,
@@ -176,11 +176,13 @@ impl SymbolTableToDeclarationStatements {
         self.context.set(context);
     }
 
-    pub fn serialize_property_symbol_for_class(&self) -> MakeSerializePropertySymbol {
+    pub(super) fn serialize_property_symbol_for_class(&self) -> MakeSerializePropertySymbol {
         self.serialize_property_symbol_for_class.get().unwrap()
     }
 
-    pub fn serialize_property_symbol_for_interface_worker(&self) -> MakeSerializePropertySymbol {
+    pub(super) fn serialize_property_symbol_for_interface_worker(
+        &self,
+    ) -> MakeSerializePropertySymbol {
         self.serialize_property_symbol_for_interface_worker
             .get()
             .unwrap()

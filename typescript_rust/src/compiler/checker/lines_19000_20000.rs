@@ -7,7 +7,6 @@ use std::{
 };
 
 use id_arena::Id;
-use itertools::{Itertools};
 
 use super::{
     anon, CheckTypeRelatedTo, ErrorCalculationState, IntersectionState, RecursionFlags,
