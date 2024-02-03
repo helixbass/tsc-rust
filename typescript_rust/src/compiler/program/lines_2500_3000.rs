@@ -603,7 +603,6 @@ impl Program {
         reason: Id<FileIncludeReason>,
     ) {
         if let Some(file) = file {
-            let file = file.borrow();
             self.file_reasons().ref_mut(self).add(
                 file.ref_(self).as_source_file().path().clone(),
                 reason.clone(),

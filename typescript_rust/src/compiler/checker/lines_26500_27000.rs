@@ -1369,7 +1369,7 @@ impl TypeChecker {
                     if !prop.ref_(self).flags().intersects(SymbolFlags::Optional) {
                         self.error(
                             prop.ref_(self).maybe_value_declaration().or_else(|| {
-                                (*prop.ref_(self).as_transient_symbol().symbol_links().ref_(self)).borrow().binding_element.clone()
+                                prop.ref_(self).as_transient_symbol().symbol_links().ref_(self).binding_element
                             }),
                             &Diagnostics::Initializer_provides_no_value_for_this_binding_element_and_the_binding_element_has_no_default_value,
                             None,

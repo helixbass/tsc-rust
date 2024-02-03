@@ -1053,10 +1053,7 @@ impl TypeChecker {
                         .ref_(self)
                         .set_declarations(prop_declarations.clone());
                 }
-                result_links.name_type = (*self.get_symbol_links(prop).ref_(self))
-                    .borrow()
-                    .name_type
-                    .clone();
+                result_links.name_type = self.get_symbol_links(prop).ref_(self).name_type;
                 result_links.synthetic_origin = Some(prop.clone());
                 members.insert(prop.ref_(self).escaped_name().to_owned(), result);
             }
@@ -1256,10 +1253,7 @@ impl TypeChecker {
                     if let Some(declarations) = declarations {
                         result.ref_(self).set_declarations(declarations);
                     }
-                    result_links.name_type = (*self.get_symbol_links(left_prop).ref_(self))
-                        .borrow()
-                        .name_type
-                        .clone();
+                    result_links.name_type = self.get_symbol_links(left_prop).ref_(self).name_type;
                     members.insert(left_prop.ref_(self).escaped_name().to_owned(), result);
                 }
             } else {

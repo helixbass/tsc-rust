@@ -409,7 +409,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_apparent_type(type_)?;
         let mut props_by_name =
-            create_symbol_table(self.arena(), Some(self.get_properties_of_type(type_)?));
+            create_symbol_table(self.arena(), Some(&self.get_properties_of_type(type_)?));
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)?
             .is_empty()
@@ -462,8 +462,8 @@ impl TypeChecker {
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Synthetic) {
             return Ok(Some(try_map_defined(
                 Some(
-                    (*self.get_symbol_links(symbol).ref_(self))
-                        .borrow()
+                    self.get_symbol_links(symbol)
+                        .ref_(self)
                         .containing_type
                         .unwrap()
                         .ref_(self)
@@ -478,11 +478,10 @@ impl TypeChecker {
             let (left_spread, right_spread, synthetic_origin) = {
                 let symbol_links = symbol.ref_(self).as_transient_symbol().symbol_links();
                 let symbol_links_ref = symbol_links.ref_(self);
-                let symbol_links = (*symbol_links_ref).borrow();
                 (
-                    symbol_links.left_spread.clone(),
-                    symbol_links.right_spread.clone(),
-                    symbol_links.synthetic_origin.clone(),
+                    symbol_links_ref.left_spread,
+                    symbol_links_ref.right_spread,
+                    symbol_links_ref.synthetic_origin,
                 )
             };
             return Ok(if let Some(left_spread) = left_spread {
@@ -500,10 +499,7 @@ impl TypeChecker {
         let mut target: Option<Id<Symbol>> = None;
         let mut next = Some(symbol);
         while {
-            next = (*self.get_symbol_links(next.unwrap()).ref_(self))
-                .borrow()
-                .target
-                .clone();
+            next = self.get_symbol_links(next.unwrap()).ref_(self).target;
             next.is_some()
         } {
             target = next.clone();
@@ -577,10 +573,7 @@ impl TypeChecker {
                 )?
             });
         }
-        let ret = (*symbol_links.ref_(self))
-            .borrow()
-            .exports_some_value
-            .unwrap();
+        let ret = symbol_links.ref_(self).exports_some_value.unwrap();
         Ok(ret)
     }
 
@@ -744,8 +737,8 @@ impl TypeChecker {
                 })
             {
                 let links = self.get_symbol_links(symbol);
-                if (*links.ref_(self))
-                    .borrow()
+                if links
+                    .ref_(self)
                     .is_declaration_with_colliding_name
                     .is_none()
                 {

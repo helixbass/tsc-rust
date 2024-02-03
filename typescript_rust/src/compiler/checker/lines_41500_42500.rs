@@ -61,14 +61,11 @@ impl TypeChecker {
             let links = symbol.map(|symbol| self.get_symbol_links(symbol));
             if matches!(
                 links,
-                Some(links) if (*links.ref_(self)).borrow().referenced == Some(true)
+                Some(links) if links.ref_(self).referenced == Some(true)
             ) {
                 return Ok(true);
             }
-            let target = (*self.get_symbol_links(symbol.unwrap()).ref_(self))
-                .borrow()
-                .target
-                .clone();
+            let target = self.get_symbol_links(symbol.unwrap()).ref_(self).target;
             if matches!(
                 target,
                 Some(target) if get_effective_modifier_flags(node, self).intersects(ModifierFlags::Export) &&

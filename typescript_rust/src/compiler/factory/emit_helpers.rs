@@ -565,7 +565,7 @@ impl EmitHelperFactory {
         self.context
             .ref_(self)
             .request_emit_helper(class_private_field_get_helper(self));
-        let kind_str: &str = kind.borrow();
+        let kind_str: &str = kind.as_ref();
         let args = match f {
             None => vec![
                 receiver,
@@ -601,7 +601,7 @@ impl EmitHelperFactory {
         self.context
             .ref_(self)
             .request_emit_helper(class_private_field_set_helper(self));
-        let kind_str: &str = kind.borrow();
+        let kind_str: &str = kind.as_ref();
         let args = match f {
             None => vec![
                 receiver,

@@ -83,19 +83,18 @@ impl TypeChecker {
             return Ok(());
         }
         let apparent_type_symbol = apparent_type_symbol.unwrap();
-        let import_node = (*self.get_symbol_links(apparent_type_symbol).ref_(self))
-            .borrow()
-            .originating_import
-            .clone();
+        let import_node = self
+            .get_symbol_links(apparent_type_symbol)
+            .ref_(self)
+            .originating_import;
         if let Some(import_node) =
             import_node.filter(|&import_node| !is_import_call(import_node, self))
         {
             let sigs = self.get_signatures_of_type(
                 self.get_type_of_symbol(
-                    (*self.get_symbol_links(apparent_type_symbol).ref_(self))
-                        .borrow()
+                    self.get_symbol_links(apparent_type_symbol)
+                        .ref_(self)
                         .target
-                        .clone()
                         .unwrap(),
                 )?,
                 kind,
@@ -590,7 +589,7 @@ impl TypeChecker {
         let source = return_ok_default_if_none!(source);
         let links = self.get_symbol_links(source);
         if !matches!(
-            (*links.ref_(self)).borrow().inferred_class_symbol.as_ref(),
+            links.ref_(self).inferred_class_symbol.as_ref(),
             Some(links_inferred_class_symbol) if links_inferred_class_symbol.contains_key(&get_symbol_id(&target.ref_(self)))
         ) {
             let inferred = if is_transient_symbol(&target.ref_(self)) {
@@ -652,13 +651,13 @@ impl TypeChecker {
             }
             return Ok(Some(inferred));
         }
-        let ret = (*links.ref_(self))
-            .borrow()
+        let ret = links
+            .ref_(self)
             .inferred_class_symbol
             .as_ref()
             .unwrap()
             .get(&get_symbol_id(&target.ref_(self)))
-            .cloned();
+            .copied();
         Ok(ret)
     }
 

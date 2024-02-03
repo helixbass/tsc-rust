@@ -927,6 +927,7 @@ impl TypeChecker {
             let object_literals = candidates
                 .into_iter()
                 .filter(|&&candidate| self.is_object_or_array_literal_type(candidate))
+                .copied()
                 .collect::<Vec<_>>();
             if !object_literals.is_empty() {
                 let literals_type = self.get_union_type(
