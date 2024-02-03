@@ -1,10 +1,13 @@
-use gc::{Finalize, Gc, Trace};
-use regex::Regex;
 use std::cell::Cell;
 
-use typescript_rust::{map, normalize_slashes, HasArena, AllArenas};
+use gc::{Finalize, Gc, Trace};
+use regex::Regex;
+use typescript_rust::{map, normalize_slashes, AllArenas, HasArena};
 
-use crate::{user_specified_root, FileBasedTest, ListFilesOptions, get_io, HasArenaHarness, AllArenasHarness};
+use crate::{
+    get_io, user_specified_root, AllArenasHarness, FileBasedTest, HasArenaHarness,
+    ListFilesOptions, IO,
+};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TestRunnerKind {

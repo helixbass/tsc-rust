@@ -5,10 +5,10 @@ pub mod compiler {
     use typescript_rust::{
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
         file_extension_is, filter, get_declaration_emit_extension_for_path, get_output_extension,
-        get_pre_emit_diagnostics, id_arena::Id, is_option_str_empty, length, some, Comparison,
-        CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticCategory, DiagnosticMessage,
-        DiagnosticRelatedInformation, EmitResult, Extension, HasArena, InArena, ModuleKind,
-        NewLineKind, Node, NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike,
+        get_pre_emit_diagnostics, id_arena::Id, is_option_str_empty, length, some, AllArenas,
+        Comparison, CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticCategory,
+        DiagnosticMessage, DiagnosticRelatedInformation, EmitResult, Extension, HasArena, InArena,
+        ModuleKind, NewLineKind, Node, NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike,
     };
 
     use crate::{
@@ -47,9 +47,10 @@ pub mod compiler {
             program: Option<Id<Program>>,
             result: Option<EmitResult>,
             diagnostics: Vec<Id<Diagnostic>>,
+            arena: &impl HasArena,
         ) -> io::Result<Self> {
-            let options = if let Some(program) = program.as_ref() {
-                program.get_compiler_options()
+            let options = if let Some(program) = program {
+                program.ref_(arena).get_compiler_options()
             } else {
                 options
             };
@@ -114,23 +115,27 @@ pub mod compiler {
                 symlinks: Default::default(),
             };
             if let Some(program) = program {
-                if !is_option_str_empty(options.out.as_deref())
-                    || !is_option_str_empty(options.out_file.as_deref())
+                if !is_option_str_empty(options.ref_(arena).out.as_deref())
+                    || !is_option_str_empty(options.ref_(arena).out_file.as_deref())
                 {
                     let out_file = vpath::resolve(
                         &ret.vfs().cwd()?,
                         &[Some(
                             options
+                                .ref_(arena)
                                 .out
                                 .as_deref()
                                 .filter(|options_out| !options_out.is_empty())
-                                .unwrap_or_else(|| options.out_file.as_deref().unwrap()),
+                                .unwrap_or_else(|| {
+                                    options.ref_(arena).out_file.as_deref().unwrap()
+                                }),
                         )],
                     );
                     let mut inputs: Vec<Gc<documents::TextDocument>> = vec![];
-                    for source_file in &*program.get_source_files() {
+                    for &source_file in &*program.ref_(arena).get_source_files() {
                         // if (sourceFile) {
-                        let source_file_as_source_file = source_file.as_source_file();
+                        let source_file_ref = source_file.ref_(arena);
+                        let source_file_as_source_file = source_file_ref.as_source_file();
                         let input = Gc::new(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
@@ -177,9 +182,10 @@ pub mod compiler {
                             .set(input.file.clone(), outputs.clone());
                     }
                 } else {
-                    for source_file in &*program.get_source_files() {
+                    for source_file in &*program.ref_(arena).get_source_files() {
                         // if (sourceFile) {
-                        let source_file_as_source_file = source_file.as_source_file();
+                        let source_file_ref = source_file.ref_(arena);
+                        let source_file_as_source_file = source_file_ref.as_source_file();
                         let input = Gc::new(documents::TextDocument::new(
                             source_file_as_source_file.file_name().clone(),
                             source_file_as_source_file.text().clone(),
@@ -190,7 +196,7 @@ pub mod compiler {
                         if !vpath::is_declaration(&source_file_as_source_file.file_name()) {
                             let extname = get_output_extension(
                                 &source_file_as_source_file.file_name(),
-                                &ret.options,
+                                &ret.options.ref_(arena),
                             );
                             let outputs = Gc::new(CompilationOutput {
                                 inputs: vec![input],
@@ -254,8 +260,7 @@ pub mod compiler {
         pub fn common_source_directory(&self) -> io::Result<String> {
             let common = self
                 .program
-                .as_ref()
-                .map(|program| program.get_common_source_directory())
+                .map(|program| program.ref_(self).get_common_source_directory())
                 .unwrap_or_else(|| "".to_owned());
             Ok(if !common.is_empty() {
                 vpath::combine(&self.vfs().cwd()?, &[Some(&common)])
@@ -269,7 +274,7 @@ pub mod compiler {
             maps.non_empty().map(|maps| {
                 SourceMapRecorder::get_source_map_record(
                     maps,
-                    self.program.as_ref().unwrap(),
+                    &self.program.unwrap().ref_(self),
                     &self
                         .js
                         .values()
@@ -284,29 +289,31 @@ pub mod compiler {
 
         pub fn get_output_path(&self, path: &str, ext: &str) -> io::Result<String> {
             let mut path = path.to_owned();
-            if !is_option_str_empty(self.options.out_file.as_deref())
-                || !is_option_str_empty(self.options.out.as_deref())
+            if !is_option_str_empty(self.options.ref_(self).out_file.as_deref())
+                || !is_option_str_empty(self.options.ref_(self).out.as_deref())
             {
                 path = vpath::resolve(
                     &self.vfs().cwd()?,
                     &[Some(
                         self.options
+                            .ref_(self)
                             .out_file
                             .as_deref()
                             .filter(|options_out_file| !options_out_file.is_empty())
-                            .unwrap_or_else(|| self.options.out.as_deref().unwrap()),
+                            .unwrap_or_else(|| self.options.ref_(self).out.as_deref().unwrap()),
                     )],
                 );
             } else {
                 path = vpath::resolve(&self.vfs().cwd()?, &[Some(&path)]);
                 let out_dir = if matches!(ext, ".d.ts" | ".json.d.ts" | ".d.mts" | ".d.cts") {
                     self.options
+                        .ref_(self)
                         .declaration_dir
                         .as_deref()
                         .filter(|options_declaration_dir| !options_declaration_dir.is_empty())
-                        .or_else(|| self.options.out_dir.as_deref())
+                        .or_else(|| self.options.ref_(self).out_dir.as_deref())
                 } else {
-                    self.options.out_dir.as_deref()
+                    self.options.ref_(self).out_dir.as_deref()
                 };
                 if out_dir.is_non_empty() {
                     let common = self.common_source_directory()?;
@@ -318,7 +325,10 @@ pub mod compiler {
                             Some(self.vfs().ignore_case),
                         );
                         path = vpath::combine(
-                            &vpath::resolve(&self.vfs().cwd()?, &[self.options.out_dir.as_deref()]),
+                            &vpath::resolve(
+                                &self.vfs().cwd()?,
+                                &[self.options.ref_(self).out_dir.as_deref()],
+                            ),
                             &[Some(&path)],
                         );
                     }
@@ -344,6 +354,12 @@ pub mod compiler {
                 });
                 count
             }
+        }
+    }
+
+    impl HasArena for CompilationResult {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
         }
     }
 
@@ -451,7 +467,7 @@ pub mod compiler {
         ) {
             let mut errors = shorter_errors.unwrap().clone();
             errors.push({
-                let diagnostic: Id<Diagnostic> = Gc::new(
+                let diagnostic: Id<Diagnostic> = arena.alloc_diagnostic(
                     create_compiler_diagnostic(
                         &DiagnosticMessage::new(
                             0, // -1
@@ -468,10 +484,10 @@ pub mod compiler {
                     ).into()
                 );
                 add_related_info(
-                    &diagnostic,
+                    &diagnostic.ref_(arena),
                     {
                         let mut related_info: Vec<Id<DiagnosticRelatedInformation>> = vec![
-                            Gc::new(
+                            arena.alloc_diagnostic_related_information(
                                 create_compiler_diagnostic(
                                     &DiagnosticMessage::new(
                                         0, // -1
@@ -486,10 +502,10 @@ pub mod compiler {
                         ];
                         related_info.append(
                             &mut filter(
-                                &longer_errors.into_iter().map(|error| Gc::new((**error).clone().into())).collect::<Vec<_>>(),
+                                &longer_errors.into_iter().map(|error| arena.alloc_diagnostic_related_information(error.ref_(arena).clone().into())).collect::<Vec<_>>(),
                                 |p: &Id<DiagnosticRelatedInformation>| !some(
                                     shorter_errors.map(|shorter_errors| &**shorter_errors),
-                                    Some(|p2: &Id<Diagnostic>| compare_diagnostics(&**p, &**p2, arena) == Comparison::EqualTo)
+                                    Some(|p2: &Id<Diagnostic>| compare_diagnostics(&*p.ref_(arena), &*p2.ref_(arena), arena) == Comparison::EqualTo)
                                 )
                             )
                         );
@@ -508,6 +524,7 @@ pub mod compiler {
             Some(program),
             Some(emit_result),
             errors,
+            arena,
         )
     }
 }

@@ -1,22 +1,26 @@
 pub mod vfs {
+    use std::{
+        borrow::Cow,
+        cell::{Cell, Ref, RefCell, RefMut},
+        collections::HashMap,
+        io,
+        iter::FromIterator,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
     use derive_builder::Builder;
     use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
     use local_macros::enum_unwrapped;
-    use typescript_rust::id_arena::Id;
-    use std::borrow::Cow;
-    use std::cell::{Cell, Ref, RefCell, RefMut};
-    use std::collections::HashMap;
-    use std::io;
-    use std::iter::FromIterator;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
     use typescript_rust::{
-        get_sys, io_error_from_name, is_option_str_empty, millis_since_epoch_to_system_time,
-        Buffer, Comparison, FileSystemEntries, Node, HasArena, AllArenas,
+        get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
+        millis_since_epoch_to_system_time, AllArenas, Buffer, Comparison, FileSystemEntries,
+        HasArena, InArena, Node,
     };
 
-    use crate::collections::SortOptionsComparer;
-    use crate::{collections, documents, vpath, HasArenaHarness, AllArenasHarness};
+    use crate::{
+        collections, collections::SortOptionsComparer, documents, vpath, AllArenasHarness,
+        HasArenaHarness,
+    };
 
     pub const built_folder: &'static str = "/.ts";
 
@@ -728,6 +732,7 @@ pub mod vfs {
             node.as_file_inode().set_buffer(Some(match data {
                 StringOrRefBuffer::Buffer(data) => data.clone(),
                 StringOrRefBuffer::String(data) => get_sys(self)
+                    .ref_(self)
                     .buffer_from(data, Some(encoding.unwrap_or("utf8")))
                     .unwrap(),
             }));
@@ -1413,6 +1418,7 @@ pub mod vfs {
 
         pub fn read_file_sync(&self, path: &str) -> Buffer {
             get_sys(self)
+                .ref_(self)
                 .buffer_from(self.host.read_file(path).unwrap(), Some("utf8"))
                 .unwrap()
         }

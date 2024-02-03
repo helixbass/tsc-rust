@@ -733,7 +733,10 @@ pub mod fakes {
                     .map(|value| value.as_node().clone());
                 if let Some(source_file_from_metadata) =
                     source_file_from_metadata.filter(|source_file_from_metadata| {
-                        source_file_from_metadata.get_full_text(None) == content
+                        source_file_from_metadata
+                            .ref_(self)
+                            .get_full_text(None, self)
+                            == content
                     })
                 {
                     self._source_files
@@ -752,7 +755,7 @@ pub mod fakes {
                 self,
             )?;
             if self.should_assert_invariants {
-                Utils::assert_invariants(Some(&parsed), None, self);
+                Utils::assert_invariants(Some(parsed), None, self);
             }
 
             self._source_files
@@ -836,7 +839,7 @@ pub mod fakes {
     impl ModuleResolutionHost for CompilerHost {
         fn file_exists(&self, file_name: &str) -> bool {
             if let Some(file_exists_override) = self.maybe_file_exists_override() {
-                file_exists_override.file_exists(file_name)
+                file_exists_override.ref_(self).file_exists(file_name)
             } else {
                 self.file_exists_non_overridden(file_name)
             }
@@ -861,7 +864,9 @@ pub mod fakes {
 
         fn directory_exists(&self, directory_name: &str) -> Option<bool> {
             if let Some(directory_exists_override) = self.maybe_directory_exists_override() {
-                directory_exists_override.directory_exists(directory_name)
+                directory_exists_override
+                    .ref_(self)
+                    .directory_exists(directory_name)
             } else {
                 self.directory_exists_non_overridden(directory_name)
             }
@@ -890,7 +895,7 @@ pub mod fakes {
 
         fn get_directories(&self, path: &str) -> Option<Vec<String>> {
             if let Some(get_directories_override) = self.maybe_get_directories_override() {
-                get_directories_override.get_directories(path)
+                get_directories_override.ref_(self).get_directories(path)
             } else {
                 self.get_directories_non_overridden(path)
             }
@@ -919,7 +924,7 @@ pub mod fakes {
 
         fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
             if let Some(read_file_override) = self.maybe_read_file_override() {
-                read_file_override.read_file(file_name)
+                read_file_override.ref_(self).read_file(file_name)
             } else {
                 self.read_file_non_overridden(file_name)
             }
@@ -952,7 +957,7 @@ pub mod fakes {
 
         fn realpath(&self, path: &str) -> Option<String> {
             if let Some(realpath_override) = self.maybe_realpath_override() {
-                realpath_override.realpath(path)
+                realpath_override.ref_(self).realpath(path)
             } else {
                 self.realpath_non_overridden(path)
             }
@@ -970,7 +975,6 @@ pub mod fakes {
             &self,
             overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
-            let mut realpath_override = self.realpath_override.borrow_mut();
             if self.maybe_realpath_override().is_some() && overriding_realpath.is_some() {
                 panic!("Trying to re-override set_overriding_realpath(), need eg a stack instead?");
             }
