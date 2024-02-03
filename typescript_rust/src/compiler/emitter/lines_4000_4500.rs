@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashSet, convert::TryInto, io};
+use std::{collections::HashSet, convert::TryInto, io};
 
 use id_arena::Id;
 

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, iter, ptr};
+use std::{iter, ptr};
 
 use id_arena::Id;
 use itertools::Either;

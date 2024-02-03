@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use id_arena::Id;
 use local_macros::generate_node_factory_method_wrapper;

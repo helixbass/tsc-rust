@@ -1,9 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    cell::RefCell,
-    convert::TryInto,
-    io, ptr,
-};
+use std::{borrow::Cow, cell::RefCell, convert::TryInto, io, ptr};
 
 use base64::{engine::general_purpose, Engine as _};
 use id_arena::Id;

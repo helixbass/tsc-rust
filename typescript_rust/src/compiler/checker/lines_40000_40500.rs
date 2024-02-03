@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, io};
+use std::io;
 
 use id_arena::Id;
 use indexmap::IndexMap;
@@ -594,8 +594,7 @@ impl TypeChecker {
             UnusedKind::Local => self.compiler_options.ref_(self).no_unused_locals == Some(true),
             UnusedKind::Parameter => {
                 self.compiler_options.ref_(self).no_unused_parameters == Some(true)
-            }
-            // _ => Debug_.assert_never(kind, None),
+            } // _ => Debug_.assert_never(kind, None),
         }
     }
 

@@ -1,10 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    cmp,
-    collections::HashSet,
-    io, ptr,
-    rc::Rc,
-};
+use std::{borrow::Cow, cmp, collections::HashSet, io, ptr, rc::Rc};
 
 use id_arena::Id;
 use itertools::{Either, Itertools};

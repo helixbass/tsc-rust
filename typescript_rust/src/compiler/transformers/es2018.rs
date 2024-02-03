@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    borrow::Borrow,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     io, mem,
@@ -1631,9 +1630,8 @@ impl TransformES2018 {
                                 .set_emit_flags(EmitFlags::SingleLine, self),
                         ),
                     ),
-                    Some(
-                        self.factory.ref_(self).create_block(
-                            vec![self.factory.ref_(self).create_try_statement(
+                    Some(self.factory.ref_(self).create_block(
+                        vec![self.factory.ref_(self).create_try_statement(
                                 self.factory.ref_(self).create_block(
                                     vec![self
                                         .factory
@@ -1689,9 +1687,8 @@ impl TransformES2018 {
                                         .set_emit_flags(EmitFlags::SingleLine, self),
                                 ),
                             )],
-                            None,
-                        ),
-                    ),
+                        None,
+                    )),
                 )
                 .into(),
         )

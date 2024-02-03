@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Cow,
     cell::{Cell, RefCell},
     collections::HashMap,
     io, ptr,

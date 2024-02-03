@@ -1,9 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    cell::RefCell,
-    io,
-    rc::Rc,
-};
+use std::{borrow::Cow, cell::RefCell, io, rc::Rc};
 
 use id_arena::Id;
 

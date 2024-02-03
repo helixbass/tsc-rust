@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, io};
+use std::io;
 
 use id_arena::Id;
 use regex::Regex;

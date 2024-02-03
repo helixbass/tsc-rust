@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use id_arena::Id;
 
 use super::{OpCode, TransformGenerators};

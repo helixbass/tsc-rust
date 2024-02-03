@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap, convert::TryInto};
+use std::{collections::HashMap, convert::TryInto};
 
 use id_arena::Id;
 

@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use id_arena::Id;
 
 use super::{init_flow_node, Binder, ContainerFlags};

@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use id_arena::Id;
 
 use super::{visit_iteration_body, visit_lexical_environment};

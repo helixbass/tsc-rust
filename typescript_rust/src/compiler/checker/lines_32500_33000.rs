@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, convert::TryInto, io, ptr, rc::Rc};
+use std::{cell::RefCell, convert::TryInto, io, ptr, rc::Rc};
 
 use id_arena::Id;
 

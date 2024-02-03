@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap, io, iter, ptr};
+use std::{collections::HashMap, io, iter, ptr};
 
 use id_arena::Id;
 use itertools::Either;

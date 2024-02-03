@@ -1,7 +1,4 @@
-use std::{
-    borrow::Borrow,
-    convert::{TryFrom, TryInto},
-};
+use std::convert::{TryFrom, TryInto};
 
 use id_arena::Id;
 use regex::Regex;

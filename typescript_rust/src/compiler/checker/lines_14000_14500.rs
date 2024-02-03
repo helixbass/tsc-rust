@@ -1,5 +1,4 @@
 use std::{
-    borrow::Borrow,
     convert::{TryFrom, TryInto},
     io, ptr,
 };

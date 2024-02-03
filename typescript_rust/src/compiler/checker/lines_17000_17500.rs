@@ -1,11 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    cell::RefCell,
-    cmp,
-    collections::HashMap,
-    io,
-    rc::Rc,
-};
+use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, io, rc::Rc};
 
 use id_arena::Id;
 

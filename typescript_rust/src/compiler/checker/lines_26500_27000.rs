@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cmp, io, ptr};
+use std::{cmp, io, ptr};
 
 use id_arena::Id;
 

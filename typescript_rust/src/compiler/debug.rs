@@ -1,5 +1,4 @@
 use std::{
-    borrow::Borrow,
     cell::{Cell, RefCell},
     fmt,
     rc::Rc,

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, convert::TryInto, io, ptr};
+use std::{convert::TryInto, io, ptr};
 
 use id_arena::Id;
 

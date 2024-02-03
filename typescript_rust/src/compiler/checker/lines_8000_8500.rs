@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Cow,
     cell::RefCell,
     collections::HashSet,
     convert::{TryFrom, TryInto},

@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap, fmt, ptr};
+use std::{cell::RefCell, collections::HashMap, fmt, ptr};
 
 use id_arena::Id;
 

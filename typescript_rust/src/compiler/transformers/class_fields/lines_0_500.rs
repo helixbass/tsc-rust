@@ -1,6 +1,5 @@
 use std::{
     any::Any,
-    borrow::Borrow,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
     io, mem,

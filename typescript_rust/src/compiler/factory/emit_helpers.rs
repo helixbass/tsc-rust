@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::OnceCell};
+use std::cell::OnceCell;
 
 use id_arena::Id;
 

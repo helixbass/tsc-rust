@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
 
 use id_arena::Id;
 use itertools::Either;

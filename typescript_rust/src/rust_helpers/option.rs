@@ -1,7 +1,4 @@
-use std::{
-    borrow::{Borrow, Cow},
-    iter,
-};
+use std::{borrow::Cow, iter};
 
 use id_arena::Id;
 use itertools::Either;

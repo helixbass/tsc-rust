@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, io};
+use std::io;
 
 use id_arena::Id;
 
@@ -192,9 +192,8 @@ impl TransformES2015 {
                         .set_emit_flags(EmitFlags::SingleLine, self),
                 ),
             ),
-            Some(
-                self.factory.ref_(self).create_block(
-                    vec![self.factory.ref_(self).create_try_statement(
+            Some(self.factory.ref_(self).create_block(
+                vec![self.factory.ref_(self).create_try_statement(
                         self.factory.ref_(self).create_block(
                             vec![self
                                 .factory
@@ -259,9 +258,8 @@ impl TransformES2015 {
                                 .set_emit_flags(EmitFlags::SingleLine, self),
                         ),
                     )],
-                    None,
-                ),
-            ),
+                None,
+            )),
         ))
     }
 

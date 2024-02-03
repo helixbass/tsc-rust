@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap, io, rc::Rc};
+use std::{collections::HashMap, io, rc::Rc};
 
 use fancy_regex::Regex;
 use id_arena::Id;
