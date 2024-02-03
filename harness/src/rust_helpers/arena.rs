@@ -12,7 +12,7 @@ use crate::{
     harness::harness_io::NodeIO,
     vfs::{FileSystem, FileSystemResolver, FileSystemResolverHost, StringComparer},
     Compiler::TestFile,
-    MetaValue, RunnerBaseSub,
+    Inode, MetaValue, RunnerBaseSub,
     Utils::{DiagnosticMessageReplacer, Replacer},
 };
 
@@ -34,6 +34,7 @@ pub struct AllArenasHarness {
     parse_config_hosts: RefCell<Arena<ParseConfigHost>>,
     string_comparers: RefCell<Arena<Box<dyn StringComparer>>>,
     file_system_resolvers: RefCell<Arena<FileSystemResolver>>,
+    inodes: RefCell<Arena<Inode>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -246,6 +247,14 @@ pub trait HasArenaHarness: HasArena {
     ) -> Id<FileSystemResolver> {
         self.arena_harness()
             .alloc_file_system_resolver(file_system_resolver)
+    }
+
+    fn inode(&self, inode: Id<Inode>) -> Ref<Inode> {
+        self.arena_harness().inode(inode)
+    }
+
+    fn alloc_inode(&self, inode: Inode) -> Id<Inode> {
+        self.arena_harness().alloc_inode(inode)
     }
 }
 
@@ -531,6 +540,15 @@ impl HasArenaHarness for AllArenasHarness {
             .alloc(file_system_resolver);
         id
     }
+
+    fn inode(&self, inode: Id<Inode>) -> Ref<Inode> {
+        Ref::map(self.inodes.borrow(), |inodes| &inodes[inode])
+    }
+
+    fn alloc_inode(&self, inode: Inode) -> Id<Inode> {
+        let id = self.inodes.borrow_mut().alloc(inode);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -684,6 +702,14 @@ impl InArenaHarness for Id<FileSystemResolver> {
     }
 }
 
+impl InArenaHarness for Id<Inode> {
+    type Item = Inode;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Inode> {
+        has_arena.inode(*self)
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum IdForFileSystemResolverHost {
     FileSystemResolverHost(Id<Box<dyn FileSystemResolverHost>>),
@@ -703,6 +729,20 @@ impl InArenaHarness for IdForFileSystemResolverHost {
                 value as &dyn FileSystemResolverHost
             }),
         }
+    }
+}
+
+pub trait OptionInArenaHarness {
+    type Item;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArenaHarness) -> Option<Ref<'a, Self::Item>>;
+}
+
+impl OptionInArenaHarness for Option<Id<Inode>> {
+    type Item = Inode;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArenaHarness) -> Option<Ref<'a, Inode>> {
+        self.map(|inode| has_arena.inode(inode))
     }
 }
 

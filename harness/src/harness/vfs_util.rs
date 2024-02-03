@@ -19,7 +19,7 @@ pub mod vfs {
 
     use crate::{
         collections, collections::SortOptionsComparer, documents, vpath, AllArenasHarness,
-        HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
+        HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness, OptionInArenaHarness,
     };
 
     pub const built_folder: &'static str = "/.ts";
@@ -306,7 +306,7 @@ pub mod vfs {
                 return io_error_from_name("ENOENT");
             }
             let ref node = node.unwrap();
-            Ok(self._filemeta(node))
+            Ok(self._filemeta(&node.ref_(self)))
         }
 
         pub fn _filemeta(&self, node: &Inode) -> Id<collections::Metadata<MetaValue>> {
@@ -316,7 +316,11 @@ pub mod vfs {
                         node.maybe_shadow_root().as_ref(),
                         self._shadow_root.as_ref(),
                     ) {
-                        Some(_shadow_root.ref_(self)._filemeta(node_shadow_root))
+                        Some(
+                            _shadow_root
+                                .ref_(self)
+                                ._filemeta(&node_shadow_root.ref_(self)),
+                        )
                     } else {
                         None
                     };
@@ -341,8 +345,8 @@ pub mod vfs {
             if node.is_none() {
                 return io_error_from_name("ENOENT");
             }
-            let ref node = node.unwrap();
-            if !is_directory(Some(node)) {
+            let node = node.unwrap();
+            if !is_directory(Some(&node.ref_(self))) {
                 return io_error_from_name("ENOTDIR");
             }
             Ok(_cwd.clone())
@@ -364,7 +368,7 @@ pub mod vfs {
                 return io_error_from_name("ENOENT");
             }
             let node = node.unwrap();
-            if !is_directory(Some(&node)) {
+            if !is_directory(Some(&node.ref_(self))) {
                 return io_error_from_name("ENOTDIR");
             }
             self.set_cwd(Some(path));
@@ -453,7 +457,7 @@ pub mod vfs {
             let time = self.time();
             let node = self._mknod(
                 if let Some(parent) = parent.as_ref() {
-                    parent.dev()
+                    parent.ref_(self).dev()
                 } else {
                     incremented_dev_count()
                 },
@@ -464,10 +468,10 @@ pub mod vfs {
             node.as_directory_inode().set_source(Some(source));
             node.as_directory_inode().set_resolver(Some(resolver));
             self._add_link(
-                parent.as_deref(),
+                parent.refed(self).as_deref(),
                 &mut links.borrow_mut(),
                 &basename,
-                Gc::new(node),
+                self.alloc_inode(node),
                 Some(time),
             );
             Ok(())
@@ -534,24 +538,29 @@ pub mod vfs {
             }
             let node = node.unwrap();
             Ok(Stats::new(
-                node.dev(),
-                node.ino(),
-                node.mode(),
-                node.nlink(),
+                node.ref_(self).dev(),
+                node.ref_(self).ino(),
+                node.ref_(self).mode(),
+                node.ref_(self).nlink(),
                 0,
-                if is_file(Some(node)) {
-                    self._get_size(node)
-                } else if is_symlink(Some(node)) {
-                    node.as_symlink_inode().symlink.as_ref().unwrap().len()
+                if is_file(Some(&node.ref_(self))) {
+                    self._get_size(&node.ref_(self))
+                } else if is_symlink(Some(&node.ref_(self))) {
+                    node.ref_(self)
+                        .as_symlink_inode()
+                        .symlink
+                        .as_ref()
+                        .unwrap()
+                        .len()
                 } else {
                     0
                 },
                 4096,
                 0,
-                node.atime_ms(),
-                node.mtime_ms(),
-                node.ctime_ms(),
-                node.birthtime_ms(),
+                node.ref_(self).atime_ms(),
+                node.ref_(self).mtime_ms(),
+                node.ref_(self).ctime_ms(),
+                node.ref_(self).birthtime_ms(),
             ))
         }
 
@@ -567,11 +576,11 @@ pub mod vfs {
                 return io_error_from_name("ENOENT");
             }
             let node = node.unwrap();
-            if !is_directory(Some(&*node)) {
+            if !is_directory(Some(&node.ref_(self))) {
                 return io_error_from_name("ENOTDIR");
             }
             Ok(self
-                ._get_links(&node)
+                ._get_links(&node.ref_(self))
                 .borrow()
                 .keys()
                 .map(ToOwned::to_owned)
@@ -594,7 +603,7 @@ pub mod vfs {
             let time = self.time();
             let node = self._mknod(
                 if let Some(parent) = parent.as_ref() {
-                    parent.dev()
+                    parent.ref_(self).dev()
                 } else {
                     incremented_dev_count()
                 },
@@ -603,10 +612,10 @@ pub mod vfs {
                 Some(time),
             );
             self._add_link(
-                parent.as_deref(),
+                parent.refed(self).as_deref(),
                 &mut links.borrow_mut(),
                 &basename,
-                Gc::new(node),
+                self.alloc_inode(node),
                 Some(time),
             );
             Ok(())
@@ -647,16 +656,16 @@ pub mod vfs {
             }
 
             let time = self.time();
-            let mut node = self._mknod(parent.dev(), S_IFLNK, 0o666, Some(time));
+            let mut node = self._mknod(parent.ref_(self).dev(), S_IFLNK, 0o666, Some(time));
             node.as_symlink_inode_mut().symlink = Some(vpath::validate(
                 target,
                 Some(vpath::ValidationFlags::RelativeOrAbsolute),
             ));
             self._add_link(
-                Some(&parent),
+                Some(&parent.ref_(self)),
                 &mut links.borrow_mut(),
                 &basename,
-                Gc::new(node),
+                self.alloc_inode(node),
                 Some(time),
             );
             Ok(())
@@ -689,14 +698,14 @@ pub mod vfs {
                 return io_error_from_name("ENOENT");
             }
             let ref node = node.unwrap();
-            if is_directory(Some(node)) {
+            if is_directory(Some(&node.ref_(self))) {
                 return io_error_from_name("EISDIR");
             }
-            if !is_file(Some(node)) {
+            if !is_file(Some(&node.ref_(self))) {
                 return io_error_from_name("EBADF");
             }
 
-            let buffer = self._get_buffer(node).clone();
+            let buffer = self._get_buffer(&node.ref_(self)).clone();
             Ok(if let Some(encoding) = encoding {
                 if encoding != "utf8" {
                     unimplemented!()
@@ -738,9 +747,14 @@ pub mod vfs {
 
             let time = self.time();
             let ref node = existing_node.unwrap_or_else(|| {
-                let node = Gc::new(self._mknod(parent.dev(), S_IFREG, 0o666, Some(time)));
+                let node = self.alloc_inode(self._mknod(
+                    parent.ref_(self).dev(),
+                    S_IFREG,
+                    0o666,
+                    Some(time),
+                ));
                 self._add_link(
-                    Some(parent),
+                    Some(&parent.ref_(self)),
                     &mut links.borrow_mut(),
                     &basename,
                     node.clone(),
@@ -749,25 +763,30 @@ pub mod vfs {
                 node
             });
 
-            if is_directory(Some(node)) {
+            if is_directory(Some(&node.ref_(self))) {
                 return io_error_from_name("EISDIR");
             }
-            if !is_file(Some(node)) {
+            if !is_file(Some(&node.ref_(self))) {
                 return io_error_from_name("EBADF");
             }
 
-            node.as_file_inode().set_buffer(Some(match data {
+            node.ref_(self).as_file_inode().set_buffer(Some(match data {
                 StringOrRefBuffer::Buffer(data) => data.clone(),
                 StringOrRefBuffer::String(data) => get_sys(self)
                     .ref_(self)
                     .buffer_from(data, Some(encoding.unwrap_or("utf8")))
                     .unwrap(),
             }));
-            node.as_file_inode().set_size(Some(
-                node.as_file_inode().maybe_buffer().as_ref().unwrap().len(),
+            node.ref_(self).as_file_inode().set_size(Some(
+                node.ref_(self)
+                    .as_file_inode()
+                    .maybe_buffer()
+                    .as_ref()
+                    .unwrap()
+                    .len(),
             ));
-            node.set_mtime_ms(time);
-            node.set_ctime_ms(time);
+            node.ref_(self).set_mtime_ms(time);
+            node.ref_(self).set_ctime_ms(time);
             Ok(())
         }
 
@@ -790,15 +809,15 @@ pub mod vfs {
         fn _add_link(
             &self,
             parent: Option<&Inode /*DirectoryInode*/>,
-            links: &mut collections::SortedMap<String, Gc<Inode>>,
+            links: &mut collections::SortedMap<String, Id<Inode>>,
             name: &str,
-            node: Gc<Inode>,
+            node: Id<Inode>,
             time: Option<u128>,
         ) {
             let time = time.unwrap_or_else(|| self.time());
             links.set(name.to_owned(), node.clone());
-            node.increment_nlink();
-            node.set_ctime_ms(time);
+            node.ref_(self).increment_nlink();
+            node.ref_(self).set_ctime_ms(time);
             if let Some(parent) = parent {
                 parent.set_mtime_ms(time);
             }
@@ -813,7 +832,7 @@ pub mod vfs {
             }
         }
 
-        fn _get_root_links(&self) -> Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>> {
+        fn _get_root_links(&self) -> Gc<GcCell<collections::SortedMap<String, Id<Inode>>>> {
             self._lazy
                 .links
                 .borrow_mut()
@@ -827,7 +846,7 @@ pub mod vfs {
                             )),
                             sort: None,
                         },
-                        Option::<HashMap<String, Gc<Inode>>>::None,
+                        Option::<HashMap<String, Id<Inode>>>::None,
                     );
                     if let Some(_shadow_root) = self._shadow_root.as_ref() {
                         self._copy_shadow_links(
@@ -843,7 +862,7 @@ pub mod vfs {
         fn _get_links(
             &self,
             node: &Inode, /*DirectoryInode*/
-        ) -> Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>> {
+        ) -> Gc<GcCell<collections::SortedMap<String, Id<Inode>>>> {
             let node_as_directory_inode = node.as_directory_inode();
             if node_as_directory_inode.maybe_links().is_none() {
                 let mut links = collections::SortedMap::new(
@@ -855,7 +874,7 @@ pub mod vfs {
                         )),
                         sort: None,
                     },
-                    Option::<HashMap<String, Gc<Inode>>>::None,
+                    Option::<HashMap<String, Id<Inode>>>::None,
                 );
                 let source = node_as_directory_inode.maybe_source();
                 let resolver = node_as_directory_inode.maybe_resolver();
@@ -873,7 +892,13 @@ pub mod vfs {
                                     .set_source(Some(vpath::combine(&source, &[Some(&name)])));
                                 dir.as_directory_inode()
                                     .set_resolver(Some(resolver.clone()));
-                                self._add_link(Some(node), &mut links, &name, Gc::new(dir), None);
+                                self._add_link(
+                                    Some(node),
+                                    &mut links,
+                                    &name,
+                                    self.alloc_inode(dir),
+                                    None,
+                                );
                             }
                             S_IFREG => {
                                 let file =
@@ -882,7 +907,13 @@ pub mod vfs {
                                     .set_source(Some(vpath::combine(&source, &[Some(&name)])));
                                 file.as_file_inode().set_resolver(Some(resolver.clone()));
                                 file.as_file_inode().set_size(Some(stats.size));
-                                self._add_link(Some(node), &mut links, &name, Gc::new(file), None);
+                                self._add_link(
+                                    Some(node),
+                                    &mut links,
+                                    &name,
+                                    self.alloc_inode(file),
+                                    None,
+                                );
                             }
                             _ => (),
                         }
@@ -894,7 +925,7 @@ pub mod vfs {
                     self._copy_shadow_links(
                         _shadow_root
                             .ref_(self)
-                            ._get_links(node_shadow_root)
+                            ._get_links(&node_shadow_root.ref_(self))
                             .borrow()
                             .entries(),
                         &mut links,
@@ -905,43 +936,43 @@ pub mod vfs {
             node_as_directory_inode.maybe_links().unwrap()
         }
 
-        fn _get_shadow(&self, root: Gc<Inode>) -> Gc<Inode> {
+        fn _get_shadow(&self, root: Id<Inode>) -> Id<Inode> {
             self._lazy
                 .shadows
                 .borrow_mut()
                 .get_or_insert_with(|| Default::default())
-                .entry(root.ino())
+                .entry(root.ref_(self).ino())
                 .or_insert_with(|| {
                     let mut shadow = Inode::new(
-                        root.canonical_type(),
-                        root.dev(),
-                        root.ino(),
-                        root.mode(),
-                        root.atime_ms(),
-                        root.mtime_ms(),
-                        root.ctime_ms(),
-                        root.birthtime_ms(),
-                        root.nlink(),
+                        root.ref_(self).canonical_type(),
+                        root.ref_(self).dev(),
+                        root.ref_(self).ino(),
+                        root.ref_(self).mode(),
+                        root.ref_(self).atime_ms(),
+                        root.ref_(self).mtime_ms(),
+                        root.ref_(self).ctime_ms(),
+                        root.ref_(self).birthtime_ms(),
+                        root.ref_(self).nlink(),
                         Some(root.clone()),
                     );
 
-                    if is_symlink(Some(&root)) {
+                    if is_symlink(Some(&root.ref_(self))) {
                         shadow.as_symlink_inode_mut().symlink =
-                            root.as_symlink_inode().symlink.clone();
+                            root.ref_(self).as_symlink_inode().symlink.clone();
                     }
 
-                    Gc::new(shadow)
+                    self.alloc_inode(shadow)
                 })
                 .clone()
         }
 
         fn _copy_shadow_links<
             'source,
-            TSource: IntoIterator<Item = (&'source String, &'source Gc<Inode>)>,
+            TSource: IntoIterator<Item = (&'source String, &'source Id<Inode>)>,
         >(
             &self,
             source: TSource,
-            target: &mut collections::SortedMap<String, Gc<Inode>>,
+            target: &mut collections::SortedMap<String, Id<Inode>>,
         ) {
             let source = source.into_iter();
             for (name, root) in source {
@@ -967,7 +998,9 @@ pub mod vfs {
             if let (Some(_shadow_root), Some(node_shadow_root)) =
                 (self._shadow_root.as_ref(), node.shadow_root.as_ref())
             {
-                let ret = _shadow_root.ref_(self)._get_size(node_shadow_root);
+                let ret = _shadow_root
+                    .ref_(self)
+                    ._get_size(&node_shadow_root.ref_(self));
                 node.set_size(Some(ret));
                 return ret;
             }
@@ -991,7 +1024,7 @@ pub mod vfs {
                 {
                     _shadow_root
                         .ref_(self)
-                        ._get_buffer(node_shadow_root)
+                        ._get_buffer(&node_shadow_root.ref_(self))
                         .clone()
                 } else {
                     Buffer::new() /*.allocUnsafe(0)*/
@@ -1011,7 +1044,7 @@ pub mod vfs {
             >,
         ) -> io::Result<Option<WalkResult>> {
             let mut links = self._get_root_links();
-            let mut parent: Option<Gc<Inode>> = None;
+            let mut parent: Option<Id<Inode>> = None;
             let mut components = vpath::parse(path, None);
             let mut step = 0;
             let mut depth = 0;
@@ -1031,7 +1064,9 @@ pub mod vfs {
                     }
                     link_entry.map(|link_entry| link_entry.1.clone())
                 };
-                if last_step && (no_follow == Some(true) || !is_symlink(node.as_deref())) {
+                if last_step
+                    && (no_follow == Some(true) || !is_symlink(node.refed(self).as_deref()))
+                {
                     return Ok(Some(WalkResult {
                         realpath: vpath::format(&components),
                         basename,
@@ -1056,10 +1091,12 @@ pub mod vfs {
                     return Ok(None);
                 }
                 let ref node = node.unwrap();
-                if is_symlink(Some(node)) {
+                if is_symlink(Some(&node.ref_(self))) {
                     let dirname = vpath::format(&components[..step]);
-                    let symlink =
-                        vpath::resolve(&dirname, &[Some(node.as_symlink_inode().symlink())]);
+                    let symlink = vpath::resolve(
+                        &dirname,
+                        &[Some(node.ref_(self).as_symlink_inode().symlink())],
+                    );
                     links = self._get_root_links();
                     parent = None;
                     let mut components_new = vpath::parse(&symlink, None);
@@ -1070,8 +1107,8 @@ pub mod vfs {
                     retry = false;
                     continue;
                 }
-                if is_directory(Some(node)) {
-                    links = self._get_links(node);
+                if is_directory(Some(&node.ref_(self))) {
+                    links = self._get_links(&node.ref_(self));
                     parent = Some(node.clone());
                     step += 1;
                     retry = false;
@@ -1101,10 +1138,10 @@ pub mod vfs {
             on_error: Option<
                 &mut impl FnMut(&NodeJSErrnoException, WalkResult) -> io::Result<OnErrorReturn>,
             >,
-            parent: Option<Gc<Inode /*DirectoryInode*/>>,
-            links: Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>,
+            parent: Option<Id<Inode /*DirectoryInode*/>>,
+            links: Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>,
             error: NodeJSErrnoException,
-            node: Option<Gc<Inode>>,
+            node: Option<Id<Inode>>,
         ) -> io::Result<bool> {
             let realpath = vpath::format(&components[..step + 1]);
             let basename = &components[step];
@@ -1353,8 +1390,8 @@ pub mod vfs {
 
     #[derive(Default, Trace, Finalize)]
     struct FileSystemLazy {
-        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>>,
-        shadows: GcCell<Option<HashMap<u32, Gc<Inode>>>>,
+        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>>>,
+        shadows: GcCell<Option<HashMap<u32, Id<Inode>>>>,
         meta: Gc<GcCell<Option<Id<collections::Metadata<String>>>>>,
     }
 
@@ -1898,7 +1935,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Gc<Inode>>,
+            shadow_root: Option<Id<Inode>>,
         ) -> Self {
             match type_ {
                 S_IFREG => FileInode::new(
@@ -2045,7 +2082,7 @@ pub mod vfs {
             }
         }
 
-        pub fn maybe_shadow_root(&self) -> Option<Gc<Inode>> {
+        pub fn maybe_shadow_root(&self) -> Option<Id<Inode>> {
             match self {
                 Self::FileInode(value) => value.shadow_root.clone(),
                 Self::DirectoryInode(value) => value.shadow_root.clone(),
@@ -2118,7 +2155,7 @@ pub mod vfs {
         #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
         resolver: GcCell<Option<Id<FileSystemResolver>>>,
-        pub shadow_root: Option<Gc<Inode /*FileInode*/>>,
+        pub shadow_root: Option<Id<Inode /*FileInode*/>>,
         meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
@@ -2132,7 +2169,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Gc<Inode>>,
+            shadow_root: Option<Id<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -2222,11 +2259,11 @@ pub mod vfs {
         pub birthtime_ms: u128,
         #[unsafe_ignore_trace]
         nlink: Cell<usize>,
-        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>>,
+        links: GcCell<Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>>>,
         #[unsafe_ignore_trace]
         source: RefCell<Option<String>>,
         resolver: GcCell<Option<Id<FileSystemResolver>>>,
-        pub shadow_root: Option<Gc<Inode /*DirectoryInode*/>>,
+        pub shadow_root: Option<Id<Inode /*DirectoryInode*/>>,
         meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
@@ -2240,7 +2277,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Gc<Inode>>,
+            shadow_root: Option<Id<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -2283,13 +2320,13 @@ pub mod vfs {
             self.nlink.set(self.nlink.get() + 1);
         }
 
-        pub fn maybe_links(&self) -> Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>> {
+        pub fn maybe_links(&self) -> Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>> {
             self.links.borrow().clone()
         }
 
         pub fn set_links(
             &self,
-            links: Option<Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>>,
+            links: Option<Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>>,
         ) {
             *self.links.borrow_mut() = links;
         }
@@ -2329,7 +2366,7 @@ pub mod vfs {
         #[unsafe_ignore_trace]
         nlink: Cell<usize>,
         pub symlink: Option<String>,
-        pub shadow_root: Option<Gc<Inode /*SymlinkInode*/>>,
+        pub shadow_root: Option<Id<Inode /*SymlinkInode*/>>,
         meta: GcCell<Option<Id<collections::Metadata<MetaValue>>>>,
     }
 
@@ -2343,7 +2380,7 @@ pub mod vfs {
             ctime_ms: u128,
             birthtime_ms: u128,
             nlink: usize,
-            shadow_root: Option<Gc<Inode>>,
+            shadow_root: Option<Id<Inode>>,
         ) -> Self {
             Self {
                 dev,
@@ -2417,9 +2454,9 @@ pub mod vfs {
     pub struct WalkResult {
         pub realpath: String,
         pub basename: String,
-        pub parent: Option<Gc<Inode>>,
-        pub links: Gc<GcCell<collections::SortedMap<String, Gc<Inode>>>>,
-        pub node: Option<Gc<Inode>>,
+        pub parent: Option<Id<Inode>>,
+        pub links: Gc<GcCell<collections::SortedMap<String, Id<Inode>>>>,
+        pub node: Option<Id<Inode>>,
     }
 
     thread_local! {
