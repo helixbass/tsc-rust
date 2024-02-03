@@ -411,10 +411,11 @@ impl TypeChecker {
 
     pub(super) fn get_target_symbol(&self, s: Id<Symbol>) -> Id<Symbol> {
         if get_check_flags(&s.ref_(self)).intersects(CheckFlags::Instantiated) {
-            (*s.ref_(self).as_transient_symbol().symbol_links().ref_(self))
-                .borrow()
+            s.ref_(self)
+                .as_transient_symbol()
+                .symbol_links()
+                .ref_(self)
                 .target
-                .clone()
                 .unwrap()
         } else {
             s

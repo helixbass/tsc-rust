@@ -141,13 +141,12 @@ impl TypeChecker {
             );
             if shorter == right {
                 let type_ = self.maybe_instantiate_type(
-                    (*rest_param_symbol
+                    rest_param_symbol
                         .ref_(self)
                         .as_transient_symbol()
                         .symbol_links()
-                        .ref_(self))
-                    .borrow()
-                    .type_,
+                        .ref_(self)
+                        .type_,
                     mapper,
                 )?;
                 rest_param_symbol
@@ -1141,12 +1140,11 @@ impl TypeChecker {
             if let Some(&existing_prop) = existing_prop {
                 let existing_prop_ref = existing_prop.ref_(self);
                 let existing_prop_as_mapped_symbol = existing_prop_ref.as_mapped_symbol();
-                let existing_prop_name_type =
-                    (*existing_prop_as_mapped_symbol.symbol_links().ref_(self))
-                        .borrow()
-                        .name_type
-                        .clone()
-                        .unwrap();
+                let existing_prop_name_type = existing_prop_as_mapped_symbol
+                    .symbol_links()
+                    .ref_(self)
+                    .name_type
+                    .unwrap();
                 existing_prop_as_mapped_symbol
                     .symbol_links()
                     .ref_mut(self)
@@ -1289,8 +1287,9 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         let symbol_ref = symbol.ref_(self);
         let symbol_as_mapped_symbol = symbol_ref.as_mapped_symbol();
-        if (*symbol_as_mapped_symbol.symbol_links().ref_(self))
-            .borrow()
+        if symbol_as_mapped_symbol
+            .symbol_links()
+            .ref_(self)
             .type_
             .is_none()
         {

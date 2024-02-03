@@ -321,7 +321,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        if (*links.ref_(self)).borrow().declared_type.is_none() {
+        if links.ref_(self).declared_type.is_none() {
             if !self.push_type_resolution(&symbol.into(), TypeSystemPropertyName::DeclaredType) {
                 return Ok(self.error_type());
             }

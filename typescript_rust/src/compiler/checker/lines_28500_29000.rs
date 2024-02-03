@@ -369,6 +369,7 @@ impl TypeChecker {
             &candidates,
             |&type_: &Id<Type>| Some(type_.ref_(self).as_string_literal_type().value.clone()),
         )
+        .copied()
     }
 
     pub(super) fn get_spelling_suggestion_for_name(
@@ -399,7 +400,7 @@ impl TypeChecker {
             Ok(None)
         };
 
-        try_get_spelling_suggestion(name, symbols, get_candidate_name)
+        Ok(try_get_spelling_suggestion(name, symbols, get_candidate_name)?.copied())
     }
 
     pub(super) fn mark_property_as_referenced(
@@ -452,11 +453,7 @@ impl TypeChecker {
         }
 
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Instantiated) {
-            (*self.get_symbol_links(prop).ref_(self))
-                .borrow()
-                .target
-                .clone()
-                .unwrap()
+            self.get_symbol_links(prop).ref_(self).target.unwrap()
         } else {
             prop
         }

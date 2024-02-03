@@ -240,11 +240,11 @@ impl TypeChecker {
             }
             let mut type_ = self.instantiate_type(
                 self.get_type_of_symbol({
-                    let target = (*links.ref_(self)).borrow().target.clone().unwrap();
+                    let target = links.ref_(self).target.unwrap();
                     target
                 })?,
                 {
-                    let mapper = (*links.ref_(self)).borrow().mapper.clone();
+                    let mapper = links.ref_(self).mapper;
                     mapper
                 },
             )?;

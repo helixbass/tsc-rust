@@ -543,7 +543,7 @@ impl TypeChecker {
 
     pub(super) fn get_alias_variances(&self, symbol: Id<Symbol>) -> io::Result<Vec<VarianceFlags>> {
         let links = self.get_symbol_links(symbol);
-        let links_type_parameters = (*links.ref_(self)).borrow().type_parameters.clone();
+        let links_type_parameters = links.ref_(self).type_parameters.clone();
         let ret = self.try_get_variances_worker(
             links_type_parameters.as_deref(),
             links.clone(),
@@ -555,7 +555,7 @@ impl TypeChecker {
                     symbol,
                     self.instantiate_types(
                         {
-                            let value = (*links.ref_(self)).borrow().type_parameters.clone();
+                            let value = links.ref_(self).type_parameters.clone();
                             value
                         }
                         .as_deref(),
@@ -822,17 +822,16 @@ impl TypeChecker {
         callback: &mut impl FnMut(Id<Symbol>) -> io::Result<Option<TReturn>>,
     ) -> io::Result<Option<TReturn>> {
         if get_check_flags(&prop.ref_(self)).intersects(CheckFlags::Synthetic) {
-            for &t in (*prop
+            for &t in prop
                 .ref_(self)
                 .as_transient_symbol()
                 .symbol_links()
-                .ref_(self))
-            .borrow()
-            .containing_type
-            .unwrap()
-            .ref_(self)
-            .as_union_or_intersection_type_interface()
-            .types()
+                .ref_(self)
+                .containing_type
+                .unwrap()
+                .ref_(self)
+                .as_union_or_intersection_type_interface()
+                .types()
             {
                 let p = self.get_property_of_type_(t, prop.ref_(self).escaped_name(), None)?;
                 let result = p.try_and_then(|p| self.for_each_property(p, callback))?;
@@ -1124,10 +1123,7 @@ impl GetVariancesCache {
         type_checker: &TypeChecker,
     ) -> Rc<RefCell<Option<Vec<VarianceFlags>>>> {
         match self {
-            Self::SymbolLinks(symbol_links) => (*symbol_links.ref_(type_checker))
-                .borrow()
-                .variances
-                .clone(),
+            Self::SymbolLinks(symbol_links) => symbol_links.ref_(type_checker).variances.clone(),
             Self::GenericType(generic_type) => generic_type
                 .ref_(type_checker)
                 .as_generic_type()

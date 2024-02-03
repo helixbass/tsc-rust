@@ -40,15 +40,10 @@ impl TypeChecker {
                 }) {
                     let overall_annotation = get_effective_type_annotation_node(decl, self);
                     return Ok(if let Some(overall_annotation) = overall_annotation {
-                        Some(
-                            self.instantiate_type(
-                                self.get_type_from_type_node_(overall_annotation)?,
-                                (*self.get_symbol_links(lhs_symbol.unwrap()).ref_(self))
-                                    .borrow()
-                                    .mapper
-                                    .clone(),
-                            )?,
-                        )
+                        Some(self.instantiate_type(
+                            self.get_type_from_type_node_(overall_annotation)?,
+                            self.get_symbol_links(lhs_symbol.unwrap()).ref_(self).mapper,
+                        )?)
                     } else {
                         None
                     }
@@ -296,14 +291,13 @@ impl TypeChecker {
 
     pub(super) fn is_circular_mapped_property(&self, symbol: Id<Symbol>) -> bool {
         get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Mapped)
-            && (*symbol
+            && symbol
                 .ref_(self)
                 .as_mapped_symbol()
                 .symbol_links()
-                .ref_(self))
-            .borrow()
-            .type_
-            .is_none()
+                .ref_(self)
+                .type_
+                .is_none()
             && self.find_resolution_cycle_start_index(&symbol.into(), TypeSystemPropertyName::Type)
                 >= 0
     }

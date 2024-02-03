@@ -36,8 +36,9 @@ impl TypeChecker {
                 .flags()
                 .intersects(SymbolFlags::TypeAlias)
             {
-                let params = (*self.get_symbol_links(managed_sym).ref_(self))
-                    .borrow()
+                let params = self
+                    .get_symbol_links(managed_sym)
+                    .ref_(self)
                     .type_parameters
                     .clone();
                 if length(params.as_deref()) >= 2 {

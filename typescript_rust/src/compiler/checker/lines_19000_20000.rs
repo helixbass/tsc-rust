@@ -19,9 +19,11 @@ use crate::{
 };
 
 impl CheckTypeRelatedTo {
-    pub(super) fn count_message_chain_breadth(
+    pub(super) fn count_message_chain_breadth<
+        TItem: std::borrow::Borrow<DiagnosticMessageChain>,
+    >(
         &self,
-        info: Option<&[impl std::borrow::Borrow<DiagnosticMessageChain>]>,
+        info: Option<&[TItem]>,
     ) -> usize {
         if info.is_none() {
             return 0;

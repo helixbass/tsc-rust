@@ -236,8 +236,8 @@ impl TypeChecker {
         if let Some(symbol) = symbol {
             self.get_declared_type_of_symbol(symbol)?;
             if length(
-                (*self.get_symbol_links(symbol).ref_(self))
-                    .borrow()
+                self.get_symbol_links(symbol)
+                    .ref_(self)
                     .type_parameters
                     .as_deref(),
             ) != arity

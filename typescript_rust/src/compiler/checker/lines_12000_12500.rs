@@ -232,12 +232,7 @@ impl TypeChecker {
                     single_prop
                         .ref_(self)
                         .maybe_as_transient_symbol()
-                        .and_then(|single_prop| {
-                            (*single_prop.symbol_links().ref_(self))
-                                .borrow()
-                                .type_
-                                .clone()
-                        }),
+                        .and_then(|single_prop| single_prop.symbol_links().ref_(self).type_),
                 );
                 clone.ref_(self).set_parent(
                     single_prop
@@ -252,12 +247,7 @@ impl TypeChecker {
                 clone_symbol_links.mapper = single_prop
                     .ref_(self)
                     .maybe_as_transient_symbol()
-                    .and_then(|single_prop| {
-                        (*single_prop.symbol_links().ref_(self))
-                            .borrow()
-                            .mapper
-                            .clone()
-                    });
+                    .and_then(|single_prop| single_prop.symbol_links().ref_(self).mapper);
                 return Ok(Some(clone));
             } else {
                 return Ok(Some(single_prop));
@@ -299,10 +289,7 @@ impl TypeChecker {
             let type_ = self.get_type_of_symbol(prop)?;
             if first_type.is_none() {
                 first_type = Some(type_.clone());
-                name_type = (*self.get_symbol_links(prop).ref_(self))
-                    .borrow()
-                    .name_type
-                    .clone();
+                name_type = self.get_symbol_links(prop).ref_(self).name_type;
             } else if type_ != first_type.unwrap() {
                 check_flags |= CheckFlags::HasNonUniformType;
             }

@@ -254,7 +254,7 @@ impl InferTypes {
             });
             self.infer_from_types(
                 self.type_checker.ref_(self).get_union_type(
-                    prop_types.and_extend(index_types),
+                    &prop_types.and_extend(index_types),
                     None,
                     Option::<Id<Symbol>>::None,
                     None,
@@ -919,37 +919,32 @@ impl TypeChecker {
             .intersects(ObjectFlags::ObjectLiteral | ObjectFlags::ArrayLiteral)
     }
 
-    pub(super) fn union_object_and_array_literal_candidates<'self_and_candidates, TCandidates>(
-        &'self_and_candidates self,
-        candidates: TCandidates,
-    ) -> io::Result<impl Iterator<Item = Id<Type>> + 'self_and_candidates>
-    where
-        TCandidates: IntoIterator<Item = &'self_and_candidates Id<Type>> + Clone,
-        TCandidates::IntoIter: Clone + 'self_and_candidates,
-    {
-        let candidates = candidates.into_iter();
-        if candidates.clone().peekmore().is_len_greater_than(1) {
-            let mut object_literals = candidates
-                .clone()
+    pub(super) fn union_object_and_array_literal_candidates(
+        &self,
+        candidates: &[Id<Type>],
+    ) -> io::Result<Vec<Id<Type>>> {
+        if candidates.len() > 1 {
+            let object_literals = candidates
+                .into_iter()
                 .filter(|&&candidate| self.is_object_or_array_literal_type(candidate))
-                .peekable();
-            if !object_literals.is_empty_() {
+                .collect::<Vec<_>>();
+            if !object_literals.is_empty() {
                 let literals_type = self.get_union_type(
-                    object_literals,
+                    &object_literals,
                     Some(UnionReduction::Subtype),
                     Option::<Id<Symbol>>::None,
                     None,
                     None,
                 )?;
-                return Ok(Either::Left(
-                    candidates
-                        .filter(|&&t| !self.is_object_or_array_literal_type(t))
-                        .cloned()
-                        .chain(once(literals_type)),
-                ));
+                return Ok(candidates
+                    .into_iter()
+                    .filter(|&&t| !self.is_object_or_array_literal_type(t))
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .and_push(literals_type));
             }
         }
-        Ok(Either::Right(candidates.cloned()))
+        Ok(candidates.to_owned())
     }
 
     pub(super) fn get_contravariant_inference(
@@ -990,14 +985,16 @@ impl TypeChecker {
                 )?);
         let base_candidates: Vec<_> = if primitive_constraint {
             candidates
+                .into_iter()
                 .map(|candidate| self.get_regular_type_of_literal_type(candidate))
                 .collect()
         } else if widen_literal_types {
             candidates
+                .into_iter()
                 .map(|candidate| self.get_widened_literal_type(candidate))
                 .collect::<Result<Vec<_>, _>>()?
         } else {
-            candidates.collect()
+            candidates
         };
         let unwidened_type = if matches!(
             inference.maybe_priority(),

@@ -177,7 +177,7 @@ pub fn emit_comments(
     text: &SourceTextAsChars,
     line_map: &[usize],
     writer: &dyn EmitTextWriter,
-    comments: Option<&[CommentRange]>,
+    comments: Option<&[&CommentRange]>,
     leading_separator: bool,
     trailing_separator: bool,
     new_line: &str,
@@ -192,7 +192,6 @@ pub fn emit_comments(
 
             let mut emit_intervening_separator = false;
             for comment in comments {
-                let comment = comment.borrow();
                 if emit_intervening_separator {
                     writer.write_space(" ");
                     emit_intervening_separator = false;

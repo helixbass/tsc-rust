@@ -739,12 +739,10 @@ impl TypeChecker {
             || !get_declaration_modifier_flags_from_symbol(prop, None, self)
                 .intersects(ModifierFlags::NonPublicAccessibilityModifier)
         {
-            let mut type_ = (*self
+            let mut type_ = self
                 .get_symbol_links(self.get_late_bound_symbol(prop)?)
-                .ref_(self))
-            .borrow()
-            .name_type
-            .clone();
+                .ref_(self)
+                .name_type;
             if type_.is_none() {
                 let name = get_name_of_declaration(prop.ref_(self).maybe_value_declaration(), self);
                 type_ = if prop.ref_(self).escaped_name() == InternalSymbolName::Default {

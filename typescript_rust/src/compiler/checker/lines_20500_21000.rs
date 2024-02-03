@@ -151,10 +151,7 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn literal_types_with_same_base_type<'types>(
-        &self,
-        types: impl IntoIterator<Item = &'types Id<Type>>,
-    ) -> io::Result<bool> {
+    pub(super) fn literal_types_with_same_base_type(&self, types: &[Id<Type>]) -> io::Result<bool> {
         let mut common_base_type: Option<Id<Type>> = None;
         for &t in types {
             let base_type = self.get_base_type_of_literal_type(t)?;
@@ -168,24 +165,15 @@ impl TypeChecker {
         Ok(true)
     }
 
-    pub(super) fn get_supertype_or_union<'types, TTypes>(
-        &self,
-        types: TTypes,
-    ) -> io::Result<Id<Type>>
-    where
-        TTypes: IntoIterator<Item = &'types Id<Type>>,
-        TTypes::IntoIter: Clone,
-    {
-        let mut types = types.into_iter();
-        let mut types_peekmore = types.clone().peekmore();
-        if types_peekmore.is_len_equal_to(1) {
-            return Ok(types.next().unwrap().clone());
+    pub(super) fn get_supertype_or_union(&self, types: &[Id<Type>]) -> io::Result<Id<Type>> {
+        if types.len() == 1 {
+            return Ok(types[0]);
         }
-        Ok(if self.literal_types_with_same_base_type(types.clone())? {
+        Ok(if self.literal_types_with_same_base_type(types)? {
             self.get_union_type(types, None, Option::<Id<Symbol>>::None, None, None)?
         } else {
             try_reduce_left_no_initial_value(
-                &types.cloned().collect::<Vec<_>>(),
+                types,
                 |s: Id<Type>, &t: &Id<Type>, _| -> io::Result<_> {
                     Ok(if self.is_type_subtype_of(s, t)? {
                         t.clone()
@@ -199,17 +187,12 @@ impl TypeChecker {
         })
     }
 
-    pub(super) fn get_common_supertype<'types, TTypes>(&self, types: TTypes) -> io::Result<Id<Type>>
-    where
-        TTypes: IntoIterator<Item = &'types Id<Type>>,
-        TTypes::IntoIter: Clone,
-    {
-        let types = types.into_iter();
+    pub(super) fn get_common_supertype(&self, types: &[Id<Type>]) -> io::Result<Id<Type>> {
         if !self.strict_null_checks {
             return self.get_supertype_or_union(types);
         }
         let mut primary_types = types
-            .clone()
+            .into_iter()
             .filter(|&&t| !t.ref_(self).flags().intersects(TypeFlags::Nullable))
             .cloned()
             .peekable();
@@ -820,10 +803,7 @@ impl TypeChecker {
             == "0"
     }
 
-    pub(super) fn get_falsy_flags_of_types<'types>(
-        &self,
-        types: impl IntoIterator<Item = &'types Id<Type>>,
-    ) -> TypeFlags {
+    pub(super) fn get_falsy_flags_of_types(&self, types: &[Id<Type>]) -> TypeFlags {
         let mut result = TypeFlags::None;
         for &t in types {
             result |= self.get_falsy_flags(t);
@@ -1190,10 +1170,7 @@ impl TypeChecker {
                 .ref_(self)
                 .set_value_declaration(source_value_declaration);
         }
-        let name_type = (*self.get_symbol_links(source).ref_(self))
-            .borrow()
-            .name_type
-            .clone();
+        let name_type = self.get_symbol_links(source).ref_(self).name_type;
         if let Some(name_type) = name_type {
             symbol_links.name_type = Some(name_type);
         }

@@ -533,18 +533,15 @@ impl NodeBuilder {
         context: &NodeBuilderContext,
         single_quote: Option<bool>,
     ) -> io::Result<Option<Id<Node>>> {
-        let name_type = (*self
+        let Some(name_type) = self
             .type_checker
             .ref_(self)
             .get_symbol_links(symbol)
-            .ref_(self))
-        .borrow()
-        .name_type
-        .clone();
-        if name_type.is_none() {
+            .ref_(self)
+            .name_type
+        else {
             return Ok(None);
-        }
-        let name_type = name_type.unwrap();
+        };
         if name_type
             .ref_(self)
             .flags()

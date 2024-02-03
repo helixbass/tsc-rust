@@ -523,8 +523,7 @@ impl TypeChecker {
             if target_symbol.is_none() {
                 target.insert(id.clone(), source_symbol.clone());
                 if let Some(lookup_table) = lookup_table.as_mut() {
-                    if let Some(export_node) = export_node.as_ref() {
-                        let export_node = export_node.borrow();
+                    if let Some(export_node) = export_node {
                         lookup_table.insert(
                             id.clone(),
                             ExportCollisionTracker {
@@ -700,10 +699,8 @@ impl TypeChecker {
         let id = get_node_id(&containing_file.ref_(self));
         let links = self.get_symbol_links(symbol);
         let mut results: Option<Vec<Id<Symbol>>> = None;
-        if let Some(links_extended_containers_by_file) = (*links.ref_(self))
-            .borrow()
-            .extended_containers_by_file
-            .as_ref()
+        if let Some(links_extended_containers_by_file) =
+            links.ref_(self).extended_containers_by_file.as_ref()
         {
             results = links_extended_containers_by_file.get(&id).map(Clone::clone);
             if results.is_some() {

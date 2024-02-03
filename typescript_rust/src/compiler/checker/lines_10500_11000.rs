@@ -346,10 +346,10 @@ impl TypeChecker {
     ) -> Option<Id<SymbolTable>> {
         match resolution_kind {
             MembersOrExportsResolutionKind::resolved_exports => {
-                (*symbol_links.ref_(self)).borrow().resolved_exports.clone()
+                symbol_links.ref_(self).resolved_exports
             }
             MembersOrExportsResolutionKind::resolved_members => {
-                (*symbol_links.ref_(self)).borrow().resolved_members.clone()
+                symbol_links.ref_(self).resolved_members
             }
         }
     }

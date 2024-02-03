@@ -189,10 +189,7 @@ impl TypeChecker {
 
     pub(super) fn try_resolve_alias(&self, symbol: Id<Symbol>) -> io::Result<Option<Id<Symbol>>> {
         let links = self.get_symbol_links(symbol);
-        if !matches!(
-            (*links.ref_(self)).borrow().target,
-            Some(target) if target == self.resolving_symbol()
-        ) {
+        if links.ref_(self).target != Some(self.resolving_symbol()) {
             return Ok(Some(self.resolve_alias(symbol)?));
         }
 
@@ -244,12 +241,7 @@ impl TypeChecker {
                 .type_only_declaration
                 .is_none()
                 || overwrite_empty
-                    && matches!(
-                        (*alias_declaration_links.ref_(self))
-                            .borrow()
-                            .type_only_declaration,
-                        Some(None)
-                    )
+                    && alias_declaration_links.ref_(self).type_only_declaration == Some(None)
             {
                 let export_symbol = target
                     .ref_(self)
@@ -273,22 +265,15 @@ impl TypeChecker {
                     });
                 alias_declaration_links.ref_mut(self).type_only_declaration =
                     Some(type_only.or_else(|| {
-                        match (*self.get_symbol_links(export_symbol).ref_(self))
-                            .borrow()
+                        self.get_symbol_links(export_symbol)
+                            .ref_(self)
                             .type_only_declaration
-                            .clone()
-                        {
-                            Some(type_only_declaration) => type_only_declaration,
-                            None => None,
-                        }
+                            .flatten()
                     }));
             }
         }
         matches!(
-            (*alias_declaration_links.ref_(self))
-                .borrow()
-                .type_only_declaration
-                .as_ref(),
+            alias_declaration_links.ref_(self).type_only_declaration,
             Some(Some(_))
         )
     }
@@ -301,10 +286,7 @@ impl TypeChecker {
             return None;
         }
         let links = self.get_symbol_links(symbol);
-        let ret = match (*links.ref_(self)).borrow().type_only_declaration {
-            Some(Some(type_only_declaration)) => Some(type_only_declaration),
-            _ => None,
-        };
+        let ret = links.ref_(self).type_only_declaration.flatten();
         ret
     }
 

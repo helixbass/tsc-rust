@@ -753,23 +753,19 @@ impl TypeChecker {
             return self.get_string_mapping_type(symbol, type_arguments.unwrap()[0]);
         }
         let links = self.get_symbol_links(symbol);
-        let type_parameters = (*links.ref_(self))
-            .borrow()
-            .type_parameters
-            .clone()
-            .unwrap();
+        let type_parameters = links.ref_(self).type_parameters.clone().unwrap();
         let id = format!(
             "{}{}",
             self.get_type_list_id(type_arguments),
             self.get_alias_id(alias_symbol, alias_type_arguments)
         );
-        let mut instantiation = (*links.ref_(self))
-            .borrow()
+        let mut instantiation = links
+            .ref_(self)
             .instantiations
             .as_ref()
             .unwrap()
             .get(&id)
-            .map(Clone::clone);
+            .copied();
         if instantiation.is_none() {
             instantiation = Some(
                 self.instantiate_type_with_alias(
@@ -829,8 +825,9 @@ impl TypeChecker {
             return Ok(error_type.unwrap());
         }
         let type_ = self.get_declared_type_of_symbol(symbol)?;
-        let type_parameters = (*self.get_symbol_links(symbol).ref_(self))
-            .borrow()
+        let type_parameters = self
+            .get_symbol_links(symbol)
+            .ref_(self)
             .type_parameters
             .clone();
         if let Some(type_parameters) = type_parameters {

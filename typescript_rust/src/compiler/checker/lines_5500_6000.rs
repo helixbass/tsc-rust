@@ -1133,14 +1133,13 @@ impl NodeBuilder {
                     try_maybe_map(params.as_ref(), |&t: &Id<Type>, _| {
                         self.type_checker.ref_(self).get_mapped_type(
                             t,
-                            (*next_symbol
+                            next_symbol
                                 .ref_(self)
                                 .as_transient_symbol()
                                 .symbol_links()
-                                .ref_(self))
-                            .borrow()
-                            .mapper
-                            .unwrap(),
+                                .ref_(self)
+                                .mapper
+                                .unwrap(),
                         )
                     })
                     .transpose()?
@@ -1240,15 +1239,16 @@ impl NodeBuilder {
             self,
         );
         let links = self.type_checker.ref_(self).get_symbol_links(symbol);
-        let mut specifier = (*links.ref_(self))
-            .borrow()
-            .specifier_cache
-            .as_ref()
-            .and_then(|links_specifier_cache| {
-                links_specifier_cache
-                    .get(&**context_file.ref_(self).as_source_file().path())
-                    .cloned()
-            });
+        let mut specifier =
+            links
+                .ref_(self)
+                .specifier_cache
+                .as_ref()
+                .and_then(|links_specifier_cache| {
+                    links_specifier_cache
+                        .get(&**context_file.ref_(self).as_source_file().path())
+                        .cloned()
+                });
         if specifier.is_none() {
             let is_bundle = matches!(
                 out_file(&self.type_checker.ref_(self).compiler_options.ref_(self)),

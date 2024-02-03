@@ -73,10 +73,7 @@ impl TypeChecker {
         if let Some(prop_declarations) = prop.ref_(self).maybe_declarations().clone() {
             result.ref_(self).set_declarations(prop_declarations);
         }
-        result_links.name_type = (*self.get_symbol_links(prop).ref_(self))
-            .borrow()
-            .name_type
-            .clone();
+        result_links.name_type = self.get_symbol_links(prop).ref_(self).name_type;
         result_links.synthetic_origin = Some(prop);
         Ok(result)
     }
@@ -1045,19 +1042,15 @@ impl TypeChecker {
     ) -> io::Result<Id<Symbol>> {
         let links = self.get_symbol_links(symbol);
         {
-            let links_ref = links.ref_(self);
-            let links = (*links_ref).borrow();
-            if let Some(type_) = links.type_ {
+            if let Some(type_) = links.ref_(self).type_ {
                 if !self.could_contain_type_variables(type_)? {
                     return Ok(symbol);
                 }
             }
         }
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
-            let links_ref = links.ref_(self);
-            let links = (*links_ref).borrow();
-            symbol = links.target.clone().unwrap();
-            mapper = self.combine_type_mappers(links.mapper.clone(), mapper);
+            symbol = links.ref_(self).target.unwrap();
+            mapper = self.combine_type_mappers(links.ref_(self).mapper, mapper);
         }
         let result = self.create_symbol(
             symbol.ref_(self).flags(),
@@ -1082,7 +1075,7 @@ impl TypeChecker {
         if let Some(symbol_value_declaration) = symbol.ref_(self).maybe_value_declaration() {
             result.set_value_declaration(symbol_value_declaration);
         }
-        if let Some(links_name_type) = (*links.ref_(self)).borrow().name_type.clone() {
+        if let Some(links_name_type) = links.ref_(self).name_type {
             result_links.name_type = Some(links_name_type);
         }
         Ok(self.alloc_symbol(result.into()))

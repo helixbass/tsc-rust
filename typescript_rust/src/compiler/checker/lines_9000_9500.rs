@@ -418,7 +418,7 @@ impl TypeChecker {
         symbol: Id<Symbol>,
     ) -> io::Result<Id<Type>> {
         let links = self.get_symbol_links(symbol);
-        let links_type_is_none = { (*links.ref_(self)).borrow().type_.is_none() };
+        let links_type_is_none = { links.ref_(self).type_.is_none() };
         if links_type_is_none {
             let type_ = self.get_type_of_variable_or_parameter_or_property_worker(symbol)?;
             let mut links = links.ref_mut(self);
@@ -426,9 +426,7 @@ impl TypeChecker {
                 links.type_ = Some(type_);
             }
         }
-        let links_ref = links.ref_(self);
-        let links = (*links_ref).borrow();
-        Ok(links.type_.clone().unwrap())
+        Ok(links.ref_(self).type_.unwrap())
     }
 
     pub(super) fn get_type_of_variable_or_parameter_or_property_worker(
@@ -857,7 +855,7 @@ impl TypeChecker {
     ) -> io::Result<Id<Type>> {
         if get_check_flags(&symbol.ref_(self)).intersects(CheckFlags::Instantiated) {
             let links = self.get_symbol_links(symbol);
-            return self.instantiate_type(type_, (*links.ref_(self)).borrow().mapper.clone());
+            return self.instantiate_type(type_, links.ref_(self).mapper);
         }
 
         Ok(type_)

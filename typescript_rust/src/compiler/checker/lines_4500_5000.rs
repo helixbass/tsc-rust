@@ -508,8 +508,7 @@ impl TypeChecker {
     ) -> io::Result<(String, String)> {
         let mut left_str = if let Some(symbol) = left.ref_(self).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
-                let enclosing_declaration =
-                    (*symbol.ref_(self).maybe_value_declaration().borrow()).clone();
+                let enclosing_declaration = symbol.ref_(self).maybe_value_declaration();
                 self.type_to_string_(left, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(left, Option::<Id<Node>>::None, None, None)?
@@ -519,8 +518,7 @@ impl TypeChecker {
         };
         let mut right_str = if let Some(symbol) = right.ref_(self).maybe_symbol() {
             if self.symbol_value_declaration_is_context_sensitive(Some(symbol))? {
-                let enclosing_declaration =
-                    (*symbol.ref_(self).maybe_value_declaration().borrow()).clone();
+                let enclosing_declaration = symbol.ref_(self).maybe_value_declaration();
                 self.type_to_string_(right, enclosing_declaration, None, None)?
             } else {
                 self.type_to_string_(right, Option::<Id<Node>>::None, None, None)?
