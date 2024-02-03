@@ -9,7 +9,7 @@ pub mod vfs {
     };
 
     use derive_builder::Builder;
-    use gc::{Finalize, Gc, GcCell, GcCellRefMut, Trace};
+    use gc::{Finalize, GcCell, GcCellRefMut, Trace};
     use local_macros::enum_unwrapped;
     use typescript_rust::{
         debug_cell, get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
@@ -210,14 +210,16 @@ pub mod vfs {
         }
 
         pub fn meta_id(&self) -> Id<collections::Metadata<String>> {
-            self._lazy.meta.borrow_mut().get_or_insert_with(|| {
-                self.alloc_metadata_string(collections::Metadata::new(
-                    self._shadow_root
-                        .as_ref()
-                        .map(|_shadow_root| _shadow_root.ref_(self).meta_id()),
-                ))
-            });
-            self._lazy.meta.borrow().clone().unwrap()
+            if self._lazy.meta.get().is_none() {
+                self._lazy.meta.set(Some(
+                    self.alloc_metadata_string(collections::Metadata::new(
+                        self._shadow_root
+                            .as_ref()
+                            .map(|_shadow_root| _shadow_root.ref_(self).meta_id()),
+                    )),
+                ));
+            }
+            self._lazy.meta.get().unwrap()
         }
 
         pub fn meta(&self) -> debug_cell::Ref<collections::Metadata<String>> {
@@ -272,7 +274,7 @@ pub mod vfs {
 
         pub fn time(&self) -> u128 {
             let result = match self._time.borrow().clone() {
-                TimestampOrNowOrSystemTimeOrCallback::Callback(_time) => _time.call(),
+                TimestampOrNowOrSystemTimeOrCallback::Callback(_time) => _time.ref_(self).call(),
                 TimestampOrNowOrSystemTimeOrCallback::Timestamp(_time) => _time.into(),
                 TimestampOrNowOrSystemTimeOrCallback::Now => TimestampOrNowOrSystemTime::Now,
                 TimestampOrNowOrSystemTimeOrCallback::SystemTime(_time) => _time.into(),
@@ -1396,7 +1398,8 @@ pub mod vfs {
     struct FileSystemLazy {
         links: GcCell<Option<Id<collections::SortedMap<String, Id<Inode>>>>>,
         shadows: GcCell<Option<HashMap<u32, Id<Inode>>>>,
-        meta: Gc<GcCell<Option<Id<collections::Metadata<String>>>>>,
+        #[unsafe_ignore_trace]
+        meta: Cell<Option<Id<collections::Metadata<String>>>>,
     }
 
     // TODO: revisit this, SystemTime Trace wasn't implemented and unsafe_ignore_trace didn't seem
@@ -1407,7 +1410,7 @@ pub mod vfs {
         Now,
         // #[unsafe_ignore_trace]
         SystemTime(SystemTime),
-        Callback(Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>),
+        Callback(Id<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>),
     }
     unsafe impl Trace for TimestampOrNowOrSystemTimeOrCallback {
         gc::unsafe_empty_trace!();
@@ -1430,10 +1433,10 @@ pub mod vfs {
         }
     }
 
-    impl From<Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>>
+    impl From<Id<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>>
         for TimestampOrNowOrSystemTimeOrCallback
     {
-        fn from(value: Gc<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>) -> Self {
+        fn from(value: Id<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>) -> Self {
             Self::Callback(value)
         }
     }

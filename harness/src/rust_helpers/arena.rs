@@ -10,7 +10,10 @@ use crate::{
     documents::TextDocument,
     fakes::{ParseConfigHost, System},
     harness::harness_io::NodeIO,
-    vfs::{FileSystem, FileSystemResolver, FileSystemResolverHost, StringComparer},
+    vfs::{
+        FileSystem, FileSystemResolver, FileSystemResolverHost, StringComparer,
+        TimestampOrNowOrSystemTimeOrCallbackCallback,
+    },
     Compiler::TestFile,
     Inode, MetaValue, RunnerBaseSub,
     Utils::{DiagnosticMessageReplacer, Replacer},
@@ -36,6 +39,8 @@ pub struct AllArenasHarness {
     file_system_resolvers: RefCell<Arena<FileSystemResolver>>,
     inodes: RefCell<Arena<Inode>>,
     links: RefCell<Arena<SortedMap<String, Id<Inode>>>>,
+    timestamp_or_now_or_system_time_or_callback_callbacks:
+        RefCell<Arena<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -271,6 +276,30 @@ pub trait HasArenaHarness: HasArena {
 
     fn alloc_links(&self, links: SortedMap<String, Id<Inode>>) -> Id<SortedMap<String, Id<Inode>>> {
         self.arena_harness().alloc_links(links)
+    }
+
+    fn timestamp_or_now_or_system_time_or_callback_callback(
+        &self,
+        timestamp_or_now_or_system_time_or_callback_callback: Id<
+            Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>,
+        >,
+    ) -> Ref<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> {
+        self.arena_harness()
+            .timestamp_or_now_or_system_time_or_callback_callback(
+                timestamp_or_now_or_system_time_or_callback_callback,
+            )
+    }
+
+    fn alloc_timestamp_or_now_or_system_time_or_callback_callback(
+        &self,
+        timestamp_or_now_or_system_time_or_callback_callback: Box<
+            dyn TimestampOrNowOrSystemTimeOrCallbackCallback,
+        >,
+    ) -> Id<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> {
+        self.arena_harness()
+            .alloc_timestamp_or_now_or_system_time_or_callback_callback(
+                timestamp_or_now_or_system_time_or_callback_callback,
+            )
     }
 }
 
@@ -581,6 +610,35 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.links.borrow_mut().alloc(links);
         id
     }
+
+    fn timestamp_or_now_or_system_time_or_callback_callback(
+        &self,
+        timestamp_or_now_or_system_time_or_callback_callback: Id<
+            Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>,
+        >,
+    ) -> Ref<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> {
+        Ref::map(
+            self.timestamp_or_now_or_system_time_or_callback_callbacks
+                .borrow(),
+            |timestamp_or_now_or_system_time_or_callback_callbacks| {
+                &timestamp_or_now_or_system_time_or_callback_callbacks
+                    [timestamp_or_now_or_system_time_or_callback_callback]
+            },
+        )
+    }
+
+    fn alloc_timestamp_or_now_or_system_time_or_callback_callback(
+        &self,
+        timestamp_or_now_or_system_time_or_callback_callback: Box<
+            dyn TimestampOrNowOrSystemTimeOrCallbackCallback,
+        >,
+    ) -> Id<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> {
+        let id = self
+            .timestamp_or_now_or_system_time_or_callback_callbacks
+            .borrow_mut()
+            .alloc(timestamp_or_now_or_system_time_or_callback_callback);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -757,6 +815,17 @@ impl InArenaHarness for Id<SortedMap<String, Id<Inode>>> {
         has_arena: &'a impl HasArenaHarness,
     ) -> RefMut<'a, SortedMap<String, Id<Inode>>> {
         has_arena.links_mut(*self)
+    }
+}
+
+impl InArenaHarness for Id<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> {
+    type Item = Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>;
+
+    fn ref_<'a>(
+        &self,
+        has_arena: &'a impl HasArenaHarness,
+    ) -> Ref<'a, Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>> {
+        has_arena.timestamp_or_now_or_system_time_or_callback_callback(*self)
     }
 }
 
