@@ -19,9 +19,9 @@ use crate::{
 };
 
 impl CheckTypeRelatedTo {
-    pub(super) fn count_message_chain_breadth<TItem: Borrow<DiagnosticMessageChain>>(
+    pub(super) fn count_message_chain_breadth(
         &self,
-        info: Option<&[TItem]>,
+        info: Option<&[impl std::borrow::Borrow<DiagnosticMessageChain>]>,
     ) -> usize {
         if info.is_none() {
             return 0;
@@ -210,7 +210,7 @@ impl CheckTypeRelatedTo {
         let source_properties_filtered = self
             .type_checker
             .ref_(self)
-            .find_discriminant_properties(source_properties, target)?;
+            .find_discriminant_properties(&source_properties, target)?;
         if source_properties_filtered.is_none() {
             return Ok(Ternary::False);
         }

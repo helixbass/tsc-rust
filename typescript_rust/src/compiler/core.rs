@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Cow},
+    borrow::Cow,
     cell::RefCell,
     cmp::Ordering,
     collections::{hash_map::Entry, HashMap, HashSet},
@@ -1924,16 +1924,11 @@ pub fn compare_booleans(a: bool, b: bool) -> Comparison {
     compare_values(Some(if a { 1 } else { 0 }), Some(if b { 1 } else { 0 }))
 }
 
-// TODO: it looked like all the `candidates` types are cheaply cloneable
-// so returning a cloned item was easier than messing more with how to try
-// and still return a reference (Option<&'candidates TCandidate>) when
-// `candidates` now needed to iterate over `impl Borrow<TCandidate>` (vs
-// only supporting iterating over references)
-pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
+pub fn get_spelling_suggestion<'a, TCandidate>(
     name: &str,
-    candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
+    candidates: &'a [TCandidate],
     mut get_name: impl FnMut(&TCandidate) -> Option<String>,
-) -> Option<TCandidate> {
+) -> Option<&'a TCandidate> {
     try_get_spelling_suggestion(
         name,
         candidates,
@@ -1942,21 +1937,20 @@ pub fn get_spelling_suggestion<'candidates, TCandidate: Clone>(
     .unwrap()
 }
 
-pub fn try_get_spelling_suggestion<'candidates, TCandidate: Clone, TError>(
+pub fn try_get_spelling_suggestion<'a, TCandidate, TError>(
     name: &str,
-    candidates: impl IntoIterator<Item = impl Borrow<TCandidate>>,
+    candidates: &'a [TCandidate],
     mut get_name: impl FnMut(&TCandidate) -> Result<Option<String>, TError>,
-) -> Result<Option<TCandidate>, TError> {
+) -> Result<Option<&'a TCandidate>, TError> {
     let name_len_as_f64 = name.len() as f64;
     let maximum_length_difference = f64::min(2.0, (name_len_as_f64 * 0.34).floor());
     let mut best_distance = (name_len_as_f64 * 0.4).floor() + 1.0;
-    let mut best_candidate: Option<TCandidate> = None;
+    let mut best_candidate: Option<&'a TCandidate> = None;
     for candidate in candidates {
-        let candidate: &TCandidate = candidate.borrow();
         let candidate_name = get_name(candidate)?;
         if let Some(candidate_name) = candidate_name {
-            if (TryInto::<isize>::try_into(candidate_name.len()).unwrap()
-                - TryInto::<isize>::try_into(name.len()).unwrap())
+            if (isize::try_from(candidate_name.len()).unwrap()
+                - isize::try_from(name.len()).unwrap())
             .abs() as f64
                 <= maximum_length_difference
             {
@@ -1968,19 +1962,17 @@ pub fn try_get_spelling_suggestion<'candidates, TCandidate: Clone, TError>(
                     continue;
                 }
 
-                let distance = levenshtein_with_max(
+                let Some(distance) = levenshtein_with_max(
                     &name.chars().collect(),
                     &candidate_name.chars().collect(),
                     best_distance - 0.1,
-                );
-                if distance.is_none() {
+                ) else {
                     continue;
-                }
-                let distance = distance.unwrap();
+                };
 
                 Debug_.assert(distance < best_distance, None);
                 best_distance = distance;
-                best_candidate = Some(candidate.clone());
+                best_candidate = Some(candidate);
             }
         }
     }

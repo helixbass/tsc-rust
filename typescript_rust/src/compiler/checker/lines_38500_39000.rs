@@ -706,27 +706,18 @@ impl TypeChecker {
         Ok(())
     }
 
-    pub(super) fn get_non_interhited_properties<TProperties, TPropertiesItem>(
+    pub(super) fn get_non_interhited_properties(
         &self,
         type_: Id<Type>, /*InterfaceType*/
         base_types: &[Id<Type /*BaseType*/>],
-        properties: TProperties,
-    ) -> io::Result<Vec<Id<Symbol>>>
-    where
-        TProperties: IntoIterator<Item = TPropertiesItem> + Clone,
-        TPropertiesItem: Borrow<Id<Symbol>>,
-        TProperties::IntoIter: Clone,
-    {
-        let properties = properties.into_iter();
+        properties: &[Id<Symbol>],
+    ) -> io::Result<Vec<Id<Symbol>>> {
         if length(Some(base_types)) == 0 {
-            return Ok(properties
-                .map(|property| property.borrow().clone())
-                .collect());
+            return Ok(properties.to_owned());
         }
         let mut seen: HashMap<__String, Id<Symbol>> = Default::default();
-        for_each(properties, |p, _| -> Option<()> {
-            let &p = p.borrow();
-            seen.insert(p.ref_(self).escaped_name().to_owned(), p.clone());
+        for_each(properties, |&p, _| -> Option<()> {
+            seen.insert(p.ref_(self).escaped_name().to_owned(), p);
             None
         });
 

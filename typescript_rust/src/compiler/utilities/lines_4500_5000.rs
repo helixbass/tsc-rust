@@ -173,18 +173,15 @@ pub fn emit_new_line_before_leading_comment_of_position(
     }
 }
 
-pub fn emit_comments<
-    TWriteComment: FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
-    TComment: Borrow<CommentRange>,
->(
+pub fn emit_comments(
     text: &SourceTextAsChars,
     line_map: &[usize],
     writer: &dyn EmitTextWriter,
-    comments: Option<&[TComment]>,
+    comments: Option<&[CommentRange]>,
     leading_separator: bool,
     trailing_separator: bool,
     new_line: &str,
-    mut write_comment: TWriteComment,
+    mut write_comment: impl FnMut(&SourceTextAsChars, &[usize], &dyn EmitTextWriter, isize, isize, &str),
 ) {
     comments
         .filter(|comments| !comments.is_empty())
@@ -292,7 +289,7 @@ pub fn emit_detached_comments(
                     text,
                     line_map,
                     writer,
-                    Some(&*detached_comments),
+                    Some(&detached_comments),
                     false,
                     true,
                     new_line,

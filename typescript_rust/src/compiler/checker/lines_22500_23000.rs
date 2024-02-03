@@ -432,12 +432,11 @@ impl TypeChecker {
 
     pub(super) fn find_discriminant_properties(
         &self,
-        source_properties: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
+        source_properties: &[Id<Symbol>],
         target: Id<Type>,
     ) -> io::Result<Option<Vec<Id<Symbol>>>> {
         let mut result: Option<Vec<Id<Symbol>>> = None;
-        for source_property in source_properties {
-            let &source_property = source_property.borrow();
+        for &source_property in source_properties {
             if self
                 .is_discriminant_property(Some(target), source_property.ref_(self).escaped_name())?
             {

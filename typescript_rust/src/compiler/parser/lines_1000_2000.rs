@@ -893,13 +893,12 @@ impl ParserType {
             _ => (),
         }
 
-        let suggestion: Option<String> = get_spelling_suggestion(
-            &expression_text,
-            &*viable_keyword_suggestions,
-            |n: &&str| Some((*n).to_owned()),
-        )
-        .map(|suggestion| (*suggestion).to_owned())
-        .or_else(|| self.get_space_suggestion(&expression_text));
+        let suggestion: Option<String> =
+            get_spelling_suggestion(&expression_text, &viable_keyword_suggestions, |n: &&str| {
+                Some((*n).to_owned())
+            })
+            .map(|suggestion| (*suggestion).to_owned())
+            .or_else(|| self.get_space_suggestion(&expression_text));
         if let Some(suggestion) = suggestion {
             self.parse_error_at(
                 pos,

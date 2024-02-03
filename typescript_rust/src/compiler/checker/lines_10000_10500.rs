@@ -769,13 +769,12 @@ impl TypeChecker {
 
     pub(super) fn create_instantiated_symbol_table(
         &self,
-        symbols: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
+        symbols: &[Id<Symbol>],
         mapper: Id<TypeMapper>,
         mapping_this_only: bool,
     ) -> io::Result<SymbolTable> {
         let mut result = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
-        for symbol in symbols {
-            let &symbol: &Id<Symbol> = symbol.borrow();
+        for &symbol in symbols {
             result.insert(
                 symbol.ref_(self).escaped_name().to_owned(),
                 if mapping_this_only && self.is_thisless(symbol) {

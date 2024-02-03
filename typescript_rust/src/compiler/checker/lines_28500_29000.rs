@@ -121,7 +121,7 @@ impl TypeChecker {
     ) -> io::Result<Option<Id<Symbol>>> {
         self.get_spelling_suggestion_for_name(
             name,
-            self.get_properties_of_type(base_type)?,
+            &self.get_properties_of_type(base_type)?,
             SymbolFlags::ClassMember,
         )
     }
@@ -155,7 +155,7 @@ impl TypeChecker {
         }
         let props = props_.unwrap();
         let name = enum_unwrapped!(name, [StrOrRcNode, Str]);
-        self.get_spelling_suggestion_for_name(name, props, SymbolFlags::Value)
+        self.get_spelling_suggestion_for_name(name, &props, SymbolFlags::Value)
     }
 
     pub(super) fn get_suggested_symbol_for_nonexistent_jsx_attribute<'name>(
@@ -183,7 +183,7 @@ impl TypeChecker {
             None
         };
         jsx_specific.try_or_else(|| {
-            self.get_spelling_suggestion_for_name(&str_name, properties, SymbolFlags::Value)
+            self.get_spelling_suggestion_for_name(&str_name, &properties, SymbolFlags::Value)
         })
     }
 
@@ -280,7 +280,7 @@ impl TypeChecker {
         Ok(if target_module.ref_(self).maybe_exports().is_some() {
             self.get_spelling_suggestion_for_name(
                 &id_text(&name.ref_(self)),
-                &*self.get_exports_of_module_as_array(target_module)?,
+                &self.get_exports_of_module_as_array(target_module)?,
                 SymbolFlags::ModuleMember,
             )?
         } else {
@@ -374,7 +374,7 @@ impl TypeChecker {
     pub(super) fn get_spelling_suggestion_for_name(
         &self,
         name: &str,
-        symbols: impl IntoIterator<Item = impl Borrow<Id<Symbol>>>,
+        symbols: &[Id<Symbol>],
         meaning: SymbolFlags,
     ) -> io::Result<Option<Id<Symbol>>> {
         let get_candidate_name = |&candidate: &Id<Symbol>| -> io::Result<_> {

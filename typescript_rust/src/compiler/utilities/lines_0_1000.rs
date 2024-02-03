@@ -83,15 +83,11 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 
 // function hasEntries
 
-pub fn create_symbol_table(
-    arena: &AllArenas,
-    symbols: Option<impl IntoIterator<Item = impl Borrow<Id<Symbol>>>>,
-) -> SymbolTable {
+pub fn create_symbol_table(arena: &AllArenas, symbols: Option<&[Id<Symbol>]>) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
-        for symbol in symbols {
-            let &symbol: &Id<Symbol> = symbol.borrow();
-            result.insert(symbol.ref_(arena).escaped_name().to_owned(), symbol.clone());
+        for &symbol in symbols {
+            result.insert(symbol.ref_(arena).escaped_name().to_owned(), symbol);
         }
     }
     result

@@ -518,10 +518,9 @@ impl TypeChecker {
         &self,
         type_set: &mut Vec<Id<Type>>,
         mut includes: TypeFlags,
-        types: impl IntoIterator<Item = impl Borrow<Id<Type>>>,
+        types: &[Id<Type>],
     ) -> TypeFlags {
-        for type_ in types {
-            let type_ = *type_.borrow();
+        for &type_ in types {
             includes = self.add_type_to_union(type_set, includes, type_);
         }
         includes
@@ -708,13 +707,8 @@ impl TypeChecker {
                 || type_.ref_(self).as_union_type().origin.is_some())
     }
 
-    pub(super) fn add_named_unions(
-        &self,
-        named_unions: &mut Vec<Id<Type>>,
-        types: impl IntoIterator<Item = impl Borrow<Id<Type>>>,
-    ) {
-        for t in types {
-            let t = *t.borrow();
+    pub(super) fn add_named_unions(&self, named_unions: &mut Vec<Id<Type>>, types: &[Id<Type>]) {
+        for &t in types {
             if t.ref_(self).flags().intersects(TypeFlags::Union) {
                 let origin = t.ref_(self).as_union_type().origin.clone();
                 if t.ref_(self).maybe_alias_symbol().is_some()
@@ -752,30 +746,23 @@ impl TypeChecker {
         result
     }
 
-    pub(super) fn get_union_type<TTypesItem, TTypes>(
+    pub(super) fn get_union_type(
         &self,
-        types: TTypes,
+        types: &[Id<Type>],
         union_reduction: Option<UnionReduction>,
         alias_symbol: Option<Id<Symbol>>,
         alias_type_arguments: Option<&[Id<Type>]>,
         mut origin: Option<Id<Type>>,
-    ) -> io::Result<Id<Type>>
-    where
-        TTypesItem: Borrow<Id<Type>>,
-        TTypes: IntoIterator<Item = TTypesItem>,
-        TTypes::IntoIter: Clone,
-    {
+    ) -> io::Result<Id<Type>> {
         let union_reduction = union_reduction.unwrap_or(UnionReduction::Literal);
-        let mut types = types.into_iter();
-        let mut types_peekmore = types.clone().peekmore();
-        if types_peekmore.is_empty() {
+        if types.is_empty() {
             return Ok(self.never_type());
         }
-        if types_peekmore.is_len_equal_to(1) {
-            return Ok(types.next().unwrap().borrow().clone());
+        if types.len() == 1 {
+            return Ok(types[0]);
         }
         let mut type_set: Vec<Id<Type>> = vec![];
-        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, types.clone());
+        let includes = self.add_types_to_union(&mut type_set, TypeFlags::None, types);
         if union_reduction != UnionReduction::None {
             if includes.intersects(TypeFlags::AnyOrUnknown) {
                 return Ok(if includes.intersects(TypeFlags::Any) {

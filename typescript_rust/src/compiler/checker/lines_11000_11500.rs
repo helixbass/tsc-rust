@@ -525,7 +525,7 @@ impl TypeChecker {
                 vec![],
             )?;
             let members = self.create_instantiated_symbol_table(
-                self.get_properties_of_object_type(type_target)?,
+                &self.get_properties_of_object_type(type_target)?,
                 type_.ref_(self).as_object_type().maybe_mapper().unwrap(),
                 false,
             )?;

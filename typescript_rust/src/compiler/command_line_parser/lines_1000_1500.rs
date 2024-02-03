@@ -516,7 +516,7 @@ pub(super) fn create_unknown_option_error(
     let diagnostics_option_declarations = diagnostics.option_declarations();
     let possible_option = get_spelling_suggestion(
         unknown_option,
-        &*diagnostics_option_declarations.ref_(arena),
+        &diagnostics_option_declarations.ref_(arena),
         |candidate: &Id<CommandLineOption>| {
             Some(get_option_name(&candidate.ref_(arena)).to_owned())
         },

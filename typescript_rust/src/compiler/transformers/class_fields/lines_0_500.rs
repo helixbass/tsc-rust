@@ -42,15 +42,15 @@ pub enum PrivateIdentifierKind {
     Accessor, /*= "a"*/
 }
 
-impl Borrow<str> for PrivateIdentifierKind {
-    fn borrow(&self) -> &str {
-        match self {
-            Self::Field => "f",
-            Self::Method => "m",
-            Self::Accessor => "a",
-        }
-    }
-}
+// impl Borrow<str> for PrivateIdentifierKind {
+//     fn borrow(&self) -> &str {
+//         match self {
+//             Self::Field => "f",
+//             Self::Method => "m",
+//             Self::Accessor => "a",
+//         }
+//     }
+// }
 
 pub(super) trait PrivateIdentifierInfoInterface {
     fn brand_check_identifier(&self) -> Id<Node /*Identifier*/>;

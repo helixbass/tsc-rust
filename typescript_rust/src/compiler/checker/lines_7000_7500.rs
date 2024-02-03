@@ -996,7 +996,8 @@ impl SymbolTableToDeclarationStatements {
         let symbol_props = self.type_checker.ref_(self).get_non_interhited_properties(
             class_type,
             &base_types,
-            self.type_checker
+            &self
+                .type_checker
                 .ref_(self)
                 .get_properties_of_type(class_type)?,
         )?;
@@ -1243,12 +1244,10 @@ impl SymbolTableToDeclarationStatements {
                         get_factory(self).create_import_declaration(
                             Option::<Id<NodeArray>>::None,
                             Option::<Id<NodeArray>>::None,
-                            Some(
-                                get_factory(self).create_import_clause(
-                                    false,
-                                    None,
-                                    Some(
-                                        get_factory(self).create_named_imports(vec![get_factory(
+                            Some(get_factory(self).create_import_clause(
+                                false,
+                                None,
+                                Some(get_factory(self).create_named_imports(vec![get_factory(
                                             self,
                                         )
                                         .create_import_specifier(
@@ -1263,10 +1262,8 @@ impl SymbolTableToDeclarationStatements {
                                                     ))
                                                 }),
                                             get_factory(self).create_identifier(local_name),
-                                        )]),
-                                    ),
-                                ),
-                            ),
+                                        )])),
+                            )),
                             get_factory(self).create_string_literal(specifier, None, None),
                             None,
                         ),

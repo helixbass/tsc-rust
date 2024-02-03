@@ -980,7 +980,7 @@ impl TypeChecker {
             let source_properties = self.get_properties_of_type(source)?;
             // if (sourceProperties) {
             let source_properties_filtered =
-                self.find_discriminant_properties(source_properties, target)?;
+                self.find_discriminant_properties(&source_properties, target)?;
             if let Some(source_properties_filtered) = source_properties_filtered.as_ref() {
                 return self.discriminate_type_by_discriminable_items(
                     target,
