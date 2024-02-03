@@ -32,9 +32,8 @@ use crate::{
     OutofbandVarianceMarkerHandler, Path, PatternAmbientModule, Program, PseudoBigInt,
     RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback,
-    TypePredicate, TypePredicateKind, VarianceFlags,
+    SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeFormatFlags,
+    TypeId, TypeInterface, TypeMapperCallback, TypePredicate, TypePredicateKind, VarianceFlags,
 };
 
 lazy_static! {

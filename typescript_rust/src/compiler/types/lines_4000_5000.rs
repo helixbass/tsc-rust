@@ -15,8 +15,8 @@ use super::{
     ExportedModulesFromDeclarationEmit, ExternalEmitHelpers, ModuleKind,
     ModuleSpecifierResolutionHost, Node, NodeCheckFlags, NodeId, NodeLinks, ObjectFlags,
     ParsedCommandLine, Path, RawSourceMap, RelationComparisonResult, ScriptTarget, Signature,
-    SignatureFlags, SymbolTable, SymbolTracker, TransformationContext, TransformerFactory, Type,
-    TypeFlags, TypeMapper, __String,
+    SignatureFlags, SymbolTable, SymbolTracker, TransformerFactory, Type, TypeFlags, TypeMapper,
+    __String,
 };
 use crate::{
     AllArenas, CheckBinaryExpression, Diagnostic, DuplicateInfoForFiles, FlowNode, FlowType,
