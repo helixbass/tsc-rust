@@ -2,7 +2,7 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     cmp,
     collections::HashMap,
-    io, ptr,
+    io,
 };
 
 use id_arena::Id;

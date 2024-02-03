@@ -20,7 +20,7 @@ use crate::{
     is_omitted_expression, is_property_name_literal, is_simple_inlineable_expression,
     is_string_or_numeric_literal_like, is_variable_declaration, node_is_synthesized,
     set_text_range, try_get_property_name_of_binding_or_assignment_element, try_maybe_visit_node,
-    try_visit_node, AllArenas, BaseNodeFactory, CoreTransformationContext, Debug_,
+    try_visit_node, AllArenas, CoreTransformationContext, Debug_,
     GetOrInsertDefault, HasArena, InArena, Matches, NamedDeclarationInterface, Node, NodeExt,
     NodeFactory, NodeInterface, NonEmpty, Number, OptionTry, ReadonlyTextRange,
     ReadonlyTextRangeConcrete, TransformFlags, TransformNodesTransformationResult,

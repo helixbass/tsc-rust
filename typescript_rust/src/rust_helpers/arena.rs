@@ -5781,7 +5781,7 @@ pub trait InArena {
     type Item: ?Sized;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Self::Item>;
-    fn ref_mut<'a>(&self, has_arena: &'a impl HasArena) -> RefMut<'a, Self::Item> {
+    fn ref_mut<'a>(&self, _has_arena: &'a impl HasArena) -> RefMut<'a, Self::Item> {
         // TODO: this is mad janky but I think this method might go away?
         unimplemented!()
     }

@@ -1,4 +1,4 @@
-use std::{any::Any, cell::Cell, io, mem};
+use std::{any::Any, cell::Cell, io};
 
 use id_arena::Id;
 

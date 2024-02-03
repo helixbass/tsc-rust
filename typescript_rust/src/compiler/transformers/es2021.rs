@@ -6,10 +6,8 @@ use crate::{
     chain_bundle, get_non_assignment_operator_for_compound_assignment, is_access_expression,
     is_expression, is_left_hand_side_expression, is_logical_or_coalescing_assignment_expression,
     is_property_access_expression, is_simple_copiable_expression, maybe_visit_each_child,
-    skip_parentheses, static_arena, visit_each_child, visit_node, AllArenas,
-    BaseNodeFactorySynthetic, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
-    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    skip_parentheses, static_arena, visit_each_child, visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
 };
 

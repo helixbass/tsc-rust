@@ -1,7 +1,7 @@
-use std::{borrow::Cow, convert::TryInto, io, ptr};
+use std::{convert::TryInto, io, ptr};
 
 use id_arena::Id;
-use itertools::{Either, Itertools};
+
 use local_macros::enum_unwrapped;
 use regex::Regex;
 
@@ -168,7 +168,7 @@ impl TypeChecker {
             StrOrRcNode::Str(name) => (*name).to_owned(),
             StrOrRcNode::RcNode(name) => id_text(&name.ref_(self)).to_owned(),
         };
-        let mut properties = self.get_properties_of_type(containing_type)?;
+        let properties = self.get_properties_of_type(containing_type)?;
         let jsx_specific = if str_name == "for" {
             properties
                 .iter()

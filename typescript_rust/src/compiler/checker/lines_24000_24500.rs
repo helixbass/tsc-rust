@@ -1,4 +1,4 @@
-use std::{io, ptr};
+use std::{io};
 
 use id_arena::Id;
 

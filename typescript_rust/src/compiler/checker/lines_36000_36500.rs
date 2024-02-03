@@ -1,7 +1,6 @@
 use std::{
-    borrow::Cow,
     collections::{HashMap, HashSet},
-    io, ptr,
+    io,
 };
 
 use id_arena::Id;

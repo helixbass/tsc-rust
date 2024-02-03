@@ -2,7 +2,7 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
     convert::TryInto,
-    io, mem,
+    io,
     rc::Rc,
 };
 
@@ -28,7 +28,7 @@ use crate::{
     options_have_changes, out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
     resolve_type_reference_directive, skip_trivia, source_file_affecting_compiler_options,
     stable_sort, static_arena, to_file_name_lower_case, try_maybe_for_each,
-    walk_up_parenthesized_expressions, AllArenas, AsDoubleDeref, AutomaticTypeDirectiveFile,
+    walk_up_parenthesized_expressions, AllArenas, AutomaticTypeDirectiveFile,
     CompilerHost, CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection,
     Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
     FilePreprocessingDiagnosticsKind, GetOrInsertDefault, GetProgramBuildInfo, HasArena, InArena,

@@ -5,8 +5,7 @@ use std::{
     convert::TryInto,
     hash::Hash,
     io,
-    iter::FromIterator,
-    mem, ptr,
+    iter::FromIterator, ptr,
     rc::Rc,
 };
 

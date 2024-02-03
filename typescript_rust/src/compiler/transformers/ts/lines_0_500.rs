@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem, ptr,
+    io,
 };
 
 use bitflags::bitflags;
@@ -16,8 +16,7 @@ use crate::{
     is_element_access_expression, is_generated_identifier, is_local_name,
     is_property_access_expression, is_shorthand_property_assignment, is_source_file, is_statement,
     map_defined, maybe_get_original_node_full, modifier_to_flag, ref_mut_unwrapped, ref_unwrapped,
-    set_constant_value, static_arena, try_maybe_visit_each_child, AllArenas,
-    BaseNodeFactorySynthetic, BoolExt, CompilerOptions, CoreTransformationContext, Debug_,
+    set_constant_value, static_arena, try_maybe_visit_each_child, AllArenas, BoolExt, CompilerOptions, CoreTransformationContext, Debug_,
     EmitHelperFactory, EmitHint, EmitResolver, HasArena, InArena, Matches, ModifierFlags,
     ModuleKind, NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt, NodeFactory, NodeId,
     NodeInterface, OptionTry, ScriptTarget, StringOrNumber, SyntaxKind, TransformFlags,

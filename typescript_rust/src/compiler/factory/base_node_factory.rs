@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use crate::{object_allocator, AllArenas, BaseNode, HasArena, NodeInterface, SyntaxKind};
+use crate::{object_allocator, AllArenas, BaseNode, HasArena, SyntaxKind};
 
 pub trait BaseNodeFactory {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;

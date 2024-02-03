@@ -14,8 +14,7 @@ use crate::{
     get_normalized_absolute_path, get_ts_config_prop_array, normalize_path, normalize_slashes,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     CompilerOptionsValue, ConfigFileSpecs, Debug_, Diagnostic, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, InArena, Node,
-    NodeInterface, OptionInArena, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
+    ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, InArena, Node, OptionInArena, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
 };
 

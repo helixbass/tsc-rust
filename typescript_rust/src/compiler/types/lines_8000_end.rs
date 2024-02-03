@@ -14,7 +14,7 @@ use serde::Serialize;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    AllArenas, BaseNodeFactorySynthetic, CommentRange, EmitBinaryExpression, EmitHint,
+    AllArenas, CommentRange, EmitBinaryExpression, EmitHint,
     FileIncludeReason, HasArena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     InArena, LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId,
     ParenthesizerRules, Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray,

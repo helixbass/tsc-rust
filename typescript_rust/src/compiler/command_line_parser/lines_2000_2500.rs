@@ -1027,7 +1027,7 @@ pub(super) fn get_custom_type_map_of_command_line_option(
                 .element,
             arena,
         ),
-        CommandLineOptionType::Map(map) => Some(debug_cell::Ref::map(
+        CommandLineOptionType::Map(_map) => Some(debug_cell::Ref::map(
             option_definition.ref_(arena),
             |option_definition| match option_definition.type_() {
                 CommandLineOptionType::Map(map) => map,

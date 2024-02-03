@@ -4,7 +4,7 @@ use id_arena::Id;
 
 use crate::{
     chain_bundle, visit_each_child, AllArenas, HasArena, InArena, Node, NodeInterface,
-    TransformFlags, TransformNodesTransformationResult, TransformationContext, Transformer,
+    TransformFlags, TransformNodesTransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 

@@ -15,7 +15,7 @@ use super::{
     TextRange,
 };
 use crate::{
-    ref_unwrapped, AllArenas, CancellationToken, Cloneable, HasArena, InArena,
+    ref_unwrapped, CancellationToken, Cloneable, HasArena, InArena,
     ModuleResolutionCache, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     ParseConfigHost, ParsedCommandLine, Path, ProgramBuildInfo, ReadonlyTextRange,
     ResolveModuleNameResolutionHost, SourceFileLike, SourceTextAsChars, StringOrNumber,

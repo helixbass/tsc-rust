@@ -1,9 +1,9 @@
 use std::{borrow::Cow, iter};
 
-use id_arena::Id;
+
 use itertools::Either;
 
-use crate::{Node, NodeArray, NodeInterface, SymbolInterface, TypeInterface};
+
 
 pub trait NonEmpty {
     type Optional;

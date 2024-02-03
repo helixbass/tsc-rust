@@ -6,7 +6,7 @@ use super::PipelinePhase;
 use crate::{
     cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node,
     is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
-    positions_are_on_same_line, skip_trivia, AllArenas, BaseNodeFactorySynthetic,
+    positions_are_on_same_line, skip_trivia, AllArenas,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_,
     EmitFlags, EmitHint, HasArena, HasTypeArgumentsInterface, HasTypeInterface,
     HasTypeParametersInterface, InArena, LeftOrRight, ListFormat, NamedDeclarationInterface, Node,

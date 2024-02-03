@@ -6,7 +6,7 @@ use super::{TransformTypeScript, TypeScriptSubstitutionFlags};
 use crate::{
     create_range, get_original_node_id, has_syntactic_modifier, id_text, is_static,
     CoreTransformationContext, HasArena, InArena, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeCheckFlags, NodeExt, NodeInterface, OptionInArena, ReadonlyTextRange, SyntaxKind,
+    NodeCheckFlags, NodeExt, OptionInArena, ReadonlyTextRange, SyntaxKind,
     TransformationContext,
 };
 

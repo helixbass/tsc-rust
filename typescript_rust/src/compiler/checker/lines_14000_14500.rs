@@ -1,12 +1,12 @@
 use std::{
     convert::{TryFrom, TryInto},
-    io, ptr,
+    io,
 };
 
 use id_arena::Id;
 use indexmap::IndexMap;
 use local_macros::enum_unwrapped;
-use peekmore::PeekMore;
+
 
 use crate::{
     array_of, binary_search_copy_key, compare_values, filter, find_index,

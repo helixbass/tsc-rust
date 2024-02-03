@@ -19,7 +19,7 @@ use crate::{
     set_watch_option_value, starts_with, AllArenas, CommandLineOption, CommandLineOptionInterface,
     CompilerOptions, ConfigFileSpecs, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, ExtendedConfigCacheEntry, Extension,
-    HasArena, InArena, JsonConversionNotifier, Matches, ModuleResolutionKind, Node, NodeInterface,
+    HasArena, InArena, JsonConversionNotifier, Matches, ModuleResolutionKind, Node,
     OptionInArena, OptionTry, ParseConfigHost, Path, TypeAcquisition, WatchOptions,
 };
 

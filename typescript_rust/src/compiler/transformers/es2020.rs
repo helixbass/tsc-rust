@@ -1,4 +1,4 @@
-use std::{any::Any, io, mem};
+use std::{any::Any, io};
 
 use id_arena::Id;
 
@@ -7,10 +7,9 @@ use crate::{
     is_optional_chain, is_parenthesized_expression, is_simple_copiable_expression,
     is_synthetic_reference, is_tagged_template_expression, maybe_visit_each_child,
     set_original_node, skip_parentheses, skip_partially_emitted_expressions, static_arena,
-    visit_each_child, visit_node, visit_nodes, AllArenas, BaseNodeFactorySynthetic,
+    visit_each_child, visit_node, visit_nodes, AllArenas,
     CoreTransformationContext, Debug_, HasArena, InArena, Node, NodeArray, NodeExt, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
-    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
 };
 

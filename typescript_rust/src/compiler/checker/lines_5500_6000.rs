@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cmp::Ordering, convert::TryInto, io, ptr, rc::Rc};
+use std::{borrow::Cow, cmp::Ordering, convert::TryInto, io, rc::Rc};
 
 use id_arena::Id;
 

@@ -1,7 +1,7 @@
-use std::{cell::RefCell, collections::HashMap, io, ptr, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use id_arena::Id;
-use itertools::Either;
+
 
 use super::CheckTypeContainingMessageChain;
 use crate::{

@@ -1,11 +1,8 @@
 use std::{
     borrow::Cow,
-    cell::RefCell,
-    collections::HashMap,
     env,
     fs::{self, File},
     io::{self, Write},
-    mem,
     path::Path,
     process,
     rc::Rc,
@@ -16,8 +13,7 @@ use id_arena::Id;
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
-    is_windows, match_files, per_arena, process_cwd, read_file_and_strip_leading_byte_order_mark,
-    AllArenas, ConvertToTSConfigHost, ExitStatus, FileSystemEntries, HasArena,
+    is_windows, match_files, per_arena, process_cwd, read_file_and_strip_leading_byte_order_mark, ConvertToTSConfigHost, ExitStatus, FileSystemEntries, HasArena,
     ModuleResolutionHost, ParseConfigHost, RequireResult, StatLike, Stats, WatchFileKind,
     WatchOptions,
 };

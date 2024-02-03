@@ -45,10 +45,10 @@ use crate::{
     FileReference, GetCanonicalFileName, GetOrInsertDefault, HasArena, InArena, JsxEmit,
     ModuleKind, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, ParseConfigFileHost,
-    ParseConfigHost, ParsedCommandLine, Path, PeekableExt, Program, ProjectReference,
+    ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
     ReadFileCallback, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
     ResolvedProjectReferenceBuilder, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
-    SyntaxKind, UnwrapOrEmpty, WriteFileCallback,
+    SyntaxKind, WriteFileCallback,
 };
 
 impl Program {

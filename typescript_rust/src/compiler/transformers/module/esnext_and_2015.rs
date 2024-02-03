@@ -2,13 +2,13 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io,
 };
 
 use id_arena::Id;
 
 use crate::{
-    BaseNodeFactorySynthetic, CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget,
+    CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, _d, chain_bundle, create_empty_exports,
     create_external_helpers_import_declaration_if_needed, downcast_transformer_ref, get_emit_flags,

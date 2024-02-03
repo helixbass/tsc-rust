@@ -1,4 +1,4 @@
-use std::{cell::Cell, io, ptr, rc::Rc};
+use std::{cell::Cell, io, rc::Rc};
 
 use id_arena::Id;
 use regex::{Captures, Regex};

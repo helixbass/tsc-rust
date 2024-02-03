@@ -1,7 +1,7 @@
-use std::{collections::HashMap, io, iter, ptr};
+use std::{collections::HashMap, io};
 
 use id_arena::Id;
-use itertools::Either;
+
 
 use super::EmitResolverCreateResolver;
 use crate::{
@@ -26,7 +26,7 @@ use crate::{
     NodeBuilderFlags, NodeCheckFlags, NodeFlags, NodeInterface, ObjectFlags, OptionInArena,
     PragmaArgumentName, PragmaName, Signature, SignatureKind, StringOrNumber, Symbol, SymbolFlags,
     SymbolInterface, SymbolTracker, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeReferenceSerializationKind, UnwrapOrEmpty,
+    TypeReferenceSerializationKind,
 };
 
 impl TypeChecker {

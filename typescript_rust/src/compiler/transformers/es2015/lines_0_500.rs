@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem, ptr,
+    io,
 };
 
 use bitflags::bitflags;
@@ -17,7 +17,7 @@ use crate::{
     is_default_clause, is_function_like, is_identifier, is_if_statement, is_internal_name,
     is_iteration_statement, is_labeled_statement, is_property_declaration, is_return_statement,
     is_switch_statement, is_try_statement, is_with_statement, ref_unwrapped, static_arena,
-    try_maybe_visit_each_child, AllArenas, BaseNodeFactorySynthetic, CompilerOptions,
+    try_maybe_visit_each_child, AllArenas, CompilerOptions,
     CoreTransformationContext, EmitFlags, EmitHelperFactory, EmitHint, EmitResolver,
     GeneratedIdentifierFlags, GetOrInsertDefault, HasArena, InArena, Matches, Node, NodeExt,
     NodeFactory, NodeInterface, OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars,

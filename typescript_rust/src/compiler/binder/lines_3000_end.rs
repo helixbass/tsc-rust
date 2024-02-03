@@ -1,4 +1,4 @@
-use std::ptr;
+
 
 use id_arena::Id;
 
@@ -9,7 +9,7 @@ use crate::{
     get_element_or_property_access_name, get_expando_initializer, get_jsdoc_type_tag,
     get_leftmost_access_expression, get_name_of_declaration, get_name_or_argument,
     get_ranges_where, get_right_most_assigned_expression, has_dynamic_name, has_syntactic_modifier,
-    id_text, index_of, index_of_eq, is_assignment_expression, is_async_function,
+    id_text, index_of_eq, is_assignment_expression, is_async_function,
     is_binary_expression, is_bindable_object_define_property_call,
     is_bindable_static_name_expression, is_binding_pattern, is_block, is_block_or_catch_scoped,
     is_call_expression, is_conditional_type_node, is_enum_const, is_enum_declaration,
@@ -19,7 +19,7 @@ use crate::{
     is_parameter_property_declaration, is_private_identifier, is_property_access_expression,
     is_prototype_access, is_require_call, is_require_variable_declaration, is_source_file,
     is_statement, is_statement_but_not_declaration, is_variable_declaration, is_variable_statement,
-    maybe_is_function_like_declaration, set_parent, should_preserve_const_enums, slice_after,
+    maybe_is_function_like_declaration, set_parent, should_preserve_const_enums,
     slice_after_eq, some, symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags,
     FlowNodeBase, HasArena, HasInitializerInterface, InArena, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, Symbol, SymbolFlags,

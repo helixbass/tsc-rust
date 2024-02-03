@@ -1,7 +1,7 @@
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    io, ptr,
+    io,
 };
 
 use bitflags::bitflags;
@@ -10,7 +10,7 @@ use local_macros::enum_unwrapped;
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
-    BaseNodeFactory, BaseNodeFactorySynthetic, EmitHelper, EmitHelperFactory, EmitHost,
+    BaseNodeFactory, EmitHelper, EmitHelperFactory, EmitHost,
     EmitResolver, HasArena, NodeFactoryFlags, TransformNodesTransformationResult,
 };
 

@@ -1,7 +1,7 @@
-use std::{io, ptr};
+use std::{io};
 
 use id_arena::Id;
-use peekmore::PeekMore;
+
 
 use super::{IterationTypeKind, TypeFacts};
 use crate::{

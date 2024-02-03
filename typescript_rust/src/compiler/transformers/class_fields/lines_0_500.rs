@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io,
 };
 
 use bitflags::bitflags;
@@ -11,7 +11,7 @@ use local_macros::enum_unwrapped;
 
 use crate::{
     chain_bundle, get_emit_script_target, get_use_define_for_class_fields, is_expression,
-    is_private_identifier, is_statement, visit_each_child, visit_node, BaseNodeFactorySynthetic,
+    is_private_identifier, is_statement, visit_each_child, visit_node,
     CompilerOptions, Debug_, EmitHint, EmitResolver, Node, NodeArray, NodeExt, NodeFactory, NodeId,
     NodeInterface, NonEmpty, ScriptTarget, SingleNodeOrVecNode, SyntaxKind, TransformFlags,
     TransformationContext, TransformationContextOnEmitNodeOverrider,

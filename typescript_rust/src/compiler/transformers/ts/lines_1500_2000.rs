@@ -1,4 +1,4 @@
-use std::{io, ptr};
+use std::{io};
 
 use id_arena::Id;
 use itertools::Itertools;
@@ -16,7 +16,7 @@ use crate::{
     try_visit_nodes, try_visit_parameter_list, AsDoubleDeref, CoreTransformationContext, EmitFlags,
     FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, InArena, Matches,
     ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt, NodeFlags, NodeInterface, NonEmpty,
-    OptionInArena, PeekableExt, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
+    OptionInArena, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
     TypeReferenceSerializationKind, VisitResult,
 };
 

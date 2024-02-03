@@ -1,7 +1,7 @@
-use std::{iter, ptr};
+
 
 use id_arena::Id;
-use itertools::Either;
+
 
 use crate::{
     find, find_ancestor, first_defined, get_first_constructor_with_body, get_text_of_property_name,
@@ -293,7 +293,7 @@ pub fn get_this_container(
 ) -> Id<Node> {
     Debug_.assert(node.ref_(arena).kind() != SyntaxKind::SourceFile, None);
     loop {
-        let Some(maybe_parent) = node.ref_(arena).maybe_parent() else {
+        let Some(_maybe_parent) = node.ref_(arena).maybe_parent() else {
             Debug_.fail(None);
         };
         match node.ref_(arena).kind() {

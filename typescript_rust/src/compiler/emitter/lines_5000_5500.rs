@@ -10,7 +10,7 @@ use crate::{
     get_synthetic_trailing_comments, id_text, is_file_level_unique_name, is_identifier,
     is_jsdoc_like_text, is_pinned_comment, is_string_literal, make_identifier_from_module_name,
     maybe_for_each, maybe_is_node_descendant_of, write_comment_range, Debug_, EmitFlags, EmitHint,
-    GeneratedIdentifierFlags, HasArena, InArena, LiteralLikeNodeInterface, Node, NodeInterface,
+    GeneratedIdentifierFlags, InArena, LiteralLikeNodeInterface, Node, NodeInterface,
     Printer, ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SymbolFlags, SymbolInterface,
     SyntaxKind, SynthesizedComment, TextRange,
 };

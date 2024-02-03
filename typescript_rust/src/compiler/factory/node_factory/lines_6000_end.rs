@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, fmt, ptr};
+use std::{cell::RefCell, collections::HashMap, fmt};
 
 use id_arena::Id;
 
@@ -13,8 +13,7 @@ use crate::{
     is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
     is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_eq, per_arena,
     set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, BuildInfo,
-    ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode, FunctionLikeDeclarationInterface,
-    GetOrInsertDefault, HasArena, HasInitializerInterface, HasMembersInterface,
+    ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasMembersInterface,
     HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InArena, InputFiles,
     InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,

@@ -2,7 +2,7 @@ use std::{
     cell::Ref,
     collections::{HashMap, HashSet},
     convert::TryInto,
-    io, ptr,
+    io,
 };
 
 use id_arena::Id;

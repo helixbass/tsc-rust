@@ -1,4 +1,4 @@
-use std::{convert::TryInto, io, ptr};
+use std::{convert::TryInto, io};
 
 use id_arena::Id;
 
@@ -12,7 +12,7 @@ use crate::{
     is_jsx_opening_like_element, is_parameter, is_private_identifier,
     is_property_access_expression, is_static, last_or_undefined, maybe_is_class_like,
     return_ok_none_if_none, try_for_each, walk_up_parenthesized_expressions, AccessFlags,
-    ContextFlags, FunctionFlags, HasArena, HasInitializerInterface, InArena,
+    ContextFlags, FunctionFlags, HasInitializerInterface, InArena,
     NamedDeclarationInterface, Node, NodeInterface, Number, ObjectFlags, OptionInArena, OptionTry,
     Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };

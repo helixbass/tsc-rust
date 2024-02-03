@@ -3,14 +3,14 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     cmp,
     collections::HashMap,
-    io, mem,
+    io,
 };
 
 use id_arena::Id;
 
 use super::dynamic_import_umd_helper;
 use crate::{
-    BaseNodeFactorySynthetic, CompilerOptions, EmitResolver, ExternalModuleInfo, ModuleKind, Node,
+    CompilerOptions, EmitResolver, ExternalModuleInfo, ModuleKind, Node,
     NodeFactory, NodeId, ScriptTarget, TransformationContext, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, add_emit_helper, add_range, append,
     chain_bundle, collect_external_module_info, downcast_transformer_ref, get_emit_flags,

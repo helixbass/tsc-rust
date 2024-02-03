@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+
 
 use id_arena::Id;
 
@@ -8,7 +8,7 @@ use crate::{
     is_binary_expression, is_block, is_call_expression, is_comma_sequence,
     is_function_or_constructor_type_node, is_left_hand_side_expression, is_literal_kind,
     is_unary_expression, maybe_same_map, same_map, set_text_range, set_text_range_id_node,
-    skip_partially_emitted_expressions, some, AllArenas, Associativity, BaseNodeFactory,
+    skip_partially_emitted_expressions, some, AllArenas, Associativity,
     Comparison, HasArena, HasTypeArgumentsInterface, InArena, Node, NodeArray, NodeArrayOrVec,
     NodeExt, NodeFactory, NodeInterface, OperatorPrecedence, OuterExpressionKinds,
     ParenthesizerRules, SyntaxKind,

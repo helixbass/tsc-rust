@@ -1,4 +1,4 @@
-use std::{convert::TryInto, io, ptr, rc::Rc};
+use std::{convert::TryInto, io, rc::Rc};
 
 use id_arena::Id;
 use regex::Regex;

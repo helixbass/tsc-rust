@@ -683,7 +683,7 @@ pub fn resolve_type_reference_directive(
 
     let failed_lookup_locations: Vec<String> = vec![];
     let cache_clone = cache.clone();
-    let cache_clone = cache_clone.as_ref();
+    let _cache_clone = cache_clone.as_ref();
     let cache_ref = cache.refed(arena);
     let cache_as_dyn_package_json_info_cache = cache_ref
         .map(|cache| debug_cell::Ref::map(cache, |cache| cache.as_dyn_package_json_info_cache()));

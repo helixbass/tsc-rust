@@ -2,12 +2,12 @@ use std::{
     borrow::{Borrow, Cow},
     cmp,
     collections::HashSet,
-    io, ptr,
+    io,
     rc::Rc,
 };
 
 use id_arena::Id;
-use itertools::{Either, Itertools};
+use itertools::{Itertools};
 
 use super::{
     anon, CheckTypeRelatedTo, ErrorCalculationState, IntersectionState, RecursionFlags,

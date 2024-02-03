@@ -1,12 +1,11 @@
-use std::{any::Any, io, mem};
+use std::{any::Any, io};
 
 use id_arena::Id;
 
 use crate::{
     chain_bundle, is_block, maybe_visit_each_child, static_arena, visit_each_child, visit_node,
-    AllArenas, BaseNodeFactorySynthetic, CoreTransformationContext, HasArena, InArena, Node,
-    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
-    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    AllArenas, CoreTransformationContext, HasArena, InArena, Node,
+    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
 };
 

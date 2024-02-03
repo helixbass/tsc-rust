@@ -1,4 +1,4 @@
-use std::{convert::TryInto, io, ptr};
+use std::{convert::TryInto, io};
 
 use id_arena::Id;
 use indexmap::IndexMap;

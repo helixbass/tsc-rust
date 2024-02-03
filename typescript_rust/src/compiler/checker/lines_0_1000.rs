@@ -3,7 +3,6 @@ use std::{
     collections::HashMap,
     fmt, io,
     iter::FromIterator,
-    ptr,
 };
 
 use bitflags::bitflags;
@@ -34,7 +33,7 @@ use crate::{
     RelationComparisonResult, Signature, SignatureFlags, SignatureKind, StringOrNumber, Symbol,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
     SymbolWalker, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapper, TypeMapperCallback,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface, TypeMapperCallback,
     TypePredicate, TypePredicateKind, VarianceFlags,
 };
 

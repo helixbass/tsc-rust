@@ -1,7 +1,7 @@
 use std::{
     cmp,
     collections::{HashMap, HashSet},
-    io, ptr,
+    io,
 };
 
 use id_arena::Id;
@@ -21,7 +21,7 @@ use crate::{
     Debug_, ElementFlags, EmitFlags, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface,
     InArena, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder,
     NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
-    ObjectFlagsTypeInterface, PeekableExt, Signature, SignatureFlags, SignatureKind, Symbol,
+    ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface,
 };
 

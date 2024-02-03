@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow, cell::Cell, cmp::Ordering, collections::HashMap, convert::TryFrom,
-    iter::FromIterator, ops::Deref, ptr,
+    iter::FromIterator, ops::Deref,
 };
 
 use bitflags::bitflags;

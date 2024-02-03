@@ -13,7 +13,7 @@ use crate::{
     escape_leading_underscores, for_each_child_returns, get_assignment_declaration_kind,
     get_containing_class, get_emit_script_target, get_node_id, get_strict_option_value,
     get_symbol_name_for_private_identifier, get_text_of_identifier_or_literal, has_dynamic_name,
-    has_syntactic_modifier, index_of, is_ambient_module, is_block, is_enum_const,
+    has_syntactic_modifier, is_ambient_module, is_block, is_enum_const,
     is_export_specifier, is_global_scope_augmentation, is_jsdoc_construct_signature, is_logging,
     is_module_block, is_named_declaration, is_private_identifier, is_signed_numeric_literal,
     is_source_file, is_string_or_numeric_literal_like, is_type_alias_declaration, length,

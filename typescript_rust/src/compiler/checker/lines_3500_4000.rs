@@ -1,7 +1,7 @@
-use std::{collections::HashMap, io, ptr};
+use std::{collections::HashMap, io};
 
 use id_arena::Id;
-use itertools::Itertools;
+
 
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, collections::HashSet, convert::TryInto, ptr, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, collections::HashSet, convert::TryInto, rc::Rc};
 
 use id_arena::Id;
 use regex::Regex;

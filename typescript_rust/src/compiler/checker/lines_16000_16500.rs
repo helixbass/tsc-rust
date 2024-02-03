@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, ptr};
+use std::{collections::HashMap, io};
 
 use id_arena::Id;
 use local_macros::enum_unwrapped;
@@ -783,46 +783,44 @@ impl TypeChecker {
         type_: Id<Type>,
         mapper: Id<TypeMapper>,
     ) -> io::Result<Id<Type>> {
-        Ok(
-            if matches!(&*mapper.ref_(self), TypeMapper::Simple(mapper)) {
-                let mapper_ref = mapper.ref_(self);
-                if type_ == mapper_ref.as_simple().source {
-                    mapper_ref.as_simple().target.clone()
-                } else {
-                    type_
-                }
-            } else if matches!(&*mapper.ref_(self), TypeMapper::Array(mapper)) {
-                let mapper_ref = mapper.ref_(self);
-                let sources = &mapper_ref.as_array().sources;
-                let targets = &mapper_ref.as_array().targets;
-                for (i, source) in sources.iter().enumerate() {
-                    if type_ == *source {
-                        return Ok(targets
-                            .as_ref()
-                            .map_or_else(|| self.any_type(), |targets| targets[i].clone()));
-                    }
-                }
-                type_
-            } else if matches!(&*mapper.ref_(self), TypeMapper::Function(mapper)) {
-                let func = mapper.ref_(self).as_function().func.clone();
-                func.ref_(self).call(self, type_)?
+        Ok(if matches!(&*mapper.ref_(self), TypeMapper::Simple(_)) {
+            let mapper_ref = mapper.ref_(self);
+            if type_ == mapper_ref.as_simple().source {
+                mapper_ref.as_simple().target.clone()
             } else {
-                let (mapper_mapper1, mapper_mapper2) = match &*mapper.ref_(self) {
-                    TypeMapper::Composite(composite_or_merged_mapper)
-                    | TypeMapper::Merged(composite_or_merged_mapper) => (
-                        composite_or_merged_mapper.mapper1,
-                        composite_or_merged_mapper.mapper2,
-                    ),
-                    _ => unreachable!(),
-                };
-                let t1 = self.get_mapped_type(type_, mapper_mapper1)?;
-                if t1 != type_ && matches!(&*mapper.ref_(self), TypeMapper::Composite(_)) {
-                    self.instantiate_type(t1, Some(mapper_mapper2.clone()))?
-                } else {
-                    self.get_mapped_type(t1, mapper_mapper2)?
+                type_
+            }
+        } else if matches!(&*mapper.ref_(self), TypeMapper::Array(_)) {
+            let mapper_ref = mapper.ref_(self);
+            let sources = &mapper_ref.as_array().sources;
+            let targets = &mapper_ref.as_array().targets;
+            for (i, source) in sources.iter().enumerate() {
+                if type_ == *source {
+                    return Ok(targets
+                        .as_ref()
+                        .map_or_else(|| self.any_type(), |targets| targets[i].clone()));
                 }
-            },
-        )
+            }
+            type_
+        } else if matches!(&*mapper.ref_(self), TypeMapper::Function(_mapper)) {
+            let func = mapper.ref_(self).as_function().func.clone();
+            func.ref_(self).call(self, type_)?
+        } else {
+            let (mapper_mapper1, mapper_mapper2) = match &*mapper.ref_(self) {
+                TypeMapper::Composite(composite_or_merged_mapper)
+                | TypeMapper::Merged(composite_or_merged_mapper) => (
+                    composite_or_merged_mapper.mapper1,
+                    composite_or_merged_mapper.mapper2,
+                ),
+                _ => unreachable!(),
+            };
+            let t1 = self.get_mapped_type(type_, mapper_mapper1)?;
+            if t1 != type_ && matches!(&*mapper.ref_(self), TypeMapper::Composite(_)) {
+                self.instantiate_type(t1, Some(mapper_mapper2.clone()))?
+            } else {
+                self.get_mapped_type(t1, mapper_mapper2)?
+            }
+        })
     }
 
     pub(super) fn make_unary_type_mapper(

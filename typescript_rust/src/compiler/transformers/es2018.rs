@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    io, mem,
+    io,
 };
 
 use bitflags::bitflags;
@@ -13,7 +13,7 @@ use crate::{
     is_assignment_pattern, is_concise_body, is_expression, is_for_initializer, is_statement,
     set_text_range_id_node, skip_parentheses, some, unwrap_innermost_statement_of_label,
     visit_each_child, visit_iteration_body, visit_lexical_environment, visit_node,
-    visit_parameter_list, BaseNodeFactorySynthetic, CompilerOptions, Debug_, EmitFlags,
+    visit_parameter_list, CompilerOptions, Debug_, EmitFlags,
     EmitHelperFactory, EmitHint, EmitResolver, FlattenLevel, FunctionFlags,
     FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, GetOrInsertDefault,
     HasInitializerInterface, HasStatementsInterface, Matches, ModifierFlags,

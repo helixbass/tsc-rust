@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    io, mem,
+    io,
 };
 
 use bitflags::bitflags;
@@ -22,7 +22,7 @@ use crate::{
     is_variable_declaration_list, ref_mut_unwrapped, ref_unwrapped, set_emit_flags,
     set_original_node, set_source_map_range, set_text_range, set_text_range_id_node,
     set_text_range_node_array, static_arena, try_maybe_visit_each_child, try_maybe_visit_node,
-    try_maybe_visit_nodes, unescape_leading_underscores, AllArenas, BaseNodeFactorySynthetic,
+    try_maybe_visit_nodes, unescape_leading_underscores, AllArenas,
     CompilerOptions, CoreTransformationContext, Debug_, EmitFlags, EmitHint, EmitResolver,
     FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena,
     HasInitializerInterface, InArena, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,

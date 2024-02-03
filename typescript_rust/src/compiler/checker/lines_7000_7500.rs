@@ -1,4 +1,4 @@
-use std::{io, ptr, rc::Rc};
+use std::{io, rc::Rc};
 
 use id_arena::Id;
 use itertools::Itertools;
@@ -24,7 +24,7 @@ use crate::{
     is_variable_declaration, is_variable_statement, length, map, maybe_get_source_file_of_node,
     return_ok_default_if_none, set_parent, set_synthetic_leading_comments, set_text_range_id_node,
     some, try_flat_map, try_map, try_map_defined, try_maybe_first_defined, try_maybe_map,
-    unescape_leading_underscores, AsDoubleDeref, AssignmentDeclarationKind, BoolExt, Debug_,
+    unescape_leading_underscores, AssignmentDeclarationKind, BoolExt, Debug_,
     HasArena, HasInitializerInterface, HasTypeArgumentsInterface, InArena, InternalSymbolName,
     IteratorExt, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
     NodeBuilderFlags, NodeFlags, NodeInterface, OptionInArena, OptionTry, Signature, SignatureKind,

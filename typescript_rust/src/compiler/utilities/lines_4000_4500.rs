@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
-    io, mem,
+    io,
 };
 
 use id_arena::Id;

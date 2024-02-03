@@ -2,14 +2,14 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io,
 };
 
 use id_arena::Id;
 use local_macros::enum_unwrapped;
 
 use crate::{
-    BaseNodeFactorySynthetic, CompilerOptions, EmitHelperFactory, EmitHint, EmitResolver, Node,
+    CompilerOptions, EmitHelperFactory, EmitHint, EmitResolver, Node,
     NodeFactory, NodeId, ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, downcast_transformer_ref,
@@ -1125,7 +1125,7 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
                                 Some(self.alloc_source_map_range((&*node.ref_(self)).into())),
                                 self,
                             )
-                            .set_comment_range((&*node.ref_(self)), self));
+                            .set_comment_range(&*node.ref_(self), self));
                     }
                 }
             }

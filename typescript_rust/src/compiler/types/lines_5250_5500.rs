@@ -1291,7 +1291,7 @@ impl FreshObjectLiteralTypeInterface for BaseUnionOrIntersectionType {
         panic!("Shouldn't call maybe_regular_type() on BaseUnionOrIntersectionType?")
     }
 
-    fn set_regular_type(&self, regular_type: Option<Id<Type /*ResolvedType*/>>) {
+    fn set_regular_type(&self, _regular_type: Option<Id<Type /*ResolvedType*/>>) {
         panic!("Shouldn't call set_regular_type() on BaseUnionOrIntersectionType?")
     }
 }

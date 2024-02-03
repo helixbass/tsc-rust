@@ -22,8 +22,7 @@ use crate::{
     sort_and_deduplicate_diagnostics, trim_string_end, write_file_ensuring_directories, AllArenas,
     CancellationToken, CompilerHost, CompilerOptions, Debug_, Diagnostic, DiagnosticCategory,
     DiagnosticInterface, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Extension,
-    HasArena, InArena, LineAndCharacter, ModuleResolutionHost, ModuleResolutionHostOverrider, Node,
-    NodeInterface, OptionTry, Path, ProgramOrBuilderProgram, ScriptTarget, SourceFileLike, System,
+    HasArena, InArena, LineAndCharacter, ModuleResolutionHost, ModuleResolutionHostOverrider, Node, OptionTry, Path, ProgramOrBuilderProgram, ScriptTarget, SourceFileLike, System,
 };
 
 pub fn find_config_file<TFileExists: FnMut(&str) -> bool>(

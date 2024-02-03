@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::TryInto, io, ptr};
+use std::{collections::HashMap, convert::TryInto, io};
 
 use id_arena::Id;
 

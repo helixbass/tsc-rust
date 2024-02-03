@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::{Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io,
 };
 
 use id_arena::Id;
@@ -10,8 +10,7 @@ use id_arena::Id;
 use crate::{
     chain_bundle, downcast_transformer_ref, get_original_node_id, id_text, is_identifier,
     is_private_identifier, is_property_access_expression, is_property_assignment,
-    node_is_synthesized, ref_mut_unwrapped, static_arena, string_to_token, AllArenas,
-    BaseNodeFactorySynthetic, BoolExt, CompilerOptions, CoreTransformationContext, EmitHint,
+    node_is_synthesized, ref_mut_unwrapped, static_arena, string_to_token, AllArenas, BoolExt, CompilerOptions, CoreTransformationContext, EmitHint,
     HasArena, InArena, JsxEmit, Matches, NamedDeclarationInterface, Node, NodeExt, NodeFactory,
     NodeId, NodeInterface, SyntaxKind, TransformNodesTransformationResult, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,

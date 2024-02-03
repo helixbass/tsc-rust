@@ -6,7 +6,7 @@ use id_arena::Id;
 use crate::{
     create_node_factory, maybe_text_char_at_index, object_allocator, per_arena, AllArenas,
     BaseNode, BaseNodeFactory, CharacterCodes, HasArena, InArena, Node, NodeArray, NodeFactory,
-    NodeFactoryFlags, OptionTry, SourceTextAsChars, SyntaxKind, Type,
+    NodeFactoryFlags, OptionTry, SourceTextAsChars, SyntaxKind,
 };
 
 bitflags! {

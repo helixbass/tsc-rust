@@ -13,7 +13,7 @@ use once_cell::sync::Lazy;
 use regex::Captures;
 
 use crate::{
-    chain_bundle, BaseNodeFactorySynthetic, CompilerOptions, EmitHelperFactory,
+    chain_bundle, CompilerOptions, EmitHelperFactory,
     GeneratedIdentifierFlags, JsxEmit, NamedDeclarationInterface, Node, NodeFactory, NodeInterface,
     TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, _d, add_emit_helpers, create_expression_for_jsx_element,

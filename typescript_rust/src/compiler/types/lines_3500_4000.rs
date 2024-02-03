@@ -21,8 +21,7 @@ use crate::{
     ModeAwareCache, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
     ModuleResolutionHostOverrider, MultiMap, PackageId, ParseConfigFileHost, PragmaContext,
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
-    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type,
-    TypeCheckerHostDebuggable, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags, TypeInterface, TypeReferenceDirectiveResolutionCache,
     __String, get_line_and_character_of_position, ref_mut_unwrapped, ref_unwrapped, AllArenas,
     HasArena, InArena, LineAndCharacter, ProgramBuildInfo,
 };

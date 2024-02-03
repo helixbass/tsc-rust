@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io, ptr};
+use std::{collections::HashMap, io};
 
 use id_arena::Id;
 

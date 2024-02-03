@@ -2,7 +2,7 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io,
 };
 
 use bitflags::bitflags;
@@ -10,15 +10,15 @@ use id_arena::Id;
 
 use crate::{
     add_range, append, chain_bundle, create_emit_helper_factory, dispose_emit_nodes,
-    get_emit_flags, get_emit_module_kind, get_emit_script_target, get_factory, get_factory_id,
-    get_jsx_transform_enabled, get_parse_tree_node, get_synthetic_factory, is_bundle,
+    get_emit_flags, get_emit_module_kind, get_emit_script_target, get_factory_id,
+    get_jsx_transform_enabled, get_parse_tree_node, is_bundle,
     is_source_file, maybe_get_source_file_of_node, maybe_map, not_implemented, per_arena,
     ref_mut_unwrapped, ref_unwrapped, set_emit_flags, some, static_arena, transform_class_fields,
     transform_declarations, transform_ecmascript_module, transform_es2015, transform_es2016,
     transform_es2017, transform_es2018, transform_es2019, transform_es2020, transform_es2021,
     transform_es5, transform_esnext, transform_generators, transform_jsx, transform_module,
     transform_node_module, transform_system_module, transform_type_script, AllArenas,
-    BaseNodeFactory, BaseNodeFactorySynthetic, CompilerOptions, CoreTransformationContext,
+    BaseNodeFactory, CompilerOptions, CoreTransformationContext,
     CustomTransformer, CustomTransformers, Debug_, Diagnostic, EmitFlags, EmitHelper,
     EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver, EmitTransformers,
     GetOrInsertDefault, HasArena, InArena, LexicalEnvironmentFlags, ModuleKind, Node, NodeArray,

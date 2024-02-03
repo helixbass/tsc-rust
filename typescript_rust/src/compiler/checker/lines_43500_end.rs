@@ -1,7 +1,7 @@
 use std::{collections::HashMap, convert::TryInto, io};
 
 use id_arena::Id;
-use itertools::Itertools;
+
 
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{

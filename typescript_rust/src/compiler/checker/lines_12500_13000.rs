@@ -1,7 +1,7 @@
-use std::{collections::HashMap, io, ptr};
+use std::{collections::HashMap, io};
 
 use id_arena::Id;
-use itertools::Either;
+
 
 use super::signature_has_rest_parameter;
 use crate::{

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, convert::TryInto, io, ptr};
+use std::{borrow::Cow, convert::TryInto, io};
 
 use id_arena::Id;
 use indexmap::IndexMap;

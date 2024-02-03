@@ -1,4 +1,4 @@
-use std::{io, ptr};
+use std::{io};
 
 use id_arena::Id;
 
@@ -9,7 +9,7 @@ use crate::{
     has_syntactic_modifier, is_ambient_module, is_computed_property_name,
     is_entity_name_expression, is_export_assignment, is_private_identifier,
     is_property_name_literal, is_static, node_is_missing, node_is_present, return_ok_none_if_none,
-    try_map, try_maybe_for_each, Debug_, DiagnosticMessage, Diagnostics, HasArena, InArena,
+    try_map, try_maybe_for_each, Debug_, DiagnosticMessage, Diagnostics, InArena,
     ModifierFlags, ModuleInstanceState, Node, NodeArray, NodeInterface, OptionInArena, OptionTry,
     ReadonlyTextRange, Signature, SignatureKind, Symbol, SymbolInterface, SyntaxKind, Type,
     TypeChecker, TypeFlags, TypeInterface, UnionReduction,

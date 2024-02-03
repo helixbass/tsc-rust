@@ -2,13 +2,13 @@ use std::{
     any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::HashMap,
-    io, mem,
+    io,
 };
 
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, BaseNodeFactorySynthetic, CompilerOptions, EmitHelperBase, EmitHint, EmitHost,
+    chain_bundle, CompilerOptions, EmitHelperBase, EmitHint, EmitHost,
     EmitResolver, ExternalModuleInfo, HasStatementsInterface, LiteralLikeNodeInterface, Node,
     NodeArrayExt, NodeExt, NodeFactory, NodeId, NodeInterface, NonEmpty, SyntaxKind,
     TransformationContext, TransformationContextOnEmitNodeOverrider,

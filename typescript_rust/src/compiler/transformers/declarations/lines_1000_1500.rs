@@ -1,4 +1,4 @@
-use std::{io, ptr};
+use std::{io};
 
 use id_arena::Id;
 
@@ -18,7 +18,7 @@ use crate::{
     maybe_get_original_node_id, return_ok_default_if_none, set_original_node, set_parent, some,
     try_flat_map, try_map, try_map_defined, try_maybe_map, try_maybe_visit_node,
     try_maybe_visit_nodes, try_visit_node, try_visit_nodes, unescape_leading_underscores,
-    visit_nodes, AllArenas, AsDoubleDeref, ClassLikeDeclarationInterface, Debug_, Diagnostics,
+    visit_nodes, AllArenas, ClassLikeDeclarationInterface, Debug_, Diagnostics,
     GeneratedIdentifierFlags, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasArena, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,

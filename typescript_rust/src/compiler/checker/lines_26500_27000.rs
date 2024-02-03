@@ -1,4 +1,4 @@
-use std::{cmp, io, ptr};
+use std::{cmp, io};
 
 use id_arena::Id;
 

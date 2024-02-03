@@ -3,7 +3,7 @@ use std::{
     borrow::Cow,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{HashMap, HashSet},
-    io, mem, ptr,
+    io,
     rc::Rc,
 };
 
@@ -11,14 +11,14 @@ use id_arena::Id;
 
 use super::{can_have_literal_initializer, mask_modifiers};
 use crate::{
-    add_related_info_rc, can_produce_diagnostics, contains, contains_comparer,
+    add_related_info_rc, can_produce_diagnostics, contains,
     create_diagnostic_for_node, create_empty_exports,
     create_get_symbol_accessibility_diagnostic_for_node, create_unparsed_source_file,
-    declaration_name_to_string, downcast_transformer_ref, filter, get_directory_path, get_factory,
+    declaration_name_to_string, downcast_transformer_ref, filter, get_directory_path,
     get_factory_id, get_leading_comment_ranges, get_leading_comment_ranges_of_node,
     get_name_of_declaration, get_original_node_id, get_output_paths_for, get_parse_tree_node,
     get_relative_path_to_directory_or_url, get_resolved_external_module_name,
-    get_source_file_of_node, get_synthetic_factory, get_text_of_node, get_trailing_comment_ranges,
+    get_source_file_of_node, get_text_of_node, get_trailing_comment_ranges,
     has_extension, is_any_import_syntax, is_export_assignment, is_external_module,
     is_external_module_reference, is_external_or_common_js_module, is_import_declaration,
     is_import_equals_declaration, is_json_source_file, is_source_file_js, is_source_file_not_json,
@@ -27,14 +27,13 @@ use crate::{
     normalize_slashes, path_contains_node_modules, path_is_relative, per_arena, push_if_unique_eq,
     ref_mut_unwrapped, ref_unwrapped, set_text_range_node_array, skip_trivia, starts_with,
     static_arena, string_contains, to_file_name_lower_case, to_path, transform_nodes, try_map,
-    try_map_defined, try_maybe_for_each, try_visit_nodes, AllArenas, BaseNodeFactorySynthetic,
+    try_map_defined, try_maybe_for_each, try_visit_nodes, AllArenas,
     CommentRange, CompilerOptions, CoreTransformationContext, Debug_, Diagnostic, Diagnostics,
     EmitHost, EmitResolver, FileReference, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasArena, HasInitializerInterface,
     HasStatementsInterface, HasTypeInterface,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena,
-    LiteralLikeNodeInterface, ModifierFlags,
-    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
+    LiteralLikeNodeInterface, ModifierFlags, NamedDeclarationInterface, Node,
     NodeArray, NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
     ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
@@ -213,7 +212,7 @@ impl TransformDeclarations {
         arena: *const AllArenas,
     ) -> Transformer {
         let arena_ref = unsafe { &*arena };
-        let context_ref = context.ref_(arena_ref);
+        let _context_ref = context.ref_(arena_ref);
         let options = context.ref_(arena_ref).get_compiler_options();
         let host = context.ref_(arena_ref).get_emit_host();
         let ret = arena_ref.alloc_transformer(Box::new(Self {

@@ -7,7 +7,7 @@ use std::{
 };
 
 use id_arena::Id;
-use itertools::Itertools;
+
 
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{

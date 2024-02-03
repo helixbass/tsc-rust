@@ -1,4 +1,4 @@
-use std::{cell::RefCell, io, ptr, rc::Rc};
+use std::{cell::RefCell, io, rc::Rc};
 
 use id_arena::Id;
 
@@ -12,8 +12,7 @@ use crate::{
     is_prologue_directive, is_qualified_name, is_question_token, is_readonly_keyword,
     is_source_file, is_spread_element, is_string_literal, is_this_type_node, is_type_node,
     is_type_parameter_declaration, is_variable_declaration_list, maybe_get_original_node_full,
-    push_or_replace, set_starts_on_new_line, AllAccessorDeclarations, AssertionLevel,
-    BaseNodeFactory, CompilerOptions, Debug_, EmitFlags, EmitHelperBase, EmitHelperFactory,
+    push_or_replace, set_starts_on_new_line, AllAccessorDeclarations, AssertionLevel, CompilerOptions, Debug_, EmitFlags, EmitHelperBase, EmitHelperFactory,
     EmitHost, EmitResolver, FunctionLikeDeclarationInterface, HasInitializerInterface,
     LiteralLikeNodeInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
     NodeFactory, NodeInterface, NonEmpty, OuterExpressionKinds,

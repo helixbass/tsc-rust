@@ -3,12 +3,12 @@ use std::cell::OnceCell;
 use id_arena::Id;
 
 use crate::{
-    BaseNodeFactorySynthetic, Comparison, EmitFlags, EmitHelper, Node, NodeArray, NodeArrayOrVec,
+    Comparison, EmitFlags, EmitHelper, Node, NodeArray, NodeArrayOrVec,
     NodeExt, NodeFactory, PrivateIdentifierKind, TransformationContext, _d, compare_values,
     create_expression_from_entity_name, get_emit_flags, get_emit_script_target,
     get_property_name_of_binding_or_assignment_element, is_call_expression,
     is_computed_property_name, is_identifier, AllArenas, CoreTransformationContext, Debug_,
-    EmitHelperBase, EmitHelperTextCallback, GeneratedIdentifierFlags, GetOrInsertDefault, HasArena,
+    EmitHelperBase, EmitHelperTextCallback, GeneratedIdentifierFlags, HasArena,
     InArena, MapOrDefault, NodeInterface, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget,
     SyntaxKind, TransformNodesTransformationResult, UnscopedEmitHelperBuilder, VecExt,
 };

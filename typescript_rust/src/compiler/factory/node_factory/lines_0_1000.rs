@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     cell::{Ref, RefCell},
-    ptr,
 };
 
 use bitflags::bitflags;

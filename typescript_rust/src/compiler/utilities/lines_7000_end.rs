@@ -1,4 +1,4 @@
-use std::{convert::TryInto, ptr};
+use std::{convert::TryInto};
 
 use id_arena::Id;
 

@@ -3,7 +3,7 @@ use std::{
     cell::RefCell,
     collections::HashSet,
     convert::{TryFrom, TryInto},
-    io, ptr,
+    io,
 };
 
 use id_arena::Id;

@@ -5,10 +5,8 @@ use id_arena::Id;
 use crate::{
     chain_bundle, compiler::factory::utilities_public::set_text_range_id_node,
     is_element_access_expression, is_expression, is_property_access_expression,
-    maybe_visit_each_child, static_arena, visit_each_child, visit_node, AllArenas,
-    BaseNodeFactorySynthetic, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
-    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
+    maybe_visit_each_child, static_arena, visit_each_child, visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
     TransformerInterface, VisitResult,
 };
 

@@ -1,7 +1,7 @@
-use std::{io, iter, ptr};
+use std::{io};
 
 use id_arena::Id;
-use itertools::Either;
+
 
 use super::MappedTypeModifiers;
 use crate::{
