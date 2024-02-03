@@ -86,7 +86,7 @@ pub trait InArenaHarness {
     type Item: ?Sized;
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, Self::Item>;
-    fn ref_mut<'a>(&self, has_arena: &'a impl HasArenaHarness) -> RefMut<'a, Self::Item> {
+    fn ref_mut<'a>(&self, _has_arena: &'a impl HasArenaHarness) -> RefMut<'a, Self::Item> {
         unimplemented!()
     }
 }

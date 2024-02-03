@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, GcCell, Trace};
 use once_cell::sync::Lazy;
 use typescript_rust::{
     create_get_canonical_file_name, for_each_child, id_arena::Id, HasArena, InArena, Node,

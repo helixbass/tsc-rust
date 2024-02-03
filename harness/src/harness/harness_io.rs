@@ -3,11 +3,10 @@ use std::{
     collections::HashMap,
     io,
     iter::FromIterator,
-    mem,
     path::{Path as StdPath, PathBuf},
 };
 
-use gc::{Finalize, Gc, GcCell, Trace};
+use gc::{Finalize, Trace};
 use regex::Regex;
 use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
@@ -256,7 +255,7 @@ pub fn set_light_mode(flag: bool) {
 pub mod Compiler {
     use std::{borrow::Cow, cell::RefCell, cmp, collections::HashMap, convert::TryInto, io};
 
-    use gc::{Finalize, Gc, GcCell, Trace};
+    use gc::{Finalize, Gc, Trace};
     use regex::Regex;
     use typescript_rust::{
         NonEmpty, _d, combine_paths, compare_diagnostics, compare_paths, compute_line_starts,
@@ -1866,7 +1865,6 @@ pub fn get_file_based_test_configuration_description(
 pub mod TestCaseParser {
     use std::{collections::HashMap, io};
 
-    use gc::Gc;
     use regex::Regex;
     use typescript_rust::{
         for_each, get_base_file_name, get_directory_path, get_normalized_absolute_path,

@@ -18,8 +18,8 @@ pub mod vfs {
     };
 
     use crate::{
-        collections, collections::SortOptionsComparer, documents, harness::harness_io::NodeIO,
-        vpath, AllArenasHarness, HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
+        collections, collections::SortOptionsComparer, documents, vpath, AllArenasHarness,
+        HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
     };
 
     pub const built_folder: &'static str = "/.ts";

@@ -4,7 +4,7 @@ pub mod fakes {
         borrow::Cow,
         cell::{Cell, Ref, RefCell},
         collections::HashMap,
-        io, mem,
+        io,
         rc::Rc,
         time::SystemTime,
     };

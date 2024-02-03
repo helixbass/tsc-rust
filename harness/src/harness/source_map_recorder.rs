@@ -11,6 +11,7 @@ pub mod SourceMapRecorder {
 
     struct SourceMapSpanWithDecodeErrors {
         pub source_map_span: Mapping,
+        #[allow(dead_code)]
         pub decode_errors: Option<Vec<String>>,
     }
 
@@ -44,6 +45,7 @@ pub mod SourceMapRecorder {
     struct SourceMapSpanWriter<'a> {
         source_map_recorder: &'a mut Compiler::WriterAggregator,
         source_map_sources: &'a [String],
+        #[allow(dead_code)]
         source_map_names: Option<&'a [String]>,
         js_file: Gc<documents::TextDocument>,
         js_line_map: Vec<usize>,
@@ -52,6 +54,7 @@ pub mod SourceMapRecorder {
         spans_on_single_line: Vec<SourceMapSpanWithDecodeErrors>,
         prev_written_source_pos: usize,
         next_js_line_to_write: usize,
+        #[allow(dead_code)]
         span_marker_continues: bool,
         source_map_decoder: SourceMapDecoder,
     }
@@ -62,7 +65,7 @@ pub mod SourceMapRecorder {
             source_map: &'a RawSourceMap,
             current_js_file: Gc<documents::TextDocument>,
         ) -> Self {
-            let mut ret = Self {
+            let ret = Self {
                 source_map_recorder: source_map_record_writer,
                 source_map_sources: &source_map.sources,
                 source_map_names: source_map.names.as_deref(),
@@ -107,7 +110,7 @@ pub mod SourceMapRecorder {
             ret
         }
 
-        pub fn record_source_map_span(&mut self, source_map_span: &Mapping) {
+        pub fn record_source_map_span(&mut self, _source_map_span: &Mapping) {
             unimplemented!()
         }
 

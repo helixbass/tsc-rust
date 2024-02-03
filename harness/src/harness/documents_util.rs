@@ -4,10 +4,8 @@ pub mod documents {
         collections::HashMap,
     };
 
-    use gc::{Finalize, Gc, GcCell, GcCellRef, Trace};
-    use typescript_rust::{
-        GetOrInsertDefault, _d, compute_line_starts, ref_unwrapped, SourceTextAsChars,
-    };
+    use gc::{Finalize, Gc, GcCell, Trace};
+    use typescript_rust::{_d, compute_line_starts, ref_unwrapped, SourceTextAsChars};
 
     use crate::Compiler;
 

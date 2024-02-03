@@ -1,5 +1,5 @@
 pub mod compiler {
-    use std::{cell::Ref, collections::HashMap, io, ptr};
+    use std::{collections::HashMap, io, ptr};
 
     use gc::{Finalize, Gc, Trace};
     use typescript_rust::{
@@ -8,8 +8,8 @@ pub mod compiler {
         get_output_extension, get_pre_emit_diagnostics, id_arena::Id, is_option_str_empty, length,
         some, AllArenas, Comparison, CompilerOptions, CreateProgramOptions, Diagnostic,
         DiagnosticCategory, DiagnosticMessage, DiagnosticRelatedInformation, EmitResult, Extension,
-        HasArena, InArena, ModuleKind, NewLineKind, Node, NonEmpty, OptionTry, Program,
-        ScriptTarget, SourceFileLike,
+        HasArena, InArena, ModuleKind, NewLineKind, NonEmpty, OptionTry, Program, ScriptTarget,
+        SourceFileLike,
     };
 
     use crate::{
