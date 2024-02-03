@@ -4,13 +4,17 @@ use typescript_rust::{
     AllArenas, HasArena,
 };
 
-use crate::{documents::TextDocument, harness::harness_io::NodeIO, vfs::FileSystemResolverHost};
+use crate::{
+    compiler::CompilationOutput, documents::TextDocument, harness::harness_io::NodeIO,
+    vfs::FileSystemResolverHost,
+};
 
 pub struct AllArenasHarness {
     all_arenas: AllArenas,
     node_ios: RefCell<Arena<NodeIO>>,
     file_system_resolver_hosts: RefCell<Arena<Box<dyn FileSystemResolverHost>>>,
     text_documents: RefCell<Arena<TextDocument>>,
+    compilation_outputs: RefCell<Arena<CompilationOutput>>,
 }
 
 pub trait HasArenaHarness: HasArena {
@@ -46,6 +50,21 @@ pub trait HasArenaHarness: HasArena {
 
     fn alloc_text_document(&self, text_document: TextDocument) -> Id<TextDocument> {
         self.arena_harness().alloc_text_document(text_document)
+    }
+
+    fn compilation_output(
+        &self,
+        compilation_output: Id<CompilationOutput>,
+    ) -> Ref<CompilationOutput> {
+        self.arena_harness().compilation_output(compilation_output)
+    }
+
+    fn alloc_compilation_output(
+        &self,
+        compilation_output: CompilationOutput,
+    ) -> Id<CompilationOutput> {
+        self.arena_harness()
+            .alloc_compilation_output(compilation_output)
     }
 }
 
@@ -100,6 +119,26 @@ impl HasArenaHarness for AllArenasHarness {
         let id = self.text_documents.borrow_mut().alloc(text_document);
         id
     }
+
+    fn compilation_output(
+        &self,
+        compilation_output: Id<CompilationOutput>,
+    ) -> Ref<CompilationOutput> {
+        Ref::map(self.compilation_outputs.borrow(), |compilation_outputs| {
+            &compilation_outputs[compilation_output]
+        })
+    }
+
+    fn alloc_compilation_output(
+        &self,
+        compilation_output: CompilationOutput,
+    ) -> Id<CompilationOutput> {
+        let id = self
+            .compilation_outputs
+            .borrow_mut()
+            .alloc(compilation_output);
+        id
+    }
 }
 
 pub trait InArenaHarness {
@@ -135,6 +174,14 @@ impl InArenaHarness for Id<TextDocument> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, TextDocument> {
         has_arena.text_document(*self)
+    }
+}
+
+impl InArenaHarness for Id<CompilationOutput> {
+    type Item = CompilationOutput;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArenaHarness) -> Ref<'a, CompilationOutput> {
+        has_arena.compilation_output(*self)
     }
 }
 

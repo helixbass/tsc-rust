@@ -38,7 +38,7 @@ pub mod compiler {
         pub symlinks: Option<vfs::FileSet>,
 
         _inputs: Vec<Id<documents::TextDocument>>,
-        _inputs_and_outputs: collections::SortedMap<String, Gc<CompilationOutput>>,
+        _inputs_and_outputs: collections::SortedMap<String, Id<CompilationOutput>>,
     }
 
     impl CompilationResult {
@@ -115,7 +115,7 @@ pub mod compiler {
                         ))),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
-                    Option::<HashMap<String, Gc<CompilationOutput>>>::None,
+                    Option::<HashMap<String, Id<CompilationOutput>>>::None,
                 ),
                 _inputs: Default::default(),
                 symlinks: Default::default(),
@@ -153,7 +153,7 @@ pub mod compiler {
                         // }
                     }
 
-                    let outputs = Gc::new(CompilationOutput {
+                    let outputs = arena.alloc_compilation_output(CompilationOutput {
                         inputs: inputs.clone(),
                         js: ret.js.get(&out_file).cloned(),
                         dts: ret
@@ -168,15 +168,15 @@ pub mod compiler {
                         map: ret.maps.get(&format!("{out_file}.map")).cloned(),
                     });
 
-                    if let Some(outputs_js) = outputs.js.as_ref() {
+                    if let Some(outputs_js) = outputs.ref_(arena).js.as_ref() {
                         ret._inputs_and_outputs
                             .set(outputs_js.ref_(arena).file.clone(), outputs.clone());
                     }
-                    if let Some(outputs_dts) = outputs.dts.as_ref() {
+                    if let Some(outputs_dts) = outputs.ref_(arena).dts.as_ref() {
                         ret._inputs_and_outputs
                             .set(outputs_dts.ref_(arena).file.clone(), outputs.clone());
                     }
-                    if let Some(outputs_map) = outputs.map.as_ref() {
+                    if let Some(outputs_map) = outputs.ref_(arena).map.as_ref() {
                         ret._inputs_and_outputs
                             .set(outputs_map.ref_(arena).file.clone(), outputs.clone());
                     }
@@ -202,7 +202,7 @@ pub mod compiler {
                                 &source_file_as_source_file.file_name(),
                                 &ret.options.ref_(arena),
                             );
-                            let outputs = Gc::new(CompilationOutput {
+                            let outputs = arena.alloc_compilation_output(CompilationOutput {
                                 inputs: vec![input],
                                 js: ret
                                     .js
@@ -233,15 +233,15 @@ pub mod compiler {
                                 source_file_as_source_file.file_name().clone(),
                                 outputs.clone(),
                             );
-                            if let Some(outputs_js) = outputs.js.as_ref() {
+                            if let Some(outputs_js) = outputs.ref_(arena).js.as_ref() {
                                 ret._inputs_and_outputs
                                     .set(outputs_js.ref_(arena).file.clone(), outputs.clone());
                             }
-                            if let Some(outputs_dts) = outputs.dts.as_ref() {
+                            if let Some(outputs_dts) = outputs.ref_(arena).dts.as_ref() {
                                 ret._inputs_and_outputs
                                     .set(outputs_dts.ref_(arena).file.clone(), outputs.clone());
                             }
-                            if let Some(outputs_map) = outputs.map.as_ref() {
+                            if let Some(outputs_map) = outputs.ref_(arena).map.as_ref() {
                                 ret._inputs_and_outputs
                                     .set(outputs_map.ref_(arena).file.clone(), outputs.clone());
                             }

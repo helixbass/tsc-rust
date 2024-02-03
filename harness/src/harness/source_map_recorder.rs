@@ -1,5 +1,4 @@
 pub mod SourceMapRecorder {
-    use gc::Gc;
     use typescript_rust::{
         Node, Program, SourceMapEmitResult, _d, compute_line_starts, decode_mappings, ends_with,
         get_line_info, id_arena::Id, is_source_mapping, try_get_source_mapping_url, AllArenas,
