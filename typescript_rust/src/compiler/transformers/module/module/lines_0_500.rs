@@ -525,13 +525,10 @@ impl TransformModule {
                                         Some("v"),
                                         None,
                                         None,
-                                        Some(
-                                            self.factory.ref_(self).create_call_expression(
-                                                self.factory
-                                                    .ref_(self)
-                                                    .create_identifier("factory"),
-                                                Option::<Id<NodeArray>>::None,
-                                                Some(vec![
+                                        Some(self.factory.ref_(self).create_call_expression(
+                                            self.factory.ref_(self).create_identifier("factory"),
+                                            Option::<Id<NodeArray>>::None,
+                                            Some(vec![
                                                     self.factory
                                                         .ref_(self)
                                                         .create_identifier("require"),
@@ -539,8 +536,7 @@ impl TransformModule {
                                                         .ref_(self)
                                                         .create_identifier("exports"),
                                                 ]),
-                                            ),
-                                        ),
+                                        )),
                                     )],
                                 ),
                                 self.factory
@@ -569,20 +565,19 @@ impl TransformModule {
                             ],
                             None,
                         ),
-                        Some(
-                            self.factory.ref_(self).create_if_statement(
-                                self.factory.ref_(self).create_logical_and(
-                                    self.factory.ref_(self).create_type_check(
-                                        self.factory.ref_(self).create_identifier("define"),
-                                        "function",
-                                    ),
-                                    self.factory.ref_(self).create_property_access_expression(
-                                        self.factory.ref_(self).create_identifier("define"),
-                                        "amd",
-                                    ),
+                        Some(self.factory.ref_(self).create_if_statement(
+                            self.factory.ref_(self).create_logical_and(
+                                self.factory.ref_(self).create_type_check(
+                                    self.factory.ref_(self).create_identifier("define"),
+                                    "function",
                                 ),
-                                self.factory.ref_(self).create_block(
-                                    vec![self.factory.ref_(self).create_expression_statement(
+                                self.factory.ref_(self).create_property_access_expression(
+                                    self.factory.ref_(self).create_identifier("define"),
+                                    "amd",
+                                ),
+                            ),
+                            self.factory.ref_(self).create_block(
+                                vec![self.factory.ref_(self).create_expression_statement(
                                         self.factory.ref_(self).create_call_expression(
                                             self.factory.ref_(self).create_identifier("define"),
                                             Option::<Id<NodeArray>>::None,
@@ -625,11 +620,10 @@ impl TransformModule {
                                             ),
                                         ),
                                     )],
-                                    None,
-                                ),
                                 None,
                             ),
-                        ),
+                            None,
+                        )),
                     )],
                     Some(true),
                 )

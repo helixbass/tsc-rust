@@ -446,11 +446,10 @@ impl TransformSystemModule {
             Some(|node: Id<Node>| self.top_level_visitor(node)),
         )?;
 
-        statements.push(
-            self.factory.ref_(self).create_variable_statement(
-                Option::<Id<NodeArray>>::None,
-                self.factory.ref_(self).create_variable_declaration_list(
-                    vec![self.factory.ref_(self).create_variable_declaration(
+        statements.push(self.factory.ref_(self).create_variable_statement(
+            Option::<Id<NodeArray>>::None,
+            self.factory.ref_(self).create_variable_declaration_list(
+                vec![self.factory.ref_(self).create_variable_declaration(
                         Some("__moduleName"),
                         None,
                         None,
@@ -463,10 +462,9 @@ impl TransformSystemModule {
                             ),
                         ),
                     )],
-                    None,
-                ),
+                None,
             ),
-        );
+        ));
 
         try_maybe_visit_node(
             self.module_info()

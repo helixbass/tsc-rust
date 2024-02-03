@@ -1,4 +1,10 @@
-use std::{borrow::Cow, cmp, collections::HashSet, io, ptr, rc::Rc};
+use std::{
+    borrow::{Borrow, Cow},
+    cmp,
+    collections::HashSet,
+    io, ptr,
+    rc::Rc,
+};
 
 use id_arena::Id;
 use itertools::{Either, Itertools};
@@ -19,9 +25,7 @@ use crate::{
 };
 
 impl CheckTypeRelatedTo {
-    pub(super) fn count_message_chain_breadth<
-        TItem: std::borrow::Borrow<DiagnosticMessageChain>,
-    >(
+    pub(super) fn count_message_chain_breadth<TItem: Borrow<DiagnosticMessageChain>>(
         &self,
         info: Option<&[TItem]>,
     ) -> usize {

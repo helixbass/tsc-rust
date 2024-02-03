@@ -1,5 +1,5 @@
 use std::{
-    borrow::{Cow},
+    borrow::Cow,
     cell::{Cell, Ref, RefCell, RefMut},
     cmp,
     collections::HashMap,

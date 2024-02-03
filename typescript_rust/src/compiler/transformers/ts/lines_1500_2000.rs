@@ -168,9 +168,8 @@ impl TransformTypeScript {
             }
             TypeReferenceSerializationKind::ObjectType => {
                 self.factory.ref_(self).create_identifier("Object")
-            }
-            // default:
-            //     return Debug.assertNever(kind);
+            } // default:
+              //     return Debug.assertNever(kind);
         })
     }
 

@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -683,11 +683,10 @@ fn add_default_value_assignment_for_binding_pattern(
     let parameter_ref = parameter.ref_(arena);
     let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
     let factory = context.factory();
-    context.add_initialization_statement(
-        factory.ref_(arena).create_variable_statement(
-            Option::<Id<NodeArray>>::None,
-            factory.ref_(arena).create_variable_declaration_list(
-                vec![factory.ref_(arena).create_variable_declaration(
+    context.add_initialization_statement(factory.ref_(arena).create_variable_statement(
+        Option::<Id<NodeArray>>::None,
+        factory.ref_(arena).create_variable_declaration_list(
+            vec![factory.ref_(arena).create_variable_declaration(
                     parameter_as_parameter_declaration.maybe_name(),
                     None,
                     parameter_as_parameter_declaration.maybe_type(),
@@ -719,10 +718,9 @@ fn add_default_value_assignment_for_binding_pattern(
                             ),
                     ),
                 )],
-                None,
-            ),
+            None,
         ),
-    );
+    ));
     factory.ref_(arena).update_parameter_declaration(
         parameter,
         parameter.ref_(arena).maybe_decorators(),
