@@ -118,8 +118,8 @@ fn set_is_worker(value: bool) {
     })
 }
 
-fn start_test_environment() {
-    set_is_worker(handle_test_config());
+fn start_test_environment(arena: &impl HasArenaHarness) {
+    set_is_worker(handle_test_config(arena));
     if get_is_worker() {
         unimplemented!()
     } else if false {
@@ -163,9 +163,9 @@ pub struct Args {
     pub category: Option<TestCategory>,
 }
 
-pub fn run(args: &Args) {
+pub fn run(args: &Args, arena: &impl HasArenaHarness) {
     mocha::register_config(&args.mocha_args);
     initialize_test_category(args.category);
-    start_test_environment();
+    start_test_environment(arena);
     mocha::print_results();
 }

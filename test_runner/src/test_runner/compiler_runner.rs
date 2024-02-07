@@ -13,7 +13,7 @@ use regex::Regex;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
     id_arena::Id, is_rooted_disk_path, regex, some, to_path, AllArenas, BoolExt, CompilerOptions,
-    Extension, HasArena,
+    Extension, HasArena, InArena, OptionInArena,
 };
 
 use super::runner::{should_run_category, TestCategory};
@@ -448,19 +448,21 @@ impl CompilerTest {
             );
 
             ts_config_options = Some(test_case_content_ts_config.options.clone());
-            ts_config_files.push(Gc::new(Self::create_harness_test_file(
-                test_case_content.ts_config_file_unit_data.as_ref().unwrap(),
-                &root_dir,
-                Some(&combine_paths(
+            ts_config_files.push(
+                arena.alloc_test_file(Self::create_harness_test_file(
+                    test_case_content.ts_config_file_unit_data.as_ref().unwrap(),
                     &root_dir,
-                    &[ts_config_options
-                        .as_ref()
-                        .unwrap()
-                        .config_file_path
-                        .as_deref()],
+                    Some(&combine_paths(
+                        &root_dir,
+                        &[ts_config_options
+                            .unwrap()
+                            .ref_(arena)
+                            .config_file_path
+                            .as_deref()],
+                    )),
+                    arena,
                 )),
-                arena,
-            )));
+            );
         } else {
             let base_url = harness_settings.get("baseUrl").cloned();
             if let Some(base_url) = base_url.filter(|base_url| !is_rooted_disk_path(base_url)) {
@@ -497,12 +499,12 @@ impl CompilerTest {
                 reference_path_regex.is_match(last_unit.content.as_ref().unwrap())
             }
         {
-            to_be_compiled.push(Gc::new(Self::create_harness_test_file(
+            to_be_compiled.push(arena.alloc_test_file(Self::create_harness_test_file(
                 &last_unit, &root_dir, None, arena,
             )));
             for unit in units {
                 if unit.name != last_unit.name {
-                    other_files.push(Gc::new(Self::create_harness_test_file(
+                    other_files.push(arena.alloc_test_file(Self::create_harness_test_file(
                         unit, &root_dir, None, arena,
                     )));
                 }
@@ -510,33 +512,40 @@ impl CompilerTest {
         } else {
             to_be_compiled = units
                 .into_iter()
-                .map(|unit| Gc::new(Self::create_harness_test_file(unit, &root_dir, None, arena)))
+                .map(|unit| {
+                    arena.alloc_test_file(Self::create_harness_test_file(
+                        unit, &root_dir, None, arena,
+                    ))
+                })
                 .collect();
         }
 
         if let Some(ts_config_options_present) = ts_config_options
             .clone()
-            .filter(|ts_config_options| ts_config_options.config_file_path.is_some())
+            .filter(|ts_config_options| ts_config_options.ref_(arena).config_file_path.is_some())
         {
-            let mut options = (*ts_config_options_present).clone();
+            let mut options = ts_config_options_present.ref_(arena).clone();
             options.config_file_path = Some(combine_paths(
                 &root_dir,
-                &[ts_config_options_present.config_file_path.as_deref()],
+                &[ts_config_options_present
+                    .ref_(arena)
+                    .config_file_path
+                    .as_deref()],
             ));
             options
                 .config_file
-                .as_ref()
                 .unwrap()
+                .ref_(arena)
                 .as_source_file()
                 .set_file_name(options.config_file_path.clone().unwrap());
-            ts_config_options = Some(Gc::new(options));
+            ts_config_options = Some(arena.alloc_compiler_options(options));
         }
 
         let result = Compiler::compile_files(
             &to_be_compiled,
             &other_files,
             Some(&harness_settings),
-            ts_config_options.as_deref(),
+            ts_config_options.refed(arena).as_deref(),
             harness_settings
                 .get("currentDirectory")
                 .map(|value| &**value),
@@ -596,7 +605,7 @@ impl CompilerTest {
         arena: &impl HasArenaHarness,
     ) -> CompilerFileBasedTest {
         let file = file.as_ref();
-        let content = IO::read_file(&get_io(arena), file).unwrap();
+        let content = IO::read_file(&*get_io(arena), file).unwrap();
         let settings = TestCaseParser::extract_compiler_settings(&content);
         let configurations =
             get_file_based_test_configurations(&settings, &CompilerTest::vary_by(), arena);
@@ -617,7 +626,7 @@ impl CompilerTest {
             ]
             .concat(),
             &self.result.diagnostics,
-            Some(self.options.pretty == Some(true)),
+            Some(self.options.ref_(self).pretty == Some(true)),
             self,
         )?;
 
@@ -625,7 +634,7 @@ impl CompilerTest {
     }
 
     pub fn verify_module_resolution(&self) {
-        if self.options.trace_resolution == Some(true) {
+        if self.options.ref_(self).trace_resolution == Some(true) {
             Baseline::run_baseline(
                 &regex!(".tsx?$").replace(&self.configured_name, ".trace.json"),
                 Some(&{
@@ -653,9 +662,9 @@ impl CompilerTest {
     }
 
     pub fn verify_source_map_record(&self) -> io::Result<()> {
-        if self.options.source_map == Some(true)
-            || self.options.inline_source_map == Some(true)
-            || self.options.declaration_map == Some(true)
+        if self.options.ref_(self).source_map == Some(true)
+            || self.options.ref_(self).inline_source_map == Some(true)
+            || self.options.ref_(self).declaration_map == Some(true)
         {
             let record = Utils::maybe_remove_test_path_prefixes(
                 self.result.get_source_map_record().as_deref(),
@@ -663,7 +672,7 @@ impl CompilerTest {
             )
             .map(Cow::into_owned);
             let baseline = record.and_then(|record| {
-                (!(self.options.no_emit_on_error == Some(true)
+                (!(self.options.ref_(self).no_emit_on_error == Some(true)
                     && !self.result.diagnostics.is_empty()))
                 .then_some(record)
             });

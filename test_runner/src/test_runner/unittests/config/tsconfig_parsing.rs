@@ -5,13 +5,13 @@ use speculoos::prelude::*;
 mod parse_config_file_text_to_json {
     use derive_builder::Builder;
     use gc::Gc;
-    use harness::{fakes, vfs};
+    use harness::{fakes, vfs, AllArenasHarness, HasArenaHarness};
     use serde::Serialize;
     use serde_json::json;
     use typescript_rust::{
         convert_to_object, create_compiler_diagnostic, get_sys_concrete, id_arena::Id,
         parse_config_file_text_to_json, parse_json_config_file_content,
-        parse_json_source_file_config_file_content, parse_json_text, Diagnostic,
+        parse_json_source_file_config_file_content, parse_json_text, AllArenas, Diagnostic,
         DiagnosticRelatedInformationInterface, Diagnostics, Owned, ParsedCommandLine,
         SliceExtCloneOrd,
     };
@@ -33,7 +33,9 @@ mod parse_config_file_text_to_json {
         expected_config_object: ExpectedConfigObject,
     ) {
         let json_text = json_text.into();
-        let parsed = parse_config_file_text_to_json("/apath/tsconfig.json", json_text).unwrap();
+        let arena = AllArenas::default();
+        let parsed =
+            parse_config_file_text_to_json("/apath/tsconfig.json", json_text, &arena).unwrap();
         assert_that!(serde_json::to_string(&parsed.config).unwrap())
             .is_equal_to(serde_json::to_string(&expected_config_object.config).unwrap());
         assert_that!(&parsed.error).is_none();
@@ -41,8 +43,10 @@ mod parse_config_file_text_to_json {
 
     fn assert_parse_error_with_excludes_keyword(json_text: impl Into<String>) {
         let json_text = json_text.into();
+        let arena = AllArenas::default();
         let parsed =
-            parse_config_file_text_to_json("/apath/tsconfig.json", json_text.clone()).unwrap();
+            parse_config_file_text_to_json("/apath/tsconfig.json", json_text.clone(), &arena)
+                .unwrap();
         let parsed_command = parse_json_config_file_content(
             parsed.config,
             &**get_sys_concrete(),
@@ -54,6 +58,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
+            &arena,
         )
         .unwrap();
         let parsed_command_errors = (*parsed_command.errors).borrow();
@@ -61,7 +66,7 @@ mod parse_config_file_text_to_json {
         assert_that!(&parsed_command_errors[0].code())
             .is_equal_to(Diagnostics::Unknown_option_excludes_Did_you_mean_exclude.code);
 
-        let ref parsed = parse_json_text("/apath/tsconfig.json", json_text);
+        let ref parsed = parse_json_text("/apath/tsconfig.json", json_text, &arena);
         let parsed_command = parse_json_source_file_config_file_content(
             parsed,
             &**get_sys_concrete(),
@@ -73,6 +78,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
+            &arena,
         )
         .unwrap();
         let parsed_command_errors = (*parsed_command.errors).borrow();
@@ -88,32 +94,37 @@ mod parse_config_file_text_to_json {
         all_file_list: &[String],
     ) -> ParsedCommandLine {
         let json_text = json_text.into();
-        let parsed = parse_config_file_text_to_json(config_file_name, json_text).unwrap();
+        let arena = AllArenasHarness::default();
+        let parsed = parse_config_file_text_to_json(config_file_name, json_text, &arena).unwrap();
         let mut files = vfs::FileSet::from_iter(all_file_list.into_iter().map(|value| {
             (
                 value.clone(),
                 Some(vfs::FileSetValue::String("".to_owned())),
             )
         }));
-        let host = fakes::ParseConfigHost::new(Gc::new(
-            vfs::FileSystem::new(
-                false,
-                Some(
-                    vfs::FileSystemOptionsBuilder::default()
-                        .cwd(base_path)
-                        .files({
-                            files.insert(
-                                "/".to_owned(),
-                                Some(vfs::FileSetValue::FileSet(Default::default())),
-                            );
-                            files
-                        })
-                        .build()
-                        .unwrap(),
-                ),
-            )
-            .unwrap(),
-        ))
+        let host = fakes::ParseConfigHost::new(
+            arena.alloc_file_system(
+                vfs::FileSystem::new(
+                    false,
+                    Some(
+                        vfs::FileSystemOptionsBuilder::default()
+                            .cwd(base_path)
+                            .files({
+                                files.insert(
+                                    "/".to_owned(),
+                                    Some(vfs::FileSetValue::FileSet(Default::default())),
+                                );
+                                files
+                            })
+                            .build()
+                            .unwrap(),
+                    ),
+                    &arena,
+                )
+                .unwrap(),
+            ),
+            &arena,
+        )
         .unwrap();
         parse_json_config_file_content(
             parsed.config,
@@ -125,6 +136,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
+            &arena,
         )
         .unwrap()
     }
@@ -136,32 +148,37 @@ mod parse_config_file_text_to_json {
         all_file_list: &[String],
     ) -> ParsedCommandLine {
         let json_text = json_text.into();
-        let ref parsed = parse_json_text(config_file_name, json_text);
+        let arena = AllArenasHarness::default();
+        let ref parsed = parse_json_text(config_file_name, json_text, &arena);
         let mut files = vfs::FileSet::from_iter(all_file_list.into_iter().map(|value| {
             (
                 value.clone(),
                 Some(vfs::FileSetValue::String("".to_owned())),
             )
         }));
-        let host = fakes::ParseConfigHost::new(Gc::new(
-            vfs::FileSystem::new(
-                false,
-                Some(
-                    vfs::FileSystemOptionsBuilder::default()
-                        .cwd(base_path)
-                        .files({
-                            files.insert(
-                                "/".to_owned(),
-                                Some(vfs::FileSetValue::FileSet(Default::default())),
-                            );
-                            files
-                        })
-                        .build()
-                        .unwrap(),
-                ),
-            )
-            .unwrap(),
-        ))
+        let host = fakes::ParseConfigHost::new(
+            arena.alloc_file_system(
+                vfs::FileSystem::new(
+                    false,
+                    Some(
+                        vfs::FileSystemOptionsBuilder::default()
+                            .cwd(base_path)
+                            .files({
+                                files.insert(
+                                    "/".to_owned(),
+                                    Some(vfs::FileSetValue::FileSet(Default::default())),
+                                );
+                                files
+                            })
+                            .build()
+                            .unwrap(),
+                    ),
+                    &arena,
+                )
+                .unwrap(),
+            ),
+            &arena,
+        )
         .unwrap();
         parse_json_source_file_config_file_content(
             parsed,
@@ -173,6 +190,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
+            &arena,
         )
         .unwrap()
     }
@@ -435,8 +453,10 @@ mod parse_config_file_text_to_json {
 
     #[test]
     fn test_returns_object_with_error_when_json_is_invalid() {
+        let arena = AllArenasHarness::default();
         let parsed =
-            parse_config_file_text_to_json("/apath/tsconfig.json", "invalid".to_owned()).unwrap();
+            parse_config_file_text_to_json("/apath/tsconfig.json", "invalid".to_owned(), &arena)
+                .unwrap();
         assert_that!(&parsed.config).is_equal_to(Some(json!({})));
         let expected: Id<Diagnostic> =
             create_compiler_diagnostic(&Diagnostics::_0_expected, Some(vec!["{".to_owned()]))
@@ -610,6 +630,7 @@ mod parse_config_file_text_to_json {
 
     #[test]
     fn test_parse_and_re_emit_tsconfig_json_file_with_diagnostics() {
+        let arena = AllArenasHarness::default();
         let content = r#"{
             "compilerOptions": {
                 "allowJs": true
@@ -618,9 +639,9 @@ mod parse_config_file_text_to_json {
             }
             "files": ["file1.ts"]
         }"#;
-        let ref result = parse_json_text("config.json", content.to_owned());
+        let ref result = parse_json_text("config.json", content.to_owned(), &arena);
         let diagnostics = result.as_source_file().parse_diagnostics();
-        let config_json_object = convert_to_object(result, diagnostics.clone())
+        let config_json_object = convert_to_object(result, diagnostics.clone(), &arena)
             .unwrap()
             .unwrap();
         let diagnostics = (*diagnostics).borrow();
