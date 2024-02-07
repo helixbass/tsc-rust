@@ -19,6 +19,7 @@ use crate::{
     Utils::{DiagnosticMessageReplacer, Replacer},
 };
 
+#[derive(Default)]
 pub struct AllArenasHarness {
     all_arenas: AllArenas,
     node_ios: RefCell<Arena<NodeIO>>,

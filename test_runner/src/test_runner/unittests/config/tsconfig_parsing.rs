@@ -3,20 +3,20 @@
 use speculoos::prelude::*;
 
 mod parse_config_file_text_to_json {
-    use super::*;
-
     use derive_builder::Builder;
     use gc::Gc;
     use harness::{fakes, vfs};
     use serde::Serialize;
     use serde_json::json;
     use typescript_rust::{
-        convert_to_object, create_compiler_diagnostic, get_sys_concrete,
+        convert_to_object, create_compiler_diagnostic, get_sys_concrete, id_arena::Id,
         parse_config_file_text_to_json, parse_json_config_file_content,
         parse_json_source_file_config_file_content, parse_json_text, Diagnostic,
         DiagnosticRelatedInformationInterface, Diagnostics, Owned, ParsedCommandLine,
         SliceExtCloneOrd,
     };
+
+    use super::*;
 
     #[derive(Builder, Default, Serialize)]
     #[builder(default, setter(strip_option))]
@@ -25,7 +25,7 @@ mod parse_config_file_text_to_json {
         // TODO: this looks like in the Typescript version it is never
         // populated and is an array vs single node so would never actually
         // compare equal, upstream?
-        // pub error: Option<Vec<Gc<Diagnostic>>>,
+        // pub error: Option<Vec<Id<Diagnostic>>>,
     }
 
     fn assert_parse_result(
@@ -438,7 +438,7 @@ mod parse_config_file_text_to_json {
         let parsed =
             parse_config_file_text_to_json("/apath/tsconfig.json", "invalid".to_owned()).unwrap();
         assert_that!(&parsed.config).is_equal_to(Some(json!({})));
-        let expected: Gc<Diagnostic> =
+        let expected: Id<Diagnostic> =
             create_compiler_diagnostic(&Diagnostics::_0_expected, Some(vec!["{".to_owned()]))
                 .into();
         let error = parsed.error.clone().unwrap();

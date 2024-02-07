@@ -2,7 +2,7 @@ use std::{cell::Cell, collections::HashMap};
 
 use clap::{Parser, ValueEnum};
 use gc::GcCell;
-use harness::{mocha, vpath, MochaArgs, RunnerBase, StringOrFileBasedTest};
+use harness::{mocha, vpath, HasArenaHarness, MochaArgs, RunnerBase, StringOrFileBasedTest};
 use once_cell::unsync::OnceCell;
 use regex::Regex;
 use typescript_rust::_d;
@@ -70,7 +70,7 @@ fn run_tests(runners: &[RunnerBase]) {
     }
 }
 
-fn handle_test_config() -> bool {
+fn handle_test_config(arena: &impl HasArenaHarness) -> bool {
     if false {
         unimplemented!()
     }
@@ -80,9 +80,11 @@ fn handle_test_config() -> bool {
             // unimplemented!()
             runners.push(CompilerBaselineRunner::new_runner_base(
                 CompilerTestType::Conformance,
+                arena,
             ));
             runners.push(CompilerBaselineRunner::new_runner_base(
                 CompilerTestType::Regression,
+                arena,
             ));
             // unimplemented!()
         }

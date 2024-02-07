@@ -648,13 +648,13 @@ mod node_module_resolution_relative_paths {
 }
 
 mod node_module_resolution_non_relative_paths {
-    use super::*;
-
     use typescript_rust::{
         create_module_resolution_cache, node_module_name_resolver, resolve_module_name,
         CompilerOptionsBuilder, Extension, GetCanonicalFileName, ModuleResolutionKind,
         NonRelativeModuleNameResolutionCache, Owned,
     };
+
+    use super::*;
 
     #[test]
     fn test_computes_correct_common_prefix_for_module_name_cache() {
@@ -1480,10 +1480,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     use once_cell::unsync::OnceCell;
     use typescript_rust::{
         combine_paths, create_get_canonical_file_name, create_program, create_source_file,
-        normalize_path, not_implemented, sort_and_deduplicate_diagnostics, CompilerHost,
-        CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder, Diagnostic,
-        DiagnosticInterface, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
-        Diagnostics, ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
+        id_arena::Id, normalize_path, not_implemented, sort_and_deduplicate_diagnostics,
+        CompilerHost, CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
+        Diagnostic, DiagnosticInterface, DiagnosticRelatedInformation,
+        DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind, Node, Owned, Program,
+        ScriptTarget, VecExt,
     };
 
     use super::*;
@@ -1498,11 +1499,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
     fn test(
         mut files: HashMap<String, String>,
-        options: Gc<CompilerOptions>,
+        options: Id<CompilerOptions>,
         current_directory: &str,
         use_case_sensitive_file_names: bool,
         root_files: &[&str],
-        mut expected_diagnostics: impl FnMut(&Program) -> Vec<Gc<Diagnostic>>,
+        mut expected_diagnostics: impl FnMut(&Program) -> Vec<Id<Diagnostic>>,
     ) {
         let get_canonical_file_name = create_get_canonical_file_name(use_case_sensitive_file_names);
         if !use_case_sensitive_file_names {
@@ -2058,7 +2059,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             false,
             &["moduleA.ts", "moduleB.ts", "moduleC.ts"],
             |program: &Program| {
-                let import_in_a: Gc<DiagnosticRelatedInformation> = Gc::new((*get_diagnostic_of_file_from_program(
+                let import_in_a: Id<DiagnosticRelatedInformation> = Gc::new((*get_diagnostic_of_file_from_program(
                     program,
                     "moduleA.ts",
                     r#"import a = require("./ModuleC")"#.find(r#""./ModuleC""#).unwrap().try_into().unwrap(),
@@ -2068,7 +2069,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                 )).clone().into());
                 // reportsUnnecessary: undefined,
                 // reportsDeprecated: undefined,
-                let import_in_b: Gc<DiagnosticRelatedInformation>  = Gc::new((*get_diagnostic_of_file_from_program(
+                let import_in_b: Id<DiagnosticRelatedInformation>  = Gc::new((*get_diagnostic_of_file_from_program(
                     program,
                     "moduleB.ts",
                     r#"import a = require("./moduleC")"#.find(r#""./moduleC""#).unwrap().try_into().unwrap(),
@@ -2286,11 +2287,11 @@ import b = require("./moduleB");
 }
 
 mod base_url_augmented_module_resolution {
-    use super::*;
-
     use typescript_rust::{
         resolve_module_name, CompilerOptionsBuilder, JsxEmit, ModuleResolutionKind, Owned,
     };
+
+    use super::*;
 
     #[test]
     fn test_module_resolution_without_path_mappings_root_dirs() {

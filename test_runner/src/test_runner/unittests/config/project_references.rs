@@ -10,8 +10,8 @@ use serde::Serialize;
 use speculoos::prelude::*;
 use typescript_rust::{
     combine_paths, create_program, flatten_diagnostic_message_text, get_directory_path,
-    parse_config_host_from_compiler_host_like, parse_json_config_file_content, read_config_file,
-    CompilerHostLikeRcDynCompilerHost, CompilerOptions, CompilerOptionsBuilder,
+    id_arena::Id, parse_config_host_from_compiler_host_like, parse_json_config_file_content,
+    read_config_file, CompilerHostLikeRcDynCompilerHost, CompilerOptions, CompilerOptionsBuilder,
     CreateProgramOptionsBuilder, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, MapOrDefault, ModuleResolutionHost,
     NonEmpty, Owned, Program, ProjectReference, ProjectReferenceBuilder, ReadConfigFileReturn,
@@ -26,7 +26,7 @@ struct TestProjectSpecification {
     pub files: HashMap<String, String>,
     pub output_files: Option<HashMap<String, String>>,
     pub config: Option<serde_json::Map<String, serde_json::Value>>,
-    pub options: Option<Gc<CompilerOptions>>,
+    pub options: Option<Id<CompilerOptions>>,
 }
 
 #[derive(Clone)]
@@ -49,7 +49,7 @@ impl From<Rc<ProjectReference>> for StringOrProjectReference {
 
 type TestSpecification = HashMap<String, TestProjectSpecification>;
 
-fn assert_has_error(message: &str, errors: &[Gc<Diagnostic>], diag: &DiagnosticMessage) {
+fn assert_has_error(message: &str, errors: &[Id<Diagnostic>], diag: &DiagnosticMessage) {
     if !errors.into_iter().any(|e| e.code() == diag.code) {
         let error_string = errors
             .into_iter()
@@ -75,7 +75,7 @@ fn assert_has_error(message: &str, errors: &[Gc<Diagnostic>], diag: &DiagnosticM
     }
 }
 
-fn assert_no_errors(message: &str, errors: &[Gc<Diagnostic>]) {
+fn assert_no_errors(message: &str, errors: &[Id<Diagnostic>]) {
     if
     /*errors &&*/
     !errors.is_empty() {
@@ -245,7 +245,7 @@ fn test_project_references(
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct TestProjectReferencesOptions {
-    compiler_options: Gc<CompilerOptions>,
+    compiler_options: Id<CompilerOptions>,
     references: Vec<Rc<ProjectReference>>,
     #[serde(flatten)]
     sp_config: Option<serde_json::Map<String, serde_json::Value>>,
@@ -253,7 +253,7 @@ struct TestProjectReferencesOptions {
 
 impl TestProjectReferencesOptions {
     fn new(
-        compiler_options: Gc<CompilerOptions>,
+        compiler_options: Id<CompilerOptions>,
         references: Vec<Rc<ProjectReference>>,
         sp_config: Option<serde_json::Map<String, serde_json::Value>>,
     ) -> Self {

@@ -3,16 +3,17 @@ use std::{borrow::Cow, collections::HashMap, io, path::Path as StdPath};
 use gc::{Finalize, Gc, Trace};
 use harness::{
     compiler, describe, get_file_based_test_configuration_description,
-    get_file_based_test_configurations, it, vpath, with_io, Baseline, Compiler,
-    EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, RunnerBase, RunnerBaseSub,
-    StringOrFileBasedTest, TestCaseParser, TestRunnerKind, Utils, IO,
+    get_file_based_test_configurations, get_io, it, vpath, AllArenasHarness, Baseline, Compiler,
+    EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, HasArenaHarness, RunnerBase,
+    RunnerBaseSub, StringOrFileBasedTest, TestCaseParser, TestRunnerKind, Utils, IO,
 };
 use itertools::Itertools;
 use jsonxf::Formatter;
 use regex::Regex;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
-    is_rooted_disk_path, regex, some, to_path, BoolExt, CompilerOptions, Extension,
+    id_arena::Id, is_rooted_disk_path, regex, some, to_path, AllArenas, BoolExt, CompilerOptions,
+    Extension, HasArena,
 };
 
 use super::runner::{should_run_category, TestCategory};
@@ -55,8 +56,11 @@ impl CompilerBaselineRunner {
         }
     }
 
-    pub fn new_runner_base(test_type: CompilerTestType) -> RunnerBase {
-        RunnerBase::new(Gc::new(Box::new(Self::new(test_type))))
+    pub fn new_runner_base(
+        test_type: CompilerTestType,
+        arena: &impl HasArenaHarness,
+    ) -> RunnerBase {
+        RunnerBase::new(arena.alloc_runner_base_sub(Box::new(Self::new(test_type))))
     }
 
     fn check_test_code_output(&self, file_name: &str, test: Option<&CompilerFileBasedTest>) {
@@ -153,12 +157,13 @@ impl CompilerBaselineRunner {
                                 &test.file,
                                 Some(&root_dir),
                                 None,
+                                self,
                             )
                             .unwrap(),
                         );
                     }
                     let compiler_test =
-                        CompilerTest::new(file_name, payload, configuration).unwrap();
+                        CompilerTest::new(file_name, payload, configuration, self).unwrap();
                     compiler_test.verify_diagnostics().unwrap();
                 }
             });
@@ -191,12 +196,13 @@ impl CompilerBaselineRunner {
                                     &test.file,
                                     Some(&root_dir),
                                     None,
+                                    self,
                                 )
                                 .unwrap(),
                             );
                         }
                         let compiler_test =
-                            CompilerTest::new(file_name, payload, configuration).unwrap();
+                            CompilerTest::new(file_name, payload, configuration, self).unwrap();
                         compiler_test.verify_module_resolution();
                     }
                 },
@@ -230,12 +236,13 @@ impl CompilerBaselineRunner {
                                     &test.file,
                                     Some(&root_dir),
                                     None,
+                                    self,
                                 )
                                 .unwrap(),
                             );
                         }
                         let compiler_test =
-                            CompilerTest::new(file_name, payload, configuration).unwrap();
+                            CompilerTest::new(file_name, payload, configuration, self).unwrap();
                         compiler_test.verify_java_script_output().unwrap();
                     }
                 }
@@ -269,12 +276,13 @@ impl CompilerBaselineRunner {
                                     &test.file,
                                     Some(&root_dir),
                                     None,
+                                    self,
                                 )
                                 .unwrap(),
                             );
                         }
                         let compiler_test =
-                            CompilerTest::new(file_name, payload, configuration).unwrap();
+                            CompilerTest::new(file_name, payload, configuration, self).unwrap();
                         compiler_test.verify_source_map_record().unwrap();
                     }
                 }
@@ -308,7 +316,7 @@ impl RunnerBaseSub for CompilerBaselineRunner {
                 Some(EnumerateFilesOptions { recursive: true }),
             )
             .into_iter()
-            .map(|file| CompilerTest::get_configurations(&file).into())
+            .map(|file| CompilerTest::get_configurations(&file, self).into())
             .collect()
     }
 
@@ -321,7 +329,7 @@ impl RunnerBaseSub for CompilerBaselineRunner {
             let files = if !runner_base.tests.is_empty() {
                 runner_base.tests.clone()
             } else {
-                with_io(|IO| IO.enumerate_test_files(runner_base))
+                get_io(self).enumerate_test_files(runner_base)
             };
             for test in files {
                 let file = match &test {
@@ -332,13 +340,25 @@ impl RunnerBaseSub for CompilerBaselineRunner {
                     &vpath::normalize_separators(&file),
                     Some(&match &test {
                         StringOrFileBasedTest::String(test) => {
-                            CompilerTest::get_configurations(test)
+                            CompilerTest::get_configurations(test, self)
                         }
                         StringOrFileBasedTest::FileBasedTest(test) => test.clone(),
                     }),
                 );
             }
         });
+    }
+}
+
+impl HasArena for CompilerBaselineRunner {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
+impl HasArenaHarness for CompilerBaselineRunner {
+    fn arena_harness(&self) -> &AllArenasHarness {
+        unimplemented!()
     }
 }
 
@@ -351,10 +371,10 @@ struct CompilerTest {
     harness_settings: TestCaseParser::CompilerSettings,
     has_non_dts_files: bool,
     result: compiler::CompilationResult,
-    options: Gc<CompilerOptions>,
-    ts_config_files: Vec<Gc<Compiler::TestFile>>,
-    to_be_compiled: Vec<Gc<Compiler::TestFile>>,
-    other_files: Vec<Gc<Compiler::TestFile>>,
+    options: Id<CompilerOptions>,
+    ts_config_files: Vec<Id<Compiler::TestFile>>,
+    to_be_compiled: Vec<Id<Compiler::TestFile>>,
+    other_files: Vec<Id<Compiler::TestFile>>,
 }
 
 impl CompilerTest {
@@ -362,6 +382,7 @@ impl CompilerTest {
         file_name: String,
         mut test_case_content: Option<TestCaseParser::TestCaseContent>,
         configuration_overrides: Option<TestCaseParser::CompilerSettings>,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<Self> {
         let just_name = vpath::basename(&file_name, None, None);
         let mut configured_name = just_name.clone();
@@ -396,10 +417,11 @@ impl CompilerTest {
 
         if test_case_content.is_none() {
             test_case_content = Some(TestCaseParser::make_units_from_test(
-                &with_io(|io| IO::read_file(io, file_name.as_ref()).unwrap()),
+                &IO::read_file(&*get_io(arena), file_name.as_ref()).unwrap(),
                 &file_name,
                 Some(&root_dir),
                 None,
+                arena,
             )?);
         }
         let mut test_case_content = test_case_content.unwrap();
@@ -410,8 +432,8 @@ impl CompilerTest {
 
         let units = &test_case_content.test_unit_data;
         let mut harness_settings = test_case_content.settings.clone();
-        let mut ts_config_options: Option<Gc<CompilerOptions>> = None;
-        let mut ts_config_files: Vec<Gc<Compiler::TestFile>> = vec![];
+        let mut ts_config_options: Option<Id<CompilerOptions>> = None;
+        let mut ts_config_files: Vec<Id<Compiler::TestFile>> = vec![];
         if let Some(test_case_content_ts_config) = test_case_content.ts_config.as_ref() {
             assert!(
                 test_case_content_ts_config.file_names.is_empty(),
@@ -437,6 +459,7 @@ impl CompilerTest {
                         .config_file_path
                         .as_deref()],
                 )),
+                arena,
             )));
         } else {
             let base_url = harness_settings.get("baseUrl").cloned();
@@ -452,8 +475,8 @@ impl CompilerTest {
         let has_non_dts_files = units
             .iter()
             .any(|unit| !file_extension_is(&unit.name, Extension::Dts.to_str()));
-        let mut to_be_compiled: Vec<Gc<Compiler::TestFile>> = vec![];
-        let mut other_files: Vec<Gc<Compiler::TestFile>> = vec![];
+        let mut to_be_compiled: Vec<Id<Compiler::TestFile>> = vec![];
+        let mut other_files: Vec<Id<Compiler::TestFile>> = vec![];
 
         if test_case_content
             .settings
@@ -475,19 +498,19 @@ impl CompilerTest {
             }
         {
             to_be_compiled.push(Gc::new(Self::create_harness_test_file(
-                &last_unit, &root_dir, None,
+                &last_unit, &root_dir, None, arena,
             )));
             for unit in units {
                 if unit.name != last_unit.name {
                     other_files.push(Gc::new(Self::create_harness_test_file(
-                        unit, &root_dir, None,
+                        unit, &root_dir, None, arena,
                     )));
                 }
             }
         } else {
             to_be_compiled = units
                 .into_iter()
-                .map(|unit| Gc::new(Self::create_harness_test_file(unit, &root_dir, None)))
+                .map(|unit| Gc::new(Self::create_harness_test_file(unit, &root_dir, None, arena)))
                 .collect();
         }
 
@@ -518,6 +541,7 @@ impl CompilerTest {
                 .get("currentDirectory")
                 .map(|value| &**value),
             test_case_content.symlinks.as_ref(),
+            arena,
         )?;
 
         let options = result.options.clone();
@@ -567,12 +591,15 @@ impl CompilerTest {
         ]
     }
 
-    pub fn get_configurations(file: impl AsRef<StdPath>) -> CompilerFileBasedTest {
+    pub fn get_configurations(
+        file: impl AsRef<StdPath>,
+        arena: &impl HasArenaHarness,
+    ) -> CompilerFileBasedTest {
         let file = file.as_ref();
-        let content = with_io(|io| IO::read_file(io, file)).unwrap();
+        let content = IO::read_file(&get_io(arena), file).unwrap();
         let settings = TestCaseParser::extract_compiler_settings(&content);
         let configurations =
-            get_file_based_test_configurations(&settings, &CompilerTest::vary_by());
+            get_file_based_test_configurations(&settings, &CompilerTest::vary_by(), arena);
         CompilerFileBasedTest {
             file: file.to_str().unwrap().to_owned(),
             configurations,
@@ -591,6 +618,7 @@ impl CompilerTest {
             .concat(),
             &self.result.diagnostics,
             Some(self.options.pretty == Some(true)),
+            self,
         )?;
 
         Ok(())
@@ -609,7 +637,9 @@ impl CompilerTest {
                                 .result
                                 .traces()
                                 .iter()
-                                .map(|trace| Utils::sanitize_trace_resolution_log_entry(trace))
+                                .map(|trace| {
+                                    Utils::sanitize_trace_resolution_log_entry(trace, self)
+                                })
                                 .collect_vec(),
                         )
                         .unwrap(),
@@ -617,6 +647,7 @@ impl CompilerTest {
                     .unwrap()
                 }),
                 None,
+                self,
             );
         }
     }
@@ -640,6 +671,7 @@ impl CompilerTest {
                 &regex!(r#"\.tsx?"#).replace(&self.configured_name, ".sourcemap.txt"),
                 baseline.as_deref(),
                 None,
+                self,
             );
         }
 
@@ -659,16 +691,17 @@ impl CompilerTest {
                 &self.to_be_compiled,
                 &self.other_files,
                 &self.harness_settings,
+                self,
             )?;
         }
 
         Ok(())
     }
 
-    pub fn make_unit_name(name: &str, root: &str) -> String {
+    pub fn make_unit_name(name: &str, root: &str, arena: &impl HasArenaHarness) -> String {
         let path = to_path(name, Some(root), |file_name| file_name.to_owned());
         let path_start = to_path(
-            &with_io(|IO| IO.get_current_directory().unwrap()),
+            &get_io(arena).get_current_directory().unwrap(),
             Some(""),
             |file_name| file_name.to_owned(),
         );
@@ -683,14 +716,27 @@ impl CompilerTest {
         last_unit: &TestCaseParser::TestUnitData,
         root_dir: &str,
         unit_name: Option<&str>,
+        arena: &impl HasArenaHarness,
     ) -> Compiler::TestFile {
         Compiler::TestFile {
             unit_name: unit_name.map_or_else(
-                || Self::make_unit_name(&last_unit.name, root_dir),
+                || Self::make_unit_name(&last_unit.name, root_dir, arena),
                 ToOwned::to_owned,
             ),
             content: last_unit.content.clone().unwrap(),
             file_options: Some(last_unit.file_options.clone()),
         }
+    }
+}
+
+impl HasArena for CompilerTest {
+    fn arena(&self) -> &AllArenas {
+        unimplemented!()
+    }
+}
+
+impl HasArenaHarness for CompilerTest {
+    fn arena_harness(&self) -> &AllArenasHarness {
+        unimplemented!()
     }
 }

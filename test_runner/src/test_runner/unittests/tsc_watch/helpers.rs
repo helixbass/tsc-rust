@@ -2,10 +2,10 @@ use std::borrow::Borrow;
 
 use gc::Gc;
 use typescript_rust::{
-    format_string_from_args, get_locale_specific_message, to_path, BaseDiagnostic,
+    format_string_from_args, get_locale_specific_message, id_arena::Id, to_path, BaseDiagnostic,
     BaseDiagnosticRelatedInformationBuilder, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
     DiagnosticMessageOrDiagnosticMessageChain, DiagnosticMessageText, DiagnosticWithLocation, Node,
-    NodeWrappered, NonEmpty, Program, ScriptReferenceHost,
+    NonEmpty, Program, ScriptReferenceHost,
 };
 
 pub fn get_diagnostic_message_chain(
@@ -28,7 +28,7 @@ pub fn get_diagnostic_of_file_from(
     length: Option<isize>,
     message: impl Into<DiagnosticMessageOrDiagnosticMessageChain>,
     args: Option<Vec<String>>,
-) -> Gc<Diagnostic> {
+) -> Id<Diagnostic> {
     let message: DiagnosticMessageOrDiagnosticMessageChain = message.into();
     let file = file.node_wrappered();
     Gc::new({
@@ -68,7 +68,7 @@ pub fn get_diagnostic_of_file_from_program(
     length: isize,
     message: impl Into<DiagnosticMessageOrDiagnosticMessageChain>,
     args: Option<Vec<String>>,
-) -> Gc<Diagnostic> {
+) -> Id<Diagnostic> {
     get_diagnostic_of_file_from(
         program.get_source_file_by_path(&to_path(
             file_path,
