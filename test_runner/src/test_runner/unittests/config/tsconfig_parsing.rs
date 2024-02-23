@@ -4,7 +4,6 @@ use speculoos::prelude::*;
 
 mod parse_config_file_text_to_json {
     use derive_builder::Builder;
-    use gc::Gc;
     use harness::{fakes, vfs, AllArenasHarness, HasArenaHarness};
     use serde::Serialize;
     use serde_json::json;

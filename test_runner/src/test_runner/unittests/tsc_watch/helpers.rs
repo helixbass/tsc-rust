@@ -1,11 +1,8 @@
-use std::borrow::Borrow;
-
-use gc::Gc;
 use typescript_rust::{
     format_string_from_args, get_locale_specific_message, id_arena::Id, to_path, BaseDiagnostic,
     BaseDiagnosticRelatedInformationBuilder, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
-    DiagnosticMessageOrDiagnosticMessageChain, DiagnosticMessageText, DiagnosticWithLocation, Node,
-    NonEmpty, Program, ScriptReferenceHost,
+    DiagnosticMessageOrDiagnosticMessageChain, DiagnosticMessageText, DiagnosticWithLocation,
+    HasArena, Node, NonEmpty, Program, ScriptReferenceHost,
 };
 
 pub fn get_diagnostic_message_chain(
@@ -23,15 +20,15 @@ pub fn get_diagnostic_message_chain(
 }
 
 pub fn get_diagnostic_of_file_from(
-    file: Option<impl Borrow<Node /*SourceFile*/>>,
+    file: Option<Id<Node /*SourceFile*/>>,
     start: Option<isize>,
     length: Option<isize>,
     message: impl Into<DiagnosticMessageOrDiagnosticMessageChain>,
     args: Option<Vec<String>>,
+    arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     let message: DiagnosticMessageOrDiagnosticMessageChain = message.into();
-    let file = file.node_wrappered();
-    Gc::new({
+    arena.alloc_diagnostic({
         let base_diagnostic = BaseDiagnostic::new(
             BaseDiagnosticRelatedInformationBuilder::default()
                 .file(file.clone())
@@ -68,6 +65,7 @@ pub fn get_diagnostic_of_file_from_program(
     length: isize,
     message: impl Into<DiagnosticMessageOrDiagnosticMessageChain>,
     args: Option<Vec<String>>,
+    arena: &impl HasArena,
 ) -> Id<Diagnostic> {
     get_diagnostic_of_file_from(
         program.get_source_file_by_path(&to_path(
@@ -79,5 +77,6 @@ pub fn get_diagnostic_of_file_from_program(
         Some(length),
         message,
         args,
+        arena,
     )
 }

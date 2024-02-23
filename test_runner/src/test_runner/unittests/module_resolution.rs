@@ -4,11 +4,13 @@ use std::{collections::HashMap, io, rc::Rc};
 
 use derive_builder::Builder;
 use gc::{Finalize, Gc, Trace};
+use harness::AllArenasHarness;
 use itertools::Itertools;
 use speculoos::prelude::*;
 use typescript_rust::{
-    extension_from_path, get_directory_path, ModuleResolutionHost, ModuleResolutionHostOverrider,
-    ResolvedModuleFull, ResolvedModuleFullBuilder, ResolvedModuleWithFailedLookupLocations,
+    extension_from_path, get_directory_path, id_arena::Id, HasArena, InArena, ModuleResolutionHost,
+    ModuleResolutionHostOverrider, ResolvedModuleFull, ResolvedModuleFullBuilder,
+    ResolvedModuleWithFailedLookupLocations,
 };
 
 pub fn check_resolved_module(
@@ -187,14 +189,14 @@ impl ModuleResolutionHost for CreateModuleResolutionHostHasDirectoryExists {
 
     fn set_overriding_file_exists(
         &self,
-        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
 
     fn set_overriding_read_file(
         &self,
-        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -213,7 +215,7 @@ impl ModuleResolutionHost for CreateModuleResolutionHostHasDirectoryExists {
 
     fn set_overriding_directory_exists(
         &self,
-        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -224,7 +226,7 @@ impl ModuleResolutionHost for CreateModuleResolutionHostHasDirectoryExists {
 
     fn set_overriding_realpath(
         &self,
-        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -235,7 +237,7 @@ impl ModuleResolutionHost for CreateModuleResolutionHostHasDirectoryExists {
 
     fn set_overriding_get_directories(
         &self,
-        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -277,14 +279,14 @@ impl ModuleResolutionHost for CreateModuleResolutionHostNoHasDirectoryExists {
 
     fn set_overriding_file_exists(
         &self,
-        _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
 
     fn set_overriding_read_file(
         &self,
-        _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -303,7 +305,7 @@ impl ModuleResolutionHost for CreateModuleResolutionHostNoHasDirectoryExists {
 
     fn set_overriding_directory_exists(
         &self,
-        _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -314,7 +316,7 @@ impl ModuleResolutionHost for CreateModuleResolutionHostNoHasDirectoryExists {
 
     fn set_overriding_realpath(
         &self,
-        _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -325,7 +327,7 @@ impl ModuleResolutionHost for CreateModuleResolutionHostNoHasDirectoryExists {
 
     fn set_overriding_get_directories(
         &self,
-        _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+        _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
     ) {
         unreachable!()
     }
@@ -658,27 +660,33 @@ mod node_module_resolution_non_relative_paths {
 
     #[test]
     fn test_computes_correct_common_prefix_for_module_name_cache() {
+        let ref arena = AllArenasHarness::default();
         let resolution_cache = create_module_resolution_cache(
             "/",
-            Gc::new(Box::new(GetCanonicalFileNameNoop)),
+            arena.alloc_get_canonical_file_name(Box::new(GetCanonicalFileNameNoop)),
             None,
             None,
             None,
+            arena,
         );
         let mut cache = resolution_cache.get_or_create_cache_for_module_name("a", None, None);
-        cache.set(
+        cache.ref_(arena).set(
             "/sub",
-            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
-                Some(Gc::new(
-                    ResolvedModuleFullBuilder::default()
-                        .resolved_file_name("/sub/node_modules/a/index.ts")
-                        .is_external_library_import(true)
-                        .extension(Extension::Ts)
-                        .build()
-                        .unwrap(),
-                )),
-                Default::default(),
-            )),
+            arena.alloc_resolved_module_with_failed_lookup_locations(
+                ResolvedModuleWithFailedLookupLocations::new(
+                    Some(
+                        arena.alloc_resolved_module_full(
+                            ResolvedModuleFullBuilder::default()
+                                .resolved_file_name("/sub/node_modules/a/index.ts")
+                                .is_external_library_import(true)
+                                .extension(Extension::Ts)
+                                .build()
+                                .unwrap(),
+                        ),
+                    ),
+                    Default::default(),
+                ),
+            ),
         );
         assert_that(&cache.get("/sub")).is_some();
         assert_that(&cache.get("/")).is_none();
@@ -686,17 +694,21 @@ mod node_module_resolution_non_relative_paths {
         cache = resolution_cache.get_or_create_cache_for_module_name("b", None, None);
         cache.set(
             "/sub/dir/foo",
-            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
-                Some(Gc::new(
-                    ResolvedModuleFullBuilder::default()
-                        .resolved_file_name("/sub/directory/node_modules/b/index.ts")
-                        .is_external_library_import(true)
-                        .extension(Extension::Ts)
-                        .build()
-                        .unwrap(),
-                )),
-                Default::default(),
-            )),
+            arena.alloc_resolved_module_with_failed_lookup_locations(
+                ResolvedModuleWithFailedLookupLocations::new(
+                    Some(
+                        arena.alloc_resolved_module_full(
+                            ResolvedModuleFullBuilder::default()
+                                .resolved_file_name("/sub/directory/node_modules/b/index.ts")
+                                .is_external_library_import(true)
+                                .extension(Extension::Ts)
+                                .build()
+                                .unwrap(),
+                        ),
+                    ),
+                    Default::default(),
+                ),
+            ),
         );
         assert_that(&cache.get("/sub/dir/foo")).is_some();
         assert_that(&cache.get("/sub/dir")).is_some();
@@ -706,66 +718,77 @@ mod node_module_resolution_non_relative_paths {
         cache = resolution_cache.get_or_create_cache_for_module_name("c", None, None);
         cache.set(
             "/foo/bar",
-            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
-                Some(Gc::new(
-                    ResolvedModuleFullBuilder::default()
-                        .resolved_file_name("/bar/node_modules/c/index.ts")
-                        .is_external_library_import(true)
-                        .extension(Extension::Ts)
-                        .build()
-                        .unwrap(),
-                )),
-                Default::default(),
-            )),
+            arena.alloc_resolved_module_with_failed_lookup_locations(
+                ResolvedModuleWithFailedLookupLocations::new(
+                    Some(
+                        arena.alloc_resolved_module_full(
+                            ResolvedModuleFullBuilder::default()
+                                .resolved_file_name("/bar/node_modules/c/index.ts")
+                                .is_external_library_import(true)
+                                .extension(Extension::Ts)
+                                .build()
+                                .unwrap(),
+                        ),
+                    ),
+                    Default::default(),
+                ),
+            ),
         );
         assert_that(&cache.get("/foo/bar")).is_some();
         assert_that(&cache.get("/foo")).is_some();
         assert_that(&cache.get("/")).is_some();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("d", None, None);
-        cache.set(
+        cache.ref_(arena).set(
             "/foo",
-            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
-                Some(Gc::new(
-                    ResolvedModuleFullBuilder::default()
-                        .resolved_file_name("/foo/index.ts")
-                        .is_external_library_import(true)
-                        .extension(Extension::Ts)
-                        .build()
-                        .unwrap(),
-                )),
-                Default::default(),
-            )),
+            arena.alloc_resolved_module_with_failed_lookup_locations(
+                ResolvedModuleWithFailedLookupLocations::new(
+                    Some(
+                        arena.alloc_resolved_module_full(
+                            ResolvedModuleFullBuilder::default()
+                                .resolved_file_name("/foo/index.ts")
+                                .is_external_library_import(true)
+                                .extension(Extension::Ts)
+                                .build()
+                                .unwrap(),
+                        ),
+                    ),
+                    Default::default(),
+                ),
+            ),
         );
         assert_that(&cache.get("/foo")).is_some();
         assert_that(&cache.get("/")).is_none();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("e", None, None);
-        cache.set(
+        cache.ref_(arena).set(
             "c:/foo",
-            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
-                Some(Gc::new(
-                    ResolvedModuleFullBuilder::default()
-                        .resolved_file_name("d:/bar/node_modules/e/index.ts")
-                        .is_external_library_import(true)
-                        .extension(Extension::Ts)
-                        .build()
-                        .unwrap(),
-                )),
-                Default::default(),
-            )),
+            arena.alloc_resolved_module_with_failed_lookup_locations(
+                ResolvedModuleWithFailedLookupLocations::new(
+                    Some(
+                        arena.alloc_resolved_module_full(
+                            ResolvedModuleFullBuilder::default()
+                                .resolved_file_name("d:/bar/node_modules/e/index.ts")
+                                .is_external_library_import(true)
+                                .extension(Extension::Ts)
+                                .build()
+                                .unwrap(),
+                        ),
+                    ),
+                    Default::default(),
+                ),
+            ),
         );
         assert_that(&cache.get("c:/foo")).is_some();
         assert_that(&cache.get("c:/")).is_some();
         assert_that(&cache.get("d:/")).is_none();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("f", None, None);
-        cache.set(
+        cache.ref_(arena).set(
             "/foo/bar/baz",
-            Gc::new(ResolvedModuleWithFailedLookupLocations::new(
-                None,
-                Default::default(),
-            )),
+            arena.alloc_resolved_module_with_failed_lookup_locations(
+                ResolvedModuleWithFailedLookupLocations::new(None, Default::default()),
+            ),
         );
         assert_that(&cache.get("/foo/bar/baz")).is_some();
         assert_that(&cache.get("/foo/bar")).is_some();
@@ -946,6 +969,7 @@ mod node_module_resolution_non_relative_paths {
     }
 
     fn test_preserve_symlinks(preserve_symlinks: bool) {
+        let ref arena = AllArenasHarness::default();
         let real_file_name = "/linked/index.d.ts";
         let symlink_file_name = "/app/node_modules/linked/index.d.ts";
         let host = create_module_resolution_host(
@@ -966,7 +990,7 @@ mod node_module_resolution_non_relative_paths {
         let resolution = node_module_name_resolver(
             "linked",
             "/app/app.ts",
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .preserve_symlinks(preserve_symlinks)
                     .build()
@@ -976,6 +1000,7 @@ mod node_module_resolution_non_relative_paths {
             None,
             None,
             None,
+            arena,
         )
         .unwrap();
         let resolved_file_name = if preserve_symlinks {
@@ -1001,6 +1026,7 @@ mod node_module_resolution_non_relative_paths {
 
     #[test]
     fn test_uses_original_path_for_caching() {
+        let ref arena = AllArenasHarness::default();
         let host = create_module_resolution_host(
             true,
             vec![
@@ -1016,15 +1042,15 @@ mod node_module_resolution_non_relative_paths {
                     .unwrap(),
             ],
         );
-        let compiler_options = Gc::new(
+        let compiler_options = arena.alloc_compiler_options(
             CompilerOptionsBuilder::default()
                 .module_resolution(ModuleResolutionKind::NodeJs)
                 .build()
                 .unwrap(),
         );
-        let cache = Gc::new(create_module_resolution_cache(
+        let cache = arena.alloc_module_resolution_cache(create_module_resolution_cache(
             "/",
-            Gc::new(Box::new(GetCanonicalFileNameNoop)),
+            arena.alloc_get_canonical_file_name(Box::new(GetCanonicalFileNameNoop)),
             None,
             None,
             None,
@@ -1093,6 +1119,7 @@ mod node_module_resolution_non_relative_paths {
 
     #[test]
     fn test_preserves_original_path_on_cache_hit() {
+        let ref arena = AllArenasHarness::default();
         let host = create_module_resolution_host(
             true,
             vec![
@@ -1108,14 +1135,15 @@ mod node_module_resolution_non_relative_paths {
                     .unwrap(),
             ],
         );
-        let cache = Gc::new(create_module_resolution_cache(
+        let cache = arena.alloc_module_resolution_cache(create_module_resolution_cache(
             "/",
-            Gc::new(Box::new(GetCanonicalFileNameNoop)),
+            arena.alloc_get_canonical_file_name(Box::new(GetCanonicalFileNameNoop)),
             None,
             None,
             None,
+            arena,
         ));
-        let compiler_options = Gc::new(
+        let compiler_options = arena.alloc_compiler_options(
             CompilerOptionsBuilder::default()
                 .module_resolution(ModuleResolutionKind::NodeJs)
                 .build()
@@ -1165,14 +1193,15 @@ mod relative_imports {
         expected_files_count: usize,
         relative_names_to_check: &[&str],
     ) {
-        let options = Gc::new(
+        let ref arena = AllArenasHarness::default();
+        let options = arena.alloc_compiler_options(
             CompilerOptionsBuilder::default()
                 .module(ModuleKind::CommonJS)
                 .build()
                 .unwrap(),
         );
-        let host: Gc<Box<dyn CompilerHost>> =
-            RelativeImportsCompilerHost::new(current_directory.to_owned(), files.clone());
+        let host: Id<Box<dyn CompilerHost>> =
+            RelativeImportsCompilerHost::new(current_directory.to_owned(), files.clone(), arena);
 
         let program = create_program(
             CreateProgramOptionsBuilder::default()
@@ -1217,8 +1246,9 @@ mod relative_imports {
         pub fn new(
             current_directory: String,
             files: HashMap<String, String>,
-        ) -> Gc<Box<dyn CompilerHost>> {
-            Gc::new(Box::new(Self {
+            arena: &impl HasArena,
+        ) -> Id<Box<dyn CompilerHost>> {
+            arena.alloc_compiler_host(Box::new(Self {
                 current_directory,
                 files,
             }))
@@ -1236,12 +1266,13 @@ mod relative_imports {
             language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+        ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
             let ref path =
                 normalize_path(&combine_paths(&self.current_directory, &[Some(file_name)]));
             let file = self.files.get(path);
             Ok(file.map(|file| {
-                create_source_file(file_name, file.clone(), language_version, None, None).unwrap()
+                create_source_file(file_name, file.clone(), language_version, None, None, self)
+                    .unwrap()
             }))
         }
 
@@ -1255,7 +1286,7 @@ mod relative_imports {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             not_implemented()
         }
@@ -1266,7 +1297,7 @@ mod relative_imports {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             unreachable!()
         }
@@ -1277,7 +1308,7 @@ mod relative_imports {
 
         fn set_overriding_write_file(
             &self,
-            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1324,7 +1355,7 @@ mod relative_imports {
 
         fn set_overriding_create_directory(
             &self,
-            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1349,7 +1380,7 @@ mod relative_imports {
 
         fn set_overriding_get_directories(
             &self,
-            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1366,7 +1397,7 @@ mod relative_imports {
 
         fn set_overriding_file_exists(
             &self,
-            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1377,7 +1408,7 @@ mod relative_imports {
 
         fn set_overriding_read_file(
             &self,
-            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1396,7 +1427,7 @@ mod relative_imports {
 
         fn set_overriding_directory_exists(
             &self,
-            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1407,7 +1438,7 @@ mod relative_imports {
 
         fn set_overriding_realpath(
             &self,
-            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1494,7 +1525,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     };
 
     thread_local! {
-        static library: OnceCell<Gc<Node /*SourceFile*/>> = Default::default();
+        static library: OnceCell<Id<Node /*SourceFile*/>> = Default::default();
     }
 
     fn test(
@@ -1514,7 +1545,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             }
         }
 
-        let host: Gc<Box<dyn CompilerHost>> = FilesWithDifferentCasingCompilerHost::new(
+        let host: Id<Box<dyn CompilerHost>> = FilesWithDifferentCasingCompilerHost::new(
             current_directory.to_owned(),
             files.clone(),
             get_canonical_file_name,
@@ -1556,8 +1587,9 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             files: HashMap<String, String>,
             get_canonical_file_name: fn(&str) -> String,
             use_case_sensitive_file_names: bool,
-        ) -> Gc<Box<dyn CompilerHost>> {
-            Gc::new(Box::new(Self {
+            arena: &impl HasArena,
+        ) -> Id<Box<dyn CompilerHost>> {
+            arena.alloc_compiler_host(Box::new(Self {
                 current_directory,
                 files,
                 get_canonical_file_name,
@@ -1577,7 +1609,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+        ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
             if file_name == "lib.d.ts" {
                 return Ok(Some(library.with(|library_| {
                     library_
@@ -1614,7 +1646,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             not_implemented()
         }
@@ -1625,7 +1657,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             unreachable!()
         }
@@ -1636,7 +1668,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
         fn set_overriding_write_file(
             &self,
-            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1683,7 +1715,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
         fn set_overriding_create_directory(
             &self,
-            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1708,7 +1740,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
         fn set_overriding_get_directories(
             &self,
-            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1727,7 +1759,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
         fn set_overriding_file_exists(
             &self,
-            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1738,7 +1770,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
         fn set_overriding_read_file(
             &self,
-            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1757,7 +1789,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
         fn set_overriding_directory_exists(
             &self,
-            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1768,7 +1800,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
         fn set_overriding_realpath(
             &self,
-            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -1776,6 +1808,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
     #[test]
     fn test_should_succeed_when_the_same_file_is_referenced_using_absolute_and_relative_names() {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("/a/b/c.ts", r#"/// <reference path="d.ts"/>"#),
@@ -1785,7 +1818,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::AMD)
                     .build()
@@ -1801,6 +1834,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     #[test]
     fn test_should_fail_when_two_files_used_in_program_differ_only_in_casing_tripleslash_references(
     ) {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("/a/b/c.ts", r#"/// <reference path="D.ts"/>"#),
@@ -1810,7 +1844,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::AMD)
                     .force_consistent_casing_in_file_names(true)
@@ -1850,6 +1884,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                             ],
                         ),
                         None,
+                        arena,
                     );
                     *diagnostic.maybe_related_information_mut() = None;
                     diagnostic
@@ -1860,6 +1895,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
     #[test]
     fn test_should_fail_when_two_files_used_in_program_differ_only_in_casing_imports() {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("/a/b/c.ts", r#"import {x} from "D""#),
@@ -1869,7 +1905,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::AMD)
                     .force_consistent_casing_in_file_names(true)
@@ -1909,6 +1945,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                             ],
                         ),
                         None,
+                        arena,
                     );
                     *diagnostic.maybe_related_information_mut() = None;
                     diagnostic
@@ -1920,6 +1957,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     #[test]
     fn test_should_fail_when_two_files_used_in_program_differ_only_in_casing_imports_relative_module_names(
     ) {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("moduleA.ts", r#"import {x} from "./ModuleB""#),
@@ -1929,7 +1967,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::CommonJS)
                     .force_consistent_casing_in_file_names(true)
@@ -1969,6 +2007,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                             ],
                         ),
                         None,
+                        arena,
                     );
                     *diagnostic.maybe_related_information_mut() = None;
                     diagnostic
@@ -1979,6 +2018,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
     #[test]
     fn test_should_fail_when_two_files_exist_on_disk_that_differs_only_in_casing() {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("/a/b/c.ts", r#"import {x} from "D""#),
@@ -1989,7 +2029,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::AMD)
                     .build()
@@ -2028,6 +2068,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                             ],
                         ),
                         None,
+                        arena,
                     );
                     *diagnostic.maybe_related_information_mut() = None;
                     diagnostic
@@ -2038,6 +2079,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
 
     #[test]
     fn test_should_fail_when_module_name_in_require_calls_has_inconsistent_casing() {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("moduleA.ts", r#"import a = require("./ModuleC")"#),
@@ -2048,7 +2090,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::CommonJS)
                     .force_consistent_casing_in_file_names(true)
@@ -2059,23 +2101,25 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             false,
             &["moduleA.ts", "moduleB.ts", "moduleC.ts"],
             |program: &Program| {
-                let import_in_a: Id<DiagnosticRelatedInformation> = Gc::new((*get_diagnostic_of_file_from_program(
+                let import_in_a: Id<DiagnosticRelatedInformation> = arena.alloc_diagnostic_related_information((*get_diagnostic_of_file_from_program(
                     program,
                     "moduleA.ts",
                     r#"import a = require("./ModuleC")"#.find(r#""./ModuleC""#).unwrap().try_into().unwrap(),
                     r#""./ModuleC""#.len().try_into().unwrap(),
                     &*Diagnostics::File_is_included_via_import_here,
                     None,
+                    arena,
                 )).clone().into());
                 // reportsUnnecessary: undefined,
                 // reportsDeprecated: undefined,
-                let import_in_b: Id<DiagnosticRelatedInformation>  = Gc::new((*get_diagnostic_of_file_from_program(
+                let import_in_b: Id<DiagnosticRelatedInformation>  = arena.alloc_diagnostic_related_information((*get_diagnostic_of_file_from_program(
                     program,
                     "moduleB.ts",
                     r#"import a = require("./moduleC")"#.find(r#""./moduleC""#).unwrap().try_into().unwrap(),
                     r#""./moduleC""#.len().try_into().unwrap(),
                     &*Diagnostics::File_is_included_via_import_here,
                     None,
+                    arena,
                 )).clone().into());
                 // reportsUnnecessary: undefined,
                 // reportsDeprecated: undefined,
@@ -2114,6 +2158,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                                 details.clone(),
                             ),
                             None,
+                            arena,
                         );
                         *diagnostic.maybe_related_information_mut() =
                             Some(vec![import_in_b.clone()]);
@@ -2130,6 +2175,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                                 details
                             ),
                             None,
+                            arena,
                         );
                         *diagnostic.maybe_related_information_mut() = Some(vec![import_in_a]);
                         diagnostic
@@ -2142,6 +2188,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     #[test]
     fn test_should_fail_when_module_name_in_require_calls_has_inconsistent_casing_and_current_directory_has_uppercase_chars(
     ) {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("/a/B/c/moduleA.ts", r#"import a = require("./ModuleC")"#),
@@ -2159,7 +2206,7 @@ import b = require("./moduleB");
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::CommonJS)
                     .force_consistent_casing_in_file_names(true)
@@ -2199,15 +2246,17 @@ import b = require("./moduleB");
                             ],
                         ),
                         None,
+                        arena,
                     );
-                    *diagnostic.maybe_related_information_mut() = Some(vec![
-                        Gc::new((*get_diagnostic_of_file_from_program(
+                    *diagnostic.ref_(arena).maybe_related_information_mut() = Some(vec![
+                        arena.alloc_diagnostic_related_information((*get_diagnostic_of_file_from_program(
                             program,
                             "moduleA.ts",
                             r#"import a = require("./ModuleC")"#.find(r#""./ModuleC""#).unwrap().try_into().unwrap(),
                             r#""./ModuleC""#.len().try_into().unwrap(),
                             &*Diagnostics::File_is_included_via_import_here,
                             None,
+                            arena,
                         )).clone().into())
                         // reportsUnnecessary: undefined,
                         // reportsDeprecated: undefined,
@@ -2221,6 +2270,7 @@ import b = require("./moduleB");
     #[test]
     fn test_should_not_fail_when_module_name_in_require_calls_has_consistent_casing_and_current_directory_has_uppercase_chars(
     ) {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 ("/a/B/c/moduleA.ts", r#"import a = require("./moduleC")"#),
@@ -2238,7 +2288,7 @@ import b = require("./moduleB");
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::CommonJS)
                     .force_consistent_casing_in_file_names(true)
