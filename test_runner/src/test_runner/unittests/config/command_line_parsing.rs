@@ -5,13 +5,12 @@ use speculoos::prelude::*;
 mod parse_command_line {
     use std::{io, iter, rc::Rc};
 
-    use gc::Gc;
     use harness::AllArenasHarness;
     use itertools::Itertools;
     use typescript_rust::{
         compiler_options_did_you_mean_diagnostics, parse_command_line_worker, BaseDiagnostic,
         BaseDiagnosticRelatedInformationBuilder, CompilerOptionsBuilder, DiagnosticMessageText,
-        DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind,
+        DiagnosticRelatedInformationInterface, Diagnostics, HasArena, ModuleKind,
         ParseCommandLineWorkerDiagnostics, ParsedCommandLine, ParsedCommandLineBuilder,
         ScriptTarget,
     };
@@ -129,7 +128,7 @@ mod parse_command_line {
             ParsedCommandLineBuilder::default()
                 .errors(
                     build_flags.into_iter().map(|build_flag| {
-                        Gc::new(BaseDiagnostic::new(
+                        arena.alloc_diagnostic(BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                             .message_text(
                                 format!(
@@ -157,7 +156,7 @@ mod parse_command_line {
             ["--declarations", "--allowTS"],
             ParsedCommandLineBuilder::default()
                 .errors([
-                    Gc::new(BaseDiagnostic::new(
+                    arena.alloc_diagnostic(BaseDiagnostic::new(
                         BaseDiagnosticRelatedInformationBuilder::default()
                         .message_text(
                             format!(
@@ -169,7 +168,7 @@ mod parse_command_line {
                         .build().unwrap(),
                         None,
                     ).into()),
-                    Gc::new(BaseDiagnostic::new(
+                    arena.alloc_diagnostic(BaseDiagnostic::new(
                         BaseDiagnosticRelatedInformationBuilder::default()
                         .message_text(
                             format!(
@@ -217,7 +216,7 @@ mod parse_command_line {
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .errors(
-                    [Gc::new(
+                    [arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -256,7 +255,7 @@ mod parse_command_line {
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .errors([
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -271,7 +270,7 @@ mod parse_command_line {
                         )
                         .into(),
                     ),
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -307,7 +306,7 @@ mod parse_command_line {
             ["0.ts", "--module"],
             ParsedCommandLineBuilder::default()
                 .errors([
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -322,7 +321,7 @@ mod parse_command_line {
                         )
                         .into(),
                     ),
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -359,7 +358,7 @@ mod parse_command_line {
             ParsedCommandLineBuilder::default()
                 .errors(
                     [
-                        Gc::new(
+                        arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text(
@@ -375,7 +374,7 @@ mod parse_command_line {
                             )
                             .into(),
                         ),
-                        Gc::new(
+                        arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text(
@@ -410,7 +409,7 @@ mod parse_command_line {
             ["0.ts", "--target"],
             ParsedCommandLineBuilder::default()
                 .errors([
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -426,7 +425,7 @@ mod parse_command_line {
                         )
                         .into(),
                     ),
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -458,7 +457,7 @@ mod parse_command_line {
             ["0.ts", "--moduleResolution"],
             ParsedCommandLineBuilder::default()
                 .errors([
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -474,7 +473,7 @@ mod parse_command_line {
                         )
                         .into(),
                     ),
-                    Gc::new(
+                    arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -506,7 +505,7 @@ mod parse_command_line {
             ["0.ts", "--lib"],
             ParsedCommandLineBuilder::default()
                 .errors(
-                    [Gc::new(
+                    [arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -544,7 +543,7 @@ mod parse_command_line {
             ["0.ts", "--lib", ""],
             ParsedCommandLineBuilder::default()
                 .errors(
-                    [Gc::new(
+                    [arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -601,7 +600,7 @@ mod parse_command_line {
             ["--lib", "es5,", "es7", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .errors(
-                    [Gc::new(
+                    [arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -640,7 +639,7 @@ mod parse_command_line {
             ["--lib", "es5, ", "es7", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .errors(
-                    [Gc::new(
+                    [arena.alloc_diagnostic(
                         BaseDiagnostic::new(
                             BaseDiagnosticRelatedInformationBuilder::default()
                                 .message_text(
@@ -903,7 +902,7 @@ mod parse_command_line {
                 [&*format!("--{option_name}"), non_null_value, "0.ts"],
                 ParsedCommandLineBuilder::default()
                     .errors(
-                        [Gc::new(
+                        [arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text(format_string_from_args(
@@ -938,7 +937,7 @@ mod parse_command_line {
                 ["0.ts", "--strictNullChecks", &*format!("--{option_name}")],
                 ParsedCommandLineBuilder::default()
                     .errors(
-                        [Gc::new(
+                        [arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text(format_string_from_args(
@@ -978,7 +977,7 @@ mod parse_command_line {
                 ["0.ts", &*format!("--{option_name}")],
                 ParsedCommandLineBuilder::default()
                     .errors(
-                        [Gc::new(
+                        [arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text(format_string_from_args(
@@ -1112,7 +1111,7 @@ mod parse_command_line {
                     non_null_value,
                     diagnostic_message: &Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line,
                     worker_diagnostic: Some(Rc::new(move || {
-                        let option_declarations: Id<Vec<Gc<CommandLineOption>>> =
+                        let option_declarations: Id<Vec<Id<CommandLineOption>>> =
                             compiler_options_did_you_mean_diagnostics()
                                 .option_declarations()
                                 .to_vec()
@@ -1126,8 +1125,6 @@ mod parse_command_line {
                                         .default_value_description("undefined".to_owned())
                                         .build().unwrap().try_into().unwrap()
                                 ).into();
-                        // TODO: this looks like it should be getting `Gc`-wrapped rather than
-                        // `Rc`-wrapped?
                         Rc::new(VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
                             option_declarations,
                             compiler_options_did_you_mean_diagnostics: compiler_options_did_you_mean_diagnostics()
@@ -1318,7 +1315,7 @@ mod parse_command_line {
                 ["0.ts", "--fallbackPolling"],
                 ParsedCommandLineBuilder::default()
                     .errors([
-                        Gc::new(
+                        arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text("Watch option 'fallbackPolling' requires a value of type string.".to_owned())
@@ -1330,7 +1327,7 @@ mod parse_command_line {
                             )
                             .into(),
                         ),
-                        Gc::new(
+                        arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text("Argument for '--fallbackPolling' option must be: 'fixedinterval', 'priorityinterval', 'dynamicpriority', 'fixedchunksize'.".to_owned())
@@ -1376,7 +1373,7 @@ mod parse_command_line {
                 ["--excludeDirectories", "**/../*", "0.ts"],
                 ParsedCommandLineBuilder::default()
                     .errors([
-                        Gc::new(
+                        arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text("File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../*'.".to_owned())
@@ -1427,7 +1424,7 @@ mod parse_command_line {
                 ["--excludeFiles", "**/../*", "0.ts"],
                 ParsedCommandLineBuilder::default()
                     .errors([
-                        Gc::new(
+                        arena.alloc_diagnostic(
                             BaseDiagnostic::new(
                                 BaseDiagnosticRelatedInformationBuilder::default()
                                     .message_text("File specification cannot contain a parent directory ('..') that appears after a recursive directory wildcard ('**'): '**/../*'.".to_owned())
