@@ -3,8 +3,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use derive_builder::Builder;
-use gc::Gc;
-use harness::{fakes, vfs, TestFSWithWatch};
+use harness::{fakes, vfs, AllArenasHarness, HasArenaHarness, TestFSWithWatch};
 use itertools::Itertools;
 use serde::Serialize;
 use speculoos::prelude::*;
@@ -13,9 +12,9 @@ use typescript_rust::{
     id_arena::Id, parse_config_host_from_compiler_host_like, parse_json_config_file_content,
     read_config_file, CompilerHostLikeRcDynCompilerHost, CompilerOptions, CompilerOptionsBuilder,
     CreateProgramOptionsBuilder, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, MapOrDefault, ModuleResolutionHost,
-    NonEmpty, Owned, Program, ProjectReference, ProjectReferenceBuilder, ReadConfigFileReturn,
-    UnwrapOrEmpty,
+    DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, MapOrDefault,
+    ModuleResolutionHost, NonEmpty, OptionInArena, Owned, Program, ProjectReference,
+    ProjectReferenceBuilder, ReadConfigFileReturn, UnwrapOrEmpty,
 };
 
 #[derive(Builder, Clone, Default)]
@@ -115,6 +114,7 @@ fn test_project_references(
     spec: &TestSpecification,
     entry_point_config_file_name: &str,
     mut check_result: impl FnMut(&Program, &fakes::CompilerHost),
+    arena: &impl HasArenaHarness,
 ) {
     let mut files: HashMap<String, String> = Default::default();
     for (key, sp) in spec {
@@ -126,7 +126,11 @@ fn test_project_references(
                 .non_empty()
                 .unwrap_or_else(|| "tsconfig.json".to_owned()),
         ]);
-        let mut compiler_options = sp.options.as_deref().map_or_default(Clone::clone);
+        let mut compiler_options = sp
+            .options
+            .refed(arena)
+            .as_deref()
+            .map_or_default(Clone::clone);
         if compiler_options.composite.is_none() {
             compiler_options.composite = Some(true);
         }
@@ -134,7 +138,7 @@ fn test_project_references(
             compiler_options.out_dir = Some("bin".to_owned());
         }
         let options = TestProjectReferencesOptions::new(
-            Gc::new(compiler_options),
+            arena.alloc_compiler_options(compiler_options),
             sp.references
                 .as_ref()
                 .map(IntoIterator::into_iter)
@@ -169,7 +173,7 @@ fn test_project_references(
         }
     }
 
-    let vfsys = Gc::new(
+    let vfsys = arena.alloc_file_system(
         vfs::FileSystem::new(
             false,
             Some(
@@ -181,6 +185,7 @@ fn test_project_references(
                     .build()
                     .unwrap(),
             ),
+            arena,
         )
         .unwrap(),
     );
@@ -189,16 +194,18 @@ fn test_project_references(
         vfsys.write_file_sync(&k, v, None).unwrap();
     }
     let host = fakes::CompilerHost::new(
-        Gc::new(fakes::System::new(vfsys, None).unwrap()),
+        arena.alloc_fakes_system(fakes::System::new(vfsys, None, arena).unwrap()),
         None,
         None,
+        arena,
     )
     .unwrap();
-    let ReadConfigFileReturn { config, error } =
-        read_config_file(entry_point_config_file_name, |name: &str| {
-            host.read_file(name)
-        })
-        .unwrap();
+    let ReadConfigFileReturn { config, error } = read_config_file(
+        entry_point_config_file_name,
+        |name: &str| host.read_file(name),
+        arena,
+    )
+    .unwrap();
 
     asserting(&flatten_diagnostic_message_text(
         error.as_ref().map(|error| error.message_text()),
@@ -210,10 +217,11 @@ fn test_project_references(
     let mut file = parse_json_config_file_content(
         config,
         &parse_config_host_from_compiler_host_like(
-            Gc::new(Box::new(CompilerHostLikeRcDynCompilerHost::from(
+            arena.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::from(
                 host.as_dyn_compiler_host(),
             ))),
             None,
+            arena,
         ),
         &get_directory_path(entry_point_config_file_name),
         Some(Default::default()),
@@ -222,10 +230,11 @@ fn test_project_references(
         None,
         None,
         None,
+        arena,
     )
     .unwrap();
-    file.options = Gc::new({
-        let mut file_options = (*file.options).clone();
+    file.options = arena.alloc_compiler_options({
+        let mut file_options = file.options.ref_(arena).clone();
         file_options.config_file_path = Some(entry_point_config_file_name.to_owned());
         file_options
     });
@@ -237,6 +246,7 @@ fn test_project_references(
             .project_references(file.project_references.clone())
             .build()
             .unwrap(),
+        arena,
     )
     .unwrap();
     check_result(&prog, &host);
@@ -270,6 +280,7 @@ mod meta_check {
 
     #[test]
     fn test_default_setup_was_created_correctly() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/primary".to_owned(),
@@ -296,13 +307,18 @@ mod meta_check {
                     .unwrap(),
             ),
         ]);
-        test_project_references(&spec, "/primary/tsconfig.json", |prog: &Program, _| {
-            // assert.isTrue(!!prog, "Program should exist");
-            assert_no_errors(
-                "Sanity check should not produce errors",
-                &prog.get_options_diagnostics(None),
-            );
-        });
+        test_project_references(
+            &spec,
+            "/primary/tsconfig.json",
+            |prog: &Program, _| {
+                // assert.isTrue(!!prog, "Program should exist");
+                assert_no_errors(
+                    "Sanity check should not produce errors",
+                    &prog.get_options_diagnostics(None),
+                );
+            },
+            arena,
+        );
     }
 }
 
@@ -314,6 +330,7 @@ mod constraint_checking_for_settings {
 
     #[test]
     fn test_errors_when_declaration_false() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([(
             "/primary".to_owned(),
             TestProjectSpecificationBuilder::default()
@@ -331,18 +348,24 @@ mod constraint_checking_for_settings {
                 .unwrap(),
         )]);
 
-        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
-            let errs = program.get_options_diagnostics(None);
-            assert_has_error(
-                "Reports an error about the wrong decl setting",
-                &errs,
-                &Diagnostics::Composite_projects_may_not_disable_declaration_emit,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/primary/tsconfig.json",
+            |program: &Program, _| {
+                let errs = program.get_options_diagnostics(None);
+                assert_has_error(
+                    "Reports an error about the wrong decl setting",
+                    &errs,
+                    &Diagnostics::Composite_projects_may_not_disable_declaration_emit,
+                );
+            },
+            arena,
+        );
     }
 
     #[test]
     fn test_errors_when_the_referenced_project_doesnt_have_composite_true() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/primary".to_owned(),
@@ -384,19 +407,25 @@ mod constraint_checking_for_settings {
             ),
         ]);
 
-        test_project_references(&spec, "/reference/tsconfig.json", |program: &Program, _| {
-            let errs = program.get_options_diagnostics(None);
-            assert_has_error(
-                "Reports an error about 'composite' not being set",
-                &errs,
-                &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/reference/tsconfig.json",
+            |program: &Program, _| {
+                let errs = program.get_options_diagnostics(None);
+                assert_has_error(
+                    "Reports an error about 'composite' not being set",
+                    &errs,
+                    &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
+                );
+            },
+            arena,
+        );
     }
 
     #[test]
     fn test_does_not_error_when_the_referenced_project_doesnt_have_composite_true_if_its_a_container_project(
     ) {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/primary".to_owned(),
@@ -430,14 +459,20 @@ mod constraint_checking_for_settings {
             ),
         ]);
 
-        test_project_references(&spec, "/reference/tsconfig.json", |program: &Program, _| {
-            let errs = program.get_options_diagnostics(None);
-            assert_no_errors("Reports an error about 'composite' not being set", &errs);
-        });
+        test_project_references(
+            &spec,
+            "/reference/tsconfig.json",
+            |program: &Program, _| {
+                let errs = program.get_options_diagnostics(None);
+                assert_no_errors("Reports an error about 'composite' not being set", &errs);
+            },
+            arena,
+        );
     }
 
     #[test]
     fn test_errors_when_the_file_list_is_not_exhaustive() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([(
             "/primary".to_owned(),
             TestProjectSpecificationBuilder::default()
@@ -460,20 +495,29 @@ mod constraint_checking_for_settings {
                 .unwrap(),
         )]);
 
-        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
-            let errs = program
-                .get_semantic_diagnostics(program.get_source_file("/primary/a.ts").as_deref(), None)
-                .unwrap();
-            assert_has_error(
+        test_project_references(
+            &spec,
+            "/primary/tsconfig.json",
+            |program: &Program, _| {
+                let errs = program
+                    .get_semantic_diagnostics(
+                        program.get_source_file("/primary/a.ts").as_deref(),
+                        None,
+                    )
+                    .unwrap();
+                assert_has_error(
                 "Reports an error about b.ts not being in the list",
                 &errs,
                 &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern
             );
-        });
+            },
+            arena,
+        );
     }
 
     #[test]
     fn test_errors_when_the_referenced_project_doesnt_exist() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([(
             "/primary".to_owned(),
             TestProjectSpecificationBuilder::default()
@@ -484,18 +528,24 @@ mod constraint_checking_for_settings {
                 .build()
                 .unwrap(),
         )]);
-        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
-            let errs = program.get_options_diagnostics(None);
-            assert_has_error(
-                "Reports an error about a missing file",
-                &errs,
-                &Diagnostics::File_0_not_found,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/primary/tsconfig.json",
+            |program: &Program, _| {
+                let errs = program.get_options_diagnostics(None);
+                assert_has_error(
+                    "Reports an error about a missing file",
+                    &errs,
+                    &Diagnostics::File_0_not_found,
+                );
+            },
+            arena,
+        );
     }
 
     #[test]
     fn test_errors_when_a_prepended_project_reference_doesnt_set_out_file() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/primary".to_owned(),
@@ -524,18 +574,24 @@ mod constraint_checking_for_settings {
                     .unwrap(),
             ),
         ]);
-        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
-            let errs = program.get_options_diagnostics(None);
-            assert_has_error(
-                "Reports an error about outFile not being set",
-                &errs,
-                &Diagnostics::Cannot_prepend_project_0_because_it_does_not_have_outFile_set,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/primary/tsconfig.json",
+            |program: &Program, _| {
+                let errs = program.get_options_diagnostics(None);
+                assert_has_error(
+                    "Reports an error about outFile not being set",
+                    &errs,
+                    &Diagnostics::Cannot_prepend_project_0_because_it_does_not_have_outFile_set,
+                );
+            },
+            arena,
+        );
     }
 
     #[test]
     fn test_errors_when_a_prepended_project_reference_output_doesnt_exist() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/primary".to_owned(),
@@ -570,14 +626,19 @@ mod constraint_checking_for_settings {
                     .unwrap(),
             ),
         ]);
-        test_project_references(&spec, "/primary/tsconfig.json", |program: &Program, _| {
-            let errs = program.get_options_diagnostics(None);
-            assert_has_error(
-                "Reports an error about outFile being missing",
-                &errs,
-                &Diagnostics::Output_file_0_from_project_1_does_not_exist,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/primary/tsconfig.json",
+            |program: &Program, _| {
+                let errs = program.get_options_diagnostics(None);
+                assert_has_error(
+                    "Reports an error about outFile being missing",
+                    &errs,
+                    &Diagnostics::Output_file_0_from_project_1_does_not_exist,
+                );
+            },
+            arena,
+        );
     }
 }
 
@@ -586,6 +647,7 @@ mod path_mapping {
 
     #[test]
     fn test_redirects_to_the_output_d_ts_file() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/alpha".to_owned(),
@@ -608,17 +670,22 @@ mod path_mapping {
                     .unwrap(),
             ),
         ]);
-        test_project_references(&spec, "/beta/tsconfig.json", |program: &Program, _| {
-            assert_no_errors(
-                "File setup should be correct",
-                &program.get_options_diagnostics(None),
-            );
-            assert_has_error(
-                "Found a type error",
-                &program.get_semantic_diagnostics(None, None).unwrap(),
-                &Diagnostics::Module_0_has_no_exported_member_1,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/beta/tsconfig.json",
+            |program: &Program, _| {
+                assert_no_errors(
+                    "File setup should be correct",
+                    &program.get_options_diagnostics(None),
+                );
+                assert_has_error(
+                    "Found a type error",
+                    &program.get_semantic_diagnostics(None, None).unwrap(),
+                    &Diagnostics::Module_0_has_no_exported_member_1,
+                );
+            },
+            arena,
+        );
     }
 }
 
@@ -627,6 +694,7 @@ mod nice_behavior {
 
     #[test]
     fn test_issues_a_nice_error_when_the_input_file_is_missing() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/alpha".to_owned(),
@@ -648,18 +716,24 @@ mod nice_behavior {
                     .unwrap(),
             ),
         ]);
-        test_project_references(&spec, "/beta/tsconfig.json", |program: &Program, _| {
-            assert_has_error(
-                "Issues a useful error",
-                &program.get_semantic_diagnostics(None, None).unwrap(),
-                &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/beta/tsconfig.json",
+            |program: &Program, _| {
+                assert_has_error(
+                    "Issues a useful error",
+                    &program.get_semantic_diagnostics(None, None).unwrap(),
+                    &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
+                );
+            },
+            arena,
+        );
     }
 
     #[test]
     fn test_issues_a_nice_error_when_the_input_file_is_missing_when_module_reference_is_not_relative(
     ) {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([
             (
                 "/alpha".to_owned(),
@@ -688,13 +762,18 @@ mod nice_behavior {
                     .unwrap(),
             ),
         ]);
-        test_project_references(&spec, "/beta/tsconfig.json", |program: &Program, _| {
-            assert_has_error(
-                "Issues a useful error",
-                &program.get_semantic_diagnostics(None, None).unwrap(),
-                &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
-            );
-        });
+        test_project_references(
+            &spec,
+            "/beta/tsconfig.json",
+            |program: &Program, _| {
+                assert_has_error(
+                    "Issues a useful error",
+                    &program.get_semantic_diagnostics(None, None).unwrap(),
+                    &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
+                );
+            },
+            arena,
+        );
     }
 }
 
@@ -705,6 +784,7 @@ mod behavior_changes_under_composite_true {
 
     #[test]
     fn test_doesnt_infer_the_root_dir_from_source_paths() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([(
             "/alpha".to_owned(),
             TestProjectSpecificationBuilder::default()
@@ -741,6 +821,7 @@ mod behavior_changes_under_composite_true {
                     .owned(),
                 );
             },
+            arena,
         );
     }
 }
@@ -752,6 +833,7 @@ mod errors_when_a_file_in_a_composite_project_occurs_outside_the_root {
 
     #[test]
     fn test_errors_when_a_file_is_outside_the_rootdir() {
+        let ref arena = AllArenasHarness::default();
         let spec = TestSpecification::from_iter([(
             "/alpha".to_owned(),
             TestProjectSpecificationBuilder::default()
@@ -772,23 +854,28 @@ mod errors_when_a_file_in_a_composite_project_occurs_outside_the_root {
                 .build()
                 .unwrap(),
         )]);
-        test_project_references(&spec, "/alpha/tsconfig.json", |program: &Program, _| {
-            let semantic_diagnostics = program
-                .get_semantic_diagnostics(
-                    program.get_source_file("/alpha/src/a.ts").as_deref(),
-                    None,
-                )
-                .unwrap();
-            assert_has_error(
+        test_project_references(
+            &spec,
+            "/alpha/tsconfig.json",
+            |program: &Program, _| {
+                let semantic_diagnostics = program
+                    .get_semantic_diagnostics(
+                        program.get_source_file("/alpha/src/a.ts").as_deref(),
+                        None,
+                    )
+                    .unwrap();
+                assert_has_error(
                     "Issues an error about the rootDir",
                     &semantic_diagnostics,
                     &Diagnostics::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
                 );
-            assert_has_error(
+                assert_has_error(
                     "Issues an error about the fileList",
                     &semantic_diagnostics,
                     &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
                 );
-        });
+            },
+            arena,
+        );
     }
 }

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, io, path::Path as StdPath};
 
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Trace};
 use harness::{
     compiler, describe, get_file_based_test_configuration_description,
     get_file_based_test_configurations, get_io, it, vpath, AllArenasHarness, Baseline, Compiler,
