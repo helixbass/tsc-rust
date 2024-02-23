@@ -3,7 +3,7 @@
 use std::{collections::HashMap, io, rc::Rc};
 
 use derive_builder::Builder;
-use gc::{Finalize, Gc, Trace};
+use gc::{Finalize, Trace};
 use harness::AllArenasHarness;
 use itertools::Itertools;
 use speculoos::prelude::*;
@@ -2305,6 +2305,7 @@ import b = require("./moduleB");
     #[test]
     fn test_should_succeed_when_the_two_files_in_program_differ_only_in_drive_letter_in_their_names(
     ) {
+        let ref arena = AllArenasHarness::default();
         let files: HashMap<String, String> = HashMap::from_iter(
             [
                 (
@@ -2321,7 +2322,7 @@ import b = require("./moduleB");
         );
         test(
             files,
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module(ModuleKind::CommonJS)
                     .force_consistent_casing_in_file_names(true)
@@ -2345,6 +2346,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_module_resolution_without_path_mappings_root_dirs() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let file1 = FileBuilder::default()
                 .name("/root/folder1/file1.ts")
@@ -2363,7 +2365,7 @@ mod base_url_augmented_module_resolution {
                 vec![file1.clone(), file2.clone(), file3.clone()],
             );
             for module_resolution in [ModuleResolutionKind::NodeJs, ModuleResolutionKind::Classic] {
-                let options = Gc::new(
+                let options = arena.alloc_compiler_options(
                     CompilerOptionsBuilder::default()
                         .module_resolution(module_resolution)
                         .base_url("/root")
@@ -2378,6 +2380,7 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
@@ -2393,6 +2396,7 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
@@ -2408,6 +2412,7 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
@@ -2424,6 +2429,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_node_plus_base_url() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let main = FileBuilder::default()
                 .name("/root/a/b/main.ts")
@@ -2448,7 +2454,7 @@ mod base_url_augmented_module_resolution {
                 .build()
                 .unwrap();
 
-            let options = Gc::new(
+            let options = arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::NodeJs)
                     .base_url("/root")
@@ -2503,6 +2509,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_classic_plus_base_url() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let main = FileBuilder::default()
                 .name("/root/a/b/main.ts")
@@ -2514,7 +2521,7 @@ mod base_url_augmented_module_resolution {
                 .unwrap();
             let m2 = FileBuilder::default().name("/m2.ts").build().unwrap();
 
-            let options = Gc::new(
+            let options = arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::Classic)
                     .base_url("/root/x")
@@ -2554,6 +2561,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_node_plus_base_url_plus_path_mappings() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let main = FileBuilder::default()
                 .name("/root/folder1/main.ts")
@@ -2601,7 +2609,7 @@ mod base_url_augmented_module_resolution {
                 ],
             );
 
-            let options = Gc::new(
+            let options = arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::NodeJs)
                     .base_url("/root")
@@ -2746,6 +2754,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_classic_plus_base_url_plus_path_mappings() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let main = FileBuilder::default()
                 .name("/root/folder1/main.ts")
@@ -2769,7 +2778,7 @@ mod base_url_augmented_module_resolution {
                 vec![file1.clone(), file2.clone(), file3.clone()],
             );
 
-            let options = Gc::new(
+            let options = arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::Classic)
                     .base_url("/root")
@@ -2840,6 +2849,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_node_plus_root_dirs() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let file1 = FileBuilder::default()
                 .name("/root/folder1/file1.ts")
@@ -2862,7 +2872,7 @@ mod base_url_augmented_module_resolution {
                 vec![file1.clone(), file1_1.clone(), file2.clone(), file3.clone()],
             );
 
-            let options = Gc::new(
+            let options = arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::NodeJs)
                     .root_dirs(["/root", "/root/generated/"].owned())
@@ -2947,6 +2957,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_classic_plus_root_dirs() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let file1 = FileBuilder::default()
                 .name("/root/folder1/file1.ts")
@@ -2968,7 +2979,7 @@ mod base_url_augmented_module_resolution {
                 has_directory_exists,
                 vec![file1.clone(), file2.clone(), file3.clone(), file4.clone()],
             );
-            let options = Gc::new(
+            let options = arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::Classic)
                     .jsx(JsxEmit::React)
@@ -3041,6 +3052,7 @@ mod base_url_augmented_module_resolution {
 
     #[test]
     fn test_nested_node_module() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let app = FileBuilder::default()
                 .name("/root/src/app.ts")
@@ -3060,7 +3072,7 @@ mod base_url_augmented_module_resolution {
                 vec![app.clone(), libs_package.clone(), libs_typings.clone()],
             );
 
-            let options = Gc::new(
+            let options = arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::NodeJs)
                     .base_url("/root")
@@ -3106,12 +3118,13 @@ mod module_resolution_host_directory_exists {
 
     #[test]
     fn test_no_file_exists_calls_if_containing_directory_is_missing() {
+        let ref arena = AllArenasHarness::default();
         let host = DirectoryExistsModuleResolutionHost::new();
 
         let result = resolve_module_name(
             "someName",
             "/a/b/c/d",
-            Gc::new(
+            arena.alloc_compiler_options(
                 CompilerOptionsBuilder::default()
                     .module_resolution(ModuleResolutionKind::NodeJs)
                     .build()
@@ -3121,6 +3134,7 @@ mod module_resolution_host_directory_exists {
             None,
             None,
             None,
+            arena,
         )
         .unwrap();
         assert_that(&result.resolved_module).is_none();
@@ -3142,7 +3156,7 @@ mod module_resolution_host_directory_exists {
 
         fn set_overriding_read_file(
             &self,
-            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3161,7 +3175,7 @@ mod module_resolution_host_directory_exists {
 
         fn set_overriding_file_exists(
             &self,
-            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3176,7 +3190,7 @@ mod module_resolution_host_directory_exists {
 
         fn set_overriding_directory_exists(
             &self,
-            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3187,7 +3201,7 @@ mod module_resolution_host_directory_exists {
 
         fn set_overriding_get_directories(
             &self,
-            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3202,7 +3216,7 @@ mod module_resolution_host_directory_exists {
 
         fn set_overriding_realpath(
             &self,
-            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3228,6 +3242,7 @@ mod type_reference_directive_resolution {
         target_file: &File,
         other_files: &[&File],
     ) {
+        let ref arena = AllArenasHarness::default();
         let host = create_module_resolution_host(
             has_directory_exists,
             vec![initial_file.clone(), target_file.clone()]
@@ -3237,7 +3252,7 @@ mod type_reference_directive_resolution {
             type_directive,
             Some(&initial_file.name),
             types_root.map_or_default(|types_root| {
-                Gc::new(
+                arena.alloc_compiler_options(
                     CompilerOptionsBuilder::default()
                         .type_roots([types_root].owned())
                         .build()
@@ -3247,6 +3262,7 @@ mod type_reference_directive_resolution {
             &*host,
             None,
             None,
+            arena,
         )
         .unwrap();
         asserting("expected type directive to be resolved")
@@ -3496,8 +3512,8 @@ mod type_reference_directive_resolution {
                     .unwrap()
                 })
                 .collect_vec(),
-            |f: &Gc<Node>| Some(f.as_source_file().file_name().clone()),
-            |f: &Gc<Node>| f.clone(),
+            |f: &Id<Node>| Some(f.as_source_file().file_name().clone()),
+            |f: &Id<Node>| f.clone(),
         );
         let compiler_host = ReusedProgramKeepsErrorsCompilerHost::new(source_files);
         let program1 = create_program(
@@ -3531,12 +3547,15 @@ mod type_reference_directive_resolution {
 
     #[derive(Trace, Finalize)]
     struct ReusedProgramKeepsErrorsCompilerHost {
-        source_files: HashMap<String, Gc<Node>>,
+        source_files: HashMap<String, Id<Node>>,
     }
 
     impl ReusedProgramKeepsErrorsCompilerHost {
-        pub fn new(source_files: HashMap<String, Gc<Node>>) -> Gc<Box<dyn CompilerHost>> {
-            Gc::new(Box::new(Self { source_files }))
+        pub fn new(
+            source_files: HashMap<String, Id<Node>>,
+            arena: &impl HasArena,
+        ) -> Id<Box<dyn CompilerHost>> {
+            arena.alloc_compiler_host(Box::new(Self { source_files }))
         }
     }
 
@@ -3551,7 +3570,7 @@ mod type_reference_directive_resolution {
             _language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+        ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
             Ok(self.source_files.get(file_name).cloned())
         }
 
@@ -3565,7 +3584,7 @@ mod type_reference_directive_resolution {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             not_implemented()
         }
@@ -3576,7 +3595,7 @@ mod type_reference_directive_resolution {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             unreachable!()
         }
@@ -3587,7 +3606,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_write_file(
             &self,
-            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3634,7 +3653,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_create_directory(
             &self,
-            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3659,7 +3678,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_file_exists(
             &self,
-            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3674,7 +3693,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_get_directories(
             &self,
-            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3686,7 +3705,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_read_file(
             &self,
-            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3705,7 +3724,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_directory_exists(
             &self,
-            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3716,7 +3735,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_realpath(
             &self,
-            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3759,12 +3778,12 @@ mod type_reference_directive_resolution {
 
     #[derive(Trace, Finalize)]
     struct ModulesInTheSameKeepsErrorsCompilerHost {
-        file: Gc<Node /*SourceFile*/>,
+        file: Id<Node /*SourceFile*/>,
     }
 
     impl ModulesInTheSameKeepsErrorsCompilerHost {
-        pub fn new(file: Gc<Node>) -> Gc<Box<dyn CompilerHost>> {
-            Gc::new(Box::new(Self { file }))
+        pub fn new(file: Id<Node>, arena: &impl HasArena) -> Id<Box<dyn CompilerHost>> {
+            arena.alloc_compiler_host(Box::new(Self { file }))
         }
     }
 
@@ -3779,7 +3798,7 @@ mod type_reference_directive_resolution {
             _language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+        ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
             Ok(if file_name == &*self.file.as_source_file().file_name() {
                 Some(self.file.clone())
             } else {
@@ -3797,7 +3816,7 @@ mod type_reference_directive_resolution {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             not_implemented()
         }
@@ -3808,7 +3827,7 @@ mod type_reference_directive_resolution {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             unreachable!()
         }
@@ -3819,7 +3838,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_write_file(
             &self,
-            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3878,7 +3897,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_create_directory(
             &self,
-            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3903,7 +3922,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_file_exists(
             &self,
-            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3918,7 +3937,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_get_directories(
             &self,
-            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3933,7 +3952,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_read_file(
             &self,
-            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3952,7 +3971,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_directory_exists(
             &self,
-            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -3963,7 +3982,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_realpath(
             &self,
-            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -4006,12 +4025,12 @@ mod type_reference_directive_resolution {
 
     #[derive(Trace, Finalize)]
     struct ModulesInTsFileCompilerHost {
-        file: Gc<Node /*SourceFile*/>,
+        file: Id<Node /*SourceFile*/>,
     }
 
     impl ModulesInTsFileCompilerHost {
-        pub fn new(file: Gc<Node>) -> Gc<Box<dyn CompilerHost>> {
-            Gc::new(Box::new(Self { file }))
+        pub fn new(file: Id<Node>, arena: &impl HasArena) -> Id<Box<dyn CompilerHost>> {
+            arena.alloc_compiler_host(Box::new(Self { file }))
         }
     }
 
@@ -4026,7 +4045,7 @@ mod type_reference_directive_resolution {
             _language_version: ScriptTarget,
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
-        ) -> io::Result<Option<Gc<Node /*SourceFile*/>>> {
+        ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
             Ok(if file_name == &*self.file.as_source_file().file_name() {
                 Some(self.file.clone())
             } else {
@@ -4044,7 +4063,7 @@ mod type_reference_directive_resolution {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             not_implemented()
         }
@@ -4055,7 +4074,7 @@ mod type_reference_directive_resolution {
             _data: &str,
             _write_byte_order_mark: bool,
             _on_error: Option<&mut dyn FnMut(&str)>,
-            _source_files: Option<&[Gc<Node /*SourceFile*/>]>,
+            _source_files: Option<&[Id<Node /*SourceFile*/>]>,
         ) -> io::Result<()> {
             unreachable!()
         }
@@ -4066,7 +4085,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_write_file(
             &self,
-            _overriding_write_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_write_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -4126,7 +4145,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_create_directory(
             &self,
-            _overriding_create_directory: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_create_directory: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -4151,7 +4170,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_file_exists(
             &self,
-            _overriding_file_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_file_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -4166,7 +4185,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_get_directories(
             &self,
-            _overriding_get_directories: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_get_directories: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -4181,7 +4200,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_read_file(
             &self,
-            _overriding_read_file: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_read_file: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -4200,7 +4219,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_directory_exists(
             &self,
-            _overriding_directory_exists: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_directory_exists: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
@@ -4211,7 +4230,7 @@ mod type_reference_directive_resolution {
 
         fn set_overriding_realpath(
             &self,
-            _overriding_realpath: Option<Gc<Box<dyn ModuleResolutionHostOverrider>>>,
+            _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
         }
