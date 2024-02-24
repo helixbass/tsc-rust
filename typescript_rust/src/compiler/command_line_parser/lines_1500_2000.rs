@@ -316,7 +316,7 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
         &Diagnostics::Compiler_option_0_expects_an_argument
     }
 
-    fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+    fn as_did_you_mean_options_diagnostics(&self) -> &(dyn DidYouMeanOptionsDiagnostics + 'static) {
         self
     }
 }
@@ -445,7 +445,7 @@ impl ParseCommandLineWorkerDiagnostics for BuildOptionsDidYouMeanDiagnostics {
         &Diagnostics::Build_option_0_requires_a_value_of_type_1
     }
 
-    fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+    fn as_did_you_mean_options_diagnostics(&self) -> &(dyn DidYouMeanOptionsDiagnostics + 'static) {
         self
     }
 }
@@ -848,7 +848,7 @@ impl ParseCommandLineWorkerDiagnostics for WatchOptionsDidYouMeanDiagnostics {
         &Diagnostics::Watch_option_0_requires_a_value_of_type_1
     }
 
-    fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+    fn as_did_you_mean_options_diagnostics(&self) -> &(dyn DidYouMeanOptionsDiagnostics + 'static) {
         self
     }
 }
