@@ -26,7 +26,7 @@ use crate::{
 };
 
 struct TransformEcmascriptModule {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
     host: Id<Box<dyn EmitHost>>,
@@ -52,7 +52,7 @@ impl TransformEcmascriptModule {
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             host: context_ref.get_emit_host(),
             resolver: context_ref.get_emit_resolver(),
@@ -65,7 +65,11 @@ impl TransformEcmascriptModule {
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
-                TransformEcmascriptModuleOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+                TransformEcmascriptModuleOnEmitNodeOverrider::new(
+                    ret,
+                    previous_on_emit_node,
+                    arena_ref,
+                ),
             ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
@@ -73,6 +77,7 @@ impl TransformEcmascriptModule {
                 TransformEcmascriptModuleOnSubstituteNodeOverrider::new(
                     ret,
                     previous_on_substitute_node,
+                    arena_ref,
                 ),
             ))
         });
@@ -582,13 +587,10 @@ impl TransformerInterface for TransformEcmascriptModule {
     }
 }
 
-impl HasArena for TransformEcmascriptModule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformEcmascriptModule);
 
 struct TransformEcmascriptModuleOnEmitNodeOverrider {
+    arena: *const AllArenas,
     transform_ecmascript_module: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
@@ -597,8 +599,10 @@ impl TransformEcmascriptModuleOnEmitNodeOverrider {
     fn new(
         transform_ecmascript_module: Transformer,
         previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_ecmascript_module,
             previous_on_emit_node,
         }
@@ -649,13 +653,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformEcmascriptModuleOnEmi
     }
 }
 
-impl HasArena for TransformEcmascriptModuleOnEmitNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformEcmascriptModuleOnEmitNodeOverrider);
 
 struct TransformEcmascriptModuleOnSubstituteNodeOverrider {
+    arena: *const AllArenas,
     transform_ecmascript_module: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
@@ -664,8 +665,10 @@ impl TransformEcmascriptModuleOnSubstituteNodeOverrider {
     fn new(
         transform_ecmascript_module: Transformer,
         previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_ecmascript_module,
             previous_on_substitute_node,
         }
@@ -729,11 +732,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     }
 }
 
-impl HasArena for TransformEcmascriptModuleOnSubstituteNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformEcmascriptModuleOnSubstituteNodeOverrider);
 
 struct TransformEcmascriptModuleFactory {
     arena: *const AllArenas,

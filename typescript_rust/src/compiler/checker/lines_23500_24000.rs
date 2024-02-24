@@ -9,10 +9,11 @@ use id_arena::Id;
 use super::TypeFacts;
 use crate::{
     contains, get_assignment_target_kind, get_declared_expando_initializer, get_object_flags,
-    is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const, is_variable_declaration,
-    maybe_every, push_if_unique_eq, skip_parentheses, AllArenas, AssignmentKind, FlowFlags,
-    FlowNode, FlowNodeBase, FlowType, HasArena, InArena, Node, NodeInterface, ObjectFlags, Symbol,
-    SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface, TypePredicateKind, UnionReduction,
+    impl_has_arena, is_in_js_file, is_parameter_or_catch_clause_variable, is_var_const,
+    is_variable_declaration, maybe_every, push_if_unique_eq, skip_parentheses, AllArenas,
+    AssignmentKind, FlowFlags, FlowNode, FlowNodeBase, FlowType, HasArena, InArena, Node,
+    NodeInterface, ObjectFlags, Symbol, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    TypePredicateKind, UnionReduction,
 };
 
 impl TypeChecker {
@@ -133,12 +134,14 @@ impl TypeChecker {
             declared_type,
             initial_type,
             flow_container,
+            self,
         )
         .call()
     }
 }
 
 pub(super) struct GetFlowTypeOfReference {
+    arena: *const AllArenas,
     pub type_checker: Id<TypeChecker>,
     pub reference: Id<Node>,
     pub declared_type: Id<Type>,
@@ -150,12 +153,6 @@ pub(super) struct GetFlowTypeOfReference {
     shared_flow_start: Cell<Option<usize>>,
 }
 
-impl HasArena for GetFlowTypeOfReference {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
 impl GetFlowTypeOfReference {
     pub(super) fn new(
         type_checker: Id<TypeChecker>,
@@ -163,8 +160,10 @@ impl GetFlowTypeOfReference {
         declared_type: Id<Type>,
         initial_type: Id<Type>,
         flow_container: Option<Id<Node>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             type_checker,
             reference,
             declared_type,
@@ -1143,3 +1142,5 @@ impl GetFlowTypeOfReference {
         Ok(result.into())
     }
 }
+
+impl_has_arena!(GetFlowTypeOfReference);

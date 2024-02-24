@@ -10,10 +10,10 @@ use id_arena::Id;
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
     append_if_unique_eq, arrays_equal, contains, create_scanner, filter, get_check_flags,
-    get_object_flags, some, try_every, try_map, try_some, AllArenas, CheckFlags, ElementFlags,
-    HasArena, InArena, InferenceInfo, InferencePriority, Node, ObjectFlags, ScriptTarget, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker, TypeFlags,
-    TypeInterface, UnionReduction, VarianceFlags,
+    get_object_flags, impl_has_arena, some, try_every, try_map, try_some, AllArenas, CheckFlags,
+    ElementFlags, HasArena, InArena, InferenceInfo, InferencePriority, Node, ObjectFlags,
+    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker,
+    TypeFlags, TypeInterface, UnionReduction, VarianceFlags,
 };
 
 impl TypeChecker {
@@ -557,6 +557,7 @@ impl TypeChecker {
             original_target,
             priority,
             contravariant,
+            self,
         )
         .infer_from_types(original_source, original_target)?;
 
@@ -565,6 +566,7 @@ impl TypeChecker {
 }
 
 pub(super) struct InferTypes {
+    arena: *const AllArenas,
     pub type_checker: Id<TypeChecker>,
     pub inferences: Vec<Id<InferenceInfo>>,
     pub original_target: Id<Type>,
@@ -580,12 +582,6 @@ pub(super) struct InferTypes {
     expanding_flags: Cell<ExpandingFlags>,
 }
 
-impl HasArena for InferTypes {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
 impl InferTypes {
     pub(super) fn new(
         type_checker: Id<TypeChecker>,
@@ -593,8 +589,10 @@ impl InferTypes {
         original_target: Id<Type>,
         priority: InferencePriority,
         contravariant: bool,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             type_checker,
             inferences,
             original_target,
@@ -1360,3 +1358,5 @@ impl InferTypes {
         Ok(())
     }
 }
+
+impl_has_arena!(InferTypes);

@@ -10,16 +10,16 @@ use crate::{
     create_get_symbol_accessibility_diagnostic_for_node, create_symbol_table,
     get_effective_base_type_node, get_effective_modifier_flags, get_first_constructor_with_body,
     get_original_node_id, get_parse_node_factory, has_dynamic_name, has_effective_modifier,
-    has_syntactic_modifier, is_binding_pattern, is_declaration, is_entity_name_expression,
-    is_external_module_augmentation, is_function_like, is_global_scope_augmentation,
-    is_import_equals_declaration, is_omitted_expression, is_private_identifier,
-    is_property_access_expression, is_source_file, is_string_a_non_contextual_keyword,
-    is_type_node, is_type_parameter_declaration, map, map_defined, maybe_concatenate,
-    maybe_get_original_node_id, return_ok_default_if_none, set_original_node, set_parent, some,
-    try_flat_map, try_map, try_map_defined, try_maybe_map, try_maybe_visit_node,
-    try_maybe_visit_nodes, try_visit_node, try_visit_nodes, unescape_leading_underscores,
-    visit_nodes, AllArenas, ClassLikeDeclarationInterface, Debug_, Diagnostics,
-    GeneratedIdentifierFlags, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
+    has_syntactic_modifier, impl_has_arena, is_binding_pattern, is_declaration,
+    is_entity_name_expression, is_external_module_augmentation, is_function_like,
+    is_global_scope_augmentation, is_import_equals_declaration, is_omitted_expression,
+    is_private_identifier, is_property_access_expression, is_source_file,
+    is_string_a_non_contextual_keyword, is_type_node, is_type_parameter_declaration, map,
+    map_defined, maybe_concatenate, maybe_get_original_node_id, return_ok_default_if_none,
+    set_original_node, set_parent, some, try_flat_map, try_map, try_map_defined, try_maybe_map,
+    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_node, try_visit_nodes,
+    unescape_leading_underscores, visit_nodes, AllArenas, ClassLikeDeclarationInterface, Debug_,
+    Diagnostics, GeneratedIdentifierFlags, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasArena, HasQuestionTokenInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena,
     InterfaceOrClassLikeDeclarationInterface, ModifierFlags, NamedDeclarationInterface, Node,
@@ -1096,12 +1096,16 @@ impl TransformDeclarations {
 }
 
 struct VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
+    arena: *const AllArenas,
     input: Id<Node>,
 }
 
 impl VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
     fn new(input: Id<Node>, arena: &impl HasArena) -> GetSymbolAccessibilityDiagnostic {
-        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self { input }))
+        arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
+            input,
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -1123,13 +1127,10 @@ impl GetSymbolAccessibilityDiagnosticInterface
     }
 }
 
-impl HasArena for VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(VisitDeclarationStatementsGetSymbolAccessibilityDiagnostic);
 
 struct TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
+    arena: *const AllArenas,
     extends_clause: Id<Node>,
     input: Id<Node>,
 }
@@ -1141,6 +1142,7 @@ impl TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
         arena: &impl HasArena,
     ) -> GetSymbolAccessibilityDiagnostic {
         arena.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(Self {
+            arena: arena.arena(),
             extends_clause,
             input,
         }))
@@ -1165,8 +1167,4 @@ impl GetSymbolAccessibilityDiagnosticInterface
     }
 }
 
-impl HasArena for TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformTopLevelDeclarationGetSymbolAccessibilityDiagnostic);

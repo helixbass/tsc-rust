@@ -13,7 +13,7 @@ use crate::{
 };
 
 struct TransformES2021 {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
 }
@@ -23,7 +23,7 @@ impl TransformES2021 {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             context,
         }
@@ -208,11 +208,7 @@ impl TransformerInterface for TransformES2021 {
     }
 }
 
-impl HasArena for TransformES2021 {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2021);
 
 struct TransformES2021Factory {
     arena: *const AllArenas,

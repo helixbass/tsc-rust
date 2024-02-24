@@ -13,8 +13,8 @@ use crate::{
     for_each, for_each_entry, format_color_and_reset, format_diagnostic,
     format_diagnostics_with_color_and_context, get_directory_path, get_emit_script_target,
     get_normalized_absolute_path, get_parsed_command_line_of_config_file, get_pattern_from_spec,
-    get_referenced_file_location, get_regex_from_pattern, get_sys, is_reference_file_location,
-    is_referenced_file, maybe_for_each, out_file, package_id_to_string,
+    get_referenced_file_location, get_regex_from_pattern, get_sys, impl_has_arena,
+    is_reference_file_location, is_referenced_file, maybe_for_each, out_file, package_id_to_string,
     sort_and_deduplicate_diagnostics, target_option_declaration, text_substring, AllArenas,
     BuilderProgram, CancellationToken, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
     CompilerHost, CompilerOptions, ConfigFileDiagnosticsReporter, CreateProgram,
@@ -36,6 +36,7 @@ fn get_sys_format_diagnostics_host(arena: &impl HasArena) -> Id<SysFormatDiagnos
 }
 
 pub struct SysFormatDiagnosticsHost {
+    arena: *const AllArenas,
     system: Id<Box<dyn System>>,
     get_canonical_file_name: fn(&str) -> String,
 }
@@ -45,6 +46,7 @@ impl SysFormatDiagnosticsHost {
         let system_use_case_sensitive_file_names =
             system.ref_(arena).use_case_sensitive_file_names();
         Self {
+            arena: arena.arena(),
             system,
             get_canonical_file_name: create_get_canonical_file_name(
                 system_use_case_sensitive_file_names,
@@ -67,11 +69,7 @@ impl FormatDiagnosticsHost for SysFormatDiagnosticsHost {
     }
 }
 
-impl HasArena for SysFormatDiagnosticsHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(SysFormatDiagnosticsHost);
 
 pub fn create_diagnostic_reporter(
     system: Id<Box<dyn System>>,
@@ -87,11 +85,12 @@ pub fn create_diagnostic_reporter(
             .alloc_sys_format_diagnostics_host(SysFormatDiagnosticsHost::new(system.clone(), arena))
     };
     arena.alloc_diagnostic_reporter(Box::new(DiagnosticReporterConcrete::new(
-        host, pretty, system,
+        host, pretty, system, arena,
     )))
 }
 
 struct DiagnosticReporterConcrete {
+    arena: *const AllArenas,
     host: Id<SysFormatDiagnosticsHost>,
     pretty: bool,
     diagnostics: RefCell<Vec<Id<Diagnostic>>>,
@@ -103,8 +102,10 @@ impl DiagnosticReporterConcrete {
         host: Id<SysFormatDiagnosticsHost>,
         pretty: Option<bool>,
         system: Id<Box<dyn System>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             host,
             pretty: pretty.unwrap_or(false),
             diagnostics: Default::default(),
@@ -137,11 +138,7 @@ impl DiagnosticReporter for DiagnosticReporterConcrete {
     }
 }
 
-impl HasArena for DiagnosticReporterConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(DiagnosticReporterConcrete);
 
 fn clear_screen_if_not_watching_for_file_changes(
     system: &dyn System,
@@ -184,18 +181,21 @@ pub fn get_locale_time_string(_system: &dyn System) -> String {
 pub fn create_watch_status_reporter(
     system: Id<Box<dyn System>>,
     pretty: Option<bool>,
+    arena: &impl HasArena,
 ) -> WatchStatusReporterConcrete {
-    WatchStatusReporterConcrete::new(system, pretty)
+    WatchStatusReporterConcrete::new(system, pretty, arena)
 }
 
 pub struct WatchStatusReporterConcrete {
+    arena: *const AllArenas,
     system: Id<Box<dyn System>>,
     pretty: bool,
 }
 
 impl WatchStatusReporterConcrete {
-    pub fn new(system: Id<Box<dyn System>>, pretty: Option<bool>) -> Self {
+    pub fn new(system: Id<Box<dyn System>>, pretty: Option<bool>, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             system,
             pretty: pretty.unwrap_or(false),
         }
@@ -264,11 +264,7 @@ impl WatchStatusReporter for WatchStatusReporterConcrete {
     }
 }
 
-impl HasArena for WatchStatusReporterConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(WatchStatusReporterConcrete);
 
 pub fn parse_config_file_with_system(
     config_file_name: &str,
@@ -279,7 +275,7 @@ pub fn parse_config_file_with_system(
     report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
     arena: &impl HasArena,
 ) -> io::Result<Option<ParsedCommandLine>> {
-    let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic);
+    let host = ParseConfigFileWithSystemHost::new(system, report_diagnostic, arena);
     get_parsed_command_line_of_config_file(
         config_file_name,
         Some(options_to_extend),
@@ -292,6 +288,7 @@ pub fn parse_config_file_with_system(
 }
 
 struct ParseConfigFileWithSystemHost {
+    arena: *const AllArenas,
     system: Id<Box<dyn System>>,
     report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
 }
@@ -300,8 +297,10 @@ impl ParseConfigFileWithSystemHost {
     pub fn new(
         system: Id<Box<dyn System>>,
         report_diagnostic: Id<Box<dyn DiagnosticReporter>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             system,
             report_diagnostic,
         }
@@ -363,11 +362,7 @@ impl ConfigFileDiagnosticsReporter for ParseConfigFileWithSystemHost {
     }
 }
 
-impl HasArena for ParseConfigFileWithSystemHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParseConfigFileWithSystemHost);
 
 pub fn get_error_count_for_summary(diagnostics: &[Id<Diagnostic>], arena: &impl HasArena) -> usize {
     count_where(Some(diagnostics), |diagnostic, _| {

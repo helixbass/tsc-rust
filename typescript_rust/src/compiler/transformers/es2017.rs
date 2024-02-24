@@ -49,7 +49,7 @@ bitflags! {
 }
 
 struct TransformES2017 {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
     resolver: Id<Box<dyn EmitResolver>>,
@@ -74,7 +74,7 @@ impl TransformES2017 {
         let compiler_options = context_ref.get_compiler_options();
 
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
@@ -90,12 +90,16 @@ impl TransformES2017 {
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
-                TransformES2017OnEmitNodeOverrider::new(ret, previous_on_emit_node),
+                TransformES2017OnEmitNodeOverrider::new(ret, previous_on_emit_node, arena_ref),
             ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
-                TransformES2017OnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+                TransformES2017OnSubstituteNodeOverrider::new(
+                    ret,
+                    previous_on_substitute_node,
+                    arena_ref,
+                ),
             ))
         });
         ret
@@ -1414,13 +1418,10 @@ impl TransformerInterface for TransformES2017 {
     }
 }
 
-impl HasArena for TransformES2017 {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2017);
 
 struct TransformES2017OnEmitNodeOverrider {
+    arena: *const AllArenas,
     transform_es2017: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
@@ -1429,8 +1430,10 @@ impl TransformES2017OnEmitNodeOverrider {
     fn new(
         transform_es2017: Transformer,
         previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_es2017,
             previous_on_emit_node,
         }
@@ -1501,13 +1504,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformES2017OnEmitNodeOverr
     }
 }
 
-impl HasArena for TransformES2017OnEmitNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2017OnEmitNodeOverrider);
 
 struct TransformES2017OnSubstituteNodeOverrider {
+    arena: *const AllArenas,
     transform_es2017: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
@@ -1516,8 +1516,10 @@ impl TransformES2017OnSubstituteNodeOverrider {
     fn new(
         transform_es2017: Transformer,
         previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_es2017,
             previous_on_substitute_node,
         }
@@ -1544,11 +1546,7 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformES2017OnSubstit
     }
 }
 
-impl HasArena for TransformES2017OnSubstituteNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2017OnSubstituteNodeOverrider);
 
 struct TransformES2017Factory {
     arena: *const AllArenas,

@@ -518,9 +518,11 @@ pub(super) fn create_watch_status_reporter(
     options: CompilerOptionsOrBuildOptions,
     arena: &impl HasArena,
 ) -> Rc<dyn WatchStatusReporter> {
+    // TODO: this looks like it should be arena-ified
     Rc::new(create_watch_status_reporter_(
         sys.clone(),
         Some(should_be_pretty(&**sys.ref_(arena), options, arena)),
+        arena,
     ))
 }
 

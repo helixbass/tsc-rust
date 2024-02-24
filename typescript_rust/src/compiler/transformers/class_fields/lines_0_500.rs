@@ -364,7 +364,7 @@ bitflags! {
 }
 
 pub(super) struct TransformClassFields {
-    pub(super) _arena: *const AllArenas,
+    pub(super) arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
@@ -398,7 +398,7 @@ impl TransformClassFields {
         let use_define_for_class_fields =
             get_use_define_for_class_fields(&compiler_options.ref_(arena_ref));
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             context: context.clone(),
@@ -424,7 +424,7 @@ impl TransformClassFields {
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
-                TransformClassFieldsOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+                TransformClassFieldsOnEmitNodeOverrider::new(ret, previous_on_emit_node, arena_ref),
             ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
@@ -432,6 +432,7 @@ impl TransformClassFields {
                 TransformClassFieldsOnSubstituteNodeOverrider::new(
                     ret,
                     previous_on_substitute_node,
+                    arena_ref,
                 ),
             ))
         });
@@ -1211,13 +1212,10 @@ impl TransformerInterface for TransformClassFields {
     }
 }
 
-impl HasArena for TransformClassFields {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformClassFields);
 
 pub(super) struct TransformClassFieldsOnEmitNodeOverrider {
+    arena: *const AllArenas,
     transform_class_fields: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
@@ -1226,8 +1224,10 @@ impl TransformClassFieldsOnEmitNodeOverrider {
     fn new(
         transform_class_fields: Transformer,
         previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_class_fields,
             previous_on_emit_node,
         }
@@ -1374,13 +1374,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformClassFieldsOnEmitNode
     }
 }
 
-impl HasArena for TransformClassFieldsOnEmitNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformClassFieldsOnEmitNodeOverrider);
 
 pub(super) struct TransformClassFieldsOnSubstituteNodeOverrider {
+    arena: *const AllArenas,
     transform_class_fields: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
@@ -1389,8 +1386,10 @@ impl TransformClassFieldsOnSubstituteNodeOverrider {
     pub(super) fn new(
         transform_class_fields: Transformer,
         previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_class_fields,
             previous_on_substitute_node,
         }
@@ -1526,11 +1525,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     }
 }
 
-impl HasArena for TransformClassFieldsOnSubstituteNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformClassFieldsOnSubstituteNodeOverrider);
 
 struct TransformClassFieldsFactory {
     arena: *const AllArenas,

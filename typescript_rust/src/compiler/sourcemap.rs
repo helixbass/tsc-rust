@@ -6,10 +6,10 @@ use std::{
 use id_arena::Id;
 
 use crate::{
-    combine_paths, get_directory_path, get_relative_path_to_directory_or_url, AllArenas,
-    CharacterCodes, Debug_, EmitHost, GetOrInsertDefault, HasArena, InArena, LineAndCharacter,
-    NonEmpty, RawSourceMap, ScriptReferenceHost, SourceMapGenerator, SourceMapOptions,
-    SourceTextAsChars,
+    combine_paths, get_directory_path, get_relative_path_to_directory_or_url, impl_has_arena,
+    AllArenas, CharacterCodes, Debug_, EmitHost, GetOrInsertDefault, HasArena, InArena,
+    LineAndCharacter, NonEmpty, RawSourceMap, ScriptReferenceHost, SourceMapGenerator,
+    SourceMapOptions, SourceTextAsChars,
 };
 
 pub struct SourceMapGeneratorOptions {
@@ -37,6 +37,7 @@ pub fn create_source_map_generator(
 }
 
 struct SourceMapGeneratorConcrete {
+    arena: *const AllArenas,
     sources_directory_path: String,
     file: String,
     source_root: String,
@@ -79,6 +80,7 @@ impl SourceMapGeneratorConcrete {
         //     ? performance.createTimer("Source Map", "beforeSourcemap", "afterSourcemap")
         //     : performance.nullTimer;
         arena.alloc_source_map_generator(Box::new(Self {
+            arena: arena.arena(),
             sources_directory_path,
             file,
             source_root,
@@ -714,11 +716,7 @@ impl SourceMapGenerator for SourceMapGeneratorConcrete {
     }
 }
 
-impl HasArena for SourceMapGeneratorConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(SourceMapGeneratorConcrete);
 
 pub trait LineInfo {
     fn get_line_count(&self) -> usize;

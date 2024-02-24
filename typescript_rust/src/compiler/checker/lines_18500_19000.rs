@@ -7,7 +7,7 @@ use super::{
     CheckTypeRelatedTo, ExpandingFlags, IntersectionState, MappedTypeModifiers, RecursionFlags,
 };
 use crate::{
-    are_option_rcs_equal, get_object_flags, try_map, AccessFlags, AllArenas,
+    are_option_rcs_equal, get_object_flags, impl_has_arena, try_map, AccessFlags, AllArenas,
     DiagnosticMessageChain, HasArena, InArena, InferenceFlags, InferencePriority, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
     RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
@@ -541,6 +541,7 @@ impl CheckTypeRelatedTo {
                         RecursiveTypeRelatedToOutofbandVarianceMarkerHandler::new(
                             propagating_variance_flags.clone(),
                             original_handler.clone().unwrap(),
+                            self,
                         ),
                     )),
                 ));
@@ -1779,7 +1780,7 @@ impl CheckTypeRelatedTo {
                         None,
                         InferenceFlags::None,
                         Some(self.alloc_type_comparer(Box::new(
-                            TypeComparerIsRelatedToWorker::new(self.arena_id()),
+                            TypeComparerIsRelatedToWorker::new(self.arena_id(), self),
                         ))),
                     );
                     self.type_checker.ref_(self).infer_types(
@@ -2136,12 +2137,14 @@ impl TypeMapperCallback for ReportUnreliableMarkers {
 }
 
 pub(super) struct TypeComparerIsRelatedToWorker {
+    arena: *const AllArenas,
     check_type_related_to: Id<CheckTypeRelatedTo>,
 }
 
 impl TypeComparerIsRelatedToWorker {
-    pub fn new(check_type_related_to: Id<CheckTypeRelatedTo>) -> Self {
+    pub fn new(check_type_related_to: Id<CheckTypeRelatedTo>, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             check_type_related_to,
         }
     }
@@ -2157,13 +2160,10 @@ impl TypeComparer for TypeComparerIsRelatedToWorker {
     }
 }
 
-impl HasArena for TypeComparerIsRelatedToWorker {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TypeComparerIsRelatedToWorker);
 
 struct RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
+    arena: *const AllArenas,
     propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
     original_handler: Id<Box<dyn OutofbandVarianceMarkerHandler>>,
 }
@@ -2172,8 +2172,10 @@ impl RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
     pub fn new(
         propagating_variance_flags: Rc<Cell<RelationComparisonResult>>,
         original_handler: Id<Box<dyn OutofbandVarianceMarkerHandler>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             propagating_variance_flags,
             original_handler,
         }
@@ -2194,8 +2196,4 @@ impl OutofbandVarianceMarkerHandler for RecursiveTypeRelatedToOutofbandVarianceM
     }
 }
 
-impl HasArena for RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(RecursiveTypeRelatedToOutofbandVarianceMarkerHandler);

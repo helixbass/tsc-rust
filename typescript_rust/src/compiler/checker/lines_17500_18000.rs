@@ -599,6 +599,7 @@ impl TypeChecker {
             head_message,
             containing_message_chain,
             error_output_container,
+            self,
         )
         .ref_(self)
         .call()

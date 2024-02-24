@@ -15,8 +15,8 @@ use crate::{
     cast, continue_if_none, create_empty_exports, create_symbol_table, every, filter,
     find_ancestor, find_index, flat_map, for_each_entry, get_effective_modifier_flags, get_factory,
     get_name_of_declaration, get_symbol_id, group, has_scope_marker, has_syntactic_modifier,
-    id_text, indices_of, is_binary_expression, is_class_declaration, is_class_expression,
-    is_enum_declaration, is_export_assignment, is_export_declaration,
+    id_text, impl_has_arena, indices_of, is_binary_expression, is_class_declaration,
+    is_class_expression, is_enum_declaration, is_export_assignment, is_export_declaration,
     is_external_module_augmentation, is_external_module_indicator, is_external_or_common_js_module,
     is_function_declaration, is_global_scope_augmentation, is_identifier, is_interface_declaration,
     is_module_block, is_module_declaration, is_named_exports, is_property_access_expression,
@@ -67,6 +67,7 @@ impl NodeBuilder {
 }
 
 pub struct SymbolTableToDeclarationStatements {
+    arena: *const AllArenas,
     pub(super) _arena_id: Cell<Option<Id<Self>>>,
     pub(super) bundled: Option<bool>,
     pub(super) type_checker: Id<TypeChecker>,
@@ -82,12 +83,6 @@ pub struct SymbolTableToDeclarationStatements {
     pub(super) oldcontext: Id<NodeBuilderContext>,
     pub(super) symbol_table: Cell<Id<SymbolTable>>,
     pub(super) adding_declare: Cell<bool>,
-}
-
-impl HasArena for SymbolTableToDeclarationStatements {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
 }
 
 impl SymbolTableToDeclarationStatements {
@@ -110,6 +105,7 @@ impl SymbolTableToDeclarationStatements {
         context.remapped_symbol_names = Rc::new(RefCell::new(Some(Default::default())));
         let context = arena.alloc_node_builder_context(context);
         let ret = arena.alloc_symbol_table_to_declaration_statements(Self {
+            arena: arena.arena(),
             _arena_id: Default::default(),
             bundled,
             type_checker: type_checker.clone(),
@@ -155,6 +151,7 @@ impl SymbolTableToDeclarationStatements {
                 wrap_symbol_tracker_to_report_for_context(
                     context.clone(),
                     context.ref_(arena).tracker(),
+                    arena,
                 ),
             )));
         ret
@@ -1173,7 +1170,10 @@ impl SymbolTableToDeclarationStatements {
     }
 }
 
+impl_has_arena!(SymbolTableToDeclarationStatements);
+
 struct SymbolTableToDeclarationStatementsSymbolTracker {
+    arena: *const AllArenas,
     is_track_symbol_disabled: Cell<bool>,
     oldcontext_tracker: Id<Box<dyn SymbolTracker>>,
     type_checker: Id<TypeChecker>,
@@ -1192,6 +1192,7 @@ impl SymbolTableToDeclarationStatementsSymbolTracker {
         arena: &impl HasArena,
     ) -> Id<Box<dyn SymbolTracker>> {
         arena.alloc_symbol_tracker(Box::new(Self {
+            arena: arena.arena(),
             is_track_symbol_disabled: Default::default(),
             oldcontext_tracker,
             type_checker,
@@ -1390,17 +1391,17 @@ impl SymbolTracker for SymbolTableToDeclarationStatementsSymbolTracker {
     }
 }
 
-impl HasArena for SymbolTableToDeclarationStatementsSymbolTracker {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(SymbolTableToDeclarationStatementsSymbolTracker);
 
-pub(super) struct MakeSerializePropertySymbolCreatePropertyDeclaration;
+pub(super) struct MakeSerializePropertySymbolCreatePropertyDeclaration {
+    arena: *const AllArenas,
+}
 
 impl MakeSerializePropertySymbolCreatePropertyDeclaration {
     pub fn new(arena: &impl HasArena) -> Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
-        arena.alloc_make_serialize_property_symbol_create_property(Box::new(Self))
+        arena.alloc_make_serialize_property_symbol_create_property(Box::new(Self {
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -1427,17 +1428,17 @@ impl MakeSerializePropertySymbolCreateProperty
     }
 }
 
-impl HasArena for MakeSerializePropertySymbolCreatePropertyDeclaration {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(MakeSerializePropertySymbolCreatePropertyDeclaration);
 
-pub(super) struct MakeSerializePropertySymbolCreatePropertySignature;
+pub(super) struct MakeSerializePropertySymbolCreatePropertySignature {
+    arena: *const AllArenas,
+}
 
 impl MakeSerializePropertySymbolCreatePropertySignature {
     pub fn new(arena: &impl HasArena) -> Id<Box<dyn MakeSerializePropertySymbolCreateProperty>> {
-        arena.alloc_make_serialize_property_symbol_create_property(Box::new(Self))
+        arena.alloc_make_serialize_property_symbol_create_property(Box::new(Self {
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -1457,8 +1458,4 @@ impl MakeSerializePropertySymbolCreateProperty
     }
 }
 
-impl HasArena for MakeSerializePropertySymbolCreatePropertySignature {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(MakeSerializePropertySymbolCreatePropertySignature);

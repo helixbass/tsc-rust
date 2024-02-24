@@ -15,7 +15,7 @@ use crate::{
     create_diagnostic_for_node, create_diagnostic_for_node_array,
     create_diagnostic_for_node_from_message_chain, create_file_diagnostic, every, filter, find,
     first, flat_map, flatten, for_each, get_error_span_for_node, get_factory, get_first_identifier,
-    get_parse_node_factory, get_source_file_of_node, id_text, is_access_expression,
+    get_parse_node_factory, get_source_file_of_node, id_text, impl_has_arena, is_access_expression,
     is_binding_pattern, is_call_expression, is_function_expression_or_arrow_function,
     is_function_like_declaration, is_identifier, is_in_js_file, is_jsx_opening_element,
     is_jsx_opening_like_element, is_new_expression, is_parameter, is_property_access_expression,
@@ -957,6 +957,7 @@ impl TypeChecker {
                             i.clone(),
                             candidates.len(),
                             c.clone(),
+                            self,
                         );
                         let diags = self.get_signature_applicability_error(
                             node,
@@ -1451,6 +1452,7 @@ impl CheckTypeContainingMessageChain for ResolveCallContainingMessageChain {
 }
 
 struct ResolveCallOverloadContainingMessageChain {
+    arena: *const AllArenas,
     type_checker: Id<TypeChecker>,
     i: Rc<Cell<usize>>,
     candidates_len: usize,
@@ -1463,8 +1465,10 @@ impl ResolveCallOverloadContainingMessageChain {
         i: Rc<Cell<usize>>,
         candidates_len: usize,
         c: Id<Signature>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             type_checker,
             i,
             candidates_len,
@@ -1493,8 +1497,4 @@ impl CheckTypeContainingMessageChain for ResolveCallOverloadContainingMessageCha
     }
 }
 
-impl HasArena for ResolveCallOverloadContainingMessageChain {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ResolveCallOverloadContainingMessageChain);

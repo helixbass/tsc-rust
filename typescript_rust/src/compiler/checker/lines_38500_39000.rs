@@ -2,7 +2,6 @@ use std::{cell::RefCell, collections::HashMap, io, rc::Rc};
 
 use id_arena::Id;
 
-
 use super::CheckTypeContainingMessageChain;
 use crate::{
     __String, chain_diagnostic_messages, continue_if_none,
@@ -11,7 +10,7 @@ use crate::{
     get_declaration_modifier_flags_from_symbol, get_effective_base_type_node,
     get_name_of_declaration, get_text_of_property_name, has_abstract_modifier,
     has_ambient_modifier, has_effective_modifier, has_override_modifier, has_syntactic_modifier,
-    is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
+    impl_has_arena, is_binary_expression, is_constructor_declaration, is_identifier, is_in_js_file,
     is_parameter_property_declaration, is_property_declaration, is_static, length, maybe_filter,
     maybe_for_each, some, symbol_name, try_for_each, unescape_leading_underscores, AllArenas,
     CheckFlags, Debug_, DiagnosticMessage, DiagnosticMessageChain, Diagnostics, HasArena,
@@ -297,6 +296,7 @@ impl TypeChecker {
                                 declared_prop.clone(),
                                 type_with_this,
                                 base_with_this,
+                                self,
                             ),
                         ))),
                         None,
@@ -859,6 +859,7 @@ impl TypeChecker {
 }
 
 struct IssueMemberSpecificErrorContainingMessageChain {
+    arena: *const AllArenas,
     type_checker: Id<TypeChecker>,
     declared_prop: Id<Symbol>,
     type_with_this: Id<Type>,
@@ -871,8 +872,10 @@ impl IssueMemberSpecificErrorContainingMessageChain {
         declared_prop: Id<Symbol>,
         type_with_this: Id<Type>,
         base_with_this: Id<Type>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             type_checker,
             declared_prop,
             type_with_this,
@@ -909,11 +912,7 @@ impl CheckTypeContainingMessageChain for IssueMemberSpecificErrorContainingMessa
     }
 }
 
-impl HasArena for IssueMemberSpecificErrorContainingMessageChain {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(IssueMemberSpecificErrorContainingMessageChain);
 
 struct InheritanceInfoMap {
     pub prop: Id<Symbol>,

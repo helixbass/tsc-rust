@@ -10,7 +10,7 @@ use crate::{
 };
 
 struct TransformES2019 {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
 }
@@ -23,7 +23,7 @@ impl TransformES2019 {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             context,
         }))
@@ -107,11 +107,7 @@ impl TransformerInterface for TransformES2019 {
     }
 }
 
-impl HasArena for TransformES2019 {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2019);
 
 struct TransformES2019Factory {
     arena: *const AllArenas,

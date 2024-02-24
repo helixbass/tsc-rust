@@ -169,7 +169,7 @@ pub(super) fn declaration_emit_node_builder_flags() -> NodeBuilderFlags {
 }
 
 pub(super) struct TransformDeclarations {
-    pub(super) _arena: *const AllArenas,
+    pub(super) arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) get_symbol_accessibility_diagnostic: Cell<GetSymbolAccessibilityDiagnostic>,
     pub(super) needs_declare: Cell<bool>,
@@ -216,7 +216,7 @@ impl TransformDeclarations {
         let options = context.ref_(arena_ref).get_compiler_options();
         let host = context.ref_(arena_ref).get_emit_host();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             get_symbol_accessibility_diagnostic: Cell::new(throw_diagnostic(arena_ref)),
             needs_declare: Cell::new(true),
             is_bundled_emit: Cell::new(false),
@@ -247,7 +247,7 @@ impl TransformDeclarations {
         downcast_transformer_ref::<Self>(ret, arena_ref)
             .symbol_tracker
             .set(Some(arena_ref.alloc_symbol_tracker(Box::new(
-                TransformDeclarationsSymbolTracker::new(ret, host),
+                TransformDeclarationsSymbolTracker::new(ret, host, arena_ref),
             ))));
         ret
     }
@@ -560,7 +560,7 @@ impl TransformDeclarations {
         let old_diag = self.get_symbol_accessibility_diagnostic();
         self.set_get_symbol_accessibility_diagnostic(
             self.alloc_get_symbol_accessibility_diagnostic_interface(Box::new(
-                TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic::new(source_file),
+                TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic::new(source_file, self),
             )),
         );
         let result = self
@@ -1262,11 +1262,7 @@ impl TransformDeclarations {
     }
 }
 
-impl HasArena for TransformDeclarations {
-    fn arena(&self) -> &AllArenas {
-        unsafe { &*self._arena }
-    }
-}
+impl_has_arena!(TransformDeclarations);
 
 impl TransformerInterface for TransformDeclarations {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
@@ -1298,14 +1294,20 @@ impl GetSymbolAccessibilityDiagnosticInterface for ThrowDiagnostic {
 }
 
 pub(super) struct TransformDeclarationsSymbolTracker {
+    arena: *const AllArenas,
     is_track_symbol_disabled: Cell<bool>,
     pub(super) transform_declarations: Transformer,
     pub(super) host: Id<Box<dyn EmitHost>>,
 }
 
 impl TransformDeclarationsSymbolTracker {
-    pub(super) fn new(transform_declarations: Transformer, host: Id<Box<dyn EmitHost>>) -> Self {
+    pub(super) fn new(
+        transform_declarations: Transformer,
+        host: Id<Box<dyn EmitHost>>,
+        arena: &impl HasArena,
+    ) -> Self {
         Self {
+            arena: arena.arena(),
             is_track_symbol_disabled: Default::default(),
             transform_declarations,
             host,
@@ -1664,19 +1666,19 @@ impl SymbolTracker for TransformDeclarationsSymbolTracker {
     }
 }
 
-impl HasArena for TransformDeclarationsSymbolTracker {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformDeclarationsSymbolTracker);
 
 pub(super) struct TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
+    arena: *const AllArenas,
     pub(super) source_file: Id<Node /*SourceFile*/>,
 }
 
 impl TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
-    fn new(source_file: Id<Node /*SourceFile*/>) -> Self {
-        Self { source_file }
+    fn new(source_file: Id<Node /*SourceFile*/>, arena: &impl HasArena) -> Self {
+        Self {
+            source_file,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1708,11 +1710,7 @@ impl GetSymbolAccessibilityDiagnosticInterface
     }
 }
 
-impl HasArena for TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic);
 
 struct TransformDeclarationsFactory {
     arena: *const AllArenas,

@@ -13,11 +13,11 @@ use crate::{
     try_visit_parameter_list, Debug_, EmitFlags, FlattenLevel, FunctionLikeDeclarationInterface,
     HasInitializerInterface, Matches, NamedDeclarationInterface, Node, NodeArray, NodeExt,
     NodeInterface, ReadonlyTextRangeConcrete, SyntaxKind, VecExt, VisitResult, _d, add_range,
-    downcast_transformer_ref, element_at, flatten, is_call_to_helper, is_expression_statement,
-    is_identifier, is_packed_array_literal, is_return_statement, set_emit_flags, set_original_node,
-    try_span_map, AllArenas, AsDoubleDeref, CallBinding, CoreTransformationContext,
-    GeneratedIdentifierFlags, HasArena, InArena, OptionInArena, SignatureDeclarationInterface,
-    TransformFlags, Transformer,
+    downcast_transformer_ref, element_at, flatten, impl_has_arena, is_call_to_helper,
+    is_expression_statement, is_identifier, is_packed_array_literal, is_return_statement,
+    set_emit_flags, set_original_node, try_span_map, AllArenas, AsDoubleDeref, CallBinding,
+    CoreTransformationContext, GeneratedIdentifierFlags, HasArena, InArena, OptionInArena,
+    SignatureDeclarationInterface, TransformFlags, Transformer,
 };
 
 impl TransformES2015 {
@@ -798,9 +798,16 @@ impl TransformES2015 {
             &elements.ref_(self),
             |node: &Id<Node>, _| -> Rc<dyn PartitionSpread> {
                 if is_spread_element(&node.ref_(self)) {
-                    Rc::new(PartitionSpreadVisitSpanOfSpreads::new(self.arena_id()))
+                    // TODO: this looks like it should be arena-ified
+                    Rc::new(PartitionSpreadVisitSpanOfSpreads::new(
+                        self.arena_id(),
+                        self,
+                    ))
                 } else {
-                    Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(self.arena_id()))
+                    Rc::new(PartitionSpreadVisitSpanOfNonSpreads::new(
+                        self.arena_id(),
+                        self,
+                    ))
                 }
             },
             |partition: &[Id<Node>], visit_partition, _start, end| {
@@ -863,12 +870,16 @@ impl PartialEq for dyn PartitionSpread {
 }
 
 pub(super) struct PartitionSpreadVisitSpanOfSpreads {
+    arena: *const AllArenas,
     transform_es2015: Transformer,
 }
 
 impl PartitionSpreadVisitSpanOfSpreads {
-    pub(super) fn new(transform_es2015: Transformer) -> Self {
-        Self { transform_es2015 }
+    pub(super) fn new(transform_es2015: Transformer, arena: &impl HasArena) -> Self {
+        Self {
+            transform_es2015,
+            arena: arena.arena(),
+        }
     }
 
     pub(super) fn transform_es2015(&self) -> debug_cell::Ref<'_, TransformES2015> {
@@ -891,19 +902,19 @@ impl PartitionSpread for PartitionSpreadVisitSpanOfSpreads {
     }
 }
 
-impl HasArena for PartitionSpreadVisitSpanOfSpreads {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(PartitionSpreadVisitSpanOfSpreads);
 
 pub(super) struct PartitionSpreadVisitSpanOfNonSpreads {
+    arena: *const AllArenas,
     transform_es2015: Transformer,
 }
 
 impl PartitionSpreadVisitSpanOfNonSpreads {
-    pub(super) fn new(transform_es2015: Transformer) -> Self {
-        Self { transform_es2015 }
+    pub(super) fn new(transform_es2015: Transformer, arena: &impl HasArena) -> Self {
+        Self {
+            transform_es2015,
+            arena: arena.arena(),
+        }
     }
 
     pub(super) fn transform_es2015(&self) -> debug_cell::Ref<'_, TransformES2015> {
@@ -930,8 +941,4 @@ impl PartitionSpread for PartitionSpreadVisitSpanOfNonSpreads {
     }
 }
 
-impl HasArena for PartitionSpreadVisitSpanOfNonSpreads {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(PartitionSpreadVisitSpanOfNonSpreads);

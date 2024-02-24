@@ -12,8 +12,8 @@ use crate::{
     add_synthetic_leading_comment, append_if_unique_eq, contains, create_printer,
     create_text_writer, default_maximum_truncation_length, every, get_factory,
     get_first_identifier, get_object_flags, get_text_of_node,
-    get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text, is_binding_element,
-    is_expression, is_expression_with_type_arguments_in_class_extends_clause,
+    get_trailing_semicolon_deferring_writer, has_syntactic_modifier, id_text, impl_has_arena,
+    is_binding_element, is_expression, is_expression_with_type_arguments_in_class_extends_clause,
     is_external_or_common_js_module, is_identifier_text, is_import_type_node, is_in_js_file,
     is_late_visibility_painted_statement, is_module_with_string_literal_name,
     is_type_reference_node, is_variable_declaration, is_variable_statement, maybe_filter,
@@ -579,19 +579,15 @@ impl TypeChecker {
 
 #[derive(Clone, Debug)]
 pub struct NodeBuilder {
+    arena: *const AllArenas,
     pub(super) _arena_id: Cell<Option<Id<Self>>>,
     pub type_checker: Id<TypeChecker>,
-}
-
-impl HasArena for NodeBuilder {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
 }
 
 impl NodeBuilder {
     pub fn new(type_checker: Id<TypeChecker>, arena: &impl HasArena) -> Id<Self> {
         arena.alloc_node_builder(Self {
+            arena: arena.arena(),
             type_checker,
             _arena_id: Default::default(),
         })
@@ -774,7 +770,8 @@ impl NodeBuilder {
             tracker.clone(),
             self,
         );
-        let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
+        let context_tracker =
+            wrap_symbol_tracker_to_report_for_context(context.clone(), tracker, self);
         context
             .ref_(self)
             .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
@@ -827,7 +824,8 @@ impl NodeBuilder {
             tracker.clone(),
             self,
         );
-        let context_tracker = wrap_symbol_tracker_to_report_for_context(context.clone(), tracker);
+        let context_tracker =
+            wrap_symbol_tracker_to_report_for_context(context.clone(), tracker, self);
         context
             .ref_(self)
             .set_tracker(self.alloc_symbol_tracker(Box::new(context_tracker)));
@@ -1531,6 +1529,8 @@ impl NodeBuilder {
     }
 }
 
+impl_has_arena!(NodeBuilder);
+
 struct DefaultNodeBuilderContextSymbolTracker {
     pub module_resolver_host:
         Option<Id<Box<dyn ModuleSpecifierResolutionHostAndGetCommonSourceDirectory>>>,
@@ -1550,7 +1550,9 @@ impl DefaultNodeBuilderContextSymbolTracker {
                 Some(
                     arena.alloc_module_specifier_resolution_host_and_get_common_source_directory(
                         Box::new(
-                            DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(host),
+                            DefaultNodeBuilderContextSymbolTrackerModuleResolverHost::new(
+                                host, arena,
+                            ),
                         ),
                     ),
                 )
@@ -1624,12 +1626,16 @@ impl SymbolTracker for DefaultNodeBuilderContextSymbolTracker {
 }
 
 struct DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
+    arena: *const AllArenas,
     pub host: Id<Program /*TypeCheckerHost*/>,
 }
 
 impl DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
-    pub fn new(host: Id<Program /*TypeCheckerHost*/>) -> Self {
-        Self { host }
+    pub fn new(host: Id<Program /*TypeCheckerHost*/>, arena: &impl HasArena) -> Self {
+        Self {
+            host,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1698,20 +1704,18 @@ impl ModuleSpecifierResolutionHost for DefaultNodeBuilderContextSymbolTrackerMod
     }
 }
 
-impl HasArena for DefaultNodeBuilderContextSymbolTrackerModuleResolverHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(DefaultNodeBuilderContextSymbolTrackerModuleResolverHost);
 
 pub(super) fn wrap_symbol_tracker_to_report_for_context(
     context: Id<NodeBuilderContext>,
     tracker: Id<Box<dyn SymbolTracker>>,
+    arena: &impl HasArena,
 ) -> NodeBuilderContextWrappedSymbolTracker {
-    NodeBuilderContextWrappedSymbolTracker::new(tracker, context)
+    NodeBuilderContextWrappedSymbolTracker::new(tracker, context, arena)
 }
 
 pub(super) struct NodeBuilderContextWrappedSymbolTracker {
+    arena: *const AllArenas,
     is_track_symbol_disabled: Cell<bool>,
     tracker: Id<Box<dyn SymbolTracker>>,
     context: Id<NodeBuilderContext>,
@@ -1721,8 +1725,10 @@ impl NodeBuilderContextWrappedSymbolTracker {
     pub(super) fn new(
         tracker: Id<Box<dyn SymbolTracker>>,
         context: Id<NodeBuilderContext>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             is_track_symbol_disabled: Default::default(),
             tracker,
             context,
@@ -1945,13 +1951,10 @@ impl SymbolTracker for NodeBuilderContextWrappedSymbolTracker {
     }
 }
 
-impl HasArena for NodeBuilderContextWrappedSymbolTracker {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(NodeBuilderContextWrappedSymbolTracker);
 
 pub struct NodeBuilderContext {
+    arena: *const AllArenas,
     pub(super) _arena_id: Cell<Option<Id<NodeBuilderContext>>>,
     pub(super) enclosing_declaration: Cell<Option<Id<Node>>>,
     pub flags: Cell<NodeBuilderFlags>,
@@ -1981,6 +1984,7 @@ impl NodeBuilderContext {
         arena: &impl HasArena,
     ) -> Id<Self> {
         arena.alloc_node_builder_context(Self {
+            arena: arena.arena(),
             _arena_id: Default::default(),
             enclosing_declaration: Cell::new(enclosing_declaration),
             flags: Cell::new(flags),
@@ -2083,6 +2087,7 @@ impl NodeBuilderContext {
 impl Clone for NodeBuilderContext {
     fn clone(&self) -> Self {
         Self {
+            arena: self.arena,
             _arena_id: Default::default(),
             enclosing_declaration: Cell::new(self.maybe_enclosing_declaration()),
             flags: self.flags.clone(),
@@ -2107,8 +2112,4 @@ impl Clone for NodeBuilderContext {
     }
 }
 
-impl HasArena for NodeBuilderContext {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(NodeBuilderContext);

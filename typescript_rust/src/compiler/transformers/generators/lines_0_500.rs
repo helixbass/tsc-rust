@@ -13,7 +13,7 @@ use crate::{
     ReadonlyTextRangeConcrete, TransformationContext,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, downcast_transformer_ref,
-    get_emit_script_target, get_original_node, get_original_node_id, id_text,
+    get_emit_script_target, get_original_node, get_original_node_id, id_text, impl_has_arena,
     is_function_like_declaration, is_generated_identifier, is_identifier, ref_mut_unwrapped,
     ref_unwrapped, visit_each_child, visit_parameter_list, AllArenas, CoreTransformationContext,
     Debug_, FunctionLikeDeclarationInterface, HasArena, InArena, Matches,
@@ -338,7 +338,7 @@ pub(super) fn get_instruction_name(instruction: Instruction) -> Option<&'static 
 }
 
 pub(super) struct TransformGenerators {
-    pub(super) _arena: *const AllArenas,
+    pub(super) arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) language_version: ScriptTarget,
@@ -381,7 +381,7 @@ impl TransformGenerators {
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
             resolver: context_ref.get_emit_resolver(),
@@ -414,7 +414,11 @@ impl TransformGenerators {
         }));
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
-                TransformGeneratorsOnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+                TransformGeneratorsOnSubstituteNodeOverrider::new(
+                    ret,
+                    previous_on_substitute_node,
+                    arena_ref,
+                ),
             ))
         });
         ret
@@ -1051,13 +1055,10 @@ impl TransformerInterface for TransformGenerators {
     }
 }
 
-impl HasArena for TransformGenerators {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformGenerators);
 
 struct TransformGeneratorsOnSubstituteNodeOverrider {
+    arena: *const AllArenas,
     transform_generators: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
@@ -1066,8 +1067,10 @@ impl TransformGeneratorsOnSubstituteNodeOverrider {
     fn new(
         transform_generators: Transformer,
         previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_generators,
             previous_on_substitute_node,
         }
@@ -1150,11 +1153,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     }
 }
 
-impl HasArena for TransformGeneratorsOnSubstituteNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformGeneratorsOnSubstituteNodeOverrider);
 
 pub(super) struct TransformGeneratorsFactory {
     arena: *const AllArenas,
@@ -1177,11 +1176,7 @@ impl TransformerFactoryInterface for TransformGeneratorsFactory {
     }
 }
 
-impl HasArena for TransformGeneratorsFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformGeneratorsFactory);
 
 pub fn transform_generators(arena: &impl HasArena) -> TransformerFactory {
     arena.alloc_transformer_factory(Box::new(TransformGeneratorsFactory::new(arena)))

@@ -5,13 +5,13 @@ use id_arena::Id;
 use super::{Binder, ContainerFlags, ModuleInstanceState};
 use crate::{
     append, create_binary_expression_trampoline, get_host_signature_from_jsdoc,
-    has_syntactic_modifier, is_ambient_module, is_assignment_operator, is_assignment_target,
-    is_binary_expression, is_binding_pattern, is_class_static_block_declaration,
-    is_destructuring_assignment, is_export_assignment, is_export_declaration, is_external_module,
-    is_for_in_or_of_statement, is_function_like, is_identifier,
-    is_logical_or_coalescing_assignment_operator, is_module_augmentation_external, is_module_block,
-    is_object_literal_or_class_expression_method_or_accessor, is_omitted_expression,
-    is_optional_chain, is_optional_chain_root, is_outermost_optional_chain,
+    has_syntactic_modifier, impl_has_arena, is_ambient_module, is_assignment_operator,
+    is_assignment_target, is_binary_expression, is_binding_pattern,
+    is_class_static_block_declaration, is_destructuring_assignment, is_export_assignment,
+    is_export_declaration, is_external_module, is_for_in_or_of_statement, is_function_like,
+    is_identifier, is_logical_or_coalescing_assignment_operator, is_module_augmentation_external,
+    is_module_block, is_object_literal_or_class_expression_method_or_accessor,
+    is_omitted_expression, is_optional_chain, is_optional_chain_root, is_outermost_optional_chain,
     is_push_or_unshift_identifier, is_source_file, is_static, set_parent, set_parent_recursive,
     skip_parentheses, try_cast, try_parse_pattern, AllArenas, AsDoubleDeref,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode,
@@ -23,7 +23,7 @@ use crate::{
 impl Binder {
     pub(super) fn create_bind_binary_expression_flow(&self) -> BindBinaryExpressionFlow {
         let trampoline = create_binary_expression_trampoline(
-            BindBinaryExpressionFlowStateMachine::new(self.arena_id()),
+            BindBinaryExpressionFlowStateMachine::new(self.arena_id(), self),
         );
         BindBinaryExpressionFlow::new(trampoline)
     }
@@ -755,12 +755,16 @@ pub struct WorkArea {
 }
 
 pub(crate) struct BindBinaryExpressionFlowStateMachine {
+    arena: *const AllArenas,
     binder: Id<Binder>,
 }
 
 impl BindBinaryExpressionFlowStateMachine {
-    pub fn new(binder: Id<Binder>) -> Self {
-        Self { binder }
+    pub fn new(binder: Id<Binder>, arena: &impl HasArena) -> Self {
+        Self {
+            binder,
+            arena: arena.arena(),
+        }
     }
 
     pub fn maybe_bind(
@@ -954,8 +958,4 @@ impl BinaryExpressionStateMachine for BindBinaryExpressionFlowStateMachine {
     }
 }
 
-impl HasArena for BindBinaryExpressionFlowStateMachine {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(BindBinaryExpressionFlowStateMachine);

@@ -10,11 +10,11 @@ use crate::{
     get_declaration_modifier_flags_from_symbol, get_export_assignment_expression, get_factory,
     get_object_flags, get_property_assignment_alias_like_expression,
     get_selected_effective_modifier_flags, get_source_file_of_node, get_symbol_id, id_text,
-    is_accessor, is_binary_expression, is_class_expression, is_entity_name_expression,
-    is_export_assignment, is_function_like_declaration, is_get_accessor, is_identifier_text,
-    is_property_access_expression, is_property_declaration, is_property_signature,
-    is_prototype_property_assignment, is_set_accessor, is_single_or_double_quote,
-    is_string_a_non_contextual_keyword, is_variable_declaration, length,
+    impl_has_arena, is_accessor, is_binary_expression, is_class_expression,
+    is_entity_name_expression, is_export_assignment, is_function_like_declaration, is_get_accessor,
+    is_identifier_text, is_property_access_expression, is_property_declaration,
+    is_property_signature, is_prototype_property_assignment, is_set_accessor,
+    is_single_or_double_quote, is_string_a_non_contextual_keyword, is_variable_declaration, length,
     maybe_get_source_file_of_node, set_text_range_id_node, some, strip_quotes, symbol_name,
     unescape_leading_underscores, AllArenas, BoolExt, Debug_, HasArena, InArena,
     InternalSymbolName, IteratorExt, Matches, ModifierFlags, Node, NodeArray, NodeArrayOrVec,
@@ -346,6 +346,7 @@ impl SymbolTableToDeclarationStatements {
             create_property,
             method_kind,
             use_accessors,
+            self,
         )
     }
 
@@ -731,6 +732,7 @@ impl SymbolTableToDeclarationStatements {
 
 #[derive(Copy, Clone)]
 pub(super) struct MakeSerializePropertySymbol {
+    arena: *const AllArenas,
     type_checker: Id<TypeChecker>,
     node_builder: Id<NodeBuilder>,
     context: Id<NodeBuilderContext>,
@@ -738,12 +740,6 @@ pub(super) struct MakeSerializePropertySymbol {
     create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
     method_kind: SyntaxKind,
     use_accessors: bool,
-}
-
-impl HasArena for MakeSerializePropertySymbol {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
 }
 
 impl MakeSerializePropertySymbol {
@@ -755,8 +751,10 @@ impl MakeSerializePropertySymbol {
         create_property: Id<Box<dyn MakeSerializePropertySymbolCreateProperty>>,
         method_kind: SyntaxKind,
         use_accessors: bool,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             type_checker,
             node_builder,
             context,
@@ -1120,6 +1118,8 @@ impl MakeSerializePropertySymbol {
         )))
     }
 }
+
+impl_has_arena!(MakeSerializePropertySymbol);
 
 pub trait MakeSerializePropertySymbolCreateProperty {
     fn call(

@@ -2,15 +2,14 @@ use std::{collections::HashMap, convert::TryInto, io};
 
 use id_arena::Id;
 
-
 use super::{ambient_module_symbol_regex, IterationTypeKind};
 use crate::{
     create_diagnostic_for_node, create_file_diagnostic, filter, find, first_or_undefined,
     for_each_bool, get_check_flags, get_declaration_of_kind, get_effective_return_type_node,
     get_jsdoc_type_parameter_declarations, get_object_flags, get_parse_tree_node,
     get_source_file_of_node, get_span_of_token_at_position, has_abstract_modifier,
-    has_possible_external_module_reference, has_syntactic_modifier, id_text, is_accessor,
-    is_binary_expression, is_binding_element, is_child_of_node_with_kind,
+    has_possible_external_module_reference, has_syntactic_modifier, id_text, impl_has_arena,
+    is_accessor, is_binary_expression, is_binding_element, is_child_of_node_with_kind,
     is_computed_property_name, is_declaration, is_declaration_name, is_function_like,
     is_get_or_set_accessor_declaration, is_identifier, is_in_js_file, is_let, is_literal_type_node,
     is_omitted_expression, is_prefix_unary_expression, is_private_identifier,
@@ -1011,14 +1010,9 @@ impl TypeChecker {
 
 #[derive(Debug)]
 pub(super) struct EmitResolverCreateResolver {
+    arena: *const AllArenas,
     type_checker: Id<TypeChecker>,
     file_to_directive: Option<HashMap<String, String>>,
-}
-
-impl HasArena for EmitResolverCreateResolver {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
 }
 
 impl EmitResolverCreateResolver {
@@ -1029,6 +1023,7 @@ impl EmitResolverCreateResolver {
             .ref_(arena)
             .get_resolved_type_reference_directives();
         let mut ret = Self {
+            arena: arena.arena(),
             type_checker: type_checker.clone(),
             file_to_directive: Default::default(),
         };
@@ -1729,6 +1724,8 @@ impl EmitResolver for EmitResolverCreateResolver {
         Ok(false)
     }
 }
+
+impl_has_arena!(EmitResolverCreateResolver);
 
 pub(super) fn is_not_accessor(declaration: &Node /*Declaration*/) -> bool {
     !is_accessor(declaration)

@@ -5,7 +5,7 @@ use id_arena::Id;
 use super::{CheckMode, IterationUse, TypeFacts};
 use crate::{
     create_binary_expression_trampoline, get_assigned_expando_initializer,
-    get_assignment_declaration_kind, get_object_flags, get_source_file_of_node,
+    get_assignment_declaration_kind, get_object_flags, get_source_file_of_node, impl_has_arena,
     is_assignment_operator, is_binary_expression, is_if_statement, is_in_js_file,
     is_private_identifier_property_access_expression, is_spread_assignment, push_or_replace,
     skip_parentheses, skip_trivia, text_span_contains_position, token_to_string,
@@ -481,7 +481,7 @@ impl TypeChecker {
 
     pub(super) fn create_check_binary_expression(&self) -> CheckBinaryExpression {
         let trampoline = create_binary_expression_trampoline(
-            CheckBinaryExpressionStateMachine::new(self.arena_id()),
+            CheckBinaryExpressionStateMachine::new(self.arena_id(), self),
         );
         CheckBinaryExpression::new(trampoline)
     }
@@ -1056,12 +1056,16 @@ pub struct WorkArea {
 
 #[derive(Debug)]
 pub struct CheckBinaryExpressionStateMachine {
+    arena: *const AllArenas,
     type_checker: Id<TypeChecker>,
 }
 
 impl CheckBinaryExpressionStateMachine {
-    pub fn new(type_checker: Id<TypeChecker>) -> Self {
-        Self { type_checker }
+    pub fn new(type_checker: Id<TypeChecker>, arena: &impl HasArena) -> Self {
+        Self {
+            type_checker,
+            arena: arena.arena(),
+        }
     }
 
     pub fn maybe_check_expression(
@@ -1343,8 +1347,4 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
     }
 }
 
-impl HasArena for CheckBinaryExpressionStateMachine {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(CheckBinaryExpressionStateMachine);

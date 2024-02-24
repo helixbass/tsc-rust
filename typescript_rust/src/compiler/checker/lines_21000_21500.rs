@@ -9,7 +9,7 @@ use crate::{
     same_map, ElementFlags, FindAncestorCallbackReturn, IndexInfo, NamedDeclarationInterface,
     ReverseMappedType, SymbolInterface, SyntaxKind, TransientSymbolInterface, TypeComparer,
     TypeMapper, TypeMapperCallback, __String, declaration_name_to_string, get_name_of_declaration,
-    get_object_flags, get_source_file_of_node, is_call_signature_declaration,
+    get_object_flags, get_source_file_of_node, impl_has_arena, is_call_signature_declaration,
     is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
     try_some, AllArenas, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext,
     InferenceFlags, InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature,
@@ -742,6 +742,7 @@ impl TypeChecker {
             compare_types.unwrap_or_else(|| {
                 self.alloc_type_comparer(Box::new(TypeComparerCompareTypesAssignable::new(
                     self.arena_id(),
+                    self,
                 )))
             }),
         )
@@ -1243,12 +1244,16 @@ impl TypeMapperCallback for CreateInferenceContextWorkerNonFixingMapperCallback 
 }
 
 pub(super) struct TypeComparerCompareTypesAssignable {
+    arena: *const AllArenas,
     type_checker: Id<TypeChecker>,
 }
 
 impl TypeComparerCompareTypesAssignable {
-    pub fn new(type_checker: Id<TypeChecker>) -> Self {
-        Self { type_checker }
+    pub fn new(type_checker: Id<TypeChecker>, arena: &impl HasArena) -> Self {
+        Self {
+            type_checker,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1258,8 +1263,4 @@ impl TypeComparer for TypeComparerCompareTypesAssignable {
     }
 }
 
-impl HasArena for TypeComparerCompareTypesAssignable {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TypeComparerCompareTypesAssignable);

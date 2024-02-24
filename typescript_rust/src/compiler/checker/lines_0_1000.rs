@@ -15,7 +15,7 @@ use crate::{
     add_range, contains_parse_error, create_diagnostic_collection, create_symbol_table,
     escape_leading_underscores, find_ancestor, get_allow_synthetic_default_imports,
     get_emit_module_kind, get_emit_script_target, get_first_identifier, get_module_instance_state,
-    get_parse_tree_node, get_strict_option_value, get_use_define_for_class_fields,
+    get_parse_tree_node, get_strict_option_value, get_use_define_for_class_fields, impl_has_arena,
     is_assignment_pattern, is_call_like_expression, is_export_specifier, is_expression,
     is_function_like, is_identifier, is_jsx_attribute_like, is_object_literal_element_like,
     is_parameter, is_property_access_expression,
@@ -3808,11 +3808,7 @@ impl TypeChecker {
     }
 }
 
-impl HasArena for TypeChecker {
-    fn arena(&self) -> &AllArenas {
-        unsafe { &*self.arena }
-    }
-}
+impl_has_arena!(TypeChecker);
 
 pub struct RelationCacheSizes {
     pub assignable: usize,

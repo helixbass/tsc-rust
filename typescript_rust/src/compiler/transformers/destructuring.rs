@@ -20,11 +20,11 @@ use crate::{
     is_omitted_expression, is_property_name_literal, is_simple_inlineable_expression,
     is_string_or_numeric_literal_like, is_variable_declaration, node_is_synthesized,
     set_text_range, try_get_property_name_of_binding_or_assignment_element, try_maybe_visit_node,
-    try_visit_node, AllArenas, CoreTransformationContext, Debug_,
-    GetOrInsertDefault, HasArena, InArena, Matches, NamedDeclarationInterface, Node, NodeExt,
-    NodeFactory, NodeInterface, NonEmpty, Number, OptionTry, ReadonlyTextRange,
-    ReadonlyTextRangeConcrete, TransformFlags, TransformNodesTransformationResult,
-    TransformationContext, VecExt, VisitResult, _d,
+    try_visit_node, AllArenas, CoreTransformationContext, Debug_, GetOrInsertDefault, HasArena,
+    InArena, Matches, NamedDeclarationInterface, Node, NodeExt, NodeFactory, NodeInterface,
+    NonEmpty, Number, OptionTry, ReadonlyTextRange, ReadonlyTextRangeConcrete, TransformFlags,
+    TransformNodesTransformationResult, TransformationContext, VecExt, VisitResult, _d,
+    impl_has_arena,
 };
 
 trait FlattenContext {
@@ -106,6 +106,7 @@ fn emit_expression(
 }
 
 struct FlattenDestructuringAssignmentFlattenContext<'visitor, 'create_assignment_callback> {
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     downlevel_iteration: bool,
@@ -147,8 +148,10 @@ impl<'visitor, 'create_assignment_callback>
             >,
         >,
         visitor: Option<Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             context,
             level,
             downlevel_iteration,
@@ -277,11 +280,7 @@ impl FlattenContext for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
     }
 }
 
-impl HasArena for FlattenDestructuringAssignmentFlattenContext<'_, '_> {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(FlattenDestructuringAssignmentFlattenContext<'_, '_>);
 
 pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callback>(
     mut node: Id<Node>, /*VariableDeclaration | DestructuringAssignment*/
@@ -366,6 +365,7 @@ pub fn try_flatten_destructuring_assignment<'visitor, 'create_assignment_callbac
         expressions.clone(),
         create_assignment_callback.clone(),
         visitor.clone(),
+        arena,
     );
 
     if value.is_some() {
@@ -555,6 +555,7 @@ pub fn try_flatten_destructuring_binding<'visitor>(
         pending_expressions.clone(),
         pending_declarations.clone(),
         visitor.clone(),
+        arena,
     );
 
     if is_variable_declaration(&node.ref_(arena)) {
@@ -724,6 +725,7 @@ fn emit_binding_or_assignment(
 }
 
 struct FlattenDestructuringBindingFlattenContext<'visitor> {
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     level: FlattenLevel,
     downlevel_iteration: bool,
@@ -743,8 +745,10 @@ impl<'visitor> FlattenDestructuringBindingFlattenContext<'visitor> {
         pending_expressions: Id<Option<Vec<Id<Node /*Expression*/>>>>,
         pending_declarations: Id<Vec<PendingDeclaration>>,
         visitor: Rc<RefCell<dyn FnMut(Id<Node>) -> io::Result<VisitResult> + 'visitor>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             context,
             level,
             downlevel_iteration,
@@ -849,11 +853,7 @@ impl FlattenContext for FlattenDestructuringBindingFlattenContext<'_> {
     }
 }
 
-impl HasArena for FlattenDestructuringBindingFlattenContext<'_> {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(FlattenDestructuringBindingFlattenContext<'_>);
 
 fn flatten_binding_or_assignment_element(
     flatten_context: &impl FlattenContext,

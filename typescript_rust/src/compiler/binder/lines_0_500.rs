@@ -23,10 +23,10 @@ use crate::{
     DiagnosticRelatedInformation, DiagnosticWithLocation, Diagnostics, FlowFlags, FlowNode,
     FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface,
     Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_eq, create_symbol_table,
-    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, index_of_eq,
-    is_property_name_literal, object_allocator, set_parent, set_value_declaration, AllArenas,
-    BaseSymbol, HasArena, InArena, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray,
-    NodeInterface, OptionInArena, SymbolFlags, SymbolInterface,
+    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, impl_has_arena,
+    index_of_eq, is_property_name_literal, object_allocator, set_parent, set_value_declaration,
+    AllArenas, BaseSymbol, HasArena, InArena, InternalSymbolName, NamedDeclarationInterface, Node,
+    NodeArray, NodeInterface, OptionInArena, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -362,10 +362,9 @@ pub struct Binder {
 }
 
 pub(super) fn create_binder(arena: &impl HasArena) -> Id<Binder> {
-    let arena: *const AllArenas = arena.arena();
-    let arena_ref = unsafe { &*arena };
-    let ret = arena_ref.alloc_binder(Binder {
-        arena,
+    let arena_ptr: *const AllArenas = arena.arena();
+    let ret = arena.alloc_binder(Binder {
+        arena: arena_ptr,
         _arena_id: Default::default(),
         file: Default::default(),
         options: Default::default(),
@@ -395,16 +394,16 @@ pub(super) fn create_binder(arena: &impl HasArena) -> Id<Binder> {
         Symbol: Default::default(),
         classifiable_names: Default::default(),
         unreachable_flow: Cell::new(
-            arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into()),
+            arena.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into()),
         ),
         reported_unreachable_flow: Cell::new(
-            arena_ref.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into()),
+            arena.alloc_flow_node(FlowStart::new(FlowFlags::Unreachable, None).into()),
         ),
         bind_binary_expression_flow: Default::default(),
     });
-    ret.ref_(arena_ref).bind_binary_expression_flow.set(Some(
-        arena_ref.alloc_bind_binary_expression_flow(
-            ret.ref_(arena_ref).create_bind_binary_expression_flow(),
+    ret.ref_(arena).bind_binary_expression_flow.set(Some(
+        arena.alloc_bind_binary_expression_flow(
+            ret.ref_(arena).create_bind_binary_expression_flow(),
         ),
     ));
     ret
@@ -1267,8 +1266,4 @@ impl Binder {
     }
 }
 
-impl HasArena for Binder {
-    fn arena(&self) -> &AllArenas {
-        unsafe { &*self.arena }
-    }
-}
+impl_has_arena!(Binder);

@@ -15,8 +15,8 @@ use super::{
 use crate::{
     add_related_info, append, chain_diagnostic_messages, concatenate_diagnostic_message_chains,
     contains, create_diagnostic_for_node, create_diagnostic_for_node_from_message_chain,
-    find_ancestor, first_or_undefined, get_emit_script_target, get_object_flags, is_identifier,
-    is_identifier_text, is_import_call, is_jsx_attribute, is_jsx_attributes,
+    find_ancestor, first_or_undefined, get_emit_script_target, get_object_flags, impl_has_arena,
+    is_identifier, is_identifier_text, is_import_call, is_jsx_attribute, is_jsx_attributes,
     is_jsx_opening_like_element, is_object_literal_element_like, maybe_get_source_file_of_node,
     some, try_reduce_left, AllArenas, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasArena, InArena, Node,
@@ -26,6 +26,7 @@ use crate::{
 };
 
 pub struct CheckTypeRelatedTo {
+    arena: *const AllArenas,
     _arena_id: Cell<Option<Id<CheckTypeRelatedTo>>>,
     pub type_checker: Id<TypeChecker>,
     pub source: Id<Type>,
@@ -51,12 +52,6 @@ pub struct CheckTypeRelatedTo {
     pub in_property_check: Cell<bool>,
 }
 
-impl HasArena for CheckTypeRelatedTo {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
 impl CheckTypeRelatedTo {
     pub(super) fn new(
         type_checker: &TypeChecker,
@@ -67,8 +62,10 @@ impl CheckTypeRelatedTo {
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
+        arena: &impl HasArena,
     ) -> Id<Self> {
         type_checker.alloc_check_type_related_to(Self {
+            arena: arena.arena(),
             _arena_id: Default::default(),
             type_checker: type_checker.arena_id(),
             source,
@@ -1833,6 +1830,8 @@ impl CheckTypeRelatedTo {
         Ok(false)
     }
 }
+
+impl_has_arena!(CheckTypeRelatedTo);
 
 #[derive(Clone)]
 pub(super) struct ErrorCalculationState {

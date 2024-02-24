@@ -1249,6 +1249,7 @@ impl TypeChecker {
             Option::<&fn(Id<Type>, Id<Type>) -> io::Result<()>>::None,
             self.alloc_type_comparer(Box::new(TypeComparerCompareTypesAssignable::new(
                 self.arena_id(),
+                self,
             ))),
             None,
         )? != Ternary::False)

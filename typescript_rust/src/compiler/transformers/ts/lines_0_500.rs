@@ -12,8 +12,8 @@ use crate::{
     add_emit_helpers, add_synthetic_trailing_comment, create_unparsed_source_file,
     declaration_name_to_string, downcast_transformer_ref, get_emit_module_kind,
     get_emit_script_target, get_original_node, get_parse_tree_node, get_strict_option_value,
-    get_text_of_node, has_syntactic_modifier, is_access_expression, is_class_declaration,
-    is_element_access_expression, is_generated_identifier, is_local_name,
+    get_text_of_node, has_syntactic_modifier, impl_has_arena, is_access_expression,
+    is_class_declaration, is_element_access_expression, is_generated_identifier, is_local_name,
     is_property_access_expression, is_shorthand_property_assignment, is_source_file, is_statement,
     map_defined, maybe_get_original_node_full, modifier_to_flag, ref_mut_unwrapped, ref_unwrapped,
     set_constant_value, try_maybe_visit_each_child, AllArenas, BoolExt, CompilerOptions,
@@ -58,7 +58,7 @@ bitflags! {
 }
 
 pub(super) struct TransformTypeScript {
-    pub(super) _arena: *const AllArenas,
+    pub(super) arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
@@ -89,7 +89,7 @@ impl TransformTypeScript {
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             strict_null_checks: get_strict_option_value(
@@ -113,12 +113,16 @@ impl TransformTypeScript {
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
-                TransformTypeScriptOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+                TransformTypeScriptOnEmitNodeOverrider::new(ret, previous_on_emit_node, arena_ref),
             ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
-                TransformTypeScriptOnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+                TransformTypeScriptOnSubstituteNodeOverrider::new(
+                    ret,
+                    previous_on_substitute_node,
+                    arena_ref,
+                ),
             ))
         });
 
@@ -652,13 +656,10 @@ impl TransformerInterface for TransformTypeScript {
     }
 }
 
-impl HasArena for TransformTypeScript {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformTypeScript);
 
 struct TransformTypeScriptOnEmitNodeOverrider {
+    arena: *const AllArenas,
     transform_type_script: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
@@ -667,8 +668,10 @@ impl TransformTypeScriptOnEmitNodeOverrider {
     fn new(
         transform_type_script: Transformer,
         previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_type_script,
             previous_on_emit_node,
         }
@@ -740,13 +743,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformTypeScriptOnEmitNodeO
     }
 }
 
-impl HasArena for TransformTypeScriptOnEmitNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformTypeScriptOnEmitNodeOverrider);
 
 struct TransformTypeScriptOnSubstituteNodeOverrider {
+    arena: *const AllArenas,
     transform_type_script: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
@@ -755,8 +755,10 @@ impl TransformTypeScriptOnSubstituteNodeOverrider {
     fn new(
         transform_type_script: Transformer,
         previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_type_script,
             previous_on_substitute_node,
         }
@@ -1057,11 +1059,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     }
 }
 
-impl HasArena for TransformTypeScriptOnSubstituteNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformTypeScriptOnSubstituteNodeOverrider);
 
 struct TransformTypeScriptFactory {
     arena: *const AllArenas,

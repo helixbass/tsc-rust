@@ -13,9 +13,9 @@ use crate::{
     is_this_property, some, unescape_leading_underscores, AssignmentDeclarationKind, CheckFlags,
     Debug_, DiagnosticMessageChain, Diagnostics, HasTypeInterface, JsxEmit, JsxFlags,
     JsxReferenceKind, ModifierFlags, NodeFlags, ScriptTarget, Signature, SignatureKind,
-    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, try_map, AllArenas,
-    HasArena, InArena, Node, NodeInterface, ObjectFlags, OptionInArena, OptionTry, Symbol,
-    SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
+    SymbolFlags, UnionOrIntersectionTypeInterface, __String, get_object_flags, impl_has_arena,
+    try_map, AllArenas, HasArena, InArena, Node, NodeInterface, ObjectFlags, OptionInArena,
+    OptionTry, Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
 };
 
 impl TypeChecker {
@@ -241,7 +241,7 @@ impl TypeChecker {
                         &Diagnostics::Its_return_type_0_is_not_a_valid_JSX_element,
                     )),
                     Some(self.alloc_check_type_containing_message_chain(Box::new(
-                        GenerateInitialErrorChain::new(opening_like_element),
+                        GenerateInitialErrorChain::new(opening_like_element, self),
                     ))),
                     None,
                 )?;
@@ -263,7 +263,7 @@ impl TypeChecker {
                         &Diagnostics::Its_instance_type_0_is_not_a_valid_JSX_element,
                     )),
                     Some(self.alloc_check_type_containing_message_chain(Box::new(
-                        GenerateInitialErrorChain::new(opening_like_element),
+                        GenerateInitialErrorChain::new(opening_like_element, self),
                     ))),
                     None,
                 )?;
@@ -298,7 +298,7 @@ impl TypeChecker {
                     &Diagnostics::Its_element_type_0_is_not_a_valid_JSX_element,
                 )),
                 Some(self.alloc_check_type_containing_message_chain(Box::new(
-                    GenerateInitialErrorChain::new(opening_like_element),
+                    GenerateInitialErrorChain::new(opening_like_element, self),
                 ))),
                 None,
             )?;
@@ -919,12 +919,14 @@ impl TypeChecker {
 }
 
 pub(super) struct GenerateInitialErrorChain {
+    arena: *const AllArenas,
     opening_like_element: Id<Node>,
 }
 
 impl GenerateInitialErrorChain {
-    pub fn new(opening_like_element: Id<Node>) -> Self {
+    pub fn new(opening_like_element: Id<Node>, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             opening_like_element,
         }
     }
@@ -948,8 +950,4 @@ impl CheckTypeContainingMessageChain for GenerateInitialErrorChain {
     }
 }
 
-impl HasArena for GenerateInitialErrorChain {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(GenerateInitialErrorChain);
