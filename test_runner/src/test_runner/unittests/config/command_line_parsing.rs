@@ -10,7 +10,7 @@ mod parse_command_line {
     use typescript_rust::{
         compiler_options_did_you_mean_diagnostics, parse_command_line_worker, BaseDiagnostic,
         BaseDiagnosticRelatedInformationBuilder, CompilerOptionsBuilder, DiagnosticMessageText,
-        DiagnosticRelatedInformationInterface, Diagnostics, HasArena, ModuleKind,
+        DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, ModuleKind,
         ParseCommandLineWorkerDiagnostics, ParsedCommandLine, ParsedCommandLineBuilder,
         ScriptTarget,
     };
@@ -22,7 +22,7 @@ mod parse_command_line {
         expected_parsed_command_line: ParsedCommandLine,
         worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
     ) {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         let parsed = parse_command_line_worker(
             &*if let Some(mut worker_diagnostic) = worker_diagnostic {
                 worker_diagnostic()
@@ -34,15 +34,16 @@ mod parse_command_line {
                 .map(ToOwned::to_owned)
                 .collect_vec(),
             Option::<fn(&str) -> io::Result<Option<String>>>::None,
-            &arena,
+            arena,
         )
-        .into_parsed_command_line(&arena);
-        assert_that(&*parsed.options).is_equal_to(&*expected_parsed_command_line.options);
+        .into_parsed_command_line(arena);
+        assert_that(&*parsed.options.ref_(arena))
+            .is_equal_to(&*expected_parsed_command_line.options.ref_(arena));
         assert_that(&parsed.watch_options.as_deref())
             .is_equal_to(expected_parsed_command_line.watch_options.as_deref());
 
-        let parsed_errors = (*parsed.errors).borrow();
-        let expected_errors = (*expected_parsed_command_line.errors).borrow();
+        let parsed_errors = parsed.errors.ref_(arena);
+        let expected_errors = expected_parsed_command_line.errors.ref_(arena);
         asserting(&format!(
             "Expected error: {:?}. Actual error: {:?}",
             &*expected_errors, &*parsed_errors,
@@ -50,16 +51,18 @@ mod parse_command_line {
         .that(&*parsed_errors)
         .has_length(expected_errors.len());
         for (parsed_error, expected_error) in iter::zip(&*parsed_errors, &*expected_errors) {
-            assert_that(&parsed_error.code()).is_equal_to(expected_error.code());
-            assert_that(&parsed_error.category()).is_equal_to(expected_error.category());
-            match expected_error.message_text() {
+            assert_that(&parsed_error.ref_(arena).code())
+                .is_equal_to(expected_error.ref_(arena).code());
+            assert_that(&parsed_error.ref_(arena).category())
+                .is_equal_to(expected_error.ref_(arena).category());
+            match expected_error.ref_(arena).message_text() {
                 DiagnosticMessageText::String(expected_error_message_text)
                     if expected_error_message_text.contains("[...]") =>
                 {
                     // TODO: upstream fix where it looks like this currently isn't testing anything
                     // but should presumably be comparing against parsedError.messageText?
                     let prefix = expected_error_message_text.split("[...]").next().unwrap();
-                    assert_that(parsed_error.message_text()).matches(|parsed_error_message_text| {
+                    assert_that(parsed_error.ref_(arena).message_text()).matches(|parsed_error_message_text| {
                         matches!(
                             parsed_error_message_text,
                             DiagnosticMessageText::String(parsed_error_message_text) if parsed_error_message_text.starts_with(prefix)
@@ -67,7 +70,7 @@ mod parse_command_line {
                     });
                 }
                 DiagnosticMessageText::String(expected_error_message_text) => {
-                    assert_that(parsed_error.message_text()).matches(|parsed_error_message_text| {
+                    assert_that(parsed_error.ref_(arena).message_text()).matches(|parsed_error_message_text| {
                         matches!(
                             parsed_error_message_text,
                             DiagnosticMessageText::String(parsed_error_message_text) if parsed_error_message_text == expected_error_message_text
@@ -75,7 +78,7 @@ mod parse_command_line {
                     });
                 }
                 DiagnosticMessageText::DiagnosticMessageChain(expected_error_message_text) => {
-                    assert_that(parsed_error.message_text()).matches(|parsed_error_message_text| {
+                    assert_that(parsed_error.ref_(arena).message_text()).matches(|parsed_error_message_text| {
                         matches!(
                             parsed_error_message_text,
                             DiagnosticMessageText::DiagnosticMessageChain(parsed_error_message_text) if parsed_error_message_text == expected_error_message_text
@@ -102,15 +105,18 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_single_option_of_library_flag() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--lib", "es6", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .file_names(vec!["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(["lib.es2015.d.ts".to_owned()])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(["lib.es2015.d.ts".to_owned()])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -189,18 +195,21 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_multiple_options_of_library_flags() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--lib", "es5,es2015.symbol.wellknown", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib([
-                            "lib.es5.d.ts".to_owned(),
-                            "lib.es2015.symbol.wellknown.d.ts".to_owned(),
-                        ])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib([
+                                "lib.es5.d.ts".to_owned(),
+                                "lib.es2015.symbol.wellknown.d.ts".to_owned(),
+                            ])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -210,7 +219,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_invalid_option_of_library_flags() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--lib", "es5,invalidOption", "0.ts"],
             ParsedCommandLineBuilder::default()
@@ -233,13 +242,15 @@ mod parse_command_line {
                         )
                         .into(),
                     )],
-                    &arena,
+                    arena,
                 )
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(["lib.es5.d.ts".to_owned()])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(["lib.es5.d.ts".to_owned()])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -249,7 +260,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_empty_options_of_jsx() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--jsx"],
             ParsedCommandLineBuilder::default()
@@ -284,14 +295,14 @@ mod parse_command_line {
                         )
                         .into(),
                     )
-                ], &arena)
+                ], arena)
                 .file_names([
                     "0.ts".to_owned()
                 ])
                 .options(
-                    CompilerOptionsBuilder::default()
+                    arena.alloc_compiler_options(CompilerOptionsBuilder::default()
                         .build()
-                        .unwrap(),
+                        .unwrap()),
                 )
                 .build()
                 .unwrap(),
@@ -301,7 +312,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_empty_options_of_module() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--module"],
             ParsedCommandLineBuilder::default()
@@ -335,14 +346,14 @@ mod parse_command_line {
                         )
                         .into(),
                     )
-                ], &arena)
+                ], arena)
                 .file_names([
                     "0.ts".to_owned()
                 ])
                 .options(
-                    CompilerOptionsBuilder::default()
+                    arena.alloc_compiler_options(CompilerOptionsBuilder::default()
                         .build()
-                        .unwrap(),
+                        .unwrap()),
                 )
                 .build()
                 .unwrap(),
@@ -352,7 +363,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_empty_options_of_new_line() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--newLine"],
             ParsedCommandLineBuilder::default()
@@ -392,10 +403,13 @@ mod parse_command_line {
                             .into(),
                         ),
                     ],
-                    &arena,
+                    arena,
                 )
                 .file_names(["0.ts".to_owned()])
-                .options(CompilerOptionsBuilder::default().build().unwrap())
+                .options(
+                    arena
+                        .alloc_compiler_options(CompilerOptionsBuilder::default().build().unwrap()),
+                )
                 .build()
                 .unwrap(),
             Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
@@ -404,7 +418,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_empty_options_of_target() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--target"],
             ParsedCommandLineBuilder::default()
@@ -441,9 +455,9 @@ mod parse_command_line {
                         )
                         .into(),
                     ),
-                ], &arena)
+                ], arena)
                 .file_names(["0.ts".to_owned()])
-                .options(CompilerOptionsBuilder::default().build().unwrap())
+                .options(arena.alloc_compiler_options(CompilerOptionsBuilder::default().build().unwrap()))
                 .build()
                 .unwrap(),
             Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
@@ -452,7 +466,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_empty_options_of_module_resolution() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--moduleResolution"],
             ParsedCommandLineBuilder::default()
@@ -489,9 +503,9 @@ mod parse_command_line {
                         )
                         .into(),
                     ),
-                ], &arena)
+                ], arena)
                 .file_names(["0.ts".to_owned()])
-                .options(CompilerOptionsBuilder::default().build().unwrap())
+                .options(arena.alloc_compiler_options(CompilerOptionsBuilder::default().build().unwrap()))
                 .build()
                 .unwrap(),
             Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
@@ -500,7 +514,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_empty_options_of_lib() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--lib"],
             ParsedCommandLineBuilder::default()
@@ -521,14 +535,16 @@ mod parse_command_line {
                         )
                         .into(),
                     )],
-                    &arena,
+                    arena,
                 )
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(vec![])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(vec![])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -538,7 +554,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_empty_string_of_lib() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--lib", ""],
             ParsedCommandLineBuilder::default()
@@ -559,14 +575,16 @@ mod parse_command_line {
                         )
                         .into(),
                     )],
-                    &arena,
+                    arena,
                 )
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(vec![])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(vec![])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -576,16 +594,19 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_immediately_following_command_line_argument_of_lib() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["0.ts", "--lib", "--sourcemap"],
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(vec![])
-                        .source_map(true)
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(vec![])
+                            .source_map(true)
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -595,7 +616,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_lib_option_with_extra_comma() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--lib", "es5,", "es7", "0.ts"],
             ParsedCommandLineBuilder::default()
@@ -617,14 +638,16 @@ mod parse_command_line {
                         )
                         .into(),
                     )],
-                    &arena,
+                    arena,
                 )
                 .file_names(["es7".to_owned(), "0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(vec!["lib.es5.d.ts".to_owned()])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(vec!["lib.es5.d.ts".to_owned()])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -634,7 +657,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_lib_option_with_trailing_white_space() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--lib", "es5, ", "es7", "0.ts"],
             ParsedCommandLineBuilder::default()
@@ -656,14 +679,16 @@ mod parse_command_line {
                         )
                         .into(),
                     )],
-                    &arena,
+                    arena,
                 )
                 .file_names(["es7".to_owned(), "0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(vec!["lib.es5.d.ts".to_owned()])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(vec!["lib.es5.d.ts".to_owned()])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -673,6 +698,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_multiple_compiler_flags_with_input_files_at_the_end() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             [
                 "--lib",
@@ -684,14 +710,16 @@ mod parse_command_line {
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .lib(vec![
-                            "lib.es5.d.ts".to_owned(),
-                            "lib.es2015.symbol.wellknown.d.ts".to_owned(),
-                        ])
-                        .target(ScriptTarget::ES5)
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .lib(vec![
+                                "lib.es5.d.ts".to_owned(),
+                                "lib.es2015.symbol.wellknown.d.ts".to_owned(),
+                            ])
+                            .target(ScriptTarget::ES5)
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -701,6 +729,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_multiple_compiler_flags_with_input_files_in_the_middle() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             [
                 "--module",
@@ -714,15 +743,17 @@ mod parse_command_line {
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .module(ModuleKind::CommonJS)
-                        .target(ScriptTarget::ES5)
-                        .lib(vec![
-                            "lib.es5.d.ts".to_owned(),
-                            "lib.es2015.symbol.wellknown.d.ts".to_owned(),
-                        ])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .module(ModuleKind::CommonJS)
+                            .target(ScriptTarget::ES5)
+                            .lib(vec![
+                                "lib.es5.d.ts".to_owned(),
+                                "lib.es2015.symbol.wellknown.d.ts".to_owned(),
+                            ])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -732,6 +763,7 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_multiple_library_compiler_flags() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             [
                 "--module",
@@ -747,15 +779,17 @@ mod parse_command_line {
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .module(ModuleKind::CommonJS)
-                        .target(ScriptTarget::ES5)
-                        .lib(vec![
-                            "lib.es2015.core.d.ts".to_owned(),
-                            "lib.es2015.symbol.wellknown.d.ts".to_owned(),
-                        ])
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .module(ModuleKind::CommonJS)
+                            .target(ScriptTarget::ES5)
+                            .lib(vec![
+                                "lib.es2015.core.d.ts".to_owned(),
+                                "lib.es2015.symbol.wellknown.d.ts".to_owned(),
+                            ])
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -765,15 +799,18 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_explicit_boolean_flag_value() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--strictNullChecks", "false", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .strict_null_checks(false)
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .strict_null_checks(false)
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -783,15 +820,18 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_non_boolean_argument_after_boolean_flag() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--noImplicitAny", "t", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .file_names(["t".to_owned(), "0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .no_implicit_any(true)
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .no_implicit_any(true)
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -801,14 +841,17 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_implicit_boolean_flag_value() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--strictNullChecks"],
             ParsedCommandLineBuilder::default()
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .strict_null_checks(true)
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .strict_null_checks(true)
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -818,15 +861,18 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_incremental() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--incremental", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .incremental(true)
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .incremental(true)
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -836,15 +882,18 @@ mod parse_command_line {
 
     #[test]
     fn test_parse_ts_build_info_file() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--tsBuildInfoFile", "build.tsbuildinfo", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .ts_build_info_file("build.tsbuildinfo")
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .ts_build_info_file("build.tsbuildinfo")
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -880,11 +929,16 @@ mod parse_command_line {
             option_name: &str,
             worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
         ) {
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 [&*format!("--{option_name}"), "null", "0.ts"],
                 ParsedCommandLineBuilder::default()
                     .file_names(["0.ts".to_owned()])
-                    .options(CompilerOptionsBuilder::default().build().unwrap())
+                    .options(
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default().build().unwrap(),
+                        ),
+                    )
                     .build()
                     .unwrap(),
                 worker_diagnostic,
@@ -897,7 +951,7 @@ mod parse_command_line {
             diagnostic_message: &DiagnosticMessage,
             worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
         ) {
-            let arena = AllArenasHarness::default();
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 [&*format!("--{option_name}"), non_null_value, "0.ts"],
                 ParsedCommandLineBuilder::default()
@@ -917,10 +971,14 @@ mod parse_command_line {
                             )
                             .into(),
                         )],
-                        &arena,
+                        arena,
                     )
                     .file_names(["0.ts".to_owned()])
-                    .options(CompilerOptionsBuilder::default().build().unwrap())
+                    .options(
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default().build().unwrap(),
+                        ),
+                    )
                     .build()
                     .unwrap(),
                 worker_diagnostic,
@@ -932,7 +990,7 @@ mod parse_command_line {
             diagnostic_message: &DiagnosticMessage,
             worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
         ) {
-            let arena = AllArenasHarness::default();
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["0.ts", "--strictNullChecks", &*format!("--{option_name}")],
                 ParsedCommandLineBuilder::default()
@@ -952,14 +1010,16 @@ mod parse_command_line {
                             )
                             .into(),
                         )],
-                        &arena,
+                        arena,
                     )
                     .file_names(["0.ts".to_owned()])
                     .options(
-                        CompilerOptionsBuilder::default()
-                            .strict_null_checks(true)
-                            .build()
-                            .unwrap(),
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default()
+                                .strict_null_checks(true)
+                                .build()
+                                .unwrap(),
+                        ),
                     )
                     .build()
                     .unwrap(),
@@ -972,7 +1032,7 @@ mod parse_command_line {
             diagnostic_message: &DiagnosticMessage,
             worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
         ) {
-            let arena = AllArenasHarness::default();
+            let ref arena = AllArenasHarness::default();
             assert_parse_result(
                 ["0.ts", &*format!("--{option_name}")],
                 ParsedCommandLineBuilder::default()
@@ -992,10 +1052,14 @@ mod parse_command_line {
                             )
                             .into(),
                         )],
-                        &arena,
+                        arena,
                     )
                     .file_names(["0.ts".to_owned()])
-                    .options(CompilerOptionsBuilder::default().build().unwrap())
+                    .options(
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default().build().unwrap(),
+                        ),
+                    )
                     .build()
                     .unwrap(),
                 worker_diagnostic,
@@ -1054,7 +1118,10 @@ mod parse_command_line {
             for VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics
         {
             fn get_options_name_map(&self) -> Id<OptionsNameMap> {
-                self.alloc_options_name_map(create_option_name_map(&self.option_declarations, self))
+                self.alloc_options_name_map(create_option_name_map(
+                    &self.option_declarations.ref_(self),
+                    self,
+                ))
             }
 
             fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
@@ -1105,6 +1172,7 @@ mod parse_command_line {
                 non_null_value,
             }: VerifyNullNonIncludedOption,
         ) {
+            let ref arena = AllArenasHarness::default();
             verify_null(
                 VerifyNull {
                     option_name: "optionName".to_owned(),
@@ -1112,19 +1180,20 @@ mod parse_command_line {
                     diagnostic_message: &Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line,
                     worker_diagnostic: Some(Rc::new(move || {
                         let option_declarations: Id<Vec<Id<CommandLineOption>>> =
-                            compiler_options_did_you_mean_diagnostics()
+                            arena.alloc_vec_command_line_option(compiler_options_did_you_mean_diagnostics()
                                 .option_declarations()
-                                .to_vec()
+                                .ref_(arena)
+                                .clone()
                                 .and_push(
-                                    CommandLineOptionBaseBuilder::default()
+                                    arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                                         .name("optionName")
                                         .type_(type_.clone())
                                         .is_tsconfig_only(true)
                                         .category(&*Diagnostics::Backwards_Compatibility)
                                         .description(&*Diagnostics::Enable_project_compilation)
                                         .default_value_description("undefined".to_owned())
-                                        .build().unwrap().try_into().unwrap()
-                                ).into();
+                                        .build().unwrap().try_into().unwrap())
+                                ));
                         Rc::new(VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
                             option_declarations,
                             compiler_options_did_you_mean_diagnostics: compiler_options_did_you_mean_diagnostics()
@@ -1139,15 +1208,18 @@ mod parse_command_line {
 
             #[test]
             fn test_allows_setting_it_to_false() {
+                let ref arena = AllArenasHarness::default();
                 assert_parse_result(
                     ["--composite", "false", "0.ts"],
                     ParsedCommandLineBuilder::default()
                         .file_names(["0.ts".to_owned()])
                         .options(
-                            CompilerOptionsBuilder::default()
-                                .composite(false)
-                                .build()
-                                .unwrap(),
+                            arena.alloc_compiler_options(
+                                CompilerOptionsBuilder::default()
+                                    .composite(false)
+                                    .build()
+                                    .unwrap(),
+                            ),
                         )
                         .build()
                         .unwrap(),
@@ -1218,11 +1290,15 @@ mod parse_command_line {
 
     #[test]
     fn test_allows_tsconfig_only_option_to_be_set_to_null() {
+        let ref arena = AllArenasHarness::default();
         assert_parse_result(
             ["--composite", "null", "-tsBuildInfoFile", "null", "0.ts"],
             ParsedCommandLineBuilder::default()
                 .file_names(["0.ts".to_owned()])
-                .options(CompilerOptionsBuilder::default().build().unwrap())
+                .options(
+                    arena
+                        .alloc_compiler_options(CompilerOptionsBuilder::default().build().unwrap()),
+                )
                 .build()
                 .unwrap(),
             Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,

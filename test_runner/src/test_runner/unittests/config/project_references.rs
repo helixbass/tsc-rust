@@ -48,19 +48,27 @@ impl From<Rc<ProjectReference>> for StringOrProjectReference {
 
 type TestSpecification = HashMap<String, TestProjectSpecification>;
 
-fn assert_has_error(message: &str, errors: &[Id<Diagnostic>], diag: &DiagnosticMessage) {
-    if !errors.into_iter().any(|e| e.code() == diag.code) {
+fn assert_has_error(
+    message: &str,
+    errors: &[Id<Diagnostic>],
+    diag: &DiagnosticMessage,
+    arena: &impl HasArena,
+) {
+    if !errors
+        .into_iter()
+        .any(|e| e.ref_(arena).code() == diag.code)
+    {
         let error_string = errors
             .into_iter()
             .map(|e| {
                 format!(
                     "    {}: {:?}",
-                    if let Some(e_file) = e.maybe_file() {
+                    if let Some(e_file) = e.ref_(arena).maybe_file() {
                         e_file.as_source_file().file_name().clone()
                     } else {
                         "[global]".to_owned()
                     },
-                    e.message_text()
+                    e.ref_(arena).message_text()
                 )
             })
             .collect_vec()
@@ -357,6 +365,7 @@ mod constraint_checking_for_settings {
                     "Reports an error about the wrong decl setting",
                     &errs,
                     &Diagnostics::Composite_projects_may_not_disable_declaration_emit,
+                    arena,
                 );
             },
             arena,
@@ -416,6 +425,7 @@ mod constraint_checking_for_settings {
                     "Reports an error about 'composite' not being set",
                     &errs,
                     &Diagnostics::Referenced_project_0_must_have_setting_composite_Colon_true,
+                    arena,
                 );
             },
             arena,
@@ -509,6 +519,7 @@ mod constraint_checking_for_settings {
                 "Reports an error about b.ts not being in the list",
                 &errs,
                 &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern
+                arena,
             );
             },
             arena,
@@ -537,6 +548,7 @@ mod constraint_checking_for_settings {
                     "Reports an error about a missing file",
                     &errs,
                     &Diagnostics::File_0_not_found,
+                    arena,
                 );
             },
             arena,
@@ -583,6 +595,7 @@ mod constraint_checking_for_settings {
                     "Reports an error about outFile not being set",
                     &errs,
                     &Diagnostics::Cannot_prepend_project_0_because_it_does_not_have_outFile_set,
+                    arena,
                 );
             },
             arena,
@@ -635,6 +648,7 @@ mod constraint_checking_for_settings {
                     "Reports an error about outFile being missing",
                     &errs,
                     &Diagnostics::Output_file_0_from_project_1_does_not_exist,
+                    arena,
                 );
             },
             arena,
@@ -682,6 +696,7 @@ mod path_mapping {
                     "Found a type error",
                     &program.get_semantic_diagnostics(None, None).unwrap(),
                     &Diagnostics::Module_0_has_no_exported_member_1,
+                    arena,
                 );
             },
             arena,
@@ -724,6 +739,7 @@ mod nice_behavior {
                     "Issues a useful error",
                     &program.get_semantic_diagnostics(None, None).unwrap(),
                     &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
+                    arena,
                 );
             },
             arena,
@@ -770,6 +786,7 @@ mod nice_behavior {
                     "Issues a useful error",
                     &program.get_semantic_diagnostics(None, None).unwrap(),
                     &Diagnostics::Output_file_0_has_not_been_built_from_source_file_1,
+                    arena,
                 );
             },
             arena,
@@ -868,11 +885,13 @@ mod errors_when_a_file_in_a_composite_project_occurs_outside_the_root {
                     "Issues an error about the rootDir",
                     &semantic_diagnostics,
                     &Diagnostics::File_0_is_not_under_rootDir_1_rootDir_is_expected_to_contain_all_source_files,
+                    arena,
                 );
                 assert_has_error(
                     "Issues an error about the fileList",
                     &semantic_diagnostics,
                     &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
+                    arena,
                 );
             },
             arena,

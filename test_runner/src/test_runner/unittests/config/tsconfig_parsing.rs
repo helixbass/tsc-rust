@@ -8,7 +8,7 @@ mod parse_config_file_text_to_json {
     use serde::Serialize;
     use serde_json::json;
     use typescript_rust::{
-        convert_to_object, create_compiler_diagnostic, get_sys_concrete, id_arena::Id,
+        convert_to_object, create_compiler_diagnostic, get_sys, get_sys_concrete, id_arena::Id,
         parse_config_file_text_to_json, parse_json_config_file_content,
         parse_json_source_file_config_file_content, parse_json_text, AllArenas, Diagnostic,
         DiagnosticRelatedInformationInterface, Diagnostics, Owned, ParsedCommandLine,
@@ -42,13 +42,13 @@ mod parse_config_file_text_to_json {
 
     fn assert_parse_error_with_excludes_keyword(json_text: impl Into<String>) {
         let json_text = json_text.into();
-        let arena = AllArenas::default();
+        let ref arena = AllArenas::default();
         let parsed =
-            parse_config_file_text_to_json("/apath/tsconfig.json", json_text.clone(), &arena)
+            parse_config_file_text_to_json("/apath/tsconfig.json", json_text.clone(), arena)
                 .unwrap();
         let parsed_command = parse_json_config_file_content(
             parsed.config,
-            &**get_sys_concrete(),
+            get_sys(arena).as_dyn_parse_config_host().unwrap(),
             // "tests/cases/unittests",
             "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
             None,
@@ -57,7 +57,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
-            &arena,
+            arena,
         )
         .unwrap();
         let parsed_command_errors = (*parsed_command.errors).borrow();
@@ -65,10 +65,10 @@ mod parse_config_file_text_to_json {
         assert_that!(&parsed_command_errors[0].code())
             .is_equal_to(Diagnostics::Unknown_option_excludes_Did_you_mean_exclude.code);
 
-        let ref parsed = parse_json_text("/apath/tsconfig.json", json_text, &arena);
+        let ref parsed = parse_json_text("/apath/tsconfig.json", json_text, arena);
         let parsed_command = parse_json_source_file_config_file_content(
             parsed,
-            &**get_sys_concrete(),
+            get_sys(arena).as_dyn_parse_config_host().unwrap(),
             // "tests/cases/unittests",
             "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
             None,
@@ -77,7 +77,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
-            &arena,
+            arena,
         )
         .unwrap();
         let parsed_command_errors = (*parsed_command.errors).borrow();

@@ -343,6 +343,10 @@ pub mod fakes {
         fn as_convert_to_tsconfig_host(&self) -> &dyn ConvertToTSConfigHost {
             self
         }
+
+        fn maybe_as_dyn_parse_config_host(&self) -> Option<&dyn typescript_rust::ParseConfigHost> {
+            None
+        }
     }
 
     impl ConvertToTSConfigHost for System {

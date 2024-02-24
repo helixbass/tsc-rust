@@ -207,7 +207,7 @@ mod tests {
             let check_rhs = |operator: SyntaxKind /*BinaryOperator*/, expect_parens: bool| {
                 let node = factory.create_binary_expression(lhs, operator, rhs);
                 assert_syntax_kind(
-                    &node.ref_(arena).right.ref_(arena),
+                    &node.ref_(arena).as_binary_expression().right.ref_(arena),
                     if expect_parens {
                         SyntaxKind::ParenthesizedExpression
                     } else {

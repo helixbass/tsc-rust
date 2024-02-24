@@ -13,9 +13,9 @@ use id_arena::Id;
 
 use crate::{
     combine_paths, empty_file_system_entries, fs_readdir_sync_with_file_types, fs_stat_sync,
-    is_windows, match_files, per_arena, process_cwd, read_file_and_strip_leading_byte_order_mark, ConvertToTSConfigHost, ExitStatus, FileSystemEntries, HasArena,
-    ModuleResolutionHost, ParseConfigHost, RequireResult, StatLike, Stats, WatchFileKind,
-    WatchOptions,
+    is_windows, match_files, per_arena, process_cwd, read_file_and_strip_leading_byte_order_mark,
+    ConvertToTSConfigHost, ExitStatus, FileSystemEntries, HasArena, ModuleResolutionHost,
+    ParseConfigHost, RequireResult, StatLike, Stats, WatchFileKind, WatchOptions,
 };
 
 pub fn generate_djb2_hash(_data: &str) -> String {
@@ -50,6 +50,7 @@ pub(crate) enum FileSystemEntryKind {
 pub type Buffer = Vec<u8>;
 
 pub trait System: ConvertToTSConfigHost {
+    fn maybe_as_dyn_parse_config_host(&self) -> Option<&dyn ParseConfigHost>;
     fn args(&self) -> &[String];
     fn new_line(&self) -> &str;
     fn write(&self, s: &str);
@@ -459,6 +460,10 @@ impl System for SystemConcrete {
     fn is_create_hash_supported(&self) -> bool {
         unimplemented!()
     }
+
+    fn maybe_as_dyn_parse_config_host(&self) -> Option<&dyn ParseConfigHost> {
+        Some(self)
+    }
 }
 
 impl ParseConfigHost for SystemConcrete {
@@ -504,10 +509,6 @@ impl ParseConfigHost for SystemConcrete {
     }
 }
 
-// TODO: probably could accomplish what get_sys_concrete() was being used for
-// (in the test harness it looked like) by eg adding
-// .maybe_as_dyn_parse_config_host() method to System
-// (and so doing eg get_sys().maybe_as_dyn_parse_config_host().unwrap())?
 pub fn get_sys(arena: &impl HasArena) -> Id<Box<dyn System>> {
     per_arena!(
         Box<dyn System>,
