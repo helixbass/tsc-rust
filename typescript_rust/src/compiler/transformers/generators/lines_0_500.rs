@@ -15,9 +15,9 @@ use crate::{
     TransformerFactoryInterface, TransformerInterface, _d, chain_bundle, downcast_transformer_ref,
     get_emit_script_target, get_original_node, get_original_node_id, id_text,
     is_function_like_declaration, is_generated_identifier, is_identifier, ref_mut_unwrapped,
-    ref_unwrapped, static_arena, visit_each_child, visit_parameter_list, AllArenas,
-    CoreTransformationContext, Debug_, FunctionLikeDeclarationInterface, HasArena, InArena,
-    Matches, NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, ScriptTarget,
+    ref_unwrapped, visit_each_child, visit_parameter_list, AllArenas, CoreTransformationContext,
+    Debug_, FunctionLikeDeclarationInterface, HasArena, InArena, Matches,
+    NamedDeclarationInterface, NodeArray, NodeExt, NodeInterface, ScriptTarget,
     SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
     VisitResult,
 };
@@ -1156,11 +1156,15 @@ impl HasArena for TransformGeneratorsOnSubstituteNodeOverrider {
     }
 }
 
-pub(super) struct TransformGeneratorsFactory {}
+pub(super) struct TransformGeneratorsFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformGeneratorsFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1168,7 +1172,7 @@ impl TransformerFactoryInterface for TransformGeneratorsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context.clone(),
-            TransformGenerators::new(context, &*static_arena()),
+            TransformGenerators::new(context, self.arena),
         )
     }
 }
@@ -1180,5 +1184,5 @@ impl HasArena for TransformGeneratorsFactory {
 }
 
 pub fn transform_generators(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformGeneratorsFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformGeneratorsFactory::new(arena)))
 }

@@ -15,22 +15,22 @@ use crate::{
     TransformerInterface, __String, add_emit_helper, add_emit_helpers, advanced_async_super_helper,
     async_super_helper, chain_bundle, concatenate, downcast_transformer_ref, for_each,
     get_emit_script_target, get_entity_name_from_type_node, get_function_flags,
-    get_initialized_variables, get_node_id, get_original_node,
+    get_initialized_variables, get_node_id, get_original_node, impl_has_arena,
     insert_statements_after_standard_prologue, is_block, is_effective_strict_mode_source_file,
     is_entity_name, is_identifier, is_modifier, is_node_with_possible_hoisted_declaration,
     is_omitted_expression, is_property_access_expression, is_super_property, is_token,
     is_variable_declaration_list, ref_mut_unwrapped, ref_unwrapped, set_emit_flags,
     set_original_node, set_source_map_range, set_text_range, set_text_range_id_node,
-    set_text_range_node_array, static_arena, try_maybe_visit_each_child, try_maybe_visit_node,
-    try_maybe_visit_nodes, unescape_leading_underscores, AllArenas,
-    CompilerOptions, CoreTransformationContext, Debug_, EmitFlags, EmitHint, EmitResolver,
-    FunctionFlags, FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena,
-    HasInitializerInterface, InArena, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags,
-    NodeFactory, NodeFlags, NodeId, NodeInterface, NonEmpty, OptionInArena, OptionTry,
-    ReadonlyTextRange, ScriptTarget, SignatureDeclarationInterface, SyntaxKind, TransformFlags,
-    TransformNodesTransformationResult, TransformationContext,
-    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
-    Transformer, TypeReferenceSerializationKind, VisitResult,
+    set_text_range_node_array, try_maybe_visit_each_child, try_maybe_visit_node,
+    try_maybe_visit_nodes, unescape_leading_underscores, AllArenas, CompilerOptions,
+    CoreTransformationContext, Debug_, EmitFlags, EmitHint, EmitResolver, FunctionFlags,
+    FunctionLikeDeclarationInterface, GeneratedIdentifierFlags, HasArena, HasInitializerInterface,
+    InArena, NamedDeclarationInterface, Node, NodeArray, NodeCheckFlags, NodeFactory, NodeFlags,
+    NodeId, NodeInterface, NonEmpty, OptionInArena, OptionTry, ReadonlyTextRange, ScriptTarget,
+    SignatureDeclarationInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult,
+    TransformationContext, TransformationContextOnEmitNodeOverrider,
+    TransformationContextOnSubstituteNodeOverrider, Transformer, TypeReferenceSerializationKind,
+    VisitResult,
 };
 
 bitflags! {
@@ -1550,31 +1550,30 @@ impl HasArena for TransformES2017OnSubstituteNodeOverrider {
     }
 }
 
-struct TransformES2017Factory {}
+struct TransformES2017Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES2017Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformES2017Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle(self).ref_(self).call(
-            context.clone(),
-            TransformES2017::new(context, &*static_arena()),
-        )
+        chain_bundle(self)
+            .ref_(self)
+            .call(context.clone(), TransformES2017::new(context, self.arena))
     }
 }
 
-impl HasArena for TransformES2017Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2017Factory);
 
 pub fn transform_es2017(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES2017Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES2017Factory::new(arena)))
 }
 
 pub fn create_super_access_variable_statement(

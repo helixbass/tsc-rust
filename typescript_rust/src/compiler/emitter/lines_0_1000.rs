@@ -19,19 +19,19 @@ use crate::{
     get_emit_module_kind_from_module_and_target, get_factory, get_factory_id,
     get_new_line_character, get_normalized_absolute_path, get_own_emit_output_file_path,
     get_relative_path_from_directory, get_relative_path_to_directory_or_url, get_root_length,
-    get_source_file_path_in_new_dir, get_source_files_to_emit, get_sys,
-    is_bundle, is_export_assignment, is_export_specifier, is_expression, is_identifier,
+    get_source_file_path_in_new_dir, get_source_files_to_emit, get_sys, is_bundle,
+    is_export_assignment, is_export_specifier, is_expression, is_identifier,
     is_incremental_compilation, is_json_source_file, is_option_str_empty, is_source_file,
     is_source_file_not_json, last_or_undefined, length, no_emit_notification, no_emit_substitution,
     normalize_path, normalize_slashes, out_file, per_arena, remove_file_extension, resolve_path,
-    static_arena, supported_js_extensions_flat, transform_nodes, try_for_each_child, version,
-    write_file, AllAccessorDeclarations, AllArenas, BuildInfo,
-    BundleBuildInfo, BundleFileInfo, BundleFileSection, BundleFileSectionInterface,
-    BundleFileSectionKind, Comparison, CompilerOptions, CurrentParenthesizerRule, Debug_,
-    DetachedCommentInfo, DiagnosticCollection, EmitBinaryExpression, EmitFileNames, EmitHint,
-    EmitHost, EmitHostWriteFileCallback, EmitResolver, EmitResult, EmitTextWriter,
-    EmitTransformers, ExportedModulesFromDeclarationEmit, Extension, HasArena, InArena, JsxEmit,
-    ListFormat, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
+    supported_js_extensions_flat, transform_nodes, try_for_each_child, version, write_file,
+    AllAccessorDeclarations, AllArenas, BuildInfo, BundleBuildInfo, BundleFileInfo,
+    BundleFileSection, BundleFileSectionInterface, BundleFileSectionKind, Comparison,
+    CompilerOptions, CurrentParenthesizerRule, Debug_, DetachedCommentInfo, DiagnosticCollection,
+    EmitBinaryExpression, EmitFileNames, EmitHint, EmitHost, EmitHostWriteFileCallback,
+    EmitResolver, EmitResult, EmitTextWriter, EmitTransformers, ExportedModulesFromDeclarationEmit,
+    Extension, HasArena, InArena, JsxEmit, ListFormat,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, Node, NodeArray, NodeId,
     NodeInterface, NonEmpty, OptionInArena, ParenthesizerRules, ParsedCommandLine, PrintHandlers,
     Printer, PrinterOptions, RelativeToBuildInfo, ScriptReferenceHost, SourceMapEmitResult,
     SourceMapGenerator, SourceMapSource, StringOrNumber, Symbol, SymbolAccessibilityResult,
@@ -551,7 +551,7 @@ pub(crate) fn emit_files(
         } else {
             None
         };
-    let mut emitter_diagnostics = create_diagnostic_collection(&*static_arena());
+    let mut emitter_diagnostics = create_diagnostic_collection(arena);
     let new_line = get_new_line_character(
         compiler_options.ref_(arena).new_line,
         Some(|| host.ref_(arena).get_new_line()),
@@ -1884,7 +1884,7 @@ pub fn create_printer(
 ) -> Id<Printer> {
     let handlers =
         handlers.unwrap_or_else(|| arena.alloc_print_handlers(Box::new(DummyPrintHandlers)));
-    let printer = arena.alloc_printer(Printer::new(&*static_arena(), printer_options, handlers));
+    let printer = arena.alloc_printer(Printer::new(printer_options, handlers, arena));
     // TODO: move this into the arena alloc_*() method like other types
     printer.ref_(arena)._arena_id.set(Some(printer.clone()));
     printer.ref_(arena).reset();
@@ -1908,16 +1908,15 @@ impl PrintHandlers for DummyPrintHandlers {
 
 impl Printer {
     pub fn new(
-        arena: *const AllArenas,
         printer_options: PrinterOptions,
         handlers: Id<Box<dyn PrintHandlers>>,
+        arena: &impl HasArena,
     ) -> Self {
-        let arena_ref = unsafe { &*arena };
         let extended_diagnostics = printer_options.extended_diagnostics == Some(true);
         let new_line = get_new_line_character(
             printer_options.new_line,
             Option::<fn() -> String>::None,
-            arena_ref,
+            arena,
         );
         let module_kind = get_emit_module_kind_from_module_and_target(
             printer_options.module,
@@ -1925,7 +1924,7 @@ impl Printer {
         );
         let preserve_source_newlines = printer_options.preserve_source_newlines;
         let bundle_file_info = if printer_options.write_bundle_file_info == Some(true) {
-            Some(arena_ref.alloc_bundle_file_info(BundleFileInfo {
+            Some(arena.alloc_bundle_file_info(BundleFileInfo {
                 sections: vec![],
                 sources: None,
             }))
@@ -1939,7 +1938,7 @@ impl Printer {
         };
         let record_internal_section = printer_options.record_internal_section;
         Self {
-            arena,
+            arena: arena.arena(),
             _arena_id: Default::default(),
             printer_options,
             handlers,
@@ -1984,7 +1983,7 @@ impl Printer {
             last_substitution: Default::default(),
             current_parenthesizer_rule: Default::default(),
             // const { enter: enterComment, exit: exitComment } = performance.createTimerIf(extendedDiagnostics, "commentTime", "beforeComment", "afterComment");
-            parenthesizer: get_factory(arena_ref).parenthesizer(),
+            parenthesizer: get_factory(arena).parenthesizer(),
             emit_binary_expression: Default::default(),
         }
     }

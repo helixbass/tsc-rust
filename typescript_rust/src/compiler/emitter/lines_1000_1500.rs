@@ -13,10 +13,10 @@ use crate::{
     get_trailing_semicolon_deferring_writer, is_bundle_file_text_like, is_declaration,
     is_empty_statement, is_expression, is_identifier, is_in_json_file, is_internal_declaration,
     is_keyword, is_source_file, is_string_literal, is_token_kind, is_type_parameter_declaration,
-    is_unparsed_prepend, is_unparsed_source, is_variable_statement, static_arena,
-    BundleFileSection, BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags,
-    EmitHint, EmitTextWriter, GetOrInsertDefault, HasArena, InArena, Node, NodeInterface, Printer,
-    SourceMapGenerator, SyntaxKind, TempFlags,
+    is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
+    BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
+    GetOrInsertDefault, HasArena, InArena, Node, NodeInterface, Printer, SourceMapGenerator,
+    SyntaxKind, TempFlags,
 };
 
 impl Printer {
@@ -243,7 +243,7 @@ impl Printer {
             if self.printer_options.omit_trailing_semicolon == Some(true) {
                 writer = Some(get_trailing_semicolon_deferring_writer(
                     writer_present.clone(),
-                    &*static_arena(),
+                    self,
                 ));
             }
         }

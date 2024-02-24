@@ -3,11 +3,12 @@ use std::{any::Any, io};
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, compiler::factory::utilities_public::set_text_range_id_node,
+    chain_bundle, compiler::factory::utilities_public::set_text_range_id_node, impl_has_arena,
     is_element_access_expression, is_expression, is_property_access_expression,
-    maybe_visit_each_child, static_arena, visit_each_child, visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult,
+    maybe_visit_each_child, visit_each_child, visit_node, AllArenas, CoreTransformationContext,
+    HasArena, InArena, Node, NodeFactory, NodeInterface, SyntaxKind, TransformFlags,
+    TransformNodesTransformationResult, Transformer, TransformerFactory,
+    TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 struct TransformES2016 {
@@ -246,11 +247,15 @@ impl HasArena for TransformES2016 {
     }
 }
 
-struct TransformES2016Factory {}
+struct TransformES2016Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES2016Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -258,17 +263,13 @@ impl TransformerFactoryInterface for TransformES2016Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context,
-            self.alloc_transformer(Box::new(TransformES2016::new(context, &*static_arena()))),
+            self.alloc_transformer(Box::new(TransformES2016::new(context, self.arena))),
         )
     }
 }
 
-impl HasArena for TransformES2016Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2016Factory);
 
 pub fn transform_es2016(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES2016Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES2016Factory::new(arena)))
 }

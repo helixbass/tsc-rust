@@ -16,11 +16,11 @@ use crate::{
     is_element_access_expression, is_generated_identifier, is_local_name,
     is_property_access_expression, is_shorthand_property_assignment, is_source_file, is_statement,
     map_defined, maybe_get_original_node_full, modifier_to_flag, ref_mut_unwrapped, ref_unwrapped,
-    set_constant_value, static_arena, try_maybe_visit_each_child, AllArenas, BoolExt,
-    CompilerOptions, CoreTransformationContext, Debug_, EmitHelperFactory, EmitHint, EmitResolver,
-    HasArena, InArena, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeCheckFlags,
-    NodeExt, NodeFactory, NodeId, NodeInterface, OptionTry, ScriptTarget, StringOrNumber,
-    SyntaxKind, TransformFlags, TransformNodesTransformationResult, TransformationContext,
+    set_constant_value, try_maybe_visit_each_child, AllArenas, BoolExt, CompilerOptions,
+    CoreTransformationContext, Debug_, EmitHelperFactory, EmitHint, EmitResolver, HasArena,
+    InArena, ModifierFlags, ModuleKind, NamedDeclarationInterface, Node, NodeCheckFlags, NodeExt,
+    NodeFactory, NodeId, NodeInterface, OptionTry, ScriptTarget, StringOrNumber, SyntaxKind,
+    TransformFlags, TransformNodesTransformationResult, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VisitResult,
@@ -1063,20 +1063,24 @@ impl HasArena for TransformTypeScriptOnSubstituteNodeOverrider {
     }
 }
 
-struct TransformTypeScriptFactory {}
+struct TransformTypeScriptFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformTypeScriptFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformTypeScriptFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        TransformTypeScript::new(context, &*static_arena())
+        TransformTypeScript::new(context, self.arena)
     }
 }
 
 pub fn transform_type_script(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformTypeScriptFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformTypeScriptFactory::new(arena)))
 }

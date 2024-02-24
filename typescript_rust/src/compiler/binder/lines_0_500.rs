@@ -13,21 +13,20 @@ use crate::{
     escape_leading_underscores, for_each_child_returns, get_assignment_declaration_kind,
     get_containing_class, get_emit_script_target, get_node_id, get_strict_option_value,
     get_symbol_name_for_private_identifier, get_text_of_identifier_or_literal, has_dynamic_name,
-    has_syntactic_modifier, is_ambient_module, is_block, is_enum_const,
-    is_export_specifier, is_global_scope_augmentation, is_jsdoc_construct_signature, is_logging,
-    is_module_block, is_named_declaration, is_private_identifier, is_signed_numeric_literal,
-    is_source_file, is_string_or_numeric_literal_like, is_type_alias_declaration, length,
-    maybe_for_each, maybe_get_source_file_of_node, maybe_set_parent, node_has_name,
-    node_is_missing, set_parent_recursive, token_to_string, unescape_leading_underscores,
-    AssignmentDeclarationKind, BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic,
-    DiagnosticMessage, DiagnosticRelatedInformation, DiagnosticWithLocation, Diagnostics,
-    FlowFlags, FlowNode, FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget,
-    SignatureDeclarationInterface, Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_eq,
-    create_symbol_table, get_escaped_text_of_identifier_or_literal, get_name_of_declaration,
-    index_of_eq, is_property_name_literal, object_allocator, set_parent, set_value_declaration,
-    static_arena, AllArenas, BaseSymbol, HasArena, InArena, InternalSymbolName,
-    NamedDeclarationInterface, Node, NodeArray, NodeInterface, OptionInArena, SymbolFlags,
-    SymbolInterface,
+    has_syntactic_modifier, is_ambient_module, is_block, is_enum_const, is_export_specifier,
+    is_global_scope_augmentation, is_jsdoc_construct_signature, is_logging, is_module_block,
+    is_named_declaration, is_private_identifier, is_signed_numeric_literal, is_source_file,
+    is_string_or_numeric_literal_like, is_type_alias_declaration, length, maybe_for_each,
+    maybe_get_source_file_of_node, maybe_set_parent, node_has_name, node_is_missing,
+    set_parent_recursive, token_to_string, unescape_leading_underscores, AssignmentDeclarationKind,
+    BindBinaryExpressionFlow, CompilerOptions, Debug_, Diagnostic, DiagnosticMessage,
+    DiagnosticRelatedInformation, DiagnosticWithLocation, Diagnostics, FlowFlags, FlowNode,
+    FlowStart, ModifierFlags, NodeFlags, NodeId, ScriptTarget, SignatureDeclarationInterface,
+    Symbol, SymbolTable, SyntaxKind, __String, append_if_unique_eq, create_symbol_table,
+    get_escaped_text_of_identifier_or_literal, get_name_of_declaration, index_of_eq,
+    is_property_name_literal, object_allocator, set_parent, set_value_declaration, AllArenas,
+    BaseSymbol, HasArena, InArena, InternalSymbolName, NamedDeclarationInterface, Node, NodeArray,
+    NodeInterface, OptionInArena, SymbolFlags, SymbolInterface,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -312,9 +311,7 @@ pub fn bind_source_file(
     // performance.mark("beforeBind");
     // perfLogger.logStartBindFile("" + file.fileName);
     // binder.call(file, options);
-    create_binder(&*static_arena())
-        .ref_(arena)
-        .call(file, options);
+    create_binder(arena).ref_(arena).call(file, options);
     // perfLogger.logStopBindFile();
     // performance.mark("afterBind");
     // performance.measure("Bind", "beforeBind", "afterBind");
@@ -364,7 +361,8 @@ pub struct Binder {
     pub(super) bind_binary_expression_flow: Cell<Option<Id<BindBinaryExpressionFlow>>>,
 }
 
-pub(super) fn create_binder(arena: *const AllArenas) -> Id<Binder> {
+pub(super) fn create_binder(arena: &impl HasArena) -> Id<Binder> {
+    let arena: *const AllArenas = arena.arena();
     let arena_ref = unsafe { &*arena };
     let ret = arena_ref.alloc_binder(Binder {
         arena,

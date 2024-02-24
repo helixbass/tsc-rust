@@ -11,30 +11,30 @@ use id_arena::Id;
 
 use super::{can_have_literal_initializer, mask_modifiers};
 use crate::{
-    add_related_info_rc, can_produce_diagnostics, contains,
-    create_diagnostic_for_node, create_empty_exports,
-    create_get_symbol_accessibility_diagnostic_for_node, create_unparsed_source_file,
-    declaration_name_to_string, downcast_transformer_ref, filter, get_directory_path,
-    get_factory_id, get_leading_comment_ranges, get_leading_comment_ranges_of_node,
-    get_name_of_declaration, get_original_node_id, get_output_paths_for, get_parse_tree_node,
-    get_relative_path_to_directory_or_url, get_resolved_external_module_name,
-    get_source_file_of_node, get_text_of_node, get_trailing_comment_ranges,
-    has_extension, is_any_import_syntax, is_export_assignment, is_external_module,
-    is_external_module_reference, is_external_or_common_js_module, is_import_declaration,
-    is_import_equals_declaration, is_json_source_file, is_source_file_js, is_source_file_not_json,
-    is_string_literal, is_string_literal_like, is_unparsed_source, last, map, map_defined,
-    maybe_concatenate, maybe_filter, maybe_for_each, maybe_for_each_bool, module_specifiers,
-    normalize_slashes, path_contains_node_modules, path_is_relative, per_arena, push_if_unique_eq,
-    ref_mut_unwrapped, ref_unwrapped, set_text_range_node_array, skip_trivia, starts_with,
-    static_arena, string_contains, to_file_name_lower_case, to_path, transform_nodes, try_map,
-    try_map_defined, try_maybe_for_each, try_visit_nodes, AllArenas,
-    CommentRange, CompilerOptions, CoreTransformationContext, Debug_, Diagnostic, Diagnostics,
-    EmitHost, EmitResolver, FileReference, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
+    add_related_info_rc, can_produce_diagnostics, contains, create_diagnostic_for_node,
+    create_empty_exports, create_get_symbol_accessibility_diagnostic_for_node,
+    create_unparsed_source_file, declaration_name_to_string, downcast_transformer_ref, filter,
+    get_directory_path, get_factory_id, get_leading_comment_ranges,
+    get_leading_comment_ranges_of_node, get_name_of_declaration, get_original_node_id,
+    get_output_paths_for, get_parse_tree_node, get_relative_path_to_directory_or_url,
+    get_resolved_external_module_name, get_source_file_of_node, get_text_of_node,
+    get_trailing_comment_ranges, has_extension, impl_has_arena, is_any_import_syntax,
+    is_export_assignment, is_external_module, is_external_module_reference,
+    is_external_or_common_js_module, is_import_declaration, is_import_equals_declaration,
+    is_json_source_file, is_source_file_js, is_source_file_not_json, is_string_literal,
+    is_string_literal_like, is_unparsed_source, last, map, map_defined, maybe_concatenate,
+    maybe_filter, maybe_for_each, maybe_for_each_bool, module_specifiers, normalize_slashes,
+    path_contains_node_modules, path_is_relative, per_arena, push_if_unique_eq, ref_mut_unwrapped,
+    ref_unwrapped, set_text_range_node_array, skip_trivia, starts_with, string_contains,
+    to_file_name_lower_case, to_path, transform_nodes, try_map, try_map_defined,
+    try_maybe_for_each, try_visit_nodes, AllArenas, CommentRange, CompilerOptions,
+    CoreTransformationContext, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResolver,
+    FileReference, GetOrInsertDefault, GetSymbolAccessibilityDiagnostic,
     GetSymbolAccessibilityDiagnosticInterface, HasArena, HasInitializerInterface,
     HasStatementsInterface, HasTypeInterface,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena,
-    LiteralLikeNodeInterface, ModifierFlags, NamedDeclarationInterface, Node,
-    NodeArray, NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
+    LiteralLikeNodeInterface, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
+    NodeBuilderFlags, NodeFactory, NodeId, NodeInterface, NonEmpty, ReadonlyTextRange,
     ScriptReferenceHost, SourceFileLike, Symbol, SymbolAccessibility,
     SymbolAccessibilityDiagnostic, SymbolAccessibilityResult, SymbolFlags, SymbolInterface,
     SymbolTracker, SyntaxKind, TextRange, TransformNodesTransformationResult,
@@ -1714,20 +1714,26 @@ impl HasArena for TransformDeclarationsForJSGetSymbolAccessibilityDiagnostic {
     }
 }
 
-pub(super) struct TransformDeclarationsFactory {}
+struct TransformDeclarationsFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformDeclarationsFactory {
-    pub(super) fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformDeclarationsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        TransformDeclarations::new(context, &*static_arena())
+        TransformDeclarations::new(context, self.arena)
     }
 }
 
+impl_has_arena!(TransformDeclarationsFactory);
+
 pub fn transform_declarations(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformDeclarationsFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformDeclarationsFactory::new(arena)))
 }

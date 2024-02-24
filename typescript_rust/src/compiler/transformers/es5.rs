@@ -8,9 +8,9 @@ use std::{
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, downcast_transformer_ref, get_original_node_id, id_text, is_identifier,
-    is_private_identifier, is_property_access_expression, is_property_assignment,
-    node_is_synthesized, ref_mut_unwrapped, static_arena, string_to_token, AllArenas, BoolExt,
+    chain_bundle, downcast_transformer_ref, get_original_node_id, id_text, impl_has_arena,
+    is_identifier, is_private_identifier, is_property_access_expression, is_property_assignment,
+    node_is_synthesized, ref_mut_unwrapped, string_to_token, AllArenas, BoolExt,
     CoreTransformationContext, EmitHint, HasArena, InArena, JsxEmit, Matches,
     NamedDeclarationInterface, Node, NodeExt, NodeFactory, NodeId, NodeInterface, SyntaxKind,
     TransformNodesTransformationResult, TransformationContext,
@@ -265,29 +265,28 @@ impl HasArena for TransformES5OnSubstituteNodeOverrider {
     }
 }
 
-struct TransformES5Factory {}
+struct TransformES5Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES5Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformES5Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle(self).ref_(self).call(
-            context.clone(),
-            TransformES5::new(context, &*static_arena()),
-        )
+        chain_bundle(self)
+            .ref_(self)
+            .call(context.clone(), TransformES5::new(context, self.arena))
     }
 }
 
-impl HasArena for TransformES5Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES5Factory);
 
 pub fn transform_es5(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES5Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES5Factory::new(arena)))
 }

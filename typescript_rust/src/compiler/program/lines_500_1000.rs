@@ -27,20 +27,19 @@ use crate::{
     is_import_call, is_import_equals_declaration, is_logging, map_defined, maybe_for_each,
     options_have_changes, out_file, ref_mut_unwrapped, ref_unwrapped, resolve_module_name,
     resolve_type_reference_directive, skip_trivia, source_file_affecting_compiler_options,
-    stable_sort, static_arena, to_file_name_lower_case, try_maybe_for_each,
-    walk_up_parenthesized_expressions, AllArenas, AutomaticTypeDirectiveFile,
-    CompilerHost, CompilerOptions, CreateProgramOptions, Debug_, Diagnostic, DiagnosticCollection,
-    Extension, FileIncludeKind, FileIncludeReason, FilePreprocessingDiagnostics,
-    FilePreprocessingDiagnosticsKind, GetOrInsertDefault, GetProgramBuildInfo, HasArena, InArena,
-    LibFile, ModuleKind, ModuleResolutionCache, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ModuleResolutionKind, ModuleSpecifierResolutionHost, MultiMap,
-    Node, NodeInterface, NonEmpty, OptionInArena, OptionTry, PackageId, PackageJsonInfoCache,
-    ParseConfigFileHost, ParsedCommandLine, Path, Program, ProjectReference, ProjectReferenceFile,
-    ReadonlyTextRange, RedirectTargetsMap, ReferencedFile, ResolvedModuleFull,
-    ResolvedProjectReference, ResolvedTypeReferenceDirective, RootFile, ScriptReferenceHost,
-    SourceFile, SourceFileLike, SourceFileMayBeEmittedHost, SourceOfProjectReferenceRedirect,
-    StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost, TypeCheckerHostDebuggable,
-    TypeReferenceDirectiveResolutionCache, VecExt,
+    stable_sort, to_file_name_lower_case, try_maybe_for_each, walk_up_parenthesized_expressions,
+    AllArenas, AutomaticTypeDirectiveFile, CompilerHost, CompilerOptions, CreateProgramOptions,
+    Debug_, Diagnostic, DiagnosticCollection, Extension, FileIncludeKind, FileIncludeReason,
+    FilePreprocessingDiagnostics, FilePreprocessingDiagnosticsKind, GetOrInsertDefault,
+    GetProgramBuildInfo, HasArena, InArena, LibFile, ModuleKind, ModuleResolutionCache,
+    ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
+    ModuleSpecifierResolutionHost, MultiMap, Node, NodeInterface, NonEmpty, OptionInArena,
+    OptionTry, PackageId, PackageJsonInfoCache, ParseConfigFileHost, ParsedCommandLine, Path,
+    Program, ProjectReference, ProjectReferenceFile, ReadonlyTextRange, RedirectTargetsMap,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedTypeReferenceDirective,
+    RootFile, ScriptReferenceHost, SourceFile, SourceFileLike, SourceFileMayBeEmittedHost,
+    SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, TextRange, TypeCheckerHost,
+    TypeCheckerHostDebuggable, TypeReferenceDirectiveResolutionCache, VecExt,
 };
 
 pub trait LoadWithLocalCacheLoader<TValue> {
@@ -1024,8 +1023,7 @@ impl Program {
                     Ok(get_directory_path(&self.get_default_library_file_name()?))
                 })?,
         );
-        *self.program_diagnostics.borrow_mut() =
-            Some(create_diagnostic_collection(&*static_arena()));
+        *self.program_diagnostics.borrow_mut() = Some(create_diagnostic_collection(self));
         *self.current_directory.borrow_mut() = Some(CompilerHost::get_current_directory(
             &**self.host().ref_(self),
         )?);

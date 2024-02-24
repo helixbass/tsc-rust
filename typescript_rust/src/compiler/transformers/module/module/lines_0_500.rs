@@ -10,25 +10,25 @@ use id_arena::Id;
 
 use super::dynamic_import_umd_helper;
 use crate::{
-    CompilerOptions, EmitResolver, ExternalModuleInfo, ModuleKind, Node,
-    NodeFactory, NodeId, ScriptTarget, TransformationContext, Transformer, TransformerFactory,
+    CompilerOptions, EmitResolver, ExternalModuleInfo, ModuleKind, Node, NodeFactory, NodeId,
+    ScriptTarget, TransformationContext, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, add_emit_helper, add_range, append,
     chain_bundle, collect_external_module_info, downcast_transformer_ref, get_emit_flags,
     get_emit_module_kind, get_emit_script_target, get_external_helpers_module_name,
     get_external_module_name_literal, get_local_name_for_external_import, get_node_id,
     get_original_node_id, get_strict_option_value, has_json_module_emit_enabled, id_text,
-    insert_statements_after_standard_prologue, is_assignment_operator,
+    impl_has_arena, insert_statements_after_standard_prologue, is_assignment_operator,
     is_declaration_name_of_enum_or_namespace, is_effective_external_module, is_export_declaration,
     is_export_name, is_external_module, is_generated_identifier, is_identifier, is_import_clause,
     is_import_equals_declaration, is_import_specifier, is_json_source_file, is_local_name,
     is_shorthand_property_assignment, is_statement, out_file, reduce_left, set_emit_flags,
-    static_arena, try_get_module_name_from_file, try_map_defined, try_maybe_visit_node,
-    try_visit_node, try_visit_nodes, AllArenas, CoreTransformationContext, EmitFlags,
-    EmitHelperFactory, EmitHint, EmitHost, GeneratedIdentifierFlags, HasArena,
-    HasStatementsInterface, InArena, Matches, NamedDeclarationInterface, NodeArray, NodeArrayExt,
-    NodeExt, NodeInterface, NonEmpty, SyntaxKind, TransformFlags,
-    TransformNodesTransformationResult, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, VecExt,
+    try_get_module_name_from_file, try_map_defined, try_maybe_visit_node, try_visit_node,
+    try_visit_nodes, AllArenas, CoreTransformationContext, EmitFlags, EmitHelperFactory, EmitHint,
+    EmitHost, GeneratedIdentifierFlags, HasArena, HasStatementsInterface, InArena, Matches,
+    NamedDeclarationInterface, NodeArray, NodeArrayExt, NodeExt, NodeInterface, NonEmpty,
+    SyntaxKind, TransformFlags, TransformNodesTransformationResult,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    VecExt,
 };
 
 pub(super) struct AsynchronousDependencies {
@@ -1346,29 +1346,28 @@ impl HasArena for TransformModuleOnSubstituteNodeOverrider {
     }
 }
 
-pub(super) struct TransformModuleFactory {}
+struct TransformModuleFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformModuleFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle(self).ref_(self).call(
-            context.clone(),
-            TransformModule::new(context, &*static_arena()),
-        )
+        chain_bundle(self)
+            .ref_(self)
+            .call(context.clone(), TransformModule::new(context, self.arena))
     }
 }
 
-impl HasArena for TransformModuleFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformModuleFactory);
 
 pub fn transform_module(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformModuleFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformModuleFactory::new(arena)))
 }

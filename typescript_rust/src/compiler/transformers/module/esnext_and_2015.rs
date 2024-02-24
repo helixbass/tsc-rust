@@ -8,21 +8,21 @@ use std::{
 use id_arena::Id;
 
 use crate::{
-    CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget,
-    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, _d, chain_bundle, create_empty_exports,
-    create_external_helpers_import_declaration_if_needed, downcast_transformer_ref, get_emit_flags,
-    get_emit_script_target, get_external_module_name_literal, has_syntactic_modifier, id_text,
+    CompilerOptions, EmitResolver, Node, NodeFactory, ScriptTarget, TransformationContext,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, _d,
+    chain_bundle, create_empty_exports, create_external_helpers_import_declaration_if_needed,
+    downcast_transformer_ref, get_emit_flags, get_emit_script_target,
+    get_external_module_name_literal, has_syntactic_modifier, id_text, impl_has_arena,
     insert_statements_after_custom_prologue, is_export_namespace_as_default_declaration,
     is_external_module, is_external_module_import_equals_declaration, is_external_module_indicator,
     is_identifier, is_namespace_export, is_source_file, is_statement, ref_mut_unwrapped,
-    ref_unwrapped, single_or_many_node, static_arena, try_visit_each_child, try_visit_nodes,
-    AllArenas, BoolExt, CoreTransformationContext, Debug_, EmitFlags, EmitHelperFactory, EmitHint,
-    EmitHost, GeneratedIdentifierFlags, GetOrInsertDefault, HasArena, HasStatementsInterface,
-    InArena, Matches, ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray,
-    NodeArrayExt, NodeExt, NodeFlags, NodeInterface, SyntaxKind,
-    TransformNodesTransformationResult, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, VecExt, VisitResult,
+    ref_unwrapped, single_or_many_node, try_visit_each_child, try_visit_nodes, AllArenas, BoolExt,
+    CoreTransformationContext, Debug_, EmitFlags, EmitHelperFactory, EmitHint, EmitHost,
+    GeneratedIdentifierFlags, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena,
+    Matches, ModifierFlags, ModuleKind, NamedDeclarationInterface, NodeArray, NodeArrayExt,
+    NodeExt, NodeFlags, NodeInterface, SyntaxKind, TransformNodesTransformationResult,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    VecExt, VisitResult,
 };
 
 struct TransformEcmascriptModule {
@@ -735,11 +735,15 @@ impl HasArena for TransformEcmascriptModuleOnSubstituteNodeOverrider {
     }
 }
 
-struct TransformEcmascriptModuleFactory {}
+struct TransformEcmascriptModuleFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformEcmascriptModuleFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -747,17 +751,13 @@ impl TransformerFactoryInterface for TransformEcmascriptModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context.clone(),
-            TransformEcmascriptModule::new(context, &*static_arena()),
+            TransformEcmascriptModule::new(context, self.arena),
         )
     }
 }
 
-impl HasArena for TransformEcmascriptModuleFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformEcmascriptModuleFactory);
 
 pub fn transform_ecmascript_module(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformEcmascriptModuleFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformEcmascriptModuleFactory::new(arena)))
 }

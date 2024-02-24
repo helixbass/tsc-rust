@@ -21,9 +21,9 @@ use crate::{
     is_parameter, is_property_access_expression,
     is_property_access_or_qualified_name_or_import_type_node, is_source_file, is_type_node,
     object_allocator, parse_pseudo_big_int, ref_unwrapped, return_ok_default_if_none,
-    return_ok_none_if_none, skip_type_checking, static_arena, sum, unescape_leading_underscores,
-    AllArenas, BaseInterfaceType, CancellationToken, CheckBinaryExpression, CheckFlags,
-    ContextFlags, Debug_, Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
+    return_ok_none_if_none, skip_type_checking, sum, unescape_leading_underscores, AllArenas,
+    BaseInterfaceType, CancellationToken, CheckBinaryExpression, CheckFlags, ContextFlags, Debug_,
+    Diagnostic, DiagnosticCategory, DiagnosticCollection, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, EmitResolver, EmitTextWriter, Extension,
     ExternalEmitHelpers, FlowNode, FlowType, FreshableIntrinsicType, GenericableTypeInterface,
     HasArena, InArena, IndexInfo, IndexKind, InternalSymbolName, IterationTypeCacheKey,
@@ -517,14 +517,14 @@ pub fn is_instantiated_module(
 }
 
 pub fn create_type_checker(
-    arena: *const AllArenas,
     host: Id<Program /*TypeCheckerHostDebuggable*/>,
     produce_diagnostics: bool,
+    arena: &impl HasArena,
 ) -> io::Result<Id<TypeChecker>> {
-    let arena_ref = unsafe { &*arena };
-    let compiler_options = host.ref_(arena_ref).get_compiler_options();
+    let arena_ptr: *const AllArenas = arena.arena();
+    let compiler_options = host.ref_(arena).get_compiler_options();
     let mut type_checker = TypeChecker {
-        arena,
+        arena: arena_ptr,
         host,
         produce_diagnostics,
         _arena_id: Default::default(),
@@ -581,7 +581,7 @@ pub fn create_type_checker(
         emit_resolver: Default::default(),
         node_builder: Default::default(),
 
-        globals: arena_ref.alloc_symbol_table(create_symbol_table(unsafe { &*arena }, Option::<&[Id<Symbol>]>::None)),
+        globals: arena_ref.alloc_symbol_table(create_symbol_table(arena_ref, Option::<&[Id<Symbol>]>::None)),
         undefined_symbol: Default::default(),
         global_this_symbol: Default::default(),
 
@@ -802,8 +802,8 @@ pub fn create_type_checker(
         potential_reflect_collisions: Default::default(),
         awaited_type_stack: Default::default(),
 
-        diagnostics: RefCell::new(create_diagnostic_collection(&*static_arena())),
-        suggestion_diagnostics: RefCell::new(create_diagnostic_collection(&*static_arena())),
+        diagnostics: RefCell::new(create_diagnostic_collection(arena)),
+        suggestion_diagnostics: RefCell::new(create_diagnostic_collection(arena)),
 
         typeof_types_by_name: Default::default(),
         typeof_type: Default::default(),

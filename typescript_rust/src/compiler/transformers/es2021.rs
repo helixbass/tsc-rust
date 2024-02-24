@@ -3,12 +3,13 @@ use std::{any::Any, io};
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, get_non_assignment_operator_for_compound_assignment, is_access_expression,
-    is_expression, is_left_hand_side_expression, is_logical_or_coalescing_assignment_expression,
-    is_property_access_expression, is_simple_copiable_expression, maybe_visit_each_child,
-    skip_parentheses, static_arena, visit_each_child, visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult,
+    chain_bundle, get_non_assignment_operator_for_compound_assignment, impl_has_arena,
+    is_access_expression, is_expression, is_left_hand_side_expression,
+    is_logical_or_coalescing_assignment_expression, is_property_access_expression,
+    is_simple_copiable_expression, maybe_visit_each_child, skip_parentheses, visit_each_child,
+    visit_node, AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 struct TransformES2021 {
@@ -213,11 +214,15 @@ impl HasArena for TransformES2021 {
     }
 }
 
-struct TransformES2021Factory {}
+struct TransformES2021Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES2021Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -225,17 +230,13 @@ impl TransformerFactoryInterface for TransformES2021Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context,
-            self.alloc_transformer(Box::new(TransformES2021::new(context, &*static_arena()))),
+            self.alloc_transformer(Box::new(TransformES2021::new(context, self.arena))),
         )
     }
 }
 
-impl HasArena for TransformES2021Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2021Factory);
 
 pub fn transform_es2021(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES2021Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES2021Factory::new(arena)))
 }

@@ -17,10 +17,10 @@ use crate::{
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
     UnderscoreEscapedMap, VecExt, VisitResult, _d, downcast_transformer_ref, get_emit_flags,
-    get_original_node, is_arrow_function, is_get_accessor, is_identifier, is_modifier,
-    is_set_accessor, is_simple_inlineable_expression, is_static_modifier, is_super_property,
-    maybe_filter, maybe_visit_nodes, move_range_pos, ref_mut_unwrapped, ref_unwrapped,
-    set_comment_range, static_arena, visit_function_body, visit_parameter_list, AllArenas,
+    get_original_node, impl_has_arena, is_arrow_function, is_get_accessor, is_identifier,
+    is_modifier, is_set_accessor, is_simple_inlineable_expression, is_static_modifier,
+    is_super_property, maybe_filter, maybe_visit_nodes, move_range_pos, ref_mut_unwrapped,
+    ref_unwrapped, set_comment_range, visit_function_body, visit_parameter_list, AllArenas,
     AsDoubleDeref, CoreTransformationContext, EmitFlags, HasArena, HasInitializerInterface,
     InArena, NamedDeclarationInterface, NodeCheckFlags, OptionInArena, ReadonlyTextRangeConcrete,
     TransformNodesTransformationResult,
@@ -1532,11 +1532,15 @@ impl HasArena for TransformClassFieldsOnSubstituteNodeOverrider {
     }
 }
 
-pub(super) struct TransformClassFieldsFactory {}
+struct TransformClassFieldsFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformClassFieldsFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1544,17 +1548,13 @@ impl TransformerFactoryInterface for TransformClassFieldsFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context.clone(),
-            TransformClassFields::new(context, &*static_arena()),
+            TransformClassFields::new(context, self.arena),
         )
     }
 }
 
-impl HasArena for TransformClassFieldsFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformClassFieldsFactory);
 
 pub fn transform_class_fields(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformClassFieldsFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformClassFieldsFactory::new(arena)))
 }

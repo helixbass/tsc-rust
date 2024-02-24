@@ -832,7 +832,7 @@ pub use execute_command_line::execute_command_line::execute_command_line;
 pub use rust_helpers::{
     are_option_rcs_equal, are_rc_slices_equal,
     arena::{
-        downcast_transformer_ref, static_arena, AllArenas, ArenaAlloc, HasArena,
+        downcast_transformer_ref, AllArenas, ArenaAlloc, HasArena,
         IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, OptionInArena,
     },
     capitalize,

@@ -507,7 +507,7 @@ pub fn create_text_writer(new_line: &str, arena: &impl HasArena) -> Id<Box<dyn E
 
 pub fn get_trailing_semicolon_deferring_writer(
     writer: Id<Box<dyn EmitTextWriter>>,
-    arena: *const AllArenas,
+    arena: &impl HasArena,
 ) -> Id<Box<dyn EmitTextWriter>> {
     TrailingSemicolonDeferringWriter::new(writer, arena)
 }
@@ -522,8 +522,9 @@ pub struct TrailingSemicolonDeferringWriter {
 impl TrailingSemicolonDeferringWriter {
     pub fn new(
         writer: Id<Box<dyn EmitTextWriter>>,
-        arena: *const AllArenas,
+        arena: &impl HasArena,
     ) -> Id<Box<dyn EmitTextWriter>> {
+        let arena: *const AllArenas = arena.arena();
         let arena_ref = unsafe { &*arena };
         arena_ref.alloc_emit_text_writer(Box::new(Self {
             _arena: arena,

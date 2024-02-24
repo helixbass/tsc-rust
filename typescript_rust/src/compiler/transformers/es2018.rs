@@ -25,13 +25,13 @@ use crate::{
     VecExtClone, VisitResult, With, __String, add_emit_helper, add_emit_helpers, add_range,
     advanced_async_super_helper, async_super_helper, chain_bundle, create_for_of_binding_statement,
     downcast_transformer_ref, flatten_destructuring_assignment, flatten_destructuring_binding,
-    get_emit_script_target, get_node_id, has_syntactic_modifier,
+    get_emit_script_target, get_node_id, has_syntactic_modifier, impl_has_arena,
     insert_statements_after_standard_prologue, is_binding_pattern, is_block,
     is_destructuring_assignment, is_effective_strict_mode_source_file, is_identifier, is_modifier,
     is_object_literal_element_like, is_property_access_expression, is_property_name,
     is_super_property, is_token, is_variable_declaration_list, maybe_visit_each_child,
     maybe_visit_node, maybe_visit_nodes, process_tagged_template_expression, ref_unwrapped,
-    set_emit_flags, set_original_node, set_text_range_node_array, static_arena, AllArenas,
+    set_emit_flags, set_original_node, set_text_range_node_array, AllArenas,
     CoreTransformationContext, HasArena, InArena, OptionInArena,
     TransformNodesTransformationResult,
 };
@@ -2649,29 +2649,28 @@ impl HasArena for TransformES2018OnSubstituteNodeOverrider {
     }
 }
 
-struct TransformES2018Factory {}
+struct TransformES2018Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES2018Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformES2018Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle(self).ref_(self).call(
-            context.clone(),
-            TransformES2018::new(context, &*static_arena()),
-        )
+        chain_bundle(self)
+            .ref_(self)
+            .call(context.clone(), TransformES2018::new(context, self.arena))
     }
 }
 
-impl HasArena for TransformES2018Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2018Factory);
 
 pub fn transform_es2018(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES2018Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES2018Factory::new(arena)))
 }

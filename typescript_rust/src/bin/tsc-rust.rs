@@ -1,19 +1,20 @@
-use std::{io, rc::Rc};
+use std::io;
 
+use id_arena::Id;
 use regex::Regex;
 use typescript_rust::{
-    execute_command_line, get_sys, static_arena, AllArenas, Debug_, HasArena, InArena, LogLevel,
+    execute_command_line, get_sys, impl_has_arena, AllArenas, Debug_, HasArena, InArena, LogLevel,
     LoggingHost,
 };
 
 fn main() -> io::Result<()> {
-    Debug_.set_logging_host(Some(Rc::new(LoggingHostConcrete::new())));
+    let ref arena = AllArenas::default();
+
+    Debug_.set_logging_host(Some(LoggingHostConcrete::new(arena)));
 
     if Debug_.is_debugging() {
         Debug_.enable_debug_info();
     }
-
-    let arena = &*static_arena();
 
     let sys = get_sys(arena);
 
@@ -36,11 +37,15 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-struct LoggingHostConcrete {}
+struct LoggingHostConcrete {
+    arena: *const AllArenas,
+}
 
 impl LoggingHostConcrete {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn LoggingHost>> {
+        arena.alloc_logging_host(Box::new(Self {
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -55,8 +60,4 @@ impl LoggingHost for LoggingHostConcrete {
     }
 }
 
-impl HasArena for LoggingHostConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(LoggingHostConcrete);

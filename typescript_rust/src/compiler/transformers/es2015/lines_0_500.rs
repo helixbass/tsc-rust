@@ -12,11 +12,11 @@ use indexmap::IndexMap;
 
 use crate::{
     chain_bundle, downcast_transformer_ref, get_emit_flags, get_enclosing_block_scope_container,
-    get_name_of_declaration, get_original_node, get_parse_tree_node, has_static_modifier, is_block,
-    is_case_block, is_case_clause, is_catch_clause, is_class_element, is_class_like,
-    is_default_clause, is_function_like, is_identifier, is_if_statement, is_internal_name,
-    is_iteration_statement, is_labeled_statement, is_property_declaration, is_return_statement,
-    is_switch_statement, is_try_statement, is_with_statement, ref_unwrapped, static_arena,
+    get_name_of_declaration, get_original_node, get_parse_tree_node, has_static_modifier,
+    impl_has_arena, is_block, is_case_block, is_case_clause, is_catch_clause, is_class_element,
+    is_class_like, is_default_clause, is_function_like, is_identifier, is_if_statement,
+    is_internal_name, is_iteration_statement, is_labeled_statement, is_property_declaration,
+    is_return_statement, is_switch_statement, is_try_statement, is_with_statement, ref_unwrapped,
     try_maybe_visit_each_child, AllArenas, CompilerOptions, CoreTransformationContext, EmitFlags,
     EmitHelperFactory, EmitHint, EmitResolver, GeneratedIdentifierFlags, GetOrInsertDefault,
     HasArena, InArena, Matches, Node, NodeExt, NodeFactory, NodeInterface, OptionTry,
@@ -866,11 +866,15 @@ impl HasArena for TransformES2015OnSubstituteNodeOverrider {
     }
 }
 
-struct TransformES2015Factory {}
+struct TransformES2015Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES2015Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -878,16 +882,12 @@ impl TransformerFactoryInterface for TransformES2015Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self)
             .ref_(self)
-            .call(context, TransformES2015::new(context, &*static_arena()))
+            .call(context, TransformES2015::new(context, self.arena))
     }
 }
 
-impl HasArena for TransformES2015Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2015Factory);
 
 pub fn transform_es2015(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES2015Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES2015Factory::new(arena)))
 }

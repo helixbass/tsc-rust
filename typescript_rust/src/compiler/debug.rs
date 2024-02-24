@@ -1,7 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
     fmt,
-    rc::Rc,
 };
 
 use id_arena::Id;
@@ -41,7 +40,8 @@ thread_local! {
     pub static is_debugging: Cell<bool> = Cell::new(false);
 }
 thread_local! {
-    pub static logging_host: RefCell<Option<Rc<dyn LoggingHost>>> = RefCell::new(None);
+    // TODO: how to handle this wrt multiple arenas?
+    pub static logging_host: RefCell<Option<Id<Box<dyn LoggingHost>>>> = RefCell::new(None);
 }
 
 pub struct DebugType {}
@@ -65,25 +65,25 @@ impl DebugType {
         self.current_log_level() <= level
     }
 
-    pub fn set_logging_host(&self, host: Option<Rc<dyn LoggingHost>>) {
+    pub fn set_logging_host(&self, host: Option<Id<Box<dyn LoggingHost>>>) {
         logging_host.with(|logging_host_| {
             *logging_host_.borrow_mut() = host;
         });
     }
 
-    pub fn log_message(&self, level: LogLevel, s: &str) {
+    pub fn log_message(&self, level: LogLevel, s: &str, arena: &impl HasArena) {
         logging_host.with(|logging_host_| {
             let logging_host_ = logging_host_.borrow();
             if let Some(logging_host_) = logging_host_.as_ref() {
                 if self.should_log(level) {
-                    logging_host_.log(level, s);
+                    logging_host_.ref_(arena).log(level, s);
                 }
             }
         })
     }
 
-    pub fn log(&self, s: &str) {
-        self.log_message(LogLevel::Info, s)
+    pub fn log(&self, s: &str, arena: &impl HasArena) {
+        self.log_message(LogLevel::Info, s, arena)
     }
 
     pub fn should_assert(&self, level: AssertionLevel) -> bool {

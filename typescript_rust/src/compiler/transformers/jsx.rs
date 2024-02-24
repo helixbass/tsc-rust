@@ -13,23 +13,23 @@ use once_cell::sync::Lazy;
 use regex::Captures;
 
 use crate::{
-    chain_bundle, CompilerOptions, EmitHelperFactory,
-    GeneratedIdentifierFlags, JsxEmit, NamedDeclarationInterface, Node, NodeFactory, NodeInterface,
-    TransformationContext, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, _d, add_emit_helpers, create_expression_for_jsx_element,
-    create_expression_for_jsx_fragment, create_expression_from_entity_name,
-    create_jsx_factory_expression, filter, flatten, get_emit_script_target,
-    get_jsx_implicit_import_base, get_jsx_runtime_import, get_line_and_character_of_position,
-    get_semantic_jsx_children, id_text, insert_statement_after_custom_prologue, is_expression,
-    is_external_module, is_external_or_common_js_module, is_identifier, is_intrinsic_jsx_name,
-    is_jsx_attribute, is_jsx_spread_attribute, is_line_break, is_source_file,
-    is_string_double_quoted, is_white_space_single_line, map, map_defined, maybe_get_original_node,
-    maybe_visit_node, ref_mut_unwrapped, ref_unwrapped, regex, single_or_undefined, span_map,
-    start_on_new_line, static_arena, utf16_encode_as_string, visit_each_child, visit_node,
-    AllArenas, CoreTransformationContext, Debug_, GetOrInsertDefault, HasArena,
-    HasStatementsInterface, InArena, LiteralLikeNodeInterface, MapOrDefault, Matches, NodeArray,
-    NodeArrayOrVec, NodeExt, NodeFlags, NonEmpty, Number, ReadonlyTextRange, ScriptTarget,
-    SyntaxKind, TransformFlags, TransformNodesTransformationResult, VisitResult,
+    chain_bundle, CompilerOptions, EmitHelperFactory, GeneratedIdentifierFlags, JsxEmit,
+    NamedDeclarationInterface, Node, NodeFactory, NodeInterface, TransformationContext,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, _d,
+    add_emit_helpers, create_expression_for_jsx_element, create_expression_for_jsx_fragment,
+    create_expression_from_entity_name, create_jsx_factory_expression, filter, flatten,
+    get_emit_script_target, get_jsx_implicit_import_base, get_jsx_runtime_import,
+    get_line_and_character_of_position, get_semantic_jsx_children, id_text, impl_has_arena,
+    insert_statement_after_custom_prologue, is_expression, is_external_module,
+    is_external_or_common_js_module, is_identifier, is_intrinsic_jsx_name, is_jsx_attribute,
+    is_jsx_spread_attribute, is_line_break, is_source_file, is_string_double_quoted,
+    is_white_space_single_line, map, map_defined, maybe_get_original_node, maybe_visit_node,
+    ref_mut_unwrapped, ref_unwrapped, regex, single_or_undefined, span_map, start_on_new_line,
+    utf16_encode_as_string, visit_each_child, visit_node, AllArenas, CoreTransformationContext,
+    Debug_, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena,
+    LiteralLikeNodeInterface, MapOrDefault, Matches, NodeArray, NodeArrayOrVec, NodeExt, NodeFlags,
+    NonEmpty, Number, ReadonlyTextRange, ScriptTarget, SyntaxKind, TransformFlags,
+    TransformNodesTransformationResult, VisitResult,
 };
 
 #[derive(Builder, Default)]
@@ -1173,11 +1173,15 @@ impl HasArena for TransformJsx {
     }
 }
 
-pub(super) struct TransformJsxFactory {}
+struct TransformJsxFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformJsxFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1185,19 +1189,15 @@ impl TransformerFactoryInterface for TransformJsxFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context,
-            self.alloc_transformer(Box::new(TransformJsx::new(context, &*static_arena()))),
+            self.alloc_transformer(Box::new(TransformJsx::new(context, self.arena))),
         )
     }
 }
 
-impl HasArena for TransformJsxFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformJsxFactory);
 
 pub fn transform_jsx(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformJsxFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformJsxFactory::new(arena)))
 }
 
 static entities: Lazy<HashMap<&'static str, u32>> = Lazy::new(|| {

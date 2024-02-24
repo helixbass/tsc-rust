@@ -8,21 +8,21 @@ use std::{
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, CompilerOptions, EmitHelperBase, EmitHint, EmitHost,
-    EmitResolver, ExternalModuleInfo, HasStatementsInterface, LiteralLikeNodeInterface, Node,
-    NodeArrayExt, NodeExt, NodeFactory, NodeId, NodeInterface, NonEmpty, SyntaxKind,
-    TransformationContext, TransformationContextOnEmitNodeOverrider,
-    TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
-    TransformerFactoryInterface, TransformerInterface, _d, add_range, collect_external_module_info,
-    downcast_transformer_ref, for_each, get_emit_flags, get_external_helpers_module_name,
-    get_external_module_name_literal, get_local_name_for_external_import, get_original_node_id,
-    get_strict_option_value, id_text, insert_statements_after_standard_prologue,
-    is_assignment_operator, is_declaration_name_of_enum_or_namespace, is_effective_external_module,
-    is_external_module, is_generated_identifier, is_identifier, is_import_clause, is_import_meta,
-    is_import_specifier, is_local_name, is_named_exports, is_statement, map, move_emit_helpers,
-    out_file, static_arena, try_get_module_name_from_file, try_maybe_visit_node, try_visit_nodes,
-    AllArenas, CoreTransformationContext, Debug_, EmitFlags, EmitHelper, HasArena, InArena,
-    Matches, ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
+    chain_bundle, CompilerOptions, EmitHelperBase, EmitHint, EmitHost, EmitResolver,
+    ExternalModuleInfo, HasStatementsInterface, LiteralLikeNodeInterface, Node, NodeArrayExt,
+    NodeExt, NodeFactory, NodeId, NodeInterface, NonEmpty, SyntaxKind, TransformationContext,
+    TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
+    Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface, _d,
+    add_range, collect_external_module_info, downcast_transformer_ref, for_each, get_emit_flags,
+    get_external_helpers_module_name, get_external_module_name_literal,
+    get_local_name_for_external_import, get_original_node_id, get_strict_option_value, id_text,
+    impl_has_arena, insert_statements_after_standard_prologue, is_assignment_operator,
+    is_declaration_name_of_enum_or_namespace, is_effective_external_module, is_external_module,
+    is_generated_identifier, is_identifier, is_import_clause, is_import_meta, is_import_specifier,
+    is_local_name, is_named_exports, is_statement, map, move_emit_helpers, out_file,
+    try_get_module_name_from_file, try_maybe_visit_node, try_visit_nodes, AllArenas,
+    CoreTransformationContext, Debug_, EmitFlags, EmitHelper, HasArena, InArena, Matches,
+    ModifierFlags, NamedDeclarationInterface, NodeArray, TransformFlags,
     TransformNodesTransformationResult,
 };
 
@@ -1340,11 +1340,15 @@ impl HasArena for TransformSystemModuleOnSubstituteNodeOverrider {
     }
 }
 
-pub(super) struct TransformSystemModuleFactory {}
+struct TransformSystemModuleFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformSystemModuleFactory {
-    pub(super) fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1352,17 +1356,13 @@ impl TransformerFactoryInterface for TransformSystemModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context.clone(),
-            TransformSystemModule::new(context, &*static_arena()),
+            TransformSystemModule::new(context, self.arena),
         )
     }
 }
 
-impl HasArena for TransformSystemModuleFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformSystemModuleFactory);
 
 pub fn transform_system_module(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformSystemModuleFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformSystemModuleFactory::new(arena)))
 }

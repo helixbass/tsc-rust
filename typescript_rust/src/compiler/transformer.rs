@@ -13,15 +13,15 @@ use crate::{
     get_emit_flags, get_emit_module_kind, get_emit_script_target, get_factory_id,
     get_jsx_transform_enabled, get_parse_tree_node, is_bundle, is_source_file,
     maybe_get_source_file_of_node, maybe_map, not_implemented, per_arena, ref_mut_unwrapped,
-    ref_unwrapped, set_emit_flags, some, static_arena, transform_class_fields,
-    transform_declarations, transform_ecmascript_module, transform_es2015, transform_es2016,
-    transform_es2017, transform_es2018, transform_es2019, transform_es2020, transform_es2021,
-    transform_es5, transform_esnext, transform_generators, transform_jsx, transform_module,
-    transform_node_module, transform_system_module, transform_type_script, AllArenas,
-    CompilerOptions, CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_,
-    Diagnostic, EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost,
-    EmitResolver, EmitTransformers, GetOrInsertDefault, HasArena, InArena, LexicalEnvironmentFlags,
-    ModuleKind, Node, NodeArray, NodeFactory, NodeFlags, NodeInterface, ScriptTarget, SyntaxKind,
+    ref_unwrapped, set_emit_flags, some, transform_class_fields, transform_declarations,
+    transform_ecmascript_module, transform_es2015, transform_es2016, transform_es2017,
+    transform_es2018, transform_es2019, transform_es2020, transform_es2021, transform_es5,
+    transform_esnext, transform_generators, transform_jsx, transform_module, transform_node_module,
+    transform_system_module, transform_type_script, AllArenas, CompilerOptions,
+    CoreTransformationContext, CustomTransformer, CustomTransformers, Debug_, Diagnostic,
+    EmitFlags, EmitHelper, EmitHelperBase, EmitHelperFactory, EmitHint, EmitHost, EmitResolver,
+    EmitTransformers, GetOrInsertDefault, HasArena, InArena, LexicalEnvironmentFlags, ModuleKind,
+    Node, NodeArray, NodeFactory, NodeFlags, NodeInterface, ScriptTarget, SyntaxKind,
     TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
@@ -363,7 +363,7 @@ pub fn transform_nodes(
         resolver,
         host,
         factory,
-        &*static_arena(),
+        arena,
     );
     transformation_result.ref_(arena).call()?;
     Ok(transformation_result)
@@ -430,8 +430,9 @@ impl TransformNodesTransformationResult {
         resolver: Option<Id<Box<dyn EmitResolver>>>,
         host: Option<Id<Box<dyn EmitHost>>>,
         factory: Id<NodeFactory>,
-        arena: *const AllArenas,
+        arena: &impl HasArena,
     ) -> Id<Self> {
+        let arena: *const AllArenas = arena.arena();
         let arena_ref = unsafe { &*arena };
         let ret = arena_ref.alloc_transform_nodes_transformation_result(Self {
             _arena: arena,

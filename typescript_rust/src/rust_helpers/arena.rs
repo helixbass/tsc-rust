@@ -19,7 +19,7 @@ use crate::{
     GetCanonicalFileName, GetProgramBuildInfo, GetResolvedProjectReferences, GetSourceFile,
     GetSymbolAccessibilityDiagnosticInterface, GetSymlinkCache, IncrementalParserSyntaxCursor,
     IndexInfo, InferenceContext, InferenceInfo, InputFilesInitializedState, IterationTypes,
-    LoadWithLocalCacheLoader, LoadWithModeAwareCacheLoader,
+    LoadWithLocalCacheLoader, LoadWithModeAwareCacheLoader, LoggingHost,
     MakeSerializePropertySymbolCreateProperty, ModeAwareCache, ModuleResolutionCache,
     ModuleResolutionHostOverrider, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
     MultiMap, Node, NodeArray, NodeBuilder, NodeBuilderContext, NodeFactory, NodeIdOverride,
@@ -263,6 +263,7 @@ pub struct AllArenas {
     pub per_module_name_cache_maps: RefCell<Arena<HashMap<String, Id<PerModuleNameCache>>>>,
     pub path_per_module_name_cache_maps:
         RefCell<Arena<HashMap<Path, Id<HashMap<String, Id<PerModuleNameCache>>>>>>,
+    pub logging_hosts: RefCell<Arena<Box<dyn LoggingHost>>>,
 }
 
 pub trait HasArena {
@@ -2559,6 +2560,14 @@ pub trait HasArena {
     ) -> Id<HashMap<Path, Id<HashMap<String, Id<PerModuleNameCache>>>>> {
         self.arena()
             .alloc_path_per_module_name_cache_map(path_per_module_name_cache_map)
+    }
+
+    fn logging_host(&self, logging_host: Id<Box<dyn LoggingHost>>) -> Ref<Box<dyn LoggingHost>> {
+        self.arena().logging_host(logging_host)
+    }
+
+    fn alloc_logging_host(&self, logging_host: Box<dyn LoggingHost>) -> Id<Box<dyn LoggingHost>> {
+        self.arena().alloc_logging_host(logging_host)
     }
 }
 
@@ -5775,6 +5784,18 @@ impl HasArena for AllArenas {
             .alloc(path_per_module_name_cache_map);
         id
     }
+
+    #[track_caller]
+    fn logging_host(&self, logging_host: Id<Box<dyn LoggingHost>>) -> Ref<Box<dyn LoggingHost>> {
+        Ref::map(self.logging_hosts.borrow(), |logging_hosts| {
+            &logging_hosts[logging_host]
+        })
+    }
+
+    fn alloc_logging_host(&self, logging_host: Box<dyn LoggingHost>) -> Id<Box<dyn LoggingHost>> {
+        let id = self.logging_hosts.borrow_mut().alloc(logging_host);
+        id
+    }
 }
 
 pub trait InArena {
@@ -7297,6 +7318,14 @@ impl InArena for Id<HashMap<Path, Id<HashMap<String, Id<PerModuleNameCache>>>>> 
     }
 }
 
+impl InArena for Id<Box<dyn LoggingHost>> {
+    type Item = Box<dyn LoggingHost>;
+
+    fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn LoggingHost>> {
+        has_arena.logging_host(*self)
+    }
+}
+
 pub trait OptionInArena {
     type Item;
 
@@ -7524,14 +7553,6 @@ impl ArenaAlloc for HashMap<Path, Id<HashMap<String, Id<PerModuleNameCache>>>> {
     }
 }
 
-thread_local! {
-    static ARENA: Lazy<Rc<AllArenas>> = Lazy::new(Default::default);
-}
-
-pub fn static_arena() -> Rc<AllArenas> {
-    ARENA.with(|arena| (**arena).clone())
-}
-
 pub fn downcast_transformer_ref<TTransformer: Any>(
     transformer: Transformer,
     arena: &impl HasArena,
@@ -7601,4 +7622,15 @@ macro_rules! per_arena {
             *per_arena.entry(arena_ptr).or_insert_with(|| $initializer)
         })
     }}
+}
+
+#[macro_export]
+macro_rules! impl_has_arena {
+    ($type:ty $(,)?) => {
+        impl $crate::HasArena for $type {
+            fn arena(&self) -> &$crate::AllArenas {
+                unsafe { &*self.arena }
+            }
+        }
+    };
 }

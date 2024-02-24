@@ -3,10 +3,10 @@ use std::{any::Any, io};
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, is_block, maybe_visit_each_child, static_arena, visit_each_child, visit_node,
-    AllArenas, CoreTransformationContext, HasArena, InArena, Node,
-    NodeFactory, NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult,
+    chain_bundle, impl_has_arena, is_block, maybe_visit_each_child, visit_each_child, visit_node,
+    AllArenas, CoreTransformationContext, HasArena, InArena, Node, NodeFactory, NodeInterface,
+    SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 struct TransformES2019 {
@@ -113,29 +113,28 @@ impl HasArena for TransformES2019 {
     }
 }
 
-struct TransformES2019Factory {}
+struct TransformES2019Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES2019Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformES2019Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        chain_bundle(self).ref_(self).call(
-            context.clone(),
-            TransformES2019::new(context, &*static_arena()),
-        )
+        chain_bundle(self)
+            .ref_(self)
+            .call(context.clone(), TransformES2019::new(context, self.arena))
     }
 }
 
-impl HasArena for TransformES2019Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2019Factory);
 
 pub fn transform_es2019(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES2019Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES2019Factory::new(arena)))
 }

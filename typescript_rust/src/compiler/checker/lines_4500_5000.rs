@@ -18,16 +18,17 @@ use crate::{
     is_late_visibility_painted_statement, is_module_with_string_literal_name,
     is_type_reference_node, is_variable_declaration, is_variable_statement, maybe_filter,
     maybe_get_source_file_of_node, no_truncation_maximum_truncation_length,
-    pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, static_arena,
-    symbol_name, try_map, try_using_single_line_string_writer, using_single_line_string_writer,
-    AllArenas, Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena,
+    pseudo_big_int_to_string, ref_mut_unwrapped, ref_unwrapped, set_emit_flags, symbol_name,
+    try_map, try_using_single_line_string_writer, using_single_line_string_writer, AllArenas,
+    Debug_, EmitFlags, EmitHint, EmitTextWriter, FileIncludeReason, HasArena,
     IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, IndexInfo,
     KeywordTypeNode, ModifierFlags, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
     NodeBuilderFlags, NodeFlags, NodeInterface, ObjectFlags, Path, PrinterOptionsBuilder, Program,
     RedirectTargetsMap, ScriptTarget, Signature, SignatureKind, Symbol, SymbolAccessibility,
     SymbolFlags, SymbolFormatFlags, SymbolId, SymbolInterface, SymbolTable, SymbolTracker,
-    SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHost, TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
+    SymbolVisibilityResult, SymlinkCache, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
+    TypeFlags, TypeFormatFlags, TypeId, TypeInterface,
 };
 
 impl TypeChecker {
@@ -432,7 +433,7 @@ impl TypeChecker {
             EmitHint::Unspecified,
             sig.unwrap(),
             source_file,
-            get_trailing_semicolon_deferring_writer(writer, &*static_arena()),
+            get_trailing_semicolon_deferring_writer(writer, self),
         )?;
         // writer
 

@@ -3,14 +3,14 @@ use std::{any::Any, io};
 use id_arena::Id;
 
 use crate::{
-    cast, chain_bundle, is_call_chain, is_expression, is_identifier, is_non_null_chain,
-    is_optional_chain, is_parenthesized_expression, is_simple_copiable_expression,
-    is_synthetic_reference, is_tagged_template_expression, maybe_visit_each_child,
-    set_original_node, skip_parentheses, skip_partially_emitted_expressions, static_arena,
-    visit_each_child, visit_node, visit_nodes, AllArenas,
+    cast, chain_bundle, impl_has_arena, is_call_chain, is_expression, is_identifier,
+    is_non_null_chain, is_optional_chain, is_parenthesized_expression,
+    is_simple_copiable_expression, is_synthetic_reference, is_tagged_template_expression,
+    maybe_visit_each_child, set_original_node, skip_parentheses,
+    skip_partially_emitted_expressions, visit_each_child, visit_node, visit_nodes, AllArenas,
     CoreTransformationContext, Debug_, HasArena, InArena, Node, NodeArray, NodeExt, NodeFactory,
-    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer, TransformerFactory, TransformerFactoryInterface,
-    TransformerInterface, VisitResult,
+    NodeInterface, SyntaxKind, TransformFlags, TransformNodesTransformationResult, Transformer,
+    TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 struct TransformES2020 {
@@ -628,11 +628,15 @@ impl HasArena for TransformES2020 {
     }
 }
 
-struct TransformES2020Factory {}
+struct TransformES2020Factory {
+    arena: *const AllArenas,
+}
 
 impl TransformES2020Factory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -640,16 +644,12 @@ impl TransformerFactoryInterface for TransformES2020Factory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self)
             .ref_(self)
-            .call(context, TransformES2020::new(context, &*static_arena()))
+            .call(context, TransformES2020::new(context, self.arena))
     }
 }
 
-impl HasArena for TransformES2020Factory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformES2020Factory);
 
 pub fn transform_es2020(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformES2020Factory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformES2020Factory::new(arena)))
 }

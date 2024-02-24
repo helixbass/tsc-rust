@@ -6,8 +6,8 @@ use crate::{
     EmitHint, Node, NodeInterface, TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, Transformer, TransformerFactory,
     TransformerFactoryInterface, TransformerInterface, _d, downcast_transformer_ref,
-    is_source_file, static_arena, transform_ecmascript_module, transform_module, try_map,
-    AllArenas, CoreTransformationContext, Debug_, HasArena, InArena, ModuleKind, SyntaxKind,
+    is_source_file, transform_ecmascript_module, transform_module, try_map, AllArenas,
+    CoreTransformationContext, Debug_, HasArena, InArena, ModuleKind, SyntaxKind,
     TransformNodesTransformationResult,
 };
 
@@ -276,20 +276,24 @@ impl HasArena for TransformNodeModuleOnSubstituteNodeOverrider {
     }
 }
 
-struct TransformNodeModuleFactory {}
+struct TransformNodeModuleFactory {
+    arena: *const AllArenas,
+}
 
 impl TransformNodeModuleFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl TransformerFactoryInterface for TransformNodeModuleFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
-        TransformNodeModule::new(context, &*static_arena())
+        TransformNodeModule::new(context, self.arena)
     }
 }
 
 pub fn transform_node_module(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformNodeModuleFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformNodeModuleFactory::new(arena)))
 }
