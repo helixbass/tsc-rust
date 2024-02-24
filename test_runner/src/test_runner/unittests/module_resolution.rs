@@ -1170,8 +1170,8 @@ mod node_module_resolution_non_relative_paths {
         assert_that(
             &resolution
                 .resolved_module
-                .as_ref()
                 .unwrap()
+                .ref_(arena)
                 .original_path
                 .as_deref(),
         )
@@ -1220,8 +1220,10 @@ mod node_module_resolution_non_relative_paths {
                 Some(cache.clone()),
                 None,
                 None,
+                arena,
             )
-            .unwrap(),
+            .unwrap()
+            .ref_(arena),
             arena,
         );
         check_resolution(
@@ -1233,19 +1235,23 @@ mod node_module_resolution_non_relative_paths {
                 Some(cache.clone()),
                 None,
                 None,
+                arena,
             )
-            .unwrap(),
+            .unwrap()
+            .ref_(arena),
             arena,
         );
     }
 }
 
 mod relative_imports {
+    use std::any::Any;
+
     use harness::Compiler;
     use typescript_rust::{
         combine_paths, create_program, create_source_file, normalize_path, not_implemented,
-        CompilerHost, CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
-        ModuleKind, Node, Owned, ScriptReferenceHost, ScriptTarget,
+        AllArenas, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
+        CreateProgramOptionsBuilder, ModuleKind, Node, Owned, ScriptReferenceHost, ScriptTarget,
     };
 
     use super::*;
@@ -1274,28 +1280,32 @@ mod relative_imports {
                 .host(host)
                 .build()
                 .unwrap(),
+            arena,
         )
         .unwrap();
 
-        assert_that(&*program.get_source_files()).has_length(expected_files_count);
-        let syntactic_diagnostics = program.get_syntactic_diagnostics(None, None);
+        assert_that(&*program.ref_(arena).get_source_files()).has_length(expected_files_count);
+        let syntactic_diagnostics = program.ref_(arena).get_syntactic_diagnostics(None, None);
         asserting(&format!(
             "expect no syntactic diagnostics, got: {:?}",
-            Compiler::minimal_diagnostics_to_string(&syntactic_diagnostics, None,)
+            Compiler::minimal_diagnostics_to_string(&syntactic_diagnostics, None, arena)
         ))
         .that(&syntactic_diagnostics)
         .is_empty();
-        let semantic_diagnostics = program.get_semantic_diagnostics(None, None).unwrap();
+        let semantic_diagnostics = program
+            .ref_(arena)
+            .get_semantic_diagnostics(None, None)
+            .unwrap();
         asserting(&format!(
             "expect no semantic diagnostics, got: {:?}",
-            Compiler::minimal_diagnostics_to_string(&semantic_diagnostics, None,)
+            Compiler::minimal_diagnostics_to_string(&semantic_diagnostics, None, arena)
         ))
         .that(&semantic_diagnostics)
         .is_empty();
 
         for relative_file_name in relative_names_to_check {
             asserting("expected to get file by relative name, got undefined")
-                .that(&program.get_source_file(relative_file_name))
+                .that(&program.ref_(arena).get_source_file(relative_file_name))
                 .is_some();
         }
     }
@@ -1431,6 +1441,10 @@ mod relative_imports {
         fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
+
+        fn as_dyn_any(&self) -> &dyn Any {
+            self
+        }
     }
 
     impl ModuleResolutionHost for RelativeImportsCompilerHost {
@@ -1508,6 +1522,12 @@ mod relative_imports {
         }
     }
 
+    impl HasArena for RelativeImportsCompilerHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
     #[test]
     fn test_should_find_all_modules() {
         let files: HashMap<String, String> = HashMap::from_iter(
@@ -1572,10 +1592,12 @@ export = C;
 }
 
 mod files_with_different_casing_with_force_consistent_casing_in_file_names {
+    use std::any::Any;
+
     use once_cell::unsync::OnceCell;
     use typescript_rust::{
         combine_paths, create_get_canonical_file_name, create_program, create_source_file,
-        id_arena::Id, normalize_path, not_implemented, sort_and_deduplicate_diagnostics,
+        id_arena::Id, normalize_path, not_implemented, sort_and_deduplicate_diagnostics, AllArenas,
         CompilerHost, CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
         Diagnostic, DiagnosticInterface, DiagnosticRelatedInformation,
         DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind, Node, Owned, Program,
@@ -1599,6 +1621,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         use_case_sensitive_file_names: bool,
         root_files: &[&str],
         mut expected_diagnostics: impl FnMut(&Program) -> Vec<Id<Diagnostic>>,
+        arena: &impl HasArena,
     ) {
         let get_canonical_file_name = create_get_canonical_file_name(use_case_sensitive_file_names);
         if !use_case_sensitive_file_names {
@@ -1614,6 +1637,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             files.clone(),
             get_canonical_file_name,
             use_case_sensitive_file_names,
+            arena,
         );
         let program = create_program(
             CreateProgramOptionsBuilder::default()
@@ -1622,17 +1646,23 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                 .host(host)
                 .build()
                 .unwrap(),
+            arena,
         )
         .unwrap();
         let diagnostics: Vec<_> = sort_and_deduplicate_diagnostics(
             &program
+                .ref_(arena)
                 .get_semantic_diagnostics(None, None)
                 .unwrap()
-                .and_extend(Vec::<_>::from(program.get_options_diagnostics(None))),
+                .and_extend(Vec::<_>::from(
+                    program.ref_(arena).get_options_diagnostics(None),
+                )),
+            arena,
         )
         .into();
         assert_that(&diagnostics).is_equal_to(Vec::<_>::from(sort_and_deduplicate_diagnostics(
-            &expected_diagnostics(&program),
+            &expected_diagnostics(&program.ref_(arena)),
+            arena,
         )));
     }
 
@@ -1684,6 +1714,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                                 ScriptTarget::ES5,
                                 None,
                                 None,
+                                self,
                             )
                             .unwrap()
                         })
@@ -1696,7 +1727,8 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             )));
             let file = self.files.get(path);
             Ok(file.map(|file| {
-                create_source_file(file_name, file.clone(), language_version, None, None).unwrap()
+                create_source_file(file_name, file.clone(), language_version, None, None, self)
+                    .unwrap()
             }))
         }
 
@@ -1791,6 +1823,10 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
+
+        fn as_dyn_any(&self) -> &dyn Any {
+            self
+        }
     }
 
     impl ModuleResolutionHost for FilesWithDifferentCasingCompilerHost {
@@ -1870,6 +1906,12 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         }
     }
 
+    impl HasArena for FilesWithDifferentCasingCompilerHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
     #[test]
     fn test_should_succeed_when_the_same_file_is_referenced_using_absolute_and_relative_names() {
         let ref arena = AllArenasHarness::default();
@@ -1892,6 +1934,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             false,
             &["c.ts", "/a/b/d.ts"],
             |_| vec![],
+            arena,
         );
     }
 
@@ -1950,10 +1993,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                         None,
                         arena,
                     );
-                    *diagnostic.maybe_related_information_mut() = None;
+                    *diagnostic.ref_(arena).maybe_related_information_mut() = None;
                     diagnostic
                 }]
             },
+            arena,
         );
     }
 
@@ -2011,10 +2055,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                         None,
                         arena,
                     );
-                    *diagnostic.maybe_related_information_mut() = None;
+                    *diagnostic.ref_(arena).maybe_related_information_mut() = None;
                     diagnostic
                 }]
             },
+            arena,
         );
     }
 
@@ -2073,10 +2118,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                         None,
                         arena,
                     );
-                    *diagnostic.maybe_related_information_mut() = None;
+                    *diagnostic.ref_(arena).maybe_related_information_mut() = None;
                     diagnostic
                 }]
             },
+            arena,
         );
     }
 
@@ -2134,10 +2180,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                         None,
                         arena,
                     );
-                    *diagnostic.maybe_related_information_mut() = None;
+                    *diagnostic.ref_(arena).maybe_related_information_mut() = None;
                     diagnostic
                 }]
             },
+            arena,
         );
     }
 
@@ -2165,7 +2212,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             false,
             &["moduleA.ts", "moduleB.ts", "moduleC.ts"],
             |program: &Program| {
-                let import_in_a: Id<DiagnosticRelatedInformation> = arena.alloc_diagnostic_related_information((*get_diagnostic_of_file_from_program(
+                let import_in_a = arena.alloc_diagnostic_related_information(get_diagnostic_of_file_from_program(
                     program,
                     "moduleA.ts",
                     r#"import a = require("./ModuleC")"#.find(r#""./ModuleC""#).unwrap().try_into().unwrap(),
@@ -2173,10 +2220,10 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                     &*Diagnostics::File_is_included_via_import_here,
                     None,
                     arena,
-                )).clone().into());
+                ).ref_(arena).clone().into());
                 // reportsUnnecessary: undefined,
                 // reportsDeprecated: undefined,
-                let import_in_b: Id<DiagnosticRelatedInformation>  = arena.alloc_diagnostic_related_information((*get_diagnostic_of_file_from_program(
+                let import_in_b = arena.alloc_diagnostic_related_information(get_diagnostic_of_file_from_program(
                     program,
                     "moduleB.ts",
                     r#"import a = require("./moduleC")"#.find(r#""./moduleC""#).unwrap().try_into().unwrap(),
@@ -2184,7 +2231,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                     &*Diagnostics::File_is_included_via_import_here,
                     None,
                     arena,
-                )).clone().into());
+                ).ref_(arena).clone().into());
                 // reportsUnnecessary: undefined,
                 // reportsDeprecated: undefined,
                 let import_here_in_a = get_diagnostic_message_chain(
@@ -2213,9 +2260,9 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                 vec![
                     {
                         let diagnostic = get_diagnostic_of_file_from(
-                            import_in_a.maybe_file(),
-                            Some(import_in_a.start()),
-                            Some(import_in_a.length()),
+                            import_in_a.ref_(arena).maybe_file(),
+                            Some(import_in_a.ref_(arena).start()),
+                            Some(import_in_a.ref_(arena).length()),
                             get_diagnostic_message_chain(
                                 &Diagnostics::Already_included_file_name_0_differs_from_file_name_1_only_in_casing,
                                 ["ModuleC.ts", "moduleC.ts"].owned(),
@@ -2224,15 +2271,15 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                             None,
                             arena,
                         );
-                        *diagnostic.maybe_related_information_mut() =
+                        *diagnostic.ref_(arena).maybe_related_information_mut() =
                             Some(vec![import_in_b.clone()]);
                         diagnostic
                     },
                     {
                         let diagnostic = get_diagnostic_of_file_from(
-                            import_in_b.maybe_file(),
-                            Some(import_in_b.start()),
-                            Some(import_in_b.length()),
+                            import_in_b.ref_(arena).maybe_file(),
+                            Some(import_in_b.ref_(arena).start()),
+                            Some(import_in_b.ref_(arena).length()),
                             get_diagnostic_message_chain(
                                 &Diagnostics::File_name_0_differs_from_already_included_file_name_1_only_in_casing,
                                 ["moduleC.ts", "ModuleC.ts"].owned(),
@@ -2241,11 +2288,13 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
                             None,
                             arena,
                         );
-                        *diagnostic.maybe_related_information_mut() = Some(vec![import_in_a]);
+                        *diagnostic.ref_(arena).maybe_related_information_mut() =
+                            Some(vec![import_in_a]);
                         diagnostic
                     },
                 ]
             },
+            arena,
         );
     }
 
@@ -2313,7 +2362,7 @@ import b = require("./moduleB");
                         arena,
                     );
                     *diagnostic.ref_(arena).maybe_related_information_mut() = Some(vec![
-                        arena.alloc_diagnostic_related_information((*get_diagnostic_of_file_from_program(
+                        arena.alloc_diagnostic_related_information(get_diagnostic_of_file_from_program(
                             program,
                             "moduleA.ts",
                             r#"import a = require("./ModuleC")"#.find(r#""./ModuleC""#).unwrap().try_into().unwrap(),
@@ -2321,13 +2370,14 @@ import b = require("./moduleB");
                             &*Diagnostics::File_is_included_via_import_here,
                             None,
                             arena,
-                        )).clone().into())
+                        ).ref_(arena).clone().into())
                         // reportsUnnecessary: undefined,
                         // reportsDeprecated: undefined,
                     ]);
                     diagnostic
                 }]
             },
+            arena,
         );
     }
 
@@ -2363,6 +2413,7 @@ import b = require("./moduleB");
             false,
             &["moduleD.ts"],
             |_| vec![],
+            arena,
         );
     }
 
@@ -2397,6 +2448,7 @@ import b = require("./moduleB");
             false,
             &["d:/someFolder/moduleA.ts", "d:/someFolder/moduleB.ts"],
             |_| vec![],
+            arena,
         );
     }
 }
@@ -2448,7 +2500,7 @@ mod base_url_augmented_module_resolution {
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
-                    &result,
+                    &result.ref_(arena),
                     &create_resolved_module(&file2.name, None),
                     &[],
                     arena,
@@ -2465,7 +2517,7 @@ mod base_url_augmented_module_resolution {
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
-                    &result,
+                    &result.ref_(arena),
                     &create_resolved_module(&file3.name, None),
                     &[],
                     arena,
@@ -2482,7 +2534,7 @@ mod base_url_augmented_module_resolution {
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
-                    &result,
+                    &result.ref_(arena),
                     &create_resolved_module(&file1.name, None),
                     &[],
                     arena,
@@ -2553,10 +2605,11 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module(
-                    result.resolved_module.as_deref(),
+                    result.ref_(arena).resolved_module.refed(arena).as_deref(),
                     Some(&create_resolved_module(
                         &expected.name,
                         Some(is_external_library_import),
@@ -2610,10 +2663,11 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module(
-                    result.resolved_module.as_deref(),
+                    result.ref_(arena).resolved_module.refed(arena).as_deref(),
                     Some(&create_resolved_module(&expected.name, None)),
                 );
             };
@@ -2706,10 +2760,11 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
-                    &result,
+                    &result.ref_(arena),
                     &create_resolved_module(&expected.name, Some(is_external_library_import)),
                     expected_failed_lookups,
                     arena,
@@ -2872,10 +2927,11 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
-                    &result,
+                    &result.ref_(arena),
                     &create_resolved_module(&expected.name, None),
                     expected_failed_lookups,
                     arena,
@@ -2961,10 +3017,11 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
-                    &result,
+                    &result.ref_(arena),
                     &create_resolved_module(&expected.name, None),
                     expected_failed_lookups,
                     arena,
@@ -3070,10 +3127,11 @@ mod base_url_augmented_module_resolution {
                     None,
                     None,
                     None,
+                    arena,
                 )
                 .unwrap();
                 check_resolved_module_with_failed_lookup_locations(
-                    &result,
+                    &result.ref_(arena),
                     &create_resolved_module(&expected.name, None),
                     expected_failed_lookups,
                     arena,
@@ -3162,10 +3220,11 @@ mod base_url_augmented_module_resolution {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
             check_resolved_module_with_failed_lookup_locations(
-                &result,
+                &result.ref_(arena),
                 &create_resolved_module(&libs_typings.name, None),
                 &[
                     "/root/src/libs/guid.ts",
@@ -3209,7 +3268,7 @@ mod module_resolution_host_directory_exists {
             arena,
         )
         .unwrap();
-        assert_that(&result.resolved_module).is_none();
+        assert_that(&result.ref_(arena).resolved_module).is_none();
     }
 
     #[derive(Trace, Finalize)]
@@ -3296,11 +3355,13 @@ mod module_resolution_host_directory_exists {
 }
 
 mod type_reference_directive_resolution {
+    use std::any::Any;
+
     use typescript_rust::{
         array_to_map, create_program, create_source_file, not_implemented,
-        resolve_type_reference_directive, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
-        CreateProgramOptionsBuilder, MapOrDefault, Node, Owned, ResolvedProjectReference,
-        ScriptTarget, SourceFileLike, StructureIsReused, VecExt,
+        resolve_type_reference_directive, AllArenas, CompilerHost, CompilerOptions,
+        CompilerOptionsBuilder, CreateProgramOptionsBuilder, MapOrDefault, Node, Owned,
+        ResolvedProjectReference, ScriptTarget, SourceFileLike, StructureIsReused, VecExt,
     };
 
     use super::*;
@@ -3323,14 +3384,12 @@ mod type_reference_directive_resolution {
         let result = resolve_type_reference_directive(
             type_directive,
             Some(&initial_file.name),
-            types_root.map_or_default(|types_root| {
-                arena.alloc_compiler_options(
-                    CompilerOptionsBuilder::default()
-                        .type_roots([types_root].owned())
-                        .build()
-                        .unwrap(),
-                )
-            }),
+            arena.alloc_compiler_options(types_root.map_or_default(|types_root| {
+                CompilerOptionsBuilder::default()
+                    .type_roots([types_root].owned())
+                    .build()
+                    .unwrap()
+            })),
             &*host,
             None,
             None,
@@ -3340,18 +3399,20 @@ mod type_reference_directive_resolution {
         asserting("expected type directive to be resolved")
             .that(
                 &result
+                    .ref_(arena)
                     .resolved_type_reference_directive
-                    .as_ref()
                     .unwrap()
+                    .ref_(arena)
                     .resolved_file_name,
             )
             .is_some();
         asserting("unexpected result of type reference resolution")
             .that(
                 result
+                    .ref_(arena)
                     .resolved_type_reference_directive
-                    .as_ref()
                     .unwrap()
+                    .ref_(arena)
                     .resolved_file_name
                     .as_ref()
                     .unwrap(),
@@ -3360,9 +3421,10 @@ mod type_reference_directive_resolution {
         asserting("unexpected 'primary' value")
             .that(
                 &result
+                    .ref_(arena)
                     .resolved_type_reference_directive
-                    .as_ref()
                     .unwrap()
+                    .ref_(arena)
                     .primary,
             )
             .is_equal_to(primary);
@@ -3547,6 +3609,7 @@ mod type_reference_directive_resolution {
 
     #[test]
     fn test_reused_program_keeps_errors() {
+        let ref arena = AllArenasHarness::default();
         let f1 = FileBuilder::default()
             .name("/root/src/a/b/c/d/e/app.ts")
             .content(r#"/// <reference types="lib"/>"#)
@@ -3580,23 +3643,25 @@ mod type_reference_directive_resolution {
                         ScriptTarget::ES2015,
                         None,
                         None,
+                        arena,
                     )
                     .unwrap()
                 })
                 .collect_vec(),
-            |f: &Id<Node>| Some(f.as_source_file().file_name().clone()),
+            |f: &Id<Node>| Some(f.ref_(arena).as_source_file().file_name().clone()),
             |f: &Id<Node>| f.clone(),
         );
-        let compiler_host = ReusedProgramKeepsErrorsCompilerHost::new(source_files);
+        let compiler_host = ReusedProgramKeepsErrorsCompilerHost::new(source_files, arena);
         let program1 = create_program(
             CreateProgramOptionsBuilder::default()
                 .root_names(names.clone())
                 .host(compiler_host.clone())
                 .build()
                 .unwrap(),
+            arena,
         )
         .unwrap();
-        let diagnostics1: Vec<_> = program1.get_options_diagnostics(None).into();
+        let diagnostics1: Vec<_> = program1.ref_(arena).get_options_diagnostics(None).into();
         asserting("expected one diagnostic")
             .that(&diagnostics1)
             .has_length(1);
@@ -3608,10 +3673,12 @@ mod type_reference_directive_resolution {
                 .old_program(program1)
                 .build()
                 .unwrap(),
+            arena,
         )
         .unwrap();
-        assert_that!(&program2.structure_is_reused()).is_equal_to(&StructureIsReused::Completely);
-        let diagnostics2: Vec<_> = program2.get_options_diagnostics(None).into();
+        assert_that!(&program2.ref_(arena).structure_is_reused())
+            .is_equal_to(&StructureIsReused::Completely);
+        let diagnostics2: Vec<_> = program2.ref_(arena).get_options_diagnostics(None).into();
         asserting("expected one diagnostic")
             .that(&diagnostics2)
             .has_length(1);
@@ -3737,6 +3804,10 @@ mod type_reference_directive_resolution {
         fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
+
+        fn as_dyn_any(&self) -> &dyn Any {
+            self
+        }
     }
 
     impl ModuleResolutionHost for ReusedProgramKeepsErrorsCompilerHost {
@@ -3772,7 +3843,7 @@ mod type_reference_directive_resolution {
 
         fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
             let file = self.source_files.get(file_name);
-            Ok(file.map(|file| file.as_source_file().text().clone()))
+            Ok(file.map(|file| file.ref_(self).as_source_file().text().clone()))
         }
 
         fn set_overriding_read_file(
@@ -3813,8 +3884,15 @@ mod type_reference_directive_resolution {
         }
     }
 
+    impl HasArena for ReusedProgramKeepsErrorsCompilerHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
     #[test]
     fn test_modules_in_the_same_d_ts_file_are_preferred_to_external_files() {
+        let ref arena = AllArenasHarness::default();
         let f = FileBuilder::default()
             .name("/a/b/c/c/app.d.ts")
             .content(
@@ -3835,15 +3913,17 @@ mod type_reference_directive_resolution {
             ScriptTarget::ES2015,
             None,
             None,
+            arena,
         )
         .unwrap();
-        let compiler_host = ModulesInTheSameKeepsErrorsCompilerHost::new(file);
+        let compiler_host = ModulesInTheSameKeepsErrorsCompilerHost::new(file, arena);
         create_program(
             CreateProgramOptionsBuilder::default()
                 .root_names([&*f.name].owned())
                 .host(compiler_host.clone())
                 .build()
                 .unwrap(),
+            arena,
         )
         .unwrap();
     }
@@ -3871,11 +3951,13 @@ mod type_reference_directive_resolution {
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
         ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
-            Ok(if file_name == &*self.file.as_source_file().file_name() {
-                Some(self.file.clone())
-            } else {
-                None
-            })
+            Ok(
+                if file_name == &*self.file.ref_(self).as_source_file().file_name() {
+                    Some(self.file.clone())
+                } else {
+                    None
+                },
+            )
         }
 
         fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String> {
@@ -3940,10 +4022,10 @@ mod type_reference_directive_resolution {
             _module_names: &[String],
             _containing_file: &str,
             _reused_names: Option<&[String]>,
-            _redirected_reference: Option<&ResolvedProjectReference>,
+            _redirected_reference: Option<Id<ResolvedProjectReference>>,
             _options: &CompilerOptions,
-            _containing_source_file: Option<&Node /*SourceFile*/>,
-        ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+            _containing_source_file: Option<Id<Node /*SourceFile*/>>,
+        ) -> Option<Vec<Option<Id<ResolvedModuleFull>>>> {
             not_implemented()
         }
 
@@ -3981,11 +4063,15 @@ mod type_reference_directive_resolution {
         fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
+
+        fn as_dyn_any(&self) -> &dyn Any {
+            self
+        }
     }
 
     impl ModuleResolutionHost for ModulesInTheSameKeepsErrorsCompilerHost {
         fn file_exists(&self, file_name: &str) -> bool {
-            file_name == &*self.file.as_source_file().file_name()
+            file_name == &*self.file.ref_(self).as_source_file().file_name()
         }
 
         fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
@@ -4015,11 +4101,13 @@ mod type_reference_directive_resolution {
         }
 
         fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
-            Ok(if file_name == &*self.file.as_source_file().file_name() {
-                Some(self.file.as_source_file().text().clone())
-            } else {
-                None
-            })
+            Ok(
+                if file_name == &*self.file.ref_(self).as_source_file().file_name() {
+                    Some(self.file.ref_(self).as_source_file().text().clone())
+                } else {
+                    None
+                },
+            )
         }
 
         fn set_overriding_read_file(
@@ -4060,8 +4148,15 @@ mod type_reference_directive_resolution {
         }
     }
 
+    impl HasArena for ModulesInTheSameKeepsErrorsCompilerHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
+        }
+    }
+
     #[test]
     fn test_modules_in_ts_file_are_not_checked_in_the_same_file() {
+        let ref arena = AllArenasHarness::default();
         let f = FileBuilder::default()
             .name("/a/b/c/c/app.ts")
             .content(
@@ -4082,15 +4177,17 @@ mod type_reference_directive_resolution {
             ScriptTarget::ES2015,
             None,
             None,
+            arena,
         )
         .unwrap();
-        let compiler_host = ModulesInTsFileCompilerHost::new(file);
+        let compiler_host = ModulesInTsFileCompilerHost::new(file, arena);
         create_program(
             CreateProgramOptionsBuilder::default()
                 .root_names([&*f.name].owned())
                 .host(compiler_host.clone())
                 .build()
                 .unwrap(),
+            arena,
         )
         .unwrap();
     }
@@ -4118,11 +4215,13 @@ mod type_reference_directive_resolution {
             _on_error: Option<&mut dyn FnMut(&str)>,
             _should_create_new_source_file: Option<bool>,
         ) -> io::Result<Option<Id<Node /*SourceFile*/>>> {
-            Ok(if file_name == &*self.file.as_source_file().file_name() {
-                Some(self.file.clone())
-            } else {
-                None
-            })
+            Ok(
+                if file_name == &*self.file.ref_(self).as_source_file().file_name() {
+                    Some(self.file.clone())
+                } else {
+                    None
+                },
+            )
         }
 
         fn get_default_lib_file_name(&self, _options: &CompilerOptions) -> io::Result<String> {
@@ -4187,10 +4286,10 @@ mod type_reference_directive_resolution {
             module_names: &[String],
             _containing_file: &str,
             _reused_names: Option<&[String]>,
-            _redirected_reference: Option<&ResolvedProjectReference>,
+            _redirected_reference: Option<Id<ResolvedProjectReference>>,
             _options: &CompilerOptions,
-            _containing_source_file: Option<&Node /*SourceFile*/>,
-        ) -> Option<Vec<Option<ResolvedModuleFull>>> {
+            _containing_source_file: Option<Id<Node /*SourceFile*/>>,
+        ) -> Option<Vec<Option<Id<ResolvedModuleFull>>>> {
             assert_that!(module_names).is_equal_to(&*["fs"].owned());
             Some(vec![None])
         }
@@ -4229,11 +4328,15 @@ mod type_reference_directive_resolution {
         fn is_get_parsed_command_line_supported(&self) -> bool {
             false
         }
+
+        fn as_dyn_any(&self) -> &dyn Any {
+            self
+        }
     }
 
     impl ModuleResolutionHost for ModulesInTsFileCompilerHost {
         fn file_exists(&self, file_name: &str) -> bool {
-            file_name == &*self.file.as_source_file().file_name()
+            file_name == &*self.file.ref_(self).as_source_file().file_name()
         }
 
         fn file_exists_non_overridden(&self, _file_name: &str) -> bool {
@@ -4263,11 +4366,13 @@ mod type_reference_directive_resolution {
         }
 
         fn read_file(&self, file_name: &str) -> io::Result<Option<String>> {
-            Ok(if file_name == &*self.file.as_source_file().file_name() {
-                Some(self.file.as_source_file().text().clone())
-            } else {
-                None
-            })
+            Ok(
+                if file_name == &*self.file.ref_(self).as_source_file().file_name() {
+                    Some(self.file.ref_(self).as_source_file().text().clone())
+                } else {
+                    None
+                },
+            )
         }
 
         fn set_overriding_read_file(
@@ -4305,6 +4410,12 @@ mod type_reference_directive_resolution {
             _overriding_realpath: Option<Id<Box<dyn ModuleResolutionHostOverrider>>>,
         ) {
             unreachable!()
+        }
+    }
+
+    impl HasArena for ModulesInTsFileCompilerHost {
+        fn arena(&self) -> &AllArenas {
+            unimplemented!()
         }
     }
 

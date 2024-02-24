@@ -11,8 +11,8 @@ mod parse_config_file_text_to_json {
         convert_to_object, create_compiler_diagnostic, get_sys, id_arena::Id,
         parse_config_file_text_to_json, parse_json_config_file_content,
         parse_json_source_file_config_file_content, parse_json_text, AllArenas, Diagnostic,
-        DiagnosticRelatedInformationInterface, Diagnostics, InArena, Owned, ParsedCommandLine,
-        SliceExtCloneOrd,
+        DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, Owned,
+        ParsedCommandLine, SliceExtCloneOrd,
     };
 
     use super::*;
@@ -63,15 +63,18 @@ mod parse_config_file_text_to_json {
             arena,
         )
         .unwrap();
-        let parsed_command_errors = (*parsed_command.errors).borrow();
+        let parsed_command_errors = parsed_command.errors.ref_(arena);
         assert_that!(/*parsedCommandLine.errors &&*/ &*parsed_command_errors).has_length(1);
-        assert_that!(&parsed_command_errors[0].code())
+        assert_that!(&parsed_command_errors[0].ref_(arena).code())
             .is_equal_to(Diagnostics::Unknown_option_excludes_Did_you_mean_exclude.code);
 
-        let ref parsed = parse_json_text("/apath/tsconfig.json", json_text, arena);
+        let parsed = parse_json_text("/apath/tsconfig.json", json_text, arena);
         let parsed_command = parse_json_source_file_config_file_content(
             parsed,
-            get_sys(arena).as_dyn_parse_config_host().unwrap(),
+            get_sys(arena)
+                .ref_(arena)
+                .maybe_as_dyn_parse_config_host()
+                .unwrap(),
             // "tests/cases/unittests",
             "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
             None,
@@ -83,9 +86,9 @@ mod parse_config_file_text_to_json {
             arena,
         )
         .unwrap();
-        let parsed_command_errors = (*parsed_command.errors).borrow();
+        let parsed_command_errors = parsed_command.errors.ref_(arena);
         assert_that!(/*parsedCommand.errors &&*/ &*parsed_command_errors).has_length(1);
-        assert_that!(&parsed_command_errors[0].code())
+        assert_that!(&parsed_command_errors[0].ref_(arena).code())
             .is_equal_to(Diagnostics::Unknown_option_excludes_Did_you_mean_exclude.code);
     }
 
@@ -94,10 +97,10 @@ mod parse_config_file_text_to_json {
         config_file_name: &str,
         base_path: &str,
         all_file_list: &[String],
+        arena: &impl HasArenaHarness,
     ) -> ParsedCommandLine {
         let json_text = json_text.into();
-        let arena = AllArenasHarness::default();
-        let parsed = parse_config_file_text_to_json(config_file_name, json_text, &arena).unwrap();
+        let parsed = parse_config_file_text_to_json(config_file_name, json_text, arena).unwrap();
         let mut files = vfs::FileSet::from_iter(all_file_list.into_iter().map(|value| {
             (
                 value.clone(),
@@ -121,11 +124,11 @@ mod parse_config_file_text_to_json {
                             .build()
                             .unwrap(),
                     ),
-                    &arena,
+                    arena,
                 )
                 .unwrap(),
             ),
-            &arena,
+            arena,
         )
         .unwrap();
         parse_json_config_file_content(
@@ -138,7 +141,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
-            &arena,
+            arena,
         )
         .unwrap()
     }
@@ -148,10 +151,10 @@ mod parse_config_file_text_to_json {
         config_file_name: &str,
         base_path: &str,
         all_file_list: &[String],
+        arena: &impl HasArenaHarness,
     ) -> ParsedCommandLine {
         let json_text = json_text.into();
-        let arena = AllArenasHarness::default();
-        let ref parsed = parse_json_text(config_file_name, json_text, &arena);
+        let parsed = parse_json_text(config_file_name, json_text, arena);
         let mut files = vfs::FileSet::from_iter(all_file_list.into_iter().map(|value| {
             (
                 value.clone(),
@@ -175,11 +178,11 @@ mod parse_config_file_text_to_json {
                             .build()
                             .unwrap(),
                     ),
-                    &arena,
+                    arena,
                 )
                 .unwrap(),
             ),
-            &arena,
+            arena,
         )
         .unwrap();
         parse_json_source_file_config_file_content(
@@ -192,7 +195,7 @@ mod parse_config_file_text_to_json {
             None,
             None,
             None,
-            &arena,
+            arena,
         )
         .unwrap()
     }
@@ -204,17 +207,24 @@ mod parse_config_file_text_to_json {
         all_file_list: &[String],
         expected_file_list: &[String],
     ) {
+        let ref arena = AllArenasHarness::default();
         let json_text = json_text.into();
         let parsed = get_parsed_command_json(
             json_text.clone(),
             config_file_name,
             base_path,
             all_file_list,
+            arena,
         );
         assert_that!(&parsed.file_names.sorted()).is_equal_to(expected_file_list.sorted());
 
-        let parsed =
-            get_parsed_command_json_node(json_text, config_file_name, base_path, all_file_list);
+        let parsed = get_parsed_command_json_node(
+            json_text,
+            config_file_name,
+            base_path,
+            all_file_list,
+            arena,
+        );
         assert_that!(&parsed.file_names.sorted()).is_equal_to(expected_file_list.sorted());
     }
 
@@ -227,6 +237,7 @@ mod parse_config_file_text_to_json {
         expected_diagnostic_code: u32,
         no_location: Option<bool>,
     ) {
+        let ref arena = AllArenasHarness::default();
         let json_text = json_text.into();
         let base_path =
             &format!("/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/{base_path}");
@@ -235,8 +246,9 @@ mod parse_config_file_text_to_json {
             config_file_name,
             base_path,
             all_file_list,
+            arena,
         );
-        let parsed_errors = (*parsed.errors).borrow();
+        let parsed_errors = parsed.errors.ref_(arena);
         // TODO: this looks trivially true, maybe meant > 0? Upstream?
         // assert.isTrue(parsed.errors.length >= 0);
         asserting(&format!(
@@ -246,14 +258,19 @@ mod parse_config_file_text_to_json {
         .that(
             &parsed_errors
                 .iter()
-                .filter(|e| e.code() == expected_diagnostic_code)
+                .filter(|e| e.ref_(arena).code() == expected_diagnostic_code)
                 .count(),
         )
         .is_greater_than(0);
 
-        let parsed =
-            get_parsed_command_json_node(json_text, config_file_name, base_path, all_file_list);
-        let parsed_errors = (*parsed.errors).borrow();
+        let parsed = get_parsed_command_json_node(
+            json_text,
+            config_file_name,
+            base_path,
+            all_file_list,
+            arena,
+        );
+        let parsed_errors = parsed.errors.ref_(arena);
         // assert.isTrue(parsed.errors.length >= 0);
         asserting(&format!(
             "Expected error code {expected_diagnostic_code} to be in {:?}",
@@ -262,7 +279,7 @@ mod parse_config_file_text_to_json {
         .that(
             &parsed_errors
                 .iter()
-                .filter(|e| e.code() == expected_diagnostic_code)
+                .filter(|e| e.ref_(arena).code() == expected_diagnostic_code)
                 .count(),
         )
         .is_greater_than(0);
@@ -274,7 +291,12 @@ mod parse_config_file_text_to_json {
             .that(
                 &parsed_errors
                     .iter()
-                    .filter(|e| e.code() == expected_diagnostic_code && e.maybe_file().is_some() && e.start() != 0 && e.length() != 0)
+                    .filter(|e| {
+                        e.ref_(arena).code() == expected_diagnostic_code &&
+                            e.ref_(arena).maybe_file().is_some() &&
+                            e.ref_(arena).start() != 0 &&
+                            e.ref_(arena).length() != 0
+                    })
                     .count(),
             )
             .is_greater_than(0);
@@ -288,14 +310,16 @@ mod parse_config_file_text_to_json {
         all_file_list: &[String],
         expected_excluded_diagnostic_code: u32,
     ) {
+        let ref arena = AllArenasHarness::default();
         let json_text = json_text.into();
         let parsed = get_parsed_command_json(
             json_text.clone(),
             config_file_name,
             base_path,
             all_file_list,
+            arena,
         );
-        let parsed_errors = (*parsed.errors).borrow();
+        let parsed_errors = parsed.errors.ref_(arena);
         // assert.isTrue(parsed.errors.length >= 0);
         asserting(&format!(
             "Expected error code {expected_excluded_diagnostic_code} to not be in {:?}",
@@ -304,13 +328,18 @@ mod parse_config_file_text_to_json {
         .that(
             &parsed_errors
                 .iter()
-                .position(|e| e.code() == expected_excluded_diagnostic_code),
+                .position(|e| e.ref_(arena).code() == expected_excluded_diagnostic_code),
         )
         .is_none();
 
-        let parsed =
-            get_parsed_command_json_node(json_text, config_file_name, base_path, all_file_list);
-        let parsed_errors = (*parsed.errors).borrow();
+        let parsed = get_parsed_command_json_node(
+            json_text,
+            config_file_name,
+            base_path,
+            all_file_list,
+            arena,
+        );
+        let parsed_errors = parsed.errors.ref_(arena);
         // assert.isTrue(parsed.errors.length >= 0);
         asserting(&format!(
             "Expected error code {expected_excluded_diagnostic_code} to not be in {:?}",
@@ -319,7 +348,7 @@ mod parse_config_file_text_to_json {
         .that(
             &parsed_errors
                 .iter()
-                .position(|e| e.code() == expected_excluded_diagnostic_code),
+                .position(|e| e.ref_(arena).code() == expected_excluded_diagnostic_code),
         )
         .is_none();
     }
@@ -455,20 +484,23 @@ mod parse_config_file_text_to_json {
 
     #[test]
     fn test_returns_object_with_error_when_json_is_invalid() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         let parsed =
-            parse_config_file_text_to_json("/apath/tsconfig.json", "invalid".to_owned(), &arena)
+            parse_config_file_text_to_json("/apath/tsconfig.json", "invalid".to_owned(), arena)
                 .unwrap();
         assert_that!(&parsed.config).is_equal_to(Some(json!({})));
-        let expected: Id<Diagnostic> =
+        let expected: Id<Diagnostic> = arena.alloc_diagnostic(
             create_compiler_diagnostic(&Diagnostics::_0_expected, Some(vec!["{".to_owned()]))
-                .into();
+                .into(),
+        );
         let error = parsed.error.clone().unwrap();
-        assert_that!(error.message_text()).is_equal_to(expected.message_text());
-        assert_that!(error.category()).is_equal_to(expected.category());
-        assert_that!(error.code()).is_equal_to(expected.code());
-        assert_that!(error.start()).is_equal_to(0);
-        assert_that!(error.length()).is_equal_to(isize::try_from("invalid".len()).unwrap());
+        assert_that!(error.ref_(arena).message_text())
+            .is_equal_to(expected.ref_(arena).message_text());
+        assert_that!(error.ref_(arena).category()).is_equal_to(expected.ref_(arena).category());
+        assert_that!(error.ref_(arena).code()).is_equal_to(expected.ref_(arena).code());
+        assert_that!(error.ref_(arena).start()).is_equal_to(0);
+        assert_that!(error.ref_(arena).length())
+            .is_equal_to(isize::try_from("invalid".len()).unwrap());
     }
 
     #[test]
@@ -632,7 +664,7 @@ mod parse_config_file_text_to_json {
 
     #[test]
     fn test_parse_and_re_emit_tsconfig_json_file_with_diagnostics() {
-        let arena = AllArenasHarness::default();
+        let ref arena = AllArenasHarness::default();
         let content = r#"{
             "compilerOptions": {
                 "allowJs": true
@@ -641,12 +673,12 @@ mod parse_config_file_text_to_json {
             }
             "files": ["file1.ts"]
         }"#;
-        let ref result = parse_json_text("config.json", content.to_owned(), &arena);
-        let diagnostics = result.as_source_file().parse_diagnostics();
-        let config_json_object = convert_to_object(result, diagnostics.clone(), &arena)
+        let result = parse_json_text("config.json", content.to_owned(), arena);
+        let diagnostics = result.ref_(arena).as_source_file().parse_diagnostics();
+        let config_json_object = convert_to_object(result, diagnostics.clone(), arena)
             .unwrap()
             .unwrap();
-        let diagnostics = (*diagnostics).borrow();
+        let diagnostics = diagnostics.ref_(arena);
         let expected_result = json!({
             "compilerOptions": {
                 "allowJs": true,
@@ -772,6 +804,7 @@ mod parse_config_file_text_to_json {
 
     #[test]
     fn test_generates_errors_for_when_invalid_comment_type_present_in_tsconfig() {
+        let ref arena = AllArenasHarness::default();
         let json_text = r#"{
            "compilerOptions": {
              ## this comment does cause issues
@@ -784,10 +817,11 @@ mod parse_config_file_text_to_json {
             "/apath/tsconfig.json",
             "tests/cases/unittests",
             &["/apath/a.ts"].owned(),
+            arena,
         );
         // TODO: the Typescript version has length >= 0 which seems trivially true and
         // seems to disagree with the test name, upstream?
-        assert_that!(&(*parsed.errors).borrow().len()).is_greater_than(0);
+        assert_that!(&parsed.errors.ref_(arena).len()).is_greater_than(0);
     }
 
     #[test]
