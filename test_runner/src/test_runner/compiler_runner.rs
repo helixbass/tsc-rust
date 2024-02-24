@@ -134,6 +134,7 @@ impl CompilerBaselineRunner {
                 let test = test.cloned();
                 let file_name = file_name.to_owned();
                 move || {
+                    let ref arena = AllArenasHarness::default();
                     let mut payload: Option<TestCaseParser::TestCaseContent> = None;
                     if let Some(test) = test.as_ref().filter(|test| {
                         matches!(
@@ -154,13 +155,13 @@ impl CompilerBaselineRunner {
                                 &test.file,
                                 Some(&root_dir),
                                 None,
-                                self,
+                                arena,
                             )
                             .unwrap(),
                         );
                     }
                     let compiler_test =
-                        CompilerTest::new(file_name, payload, configuration, self).unwrap();
+                        CompilerTest::new(file_name, payload, configuration, arena).unwrap();
                     compiler_test.verify_diagnostics().unwrap();
                 }
             });
@@ -173,6 +174,7 @@ impl CompilerBaselineRunner {
                     let test = test.cloned();
                     let file_name = file_name.to_owned();
                     move || {
+                        let ref arena = AllArenasHarness::default();
                         let mut payload: Option<TestCaseParser::TestCaseContent> = None;
                         if let Some(test) = test.as_ref().filter(|test| {
                             matches!(
@@ -193,13 +195,13 @@ impl CompilerBaselineRunner {
                                     &test.file,
                                     Some(&root_dir),
                                     None,
-                                    self,
+                                    arena,
                                 )
                                 .unwrap(),
                             );
                         }
                         let compiler_test =
-                            CompilerTest::new(file_name, payload, configuration, self).unwrap();
+                            CompilerTest::new(file_name, payload, configuration, arena).unwrap();
                         compiler_test.verify_module_resolution();
                     }
                 },
@@ -212,6 +214,7 @@ impl CompilerBaselineRunner {
                 let file_name = file_name.to_owned();
                 let emit = self.emit;
                 move || {
+                    let ref arena = AllArenasHarness::default();
                     if emit {
                         let mut payload: Option<TestCaseParser::TestCaseContent> = None;
                         if let Some(test) = test.as_ref().filter(|test| {
@@ -233,13 +236,13 @@ impl CompilerBaselineRunner {
                                     &test.file,
                                     Some(&root_dir),
                                     None,
-                                    self,
+                                    arena,
                                 )
                                 .unwrap(),
                             );
                         }
                         let compiler_test =
-                            CompilerTest::new(file_name, payload, configuration, self).unwrap();
+                            CompilerTest::new(file_name, payload, configuration, arena).unwrap();
                         compiler_test.verify_java_script_output().unwrap();
                     }
                 }
@@ -252,6 +255,7 @@ impl CompilerBaselineRunner {
                 let file_name = file_name.to_owned();
                 let emit = self.emit;
                 move || {
+                    let ref arena = AllArenasHarness::default();
                     if emit {
                         let mut payload: Option<TestCaseParser::TestCaseContent> = None;
                         if let Some(test) = test.as_ref().filter(|test| {
@@ -273,13 +277,13 @@ impl CompilerBaselineRunner {
                                     &test.file,
                                     Some(&root_dir),
                                     None,
-                                    self,
+                                    arena,
                                 )
                                 .unwrap(),
                             );
                         }
                         let compiler_test =
-                            CompilerTest::new(file_name, payload, configuration, self).unwrap();
+                            CompilerTest::new(file_name, payload, configuration, arena).unwrap();
                         compiler_test.verify_source_map_record().unwrap();
                     }
                 }
