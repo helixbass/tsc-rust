@@ -13,7 +13,7 @@ use typescript_rust::{
     read_config_file, CompilerHostLikeRcDynCompilerHost, CompilerOptions, CompilerOptionsBuilder,
     CreateProgramOptionsBuilder, Diagnostic, DiagnosticMessage,
     DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, MapOrDefault,
-    ModuleResolutionHost, NonEmpty, OptionInArena, Owned, Program, ProjectReference,
+    NonEmpty, OptionInArena, Owned, Program, ProjectReference,
     ProjectReferenceBuilder, ReadConfigFileReturn, UnwrapOrEmpty,
 };
 
@@ -160,7 +160,7 @@ fn test_project_references(
                 .collect(),
             sp.config.clone(),
         );
-        let config_content = serde_json::to_string(&options).unwrap();
+        let config_content = serde_json::to_string(&options.serializable(arena)).unwrap();
         let ref out_dir = options
             .compiler_options
             .ref_(arena)
@@ -224,7 +224,7 @@ fn test_project_references(
     .unwrap();
 
     asserting(&flatten_diagnostic_message_text(
-        error.map(|error| error.ref_(arena).message_text()),
+        error.map(|error| error.ref_(arena).message_text().clone()).as_ref(),
         "\n",
         None,
     ))
@@ -273,10 +273,26 @@ fn test_project_references(
     );
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 struct TestProjectReferencesOptions {
     compiler_options: Id<CompilerOptions>,
+    references: Vec<Rc<ProjectReference>>,
+    sp_config: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+impl TestProjectReferencesOptions {
+    pub fn serializable(&self, arena: &impl HasArena) -> TestProjectReferencesOptionsSerializable {
+        TestProjectReferencesOptionsSerializable {
+            compiler_options: self.compiler_options.ref_(arena).clone(),
+            references: self.references.clone(),
+            sp_config: self.sp_config.clone(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TestProjectReferencesOptionsSerializable {
+    compiler_options: CompilerOptions,
     references: Vec<Rc<ProjectReference>>,
     #[serde(flatten)]
     sp_config: Option<serde_json::Map<String, serde_json::Value>>,

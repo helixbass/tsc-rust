@@ -11,7 +11,7 @@ use jsonxf::Formatter;
 use regex::Regex;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
-    id_arena::Id, is_rooted_disk_path, regex, some, to_path, AllArenas, BoolExt, CompilerOptions,
+    id_arena::Id, is_rooted_disk_path, regex, some, to_path, AllArenas, CompilerOptions,
     Extension, HasArena, InArena, OptionInArena,
 };
 

@@ -915,13 +915,13 @@ mod parse_command_line {
 
         #[derive(Builder)]
         #[builder(setter(strip_option, into))]
-        struct VerifyNull {
+        struct VerifyNull<'a> {
             pub option_name: String,
             #[builder(default)]
             pub non_null_value: Option<String>,
             #[builder(default)]
             pub worker_diagnostic:
-                Option<Rc<dyn Fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>>,
+                Option<Rc<dyn Fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics> + 'a>>,
             pub diagnostic_message: &'static DiagnosticMessage,
         }
 
