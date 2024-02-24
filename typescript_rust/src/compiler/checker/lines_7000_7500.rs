@@ -24,12 +24,11 @@ use crate::{
     is_variable_declaration, is_variable_statement, length, map, maybe_get_source_file_of_node,
     return_ok_default_if_none, set_parent, set_synthetic_leading_comments, set_text_range_id_node,
     some, try_flat_map, try_map, try_map_defined, try_maybe_first_defined, try_maybe_map,
-    unescape_leading_underscores, AssignmentDeclarationKind, BoolExt, Debug_,
-    HasArena, HasInitializerInterface, HasTypeArgumentsInterface, InArena, InternalSymbolName,
-    IteratorExt, MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray,
-    NodeBuilderFlags, NodeFlags, NodeInterface, OptionInArena, OptionTry, Signature, SignatureKind,
-    StringOrNumber, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, Type,
-    TypeInterface,
+    unescape_leading_underscores, AssignmentDeclarationKind, BoolExt, Debug_, HasArena,
+    HasInitializerInterface, HasTypeArgumentsInterface, InArena, InternalSymbolName, IteratorExt,
+    MapOrDefault, ModifierFlags, NamedDeclarationInterface, Node, NodeArray, NodeBuilderFlags,
+    NodeFlags, NodeInterface, OptionInArena, OptionTry, Signature, SignatureKind, StringOrNumber,
+    Symbol, SymbolFlags, SymbolInterface, SyntaxKind, SynthesizedComment, Type, TypeInterface,
 };
 
 impl SymbolTableToDeclarationStatements {
@@ -725,12 +724,9 @@ impl SymbolTableToDeclarationStatements {
                 Some(NodeFlags::Namespace),
             );
             set_parent(&fakespace.ref_(self), Some(self.enclosing_declaration));
-            fakespace
-                .ref_(self)
-                .set_locals(Some(self.alloc_symbol_table(create_symbol_table(
-                    self.type_checker.ref_(self).arena(),
-                    Some(props),
-                ))));
+            fakespace.ref_(self).set_locals(Some(
+                self.alloc_symbol_table(create_symbol_table(Some(props), self)),
+            ));
             if let Some(props_0_parent) = props[0].ref_(self).maybe_parent() {
                 fakespace.ref_(self).set_symbol(props_0_parent);
             }
@@ -746,10 +742,7 @@ impl SymbolTableToDeclarationStatements {
             let old_context = self.context();
             self.set_context(subcontext);
             self.visit_symbol_table(
-                self.alloc_symbol_table(create_symbol_table(
-                    self.type_checker.ref_(self).arena(),
-                    Some(&local_props),
-                )),
+                self.alloc_symbol_table(create_symbol_table(Some(&local_props), self)),
                 Some(suppress_new_private_context),
                 Some(true),
             )?;

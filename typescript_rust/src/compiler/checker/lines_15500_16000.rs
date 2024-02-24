@@ -1014,7 +1014,7 @@ impl TypeChecker {
         readonly: bool,
         type_: Id<Type>,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         for prop in self.get_properties_of_type(type_)? {
             if get_declaration_modifier_flags_from_symbol(prop, None, self)
                 .intersects(ModifierFlags::Private | ModifierFlags::Protected)
@@ -1187,7 +1187,7 @@ impl TypeChecker {
             );
         }
 
-        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         let mut skipped_private_members: HashSet<__String> = HashSet::new();
         let index_infos = if left == self.empty_object_type() {
             self.get_index_infos_of_type(right)?

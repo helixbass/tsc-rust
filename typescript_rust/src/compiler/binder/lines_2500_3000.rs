@@ -598,9 +598,12 @@ impl Binder {
             let file_symbol = self.file().ref_(self).symbol();
             let file_symbol_ref = file_symbol.ref_(self);
             if file_symbol_ref.maybe_global_exports().is_none() {
-                file_symbol_ref.set_global_exports(Some(self.alloc_symbol_table(
-                    create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                )));
+                file_symbol_ref.set_global_exports(Some(
+                    self.alloc_symbol_table(create_symbol_table(
+                        Option::<&[Id<Symbol>]>::None,
+                        self,
+                    )),
+                ));
             }
             self.declare_symbol(
                 &mut file_symbol_ref
@@ -948,10 +951,7 @@ impl Binder {
                             let constructor_symbol_ref = constructor_symbol.ref_(self);
                             if constructor_symbol_ref.maybe_members().is_none() {
                                 constructor_symbol_ref.set_members(Some(self.alloc_symbol_table(
-                                    create_symbol_table(
-                                        self.arena(),
-                                        Option::<&[Id<Symbol>]>::None,
-                                    ),
+                                    create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
                                 )));
                             }
                             constructor_symbol_ref.members()

@@ -607,8 +607,8 @@ impl TypeChecker {
                     TypeFlags::Object | TypeFlags::Intersection | TypeFlags::TypeVariable,
                 ) {
                     let members_new = self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
                         Some(&*self.get_named_or_index_signature_members(&*members.ref_(self))?),
+                        self,
                     ));
                     members = members_new;
                     self.add_inherited_members(
@@ -785,7 +785,7 @@ impl TypeChecker {
         } else {
             vec![]
         };
-        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         for prop in self.get_properties_of_type(type_.ref_(self).as_reverse_mapped_type().source)? {
             let check_flags = CheckFlags::ReverseMapped
                 | if readonly_mask && self.is_readonly_symbol(prop)? {
@@ -992,7 +992,7 @@ impl TypeChecker {
         &self,
         type_: Id<Type>, /*MappedType*/
     ) -> io::Result<()> {
-        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         let mut index_infos: Vec<Id<IndexInfo>> = vec![];
         self.set_structured_type_members(
             type_.ref_(self).as_mapped_type(),

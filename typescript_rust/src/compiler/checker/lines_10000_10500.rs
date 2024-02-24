@@ -773,7 +773,7 @@ impl TypeChecker {
         mapper: Id<TypeMapper>,
         mapping_this_only: bool,
     ) -> io::Result<SymbolTable> {
-        let mut result = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut result = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         for &symbol in symbols {
             result.insert(
                 symbol.ref_(self).escaped_name().to_owned(),

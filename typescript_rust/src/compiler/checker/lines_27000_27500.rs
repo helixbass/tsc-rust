@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -259,17 +259,12 @@ impl TypeChecker {
             opening_like_element_ref.as_jsx_opening_like_element();
         let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
         let mut all_attributes_table = if self.strict_null_checks {
-            Some(create_symbol_table(
-                self.arena(),
-                Option::<&[Id<Symbol>]>::None,
-            ))
+            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None, self))
         } else {
             None
         };
-        let attributes_table = self.alloc_symbol_table(create_symbol_table(
-            self.arena(),
-            Option::<&[Id<Symbol>]>::None,
-        ));
+        let attributes_table =
+            self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
         let mut spread = self.empty_jsx_object_type();
         let mut has_spread_any_type = false;
         let mut type_to_intersect: Option<Id<Type>> = None;
@@ -363,7 +358,7 @@ impl TypeChecker {
                         false,
                     )?;
                     *attributes_table.ref_mut(self) =
-                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
                 }
                 let expr_type = self.get_reduced_type(
                     self.check_expression_cached(
@@ -524,7 +519,7 @@ impl TypeChecker {
                         .ref_(self)
                         .set_symbol(children_prop_symbol.clone());
                     let mut child_prop_map =
-                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
                     child_prop_map.insert(
                         jsx_children_property_name.clone(),
                         children_prop_symbol.clone(),

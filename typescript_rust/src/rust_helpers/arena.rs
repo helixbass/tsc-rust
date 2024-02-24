@@ -1,8 +1,7 @@
-use std::{any::Any, collections::HashMap, rc::Rc};
+use std::{any::Any, collections::HashMap};
 
 use debug_cell::{Ref, RefCell, RefMut};
 use id_arena::{Arena, Id};
-use once_cell::unsync::Lazy;
 
 use crate::{
     ActiveLabel, ActualResolveModuleNamesWorker, ActualResolveTypeReferenceDirectiveNamesWorker,

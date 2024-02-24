@@ -5,7 +5,8 @@ use std::{
     convert::TryInto,
     hash::Hash,
     io,
-    iter::FromIterator, ptr,
+    iter::FromIterator,
+    ptr,
     rc::Rc,
 };
 
@@ -82,7 +83,7 @@ pub fn create_underscore_escaped_map<TValue>() -> UnderscoreEscapedMap<TValue> {
 
 // function hasEntries
 
-pub fn create_symbol_table(arena: &AllArenas, symbols: Option<&[Id<Symbol>]>) -> SymbolTable {
+pub fn create_symbol_table(symbols: Option<&[Id<Symbol>]>, arena: &impl HasArena) -> SymbolTable {
     let mut result = SymbolTable::new();
     if let Some(symbols) = symbols {
         for &symbol in symbols {

@@ -395,9 +395,8 @@ impl TypeChecker {
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache_without_object_function_property_augment();
                     if property_cache_without_object_function_property_augment.is_none() {
-                        *property_cache_without_object_function_property_augment = Some(
-                            create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
-                        );
+                        *property_cache_without_object_function_property_augment =
+                            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
                     }
                     property_cache_without_object_function_property_augment
                         .as_mut()
@@ -409,10 +408,8 @@ impl TypeChecker {
                         .as_union_or_intersection_type_interface()
                         .maybe_property_cache();
                     if property_cache.is_none() {
-                        *property_cache = Some(create_symbol_table(
-                            self.arena(),
-                            Option::<&[Id<Symbol>]>::None,
-                        ));
+                        *property_cache =
+                            Some(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
                     }
                     property_cache
                         .as_mut()

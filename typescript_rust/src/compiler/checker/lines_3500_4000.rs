@@ -2,7 +2,6 @@ use std::{collections::HashMap, io};
 
 use id_arena::Id;
 
-
 use super::{get_node_id, MembersOrExportsResolutionKind};
 use crate::{
     SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -159,7 +158,7 @@ impl TypeChecker {
             {
                 if merged.ref_(self).maybe_exports().is_none() {
                     merged.ref_(self).set_exports(Some(self.alloc_symbol_table(
-                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
                     )));
                 }
                 merged.ref_(self).exports()
@@ -601,8 +600,7 @@ impl TypeChecker {
         let mut symbols = symbol_exports.clone();
         let export_stars = symbol_exports.get(InternalSymbolName::ExportStar);
         if let Some(&export_stars) = export_stars {
-            let mut nested_symbols =
-                create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+            let mut nested_symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
             let mut lookup_table = ExportCollisionTrackerTable::new();
             if let Some(export_stars_declarations) =
                 export_stars.ref_(self).maybe_declarations().as_ref()

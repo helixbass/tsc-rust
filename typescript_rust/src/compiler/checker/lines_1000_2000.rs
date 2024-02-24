@@ -606,8 +606,8 @@ impl TypeChecker {
                 let target_ref = target.ref_(self);
                 if target_ref.maybe_members().is_none() {
                     target_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
                         Option::<&[Id<Symbol>]>::None,
+                        self,
                     ))));
                 }
                 self.merge_symbol_table(
@@ -620,8 +620,8 @@ impl TypeChecker {
                 let target_ref = target.ref_(self);
                 if target_ref.maybe_exports().is_none() {
                     target_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
                         Option::<&[Id<Symbol>]>::None,
+                        self,
                     ))));
                 }
                 self.merge_symbol_table(
@@ -898,10 +898,8 @@ impl TypeChecker {
         if second.ref_(self).is_empty() {
             return Ok(Some(first));
         }
-        let combined = self.alloc_symbol_table(create_symbol_table(
-            self.arena(),
-            Option::<&[Id<Symbol>]>::None,
-        ));
+        let combined =
+            self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
         self.merge_symbol_table(combined, &first.ref_(self), None)?;
         self.merge_symbol_table(combined, &second.ref_(self), None)?;
         Ok(Some(combined))

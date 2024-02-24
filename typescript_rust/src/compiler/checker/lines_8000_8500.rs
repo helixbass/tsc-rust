@@ -839,7 +839,7 @@ impl TypeChecker {
                 None,
             );
         }
-        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         for prop in self.get_properties_of_type(source)? {
             if !self.is_type_assignable_to(
                 self.get_literal_type_from_property(

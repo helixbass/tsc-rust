@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -370,7 +370,7 @@ impl TransformDeclarations {
                     );
                     set_parent(&fakespace.ref_(self), self.maybe_enclosing_declaration());
                     fakespace.ref_(self).set_locals(Some(
-                        self.alloc_symbol_table(create_symbol_table(self.arena(), Some(&props))),
+                        self.alloc_symbol_table(create_symbol_table(Some(&props), self)),
                     ));
                     fakespace
                         .ref_(self)

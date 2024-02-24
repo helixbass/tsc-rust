@@ -69,10 +69,9 @@ impl Binder {
         ));
         self.add_declaration_to_symbol(type_literal_symbol, node, SymbolFlags::TypeLiteral);
         let type_literal_symbol_ref = type_literal_symbol.ref_(self);
-        type_literal_symbol_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
-            self.arena(),
-            Option::<&[Id<Symbol>]>::None,
-        ))));
+        type_literal_symbol_ref.set_members(Some(
+            self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self)),
+        ));
         type_literal_symbol_ref
             .members()
             .ref_mut(self)
@@ -202,7 +201,7 @@ impl Binder {
                             block_scope_container_ref.maybe_locals_mut();
                         if block_scope_container_locals.is_none() {
                             *block_scope_container_locals = Some(self.alloc_symbol_table(
-                                create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                                create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
                             ));
                             self.add_to_container_chain(block_scope_container);
                         }
@@ -225,7 +224,7 @@ impl Binder {
                         block_scope_container_ref.maybe_locals_mut();
                     if block_scope_container_locals.is_none() {
                         *block_scope_container_locals = Some(self.alloc_symbol_table(
-                            create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                            create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
                         ));
                         self.add_to_container_chain(block_scope_container);
                     }

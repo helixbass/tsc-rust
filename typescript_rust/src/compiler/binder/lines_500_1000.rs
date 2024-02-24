@@ -181,12 +181,12 @@ impl Binder {
             self.set_container(Some(node));
             self.set_block_scope_container(Some(node));
             if container_flags.intersects(ContainerFlags::HasLocals) {
-                self.container()
-                    .ref_(self)
-                    .set_locals(Some(self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
+                self.container().ref_(self).set_locals(Some(
+                    self.alloc_symbol_table(create_symbol_table(
                         Option::<&[Id<Symbol>]>::None,
-                    ))));
+                        self,
+                    )),
+                ));
             }
             self.add_to_container_chain(self.container());
         } else if container_flags.intersects(ContainerFlags::IsBlockScopedContainer) {

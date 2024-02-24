@@ -363,10 +363,8 @@ impl TypeChecker {
                 .ref_mut(self)
                 .type_ = Some(import_meta_type);
 
-            let members = self.alloc_symbol_table(create_symbol_table(
-                self.arena(),
-                Some(&vec![meta_property_symbol]),
-            ));
+            let members = self
+                .alloc_symbol_table(create_symbol_table(Some(&vec![meta_property_symbol]), self));
             symbol.ref_(self).set_members(Some(members));
 
             self.set_deferred_global_import_meta_expression_type(Some(

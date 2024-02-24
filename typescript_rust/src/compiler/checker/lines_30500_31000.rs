@@ -601,8 +601,8 @@ impl TypeChecker {
                 let inferred_ref = inferred.ref_(self);
                 if inferred_ref.maybe_exports().is_none() {
                     inferred_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
                         Option::<&[Id<Symbol>]>::None,
+                        self,
                     ))));
                 }
             }
@@ -610,8 +610,8 @@ impl TypeChecker {
                 let inferred_ref = inferred.ref_(self);
                 if inferred_ref.maybe_members().is_none() {
                     inferred_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
-                        self.arena(),
                         Option::<&[Id<Symbol>]>::None,
+                        self,
                     ))));
                 }
             }

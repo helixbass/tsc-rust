@@ -272,7 +272,7 @@ impl TypeChecker {
                 ),
             );
 
-            let mut late_symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+            let mut late_symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
             let early_symbols_ref = early_symbols.map(|early_symbols| early_symbols.ref_(self));
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for &decl in symbol_declarations {
@@ -513,12 +513,12 @@ impl TypeChecker {
                 self.get_members_of_symbol(source_symbol)?
             } else {
                 self.alloc_symbol_table(create_symbol_table(
-                    self.arena(),
                     source
                         .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
+                    self,
                 ))
             };
             call_signatures = source
@@ -580,12 +580,12 @@ impl TypeChecker {
                 Some(symbol) if members == self.get_members_of_symbol(symbol)?
             ) {
                 members = self.alloc_symbol_table(create_symbol_table(
-                    self.arena(),
                     source
                         .ref_(self)
                         .as_interface_type_with_declared_members()
                         .maybe_declared_properties()
                         .as_deref(),
+                    self,
                 ));
             }
             self.set_structured_type_members(

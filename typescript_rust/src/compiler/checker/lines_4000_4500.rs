@@ -450,10 +450,8 @@ impl TypeChecker {
                             .intersects(SymbolFlags::Type & !SymbolFlags::Assignment)
                         {
                             if table.is_none() {
-                                table = Some(create_symbol_table(
-                                    self.arena(),
-                                    Option::<&[Id<Symbol>]>::None,
-                                ));
+                                table =
+                                    Some(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
                             }
                             table
                                 .as_mut()

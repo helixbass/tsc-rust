@@ -141,7 +141,7 @@ impl TypeChecker {
         include_pattern_in_type: bool,
         report_errors: bool,
     ) -> io::Result<Id<Type>> {
-        let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         let mut string_index_info: Option<Id<IndexInfo>> = None;
         let mut object_flags =
             ObjectFlags::ObjectLiteral | ObjectFlags::ContainsObjectOrArrayLiteral;
@@ -483,7 +483,7 @@ impl TypeChecker {
                         self.alloc_symbol_table(file_symbol_exports.ref_(self).clone()),
                     ));
                 }
-                let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+                let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
                 members.insert("exports".to_owned(), result);
                 return self.create_anonymous_type(
                     Some(symbol),

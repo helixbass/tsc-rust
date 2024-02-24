@@ -23,10 +23,9 @@ use crate::{
     is_qualified_name, is_require_call,
     is_right_side_of_qualified_name_or_property_access_or_jsdoc_member_name, is_static,
     node_is_missing, node_is_present, AssignmentDeclarationKind, Debug_, Diagnostic,
-    FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, HasArena, InArena,
-    InternalSymbolName, NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena,
-    OptionTry, Symbol, SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TypeChecker,
-    TypeInterface,
+    FindAncestorCallbackReturn, FunctionLikeDeclarationInterface, InArena, InternalSymbolName,
+    NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, OptionTry, Symbol,
+    SymbolFlags, SymbolInterface, SymbolTable, SyntaxKind, TypeChecker, TypeInterface,
 };
 
 impl TypeChecker {
@@ -54,7 +53,7 @@ impl TypeChecker {
             return Ok(vec![]);
         }
 
-        let mut symbols = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         let mut is_static_symbol = false;
 
         let mut location = Some(location);

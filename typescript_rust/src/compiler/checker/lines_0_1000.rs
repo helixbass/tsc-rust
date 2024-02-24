@@ -546,42 +546,42 @@ pub fn create_type_checker(
         inline_level: Default::default(),
         current_node: Default::default(),
 
-        empty_symbols: arena_ref.alloc_symbol_table(create_symbol_table(arena_ref, Option::<&[Id<Symbol>]>::None)),
+        empty_symbols: arena.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, arena)),
 
         compiler_options: compiler_options.clone(),
-        language_version: get_emit_script_target(&compiler_options.ref_(arena_ref)),
-        module_kind: get_emit_module_kind(&compiler_options.ref_(arena_ref)),
-        use_define_for_class_fields: get_use_define_for_class_fields(&compiler_options.ref_(arena_ref)),
-        allow_synthetic_default_imports: get_allow_synthetic_default_imports(&compiler_options.ref_(arena_ref)),
-        strict_null_checks: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictNullChecks"),
-        strict_function_types: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictFunctionTypes"),
-        strict_bind_call_apply: get_strict_option_value(&compiler_options.ref_(arena_ref), "strictBindCallApply"),
+        language_version: get_emit_script_target(&compiler_options.ref_(arena)),
+        module_kind: get_emit_module_kind(&compiler_options.ref_(arena)),
+        use_define_for_class_fields: get_use_define_for_class_fields(&compiler_options.ref_(arena)),
+        allow_synthetic_default_imports: get_allow_synthetic_default_imports(&compiler_options.ref_(arena)),
+        strict_null_checks: get_strict_option_value(&compiler_options.ref_(arena), "strictNullChecks"),
+        strict_function_types: get_strict_option_value(&compiler_options.ref_(arena), "strictFunctionTypes"),
+        strict_bind_call_apply: get_strict_option_value(&compiler_options.ref_(arena), "strictBindCallApply"),
         strict_property_initialization: get_strict_option_value(
-            &compiler_options.ref_(arena_ref),
+            &compiler_options.ref_(arena),
             "strictPropertyInitialization",
         ),
-        no_implicit_any: get_strict_option_value(&compiler_options.ref_(arena_ref), "noImplicitAny"),
-        no_implicit_this: get_strict_option_value(&compiler_options.ref_(arena_ref), "noImplicitThis"),
+        no_implicit_any: get_strict_option_value(&compiler_options.ref_(arena), "noImplicitAny"),
+        no_implicit_this: get_strict_option_value(&compiler_options.ref_(arena), "noImplicitThis"),
         use_unknown_in_catch_variables: get_strict_option_value(
-            &compiler_options.ref_(arena_ref),
+            &compiler_options.ref_(arena),
             "useUnknownInCatchVariables",
         ),
-        keyof_strings_only: matches!(compiler_options.ref_(arena_ref).keyof_strings_only, Some(true)),
+        keyof_strings_only: matches!(compiler_options.ref_(arena).keyof_strings_only, Some(true)),
         fresh_object_literal_flag: if matches!(
-            compiler_options.ref_(arena_ref).suppress_excess_property_errors,
+            compiler_options.ref_(arena).suppress_excess_property_errors,
             Some(true)
         ) {
             ObjectFlags::None
         } else {
             ObjectFlags::FreshLiteral
         },
-        exact_optional_property_types: compiler_options.ref_(arena_ref).exact_optional_property_types,
+        exact_optional_property_types: compiler_options.ref_(arena).exact_optional_property_types,
 
         check_binary_expression: Default::default(),
         emit_resolver: Default::default(),
         node_builder: Default::default(),
 
-        globals: arena_ref.alloc_symbol_table(create_symbol_table(arena_ref, Option::<&[Id<Symbol>]>::None)),
+        globals: arena.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, arena)),
         undefined_symbol: Default::default(),
         global_this_symbol: Default::default(),
 
@@ -677,7 +677,7 @@ pub fn create_type_checker(
         enum_number_index_info: Default::default(),
 
         iteration_types_cache: Default::default(),
-        no_iteration_types: arena_ref.alloc_iteration_types(IterationTypes::new_no_iteration_types()),
+        no_iteration_types: arena.alloc_iteration_types(IterationTypes::new_no_iteration_types()),
 
         any_iteration_types: Default::default(),
         any_iteration_types_except_next: Default::default(),
@@ -828,7 +828,7 @@ pub fn create_type_checker(
             (".mjs", ".mjs"),
             (".js", ".js"),
             (".cjs", ".cjs"),
-            (".tsx", if matches!(compiler_options.ref_(arena_ref).jsx, Some(JsxEmit::Preserve)) {
+            (".tsx", if matches!(compiler_options.ref_(arena).jsx, Some(JsxEmit::Preserve)) {
                 ".jsx"
             } else {
                 ".js"
@@ -1275,7 +1275,7 @@ pub fn create_type_checker(
         None,
     );
     empty_type_literal_symbol.set_members(Some(type_checker.alloc_symbol_table(
-        create_symbol_table(type_checker.arena(), Option::<&[Id<Symbol>]>::None),
+        create_symbol_table(Option::<&[Id<Symbol>]>::None, &type_checker),
     )));
     type_checker.empty_type_literal_symbol =
         Some(type_checker.alloc_symbol(empty_type_literal_symbol.into()));
@@ -1357,7 +1357,7 @@ pub fn create_type_checker(
         ),
     );
 
-    type_checker.no_type_predicate = Some(arena_ref.alloc_type_predicate(
+    type_checker.no_type_predicate = Some(arena.alloc_type_predicate(
         type_checker.create_type_predicate(
             TypePredicateKind::Identifier,
             Some("<<unresolved>>".to_owned()),
@@ -1366,7 +1366,7 @@ pub fn create_type_checker(
         ),
     ));
 
-    type_checker.any_signature = Some(arena_ref.alloc_signature(type_checker.create_signature(
+    type_checker.any_signature = Some(arena.alloc_signature(type_checker.create_signature(
         None,
         None,
         None,
@@ -1376,30 +1376,28 @@ pub fn create_type_checker(
         0,
         SignatureFlags::None,
     )));
-    type_checker.unknown_signature =
-        Some(arena_ref.alloc_signature(type_checker.create_signature(
-            None,
-            None,
-            None,
-            vec![],
-            Some(type_checker.error_type()),
-            None,
-            0,
-            SignatureFlags::None,
-        )));
-    type_checker.resolving_signature =
-        Some(arena_ref.alloc_signature(type_checker.create_signature(
-            None,
-            None,
-            None,
-            vec![],
-            Some(type_checker.any_type()),
-            None,
-            0,
-            SignatureFlags::None,
-        )));
+    type_checker.unknown_signature = Some(arena.alloc_signature(type_checker.create_signature(
+        None,
+        None,
+        None,
+        vec![],
+        Some(type_checker.error_type()),
+        None,
+        0,
+        SignatureFlags::None,
+    )));
+    type_checker.resolving_signature = Some(arena.alloc_signature(type_checker.create_signature(
+        None,
+        None,
+        None,
+        vec![],
+        Some(type_checker.any_type()),
+        None,
+        0,
+        SignatureFlags::None,
+    )));
     type_checker.silent_never_signature =
-        Some(arena_ref.alloc_signature(type_checker.create_signature(
+        Some(arena.alloc_signature(type_checker.create_signature(
             None,
             None,
             None,
@@ -1411,7 +1409,7 @@ pub fn create_type_checker(
         )));
 
     type_checker.enum_number_index_info =
-        Some(arena_ref.alloc_index_info(type_checker.create_index_info(
+        Some(arena.alloc_index_info(type_checker.create_index_info(
             type_checker.number_type(),
             type_checker.string_type(),
             true,
@@ -1461,23 +1459,23 @@ pub fn create_type_checker(
     );
     *type_checker.builtin_globals.borrow_mut() = Some(builtin_globals);
 
-    let ret = arena_ref.alloc_type_checker(type_checker);
-    ret.ref_(arena_ref).set_arena_id(ret.clone());
+    let ret = arena.alloc_type_checker(type_checker);
+    ret.ref_(arena).set_arena_id(ret.clone());
 
-    ret.ref_(arena_ref)
+    ret.ref_(arena)
         .node_builder
-        .set(Some(ret.ref_(arena_ref).create_node_builder()));
+        .set(Some(ret.ref_(arena).create_node_builder()));
 
-    ret.ref_(arena_ref).initialize_type_checker()?;
+    ret.ref_(arena).initialize_type_checker()?;
 
-    ret.ref_(arena_ref)
+    ret.ref_(arena)
         .check_binary_expression
-        .set(Some(ret.ref_(arena_ref).alloc_check_binary_expression(
-            ret.ref_(arena_ref).create_check_binary_expression(),
+        .set(Some(ret.ref_(arena).alloc_check_binary_expression(
+            ret.ref_(arena).create_check_binary_expression(),
         )));
-    ret.ref_(arena_ref)
+    ret.ref_(arena)
         .emit_resolver
-        .set(Some(ret.ref_(arena_ref).create_resolver()));
+        .set(Some(ret.ref_(arena).create_resolver()));
 
     Ok(ret)
 }

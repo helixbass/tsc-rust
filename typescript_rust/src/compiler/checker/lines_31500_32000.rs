@@ -314,10 +314,8 @@ impl TypeChecker {
             .ref_mut(self)
             .type_ = Some(target_type);
 
-        let members = self.alloc_symbol_table(create_symbol_table(
-            self.arena(),
-            Some(&[target_property_symbol]),
-        ));
+        let members =
+            self.alloc_symbol_table(create_symbol_table(Some(&[target_property_symbol]), self));
         symbol.ref_(self).set_members(Some(members.clone()));
         self.create_anonymous_type(Some(symbol), members, vec![], vec![], vec![])
     }

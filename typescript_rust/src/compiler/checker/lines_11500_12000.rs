@@ -1,7 +1,6 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
-
 
 use super::MappedTypeModifiers;
 use crate::{
@@ -354,7 +353,7 @@ impl TypeChecker {
             .maybe_resolved_properties()
             .is_none()
         {
-            let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+            let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
             for current in {
                 let types = type_
                     .ref_(self)
@@ -482,7 +481,7 @@ impl TypeChecker {
             return self.get_augmented_properties_of_type(union_type);
         }
 
-        let mut props = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+        let mut props = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         for &member_type in types {
             for augmented_property in self.get_augmented_properties_of_type(member_type)? {
                 let augmented_property_ref = augmented_property.ref_(self);

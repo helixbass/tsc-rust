@@ -253,10 +253,9 @@ impl SymbolTableToDeclarationStatements {
                     .flags()
                     .intersects(SymbolFlags::Alias)
         }) {
-            self.set_symbol_table(self.alloc_symbol_table(create_symbol_table(
-                self.type_checker.ref_(self).arena(),
-                Option::<&[Id<Symbol>]>::None,
-            )));
+            self.set_symbol_table(
+                self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self)),
+            );
             self.symbol_table()
                 .ref_mut(self)
                 .insert(InternalSymbolName::ExportEquals.to_owned(), export_equals);

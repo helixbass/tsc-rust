@@ -1127,10 +1127,8 @@ impl TypeChecker {
         {
             return Ok(None);
         }
-        let exports = self.alloc_symbol_table(create_symbol_table(
-            self.arena(),
-            Option::<&[Id<Symbol>]>::None,
-        ));
+        let exports =
+            self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
         while is_binary_expression(&decl.ref_(self))
             || is_property_access_expression(&decl.ref_(self))
         {
@@ -1273,7 +1271,7 @@ impl TypeChecker {
             && symbol.ref_(self).escaped_name() == InternalSymbolName::ExportEquals
         {
             let exported_type = self.resolve_structured_type_members(type_)?;
-            let mut members = create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None);
+            let mut members = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
             copy_entries(
                 &*exported_type
                     .ref_(self)
@@ -1287,7 +1285,7 @@ impl TypeChecker {
                 let resolved_symbol_ref = resolved_symbol.ref_(self);
                 if resolved_symbol_ref.maybe_exports().is_none() {
                     resolved_symbol_ref.set_exports(Some(self.alloc_symbol_table(
-                        create_symbol_table(self.arena(), Option::<&[Id<Symbol>]>::None),
+                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
                     )));
                 }
             }

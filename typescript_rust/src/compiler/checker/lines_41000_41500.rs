@@ -18,10 +18,10 @@ use crate::{
     try_for_each_entry_bool,
     try_get_class_implementing_or_extending_expression_with_type_arguments, try_map_defined,
     try_some, type_has_call_or_construct_signatures, walk_up_binding_elements_and_patterns,
-    CheckFlags, Debug_, HasArena, InArena, IndexInfo, InterfaceTypeInterface,
-    NamedDeclarationInterface, Node, NodeCheckFlags, NodeFlags, NodeInterface, OptionTry,
-    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TransientSymbolInterface,
-    Type, TypeChecker, TypeFlags, TypeInterface, UnionOrIntersectionTypeInterface,
+    CheckFlags, Debug_, InArena, IndexInfo, InterfaceTypeInterface, NamedDeclarationInterface,
+    Node, NodeCheckFlags, NodeFlags, NodeInterface, OptionTry, SignatureKind, Symbol, SymbolFlags,
+    SymbolInterface, SyntaxKind, TransientSymbolInterface, Type, TypeChecker, TypeFlags,
+    TypeInterface, UnionOrIntersectionTypeInterface,
 };
 
 impl TypeChecker {
@@ -409,7 +409,7 @@ impl TypeChecker {
     ) -> io::Result<Vec<Id<Symbol>>> {
         let type_ = self.get_apparent_type(type_)?;
         let mut props_by_name =
-            create_symbol_table(self.arena(), Some(&self.get_properties_of_type(type_)?));
+            create_symbol_table(Some(&self.get_properties_of_type(type_)?), self);
         let function_type = if !self
             .get_signatures_of_type(type_, SignatureKind::Call)?
             .is_empty()
