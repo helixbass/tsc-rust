@@ -370,6 +370,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;

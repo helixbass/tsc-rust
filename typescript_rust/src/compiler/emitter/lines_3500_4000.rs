@@ -314,6 +314,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -471,6 +472,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -497,6 +499,7 @@ impl Printer {
                     Some(self.alloc_current_parenthesizer_rule(Box::new(
                         ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                             self.parenthesizer(),
+                            self,
                         ),
                     ))),
                 )?;
@@ -523,6 +526,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -542,6 +546,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;

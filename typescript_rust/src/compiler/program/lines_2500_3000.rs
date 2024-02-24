@@ -10,16 +10,16 @@ use crate::{
     change_extension, combine_paths, file_extension_is, flatten, for_each, for_each_bool,
     for_each_child_returns, get_common_source_directory_of_config, get_emit_script_target,
     get_normalized_absolute_path_without_root, get_output_declaration_file_name, has_extension,
-    has_js_file_extension, has_jsdoc_nodes, is_declaration_file_name, maybe_for_each, maybe_map,
-    node_modules_path_part, out_file, package_id_to_string, resolve_module_name,
-    set_resolved_type_reference_directive, some, string_contains, to_file_name_lower_case,
-    try_for_each, try_maybe_for_each, AllArenas, AsDoubleDeref, CompilerHost,
-    CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension, FileIncludeKind,
-    FileIncludeReason, FileReference, HasArena, InArena, ModuleResolutionKind, Node, NodeArray,
-    NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, NonEmpty, OptionInArena, PackageId,
-    Path, Program, RedirectInfo, ReferencedFile, ResolvedProjectReference,
-    ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile, SourceFileLike,
-    SourceOfProjectReferenceRedirect, Symbol,
+    has_js_file_extension, has_jsdoc_nodes, impl_has_arena, is_declaration_file_name,
+    maybe_for_each, maybe_map, node_modules_path_part, out_file, package_id_to_string,
+    resolve_module_name, set_resolved_type_reference_directive, some, string_contains,
+    to_file_name_lower_case, try_for_each, try_maybe_for_each, AllArenas, AsDoubleDeref,
+    CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
+    FileIncludeKind, FileIncludeReason, FileReference, HasArena, InArena, ModuleResolutionKind,
+    Node, NodeArray, NodeId, NodeIdOverride, NodeInterface, NodeSymbolOverride, NonEmpty,
+    OptionInArena, PackageId, Path, Program, RedirectInfo, ReferencedFile,
+    ResolvedProjectReference, ResolvedTypeReferenceDirective, ScriptReferenceHost, SourceFile,
+    SourceFileLike, SourceOfProjectReferenceRedirect, Symbol,
 };
 
 impl Program {
@@ -294,12 +294,12 @@ impl Program {
         redirect
             .ref_(self)
             .set_id_override(self.alloc_node_id_override(Box::new(
-                RedirectSourceFileIdOverride::new(redirect.clone()),
+                RedirectSourceFileIdOverride::new(redirect.clone(), self),
             )));
         redirect
             .ref_(self)
             .set_symbol_override(self.alloc_node_symbol_override(Box::new(
-                RedirectSourceFileSymbolOverride::new(redirect.clone()),
+                RedirectSourceFileSymbolOverride::new(redirect.clone(), self),
             )));
         redirect
     }
@@ -751,7 +751,7 @@ impl Program {
         &self,
     ) -> Id<Box<dyn ForEachResolvedProjectReference>> {
         self.alloc_for_each_resolved_project_reference(Box::new(
-            ProgramForEachResolvedProjectReference::new(self.arena_id()),
+            ProgramForEachResolvedProjectReference::new(self.arena_id(), self),
         ))
     }
 
@@ -1142,12 +1142,14 @@ impl Program {
 
 #[derive(Debug)]
 struct RedirectSourceFileIdOverride {
+    arena: *const AllArenas,
     redirect_source_file: Id<Node>,
 }
 
 impl RedirectSourceFileIdOverride {
-    fn new(redirect_source_file: Id<Node>) -> Self {
+    fn new(redirect_source_file: Id<Node>, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             redirect_source_file,
         }
     }
@@ -1179,20 +1181,18 @@ impl NodeIdOverride for RedirectSourceFileIdOverride {
     }
 }
 
-impl HasArena for RedirectSourceFileIdOverride {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(RedirectSourceFileIdOverride);
 
 #[derive(Debug)]
 struct RedirectSourceFileSymbolOverride {
+    arena: *const AllArenas,
     redirect_source_file: Id<Node>,
 }
 
 impl RedirectSourceFileSymbolOverride {
-    fn new(redirect_source_file: Id<Node>) -> Self {
+    fn new(redirect_source_file: Id<Node>, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             redirect_source_file,
         }
     }
@@ -1224,19 +1224,19 @@ impl NodeSymbolOverride for RedirectSourceFileSymbolOverride {
     }
 }
 
-impl HasArena for RedirectSourceFileSymbolOverride {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(RedirectSourceFileSymbolOverride);
 
 struct ProgramForEachResolvedProjectReference {
+    arena: *const AllArenas,
     program: Id<Program>,
 }
 
 impl ProgramForEachResolvedProjectReference {
-    pub fn new(program: Id<Program>) -> Self {
-        Self { program }
+    pub fn new(program: Id<Program>, arena: &impl HasArena) -> Self {
+        Self {
+            program,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1256,8 +1256,4 @@ impl ForEachResolvedProjectReference for ProgramForEachResolvedProjectReference 
     }
 }
 
-impl HasArena for ProgramForEachResolvedProjectReference {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ProgramForEachResolvedProjectReference);

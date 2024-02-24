@@ -844,7 +844,7 @@ fn emit_build_info(
         return Ok(());
     }
     write_file(
-        &EmitHostWriteFileCallback::new(host.clone()),
+        &EmitHostWriteFileCallback::new(host.clone(), arena),
         emitter_diagnostics,
         build_info_path,
         &get_build_info_text(
@@ -1395,7 +1395,7 @@ fn print_source_file_or_bundle(
         if let Some(source_map_file_path) = source_map_file_path.non_empty() {
             let source_map = source_map_generator.ref_(arena).to_string();
             write_file(
-                &EmitHostWriteFileCallback::new(host.clone()),
+                &EmitHostWriteFileCallback::new(host.clone(), arena),
                 emitter_diagnostics,
                 source_map_file_path,
                 &source_map,
@@ -1409,7 +1409,7 @@ fn print_source_file_or_bundle(
     }
 
     write_file(
-        &EmitHostWriteFileCallback::new(host.clone()),
+        &EmitHostWriteFileCallback::new(host.clone(), arena),
         emitter_diagnostics,
         js_file_path,
         &writer.ref_(arena).get_text(),

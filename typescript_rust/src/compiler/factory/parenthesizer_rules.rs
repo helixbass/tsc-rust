@@ -1,30 +1,34 @@
-
-
 use id_arena::Id;
 
 use crate::{
     compare_values, get_expression_associativity, get_expression_precedence,
-    get_leftmost_expression, get_operator_associativity, get_operator_precedence,
+    get_leftmost_expression, get_operator_associativity, get_operator_precedence, impl_has_arena,
     is_binary_expression, is_block, is_call_expression, is_comma_sequence,
     is_function_or_constructor_type_node, is_left_hand_side_expression, is_literal_kind,
     is_unary_expression, maybe_same_map, same_map, set_text_range, set_text_range_id_node,
-    skip_partially_emitted_expressions, some, AllArenas, Associativity,
-    Comparison, HasArena, HasTypeArgumentsInterface, InArena, Node, NodeArray, NodeArrayOrVec,
-    NodeExt, NodeFactory, NodeInterface, OperatorPrecedence, OuterExpressionKinds,
-    ParenthesizerRules, SyntaxKind,
+    skip_partially_emitted_expressions, some, AllArenas, Associativity, Comparison, HasArena,
+    HasTypeArgumentsInterface, InArena, Node, NodeArray, NodeArrayOrVec, NodeExt, NodeFactory,
+    NodeInterface, OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
 };
 
-pub fn create_parenthesizer_rules(factory: Id<NodeFactory>) -> ParenthesizerRulesConcrete {
-    ParenthesizerRulesConcrete::new(factory)
+pub fn create_parenthesizer_rules(
+    factory: Id<NodeFactory>,
+    arena: &impl HasArena,
+) -> ParenthesizerRulesConcrete {
+    ParenthesizerRulesConcrete::new(factory, arena)
 }
 
 pub struct ParenthesizerRulesConcrete {
+    arena: *const AllArenas,
     factory: Id<NodeFactory>,
 }
 
 impl ParenthesizerRulesConcrete {
-    pub fn new(factory: Id<NodeFactory>) -> Self {
-        Self { factory }
+    pub fn new(factory: Id<NodeFactory>, arena: &impl HasArena) -> Self {
+        Self {
+            factory,
+            arena: arena.arena(),
+        }
     }
 
     fn binary_operand_needs_parentheses(
@@ -541,11 +545,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
     }
 }
 
-impl HasArena for ParenthesizerRulesConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizerRulesConcrete);
 
 pub fn null_parenthesizer_rules() -> NullParenthesizerRules {
     NullParenthesizerRules::new()

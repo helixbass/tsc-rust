@@ -85,6 +85,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -97,7 +98,10 @@ impl Printer {
         self.emit_expression(
             Some(node.ref_(self).as_decorator().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -467,6 +471,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -551,6 +556,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -565,7 +571,10 @@ impl Printer {
             Some(node.ref_(self).as_union_type_node().types),
             ListFormat::UnionTypeConstituents,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
             None,
             None,
@@ -583,7 +592,10 @@ impl Printer {
             Some(node.ref_(self).as_intersection_type_node().types),
             ListFormat::IntersectionTypeConstituents,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
             None,
             None,
@@ -603,6 +615,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -614,6 +627,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -673,7 +687,10 @@ impl Printer {
         self.emit(
             Some(node_as_type_operator_node.type_),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -689,7 +706,10 @@ impl Printer {
         self.emit(
             Some(node_as_indexed_access_type_node.object_type),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         self.write_punctuation("[");
@@ -863,6 +883,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -889,6 +910,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
             None,
@@ -957,7 +979,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_property_access_expression.expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         let token = node_as_property_access_expression
@@ -1053,7 +1078,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_element_access_expression.expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         self.emit(node_as_element_access_expression.question_dot_token, None)?;

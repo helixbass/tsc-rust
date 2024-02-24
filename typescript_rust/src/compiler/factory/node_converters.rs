@@ -1,28 +1,33 @@
-
-
 use id_arena::Id;
 
 use crate::{
-    cast, get_starts_on_new_line, is_array_binding_pattern, is_array_literal_expression,
-    is_binding_element, is_binding_pattern, is_block, is_expression, is_identifier,
-    is_object_binding_pattern, is_object_literal_element_like, is_object_literal_expression, map,
-    set_original_node, set_starts_on_new_line, AllArenas, Debug_,
-    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasTypeInterface,
+    cast, get_starts_on_new_line, impl_has_arena, is_array_binding_pattern,
+    is_array_literal_expression, is_binding_element, is_binding_pattern, is_block, is_expression,
+    is_identifier, is_object_binding_pattern, is_object_literal_element_like,
+    is_object_literal_expression, map, set_original_node, set_starts_on_new_line, AllArenas,
+    Debug_, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasTypeInterface,
     HasTypeParametersInterface, InArena, NamedDeclarationInterface, Node, NodeConverters, NodeExt,
     NodeFactory, NodeInterface, SignatureDeclarationInterface, SyntaxKind,
 };
 
-pub fn create_node_converters(factory: Id<NodeFactory>) -> NodeConvertersConcrete {
-    NodeConvertersConcrete::new(factory)
+pub fn create_node_converters(
+    factory: Id<NodeFactory>,
+    arena: &impl HasArena,
+) -> NodeConvertersConcrete {
+    NodeConvertersConcrete::new(factory, arena)
 }
 
 pub struct NodeConvertersConcrete {
+    arena: *const AllArenas,
     factory: Id<NodeFactory>,
 }
 
 impl NodeConvertersConcrete {
-    pub fn new(factory: Id<NodeFactory>) -> Self {
-        Self { factory }
+    pub fn new(factory: Id<NodeFactory>, arena: &impl HasArena) -> Self {
+        Self {
+            factory,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -263,11 +268,7 @@ impl NodeConverters for NodeConvertersConcrete {
     }
 }
 
-impl HasArena for NodeConvertersConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(NodeConvertersConcrete);
 
 pub fn null_node_converters() -> NullNodeConverters {
     NullNodeConverters::new()

@@ -4,14 +4,13 @@ use id_arena::Id;
 
 use super::PipelinePhase;
 use crate::{
-    cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node,
+    cast, create_binary_expression_trampoline, get_emit_flags, get_parse_tree_node, impl_has_arena,
     is_binary_expression, is_block, is_expression, is_json_source_file, node_is_synthesized,
-    positions_are_on_same_line, skip_trivia, AllArenas,
-    BinaryExpressionStateMachine, BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_,
-    EmitFlags, EmitHint, HasArena, HasTypeArgumentsInterface, HasTypeInterface,
-    HasTypeParametersInterface, InArena, LeftOrRight, ListFormat, NamedDeclarationInterface, Node,
-    NodeInterface, ParenthesizerRules, Printer, ReadonlyTextRange, SignatureDeclarationInterface,
-    SourceFileLike, SyntaxKind,
+    positions_are_on_same_line, skip_trivia, AllArenas, BinaryExpressionStateMachine,
+    BinaryExpressionTrampoline, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, HasArena,
+    HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, InArena, LeftOrRight,
+    ListFormat, NamedDeclarationInterface, Node, NodeInterface, ParenthesizerRules, Printer,
+    ReadonlyTextRange, SignatureDeclarationInterface, SourceFileLike, SyntaxKind,
 };
 
 impl Printer {
@@ -31,7 +30,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_call_expression.expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         if indirect_call {
@@ -46,6 +48,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
             None,
@@ -72,7 +75,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_new_expression.expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeExpressionOfNewCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         self.emit_type_arguments(node, node_as_new_expression.maybe_type_arguments())?;
@@ -83,6 +89,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
             None,
@@ -108,7 +115,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_tagged_template_expression.tag),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         if indirect_call {
@@ -136,7 +146,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_type_assertion.expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -226,7 +239,10 @@ impl Printer {
         self.emit_expression(
             Some(node.ref_(self).as_delete_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -248,7 +264,10 @@ impl Printer {
         self.emit_expression(
             Some(node.ref_(self).as_type_of_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -270,7 +289,10 @@ impl Printer {
         self.emit_expression(
             Some(node.ref_(self).as_void_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -292,7 +314,10 @@ impl Printer {
         self.emit_expression(
             Some(node.ref_(self).as_await_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -316,7 +341,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_prefix_unary_expression.operand),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
 
@@ -354,6 +382,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -368,7 +397,7 @@ impl Printer {
 
     pub(super) fn create_emit_binary_expression(&self) -> EmitBinaryExpression {
         let trampoline = create_binary_expression_trampoline(
-            EmitBinaryExpressionStateMachine::new(self.arena_id()),
+            EmitBinaryExpressionStateMachine::new(self.arena_id(), self),
         );
         EmitBinaryExpression::new(trampoline)
     }
@@ -405,6 +434,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -416,6 +446,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -429,6 +460,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -475,6 +507,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -498,6 +531,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -526,7 +560,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_expression_with_type_arguments.expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         self.emit_type_arguments(
@@ -563,7 +600,10 @@ impl Printer {
         self.emit_expression(
             Some(node_as_non_null_expression.expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
         )?;
         self.write_operator("!");
@@ -684,6 +724,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -1160,12 +1201,16 @@ pub struct WorkArea {
 }
 
 pub struct EmitBinaryExpressionStateMachine {
+    arena: *const AllArenas,
     printer: Id<Printer>,
 }
 
 impl EmitBinaryExpressionStateMachine {
-    pub fn new(printer: Id<Printer>) -> Self {
-        Self { printer }
+    pub fn new(printer: Id<Printer>, arena: &impl HasArena) -> Self {
+        Self {
+            printer,
+            arena: arena.arena(),
+        }
     }
 
     fn maybe_emit_expression(
@@ -1185,6 +1230,7 @@ impl EmitBinaryExpressionStateMachine {
                         .operator_token
                         .ref_(self)
                         .kind(),
+                    self,
                 ),
             ));
 
@@ -1410,16 +1456,13 @@ impl BinaryExpressionStateMachine for EmitBinaryExpressionStateMachine {
     }
 }
 
-impl HasArena for EmitBinaryExpressionStateMachine {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(EmitBinaryExpressionStateMachine);
 
 struct MaybeEmitExpressionCurrentParenthesizerRule {
     side: LeftOrRight,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
     parent_operator_token_kind: SyntaxKind,
+    arena: *const AllArenas,
 }
 
 impl MaybeEmitExpressionCurrentParenthesizerRule {
@@ -1427,11 +1470,13 @@ impl MaybeEmitExpressionCurrentParenthesizerRule {
         side: LeftOrRight,
         parenthesizer: Id<Box<dyn ParenthesizerRules>>,
         parent_operator_token_kind: SyntaxKind,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
             side,
             parenthesizer,
             parent_operator_token_kind,
+            arena: arena.arena(),
         }
     }
 }
@@ -1450,19 +1495,19 @@ impl CurrentParenthesizerRule for MaybeEmitExpressionCurrentParenthesizerRule {
     }
 }
 
-impl HasArena for MaybeEmitExpressionCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(MaybeEmitExpressionCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
+    arena: *const AllArenas,
 }
 
 impl ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1474,19 +1519,19 @@ impl CurrentParenthesizerRule for ParenthesizeOperandOfPrefixUnaryCurrentParenth
     }
 }
 
-impl HasArena for ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeOperandOfPrefixUnaryCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1498,19 +1543,19 @@ impl CurrentParenthesizerRule for ParenthesizeOperandOfPostfixUnaryCurrentParent
     }
 }
 
-impl HasArena for ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeOperandOfPostfixUnaryCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1522,19 +1567,19 @@ impl CurrentParenthesizerRule for ParenthesizeLeftSideOfAccessCurrentParenthesiz
     }
 }
 
-impl HasArena for ParenthesizeLeftSideOfAccessCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeLeftSideOfAccessCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeExpressionOfNewCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfNewCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1546,19 +1591,19 @@ impl CurrentParenthesizerRule for ParenthesizeExpressionOfNewCurrentParenthesize
     }
 }
 
-impl HasArena for ParenthesizeExpressionOfNewCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeExpressionOfNewCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1570,19 +1615,19 @@ impl CurrentParenthesizerRule for ParenthesizeMemberOfElementTypeCurrentParenthe
     }
 }
 
-impl HasArena for ParenthesizeMemberOfElementTypeCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeMemberOfElementTypeCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1594,19 +1639,19 @@ impl CurrentParenthesizerRule for ParenthesizeMemberOfConditionalTypeCurrentPare
     }
 }
 
-impl HasArena for ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeMemberOfConditionalTypeCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1618,19 +1663,19 @@ impl CurrentParenthesizerRule for ParenthesizeElementTypeOfArrayTypeCurrentParen
     }
 }
 
-impl HasArena for ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeElementTypeOfArrayTypeCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1644,19 +1689,19 @@ impl CurrentParenthesizerRule
     }
 }
 
-impl HasArena for ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeExpressionOfComputedPropertyNameCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1668,19 +1713,19 @@ impl CurrentParenthesizerRule for ParenthesizeExpressionForDisallowedCommaCurren
     }
 }
 
-impl HasArena for ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1692,19 +1737,19 @@ impl CurrentParenthesizerRule for ParenthesizeExpressionOfExportDefaultCurrentPa
     }
 }
 
-impl HasArena for ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1716,19 +1761,19 @@ impl CurrentParenthesizerRule for ParenthesizeRightSideOfBinaryCurrentParenthesi
     }
 }
 
-impl HasArena for ParenthesizeRightSideOfBinaryCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeRightSideOfBinaryCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1740,19 +1785,19 @@ impl CurrentParenthesizerRule for ParenthesizeConciseBodyOfArrowFunctionCurrentP
     }
 }
 
-impl HasArena for ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1766,19 +1811,19 @@ impl CurrentParenthesizerRule
     }
 }
 
-impl HasArena for ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1792,19 +1837,19 @@ impl CurrentParenthesizerRule
     }
 }
 
-impl HasArena for ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeBranchOfConditionalExpressionCurrentParenthesizerRule);
 
 pub(super) struct ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
+    arena: *const AllArenas,
     parenthesizer: Id<Box<dyn ParenthesizerRules>>,
 }
 
 impl ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
-    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>) -> Self {
-        Self { parenthesizer }
+    pub fn new(parenthesizer: Id<Box<dyn ParenthesizerRules>>, arena: &impl HasArena) -> Self {
+        Self {
+            parenthesizer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1818,8 +1863,4 @@ impl CurrentParenthesizerRule
     }
 }
 
-impl HasArena for ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParenthesizeConditionOfConditionalExpressionCurrentParenthesizerRule);

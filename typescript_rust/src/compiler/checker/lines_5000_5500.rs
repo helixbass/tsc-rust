@@ -13,16 +13,16 @@ use super::{
 use crate::{
     contains, count_where, filter, first, get_check_flags,
     get_declaration_modifier_flags_from_symbol, get_factory, get_name_of_declaration,
-    get_object_flags, get_parse_tree_node, is_binary_expression, is_class_like,
-    is_element_access_expression, is_identifier, is_import_type_node,
+    get_null_transformation_context, get_object_flags, get_parse_tree_node, is_binary_expression,
+    is_class_like, is_element_access_expression, is_identifier, is_import_type_node,
     is_property_access_entity_name_expression, is_static, last, length, map, maybe_for_each_bool,
-    node_is_synthesized, null_transformation_context, range_equals, same_map, set_emit_flags,
-    set_text_range, some, symbol_name, unescape_leading_underscores, visit_each_child, CheckFlags,
-    Debug_, ElementFlags, EmitFlags, GetOrInsertDefault, HasArena, HasTypeArgumentsInterface,
-    InArena, InterfaceTypeInterface, KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder,
-    NodeBuilderFlags, NodeInterface, NodeLinksSerializedType, ObjectFlags,
-    ObjectFlagsTypeInterface, Signature, SignatureFlags, SignatureKind, Symbol,
-    SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId, TypeInterface,
+    node_is_synthesized, range_equals, same_map, set_emit_flags, set_text_range, some, symbol_name,
+    unescape_leading_underscores, visit_each_child, CheckFlags, Debug_, ElementFlags, EmitFlags,
+    GetOrInsertDefault, HasArena, HasTypeArgumentsInterface, InArena, InterfaceTypeInterface,
+    KeywordTypeNode, ModifierFlags, Node, NodeArray, NodeBuilder, NodeBuilderFlags, NodeInterface,
+    NodeLinksSerializedType, ObjectFlags, ObjectFlagsTypeInterface, Signature, SignatureFlags,
+    SignatureKind, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeFlags, TypeId,
+    TypeInterface,
 };
 
 impl NodeBuilder {
@@ -473,7 +473,7 @@ impl NodeBuilder {
         let ret = get_factory(self).clone_node(visit_each_child(
             node,
             |node: Id<Node>| Some(self.deep_clone_or_reuse_node(node).into()),
-            &*null_transformation_context,
+            &get_null_transformation_context(self),
             self,
         ));
         set_text_range(&*ret.ref_(self), Some(&*node.ref_(self)));

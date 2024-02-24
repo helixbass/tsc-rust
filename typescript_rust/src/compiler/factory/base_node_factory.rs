@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use crate::{object_allocator, AllArenas, BaseNode, HasArena, SyntaxKind};
+use crate::{impl_has_arena, object_allocator, AllArenas, BaseNode, HasArena, SyntaxKind};
 
 pub trait BaseNodeFactory {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode;
@@ -11,13 +11,14 @@ pub trait BaseNodeFactory {
     fn update_cloned_node(&self, _node: &BaseNode) {}
 }
 
-pub fn create_base_node_factory() -> BaseNodeFactoryConcrete {
-    BaseNodeFactoryConcrete::new()
+pub fn create_base_node_factory(arena: &impl HasArena) -> BaseNodeFactoryConcrete {
+    BaseNodeFactoryConcrete::new(arena)
 }
 
 #[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct BaseNodeFactoryConcrete {
+    arena: *const AllArenas,
     SourceFileConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     PrivateIdentifierConstructor:
@@ -27,13 +28,14 @@ pub struct BaseNodeFactoryConcrete {
 }
 
 impl BaseNodeFactoryConcrete {
-    pub fn new() -> Self {
+    pub fn new(arena: &impl HasArena) -> Self {
         Self {
             SourceFileConstructor: RefCell::new(None),
             IdentifierConstructor: RefCell::new(None),
             PrivateIdentifierConstructor: RefCell::new(None),
             TokenConstructor: RefCell::new(None),
             NodeConstructor: RefCell::new(None),
+            arena: arena.arena(),
         }
     }
 }
@@ -41,6 +43,7 @@ impl BaseNodeFactoryConcrete {
 #[allow(non_snake_case)]
 impl BaseNodeFactory for BaseNodeFactoryConcrete {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
+        // TODO: revisit whether mimicking this objectAllocator stuff actually makes sense to do?
         let mut SourceFileConstructor = self.SourceFileConstructor.borrow_mut();
         if SourceFileConstructor.is_none() {
             *SourceFileConstructor = Some(object_allocator.get_source_file_constructor());
@@ -82,8 +85,4 @@ impl BaseNodeFactory for BaseNodeFactoryConcrete {
     }
 }
 
-impl HasArena for BaseNodeFactoryConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(BaseNodeFactoryConcrete);

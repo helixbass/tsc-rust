@@ -10,8 +10,8 @@ use local_macros::enum_unwrapped;
 
 use super::{CompilerOptions, Diagnostic, EmitHint, Node, NodeArray, NodeArrayOrVec, SyntaxKind};
 use crate::{
-    BaseNodeFactory, EmitHelper, EmitHelperFactory, EmitHost,
-    EmitResolver, HasArena, NodeFactoryFlags, TransformNodesTransformationResult,
+    BaseNodeFactory, EmitHelper, EmitHelperFactory, EmitHost, EmitResolver, HasArena,
+    NodeFactoryFlags, TransformNodesTransformationResult,
 };
 
 #[derive(Default, Builder, Clone)]
@@ -188,6 +188,7 @@ pub trait NodeConverters {
 }
 
 pub struct NodeFactory {
+    pub(crate) arena: *const AllArenas,
     pub base_factory: Id<Box<dyn BaseNodeFactory>>,
     pub flags: NodeFactoryFlags,
     pub parenthesizer_rules: Cell<Option<Id<Box<dyn ParenthesizerRules>>>>,
@@ -353,6 +354,8 @@ mod _SingleNodeOrVecNodeDeriveTraceScope {
 }
 pub use _SingleNodeOrVecNodeDeriveTraceScope::SingleNodeOrVecNode;
 use id_arena::Id;
+
+use crate::AllArenas;
 
 impl SingleNodeOrVecNode {
     // TODO: suppress `gc`-generated Drop implementation to avoid this complaining?

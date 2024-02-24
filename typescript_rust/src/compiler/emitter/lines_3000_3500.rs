@@ -166,6 +166,7 @@ impl Printer {
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionForDisallowedCommaCurrentParenthesizerRule::new(
                     self.parenthesizer(),
+                    self,
                 ),
             ))),
         )?;
@@ -266,6 +267,7 @@ impl Printer {
                     Some(self.alloc_current_parenthesizer_rule(Box::new(
                         ParenthesizeConciseBodyOfArrowFunctionCurrentParenthesizerRule::new(
                             self.parenthesizer(),
+                            self,
                         ),
                     ))),
                 )?;
@@ -866,12 +868,14 @@ impl Printer {
                 Some(self.alloc_current_parenthesizer_rule(Box::new(
                     ParenthesizeRightSideOfBinaryCurrentParenthesizerRule::new(
                         self.parenthesizer(),
+                        self,
                     ),
                 )))
             } else {
                 Some(self.alloc_current_parenthesizer_rule(Box::new(
                     ParenthesizeExpressionOfExportDefaultCurrentParenthesizerRule::new(
                         self.parenthesizer(),
+                        self,
                     ),
                 )))
             },

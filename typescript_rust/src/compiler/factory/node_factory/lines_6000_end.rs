@@ -4,16 +4,17 @@ use id_arena::Id;
 
 use super::{create_node_factory, NodeFactoryFlags};
 use crate::{
-    add_range, create_base_node_factory, create_scanner, get_parse_node_factory, is_arrow_function,
-    is_class_declaration, is_class_expression, is_constructor_declaration, is_enum_declaration,
-    is_export_assignment, is_export_declaration, is_function_declaration, is_function_expression,
-    is_get_accessor_declaration, is_import_declaration, is_import_equals_declaration,
-    is_index_signature_declaration, is_interface_declaration, is_method_declaration,
-    is_method_signature, is_module_declaration, is_named_declaration, is_parameter,
-    is_property_declaration, is_property_name, is_property_signature, is_set_accessor_declaration,
-    is_type_alias_declaration, is_variable_statement, maybe_append_if_unique_eq, per_arena,
-    set_text_range, BaseNode, BaseNodeFactory, BaseNodeFactoryConcrete, BuildInfo,
-    ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasMembersInterface,
+    add_range, create_base_node_factory, create_scanner, get_parse_node_factory, impl_has_arena,
+    is_arrow_function, is_class_declaration, is_class_expression, is_constructor_declaration,
+    is_enum_declaration, is_export_assignment, is_export_declaration, is_function_declaration,
+    is_function_expression, is_get_accessor_declaration, is_import_declaration,
+    is_import_equals_declaration, is_index_signature_declaration, is_interface_declaration,
+    is_method_declaration, is_method_signature, is_module_declaration, is_named_declaration,
+    is_parameter, is_property_declaration, is_property_name, is_property_signature,
+    is_set_accessor_declaration, is_type_alias_declaration, is_variable_statement,
+    maybe_append_if_unique_eq, per_arena, set_text_range, AllArenas, BaseNode, BaseNodeFactory,
+    BaseNodeFactoryConcrete, BuildInfo, ClassLikeDeclarationInterface, Debug_, EmitFlags, EmitNode,
+    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, HasMembersInterface,
     HasQuestionTokenInterface, HasTypeInterface, HasTypeParametersInterface, InArena, InputFiles,
     InterfaceOrClassLikeDeclarationInterface, LanguageVariant, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeArrayOrVec, NodeFactory, NodeFlags,
@@ -632,8 +633,23 @@ pub(crate) fn get_transform_flags_subtree_exclusions(kind: SyntaxKind) -> Transf
     }
 }
 
-thread_local! {
-    pub(super) static base_factory_static: BaseNodeFactoryConcrete = create_base_node_factory();
+pub(super) fn with_base_factory_static<TReturn>(
+    mut callback: impl FnMut(&BaseNodeFactoryConcrete) -> TReturn,
+    arena: &impl HasArena,
+) -> TReturn {
+    thread_local! {
+        static PER_ARENA: RefCell<HashMap<*const AllArenas, BaseNodeFactoryConcrete>> = RefCell::new(HashMap::new());
+    }
+
+    PER_ARENA.with(|per_arena| {
+        let mut per_arena = per_arena.borrow_mut();
+        let arena_ptr: *const AllArenas = arena.arena();
+        callback(
+            per_arena
+                .entry(arena_ptr)
+                .or_insert_with(|| create_base_node_factory(arena)),
+        )
+    })
 }
 
 pub(super) fn make_synthetic_ref(node: &impl NodeInterface) {
@@ -649,54 +665,65 @@ pub fn get_synthetic_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactor
     per_arena!(
         Box<dyn BaseNodeFactory>,
         arena,
-        arena.alloc_base_node_factory(Box::new(BaseNodeFactorySynthetic::new()))
+        arena.alloc_base_node_factory(Box::new(BaseNodeFactorySynthetic::new(arena)))
     )
 }
 
 #[derive(Debug)]
-pub struct BaseNodeFactorySynthetic {}
+pub struct BaseNodeFactorySynthetic {
+    arena: *const AllArenas,
+}
 
 impl BaseNodeFactorySynthetic {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
 impl BaseNodeFactory for BaseNodeFactorySynthetic {
     fn create_base_source_file_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(
-            base_factory_static
-                .with(|base_factory| base_factory.create_base_source_file_node(kind)),
-        )
+        make_synthetic(with_base_factory_static(
+            |base_factory| base_factory.create_base_source_file_node(kind),
+            self,
+        ))
     }
 
     fn create_base_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(
-            base_factory_static.with(|base_factory| base_factory.create_base_identifier_node(kind)),
-        )
+        make_synthetic(with_base_factory_static(
+            |base_factory| base_factory.create_base_identifier_node(kind),
+            self,
+        ))
     }
 
     fn create_base_private_identifier_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(
-            base_factory_static
-                .with(|base_factory| base_factory.create_base_private_identifier_node(kind)),
-        )
+        make_synthetic(with_base_factory_static(
+            |base_factory| base_factory.create_base_private_identifier_node(kind),
+            self,
+        ))
     }
 
     fn create_base_token_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(
-            base_factory_static.with(|base_factory| base_factory.create_base_token_node(kind)),
-        )
+        make_synthetic(with_base_factory_static(
+            |base_factory| base_factory.create_base_token_node(kind),
+            self,
+        ))
     }
 
     fn create_base_node(&self, kind: SyntaxKind) -> BaseNode {
-        make_synthetic(base_factory_static.with(|base_factory| base_factory.create_base_node(kind)))
+        make_synthetic(with_base_factory_static(
+            |base_factory| base_factory.create_base_node(kind),
+            self,
+        ))
     }
 
     fn update_cloned_node(&self, node: &BaseNode) {
         make_synthetic_ref(node);
     }
 }
+
+impl_has_arena!(BaseNodeFactorySynthetic);
 
 pub fn get_factory_id(arena: &impl HasArena) -> Id<NodeFactory> {
     per_arena!(

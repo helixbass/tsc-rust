@@ -17,16 +17,17 @@ use crate::{
     compare_values, concatenate, contains, contains_path, create_type_checker, emit_files,
     file_extension_is_one_of, filter, get_base_file_name, get_common_source_directory,
     get_emit_script_target, get_mode_for_resolution_at_index, get_normalized_absolute_path,
-    get_resolved_module, get_transformers, has_changes_in_resolutions, is_source_file_js,
-    is_trace_enabled, libs, map_defined, module_resolution_is_equal_to, no_transformers,
-    node_modules_path_part, not_implemented_resolver, out_file, package_id_to_string,
-    project_reference_is_equal_to, ref_unwrapped, remove_prefix, remove_suffix, skip_type_checking,
-    sort_and_deduplicate_diagnostics, source_file_may_be_emitted, string_contains,
-    to_file_name_lower_case, to_path as to_path_helper, trace, try_flat_map,
-    type_directive_is_equal_to, zip_to_mode_aware_cache, AllArenas, AsDoubleDeref,
-    CancellationToken, Comparison, CompilerHost, CompilerOptions, CustomTransformers, Debug_,
-    Diagnostic, Diagnostics, EmitHost, EmitResult, Extension, FileIncludeReason, FileReference,
-    FilesByNameValue, GetOrInsertDefault, HasArena, InArena, ModuleSpecifierResolutionHost,
+    get_resolved_module, get_transformers, has_changes_in_resolutions, impl_has_arena,
+    is_source_file_js, is_trace_enabled, libs, map_defined, module_resolution_is_equal_to,
+    no_transformers, node_modules_path_part, not_implemented_resolver, out_file,
+    package_id_to_string, project_reference_is_equal_to, ref_unwrapped, remove_prefix,
+    remove_suffix, skip_type_checking, sort_and_deduplicate_diagnostics,
+    source_file_may_be_emitted, string_contains, to_file_name_lower_case,
+    to_path as to_path_helper, trace, try_flat_map, type_directive_is_equal_to,
+    zip_to_mode_aware_cache, AllArenas, AsDoubleDeref, CancellationToken, Comparison, CompilerHost,
+    CompilerOptions, CustomTransformers, Debug_, Diagnostic, Diagnostics, EmitHost, EmitResult,
+    Extension, FileIncludeReason, FileReference, FilesByNameValue, GetOrInsertDefault, HasArena,
+    InArena, ModuleSpecifierResolutionHost,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeFlags,
     NodeInterface, NonEmpty, OptionInArena, Path, Program, ProgramBuildInfo, ProjectReference,
     ReadFileCallback, RedirectTargetsMap, ResolveModuleNameResolutionHost, ResolvedModuleFull,
@@ -395,7 +396,7 @@ impl Program {
     }
 
     pub fn to_path_rc(&self) -> Id<Box<dyn ToPath>> {
-        self.alloc_to_path(Box::new(ProgramToPath::new(self.arena_id())))
+        self.alloc_to_path(Box::new(ProgramToPath::new(self.arena_id(), self)))
     }
 
     pub fn get_common_source_directory(&self) -> String {
@@ -1241,6 +1242,7 @@ impl Program {
         self.alloc_emit_host(Box::new(ProgramEmitHost::new(
             self.arena_id(),
             write_file_callback,
+            self,
         )))
     }
 
@@ -1298,6 +1300,7 @@ impl Program {
             },
             self.alloc_read_file_callback(Box::new(GetPrependNodesReadFileCallback::new(
                 self.arena_id(),
+                self,
             ))),
             self,
         )
@@ -1491,12 +1494,16 @@ impl Program {
 
 #[derive(Debug)]
 struct GetPrependNodesReadFileCallback {
+    arena: *const AllArenas,
     program: Id<Program>,
 }
 
 impl GetPrependNodesReadFileCallback {
-    fn new(program: Id<Program>) -> Self {
-        Self { program }
+    fn new(program: Id<Program>, arena: &impl HasArena) -> Self {
+        Self {
+            program,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1520,13 +1527,10 @@ impl ReadFileCallback for GetPrependNodesReadFileCallback {
     }
 }
 
-impl HasArena for GetPrependNodesReadFileCallback {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(GetPrependNodesReadFileCallback);
 
 pub struct ProgramEmitHost {
+    arena: *const AllArenas,
     program: Id<Program>,
     write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
 }
@@ -1535,8 +1539,10 @@ impl ProgramEmitHost {
     pub fn new(
         program: Id<Program>,
         write_file_callback: Option<Id<Box<dyn WriteFileCallback>>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             program,
             write_file_callback,
         }
@@ -1767,19 +1773,19 @@ impl ResolveModuleNameResolutionHost for ProgramEmitHost {
     }
 }
 
-impl HasArena for ProgramEmitHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ProgramEmitHost);
 
 pub struct EmitHostWriteFileCallback {
+    arena: *const AllArenas,
     host: Id<Box<dyn EmitHost>>,
 }
 
 impl EmitHostWriteFileCallback {
-    pub fn new(host: Id<Box<dyn EmitHost>>) -> Self {
-        Self { host }
+    pub fn new(host: Id<Box<dyn EmitHost>>, arena: &impl HasArena) -> Self {
+        Self {
+            host,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1802,11 +1808,7 @@ impl WriteFileCallback for EmitHostWriteFileCallback {
     }
 }
 
-impl HasArena for EmitHostWriteFileCallback {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(EmitHostWriteFileCallback);
 
 #[derive(Clone)]
 pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
@@ -1815,12 +1817,16 @@ pub(super) enum ResolveModuleNamesReusingOldStateResultItem {
 }
 
 pub struct ProgramToPath {
+    arena: *const AllArenas,
     program: Id<Program>,
 }
 
 impl ProgramToPath {
-    pub fn new(program: Id<Program>) -> Self {
-        Self { program }
+    pub fn new(program: Id<Program>, arena: &impl HasArena) -> Self {
+        Self {
+            program,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1830,8 +1836,4 @@ impl ToPath for ProgramToPath {
     }
 }
 
-impl HasArena for ProgramToPath {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ProgramToPath);

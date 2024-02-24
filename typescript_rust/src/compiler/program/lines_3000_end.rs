@@ -27,9 +27,9 @@ use crate::{
     get_strict_option_value, get_ts_build_info_emit_output_file_path,
     get_ts_config_object_literal_expression, get_ts_config_prop_array,
     get_ts_config_prop_array_element_value, has_json_module_emit_enabled,
-    has_zero_or_one_asterisk_character, inverse_jsx_option_map, is_array_literal_expression,
-    is_declaration_file_name, is_external_module, is_identifier_text, is_in_js_file,
-    is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
+    has_zero_or_one_asterisk_character, impl_has_arena, inverse_jsx_option_map,
+    is_array_literal_expression, is_declaration_file_name, is_external_module, is_identifier_text,
+    is_in_js_file, is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
     is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs, out_file,
     parse_isolated_entity_name, parse_json_source_file_config_file_content, path_is_absolute,
     path_is_relative, remove_file_extension, remove_prefix, remove_suffix,
@@ -45,10 +45,9 @@ use crate::{
     FileReference, GetCanonicalFileName, GetOrInsertDefault, HasArena, InArena, JsxEmit,
     ModuleKind, ModuleResolutionHost, ModuleResolutionHostOverrider, ModuleResolutionKind,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, ParseConfigFileHost,
-    ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference,
-    ReadFileCallback, ReferencedFile, ResolvedModuleFull, ResolvedProjectReference,
-    ResolvedProjectReferenceBuilder, ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache,
-    SyntaxKind, WriteFileCallback,
+    ParseConfigHost, ParsedCommandLine, Path, Program, ProjectReference, ReadFileCallback,
+    ReferencedFile, ResolvedModuleFull, ResolvedProjectReference, ResolvedProjectReferenceBuilder,
+    ScriptKind, ScriptReferenceHost, ScriptTarget, SymlinkCache, SyntaxKind, WriteFileCallback,
 };
 
 impl Program {
@@ -2092,6 +2091,7 @@ impl Program {
                 &self.current_directory(),
                 self.alloc_get_canonical_file_name(Box::new(HostGetCanonicalFileName::new(
                     self.host(),
+                    self,
                 ))),
             ))));
         }
@@ -2113,12 +2113,16 @@ impl Program {
 }
 
 pub struct HostGetCanonicalFileName {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHost>>,
 }
 
 impl HostGetCanonicalFileName {
-    pub fn new(host: Id<Box<dyn CompilerHost>>) -> Self {
-        Self { host }
+    pub fn new(host: Id<Box<dyn CompilerHost>>, arena: &impl HasArena) -> Self {
+        Self {
+            host,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2128,11 +2132,7 @@ impl GetCanonicalFileName for HostGetCanonicalFileName {
     }
 }
 
-impl HasArena for HostGetCanonicalFileName {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(HostGetCanonicalFileName);
 
 pub struct ProgramGetSymlinkCache {
     program: Id<Program>,

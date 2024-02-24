@@ -18,8 +18,8 @@ use crate::{
     for_each_ancestor_directory_str, generate_djb2_hash, get_default_lib_file_name,
     get_directory_path, get_emit_declarations, get_line_and_character_of_position,
     get_new_line_character, get_normalized_path_components, get_path_from_path_components,
-    get_position_of_line_and_character, get_sys, is_build_info_file, is_rooted_disk_path,
-    is_watch_set, missing_file_modified_time, normalize_path, pad_left,
+    get_position_of_line_and_character, get_sys, impl_has_arena, is_build_info_file,
+    is_rooted_disk_path, is_watch_set, missing_file_modified_time, normalize_path, pad_left,
     sort_and_deduplicate_diagnostics, trim_string_end, write_file_ensuring_directories, AllArenas,
     CancellationToken, CompilerHost, CompilerOptions, Debug_, Diagnostic, DiagnosticCategory,
     DiagnosticInterface, DiagnosticMessageText, DiagnosticRelatedInformationInterface, Extension,
@@ -139,6 +139,7 @@ pub fn create_compiler_host_worker(
     );
 
     CompilerHostConcrete {
+        arena: arena.arena(),
         set_parent_nodes,
         system,
         existing_directories: RefCell::new(existing_directories),
@@ -158,6 +159,7 @@ pub fn create_compiler_host_worker(
 }
 
 struct CompilerHostConcrete {
+    arena: *const AllArenas,
     set_parent_nodes: Option<bool>,
     system: Id<Box<dyn System>>,
     existing_directories: RefCell<HashMap<String, bool>>,
@@ -719,11 +721,7 @@ impl CompilerHost for CompilerHostConcrete {
     }
 }
 
-impl HasArena for CompilerHostConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(CompilerHostConcrete);
 
 pub(crate) fn change_compiler_host_like_to_use_cache(
     host: Id<Box<dyn CompilerHost>>,
@@ -734,7 +732,12 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
 {
     let overrider: Id<Box<dyn ModuleResolutionHostOverrider>> = arena
         .alloc_module_resolution_host_overrider(Box::new(
-            ChangeCompilerHostLikeToUseCacheOverrider::new(host.clone(), to_path, get_source_file),
+            ChangeCompilerHostLikeToUseCacheOverrider::new(
+                host.clone(),
+                to_path,
+                get_source_file,
+                arena,
+            ),
         ));
 
     host.ref_(arena)
@@ -769,6 +772,7 @@ pub(crate) fn change_compiler_host_like_to_use_cache(
 }
 
 struct ChangeCompilerHostLikeToUseCacheOverrider {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHost>>,
     to_path: Id<Box<dyn ToPath>>,
     #[allow(dead_code)]
@@ -785,8 +789,10 @@ impl ChangeCompilerHostLikeToUseCacheOverrider {
         host: Id<Box<dyn CompilerHost>>,
         to_path: Id<Box<dyn ToPath>>,
         get_source_file: Option<Id<Box<dyn GetSourceFile>>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             host,
             to_path,
             has_get_source_file_with_cache: get_source_file.is_some(),
@@ -947,11 +953,7 @@ impl ModuleResolutionHostOverrider for ChangeCompilerHostLikeToUseCacheOverrider
     }
 }
 
-impl HasArena for ChangeCompilerHostLikeToUseCacheOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ChangeCompilerHostLikeToUseCacheOverrider);
 
 pub trait ToPath {
     fn call(&self, file_name: &str) -> Path;

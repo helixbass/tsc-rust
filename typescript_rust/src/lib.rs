@@ -275,8 +275,8 @@ pub use compiler::{
     },
     tracing::{dump_tracing_legend, start_tracing},
     transformer::{
-        get_transformers, no_emit_notification, no_emit_substitution, no_transformers,
-        null_transformation_context, transform_nodes, TransformNodesTransformationResult,
+        get_null_transformation_context, get_transformers, no_emit_notification,
+        no_emit_substitution, no_transformers, transform_nodes, TransformNodesTransformationResult,
         WrapCustomTransformerFactoryHandleDefault,
     },
     transformers::{

@@ -3,17 +3,18 @@ use std::cell::OnceCell;
 use id_arena::Id;
 
 use crate::{
-    Comparison, EmitFlags, EmitHelper, Node, NodeArray, NodeArrayOrVec,
-    NodeExt, NodeFactory, PrivateIdentifierKind, TransformationContext, _d, compare_values,
+    Comparison, EmitFlags, EmitHelper, Node, NodeArray, NodeArrayOrVec, NodeExt, NodeFactory,
+    PrivateIdentifierKind, TransformationContext, _d, compare_values,
     create_expression_from_entity_name, get_emit_flags, get_emit_script_target,
-    get_property_name_of_binding_or_assignment_element, is_call_expression,
+    get_property_name_of_binding_or_assignment_element, impl_has_arena, is_call_expression,
     is_computed_property_name, is_identifier, AllArenas, CoreTransformationContext, Debug_,
-    EmitHelperBase, EmitHelperTextCallback, GeneratedIdentifierFlags, HasArena,
-    InArena, MapOrDefault, NodeInterface, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget,
+    EmitHelperBase, EmitHelperTextCallback, GeneratedIdentifierFlags, HasArena, InArena,
+    MapOrDefault, NodeInterface, ReadonlyTextRange, ScopedEmitHelperBuilder, ScriptTarget,
     SyntaxKind, TransformNodesTransformationResult, UnscopedEmitHelperBuilder, VecExt,
 };
 
 pub struct EmitHelperFactory {
+    arena: *const AllArenas,
     factory: Id<NodeFactory>,
     context: Id<TransformNodesTransformationResult>,
     immutable_true: OnceCell<Id<Node>>,
@@ -644,11 +645,7 @@ impl EmitHelperFactory {
     }
 }
 
-impl HasArena for EmitHelperFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(EmitHelperFactory);
 
 pub fn create_emit_helper_factory(
     context: Id<TransformNodesTransformationResult>,
@@ -659,6 +656,7 @@ pub fn create_emit_helper_factory(
         context,
         immutable_true: _d(),
         immutable_false: _d(),
+        arena: arena.arena(),
     })
 }
 

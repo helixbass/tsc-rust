@@ -394,7 +394,10 @@ impl Printer {
             type_arguments,
             ListFormat::TypeArguments,
             Some(self.alloc_current_parenthesizer_rule(Box::new(
-                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(self.parenthesizer()),
+                ParenthesizeMemberOfElementTypeCurrentParenthesizerRule::new(
+                    self.parenthesizer(),
+                    self,
+                ),
             ))),
             None,
             None,

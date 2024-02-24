@@ -25,7 +25,7 @@ use crate::{
     TransformationContext, TransformationContextOnEmitNodeOverrider,
     TransformationContextOnSubstituteNodeOverrider, TransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerFactoryOrCustomTransformerFactory,
-    TransformerInterface, _d,
+    TransformerInterface, _d, impl_has_arena,
 };
 
 fn get_module_transformer(module_kind: ModuleKind, arena: &impl HasArena) -> TransformerFactory {
@@ -193,16 +193,20 @@ fn get_declaration_transformers(
 
 fn wrap_custom_transformer(transformer: CustomTransformer, arena: &impl HasArena) -> Transformer /*<Bundle | SourceFile>*/
 {
-    arena.alloc_transformer(Box::new(WrapCustomTransformer::new(transformer)))
+    arena.alloc_transformer(Box::new(WrapCustomTransformer::new(transformer, arena)))
 }
 
 pub struct WrapCustomTransformer {
+    arena: *const AllArenas,
     transformer: CustomTransformer,
 }
 
 impl WrapCustomTransformer {
-    pub fn new(transformer: CustomTransformer) -> Self {
-        Self { transformer }
+    pub fn new(transformer: CustomTransformer, arena: &impl HasArena) -> Self {
+        Self {
+            transformer,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -220,11 +224,7 @@ impl TransformerInterface for WrapCustomTransformer {
     }
 }
 
-impl HasArena for WrapCustomTransformer {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(WrapCustomTransformer);
 
 pub trait WrapCustomTransformerFactoryHandleDefault {
     fn call(
@@ -242,10 +242,12 @@ fn wrap_custom_transformer_factory(
     arena.alloc_transformer_factory(Box::new(WrapCustomTransformerFactory::new(
         transformer,
         handle_default,
+        arena,
     )))
 }
 
 pub struct WrapCustomTransformerFactory {
+    arena: *const AllArenas,
     transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
     handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
 }
@@ -254,10 +256,12 @@ impl WrapCustomTransformerFactory {
     pub fn new(
         transformer: Id<TransformerFactoryOrCustomTransformerFactory>,
         handle_default: Id<Box<dyn WrapCustomTransformerFactoryHandleDefault>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
             transformer,
             handle_default,
+            arena: arena.arena(),
         }
     }
 }
@@ -279,11 +283,7 @@ impl TransformerFactoryInterface for WrapCustomTransformerFactory {
     }
 }
 
-impl HasArena for WrapCustomTransformerFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(WrapCustomTransformerFactory);
 
 fn wrap_script_transformer_factory(
     transformer: Id<TransformerFactoryOrCustomTransformerFactory /*<SourceFile>*/>,
@@ -370,7 +370,7 @@ pub fn transform_nodes(
 }
 
 pub struct TransformNodesTransformationResult {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     _arena_id: Cell<Option<Id<Self>>>,
     on_emit_node_outermost_override_or_original_method:
         Cell<Id<Box<dyn TransformationContextOnEmitNodeOverrider>>>,
@@ -435,7 +435,7 @@ impl TransformNodesTransformationResult {
         let arena: *const AllArenas = arena.arena();
         let arena_ref = unsafe { &*arena };
         let ret = arena_ref.alloc_transform_nodes_transformation_result(Self {
-            _arena: arena,
+            arena,
             _arena_id: _d(),
             on_emit_node_outermost_override_or_original_method: Cell::new(
                 arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
@@ -1244,11 +1244,7 @@ impl TransformationContext for TransformNodesTransformationResult {
     }
 }
 
-impl HasArena for TransformNodesTransformationResult {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformNodesTransformationResult);
 
 struct NoEmitNotificationTransformationContextOnEmitNodeOverrider;
 
@@ -1349,16 +1345,19 @@ impl TransformationResult for TransformNodesTransformationResult {
     }
 }
 
-lazy_static! {
-    pub static ref null_transformation_context: TransformationContextNull =
-        TransformationContextNull::new();
+pub fn get_null_transformation_context(arena: &impl HasArena) -> TransformationContextNull {
+    TransformationContextNull::new(arena)
 }
 
-pub struct TransformationContextNull {}
+pub struct TransformationContextNull {
+    arena: *const AllArenas,
+}
 
 impl TransformationContextNull {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1479,8 +1478,4 @@ impl TransformationContext for TransformationContextNull {
     fn add_diagnostic(&self, _diag: Id<Diagnostic /*DiagnosticWithLocation*/>) {}
 }
 
-impl HasArena for TransformationContextNull {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformationContextNull);

@@ -14,9 +14,9 @@ use super::{
 };
 use crate::{
     create_node_converters, create_parenthesizer_rules, escape_leading_underscores,
-    get_text_of_identifier_or_literal, id_text, is_identifier, null_node_converters,
-    null_parenthesizer_rules, pseudo_big_int_to_string, ref_unwrapped, starts_with,
-    string_to_token, AllArenas, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
+    get_text_of_identifier_or_literal, id_text, impl_has_arena, is_identifier,
+    null_node_converters, null_parenthesizer_rules, pseudo_big_int_to_string, ref_unwrapped,
+    starts_with, string_to_token, BaseBindingLikeDeclaration, BaseFunctionLikeDeclaration,
     BaseGenericNamedDeclaration, BaseInterfaceOrClassLikeDeclaration, BaseJSDocTag,
     BaseJSDocTypeLikeTag, BaseJSDocUnaryType, BaseLiteralLikeNode, BaseNamedDeclaration, BaseNode,
     BaseNodeFactory, BaseSignatureDeclaration, BaseVariableLikeDeclaration, BigIntLiteral,
@@ -69,6 +69,7 @@ impl NodeFactory {
         arena: &impl HasArena,
     ) -> Id<Self> {
         let factory_ = arena.alloc_node_factory(Self {
+            arena: arena.arena(),
             base_factory,
             flags,
             parenthesizer_rules: Default::default(),
@@ -79,7 +80,9 @@ impl NodeFactory {
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
                 arena.alloc_parenthesizer_rules(Box::new(null_parenthesizer_rules()))
             } else {
-                arena.alloc_parenthesizer_rules(Box::new(create_parenthesizer_rules(factory_)))
+                arena.alloc_parenthesizer_rules(Box::new(create_parenthesizer_rules(
+                    factory_, arena,
+                )))
             },
         );
         factory_.ref_(arena).set_converters(
@@ -87,7 +90,7 @@ impl NodeFactory {
             if flags.intersects(NodeFactoryFlags::NoParenthesizerRules) {
                 Box::new(null_node_converters())
             } else {
-                Box::new(create_node_converters(factory_))
+                Box::new(create_node_converters(factory_, arena))
             },
         );
         factory_
@@ -1281,11 +1284,7 @@ impl NodeFactory {
     }
 }
 
-impl HasArena for NodeFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(NodeFactory);
 
 pub fn has_option_node_array_changed(
     existing: Option<Id<NodeArray>>,
