@@ -12,9 +12,9 @@ use typescript_rust::{
     id_arena::Id, parse_config_host_from_compiler_host_like, parse_json_config_file_content,
     read_config_file, CompilerHostLikeRcDynCompilerHost, CompilerOptions, CompilerOptionsBuilder,
     CreateProgramOptionsBuilder, Diagnostic, DiagnosticMessage,
-    DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, MapOrDefault,
-    NonEmpty, OptionInArena, Owned, Program, ProjectReference,
-    ProjectReferenceBuilder, ReadConfigFileReturn, UnwrapOrEmpty,
+    DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, MapOrDefault, NonEmpty,
+    OptionInArena, Owned, Program, ProjectReference, ProjectReferenceBuilder, ReadConfigFileReturn,
+    UnwrapOrEmpty,
 };
 
 #[derive(Builder, Clone, Default)]
@@ -224,7 +224,9 @@ fn test_project_references(
     .unwrap();
 
     asserting(&flatten_diagnostic_message_text(
-        error.map(|error| error.ref_(arena).message_text().clone()).as_ref(),
+        error
+            .map(|error| error.ref_(arena).message_text().clone())
+            .as_ref(),
         "\n",
         None,
     ))

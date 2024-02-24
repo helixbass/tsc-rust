@@ -2,7 +2,6 @@
 mod tests {
     use itertools::Itertools;
     use speculoos::prelude::*;
-
     use typescript_rust::{
         combine_paths, get_any_extension_from_path, get_base_file_name, get_directory_path,
         get_path_components, get_relative_path_from_directory, get_root_length,

@@ -1591,9 +1591,8 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         combine_paths, create_get_canonical_file_name, create_program, create_source_file,
         id_arena::Id, normalize_path, not_implemented, sort_and_deduplicate_diagnostics, AllArenas,
         CompilerHost, CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
-        Diagnostic, DiagnosticInterface,
-        DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind, Node, Owned, Program,
-        ScriptTarget, VecExt,
+        Diagnostic, DiagnosticInterface, DiagnosticRelatedInformationInterface, Diagnostics,
+        ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
     };
 
     use super::*;
