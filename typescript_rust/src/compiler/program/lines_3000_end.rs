@@ -128,7 +128,9 @@ impl Program {
 
     pub fn get_canonical_file_name_rc(&self) -> Id<Box<dyn GetCanonicalFileName>> {
         let host = self.host();
-        self.alloc_get_canonical_file_name(Box::new(CompilerHostGetCanonicalFileName::new(host)))
+        self.alloc_get_canonical_file_name(Box::new(CompilerHostGetCanonicalFileName::new(
+            host, self,
+        )))
     }
 
     pub fn process_imported_modules(&self, file: Id<Node> /*SourceFile*/) -> io::Result<()> {
@@ -2108,7 +2110,7 @@ impl Program {
     }
 
     pub fn get_symlink_cache_id(&self) -> Id<Box<dyn GetSymlinkCache>> {
-        self.alloc_get_symlink_cache(Box::new(ProgramGetSymlinkCache::new(self.arena_id())))
+        self.alloc_get_symlink_cache(Box::new(ProgramGetSymlinkCache::new(self.arena_id(), self)))
     }
 }
 
@@ -2135,12 +2137,16 @@ impl GetCanonicalFileName for HostGetCanonicalFileName {
 impl_has_arena!(HostGetCanonicalFileName);
 
 pub struct ProgramGetSymlinkCache {
+    arena: *const AllArenas,
     program: Id<Program>,
 }
 
 impl ProgramGetSymlinkCache {
-    pub fn new(program: Id<Program>) -> Self {
-        Self { program }
+    pub fn new(program: Id<Program>, arena: &impl HasArena) -> Self {
+        Self {
+            program,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2150,11 +2156,7 @@ impl GetSymlinkCache for ProgramGetSymlinkCache {
     }
 }
 
-impl HasArena for ProgramGetSymlinkCache {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ProgramGetSymlinkCache);
 
 pub(super) struct HostForUseSourceOfProjectReferenceRedirect {
     pub compiler_host: Id<Box<dyn CompilerHost>>,
@@ -2177,6 +2179,7 @@ pub(super) fn update_host_for_use_source_of_project_reference_redirect(
                 host.to_path.clone(),
                 host.get_resolved_project_references.clone(),
                 host.for_each_resolved_project_reference.clone(),
+                arena,
             ),
         ));
 
@@ -2235,6 +2238,7 @@ pub(super) struct UpdateHostForUseSourceOfProjectReferenceRedirectReturn {
 }
 
 struct UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
+    arena: *const AllArenas,
     pub host_compiler_host: Id<Box<dyn CompilerHost>>,
     pub host_get_symlink_cache: Id<Box<dyn GetSymlinkCache>>,
     pub host_to_path: Id<Box<dyn ToPath>>,
@@ -2250,8 +2254,10 @@ impl UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
         host_to_path: Id<Box<dyn ToPath>>,
         host_get_resolved_project_references: Id<Box<dyn GetResolvedProjectReferences>>,
         host_for_each_resolved_project_reference: Id<Box<dyn ForEachResolvedProjectReference>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             host_compiler_host,
             host_get_symlink_cache,
             host_to_path,
@@ -2425,11 +2431,7 @@ impl ModuleResolutionHostOverrider for UpdateHostForUseSourceOfProjectReferenceR
     }
 }
 
-impl HasArena for UpdateHostForUseSourceOfProjectReferenceRedirectOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(UpdateHostForUseSourceOfProjectReferenceRedirectOverrider);
 
 pub trait GetSymlinkCache {
     fn call(&self) -> Id<SymlinkCache>;
@@ -2588,12 +2590,16 @@ pub trait CompilerHostLike {
 }
 
 pub struct CompilerHostLikeRcDynCompilerHost {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHost>>,
 }
 
 impl CompilerHostLikeRcDynCompilerHost {
-    pub fn new(host: Id<Box<dyn CompilerHost>>) -> Self {
-        host.into()
+    pub fn new(host: Id<Box<dyn CompilerHost>>, arena: &impl HasArena) -> Self {
+        Self {
+            host,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2668,25 +2674,19 @@ impl CompilerHostLike for CompilerHostLikeRcDynCompilerHost {
     }
 }
 
-impl HasArena for CompilerHostLikeRcDynCompilerHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
-impl From<Id<Box<dyn CompilerHost>>> for CompilerHostLikeRcDynCompilerHost {
-    fn from(host: Id<Box<dyn CompilerHost>>) -> Self {
-        Self { host }
-    }
-}
+impl_has_arena!(CompilerHostLikeRcDynCompilerHost);
 
 pub struct DirectoryStructureHostRcDynCompilerHostLike {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHostLike>>,
 }
 
 impl DirectoryStructureHostRcDynCompilerHostLike {
-    pub fn new(host: Id<Box<dyn CompilerHostLike>>) -> Self {
-        Self { host }
+    pub fn new(host: Id<Box<dyn CompilerHostLike>>, arena: &impl HasArena) -> Self {
+        Self {
+            host,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2744,11 +2744,7 @@ impl DirectoryStructureHost for DirectoryStructureHostRcDynCompilerHostLike {
     }
 }
 
-impl HasArena for DirectoryStructureHostRcDynCompilerHostLike {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(DirectoryStructureHostRcDynCompilerHostLike);
 
 pub fn parse_config_host_from_compiler_host_like(
     host: Id<Box<dyn CompilerHostLike>>,
@@ -2757,13 +2753,14 @@ pub fn parse_config_host_from_compiler_host_like(
 ) -> ParseConfigHostFromCompilerHostLike {
     let directory_structure_host = directory_structure_host.unwrap_or_else(|| {
         arena.alloc_directory_structure_host(Box::new(
-            DirectoryStructureHostRcDynCompilerHostLike::new(host.clone()),
+            DirectoryStructureHostRcDynCompilerHostLike::new(host.clone(), arena),
         ))
     });
-    ParseConfigHostFromCompilerHostLike::new(host, directory_structure_host)
+    ParseConfigHostFromCompilerHostLike::new(host, directory_structure_host, arena)
 }
 
 pub struct ParseConfigHostFromCompilerHostLike {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHostLike>>,
     directory_structure_host: Id<Box<dyn DirectoryStructureHost>>,
 }
@@ -2772,8 +2769,10 @@ impl ParseConfigHostFromCompilerHostLike {
     pub fn new(
         host: Id<Box<dyn CompilerHostLike>>,
         directory_structure_host: Id<Box<dyn DirectoryStructureHost>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             host,
             directory_structure_host,
         }
@@ -2837,11 +2836,7 @@ impl ConfigFileDiagnosticsReporter for ParseConfigHostFromCompilerHostLike {
     }
 }
 
-impl HasArena for ParseConfigHostFromCompilerHostLike {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParseConfigHostFromCompilerHostLike);
 
 pub(crate) fn create_prepend_nodes(
     project_references: Option<&[Rc<ProjectReference>]>,
@@ -2992,12 +2987,16 @@ pub(crate) fn get_module_name_string_literal_at(
 }
 
 struct CompilerHostGetCanonicalFileName {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHost>>,
 }
 
 impl CompilerHostGetCanonicalFileName {
-    pub fn new(host: Id<Box<dyn CompilerHost>>) -> Self {
-        Self { host }
+    pub fn new(host: Id<Box<dyn CompilerHost>>, arena: &impl HasArena) -> Self {
+        Self {
+            host,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -3007,8 +3006,4 @@ impl GetCanonicalFileName for CompilerHostGetCanonicalFileName {
     }
 }
 
-impl HasArena for CompilerHostGetCanonicalFileName {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(CompilerHostGetCanonicalFileName);

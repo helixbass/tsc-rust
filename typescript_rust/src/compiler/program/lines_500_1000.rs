@@ -1007,7 +1007,7 @@ impl Program {
             .set(Some(self.alloc_parse_config_file_host(Box::new(
                 parse_config_host_from_compiler_host_like(
                     self.alloc_compiler_host_like(Box::new(
-                        CompilerHostLikeRcDynCompilerHost::new(self.host()),
+                        CompilerHostLikeRcDynCompilerHost::new(self.host(), self),
                     )),
                     None,
                     self,
