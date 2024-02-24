@@ -17,7 +17,13 @@ macro_rules! command_line_option_per_arena {
         $crate::per_arena!(
             $crate::CommandLineOption,
             $arena,
-            $arena.alloc_command_line_option($builder.build().unwrap().try_into().unwrap())
+            $arena.alloc_command_line_option(
+                $builder
+                    .build()
+                    .unwrap()
+                    .try_into_command_line_option($arena)
+                    .unwrap()
+            )
         )
     };
 }
@@ -152,7 +158,7 @@ pub(crate) fn options_for_watch(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                 ))
                 .description(&Diagnostics::Specify_how_the_TypeScript_watch_mode_works)
                 .category(&Diagnostics::Watch_and_Build_Modes)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("watchDirectory".to_string())
                 .type_(CommandLineOptionType::Map(
@@ -165,7 +171,7 @@ pub(crate) fn options_for_watch(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                 ))
                 .description(&Diagnostics::Specify_how_directories_are_watched_on_systems_that_lack_recursive_file_watching_functionality)
                 .category(&Diagnostics::Watch_and_Build_Modes)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("fallbackPolling".to_string())
                 .type_(CommandLineOptionType::Map(
@@ -178,14 +184,14 @@ pub(crate) fn options_for_watch(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                 ))
                 .description(&Diagnostics::Specify_what_approach_the_watcher_should_use_if_the_system_runs_out_of_native_file_watchers)
                 .category(&Diagnostics::Watch_and_Build_Modes)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("synchronousWatchDirectory".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Synchronously_call_callbacks_and_update_the_state_of_directory_watchers_on_platforms_that_don_t_support_recursive_watching_natively)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Watch_and_Build_Modes)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
                 .name("excludeDirectories".to_string())
                 .type_(CommandLineOptionType::List)
@@ -198,7 +204,8 @@ pub(crate) fn options_for_watch(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                     .is_file_path(true)
                     .extra_validation(Rc::new(|value: Option<&serde_json::Value>| spec_to_diagnostic(value.unwrap().as_str().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
                     .extra_validation_compiler_options_value(Rc::new(|value: &CompilerOptionsValue| spec_to_diagnostic(value.as_option_string().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                arena,
             )
             .into()),
             arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
@@ -213,7 +220,8 @@ pub(crate) fn options_for_watch(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                     .is_file_path(true)
                     .extra_validation(Rc::new(|value: Option<&serde_json::Value>| spec_to_diagnostic(value.unwrap().as_str().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
                     .extra_validation_compiler_options_value(Rc::new(|value: &CompilerOptionsValue| spec_to_diagnostic(value.as_option_string().unwrap(), None).map(|ret| (ret.0, Some(vec![ret.1])))))
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                arena,
             )
             .into()),
         ])
@@ -233,13 +241,13 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("help".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .short_name("?".to_string())
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("watch".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -248,7 +256,7 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("preserveWatchOutput".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -256,28 +264,28 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(false)
                 .category(&Diagnostics::Output_Formatting)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("listFiles".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Print_all_of_the_files_read_during_the_compilation)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("explainFiles".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Print_files_read_during_the_compilation_including_why_it_was_included)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("listEmittedFiles".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Print_the_names_of_emitted_files_after_a_compilation)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("pretty".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -285,28 +293,28 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .default_value_description(StringOrDiagnosticMessage::String("true".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Output_Formatting)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("traceResolution".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Log_paths_used_during_the_moduleResolution_process)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("diagnostics".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Output_compiler_performance_information_after_building)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("extendedDiagnostics".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Output_more_detailed_compiler_performance_information_after_building)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("generateCpuProfile".to_string())
                 .type_(CommandLineOptionType::String)
@@ -315,7 +323,7 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .default_value_description(StringOrDiagnosticMessage::String("profile.cpuprofile".to_string()))
                 .param_type(&Diagnostics::FILE_OR_DIRECTORY)
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("generateTrace".to_string())
                 .type_(CommandLineOptionType::String)
@@ -324,7 +332,7 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .param_type(&Diagnostics::DIRECTORY)
                 .is_command_line_only(true)
                 .category(&Diagnostics::Compiler_Diagnostics)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("incremental".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -333,7 +341,7 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::false_unless_composite_is_set))
                 .category(&Diagnostics::Projects)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("assumeChangesOnlyAffectDirectDependencies".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -342,7 +350,7 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .category(&Diagnostics::Watch_and_Build_Modes)
                 .affects_semantic_diagnostics(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("locale".to_string())
                 .type_(CommandLineOptionType::String)
@@ -350,7 +358,7 @@ pub(crate) fn common_options_with_build(arena: &impl HasArena) -> Id<Vec<Id<Comm
                 .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::Platform_specific))
                 .is_command_line_only(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
         ])
     )
 }
@@ -403,7 +411,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("version".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -412,7 +420,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("init".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -420,7 +428,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("project".to_string())
                 .type_(CommandLineOptionType::String)
@@ -430,7 +438,7 @@ pub(crate) fn command_options_without_build(
                 .param_type(&Diagnostics::FILE_OR_DIRECTORY)
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("build".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -439,7 +447,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("showConfig".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -448,7 +456,7 @@ pub(crate) fn command_options_without_build(
                 .is_command_line_only(true)
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Command_line_Options)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("listFilesOnly".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -458,7 +466,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Command_line_Options)
                 .affects_semantic_diagnostics(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             target_option_declaration(arena),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                     .name("module".to_string())
@@ -485,7 +493,7 @@ pub(crate) fn command_options_without_build(
                     .category(&Diagnostics::Modules)
                     .affects_module_resolution(true)
                     .affects_emit(true)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
                 arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
                     .name("lib".to_string())
                     .type_(CommandLineOptionType::List)
@@ -502,7 +510,8 @@ pub(crate) fn command_options_without_build(
                                (*key, CommandLineOptionMapTypeValue::StaticStr(*value))
                             )))
                         ))
-                        .build().unwrap().try_into().unwrap()),
+                        .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                    arena,
                 )
                 .into()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
@@ -513,7 +522,7 @@ pub(crate) fn command_options_without_build(
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::JavaScript_Support)
                 .affects_module_resolution(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("checkJs".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -521,7 +530,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::JavaScript_Support)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("jsx".to_string())
                 .type_(jsx_option_map.with(|jsx_option_map_| CommandLineOptionType::Map(
@@ -537,7 +546,7 @@ pub(crate) fn command_options_without_build(
                 .affects_source_file(true)
                 .affects_module_resolution(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("declaration".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -548,7 +557,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("declarationMap".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -558,7 +567,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("emitDeclarationOnly".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -568,7 +577,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("sourceMap".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -577,7 +586,7 @@ pub(crate) fn command_options_without_build(
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("outFile".to_string())
                 .type_(CommandLineOptionType::String)
@@ -588,7 +597,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("outDir".to_string())
                 .type_(CommandLineOptionType::String)
@@ -598,7 +607,7 @@ pub(crate) fn command_options_without_build(
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("rootDir".to_string())
                 .type_(CommandLineOptionType::String)
@@ -608,7 +617,7 @@ pub(crate) fn command_options_without_build(
                 .param_type(&Diagnostics::LOCATION)
                 .category(&Diagnostics::Modules)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("composite".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -618,7 +627,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Projects)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("tsBuildInfoFile".to_string())
                 .type_(CommandLineOptionType::String)
@@ -629,7 +638,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Projects)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("removeComments".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -638,7 +647,7 @@ pub(crate) fn command_options_without_build(
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noEmit".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -646,7 +655,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("importHelpers".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -654,7 +663,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("importsNotUsedAsValues".to_string())
                 .type_(CommandLineOptionType::Map(IndexMap::from_iter(IntoIterator::into_iter([
@@ -666,7 +675,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Emit)
                 .affects_semantic_diagnostics(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("downlevelIteration".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -674,7 +683,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("isolatedModules".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -682,7 +691,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Interop_Constraints)
                 .transpile_option_value(Some(true))
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("strict".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -690,7 +699,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(true)
                 .category(&Diagnostics::Type_Checking)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noImplicitAny".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -699,7 +708,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("strictNullChecks".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -708,7 +717,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("strictFunctionTypes".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -716,7 +725,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::false_unless_strict_is_set))
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("strictBindCallApply".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -724,7 +733,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::false_unless_strict_is_set))
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("strictPropertyInitialization".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -733,7 +742,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noImplicitThis".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -742,7 +751,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("useUnknownInCatchVariables".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -751,7 +760,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("alwaysStrict".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -760,7 +769,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .strict_flag(true)
                 .affects_source_file(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noUnusedLocals".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -768,7 +777,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Type_Checking)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noUnusedParameters".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -776,7 +785,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Type_Checking)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("exactOptionalPropertyTypes".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -784,7 +793,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Type_Checking)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noImplicitReturns".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -792,7 +801,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Type_Checking)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noFallthroughCasesInSwitch".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -801,7 +810,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .affects_bind_diagnostics(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noUncheckedIndexedAccess".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -809,7 +818,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Type_Checking)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noImplicitOverride".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -817,7 +826,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Type_Checking)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noPropertyAccessFromIndexSignature".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -825,7 +834,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .show_in_simplified_help_view(false)
                 .category(&Diagnostics::Type_Checking)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("moduleResolution".to_string())
                 .type_(CommandLineOptionType::Map(IndexMap::from_iter(IntoIterator::into_iter([
@@ -839,7 +848,7 @@ pub(crate) fn command_options_without_build(
                 .param_type(&Diagnostics::STRATEGY)
                 .category(&Diagnostics::Modules)
                 .affects_module_resolution(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("baseUrl".to_string())
                 .type_(CommandLineOptionType::String)
@@ -847,7 +856,7 @@ pub(crate) fn command_options_without_build(
                 .description(&Diagnostics::Specify_the_base_directory_to_resolve_non_relative_module_names)
                 .category(&Diagnostics::Modules)
                 .affects_module_resolution(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(TsConfigOnlyOption::new(CommandLineOptionBaseBuilder::default()
                 .name("paths".to_string())
                 .type_(CommandLineOptionType::Object)
@@ -857,7 +866,7 @@ pub(crate) fn command_options_without_build(
                 .affects_module_resolution(true)
                 .transpile_option_value(None)
                 .build().unwrap(),
-                 None, None)
+                 None, None, arena)
             .into()),
             arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
                 .name("rootDirs".to_string())
@@ -873,7 +882,8 @@ pub(crate) fn command_options_without_build(
                     .name("rootDirs".to_string())
                     .type_(CommandLineOptionType::String)
                     .is_file_path(true)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                arena,
             )
             .into()),
             arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
@@ -887,7 +897,8 @@ pub(crate) fn command_options_without_build(
                     .name("typeRoots".to_string())
                     .type_(CommandLineOptionType::String)
                     .is_file_path(true)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                arena,
             )
             .into()),
             arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
@@ -902,7 +913,8 @@ pub(crate) fn command_options_without_build(
                 arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                     .name("types".to_string())
                     .type_(CommandLineOptionType::String)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                arena,
             )
             .into()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
@@ -912,7 +924,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::DiagnosticMessage(&Diagnostics::module_system_or_esModuleInterop))
                 .category(&Diagnostics::Interop_Constraints)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("esModuleInterop".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -922,14 +934,14 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Interop_Constraints)
                 .affects_semantic_diagnostics(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("preserveSymlinks".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Disable_resolving_symlinks_to_their_realpath_This_correlates_to_the_same_flag_in_node)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Interop_Constraints)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("allowUmdGlobalAccess".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -937,7 +949,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Modules)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("sourceRoot".to_string())
                 .type_(CommandLineOptionType::String)
@@ -945,7 +957,7 @@ pub(crate) fn command_options_without_build(
                 .param_type(&Diagnostics::LOCATION)
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("mapRoot".to_string())
                 .type_(CommandLineOptionType::String)
@@ -953,7 +965,7 @@ pub(crate) fn command_options_without_build(
                 .param_type(&Diagnostics::LOCATION)
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("inlineSourceMap".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -961,7 +973,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("inlineSources".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -969,7 +981,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("experimentalDecorators".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -977,7 +989,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Language_and_Environment)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("emitDecoratorMetadata".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -986,20 +998,20 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Language_and_Environment)
                 .affects_semantic_diagnostics(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("jsxFactory".to_string())
                 .type_(CommandLineOptionType::String)
                 .description(&Diagnostics::Specify_the_JSX_factory_function_used_when_targeting_React_JSX_emit_e_g_React_createElement_or_h)
                 .default_value_description(StringOrDiagnosticMessage::String("`React.createElement`".to_string()))
                 .category(&Diagnostics::Language_and_Environment)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("jsxFragmentFactory".to_string())
                 .type_(CommandLineOptionType::String)
                 .description(&Diagnostics::Specify_the_JSX_Fragment_reference_used_for_fragments_when_targeting_React_JSX_emit_e_g_React_Fragment_or_Fragment)
                 .category(&Diagnostics::Language_and_Environment)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("jsxImportSource".to_string())
                 .type_(CommandLineOptionType::String)
@@ -1009,7 +1021,7 @@ pub(crate) fn command_options_without_build(
                 .affects_module_resolution(true)
                 .affects_semantic_diagnostics(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("resolveJsonModule".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1017,7 +1029,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Modules)
                 .affects_module_resolution(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("out".to_string())
                 .type_(CommandLineOptionType::String)
@@ -1027,7 +1039,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Backwards_Compatibility)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("reactNamespace".to_string())
                 .type_(CommandLineOptionType::String)
@@ -1035,21 +1047,21 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("`React`".to_string()))
                 .category(&Diagnostics::Language_and_Environment)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("skipDefaultLibCheck".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Skip_type_checking_d_ts_files_that_are_included_with_TypeScript)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Completeness)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("charset".to_string())
                 .type_(CommandLineOptionType::String)
                 .description(&Diagnostics::No_longer_supported_In_early_versions_manually_set_the_text_encoding_for_reading_files)
                 .default_value_description(StringOrDiagnosticMessage::String("utf8".to_string()))
                 .category(&Diagnostics::Backwards_Compatibility)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("emitBOM".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1057,7 +1069,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("newLine".to_string())
                 .type_(CommandLineOptionType::Map(IndexMap::from_iter(IntoIterator::into_iter([
@@ -1069,7 +1081,7 @@ pub(crate) fn command_options_without_build(
                 .param_type(&Diagnostics::NEWLINE)
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noErrorTruncation".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1077,7 +1089,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Output_Formatting)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noLib".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1086,7 +1098,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Language_and_Environment)
                 .affects_program_structure(true)
                 .transpile_option_value(Some(true))
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noResolve".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1095,7 +1107,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Modules)
                 .affects_module_resolution(true)
                 .transpile_option_value(Some(true))
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("stripInternal".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1103,7 +1115,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("disableSizeLimit".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1111,7 +1123,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Editor_Support)
                 .affects_program_structure(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("disableSourceOfProjectReferenceRedirect".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1119,7 +1131,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .is_tsconfig_only(true)
                 .category(&Diagnostics::Projects)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("disableSolutionSearching".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1127,7 +1139,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .is_tsconfig_only(true)
                 .category(&Diagnostics::Projects)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("disableReferencedProjectLoad".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1135,7 +1147,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .is_tsconfig_only(true)
                 .category(&Diagnostics::Projects)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noImplicitUseStrict".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1143,7 +1155,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Backwards_Compatibility)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noEmitHelpers".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1151,7 +1163,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noEmitOnError".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1160,7 +1172,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("preserveConstEnums".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1168,7 +1180,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("declarationDir".to_string())
                 .type_(CommandLineOptionType::String)
@@ -1178,14 +1190,14 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
                 .transpile_option_value(None)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("skipLibCheck".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Skip_type_checking_all_d_ts_files)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Completeness)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("allowUnusedLabels".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1194,7 +1206,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .affects_bind_diagnostics(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("allowUnreachableCode".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1203,7 +1215,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Type_Checking)
                 .affects_bind_diagnostics(true)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("suppressExcessPropertyErrors".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1211,7 +1223,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Backwards_Compatibility)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("suppressImplicitAnyIndexErrors".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1219,7 +1231,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Backwards_Compatibility)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("forceConsistentCasingInFileNames".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1227,7 +1239,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Interop_Constraints)
                 .affects_module_resolution(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("maxNodeModuleJsDepth".to_string())
                 .type_(CommandLineOptionType::Number)
@@ -1235,7 +1247,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("0".to_string()))
                 .category(&Diagnostics::JavaScript_Support)
                 .affects_module_resolution(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("noStrictGenericChecks".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1243,7 +1255,7 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Backwards_Compatibility)
                 .affects_semantic_diagnostics(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("useDefineForClassFields".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1252,7 +1264,7 @@ pub(crate) fn command_options_without_build(
                 .category(&Diagnostics::Language_and_Environment)
                 .affects_semantic_diagnostics(true)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("preserveValueImports".to_string())
                 .type_(CommandLineOptionType::Boolean)
@@ -1260,14 +1272,14 @@ pub(crate) fn command_options_without_build(
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Emit)
                 .affects_emit(true)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                 .name("keyofStringsOnly".to_string())
                 .type_(CommandLineOptionType::Boolean)
                 .description(&Diagnostics::Make_keyof_only_return_strings_instead_of_string_numbers_or_symbols_Legacy_option)
                 .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                 .category(&Diagnostics::Backwards_Compatibility)
-                .build().unwrap().try_into().unwrap()),
+                .build().unwrap().try_into_command_line_option(arena).unwrap()),
             arena.alloc_command_line_option(CommandLineOptionOfListType::new(CommandLineOptionBaseBuilder::default()
                 .name("plugins".to_string())
                 .type_(CommandLineOptionType::List)
@@ -1278,8 +1290,9 @@ pub(crate) fn command_options_without_build(
                     .name("plugins".to_string())
                     .type_(CommandLineOptionType::Object)
                     .build().unwrap(),
-                     None, None)
+                     None, None, arena)
                 .into()),
+                arena,
             )
             .into()),
         ])

@@ -1569,6 +1569,7 @@ impl FilePreprocessingDiagnostics {
 }
 
 pub struct Program {
+    pub(crate) arena: *const AllArenas,
     pub(crate) _arena_id: Cell<Option<Id<Program>>>,
     pub(crate) create_program_options: RefCell<Option<CreateProgramOptions>>,
     pub(crate) root_names: RefCell<Option<Vec<String>>>,

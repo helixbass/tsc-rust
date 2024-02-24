@@ -2386,6 +2386,15 @@ pub struct CommandLineOptionBase {
     >,
 }
 
+impl CommandLineOptionBase {
+    pub fn try_into_command_line_option(
+        self,
+        arena: &impl HasArena,
+    ) -> Result<CommandLineOption, &'static str> {
+        CommandLineOption::try_from_command_line_option_base(self, arena)
+    }
+}
+
 impl CommandLineOptionInterface for CommandLineOptionBase {
     fn arena_id(&self) -> Id<CommandLineOption> {
         self._arena_id.borrow().clone().unwrap()
@@ -2541,11 +2550,13 @@ impl fmt::Debug for CommandLineOptionBase {
 #[derive(Debug)]
 pub struct CommandLineOptionOfStringType {
     _command_line_option_base: CommandLineOptionBase,
+    arena: *const AllArenas,
 }
 
 impl CommandLineOptionOfStringType {
-    pub fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+    pub fn new(command_line_option_base: CommandLineOptionBase, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             _command_line_option_base: command_line_option_base,
         }
     }
@@ -2555,11 +2566,16 @@ impl CommandLineOptionOfStringType {
 #[derive(Debug)]
 pub struct CommandLineOptionOfNumberType {
     _command_line_option_base: CommandLineOptionBase,
+    arena: *const AllArenas,
 }
 
 impl CommandLineOptionOfNumberType {
-    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+    pub(crate) fn new(
+        command_line_option_base: CommandLineOptionBase,
+        arena: &impl HasArena,
+    ) -> Self {
         Self {
+            arena: arena.arena(),
             _command_line_option_base: command_line_option_base,
         }
     }
@@ -2569,11 +2585,13 @@ impl CommandLineOptionOfNumberType {
 #[derive(Debug)]
 pub struct CommandLineOptionOfBooleanType {
     _command_line_option_base: CommandLineOptionBase,
+    arena: *const AllArenas,
 }
 
 impl CommandLineOptionOfBooleanType {
-    pub fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+    pub fn new(command_line_option_base: CommandLineOptionBase, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             _command_line_option_base: command_line_option_base,
         }
     }
@@ -2583,11 +2601,16 @@ impl CommandLineOptionOfBooleanType {
 #[derive(Debug)]
 pub struct CommandLineOptionOfCustomType {
     _command_line_option_base: CommandLineOptionBase,
+    arena: *const AllArenas,
 }
 
 impl CommandLineOptionOfCustomType {
-    pub(crate) fn new(command_line_option_base: CommandLineOptionBase) -> Self {
+    pub(crate) fn new(
+        command_line_option_base: CommandLineOptionBase,
+        arena: &impl HasArena,
+    ) -> Self {
         Self {
+            arena: arena.arena(),
             _command_line_option_base: command_line_option_base,
         }
     }
@@ -2608,6 +2631,7 @@ pub trait DidYouMeanOptionsDiagnostics {
 #[command_line_option_type]
 pub struct TsConfigOnlyOption {
     _command_line_option_base: CommandLineOptionBase,
+    arena: *const AllArenas,
     pub element_options: Option<Id<HashMap<String, Id<CommandLineOption>>>>,
     pub extra_key_diagnostics:
         Option<RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics>,
@@ -2620,8 +2644,10 @@ impl TsConfigOnlyOption {
         extra_key_diagnostics: Option<
             RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics,
         >,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             _command_line_option_base: command_line_option_base,
             element_options,
             extra_key_diagnostics,
@@ -2675,6 +2701,7 @@ impl From<Rc<dyn ParseCommandLineWorkerDiagnostics>>
 #[derive(Debug)]
 pub struct CommandLineOptionOfListType {
     _command_line_option_base: CommandLineOptionBase,
+    arena: *const AllArenas,
     pub element: Id<CommandLineOption>,
 }
 
@@ -2682,8 +2709,10 @@ impl CommandLineOptionOfListType {
     pub(crate) fn new(
         command_line_option_base: CommandLineOptionBase,
         element: Id<CommandLineOption>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             _command_line_option_base: command_line_option_base,
             element,
         }
@@ -2843,17 +2872,24 @@ impl CommandLineOption {
             }
         }
     }
-}
 
-impl TryFrom<CommandLineOptionBase> for CommandLineOption {
-    type Error = &'static str;
-
-    fn try_from(value: CommandLineOptionBase) -> Result<Self, Self::Error> {
+    fn try_from_command_line_option_base(
+        value: CommandLineOptionBase,
+        arena: &impl HasArena,
+    ) -> Result<Self, &'static str> {
         match &value.type_ {
-            CommandLineOptionType::Map(_) => Ok(CommandLineOptionOfCustomType::new(value).into()),
-            CommandLineOptionType::String => Ok(CommandLineOptionOfStringType::new(value).into()),
-            CommandLineOptionType::Number => Ok(CommandLineOptionOfNumberType::new(value).into()),
-            CommandLineOptionType::Boolean => Ok(CommandLineOptionOfBooleanType::new(value).into()),
+            CommandLineOptionType::Map(_) => {
+                Ok(CommandLineOptionOfCustomType::new(value, arena).into())
+            }
+            CommandLineOptionType::String => {
+                Ok(CommandLineOptionOfStringType::new(value, arena).into())
+            }
+            CommandLineOptionType::Number => {
+                Ok(CommandLineOptionOfNumberType::new(value, arena).into())
+            }
+            CommandLineOptionType::Boolean => {
+                Ok(CommandLineOptionOfBooleanType::new(value, arena).into())
+            }
             _ => Err("Didn't pass a simple CommandLineOptionType"),
         }
     }
@@ -2861,7 +2897,16 @@ impl TryFrom<CommandLineOptionBase> for CommandLineOption {
 
 impl HasArena for CommandLineOption {
     fn arena(&self) -> &AllArenas {
-        unimplemented!()
+        unsafe {
+            &*match self {
+                Self::CommandLineOptionOfCustomType(value) => value.arena,
+                Self::CommandLineOptionOfStringType(value) => value.arena,
+                Self::CommandLineOptionOfNumberType(value) => value.arena,
+                Self::CommandLineOptionOfBooleanType(value) => value.arena,
+                Self::TsConfigOnlyOption(value) => value.arena,
+                Self::CommandLineOptionOfListType(value) => value.arena,
+            }
+        }
     }
 }
 

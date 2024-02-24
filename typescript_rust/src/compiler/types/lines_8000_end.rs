@@ -14,15 +14,15 @@ use serde::Serialize;
 
 use super::{BaseNode, CommentDirective, Diagnostic, Node, Symbol, SymbolFlags, SymbolWriter};
 use crate::{
-    AllArenas, CommentRange, EmitBinaryExpression, EmitHint,
-    FileIncludeReason, HasArena, IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    InArena, LineAndCharacter, ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId,
-    ParenthesizerRules, Path, ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray,
-    SourceMapSource, SymlinkCache, SyntaxKind, TempFlags, TextRange,
+    AllArenas, CommentRange, EmitBinaryExpression, EmitHint, FileIncludeReason, HasArena,
+    IdForModuleSpecifierResolutionHostAndGetCommonSourceDirectory, InArena, LineAndCharacter,
+    ModuleKind, MultiMap, NewLineKind, NodeArray, NodeId, ParenthesizerRules, Path,
+    ProgramBuildInfo, RedirectTargetsMap, ScriptTarget, SortedArray, SourceMapSource, SymlinkCache,
+    SyntaxKind, TempFlags, TextRange,
 };
 
 pub struct Printer {
-    pub arena: *const AllArenas,
+    pub(crate) arena: *const AllArenas,
     pub _arena_id: Cell<Option<Id<Printer>>>,
     pub printer_options: PrinterOptions,
     pub handlers: Id<Box<dyn PrintHandlers>>,

@@ -19,7 +19,7 @@ use crate::{
     get_emit_module_kind_from_module_and_target, get_factory, get_factory_id,
     get_new_line_character, get_normalized_absolute_path, get_own_emit_output_file_path,
     get_relative_path_from_directory, get_relative_path_to_directory_or_url, get_root_length,
-    get_source_file_path_in_new_dir, get_source_files_to_emit, get_sys, is_bundle,
+    get_source_file_path_in_new_dir, get_source_files_to_emit, get_sys, impl_has_arena, is_bundle,
     is_export_assignment, is_export_specifier, is_expression, is_identifier,
     is_incremental_compilation, is_json_source_file, is_option_str_empty, is_source_file,
     is_source_file_not_json, last_or_undefined, length, no_emit_notification, no_emit_substitution,
@@ -705,6 +705,7 @@ fn emit_source_file_or_bundle(
             EmitSourceFileOrBundleRelativeToBuildInfo::new(
                 build_info_directory.clone(),
                 host.clone(),
+                arena,
             ),
         )),
         arena,
@@ -733,6 +734,7 @@ fn emit_source_file_or_bundle(
             EmitSourceFileOrBundleRelativeToBuildInfo::new(
                 build_info_directory.clone(),
                 host.clone(),
+                arena,
             ),
         )),
         arena,
@@ -787,13 +789,19 @@ fn emit_source_file_or_bundle(
 }
 
 struct EmitSourceFileOrBundleRelativeToBuildInfo {
+    arena: *const AllArenas,
     build_info_directory: Option<String>,
     host: Id<Box<dyn EmitHost>>,
 }
 
 impl EmitSourceFileOrBundleRelativeToBuildInfo {
-    fn new(build_info_directory: Option<String>, host: Id<Box<dyn EmitHost>>) -> Self {
+    fn new(
+        build_info_directory: Option<String>,
+        host: Id<Box<dyn EmitHost>>,
+        arena: &impl HasArena,
+    ) -> Self {
         Self {
+            arena: arena.arena(),
             build_info_directory,
             host,
         }
@@ -810,11 +818,7 @@ impl RelativeToBuildInfo for EmitSourceFileOrBundleRelativeToBuildInfo {
     }
 }
 
-impl HasArena for EmitSourceFileOrBundleRelativeToBuildInfo {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(EmitSourceFileOrBundleRelativeToBuildInfo);
 
 fn relative_to_build_info(build_info_directory: &str, host: &dyn EmitHost, path: &str) -> String {
     ensure_path_is_non_module_name(&get_relative_path_from_directory(
@@ -928,6 +932,7 @@ fn emit_js_file_or_bundle(
             arena.alloc_print_handlers(Box::new(EmitJsFileOrBundlePrintHandlers::new(
                 resolver.clone(),
                 transform.clone(),
+                arena,
             ))),
         ),
         arena,
@@ -961,6 +966,7 @@ fn emit_js_file_or_bundle(
 }
 
 struct EmitJsFileOrBundlePrintHandlers {
+    arena: *const AllArenas,
     resolver: Id<Box<dyn EmitResolver>>,
     transform: Id<TransformNodesTransformationResult>,
 }
@@ -969,8 +975,10 @@ impl EmitJsFileOrBundlePrintHandlers {
     fn new(
         resolver: Id<Box<dyn EmitResolver>>,
         transform: Id<TransformNodesTransformationResult>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             resolver,
             transform,
         }
@@ -1012,11 +1020,7 @@ impl PrintHandlers for EmitJsFileOrBundlePrintHandlers {
     }
 }
 
-impl HasArena for EmitJsFileOrBundlePrintHandlers {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(EmitJsFileOrBundlePrintHandlers);
 
 fn emit_declaration_file_or_bundle(
     emit_only_dts_files: Option<bool>,
@@ -1136,6 +1140,7 @@ fn emit_declaration_file_or_bundle(
             arena.alloc_print_handlers(Box::new(EmitDeclarationFileOrBundlePrintHandlers::new(
                 resolver.clone(),
                 declaration_transform.clone(),
+                arena,
             ))),
         ),
         arena,
@@ -1203,6 +1208,7 @@ fn emit_declaration_file_or_bundle(
 }
 
 struct EmitDeclarationFileOrBundlePrintHandlers {
+    arena: *const AllArenas,
     resolver: Id<Box<dyn EmitResolver>>,
     declaration_transform: Id<TransformNodesTransformationResult>,
 }
@@ -1211,8 +1217,10 @@ impl EmitDeclarationFileOrBundlePrintHandlers {
     fn new(
         resolver: Id<Box<dyn EmitResolver>>,
         declaration_transform: Id<TransformNodesTransformationResult>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             resolver,
             declaration_transform,
         }
@@ -1260,11 +1268,7 @@ impl PrintHandlers for EmitDeclarationFileOrBundlePrintHandlers {
     }
 }
 
-impl HasArena for EmitDeclarationFileOrBundlePrintHandlers {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(EmitDeclarationFileOrBundlePrintHandlers);
 
 fn collect_linked_aliases(
     resolver: &dyn EmitResolver,
@@ -2572,8 +2576,4 @@ impl Printer {
     }
 }
 
-impl HasArena for Printer {
-    fn arena(&self) -> &AllArenas {
-        unsafe { &*self.arena }
-    }
-}
+impl_has_arena!(Printer);

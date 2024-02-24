@@ -156,7 +156,7 @@ pub(crate) fn options_for_build(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                     .description(&Diagnostics::Enable_verbose_logging)
                     .default_value_description("false".to_owned())
                     .category(&Diagnostics::Command_line_Options)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
                 arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                     .name("dry")
                     .type_(CommandLineOptionType::Boolean)
@@ -164,7 +164,7 @@ pub(crate) fn options_for_build(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                     .description(&Diagnostics::Show_what_would_be_built_or_deleted_if_specified_with_clean)
                     .default_value_description("false".to_owned())
                     .category(&Diagnostics::Command_line_Options)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
                 arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                     .name("force")
                     .type_(CommandLineOptionType::Boolean)
@@ -172,14 +172,14 @@ pub(crate) fn options_for_build(arena: &impl HasArena) -> Id<Vec<Id<CommandLineO
                     .description(&Diagnostics::Build_all_projects_including_those_that_appear_to_be_up_to_date)
                     .default_value_description("false".to_owned())
                     .category(&Diagnostics::Command_line_Options)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
                 arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                     .name("clean".to_string())
                     .type_(CommandLineOptionType::Boolean)
                     .description(&Diagnostics::Delete_the_outputs_of_all_projects)
                     .default_value_description(StringOrDiagnosticMessage::String("false".to_string()))
                     .category(&Diagnostics::Command_line_Options)
-                    .build().unwrap().try_into().unwrap()),
+                    .build().unwrap().try_into_command_line_option(arena).unwrap()),
             ]
         )
     )
@@ -216,7 +216,7 @@ pub(crate) fn type_acquisition_declarations(
                     ))
                     .build()
                     .unwrap()
-                    .try_into()
+                    .try_into_command_line_option(arena)
                     .unwrap()
             ),
             arena.alloc_command_line_option(
@@ -228,7 +228,7 @@ pub(crate) fn type_acquisition_declarations(
                     ))
                     .build()
                     .unwrap()
-                    .try_into()
+                    .try_into_command_line_option(arena)
                     .unwrap()
             ),
             arena.alloc_command_line_option(
@@ -244,9 +244,10 @@ pub(crate) fn type_acquisition_declarations(
                             .type_(CommandLineOptionType::String)
                             .build()
                             .unwrap()
-                            .try_into()
+                            .try_into_command_line_option(arena)
                             .unwrap()
                     ),
+                    arena,
                 )
                 .into()
             ),
@@ -263,9 +264,10 @@ pub(crate) fn type_acquisition_declarations(
                             .type_(CommandLineOptionType::String)
                             .build()
                             .unwrap()
-                            .try_into()
+                            .try_into_command_line_option(arena)
                             .unwrap()
                     ),
+                    arena,
                 )
                 .into()
             ),
@@ -278,7 +280,7 @@ pub(crate) fn type_acquisition_declarations(
                     ))
                     .build()
                     .unwrap()
-                    .try_into()
+                    .try_into_command_line_option(arena)
                     .unwrap()
             ),
         ])

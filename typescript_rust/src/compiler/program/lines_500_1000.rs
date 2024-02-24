@@ -52,6 +52,7 @@ pub trait LoadWithLocalCacheLoader<TValue> {
 }
 
 pub struct LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
+    arena: *const AllArenas,
     options: Id<CompilerOptions>,
     host: Id<Box<dyn CompilerHost>>,
     type_reference_directive_resolution_cache: Option<Id<TypeReferenceDirectiveResolutionCache>>,
@@ -64,8 +65,10 @@ impl LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
         type_reference_directive_resolution_cache: Option<
             Id<TypeReferenceDirectiveResolutionCache>,
         >,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             options,
             host,
             type_reference_directive_resolution_cache,
@@ -98,11 +101,7 @@ impl LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>
     }
 }
 
-impl HasArena for LoadWithLocalCacheLoaderResolveTypeReferenceDirective {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(LoadWithLocalCacheLoaderResolveTypeReferenceDirective);
 
 pub(crate) fn load_with_local_cache<TValue: Clone>(
     names: &[String],
@@ -216,6 +215,7 @@ pub trait LoadWithModeAwareCacheLoader<TValue> {
 }
 
 pub struct LoadWithModeAwareCacheLoaderResolveModuleName {
+    arena: *const AllArenas,
     options: Id<CompilerOptions>,
     host: Id<Box<dyn CompilerHost>>,
     module_resolution_cache: Option<Id<ModuleResolutionCache>>,
@@ -226,8 +226,10 @@ impl LoadWithModeAwareCacheLoaderResolveModuleName {
         options: Id<CompilerOptions>,
         host: Id<Box<dyn CompilerHost>>,
         module_resolution_cache: Option<Id<ModuleResolutionCache>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             options,
             host,
             module_resolution_cache,
@@ -261,11 +263,7 @@ impl LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>
     }
 }
 
-impl HasArena for LoadWithModeAwareCacheLoaderResolveModuleName {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(LoadWithModeAwareCacheLoaderResolveModuleName);
 
 pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     names: &[String],
@@ -909,6 +907,7 @@ impl Program {
         let options = create_program_options.options.clone();
         let max_node_module_js_depth = options.ref_(arena).max_node_module_js_depth.unwrap_or(0);
         let ret = arena.alloc_program(Self {
+            arena: arena.arena(),
             _arena_id: Default::default(),
             create_program_options: RefCell::new(Some(create_program_options)),
             root_names: Default::default(),
@@ -1043,7 +1042,11 @@ impl Program {
         if self.host().ref_(self).is_resolve_module_names_supported() {
             self.actual_resolve_module_names_worker.set(Some(
                 self.alloc_actual_resolve_module_names_worker(Box::new(
-                    ActualResolveModuleNamesWorkerHost::new(self.host(), self.options.clone()),
+                    ActualResolveModuleNamesWorkerHost::new(
+                        self.host(),
+                        self.options.clone(),
+                        self,
+                    ),
                 )),
             ));
             self.module_resolution_cache
@@ -1064,11 +1067,13 @@ impl Program {
                 self.options.clone(),
                 self.host(),
                 self.maybe_module_resolution_cache(),
+                self,
             );
             self.actual_resolve_module_names_worker.set(Some(
                 self.alloc_actual_resolve_module_names_worker(Box::new(
                     ActualResolveModuleNamesWorkerLoadWithModeAwareCache::new(
                         self.alloc_load_with_mode_aware_cache_loader(Box::new(loader)),
+                        self,
                     ),
                 )),
             ));
@@ -1085,6 +1090,7 @@ impl Program {
                         ActualResolveTypeReferenceDirectiveNamesWorkerHost::new(
                             self.host(),
                             self.options.clone(),
+                            self,
                         ),
                     )),
                 ));
@@ -1110,12 +1116,14 @@ impl Program {
                 self.options.clone(),
                 self.host(),
                 self.maybe_type_reference_directive_resolution_cache(),
+                self,
             );
             self.actual_resolve_type_reference_directive_names_worker
                 .set(Some(
                     self.alloc_actual_resolve_type_reference_directive_names_worker(Box::new(
                         ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache::new(
                             self.alloc_load_with_local_cache_loader(Box::new(loader)),
+                            self,
                         ),
                     )),
                 ));
@@ -1156,7 +1164,10 @@ impl Program {
                     .use_source_of_project_reference_redirect(),
                 to_path: self.to_path_rc(),
                 get_resolved_project_references: self.alloc_get_resolved_project_references(
-                    Box::new(ProgramGetResolvedProjectReferences::new(self.arena_id())),
+                    Box::new(ProgramGetResolvedProjectReferences::new(
+                        self.arena_id(),
+                        self,
+                    )),
                 ),
                 for_each_resolved_project_reference: self.for_each_resolved_project_reference_id(),
             },
@@ -1883,19 +1894,19 @@ impl Program {
     }
 }
 
-impl HasArena for Program {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(Program);
 
 struct ProgramGetResolvedProjectReferences {
+    arena: *const AllArenas,
     program: Id<Program>,
 }
 
 impl ProgramGetResolvedProjectReferences {
-    pub fn new(program: Id<Program>) -> Self {
-        Self { program }
+    pub fn new(program: Id<Program>, arena: &impl HasArena) -> Self {
+        Self {
+            program,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1908,11 +1919,7 @@ impl GetResolvedProjectReferences for ProgramGetResolvedProjectReferences {
     }
 }
 
-impl HasArena for ProgramGetResolvedProjectReferences {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ProgramGetResolvedProjectReferences);
 
 mod _FilesByNameValueDeriveTraceScope {
     use super::*;
@@ -1938,7 +1945,7 @@ mod _FilesByNameValueDeriveTraceScope {
 }
 pub use _FilesByNameValueDeriveTraceScope::FilesByNameValue;
 
-use crate::try_for_each;
+use crate::{impl_has_arena, try_for_each};
 
 pub trait ActualResolveModuleNamesWorker {
     fn call(
@@ -1952,13 +1959,22 @@ pub trait ActualResolveModuleNamesWorker {
 }
 
 struct ActualResolveModuleNamesWorkerHost {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHost>>,
     options: Id<CompilerOptions>,
 }
 
 impl ActualResolveModuleNamesWorkerHost {
-    pub fn new(host: Id<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
-        Self { host, options }
+    pub fn new(
+        host: Id<Box<dyn CompilerHost>>,
+        options: Id<CompilerOptions>,
+        arena: &impl HasArena,
+    ) -> Self {
+        Self {
+            host,
+            options,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2001,21 +2017,22 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerHost {
     }
 }
 
-impl HasArena for ActualResolveModuleNamesWorkerHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ActualResolveModuleNamesWorkerHost);
 
 struct ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
+    arena: *const AllArenas,
     loader: Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
 }
 
 impl ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
     pub fn new(
         loader: Id<Box<dyn LoadWithModeAwareCacheLoader<Option<Id<ResolvedModuleFull>>>>>,
+        arena: &impl HasArena,
     ) -> Self {
-        Self { loader }
+        Self {
+            loader,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2039,11 +2056,7 @@ impl ActualResolveModuleNamesWorker for ActualResolveModuleNamesWorkerLoadWithMo
     }
 }
 
-impl HasArena for ActualResolveModuleNamesWorkerLoadWithModeAwareCache {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ActualResolveModuleNamesWorkerLoadWithModeAwareCache);
 
 pub trait ActualResolveTypeReferenceDirectiveNamesWorker {
     fn call(
@@ -2055,13 +2068,22 @@ pub trait ActualResolveTypeReferenceDirectiveNamesWorker {
 }
 
 struct ActualResolveTypeReferenceDirectiveNamesWorkerHost {
+    arena: *const AllArenas,
     host: Id<Box<dyn CompilerHost>>,
     options: Id<CompilerOptions>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerHost {
-    pub fn new(host: Id<Box<dyn CompilerHost>>, options: Id<CompilerOptions>) -> Self {
-        Self { host, options }
+    pub fn new(
+        host: Id<Box<dyn CompilerHost>>,
+        options: Id<CompilerOptions>,
+        arena: &impl HasArena,
+    ) -> Self {
+        Self {
+            host,
+            options,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2087,21 +2109,22 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
     }
 }
 
-impl HasArena for ActualResolveTypeReferenceDirectiveNamesWorkerHost {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ActualResolveTypeReferenceDirectiveNamesWorkerHost);
 
 struct ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
+    arena: *const AllArenas,
     loader: Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
 }
 
 impl ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
     pub fn new(
         loader: Id<Box<dyn LoadWithLocalCacheLoader<Id<ResolvedTypeReferenceDirective>>>>,
+        arena: &impl HasArena,
     ) -> Self {
-        Self { loader }
+        Self {
+            loader,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -2126,11 +2149,7 @@ impl ActualResolveTypeReferenceDirectiveNamesWorker
     }
 }
 
-impl HasArena for ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ActualResolveTypeReferenceDirectiveNamesWorkerLoadWithLocalCache);
 
 impl ScriptReferenceHost for Program {
     fn get_compiler_options(&self) -> Id<CompilerOptions> {

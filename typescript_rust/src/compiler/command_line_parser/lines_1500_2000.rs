@@ -922,6 +922,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .build().unwrap(),
                             Some(get_command_line_compiler_options_map(arena)),
                             Some(compiler_options_did_you_mean_diagnostics().into()),
+                            arena,
                         )
                         .into()),
                         arena.alloc_command_line_option(TsConfigOnlyOption::new(
@@ -931,6 +932,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .build().unwrap(),
                             Some(get_command_line_watch_options_map(arena)),
                             Some(watch_options_did_you_mean_diagnostics().into()),
+                            arena,
                         )
                         .into()),
                         arena.alloc_command_line_option(TsConfigOnlyOption::new(
@@ -940,6 +942,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .build().unwrap(),
                             Some(get_command_line_type_acquisition_map(arena)),
                             Some(type_acquisition_did_you_mean_diagnostics().into()),
+                            arena,
                         )
                         .into()),
                         arena.alloc_command_line_option(TsConfigOnlyOption::new(
@@ -949,13 +952,14 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .build().unwrap(),
                             Some(get_command_line_type_acquisition_map(arena)),
                             Some(type_acquisition_did_you_mean_diagnostics().into()),
+                            arena,
                         )
                         .into()),
                         arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                             .name("extends".to_string())
                             .type_(CommandLineOptionType::String)
                             .category(&Diagnostics::File_Management)
-                            .build().unwrap().try_into().unwrap()),
+                            .build().unwrap().try_into_command_line_option(arena).unwrap()),
                         arena.alloc_command_line_option(CommandLineOptionOfListType::new(
                             CommandLineOptionBaseBuilder::default()
                                 .name("references".to_string())
@@ -969,8 +973,10 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                     .build().unwrap(),
                                 None,
                                 None,
+                                arena,
                             )
                             .into()),
+                            arena,
                         )
                         .into()),
                         arena.alloc_command_line_option(CommandLineOptionOfListType::new(
@@ -982,7 +988,8 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                                 .name("files".to_string())
                                 .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into().unwrap()),
+                                .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                            arena,
                         )
                         .into()),
                         arena.alloc_command_line_option(CommandLineOptionOfListType::new(
@@ -995,7 +1002,8 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                                 .name("include".to_string())
                                 .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into().unwrap()),
+                                .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                            arena,
                         )
                         .into()),
                         arena.alloc_command_line_option(CommandLineOptionOfListType::new(
@@ -1008,12 +1016,14 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                             arena.alloc_command_line_option(CommandLineOptionBaseBuilder::default()
                                 .name("exclude".to_string())
                                 .type_(CommandLineOptionType::String)
-                                .build().unwrap().try_into().unwrap()),
+                                .build().unwrap().try_into_command_line_option(arena).unwrap()),
+                            arena,
                         )
                         .into()),
                         compile_on_save_command_line_option(arena),
                     ], arena))),
                     None,
+                    arena,
                 )
                 .into(),
             ));
