@@ -531,7 +531,7 @@ pub(super) fn convert_property_value_to_json(
                     known_root_options,
                     object_literal_expression,
                     element_options.refed(arena).as_deref(),
-                    extra_key_diagnostics,
+                    extra_key_diagnostics.as_deref(),
                     if option_name == tsconfig_root_options_dummy_name {
                         None
                     } else {

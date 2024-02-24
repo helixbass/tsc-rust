@@ -15,7 +15,7 @@ use super::{
 use crate::{
     array_to_map, build_opts, create_compiler_diagnostic,
     create_diagnostic_for_node_in_source_file, create_get_canonical_file_name, find,
-    get_base_file_name, get_directory_path, get_normalized_absolute_path, get_sys,
+    get_base_file_name, get_directory_path, get_normalized_absolute_path, get_sys, impl_has_arena,
     is_array_literal_expression, is_object_literal_expression, maybe_text_char_at_index,
     parse_json_text, per_arena, starts_with, text_char_at_index, text_substring, to_path,
     AllArenas, AlternateModeDiagnostics, BaseNode, BuildOptions, CharacterCodes, CommandLineOption,
@@ -25,8 +25,10 @@ use crate::{
     DidYouMeanOptionsDiagnostics, ExtendedConfigCacheEntry, FileExtensionInfo, HasArena,
     HasStatementsInterface, InArena, LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface,
     OptionInArena, OptionsNameMap, ParseConfigHost, ParsedCommandLine,
-    ParsedCommandLineWithBaseOptions, Push, ScriptKind, ScriptTarget, SourceFile,
-    StringOrDiagnosticMessage, SyntaxKind, TransformFlags, TsConfigOnlyOption, WatchOptions,
+    ParsedCommandLineWithBaseOptions, Push,
+    RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics, ScriptKind,
+    ScriptTarget, SourceFile, StringOrDiagnosticMessage, SyntaxKind, TransformFlags,
+    TsConfigOnlyOption, WatchOptions,
 };
 
 pub(super) fn parse_response_file(
@@ -265,21 +267,25 @@ pub(super) fn parse_option_value(
     i
 }
 
-thread_local! {
-    static compiler_options_did_you_mean_diagnostics_: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(CompilerOptionsDidYouMeanDiagnostics::new());
+pub fn compiler_options_did_you_mean_diagnostics(
+    arena: &impl HasArena,
+) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+    per_arena!(
+        Box<dyn ParseCommandLineWorkerDiagnostics>,
+        arena,
+        CompilerOptionsDidYouMeanDiagnostics::new(arena)
+    )
 }
 
-pub fn compiler_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLineWorkerDiagnostics> {
-    compiler_options_did_you_mean_diagnostics_.with(|compiler_options_did_you_mean_diagnostics| {
-        compiler_options_did_you_mean_diagnostics.clone()
-    })
+pub struct CompilerOptionsDidYouMeanDiagnostics {
+    arena: *const AllArenas,
 }
-
-pub struct CompilerOptionsDidYouMeanDiagnostics {}
 
 impl CompilerOptionsDidYouMeanDiagnostics {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        arena.alloc_parse_command_line_worker_diagnostics(Box::new(Self {
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -315,11 +321,7 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
     }
 }
 
-impl HasArena for CompilerOptionsDidYouMeanDiagnostics {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(CompilerOptionsDidYouMeanDiagnostics);
 
 pub fn parse_command_line(
     command_line: &[String],
@@ -327,7 +329,7 @@ pub fn parse_command_line(
     arena: &impl HasArena,
 ) -> ParsedCommandLine {
     parse_command_line_worker(
-        &*compiler_options_did_you_mean_diagnostics(),
+        &**compiler_options_did_you_mean_diagnostics(arena).ref_(arena),
         command_line,
         read_file,
         arena,
@@ -754,15 +756,15 @@ pub(super) fn command_line_options_to_map(
     )
 }
 
-thread_local! {
-    static type_acquisition_did_you_mean_diagnostics_: Rc<dyn DidYouMeanOptionsDiagnostics> = Rc::new(TypeAcquisitionDidYouMeanDiagnostics::new());
+struct TypeAcquisitionDidYouMeanDiagnostics {
+    arena: *const AllArenas,
 }
 
-struct TypeAcquisitionDidYouMeanDiagnostics {}
-
 impl TypeAcquisitionDidYouMeanDiagnostics {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn DidYouMeanOptionsDiagnostics>> {
+        arena.alloc_did_you_mean_options_diagnostics(Box::new(Self {
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -784,16 +786,16 @@ impl DidYouMeanOptionsDiagnostics for TypeAcquisitionDidYouMeanDiagnostics {
     }
 }
 
-impl HasArena for TypeAcquisitionDidYouMeanDiagnostics {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TypeAcquisitionDidYouMeanDiagnostics);
 
-pub(super) fn type_acquisition_did_you_mean_diagnostics() -> Rc<dyn DidYouMeanOptionsDiagnostics> {
-    type_acquisition_did_you_mean_diagnostics_.with(|type_acquisition_did_you_mean_diagnostics| {
-        type_acquisition_did_you_mean_diagnostics.clone()
-    })
+pub(super) fn type_acquisition_did_you_mean_diagnostics(
+    arena: &impl HasArena,
+) -> Id<Box<dyn DidYouMeanOptionsDiagnostics>> {
+    per_arena!(
+        Box<dyn DidYouMeanOptionsDiagnostics>,
+        arena,
+        TypeAcquisitionDidYouMeanDiagnostics::new(arena),
+    )
 }
 
 pub(super) fn get_watch_options_name_map(arena: &impl HasArena) -> Id<OptionsNameMap> {
@@ -807,15 +809,15 @@ pub(super) fn get_watch_options_name_map(arena: &impl HasArena) -> Id<OptionsNam
     )
 }
 
-thread_local! {
-    static watch_options_did_you_mean_diagnostics_: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(WatchOptionsDidYouMeanDiagnostics::new());
+pub struct WatchOptionsDidYouMeanDiagnostics {
+    arena: *const AllArenas,
 }
 
-pub struct WatchOptionsDidYouMeanDiagnostics {}
-
 impl WatchOptionsDidYouMeanDiagnostics {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        arena.alloc_parse_command_line_worker_diagnostics(Box::new(Self {
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -851,17 +853,16 @@ impl ParseCommandLineWorkerDiagnostics for WatchOptionsDidYouMeanDiagnostics {
     }
 }
 
-impl HasArena for WatchOptionsDidYouMeanDiagnostics {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(WatchOptionsDidYouMeanDiagnostics);
 
-pub(super) fn watch_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLineWorkerDiagnostics>
-{
-    watch_options_did_you_mean_diagnostics_.with(|watch_options_did_you_mean_diagnostics| {
-        watch_options_did_you_mean_diagnostics.clone()
-    })
+pub(super) fn watch_options_did_you_mean_diagnostics(
+    arena: &impl HasArena,
+) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+    per_arena!(
+        Box<dyn ParseCommandLineWorkerDiagnostics>,
+        arena,
+        WatchOptionsDidYouMeanDiagnostics::new(arena),
+    )
 }
 
 pub(super) fn get_command_line_compiler_options_map(
@@ -921,7 +922,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
                             Some(get_command_line_compiler_options_map(arena)),
-                            Some(compiler_options_did_you_mean_diagnostics().into()),
+                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_parse_command_line_worker_diagnostics(compiler_options_did_you_mean_diagnostics(arena), arena)),
                             arena,
                         )
                         .into()),
@@ -931,7 +932,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
                             Some(get_command_line_watch_options_map(arena)),
-                            Some(watch_options_did_you_mean_diagnostics().into()),
+                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_parse_command_line_worker_diagnostics(watch_options_did_you_mean_diagnostics(arena), arena)),
                             arena,
                         )
                         .into()),
@@ -941,7 +942,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
                             Some(get_command_line_type_acquisition_map(arena)),
-                            Some(type_acquisition_did_you_mean_diagnostics().into()),
+                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_did_you_mean_options_diagnostics(type_acquisition_did_you_mean_diagnostics(arena), arena)),
                             arena,
                         )
                         .into()),
@@ -951,7 +952,7 @@ pub(super) fn get_tsconfig_root_options_map(arena: &impl HasArena) -> Id<Command
                                 .type_(CommandLineOptionType::Object)
                                 .build().unwrap(),
                             Some(get_command_line_type_acquisition_map(arena)),
-                            Some(type_acquisition_did_you_mean_diagnostics().into()),
+                            Some(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::from_did_you_mean_options_diagnostics(type_acquisition_did_you_mean_diagnostics(arena), arena)),
                             arena,
                         )
                         .into()),

@@ -12,20 +12,21 @@ use crate::{
     CommandLineOptionInterface, CompilerHost, CompilerHostLike, CompilerOptions, ConditionalRoot,
     ConvertedLoopState, CurrentParenthesizerRule, CustomTransformerFactoryInterface,
     CustomTransformerInterface, Diagnostic, DiagnosticRelatedInformation, DiagnosticReporter,
-    DirectoryStructureHost, EmitBinaryExpression, EmitHelper, EmitHelperFactory,
-    EmitHelperTextCallback, EmitHost, EmitNode, EmitResolver, EmitTextWriter, ExternalModuleInfo,
-    FileIncludeReason, FilePreprocessingDiagnostics, FlowNode, ForEachResolvedProjectReference,
-    GetCanonicalFileName, GetProgramBuildInfo, GetResolvedProjectReferences, GetSourceFile,
-    GetSymbolAccessibilityDiagnosticInterface, GetSymlinkCache, IncrementalParserSyntaxCursor,
-    IndexInfo, InferenceContext, InferenceInfo, InputFilesInitializedState, IterationTypes,
-    LoadWithLocalCacheLoader, LoadWithModeAwareCacheLoader, LoggingHost,
-    MakeSerializePropertySymbolCreateProperty, ModeAwareCache, ModuleResolutionCache,
-    ModuleResolutionHostOverrider, ModuleSpecifierResolutionHostAndGetCommonSourceDirectory,
-    MultiMap, Node, NodeArray, NodeBuilder, NodeBuilderContext, NodeFactory, NodeIdOverride,
-    NodeLinks, NodeSymbolOverride, OptionsNameMap, OutofbandVarianceMarkerHandler, PackageJsonInfo,
-    PackageJsonInfoCache, ParenthesizerRules, ParseConfigFileHost, ParsedCommandLine, ParserType,
-    Path, PatternAmbientModule, PendingDeclaration, PerModuleNameCache, PrintHandlers, Printer,
-    PrivateIdentifierEnvironment, PrivateIdentifierInfo, Program, ProgramBuildInfo,
+    DidYouMeanOptionsDiagnostics, DirectoryStructureHost, EmitBinaryExpression, EmitHelper,
+    EmitHelperFactory, EmitHelperTextCallback, EmitHost, EmitNode, EmitResolver, EmitTextWriter,
+    ExternalModuleInfo, FileIncludeReason, FilePreprocessingDiagnostics, FlowNode,
+    ForEachResolvedProjectReference, GetCanonicalFileName, GetProgramBuildInfo,
+    GetResolvedProjectReferences, GetSourceFile, GetSymbolAccessibilityDiagnosticInterface,
+    GetSymlinkCache, IncrementalParserSyntaxCursor, IndexInfo, InferenceContext, InferenceInfo,
+    InputFilesInitializedState, IterationTypes, LoadWithLocalCacheLoader,
+    LoadWithModeAwareCacheLoader, LoggingHost, MakeSerializePropertySymbolCreateProperty,
+    ModeAwareCache, ModuleResolutionCache, ModuleResolutionHostOverrider,
+    ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
+    NodeBuilder, NodeBuilderContext, NodeFactory, NodeIdOverride, NodeLinks, NodeSymbolOverride,
+    OptionsNameMap, OutofbandVarianceMarkerHandler, PackageJsonInfo, PackageJsonInfoCache,
+    ParenthesizerRules, ParseCommandLineWorkerDiagnostics, ParseConfigFileHost, ParsedCommandLine,
+    ParserType, Path, PatternAmbientModule, PendingDeclaration, PerModuleNameCache, PrintHandlers,
+    Printer, PrivateIdentifierEnvironment, PrivateIdentifierInfo, Program, ProgramBuildInfo,
     ReadFileCallback, RelativeToBuildInfo, ResolvedModuleFull,
     ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
@@ -263,6 +264,9 @@ pub struct AllArenas {
     pub path_per_module_name_cache_maps:
         RefCell<Arena<HashMap<Path, Id<HashMap<String, Id<PerModuleNameCache>>>>>>,
     pub logging_hosts: RefCell<Arena<Box<dyn LoggingHost>>>,
+    pub parse_command_line_worker_diagnostics:
+        RefCell<Arena<Box<dyn ParseCommandLineWorkerDiagnostics>>>,
+    pub did_you_mean_options_diagnostics: RefCell<Arena<Box<dyn DidYouMeanOptionsDiagnostics>>>,
 }
 
 pub trait HasArena {
@@ -2567,6 +2571,38 @@ pub trait HasArena {
 
     fn alloc_logging_host(&self, logging_host: Box<dyn LoggingHost>) -> Id<Box<dyn LoggingHost>> {
         self.arena().alloc_logging_host(logging_host)
+    }
+
+    fn parse_command_line_worker_diagnostics(
+        &self,
+        parse_command_line_worker_diagnostics: Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
+    ) -> Ref<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        self.arena()
+            .parse_command_line_worker_diagnostics(parse_command_line_worker_diagnostics)
+    }
+
+    fn alloc_parse_command_line_worker_diagnostics(
+        &self,
+        parse_command_line_worker_diagnostics: Box<dyn ParseCommandLineWorkerDiagnostics>,
+    ) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        self.arena()
+            .alloc_parse_command_line_worker_diagnostics(parse_command_line_worker_diagnostics)
+    }
+
+    fn did_you_mean_options_diagnostics(
+        &self,
+        did_you_mean_options_diagnostics: Id<Box<dyn DidYouMeanOptionsDiagnostics>>,
+    ) -> Ref<Box<dyn DidYouMeanOptionsDiagnostics>> {
+        self.arena()
+            .did_you_mean_options_diagnostics(did_you_mean_options_diagnostics)
+    }
+
+    fn alloc_did_you_mean_options_diagnostics(
+        &self,
+        did_you_mean_options_diagnostics: Box<dyn DidYouMeanOptionsDiagnostics>,
+    ) -> Id<Box<dyn DidYouMeanOptionsDiagnostics>> {
+        self.arena()
+            .alloc_did_you_mean_options_diagnostics(did_you_mean_options_diagnostics)
     }
 }
 
@@ -5795,6 +5831,54 @@ impl HasArena for AllArenas {
         let id = self.logging_hosts.borrow_mut().alloc(logging_host);
         id
     }
+
+    #[track_caller]
+    fn parse_command_line_worker_diagnostics(
+        &self,
+        parse_command_line_worker_diagnostics: Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
+    ) -> Ref<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        Ref::map(
+            self.parse_command_line_worker_diagnostics.borrow(),
+            |parse_command_line_worker_diagnostics_| {
+                &parse_command_line_worker_diagnostics_[parse_command_line_worker_diagnostics]
+            },
+        )
+    }
+
+    fn alloc_parse_command_line_worker_diagnostics(
+        &self,
+        parse_command_line_worker_diagnostics: Box<dyn ParseCommandLineWorkerDiagnostics>,
+    ) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        let id = self
+            .parse_command_line_worker_diagnostics
+            .borrow_mut()
+            .alloc(parse_command_line_worker_diagnostics);
+        id
+    }
+
+    #[track_caller]
+    fn did_you_mean_options_diagnostics(
+        &self,
+        did_you_mean_options_diagnostics: Id<Box<dyn DidYouMeanOptionsDiagnostics>>,
+    ) -> Ref<Box<dyn DidYouMeanOptionsDiagnostics>> {
+        Ref::map(
+            self.did_you_mean_options_diagnostics.borrow(),
+            |did_you_mean_options_diagnostics_| {
+                &did_you_mean_options_diagnostics_[did_you_mean_options_diagnostics]
+            },
+        )
+    }
+
+    fn alloc_did_you_mean_options_diagnostics(
+        &self,
+        did_you_mean_options_diagnostics: Box<dyn DidYouMeanOptionsDiagnostics>,
+    ) -> Id<Box<dyn DidYouMeanOptionsDiagnostics>> {
+        let id = self
+            .did_you_mean_options_diagnostics
+            .borrow_mut()
+            .alloc(did_you_mean_options_diagnostics);
+        id
+    }
 }
 
 pub trait InArena {
@@ -7322,6 +7406,28 @@ impl InArena for Id<Box<dyn LoggingHost>> {
 
     fn ref_<'a>(&self, has_arena: &'a impl HasArena) -> Ref<'a, Box<dyn LoggingHost>> {
         has_arena.logging_host(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+    type Item = Box<dyn ParseCommandLineWorkerDiagnostics>;
+
+    fn ref_<'a>(
+        &self,
+        has_arena: &'a impl HasArena,
+    ) -> Ref<'a, Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        has_arena.parse_command_line_worker_diagnostics(*self)
+    }
+}
+
+impl InArena for Id<Box<dyn DidYouMeanOptionsDiagnostics>> {
+    type Item = Box<dyn DidYouMeanOptionsDiagnostics>;
+
+    fn ref_<'a>(
+        &self,
+        has_arena: &'a impl HasArena,
+    ) -> Ref<'a, Box<dyn DidYouMeanOptionsDiagnostics>> {
+        has_arena.did_you_mean_options_diagnostics(*self)
     }
 }
 

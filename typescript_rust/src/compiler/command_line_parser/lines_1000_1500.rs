@@ -1234,7 +1234,11 @@ pub(super) fn parse_strings(
                 );
             } else {
                 let watch_opt = get_option_declaration_from_name(
-                    || watch_options_did_you_mean_diagnostics().get_options_name_map(),
+                    || {
+                        watch_options_did_you_mean_diagnostics(arena)
+                            .ref_(arena)
+                            .get_options_name_map()
+                    },
                     &input_option_name,
                     Some(true),
                     arena,
@@ -1247,7 +1251,7 @@ pub(super) fn parse_strings(
                     i = parse_option_value(
                         args,
                         i,
-                        &*watch_options_did_you_mean_diagnostics(),
+                        &**watch_options_did_you_mean_diagnostics(arena).ref_(arena),
                         &watch_opt.ref_(arena),
                         watch_options.as_mut().unwrap(),
                         errors,

@@ -222,7 +222,9 @@ pub(crate) fn convert_compiler_options_from_json_worker(
         json_options,
         base_path,
         &mut options,
-        compiler_options_did_you_mean_diagnostics().as_did_you_mean_options_diagnostics(),
+        compiler_options_did_you_mean_diagnostics(arena)
+            .ref_(arena)
+            .as_did_you_mean_options_diagnostics(),
         errors,
         arena,
     );
@@ -259,7 +261,7 @@ pub(crate) fn convert_type_acquisition_from_json_worker(
         type_acquisition.as_ref(),
         base_path,
         &mut options,
-        &*type_acquisition_did_you_mean_diagnostics(),
+        &**type_acquisition_did_you_mean_diagnostics(arena).ref_(arena),
         errors,
         arena,
     );
@@ -276,7 +278,9 @@ pub(crate) fn convert_watch_options_from_json_worker(
         &get_command_line_watch_options_map(arena).ref_(arena),
         json_options,
         base_path,
-        watch_options_did_you_mean_diagnostics().as_did_you_mean_options_diagnostics(),
+        watch_options_did_you_mean_diagnostics(arena)
+            .ref_(arena)
+            .as_did_you_mean_options_diagnostics(),
         errors,
         arena,
     )

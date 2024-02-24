@@ -2143,7 +2143,7 @@ pub use _CreateProgramOptionsDeriveTraceScope::{
 };
 use id_arena::Id;
 
-use crate::HasArena;
+use crate::{impl_has_arena, HasArena};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CommandLineOptionMapTypeValue {
@@ -2665,37 +2665,53 @@ impl fmt::Debug for TsConfigOnlyOption {
     }
 }
 
-pub enum RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
-    RcDynDidYouMeanOptionsDiagnostics(Rc<dyn DidYouMeanOptionsDiagnostics>),
-    RcDynParseCommandLineWorkerDiagnostics(Rc<dyn ParseCommandLineWorkerDiagnostics>),
+pub struct RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
+    arena: *const AllArenas,
+    value: _RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics,
 }
 
 impl RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
-    pub fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
-        match self {
-            Self::RcDynDidYouMeanOptionsDiagnostics(value) => &**value,
-            Self::RcDynParseCommandLineWorkerDiagnostics(value) => {
-                value.as_did_you_mean_options_diagnostics()
+    pub fn from_parse_command_line_worker_diagnostics(
+        value: Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
+        arena: &impl HasArena,
+    ) -> Self {
+        Self {
+            arena: arena.arena(),
+            value: _RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::RcDynParseCommandLineWorkerDiagnostics(value),
+        }
+    }
+
+    pub fn from_did_you_mean_options_diagnostics(
+        value: Id<Box<dyn DidYouMeanOptionsDiagnostics>>,
+        arena: &impl HasArena,
+    ) -> Self {
+        Self {
+            arena: arena.arena(),
+            value: _RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::RcDynDidYouMeanOptionsDiagnostics(value),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+enum _RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
+    RcDynDidYouMeanOptionsDiagnostics(Id<Box<dyn DidYouMeanOptionsDiagnostics>>),
+    RcDynParseCommandLineWorkerDiagnostics(Id<Box<dyn ParseCommandLineWorkerDiagnostics>>),
+}
+
+impl RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics {
+    pub fn as_did_you_mean_options_diagnostics(
+        &self,
+    ) -> debug_cell::Ref<dyn DidYouMeanOptionsDiagnostics> {
+        match self.value {
+            _RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::RcDynDidYouMeanOptionsDiagnostics(value) => debug_cell::Ref::map(value.ref_(self), |box_| &**box_),
+            _RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics::RcDynParseCommandLineWorkerDiagnostics(value) => {
+                debug_cell::Ref::map(value.ref_(self), |value| value.as_did_you_mean_options_diagnostics())
             }
         }
     }
 }
 
-impl From<Rc<dyn DidYouMeanOptionsDiagnostics>>
-    for RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics
-{
-    fn from(value: Rc<dyn DidYouMeanOptionsDiagnostics>) -> Self {
-        Self::RcDynDidYouMeanOptionsDiagnostics(value)
-    }
-}
-
-impl From<Rc<dyn ParseCommandLineWorkerDiagnostics>>
-    for RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics
-{
-    fn from(value: Rc<dyn ParseCommandLineWorkerDiagnostics>) -> Self {
-        Self::RcDynParseCommandLineWorkerDiagnostics(value)
-    }
-}
+impl_has_arena!(RcDynDidYouMeanOptionsDiagnosticsOrRcDynParseCommandLineWorkerDiagnostics);
 
 #[command_line_option_type]
 #[derive(Debug)]
