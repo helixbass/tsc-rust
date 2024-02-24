@@ -14,7 +14,8 @@ use crate::{
     get_normalized_absolute_path, get_ts_config_prop_array, normalize_path, normalize_slashes,
     CommandLineOption, CommandLineOptionInterface, CommandLineOptionType, CompilerOptions,
     CompilerOptionsValue, ConfigFileSpecs, Debug_, Diagnostic, Diagnostics,
-    ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, InArena, Node, OptionInArena, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
+    ExtendedConfigCacheEntry, FileExtensionInfo, HasArena, HasInitializerInterface, InArena, Node,
+    OptionInArena, ParseConfigHost, ParsedCommandLine, Path, ProjectReference,
     ToHashMapOfCompilerOptionsValues, WatchOptions,
 };
 
@@ -88,7 +89,7 @@ pub(super) fn convert_to_option_value_with_absolute_paths(
 
 pub fn parse_json_config_file_content(
     json: Option<serde_json::Value>,
-    host: &impl ParseConfigHost,
+    host: &(impl ParseConfigHost + ?Sized),
     base_path: &str,
     existing_options: Option<Id<CompilerOptions>>,
     config_file_name: Option<&str>,

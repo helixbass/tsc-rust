@@ -8,10 +8,10 @@ mod parse_config_file_text_to_json {
     use serde::Serialize;
     use serde_json::json;
     use typescript_rust::{
-        convert_to_object, create_compiler_diagnostic, get_sys, get_sys_concrete, id_arena::Id,
+        convert_to_object, create_compiler_diagnostic, get_sys, id_arena::Id,
         parse_config_file_text_to_json, parse_json_config_file_content,
         parse_json_source_file_config_file_content, parse_json_text, AllArenas, Diagnostic,
-        DiagnosticRelatedInformationInterface, Diagnostics, Owned, ParsedCommandLine,
+        DiagnosticRelatedInformationInterface, Diagnostics, InArena, Owned, ParsedCommandLine,
         SliceExtCloneOrd,
     };
 
@@ -48,7 +48,10 @@ mod parse_config_file_text_to_json {
                 .unwrap();
         let parsed_command = parse_json_config_file_content(
             parsed.config,
-            get_sys(arena).as_dyn_parse_config_host().unwrap(),
+            get_sys(arena)
+                .ref_(arena)
+                .maybe_as_dyn_parse_config_host()
+                .unwrap(),
             // "tests/cases/unittests",
             "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
             None,

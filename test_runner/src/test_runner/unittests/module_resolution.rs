@@ -9,7 +9,7 @@ use itertools::Itertools;
 use speculoos::prelude::*;
 use typescript_rust::{
     extension_from_path, get_directory_path, id_arena::Id, HasArena, InArena, ModuleResolutionHost,
-    ModuleResolutionHostOverrider, ResolvedModuleFull, ResolvedModuleFullBuilder,
+    ModuleResolutionHostOverrider, OptionInArena, ResolvedModuleFull, ResolvedModuleFullBuilder,
     ResolvedModuleWithFailedLookupLocations,
 };
 
@@ -61,12 +61,13 @@ pub fn check_resolved_module_with_failed_lookup_locations(
     actual: &ResolvedModuleWithFailedLookupLocations,
     expected_resolved_module: &ResolvedModuleFull,
     expected_failed_lookup_locations: &[&str],
+    arena: &impl HasArena,
 ) {
     asserting("module should be resolved")
         .that(&actual.resolved_module)
         .is_some();
     check_resolved_module(
-        actual.resolved_module.as_deref(),
+        actual.resolved_module.refed(arena).as_deref(),
         Some(expected_resolved_module),
     );
     asserting(&format!(
@@ -365,6 +366,7 @@ mod node_module_resolution_relative_paths {
         containing_file_name: &str,
         module_file_name_no_ext: &str,
         module_name: &str,
+        arena: &impl HasArena,
     ) {
         let test = |ext: &Extension, has_directory_exists: bool| {
             let containing_file = FileBuilder::default()
@@ -378,7 +380,7 @@ mod node_module_resolution_relative_paths {
             let resolution = node_module_name_resolver(
                 module_name,
                 &containing_file.name,
-                Default::default(),
+                arena.alloc_compiler_options(Default::default()),
                 &*create_module_resolution_host(
                     has_directory_exists,
                     vec![containing_file.clone(), module_file.clone()],
@@ -386,10 +388,15 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
             check_resolved_module(
-                resolution.resolved_module.as_deref(),
+                resolution
+                    .ref_(arena)
+                    .resolved_module
+                    .refed(arena)
+                    .as_deref(),
                 Some(&create_resolved_module(&module_file.name, None)),
             );
 
@@ -411,7 +418,7 @@ mod node_module_resolution_relative_paths {
                 }
             }
 
-            assert_that(&*resolution.failed_lookup_locations())
+            assert_that(&*resolution.ref_(arena).failed_lookup_locations())
                 .is_equal_to(failed_lookup_locations);
         };
 
@@ -423,23 +430,27 @@ mod node_module_resolution_relative_paths {
 
     #[test]
     fn test_module_name_that_starts_with_dot_slash_resolved_as_relative_file_name() {
-        test_load_as_file("/foo/bar/baz.ts", "/foo/bar/foo", "./foo");
+        let ref arena = AllArenasHarness::default();
+        test_load_as_file("/foo/bar/baz.ts", "/foo/bar/foo", "./foo", arena);
     }
 
     #[test]
     fn test_module_name_that_starts_with_dot_dot_slash_resolved_as_relative_file_name() {
-        test_load_as_file("/foo/bar/baz.ts", "/foo/foo", "../foo");
+        let ref arena = AllArenasHarness::default();
+        test_load_as_file("/foo/bar/baz.ts", "/foo/foo", "../foo", arena);
     }
 
     #[test]
     fn test_module_name_that_starts_with_slash_script_extension_resolved_as_relative_file_name() {
-        test_load_as_file("/foo/bar/baz.ts", "/foo", "/foo");
+        let ref arena = AllArenasHarness::default();
+        test_load_as_file("/foo/bar/baz.ts", "/foo", "/foo", arena);
     }
 
     #[test]
     fn test_module_name_that_starts_with_c_colon_slash_script_extension_resolved_as_relative_file_name(
     ) {
-        test_load_as_file("c:/foo/bar/baz.ts", "c:/foo", "c:/foo");
+        let ref arena = AllArenasHarness::default();
+        test_load_as_file("c:/foo/bar/baz.ts", "c:/foo", "c:/foo", arena);
     }
 
     fn test_loading_from_package_json(
@@ -448,6 +459,7 @@ mod node_module_resolution_relative_paths {
         field_ref: &str,
         module_file_name: &str,
         module_name: &str,
+        arena: &impl HasArena,
     ) {
         let test = |has_directory_exists: bool| {
             let containing_file = FileBuilder::default()
@@ -471,7 +483,7 @@ mod node_module_resolution_relative_paths {
             let resolution = node_module_name_resolver(
                 module_name,
                 &containing_file.name,
-                Default::default(),
+                arena.alloc_compiler_options(Default::default()),
                 &*create_module_resolution_host(
                     has_directory_exists,
                     vec![
@@ -483,13 +495,18 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
             check_resolved_module(
-                resolution.resolved_module.as_deref(),
+                resolution
+                    .ref_(arena)
+                    .resolved_module
+                    .refed(arena)
+                    .as_deref(),
                 Some(&create_resolved_module(&module_file.name, None)),
             );
-            assert_that(&*resolution.failed_lookup_locations())
+            assert_that(&*resolution.ref_(arena).failed_lookup_locations())
                 .has_length(supported_ts_extensions[0].len());
         };
 
@@ -499,12 +516,14 @@ mod node_module_resolution_relative_paths {
 
     #[test]
     fn test_module_name_as_directory_load_from_typings() {
+        let ref arena = AllArenasHarness::default();
         test_loading_from_package_json(
             "/a/b/c/d.ts",
             "/a/b/c/bar/package.json",
             "c/d/e.d.ts",
             "/a/b/c/bar/c/d/e.d.ts",
             "./bar",
+            arena,
         );
         test_loading_from_package_json(
             "/a/b/c/d.ts",
@@ -512,6 +531,7 @@ mod node_module_resolution_relative_paths {
             "e.d.ts",
             "/a/bar/e.d.ts",
             "../../bar",
+            arena,
         );
         test_loading_from_package_json(
             "/a/b/c/d.ts",
@@ -519,6 +539,7 @@ mod node_module_resolution_relative_paths {
             "e.d.ts",
             "/bar/e.d.ts",
             "/bar",
+            arena,
         );
         test_loading_from_package_json(
             "c:/a/b/c/d.ts",
@@ -526,10 +547,11 @@ mod node_module_resolution_relative_paths {
             "e.d.ts",
             "c:/bar/e.d.ts",
             "c:/bar",
+            arena,
         );
     }
 
-    fn test_typings_ignored(typings: impl Into<Option<serde_json::Value>>) {
+    fn test_typings_ignored(typings: impl Into<Option<serde_json::Value>>, arena: &impl HasArena) {
         let typings = typings.into();
         let test = |has_directory_exists: bool| {
             let containing_file = FileBuilder::default().name("/a/b.ts").build().unwrap();
@@ -554,7 +576,7 @@ mod node_module_resolution_relative_paths {
             let resolution = node_module_name_resolver(
                 "b",
                 &containing_file.name,
-                Default::default(),
+                arena.alloc_compiler_options(Default::default()),
                 &*create_module_resolution_host(
                     has_directory_exists,
                     vec![
@@ -567,11 +589,16 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
 
             check_resolved_module(
-                resolution.resolved_module.as_deref(),
+                resolution
+                    .ref_(arena)
+                    .resolved_module
+                    .refed(arena)
+                    .as_deref(),
                 Some(&create_resolved_module(index_path, Some(true))),
             );
         };
@@ -582,15 +609,17 @@ mod node_module_resolution_relative_paths {
 
     #[test]
     fn test_module_name_as_directory_handle_invalid_typings() {
-        test_typings_ignored(serde_json::json!(["a", "b"]));
-        test_typings_ignored(serde_json::json!({"a": "b"}));
-        test_typings_ignored(serde_json::json!(true));
-        test_typings_ignored(serde_json::json!(null));
-        test_typings_ignored(None);
+        let ref arena = AllArenasHarness::default();
+        test_typings_ignored(serde_json::json!(["a", "b"]), arena);
+        test_typings_ignored(serde_json::json!({"a": "b"}), arena);
+        test_typings_ignored(serde_json::json!(true), arena);
+        test_typings_ignored(serde_json::json!(null), arena);
+        test_typings_ignored(None, arena);
     }
 
     #[test]
     fn test_module_name_as_directory_load_index_d_ts() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let containing_file = FileBuilder::default().name("/a/b/c.ts").build().unwrap();
             let package_json = FileBuilder::default()
@@ -610,7 +639,7 @@ mod node_module_resolution_relative_paths {
             let resolution = node_module_name_resolver(
                 "./foo",
                 &containing_file.name,
-                Default::default(),
+                arena.alloc_compiler_options(Default::default()),
                 &*create_module_resolution_host(
                     has_directory_exists,
                     vec![
@@ -622,10 +651,11 @@ mod node_module_resolution_relative_paths {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
             check_resolved_module_with_failed_lookup_locations(
-                &resolution,
+                &resolution.ref_(arena),
                 &create_resolved_module(&index_file.name, None),
                 &[
                     "/a/b/foo.ts",
@@ -641,6 +671,7 @@ mod node_module_resolution_relative_paths {
                     "/a/b/foo/index.ts",
                     "/a/b/foo/index.tsx",
                 ],
+                arena,
             );
         };
 
@@ -688,11 +719,11 @@ mod node_module_resolution_non_relative_paths {
                 ),
             ),
         );
-        assert_that(&cache.get("/sub")).is_some();
-        assert_that(&cache.get("/")).is_none();
+        assert_that(&cache.ref_(arena).get("/sub")).is_some();
+        assert_that(&cache.ref_(arena).get("/")).is_none();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("b", None, None);
-        cache.set(
+        cache.ref_(arena).set(
             "/sub/dir/foo",
             arena.alloc_resolved_module_with_failed_lookup_locations(
                 ResolvedModuleWithFailedLookupLocations::new(
@@ -710,13 +741,13 @@ mod node_module_resolution_non_relative_paths {
                 ),
             ),
         );
-        assert_that(&cache.get("/sub/dir/foo")).is_some();
-        assert_that(&cache.get("/sub/dir")).is_some();
-        assert_that(&cache.get("/sub")).is_some();
-        assert_that(&cache.get("/")).is_none();
+        assert_that(&cache.ref_(arena).get("/sub/dir/foo")).is_some();
+        assert_that(&cache.ref_(arena).get("/sub/dir")).is_some();
+        assert_that(&cache.ref_(arena).get("/sub")).is_some();
+        assert_that(&cache.ref_(arena).get("/")).is_none();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("c", None, None);
-        cache.set(
+        cache.ref_(arena).set(
             "/foo/bar",
             arena.alloc_resolved_module_with_failed_lookup_locations(
                 ResolvedModuleWithFailedLookupLocations::new(
@@ -734,9 +765,9 @@ mod node_module_resolution_non_relative_paths {
                 ),
             ),
         );
-        assert_that(&cache.get("/foo/bar")).is_some();
-        assert_that(&cache.get("/foo")).is_some();
-        assert_that(&cache.get("/")).is_some();
+        assert_that(&cache.ref_(arena).get("/foo/bar")).is_some();
+        assert_that(&cache.ref_(arena).get("/foo")).is_some();
+        assert_that(&cache.ref_(arena).get("/")).is_some();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("d", None, None);
         cache.ref_(arena).set(
@@ -757,8 +788,8 @@ mod node_module_resolution_non_relative_paths {
                 ),
             ),
         );
-        assert_that(&cache.get("/foo")).is_some();
-        assert_that(&cache.get("/")).is_none();
+        assert_that(&cache.ref_(arena).get("/foo")).is_some();
+        assert_that(&cache.ref_(arena).get("/")).is_none();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("e", None, None);
         cache.ref_(arena).set(
@@ -779,9 +810,9 @@ mod node_module_resolution_non_relative_paths {
                 ),
             ),
         );
-        assert_that(&cache.get("c:/foo")).is_some();
-        assert_that(&cache.get("c:/")).is_some();
-        assert_that(&cache.get("d:/")).is_none();
+        assert_that(&cache.ref_(arena).get("c:/foo")).is_some();
+        assert_that(&cache.ref_(arena).get("c:/")).is_some();
+        assert_that(&cache.ref_(arena).get("d:/")).is_none();
 
         cache = resolution_cache.get_or_create_cache_for_module_name("f", None, None);
         cache.ref_(arena).set(
@@ -790,10 +821,10 @@ mod node_module_resolution_non_relative_paths {
                 ResolvedModuleWithFailedLookupLocations::new(None, Default::default()),
             ),
         );
-        assert_that(&cache.get("/foo/bar/baz")).is_some();
-        assert_that(&cache.get("/foo/bar")).is_some();
-        assert_that(&cache.get("/foo")).is_some();
-        assert_that!(&cache.get("/")).is_some();
+        assert_that(&cache.ref_(arena).get("/foo/bar/baz")).is_some();
+        assert_that(&cache.ref_(arena).get("/foo/bar")).is_some();
+        assert_that(&cache.ref_(arena).get("/foo")).is_some();
+        assert_that!(&cache.ref_(arena).get("/")).is_some();
     }
 
     #[derive(Trace, Finalize)]
@@ -807,6 +838,7 @@ mod node_module_resolution_non_relative_paths {
 
     #[test]
     fn test_load_module_as_file_ts_files_not_loaded() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let containing_file = FileBuilder::default()
                 .name("/a/b/c/d/e.ts")
@@ -819,7 +851,7 @@ mod node_module_resolution_non_relative_paths {
             let resolution = node_module_name_resolver(
                 "foo",
                 &containing_file.name,
-                Default::default(),
+                arena.alloc_compiler_options(Default::default()),
                 &*create_module_resolution_host(
                     has_directory_exists,
                     vec![containing_file.clone(), module_file.clone()],
@@ -827,10 +859,11 @@ mod node_module_resolution_non_relative_paths {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
             check_resolved_module_with_failed_lookup_locations(
-                &resolution,
+                &resolution.ref_(arena),
                 &create_resolved_module(&module_file.name, Some(true)),
                 &[
                     "/a/b/c/d/node_modules/foo/package.json",
@@ -855,6 +888,7 @@ mod node_module_resolution_non_relative_paths {
                     "/a/b/c/node_modules/@types/foo/index.d.ts",
                     "/a/b/node_modules/foo/package.json",
                 ],
+                arena,
             );
         };
 
@@ -864,6 +898,7 @@ mod node_module_resolution_non_relative_paths {
 
     #[test]
     fn test_load_module_as_file() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let containing_file = FileBuilder::default()
                 .name("/a/b/c/d/e.ts")
@@ -876,7 +911,7 @@ mod node_module_resolution_non_relative_paths {
             let resolution = node_module_name_resolver(
                 "foo",
                 &containing_file.name,
-                Default::default(),
+                arena.alloc_compiler_options(Default::default()),
                 &*create_module_resolution_host(
                     has_directory_exists,
                     vec![containing_file.clone(), module_file.clone()],
@@ -884,10 +919,15 @@ mod node_module_resolution_non_relative_paths {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
             check_resolved_module(
-                resolution.resolved_module.as_deref(),
+                resolution
+                    .ref_(arena)
+                    .resolved_module
+                    .refed(arena)
+                    .as_deref(),
                 Some(&create_resolved_module(&module_file.name, Some(true))),
             );
         };
@@ -898,6 +938,7 @@ mod node_module_resolution_non_relative_paths {
 
     #[test]
     fn test_load_module_as_directory() {
+        let ref arena = AllArenasHarness::default();
         let test = |has_directory_exists: bool| {
             let containing_file = FileBuilder::default()
                 .name("/a/node_modules/b/c/node_modules/d/e.ts")
@@ -910,7 +951,7 @@ mod node_module_resolution_non_relative_paths {
             let resolution = node_module_name_resolver(
                 "foo",
                 &containing_file.name,
-                Default::default(),
+                arena.alloc_compiler_options(Default::default()),
                 &*create_module_resolution_host(
                     has_directory_exists,
                     vec![containing_file.clone(), module_file.clone()],
@@ -918,10 +959,11 @@ mod node_module_resolution_non_relative_paths {
                 None,
                 None,
                 None,
+                arena,
             )
             .unwrap();
             check_resolved_module_with_failed_lookup_locations(
-                &resolution,
+                &resolution.ref_(arena),
                 &create_resolved_module(&module_file.name, Some(true)),
                 &[
                     "/a/node_modules/b/c/node_modules/d/node_modules/foo/package.json",
@@ -961,6 +1003,7 @@ mod node_module_resolution_non_relative_paths {
                     "/a/node_modules/foo/index.ts",
                     "/a/node_modules/foo/index.tsx",
                 ],
+                arena,
             );
         };
 
@@ -1009,7 +1052,11 @@ mod node_module_resolution_non_relative_paths {
             real_file_name
         };
         check_resolved_module(
-            resolution.resolved_module.as_deref(),
+            resolution
+                .ref_(arena)
+                .resolved_module
+                .refed(arena)
+                .as_deref(),
             Some(&create_resolved_module(resolved_file_name, Some(true))),
         );
     }
@@ -1054,6 +1101,7 @@ mod node_module_resolution_non_relative_paths {
             None,
             None,
             None,
+            arena,
         ));
         let mut resolution = resolve_module_name(
             "a",
@@ -1063,10 +1111,15 @@ mod node_module_resolution_non_relative_paths {
             Some(cache.clone()),
             None,
             None,
+            arena,
         )
         .unwrap();
         check_resolved_module(
-            resolution.resolved_module.as_deref(),
+            resolution
+                .ref_(arena)
+                .resolved_module
+                .refed(arena)
+                .as_deref(),
             Some(&create_resolved_module("/modules/a.ts", Some(true))),
         );
 
@@ -1078,10 +1131,15 @@ mod node_module_resolution_non_relative_paths {
             Some(cache.clone()),
             None,
             None,
+            arena,
         )
         .unwrap();
         check_resolved_module(
-            resolution.resolved_module.as_deref(),
+            resolution
+                .ref_(arena)
+                .resolved_module
+                .refed(arena)
+                .as_deref(),
             Some(&create_resolved_module("/modules/a.ts", Some(true))),
         );
 
@@ -1093,16 +1151,20 @@ mod node_module_resolution_non_relative_paths {
             Some(cache.clone()),
             None,
             None,
+            arena,
         )
         .unwrap();
         asserting("lookup in parent directory doesn't hit the cache")
-            .that(&resolution.resolved_module)
+            .that(&resolution.ref_(arena).resolved_module)
             .is_none();
     }
 
-    fn check_resolution(resolution: &ResolvedModuleWithFailedLookupLocations) {
+    fn check_resolution(
+        resolution: &ResolvedModuleWithFailedLookupLocations,
+        arena: &impl HasArena,
+    ) {
         check_resolved_module(
-            resolution.resolved_module.as_deref(),
+            resolution.resolved_module.refed(arena).as_deref(),
             Some(&create_resolved_module("/linked/index.d.ts", Some(true))),
         );
         assert_that(
@@ -1160,6 +1222,7 @@ mod node_module_resolution_non_relative_paths {
                 None,
             )
             .unwrap(),
+            arena,
         );
         check_resolution(
             &resolve_module_name(
@@ -1172,6 +1235,7 @@ mod node_module_resolution_non_relative_paths {
                 None,
             )
             .unwrap(),
+            arena,
         );
     }
 }
@@ -2387,6 +2451,7 @@ mod base_url_augmented_module_resolution {
                     &result,
                     &create_resolved_module(&file2.name, None),
                     &[],
+                    arena,
                 );
                 let result = resolve_module_name(
                     "./file3",
@@ -2403,6 +2468,7 @@ mod base_url_augmented_module_resolution {
                     &result,
                     &create_resolved_module(&file3.name, None),
                     &[],
+                    arena,
                 );
                 let result = resolve_module_name(
                     "/root/folder1/file1",
@@ -2419,6 +2485,7 @@ mod base_url_augmented_module_resolution {
                     &result,
                     &create_resolved_module(&file1.name, None),
                     &[],
+                    arena,
                 );
             }
         };
@@ -2645,6 +2712,7 @@ mod base_url_augmented_module_resolution {
                     &result,
                     &create_resolved_module(&expected.name, Some(is_external_library_import)),
                     expected_failed_lookups,
+                    arena,
                 );
             };
 
@@ -2810,6 +2878,7 @@ mod base_url_augmented_module_resolution {
                     &result,
                     &create_resolved_module(&expected.name, None),
                     expected_failed_lookups,
+                    arena,
                 );
             };
 
@@ -2898,6 +2967,7 @@ mod base_url_augmented_module_resolution {
                     &result,
                     &create_resolved_module(&expected.name, None),
                     expected_failed_lookups,
+                    arena,
                 );
             };
 
@@ -3006,6 +3076,7 @@ mod base_url_augmented_module_resolution {
                     &result,
                     &create_resolved_module(&expected.name, None),
                     expected_failed_lookups,
+                    arena,
                 );
             };
 
@@ -3101,6 +3172,7 @@ mod base_url_augmented_module_resolution {
                     "/root/src/libs/guid.tsx",
                     "/root/src/libs/guid.d.ts",
                 ],
+                arena,
             );
         };
 

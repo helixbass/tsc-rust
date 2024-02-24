@@ -3,7 +3,7 @@
 use std::{collections::HashMap, rc::Rc};
 
 use derive_builder::Builder;
-use harness::{fakes, vfs, AllArenasHarness, HasArenaHarness, TestFSWithWatch};
+use harness::{fakes, vfs, AllArenasHarness, HasArenaHarness, InArenaHarness, TestFSWithWatch};
 use itertools::Itertools;
 use serde::Serialize;
 use speculoos::prelude::*;
@@ -64,7 +64,7 @@ fn assert_has_error(
                 format!(
                     "    {}: {:?}",
                     if let Some(e_file) = e.ref_(arena).maybe_file() {
-                        e_file.as_source_file().file_name().clone()
+                        e_file.ref_(arena).as_source_file().file_name().clone()
                     } else {
                         "[global]".to_owned()
                     },
@@ -82,7 +82,7 @@ fn assert_has_error(
     }
 }
 
-fn assert_no_errors(message: &str, errors: &[Id<Diagnostic>]) {
+fn assert_no_errors(message: &str, errors: &[Id<Diagnostic>], arena: &impl HasArena) {
     if
     /*errors &&*/
     !errors.is_empty() {
@@ -90,7 +90,7 @@ fn assert_no_errors(message: &str, errors: &[Id<Diagnostic>]) {
             "{message}: Expected no errors, but found:\r\n{}",
             errors
                 .into_iter()
-                .map(|e| format!("    {:?}", e.message_text()))
+                .map(|e| format!("    {:?}", e.ref_(arena).message_text()))
                 .collect_vec()
                 .join("\r\n")
         ))
@@ -161,7 +161,12 @@ fn test_project_references(
             sp.config.clone(),
         );
         let config_content = serde_json::to_string(&options).unwrap();
-        let out_dir = options.compiler_options.out_dir.as_ref().unwrap();
+        let ref out_dir = options
+            .compiler_options
+            .ref_(arena)
+            .out_dir
+            .clone()
+            .unwrap();
         files.insert(config_file_name, config_content);
         for (source_file, value) in &sp.files {
             files.insert(source_file.clone(), value.clone());
@@ -198,8 +203,11 @@ fn test_project_references(
         .unwrap(),
     );
     for (k, v) in files {
-        vfsys.mkdirp_sync(&get_directory_path(&k)).unwrap();
-        vfsys.write_file_sync(&k, v, None).unwrap();
+        vfsys
+            .ref_(arena)
+            .mkdirp_sync(&get_directory_path(&k))
+            .unwrap();
+        vfsys.ref_(arena).write_file_sync(&k, v, None).unwrap();
     }
     let host = fakes::CompilerHost::new(
         arena.alloc_fakes_system(fakes::System::new(vfsys, None, arena).unwrap()),
@@ -210,13 +218,13 @@ fn test_project_references(
     .unwrap();
     let ReadConfigFileReturn { config, error } = read_config_file(
         entry_point_config_file_name,
-        |name: &str| host.read_file(name),
+        |name: &str| host.ref_(arena).read_file(name),
         arena,
     )
     .unwrap();
 
     asserting(&flatten_diagnostic_message_text(
-        error.as_ref().map(|error| error.message_text()),
+        error.map(|error| error.ref_(arena).message_text()),
         "\n",
         None,
     ))
@@ -225,14 +233,12 @@ fn test_project_references(
     let mut file = parse_json_config_file_content(
         config,
         &parse_config_host_from_compiler_host_like(
-            arena.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::from(
-                host.as_dyn_compiler_host(),
-            ))),
+            arena.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::from(host))),
             None,
             arena,
         ),
         &get_directory_path(entry_point_config_file_name),
-        Some(Default::default()),
+        Some(arena.alloc_compiler_options(Default::default())),
         Some(entry_point_config_file_name),
         None,
         None,
@@ -250,14 +256,21 @@ fn test_project_references(
         CreateProgramOptionsBuilder::default()
             .root_names(file.file_names.clone())
             .options(file.options.clone())
-            .host(host.as_dyn_compiler_host())
+            .host(host)
             .project_references(file.project_references.clone())
             .build()
             .unwrap(),
         arena,
     )
     .unwrap();
-    check_result(&prog, &host);
+    check_result(
+        &prog.ref_(arena),
+        &host
+            .ref_(arena)
+            .as_dyn_any()
+            .downcast_ref::<fakes::CompilerHost>()
+            .unwrap(),
+    );
 }
 
 #[derive(Serialize)]
@@ -323,6 +336,7 @@ mod meta_check {
                 assert_no_errors(
                     "Sanity check should not produce errors",
                     &prog.get_options_diagnostics(None),
+                    arena,
                 );
             },
             arena,
@@ -347,10 +361,12 @@ mod constraint_checking_for_settings {
                 ))
                 .references(vec![])
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .declaration(false)
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .declaration(false)
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -384,10 +400,12 @@ mod constraint_checking_for_settings {
                     ))
                     .references(vec![])
                     .options(
-                        CompilerOptionsBuilder::default()
-                            .composite(false)
-                            .build()
-                            .unwrap(),
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default()
+                                .composite(false)
+                                .build()
+                                .unwrap(),
+                        ),
                     )
                     .build()
                     .unwrap(),
@@ -445,10 +463,12 @@ mod constraint_checking_for_settings {
                     ))
                     .references(vec![])
                     .options(
-                        CompilerOptionsBuilder::default()
-                            .composite(false)
-                            .build()
-                            .unwrap(),
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default()
+                                .composite(false)
+                                .build()
+                                .unwrap(),
+                        ),
                     )
                     .build()
                     .unwrap(),
@@ -474,7 +494,11 @@ mod constraint_checking_for_settings {
             "/reference/tsconfig.json",
             |program: &Program, _| {
                 let errs = program.get_options_diagnostics(None);
-                assert_no_errors("Reports an error about 'composite' not being set", &errs);
+                assert_no_errors(
+                    "Reports an error about 'composite' not being set",
+                    &errs,
+                    arena,
+                );
             },
             arena,
         );
@@ -510,15 +534,12 @@ mod constraint_checking_for_settings {
             "/primary/tsconfig.json",
             |program: &Program, _| {
                 let errs = program
-                    .get_semantic_diagnostics(
-                        program.get_source_file("/primary/a.ts").as_deref(),
-                        None,
-                    )
+                    .get_semantic_diagnostics(program.get_source_file("/primary/a.ts"), None)
                     .unwrap();
                 assert_has_error(
                 "Reports an error about b.ts not being in the list",
                 &errs,
-                &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern
+                &Diagnostics::File_0_is_not_listed_within_the_file_list_of_project_1_Projects_must_list_all_files_or_use_an_include_pattern,
                 arena,
             );
             },
@@ -630,10 +651,12 @@ mod constraint_checking_for_settings {
                         [("/someProj/b.ts", "const x = 100;")].owned(),
                     ))
                     .options(
-                        CompilerOptionsBuilder::default()
-                            .out_file("foo.js")
-                            .build()
-                            .unwrap(),
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default()
+                                .out_file("foo.js")
+                                .build()
+                                .unwrap(),
+                        ),
                     )
                     .build()
                     .unwrap(),
@@ -691,6 +714,7 @@ mod path_mapping {
                 assert_no_errors(
                     "File setup should be correct",
                     &program.get_options_diagnostics(None),
+                    arena,
                 );
                 assert_has_error(
                     "Found a type error",
@@ -768,11 +792,13 @@ mod nice_behavior {
                     ))
                     .references(["../alpha".to_owned().into()])
                     .options(
-                        CompilerOptionsBuilder::default()
-                            .base_url("./")
-                            .paths(HashMap::from_iter([("@alpha/*", ["/alpha/*"])].owned()))
-                            .build()
-                            .unwrap(),
+                        arena.alloc_compiler_options(
+                            CompilerOptionsBuilder::default()
+                                .base_url("./")
+                                .paths(HashMap::from_iter([("@alpha/*", ["/alpha/*"])].owned()))
+                                .build()
+                                .unwrap(),
+                        ),
                     )
                     .build()
                     .unwrap(),
@@ -809,11 +835,13 @@ mod behavior_changes_under_composite_true {
                     [("/alpha/src/a.ts", "export const m: number = 3;")].owned(),
                 ))
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .declaration(true)
-                        .out_dir("bin")
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .declaration(true)
+                            .out_dir("bin")
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -826,7 +854,7 @@ mod behavior_changes_under_composite_true {
                 assert_that!(host
                     .outputs()
                     .iter()
-                    .map(|e| e.file.clone())
+                    .map(|e| e.ref_(arena).file.clone())
                     .collect_vec()
                     .and_sort())
                 .is_equal_to(
@@ -862,11 +890,13 @@ mod errors_when_a_file_in_a_composite_project_occurs_outside_the_root {
                     .owned(),
                 ))
                 .options(
-                    CompilerOptionsBuilder::default()
-                        .declaration(true)
-                        .out_dir("bin")
-                        .build()
-                        .unwrap(),
+                    arena.alloc_compiler_options(
+                        CompilerOptionsBuilder::default()
+                            .declaration(true)
+                            .out_dir("bin")
+                            .build()
+                            .unwrap(),
+                    ),
                 )
                 .build()
                 .unwrap(),
@@ -876,10 +906,7 @@ mod errors_when_a_file_in_a_composite_project_occurs_outside_the_root {
             "/alpha/tsconfig.json",
             |program: &Program, _| {
                 let semantic_diagnostics = program
-                    .get_semantic_diagnostics(
-                        program.get_source_file("/alpha/src/a.ts").as_deref(),
-                        None,
-                    )
+                    .get_semantic_diagnostics(program.get_source_file("/alpha/src/a.ts"), None)
                     .unwrap();
                 assert_has_error(
                     "Issues an error about the rootDir",

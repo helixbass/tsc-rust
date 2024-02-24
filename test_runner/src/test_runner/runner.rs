@@ -1,7 +1,9 @@
-use std::{cell::Cell, collections::HashMap};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashMap,
+};
 
 use clap::{Parser, ValueEnum};
-use gc::GcCell;
 use harness::{mocha, vpath, HasArenaHarness, MochaArgs, RunnerBase, StringOrFileBasedTest};
 use once_cell::unsync::OnceCell;
 use regex::Regex;
@@ -10,7 +12,7 @@ use typescript_rust::_d;
 use crate::{CompilerBaselineRunner, CompilerTestType};
 
 thread_local! {
-    static runners_: GcCell<Vec<RunnerBase>> = Default::default();
+    static runners_: RefCell<Vec<RunnerBase>> = Default::default();
 }
 
 fn with_runners<TReturn>(mut callback: impl FnMut(&[RunnerBase]) -> TReturn) -> TReturn {

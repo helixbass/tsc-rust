@@ -7434,6 +7434,14 @@ impl OptionInArena for Option<Id<Vec<Id<Symbol>>>> {
     }
 }
 
+impl OptionInArena for Option<Id<ResolvedModuleFull>> {
+    type Item = ResolvedModuleFull;
+
+    fn refed<'a>(self, has_arena: &'a impl HasArena) -> Option<Ref<'a, ResolvedModuleFull>> {
+        self.map(|resolved_module_full| has_arena.resolved_module_full(resolved_module_full))
+    }
+}
+
 pub trait ArenaAlloc: Sized {
     fn alloc(self, arena: &impl HasArena) -> Id<Self>;
 }
