@@ -1,6 +1,5 @@
 use std::{borrow::Cow, collections::HashMap, io, path::Path as StdPath};
 
-use gc::{Finalize, Trace};
 use harness::{
     compiler, describe, get_file_based_test_configuration_description,
     get_file_based_test_configurations, get_io, it, vpath, AllArenasHarness, Baseline, Compiler,
@@ -27,10 +26,8 @@ pub enum CompilerTestType {
 
 pub type CompilerFileBasedTest = FileBasedTest;
 
-#[derive(Trace, Finalize)]
 pub struct CompilerBaselineRunner {
     base_path: String,
-    #[unsafe_ignore_trace]
     test_suite_name: TestRunnerKind,
     emit: bool,
     pub options: Option<String>,

@@ -3,7 +3,6 @@
 use std::{collections::HashMap, io, rc::Rc};
 
 use derive_builder::Builder;
-use gc::{Finalize, Trace};
 use harness::AllArenasHarness;
 use itertools::Itertools;
 use speculoos::prelude::*;
@@ -143,11 +142,8 @@ fn create_module_resolution_host(
     }
 }
 
-#[derive(Trace, Finalize)]
 struct CreateModuleResolutionHostHasDirectoryExists {
-    #[unsafe_ignore_trace]
     map: HashMap<String, File>,
-    #[unsafe_ignore_trace]
     directories: HashMap<String, String>,
 }
 
@@ -244,9 +240,7 @@ impl ModuleResolutionHost for CreateModuleResolutionHostHasDirectoryExists {
     }
 }
 
-#[derive(Trace, Finalize)]
 struct CreateModuleResolutionHostNoHasDirectoryExists {
-    #[unsafe_ignore_trace]
     map: HashMap<String, File>,
 }
 
@@ -827,7 +821,6 @@ mod node_module_resolution_non_relative_paths {
         assert_that!(&cache.ref_(arena).get("/")).is_some();
     }
 
-    #[derive(Trace, Finalize)]
     struct GetCanonicalFileNameNoop;
 
     impl GetCanonicalFileName for GetCanonicalFileNameNoop {
@@ -1310,7 +1303,6 @@ mod relative_imports {
         }
     }
 
-    #[derive(Trace, Finalize)]
     struct RelativeImportsCompilerHost {
         current_directory: String,
         files: HashMap<String, String>,
@@ -1666,11 +1658,9 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         )));
     }
 
-    #[derive(Trace, Finalize)]
     struct FilesWithDifferentCasingCompilerHost {
         current_directory: String,
         files: HashMap<String, String>,
-        #[unsafe_ignore_trace]
         get_canonical_file_name: fn(&str) -> String,
         use_case_sensitive_file_names: bool,
     }
@@ -3271,7 +3261,6 @@ mod module_resolution_host_directory_exists {
         assert_that(&result.ref_(arena).resolved_module).is_none();
     }
 
-    #[derive(Trace, Finalize)]
     struct DirectoryExistsModuleResolutionHost;
 
     impl DirectoryExistsModuleResolutionHost {
@@ -3684,7 +3673,6 @@ mod type_reference_directive_resolution {
             .has_length(1);
     }
 
-    #[derive(Trace, Finalize)]
     struct ReusedProgramKeepsErrorsCompilerHost {
         source_files: HashMap<String, Id<Node>>,
     }
@@ -3928,7 +3916,6 @@ mod type_reference_directive_resolution {
         .unwrap();
     }
 
-    #[derive(Trace, Finalize)]
     struct ModulesInTheSameKeepsErrorsCompilerHost {
         file: Id<Node /*SourceFile*/>,
     }
@@ -4192,7 +4179,6 @@ mod type_reference_directive_resolution {
         .unwrap();
     }
 
-    #[derive(Trace, Finalize)]
     struct ModulesInTsFileCompilerHost {
         file: Id<Node /*SourceFile*/>,
     }
