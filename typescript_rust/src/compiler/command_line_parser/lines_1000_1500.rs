@@ -10,8 +10,8 @@ use super::{
     parse_response_file, validate_json_option_value, watch_options_did_you_mean_diagnostics,
 };
 use crate::{
-    create_compiler_diagnostic, for_each, get_spelling_suggestion, per_arena, starts_with,
-    trim_string, AllArenas, AlternateModeDiagnostics, BuildOptions, CharacterCodes,
+    create_compiler_diagnostic, for_each, get_spelling_suggestion, per_arena, released,
+    starts_with, trim_string, AllArenas, AlternateModeDiagnostics, BuildOptions, CharacterCodes,
     CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
     CommandLineOptionOfListType, CommandLineOptionType, CompilerOptions, CompilerOptionsBuilder,
     CompilerOptionsValue, Diagnostic, DiagnosticMessage, Diagnostics, DidYouMeanOptionsDiagnostics,
@@ -23,14 +23,16 @@ pub fn option_declarations(arena: &impl HasArena) -> Id<Vec<Id<CommandLineOption
     per_arena!(
         Vec<Id<CommandLineOption>>,
         arena,
-        arena.alloc_vec_command_line_option(
-            common_options_with_build(arena)
+        arena.alloc_vec_command_line_option({
+            let common_options_with_build = common_options_with_build(arena);
+            let command_options_without_build = command_options_without_build(arena);
+            released!(common_options_with_build
                 .ref_(arena)
                 .iter()
-                .chain(command_options_without_build(arena).ref_(arena).iter())
+                .chain(command_options_without_build.ref_(arena).iter())
                 .copied()
-                .collect()
-        )
+                .collect())
+        })
     )
 }
 
