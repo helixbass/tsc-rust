@@ -32,13 +32,7 @@ impl Binder {
                     && has_export_modifier
             {
                 self.declare_symbol(
-                    &mut self
-                        .container()
-                        .ref_(self)
-                        .symbol()
-                        .ref_(self)
-                        .exports()
-                        .ref_mut(self),
+                    self.container().ref_(self).symbol().ref_(self).exports(),
                     Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
@@ -48,7 +42,7 @@ impl Binder {
                 )
             } else {
                 self.declare_symbol(
-                    &mut self.container().ref_(self).locals().ref_mut(self),
+                    self.container().ref_(self).locals(),
                     None,
                     node,
                     symbol_flags,
@@ -74,13 +68,7 @@ impl Binder {
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
-                        &mut self
-                            .container()
-                            .ref_(self)
-                            .symbol()
-                            .ref_(self)
-                            .exports()
-                            .ref_mut(self),
+                        self.container().ref_(self).symbol().ref_(self).exports(),
                         Some(self.container().ref_(self).symbol()),
                         node,
                         symbol_flags,
@@ -95,7 +83,7 @@ impl Binder {
                     SymbolFlags::None
                 };
                 let local = self.declare_symbol(
-                    &mut self.container().ref_(self).locals().ref_mut(self),
+                    self.container().ref_(self).locals(),
                     Option::<Id<Symbol>>::None,
                     node,
                     export_kind,
@@ -103,28 +91,20 @@ impl Binder {
                     None,
                     None,
                 );
-                local.ref_(self).set_export_symbol(Some(
-                    self.declare_symbol(
-                        &mut self
-                            .container()
-                            .ref_(self)
-                            .symbol()
-                            .ref_(self)
-                            .exports()
-                            .ref_mut(self),
-                        Some(self.container().ref_(self).symbol()),
-                        node,
-                        symbol_flags,
-                        symbol_excludes,
-                        None,
-                        None,
-                    ),
-                ));
+                local.ref_(self).set_export_symbol(Some(self.declare_symbol(
+                    self.container().ref_(self).symbol().ref_(self).exports(),
+                    Some(self.container().ref_(self).symbol()),
+                    node,
+                    symbol_flags,
+                    symbol_excludes,
+                    None,
+                    None,
+                )));
                 node.ref_(self).set_local_symbol(Some(local));
                 local
             } else {
                 self.declare_symbol(
-                    &mut self.container().ref_(self).locals().ref_mut(self),
+                    self.container().ref_(self).locals(),
                     Option::<Id<Symbol>>::None,
                     node,
                     symbol_flags,

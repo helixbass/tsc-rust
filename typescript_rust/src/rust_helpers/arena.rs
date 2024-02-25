@@ -22,13 +22,13 @@ use crate::{
     LoadWithModeAwareCacheLoader, LoggingHost, MakeSerializePropertySymbolCreateProperty,
     ModeAwareCache, ModuleResolutionCache, ModuleResolutionHostOverrider,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, MultiMap, Node, NodeArray,
-    NodeBuilder, NodeBuilderContext, NodeFactory, NodeIdOverride, NodeLinks, NodeSymbolOverride,
-    OptionsNameMap, OutofbandVarianceMarkerHandler, PackageJsonInfo, PackageJsonInfoCache,
-    ParenthesizerRules, ParseCommandLineWorkerDiagnostics, ParseConfigFileHost, ParsedCommandLine,
-    ParserType, Path, PatternAmbientModule, PendingDeclaration, PerModuleNameCache, PrintHandlers,
-    Printer, PrivateIdentifierEnvironment, PrivateIdentifierInfo, Program, ProgramBuildInfo,
-    ReadFileCallback, RelativeToBuildInfo, ResolvedModuleFull,
-    ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
+    NodeBuilder, NodeBuilderContext, NodeFactory, NodeIdOverride, NodeInterface, NodeLinks,
+    NodeSymbolOverride, OptionsNameMap, OutofbandVarianceMarkerHandler, PackageJsonInfo,
+    PackageJsonInfoCache, ParenthesizerRules, ParseCommandLineWorkerDiagnostics,
+    ParseConfigFileHost, ParsedCommandLine, ParserType, Path, PatternAmbientModule,
+    PendingDeclaration, PerModuleNameCache, PrintHandlers, Printer, PrivateIdentifierEnvironment,
+    PrivateIdentifierInfo, Program, ProgramBuildInfo, ReadFileCallback, RelativeToBuildInfo,
+    ResolvedModuleFull, ResolvedModuleWithFailedLookupLocations, ResolvedProjectReference,
     ResolvedTypeReferenceDirective, ResolvedTypeReferenceDirectiveWithFailedLookupLocations,
     Signature, SkipTrivia, SourceMapGenerator, SourceMapRange, SourceMapSource, Symbol,
     SymbolAccessibilityDiagnostic, SymbolLinks, SymbolTable, SymbolTableToDeclarationStatements,
@@ -2659,6 +2659,7 @@ impl HasArena for AllArenas {
 
     fn alloc_node(&self, node: Node) -> Id<Node> {
         let id = self.nodes.borrow_mut().alloc(node);
+        id.ref_(self).set_arena_id(id);
         id
     }
 
@@ -7857,4 +7858,12 @@ macro_rules! impl_has_arena {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! released {
+    ($expr:expr $(,)?) => {{
+        let value = $expr;
+        value
+    }};
 }

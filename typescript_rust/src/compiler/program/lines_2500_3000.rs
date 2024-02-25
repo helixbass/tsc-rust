@@ -82,7 +82,7 @@ impl Program {
         file_name: &str,
         mut get_source_file: impl FnMut(&str) -> io::Result<Option<Id<Node>>>,
         mut fail: Option<impl FnMut(&'static DiagnosticMessage, Option<Vec<String>>)>,
-        reason: Option<&FileIncludeReason>,
+        reason: Option<Id<FileIncludeReason>>,
     ) -> io::Result<Option<Id<Node>>> {
         Ok(if has_extension(file_name) {
             let canonical_file_name = self.host().ref_(self).get_canonical_file_name(file_name);
@@ -124,11 +124,13 @@ impl Program {
                             Some(vec![file_name.to_owned()]),
                         );
                     }
-                } else if is_referenced_file(reason)
+                } else if is_referenced_file(reason.refed(self).as_deref())
                     && canonical_file_name
                         == self.host().ref_(self).get_canonical_file_name(
                             &self
-                                .get_source_file_by_path(&reason.unwrap().as_referenced_file().file)
+                                .get_source_file_by_path(
+                                    &reason.unwrap().ref_(self).as_referenced_file().file,
+                                )
                                 .unwrap()
                                 .ref_(self)
                                 .as_source_file()
@@ -217,7 +219,7 @@ impl Program {
                     )
                 },
             ),
-            Some(&reason.ref_(self)),
+            Some(reason),
         )?;
 
         Ok(())
@@ -525,26 +527,36 @@ impl Program {
         if let Some(file) = file {
             self.source_files_found_searching_node_modules_mut()
                 .insert(path.to_string(), self.current_node_modules_depth() > 0);
-            let file_ref = file.ref_(self);
-            let file_as_source_file = file_ref.as_source_file();
-            file_as_source_file.set_file_name(file_name.clone());
-            file_as_source_file.set_path(path.clone());
-            file_as_source_file.set_resolved_path(Some(self.to_path(&file_name)));
-            file_as_source_file.set_original_file_name(Some(original_file_name.to_owned()));
-            file_as_source_file.set_implied_node_format(get_implied_node_format_for_file(
-                file_as_source_file.maybe_resolved_path().as_ref().unwrap(),
-                self.maybe_module_resolution_cache()
-                    .map(|module_resolution_cache| {
-                        module_resolution_cache
-                            .ref_(self)
-                            .get_package_json_info_cache()
-                    })
-                    .refed(self)
-                    .as_double_deref(),
-                self.host().ref_(self).as_dyn_module_resolution_host(),
-                self.options.clone(),
-                self,
-            ));
+            file.ref_(self)
+                .as_source_file()
+                .set_file_name(file_name.clone());
+            file.ref_(self).as_source_file().set_path(path.clone());
+            file.ref_(self)
+                .as_source_file()
+                .set_resolved_path(Some(self.to_path(&file_name)));
+            file.ref_(self)
+                .as_source_file()
+                .set_original_file_name(Some(original_file_name.to_owned()));
+            file.ref_(self).as_source_file().set_implied_node_format(
+                get_implied_node_format_for_file(
+                    file.ref_(self)
+                        .as_source_file()
+                        .maybe_resolved_path()
+                        .as_ref()
+                        .unwrap(),
+                    self.maybe_module_resolution_cache()
+                        .map(|module_resolution_cache| {
+                            module_resolution_cache
+                                .ref_(self)
+                                .get_package_json_info_cache()
+                        })
+                        .refed(self)
+                        .as_double_deref(),
+                    self.host().ref_(self).as_dyn_module_resolution_host(),
+                    self.options.clone(),
+                    self,
+                ),
+            );
             self.add_file_include_reason(Some(file), reason.clone());
 
             if CompilerHost::use_case_sensitive_file_names(&**self.host().ref_(self)) {
@@ -567,7 +579,8 @@ impl Program {
 
             self.set_skip_default_lib(Some(
                 self.maybe_skip_default_lib() == Some(true)
-                    || file_as_source_file.has_no_default_lib() && !ignore_no_default_lib,
+                    || file.ref_(self).as_source_file().has_no_default_lib()
+                        && !ignore_no_default_lib,
             ));
 
             if self.options.ref_(self).no_resolve != Some(true) {

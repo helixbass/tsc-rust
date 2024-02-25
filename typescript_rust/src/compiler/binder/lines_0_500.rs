@@ -985,7 +985,7 @@ impl Binder {
 
     pub(super) fn declare_symbol(
         &self,
-        symbol_table: &mut SymbolTable,
+        symbol_table: Id<SymbolTable>,
         parent: Option<Id<Symbol>>,
         node: Id<Node>, /*Declaration*/
         includes: SymbolFlags,
@@ -1024,7 +1024,7 @@ impl Binder {
                 ));
             }
             Some(name) => {
-                symbol = symbol_table.get(&*name).cloned();
+                symbol = symbol_table.ref_(self).get(&*name).cloned();
 
                 if includes.intersects(SymbolFlags::Classifiable) {
                     self.classifiable_names()
@@ -1037,7 +1037,9 @@ impl Binder {
                         symbol = Some(self.alloc_symbol(
                             self.create_symbol(SymbolFlags::None, (*name).to_owned()),
                         ));
-                        symbol_table.insert(name.into_owned(), symbol.as_ref().unwrap().clone());
+                        symbol_table
+                            .ref_mut(self)
+                            .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         if is_replaceable_by_method {
                             symbol
                                 .unwrap()
@@ -1065,6 +1067,7 @@ impl Binder {
                                 self.create_symbol(SymbolFlags::None, (*name).to_owned()),
                             ));
                             symbol_table
+                                .ref_mut(self)
                                 .insert(name.into_owned(), symbol.as_ref().unwrap().clone());
                         } else if !(includes.intersects(SymbolFlags::Variable)
                             && symbol_present

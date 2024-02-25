@@ -1819,7 +1819,6 @@ impl NodeInterface for BaseNode {
 
     fn alloc(self, arena: &AllArenas) -> Id<Node> {
         let id = arena.alloc_node(self.into());
-        arena.node(id).set_arena_id(id);
         id
     }
 

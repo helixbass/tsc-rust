@@ -32,7 +32,7 @@ use crate::{
     is_in_js_file, is_incremental_compilation, is_object_literal_expression, is_option_str_empty,
     is_reference_file_location, is_referenced_file, is_source_file_js, lib_map, libs, out_file,
     parse_isolated_entity_name, parse_json_source_file_config_file_content, path_is_absolute,
-    path_is_relative, remove_file_extension, remove_prefix, remove_suffix,
+    path_is_relative, released, remove_file_extension, remove_prefix, remove_suffix,
     resolution_extension_is_ts_or_json, resolve_config_file_project_name, set_resolved_module,
     source_file_may_be_emitted, string_contains, supported_js_extensions_flat,
     target_option_declaration, to_file_name_lower_case, try_maybe_for_each, version, AllArenas,
@@ -135,14 +135,16 @@ impl Program {
 
     pub fn process_imported_modules(&self, file: Id<Node> /*SourceFile*/) -> io::Result<()> {
         self.collect_external_module_references(file);
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
-        if !file_as_source_file
+        if !file
+            .ref_(self)
+            .as_source_file()
             .maybe_imports()
             .as_ref()
             .unwrap()
             .is_empty()
-            || !file_as_source_file
+            || !file
+                .ref_(self)
+                .as_source_file()
                 .maybe_module_augmentations()
                 .as_ref()
                 .unwrap()
@@ -164,7 +166,7 @@ impl Program {
                     &file.ref_(self),
                     &module_names[index],
                     resolution,
-                    get_mode_for_resolution_at_index(file_as_source_file, index, self),
+                    get_mode_for_resolution_at_index(file.ref_(self).as_source_file(), index, self),
                 );
 
                 if resolution.is_none() {
@@ -177,8 +179,7 @@ impl Program {
                     !resolution_extension_is_ts_or_json(resolution.ref_(self).extension());
                 let is_js_file_from_node_modules =
                     is_from_node_modules_search == Some(true) && is_js_file;
-                let resolution_ref = resolution.ref_(self);
-                let resolved_file_name = &resolution_ref.resolved_file_name;
+                let resolved_file_name = &resolution.ref_(self).resolved_file_name.clone();
 
                 if is_from_node_modules_search == Some(true) {
                     self.set_current_node_modules_depth(self.current_node_modules_depth() + 1);
@@ -193,19 +194,37 @@ impl Program {
                     )
                     .is_none()
                     && options_for_file.ref_(self).no_resolve != Some(true)
-                    && index < file_as_source_file.maybe_imports().as_ref().unwrap().len()
+                    && index
+                        < file
+                            .ref_(self)
+                            .as_source_file()
+                            .maybe_imports()
+                            .as_ref()
+                            .unwrap()
+                            .len()
                     && !elide_import
                     && !(is_js_file && !get_allow_js_compiler_option(&options_for_file.ref_(self)))
                     && (is_in_js_file(Some(
-                        &file_as_source_file.maybe_imports().as_ref().unwrap()[index].ref_(self),
-                    )) || !file_as_source_file.maybe_imports().as_ref().unwrap()[index]
+                        &file
+                            .ref_(self)
+                            .as_source_file()
+                            .maybe_imports()
+                            .as_ref()
+                            .unwrap()[index]
+                            .ref_(self),
+                    )) || !file
+                        .ref_(self)
+                        .as_source_file()
+                        .maybe_imports()
+                        .as_ref()
+                        .unwrap()[index]
                         .ref_(self)
                         .flags()
                         .intersects(NodeFlags::JSDoc));
 
                 if elide_import {
                     self.modules_with_elided_imports()
-                        .insert(file_as_source_file.path().to_string(), true);
+                        .insert(file.ref_(self).as_source_file().path().to_string(), true);
                 } else if should_add_file {
                     self.find_source_file(
                         resolved_file_name,
@@ -214,11 +233,11 @@ impl Program {
                         self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(
                             ReferencedFile {
                                 kind: FileIncludeKind::Import,
-                                file: file_as_source_file.path().clone(),
+                                file: released!(file.ref_(self).as_source_file().path().clone()),
                                 index,
                             },
                         )),
-                        resolution.ref_(self).package_id.as_ref(),
+                        released!(resolution.ref_(self).package_id.clone()).as_ref(),
                     )?;
                 }
 
@@ -227,7 +246,7 @@ impl Program {
                 }
             }
         } else {
-            *file_as_source_file.maybe_resolved_modules() = None;
+            *file.ref_(self).as_source_file().maybe_resolved_modules() = None;
         }
 
         Ok(())

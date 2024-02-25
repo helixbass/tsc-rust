@@ -240,7 +240,7 @@ impl Binder {
                         /*let table =*/
                         if let Some(parent) = parent {
                             Some(self.declare_symbol(
-                                &mut parent.ref_(self).exports().ref_mut(self),
+                                parent.ref_(self).exports(),
                                 Some(parent),
                                 id,
                                 flags,
@@ -265,11 +265,10 @@ impl Binder {
                             }
                             Some(
                                 self.declare_symbol(
-                                    &mut file_ref
+                                    file_ref
                                         .as_source_file()
                                         .maybe_js_global_augmentations()
-                                        .unwrap()
-                                        .ref_mut(self),
+                                        .unwrap(),
                                     parent,
                                     id,
                                     flags,
@@ -394,7 +393,7 @@ impl Binder {
         }
 
         self.declare_symbol(
-            &mut symbol_table.ref_mut(self),
+            symbol_table,
             Some(namespace_symbol.clone()),
             declaration,
             includes | SymbolFlags::Assignment,
@@ -777,12 +776,7 @@ impl Binder {
         if is_parameter_property_declaration(node, node.ref_(self).parent(), self) {
             let class_declaration = node.ref_(self).parent().ref_(self).parent();
             self.declare_symbol(
-                &mut class_declaration
-                    .ref_(self)
-                    .symbol()
-                    .ref_(self)
-                    .members()
-                    .ref_mut(self),
+                class_declaration.ref_(self).symbol().ref_(self).members(),
                 Some(class_declaration.ref_(self).symbol()),
                 node,
                 SymbolFlags::Property
@@ -925,7 +919,7 @@ impl Binder {
                     )));
                 }
                 self.declare_symbol(
-                    &mut container_locals.as_ref().unwrap().ref_mut(self),
+                    container_locals.clone().unwrap(),
                     Option::<Id<Symbol>>::None,
                     node,
                     SymbolFlags::TypeParameter,

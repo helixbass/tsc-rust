@@ -487,45 +487,29 @@ impl Binder {
                 Some(self.declare_class_member(node, symbol_flags, symbol_excludes))
             }
 
-            SyntaxKind::EnumDeclaration => Some(
-                self.declare_symbol(
-                    &mut *self
-                        .container()
-                        .ref_(self)
-                        .symbol()
-                        .ref_(self)
-                        .exports()
-                        .ref_mut(self),
-                    Some(self.container().ref_(self).symbol()),
-                    node,
-                    symbol_flags,
-                    symbol_excludes,
-                    None,
-                    None,
-                ),
-            ),
+            SyntaxKind::EnumDeclaration => Some(self.declare_symbol(
+                self.container().ref_(self).symbol().ref_(self).exports(),
+                Some(self.container().ref_(self).symbol()),
+                node,
+                symbol_flags,
+                symbol_excludes,
+                None,
+                None,
+            )),
 
             SyntaxKind::TypeLiteral
             | SyntaxKind::JSDocTypeLiteral
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
-            | SyntaxKind::JsxAttributes => Some(
-                self.declare_symbol(
-                    &mut *self
-                        .container()
-                        .ref_(self)
-                        .symbol()
-                        .ref_(self)
-                        .members()
-                        .ref_mut(self),
-                    Some(self.container().ref_(self).symbol()),
-                    node,
-                    symbol_flags,
-                    symbol_excludes,
-                    None,
-                    None,
-                ),
-            ),
+            | SyntaxKind::JsxAttributes => Some(self.declare_symbol(
+                self.container().ref_(self).symbol().ref_(self).members(),
+                Some(self.container().ref_(self).symbol()),
+                node,
+                symbol_flags,
+                symbol_excludes,
+                None,
+                None,
+            )),
 
             SyntaxKind::FunctionType
             | SyntaxKind::ConstructorType
@@ -547,7 +531,7 @@ impl Binder {
             | SyntaxKind::ClassStaticBlockDeclaration
             | SyntaxKind::TypeAliasDeclaration
             | SyntaxKind::MappedType => Some(self.declare_symbol(
-                &mut self.container().ref_(self).locals().ref_mut(self),
+                self.container().ref_(self).locals(),
                 Option::<Id<Symbol>>::None,
                 node,
                 symbol_flags,
@@ -567,13 +551,7 @@ impl Binder {
     ) -> Id<Symbol> {
         if is_static(node, self) {
             self.declare_symbol(
-                &mut *self
-                    .container()
-                    .ref_(self)
-                    .symbol()
-                    .ref_(self)
-                    .exports()
-                    .ref_mut(self),
+                self.container().ref_(self).symbol().ref_(self).exports(),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -583,13 +561,7 @@ impl Binder {
             )
         } else {
             self.declare_symbol(
-                &mut *self
-                    .container()
-                    .ref_(self)
-                    .symbol()
-                    .ref_(self)
-                    .members()
-                    .ref_mut(self),
+                self.container().ref_(self).symbol().ref_(self).members(),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -610,7 +582,7 @@ impl Binder {
             self.declare_module_member(node, symbol_flags, symbol_excludes)
         } else {
             self.declare_symbol(
-                &mut *self.file().ref_(self).locals().ref_mut(self),
+                self.file().ref_(self).locals(),
                 None,
                 node,
                 symbol_flags,

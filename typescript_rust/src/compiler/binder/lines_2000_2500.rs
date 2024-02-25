@@ -207,7 +207,7 @@ impl Binder {
                         }
                     }
                     self.declare_symbol(
-                        &mut *block_scope_container.ref_(self).locals().ref_mut(self),
+                        block_scope_container.ref_(self).locals(),
                         None,
                         node,
                         symbol_flags,
@@ -230,7 +230,7 @@ impl Binder {
                     }
                 }
                 self.declare_symbol(
-                    &mut block_scope_container.ref_(self).locals().ref_mut(self),
+                    block_scope_container.ref_(self).locals(),
                     None,
                     node,
                     symbol_flags,
