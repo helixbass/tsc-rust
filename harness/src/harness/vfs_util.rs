@@ -12,7 +12,8 @@ pub mod vfs {
     use local_macros::enum_unwrapped;
     use typescript_rust::{
         debug_cell, get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
-        millis_since_epoch_to_system_time, Buffer, Comparison, FileSystemEntries, InArena, Node,
+        millis_since_epoch_to_system_time, released, Buffer, Comparison, FileSystemEntries,
+        InArena, Node,
     };
 
     use crate::{
@@ -744,7 +745,7 @@ pub mod vfs {
             let time = self.time();
             let node = existing_node.unwrap_or_else(|| {
                 let node = self.alloc_inode(self._mknod(
-                    parent.ref_(self).dev(),
+                    released!(parent.ref_(self).dev()),
                     S_IFREG,
                     0o666,
                     Some(time),
@@ -930,7 +931,7 @@ pub mod vfs {
                     }
                 } else if let (Some(_shadow_root), Some(node_shadow_root)) = (
                     self._shadow_root,
-                    node.ref_(self).as_directory_inode().shadow_root,
+                    released!(node.ref_(self).as_directory_inode().shadow_root),
                 ) {
                     self._copy_shadow_links(
                         _shadow_root
@@ -953,7 +954,7 @@ pub mod vfs {
                 .shadows
                 .borrow_mut()
                 .get_or_insert_with(|| Default::default())
-                .entry(root.ref_(self).ino())
+                .entry(released!(root.ref_(self).ino()))
                 .or_insert_with(|| {
                     let mut shadow = Inode::new(
                         root.ref_(self).canonical_type(),
