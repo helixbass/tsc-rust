@@ -23,8 +23,8 @@ use crate::{
     ProjectReference, RawSourceMap, ReadFileCallback, RedirectTargetsMap, ResolvedProjectReference,
     SourceOfProjectReferenceRedirect, StructureIsReused, SymlinkCache, Type, TypeFlags,
     TypeInterface, TypeReferenceDirectiveResolutionCache, __String,
-    get_line_and_character_of_position, ref_mut_unwrapped, ref_unwrapped, AllArenas, HasArena,
-    InArena, LineAndCharacter, ProgramBuildInfo,
+    get_line_and_character_of_position, impl_has_arena, ref_mut_unwrapped, ref_unwrapped,
+    AllArenas, HasArena, InArena, LineAndCharacter, ProgramBuildInfo,
 };
 
 #[derive(Clone, Debug)]
@@ -921,6 +921,7 @@ impl InputFiles {
                     javascript_map_text_or_declaration_path.clone(),
                     declaration_map_path.clone(),
                     declaration_map_text_or_build_info_path.clone(),
+                    self,
                 ),
             ),
         );
@@ -1068,6 +1069,7 @@ impl Default for InputFilesInitializedState {
 
 #[derive(Debug)]
 pub struct InputFilesInitializedWithReadFileCallback {
+    arena: *const AllArenas,
     read_file_callback: Id<Box<dyn ReadFileCallback>>,
     cache: RefCell<HashMap<String, Option<String>>>,
     declaration_text_or_javascript_path: String,
@@ -1086,8 +1088,10 @@ impl InputFilesInitializedWithReadFileCallback {
         javascript_map_text_or_declaration_path: String,
         declaration_map_path: Option<String>,
         declaration_map_text_or_build_info_path: Option<String>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             read_file_callback,
             cache: Default::default(),
             declaration_text_or_javascript_path,
@@ -1139,11 +1143,7 @@ impl InputFilesInitializedWithReadFileCallback {
     }
 }
 
-impl HasArena for InputFilesInitializedWithReadFileCallback {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(InputFilesInitializedWithReadFileCallback);
 
 #[derive(Debug)]
 pub struct InputFilesInitializedWithString {

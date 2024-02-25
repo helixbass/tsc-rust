@@ -1475,7 +1475,7 @@ impl PerModuleNameCache {
         arena: &impl HasArena,
     ) -> Self {
         Self {
-            arena: arena,
+            arena: arena.arena(),
             current_directory,
             get_canonical_file_name,
             directory_path_map: Default::default(),

@@ -10,9 +10,9 @@ use id_arena::Id;
 use super::{Parser, ParsingContext};
 use crate::{
     attach_file_to_diagnostics, convert_to_object_worker, create_node_factory, create_scanner,
-    ensure_script_kind, for_each_child, get_language_variant, is_logging, normalize_path,
-    object_allocator, ref_mut_unwrapped, ref_unwrapped, AllArenas, BaseNode, Debug_, Diagnostic,
-    Diagnostics, HasArena, HasStatementsInterface, InArena, IncrementalParser,
+    ensure_script_kind, for_each_child, get_language_variant, impl_has_arena, is_logging,
+    normalize_path, object_allocator, ref_mut_unwrapped, ref_unwrapped, AllArenas, BaseNode,
+    Debug_, Diagnostic, Diagnostics, HasArena, HasStatementsInterface, InArena, IncrementalParser,
     IncrementalParserSyntaxCursor, JsonConversionNotifierDummy, LanguageVariant, Node, NodeArray,
     NodeFactory, NodeFactoryFlags, NodeFlags, NodeInterface, ParsedIsolatedJSDocComment,
     ParsedJSDocTypeExpression, ReadonlyPragmaMap, Scanner, ScriptKind, ScriptTarget,
@@ -295,6 +295,7 @@ pub fn parse_jsdoc_type_expression_for_tests(
 
 #[allow(non_snake_case)]
 pub struct ParserType {
+    arena: *const AllArenas,
     pub(super) scanner: RefCell<Scanner>,
     pub(super) disallow_in_and_decorator_context: NodeFlags,
     pub(super) NodeConstructor: Cell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
@@ -334,6 +335,7 @@ pub struct ParserType {
 impl ParserType {
     pub(super) fn new(arena: &impl HasArena) -> Id<Self> {
         let ret = arena.alloc_parser(ParserType {
+            arena: arena.arena(),
             scanner: RefCell::new(create_scanner(
                 ScriptTarget::Latest,
                 true,
@@ -956,8 +958,4 @@ impl ParserType {
     }
 }
 
-impl HasArena for ParserType {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParserType);

@@ -21,17 +21,19 @@ use crate::{
     for_each, format_string_from_args, get_directory_path, get_locale_specific_message,
     get_normalized_absolute_path, get_normalized_path_components, get_path_components,
     get_path_from_path_components, get_string_comparer, get_token_pos_of_node, has_extension,
-    index_of, index_of_any_char_code, is_rooted_disk_path, last, map_defined, maybe_map,
-    normalize_path, remove_trailing_directory_separator, skip_trivia, some, sort, starts_with,
-    to_path, AllArenas, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseTextRange,
-    CharacterCodes, CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
-    CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsValue, Debug_, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Extension,
-    FileExtensionInfo, GetCanonicalFileName, GetOrInsertDefault, HasArena, InArena, JsxEmit,
-    LanguageVariant, MapLike, Matches, ModuleKind, ModuleResolutionKind, MultiMap, Node, NodeArray, Path, Pattern, PluginImport, PragmaArgumentName, PragmaName, ReadonlyTextRange,
-    ResolvedModuleFull, ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike,
-    TypeAcquisition, WatchOptions,
+    impl_has_arena, index_of, index_of_any_char_code, is_rooted_disk_path, last, map_defined,
+    maybe_map, normalize_path, remove_trailing_directory_separator, skip_trivia, some, sort,
+    starts_with, to_path, AllArenas, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    BaseTextRange, CharacterCodes, CommandLineOption, CommandLineOptionInterface,
+    CommandLineOptionMapTypeValue, CommandLineOptionType, Comparison, CompilerOptions,
+    CompilerOptionsValue, Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage,
+    DiagnosticMessageChain, DiagnosticMessageText, DiagnosticRelatedInformation,
+    DiagnosticRelatedInformationInterface, Extension, FileExtensionInfo, GetCanonicalFileName,
+    GetOrInsertDefault, HasArena, InArena, JsxEmit, LanguageVariant, MapLike, Matches, ModuleKind,
+    ModuleResolutionKind, MultiMap, Node, NodeArray, Path, Pattern, PluginImport,
+    PragmaArgumentName, PragmaName, ReadonlyTextRange, ResolvedModuleFull,
+    ResolvedTypeReferenceDirective, ScriptKind, ScriptTarget, SourceFileLike, TypeAcquisition,
+    WatchOptions,
 };
 
 pub fn create_compiler_diagnostic_from_message_chain(
@@ -850,6 +852,7 @@ pub struct SymlinkedDirectory {
 }
 
 pub struct SymlinkCache {
+    arena: *const AllArenas,
     cwd: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     symlinked_files: RefCell<Option<HashMap<Path, String>>>,
@@ -865,8 +868,13 @@ impl fmt::Debug for SymlinkCache {
 }
 
 impl SymlinkCache {
-    pub fn new(cwd: &str, get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>) -> Self {
+    pub fn new(
+        cwd: &str,
+        get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
+        arena: &impl HasArena,
+    ) -> Self {
         Self {
+            arena: arena.arena(),
             cwd: cwd.to_owned(),
             get_canonical_file_name,
             symlinked_files: RefCell::new(None),
@@ -1037,11 +1045,7 @@ impl SymlinkCache {
     }
 }
 
-impl HasArena for SymlinkCache {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(SymlinkCache);
 
 enum ResolvedModuleFullOrResolvedTypeReferenceDirective {
     ResolvedModuleFull(Id<ResolvedModuleFull>),
@@ -1083,8 +1087,9 @@ impl From<Id<ResolvedTypeReferenceDirective>>
 pub fn create_symlink_cache(
     cwd: &str,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
+    arena: &impl HasArena,
 ) -> SymlinkCache {
-    SymlinkCache::new(cwd, get_canonical_file_name)
+    SymlinkCache::new(cwd, get_canonical_file_name, arena)
 }
 
 fn guess_directory_symlink(

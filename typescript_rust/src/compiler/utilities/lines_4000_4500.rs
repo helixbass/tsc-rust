@@ -12,12 +12,12 @@ use crate::{
     ensure_trailing_directory_separator, file_extension_is_one_of, find, get_directory_path,
     get_emit_module_kind, get_external_module_name, get_line_starts, get_normalized_absolute_path,
     get_property_name_for_property_name_node, get_relative_path_to_directory_or_url,
-    get_root_length, has_dynamic_name, is_accessor, is_constructor_declaration, is_external_module,
-    is_jsdoc_signature, is_json_source_file, is_qualified_name, is_source_file_js,
-    is_string_literal_like, is_white_space_like, last, node_is_present, normalize_path,
-    path_is_relative, remove_file_extension, str_to_source_text_as_chars, string_contains, to_path,
-    AllAccessorDeclarations, AllArenas, CharacterCodes, CompilerOptions, Debug_,
-    DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
+    get_root_length, has_dynamic_name, impl_has_arena, is_accessor, is_constructor_declaration,
+    is_external_module, is_jsdoc_signature, is_json_source_file, is_qualified_name,
+    is_source_file_js, is_string_literal_like, is_white_space_like, last, node_is_present,
+    normalize_path, path_is_relative, remove_file_extension, str_to_source_text_as_chars,
+    string_contains, to_path, AllAccessorDeclarations, AllArenas, CharacterCodes, CompilerOptions,
+    Debug_, DiagnosticCollection, Diagnostics, EmitHost, EmitResolver, EmitTextWriter, Extension,
     FunctionLikeDeclarationInterface, HasArena, HasTypeInterface, InArena, ModuleKind,
     ModuleSpecifierResolutionHostAndGetCommonSourceDirectory, NamedDeclarationInterface, Node,
     NodeInterface, OptionInArena, OptionTry, ScriptReferenceHost, SignatureDeclarationInterface,
@@ -60,6 +60,7 @@ pub fn get_indent_size() -> usize {
 
 #[derive(Clone)]
 pub struct TextWriter {
+    arena: *const AllArenas,
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     new_line: String,
     output: RefCell<String>,
@@ -74,6 +75,7 @@ pub struct TextWriter {
 impl TextWriter {
     pub fn new(new_line: &str, arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
         arena.alloc_emit_text_writer(Box::new(Self {
+            arena: arena.arena(),
             _dyn_symbol_tracker_wrapper: arena
                 .alloc_symbol_tracker(Box::new(TextWriterSymbolTracker)),
             new_line: new_line.to_owned(),
@@ -436,11 +438,7 @@ impl SymbolTracker for TextWriter {
     }
 }
 
-impl HasArena for TextWriter {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TextWriter);
 
 struct TextWriterSymbolTracker;
 
@@ -513,7 +511,7 @@ pub fn get_trailing_semicolon_deferring_writer(
 }
 
 pub struct TrailingSemicolonDeferringWriter {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     writer: Id<Box<dyn EmitTextWriter>>,
     pending_trailing_semicolon: Cell<bool>,
@@ -527,7 +525,7 @@ impl TrailingSemicolonDeferringWriter {
         let arena: *const AllArenas = arena.arena();
         let arena_ref = unsafe { &*arena };
         arena_ref.alloc_emit_text_writer(Box::new(Self {
-            _arena: arena,
+            arena,
             _dyn_symbol_tracker_wrapper: arena_ref
                 .alloc_symbol_tracker(Box::new(TrailingSemicolonDeferringWriterSymbolTracker)),
             writer,
@@ -756,11 +754,7 @@ impl SymbolTracker for TrailingSemicolonDeferringWriter {
     }
 }
 
-impl HasArena for TrailingSemicolonDeferringWriter {
-    fn arena(&self) -> &AllArenas {
-        unsafe { &*self._arena }
-    }
-}
+impl_has_arena!(TrailingSemicolonDeferringWriter);
 
 struct TrailingSemicolonDeferringWriterSymbolTracker;
 
@@ -810,8 +804,8 @@ impl SymbolTracker for TrailingSemicolonDeferringWriterSymbolTracker {
     }
 }
 
-pub fn host_uses_case_sensitive_file_names<TGetUseCaseSensitiveFileNames: Fn() -> Option<bool>>(
-    get_use_case_sensitive_file_names: TGetUseCaseSensitiveFileNames,
+pub fn host_uses_case_sensitive_file_names(
+    get_use_case_sensitive_file_names: impl Fn() -> Option<bool>,
 ) -> bool {
     get_use_case_sensitive_file_names().unwrap_or(false)
 }

@@ -26,13 +26,13 @@ use crate::{
     full_triple_slash_reference_path_reg_ex, get_base_file_name, get_combined_node_flags,
     get_compiler_option_value, get_emit_module_kind, get_line_and_character_of_position,
     get_line_starts, get_mode_for_resolution_at_index, get_root_declaration,
-    get_strict_option_value, has_jsdoc_nodes, id_text, is_big_int_literal, is_export_declaration,
-    is_external_module, is_function_like_or_class_static_block_declaration, is_identifier,
-    is_import_call, is_import_type_node, is_in_jsdoc, is_jsdoc_node, is_jsdoc_type_expression,
-    is_line_break, is_module_declaration, is_namespace_export, is_numeric_literal,
-    is_private_identifier, is_prologue_directive, is_source_file, is_string_literal,
-    is_string_or_numeric_literal_like, is_white_space_like, maybe_text_char_at_index,
-    module_resolution_option_declarations, node_is_synthesized,
+    get_strict_option_value, has_jsdoc_nodes, id_text, impl_has_arena, is_big_int_literal,
+    is_export_declaration, is_external_module, is_function_like_or_class_static_block_declaration,
+    is_identifier, is_import_call, is_import_type_node, is_in_jsdoc, is_jsdoc_node,
+    is_jsdoc_type_expression, is_line_break, is_module_declaration, is_namespace_export,
+    is_numeric_literal, is_private_identifier, is_prologue_directive, is_source_file,
+    is_string_literal, is_string_or_numeric_literal_like, is_white_space_like,
+    maybe_text_char_at_index, module_resolution_option_declarations, node_is_synthesized,
     options_affecting_program_structure, per_arena, skip_trivia, starts_with_use_strict,
     text_char_at_index, text_substring, trim_string_start, AllArenas, CharacterCodes,
     CommandLineOption, CommentDirective, CommentDirectiveType, CommentDirectivesMap,
@@ -110,6 +110,7 @@ fn create_single_line_string_writer(arena: &impl HasArena) -> Id<Box<dyn EmitTex
 }
 
 struct SingleLineStringWriter {
+    arena: *const AllArenas,
     _dyn_symbol_tracker_wrapper: Id<Box<dyn SymbolTracker>>,
     str: RefCell<String>,
 }
@@ -117,6 +118,7 @@ struct SingleLineStringWriter {
 impl SingleLineStringWriter {
     pub fn new(arena: &impl HasArena) -> Id<Box<dyn EmitTextWriter>> {
         arena.alloc_emit_text_writer(Box::new(Self {
+            arena: arena.arena(),
             _dyn_symbol_tracker_wrapper: arena
                 .alloc_symbol_tracker(Box::new(SingleLineStringWriterSymbolTracker)),
             str: Default::default(),
@@ -357,11 +359,7 @@ impl SymbolTracker for SingleLineStringWriter {
     }
 }
 
-impl HasArena for SingleLineStringWriter {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(SingleLineStringWriter);
 
 struct SingleLineStringWriterSymbolTracker;
 

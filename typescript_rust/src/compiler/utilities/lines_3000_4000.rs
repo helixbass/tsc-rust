@@ -22,7 +22,7 @@ use crate::{
     Debug_, InArena, InterfaceOrClassLikeDeclarationInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, ReadonlyTextRange, SortedArray,
     Symbol, SymbolInterface, SyntaxKind, TokenFlags, __String, escape_leading_underscores,
-    get_name_of_declaration, impl_has_arena, insert_sorted, is_member_name, AllArenas, Diagnostic,
+    get_name_of_declaration, impl_has_arena, insert_sorted, is_member_name, Diagnostic,
     DiagnosticCollection, DiagnosticRelatedInformationInterface, HasArena,
 };
 

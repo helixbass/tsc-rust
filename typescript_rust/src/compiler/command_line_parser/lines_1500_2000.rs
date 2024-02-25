@@ -406,15 +406,15 @@ pub(super) fn build_options_alternate_mode() -> Rc<AlternateModeDiagnostics> {
         .with(|build_options_alternate_mode| build_options_alternate_mode.clone())
 }
 
-thread_local! {
-    static build_options_did_you_mean_diagnostics_: Rc<dyn ParseCommandLineWorkerDiagnostics> = Rc::new(BuildOptionsDidYouMeanDiagnostics::new());
+pub struct BuildOptionsDidYouMeanDiagnostics {
+    arena: *const AllArenas,
 }
 
-pub struct BuildOptionsDidYouMeanDiagnostics {}
-
 impl BuildOptionsDidYouMeanDiagnostics {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(arena: &impl HasArena) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+        arena.alloc_parse_command_line_worker_diagnostics(Box::new(Self {
+            arena: arena.arena(),
+        }))
     }
 }
 
@@ -450,17 +450,16 @@ impl ParseCommandLineWorkerDiagnostics for BuildOptionsDidYouMeanDiagnostics {
     }
 }
 
-impl HasArena for BuildOptionsDidYouMeanDiagnostics {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(BuildOptionsDidYouMeanDiagnostics);
 
-pub(super) fn build_options_did_you_mean_diagnostics() -> Rc<dyn ParseCommandLineWorkerDiagnostics>
-{
-    build_options_did_you_mean_diagnostics_.with(|build_options_did_you_mean_diagnostics| {
-        build_options_did_you_mean_diagnostics.clone()
-    })
+pub(super) fn build_options_did_you_mean_diagnostics(
+    arena: &impl HasArena,
+) -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> {
+    per_arena!(
+        Box<dyn ParseCommandLineWorkerDiagnostics>,
+        arena,
+        BuildOptionsDidYouMeanDiagnostics::new(arena)
+    )
 }
 
 pub(crate) fn parse_build_command(args: &[String], arena: &impl HasArena) -> ParsedBuildCommand {
@@ -471,7 +470,7 @@ pub(crate) fn parse_build_command(args: &[String], arena: &impl HasArena) -> Par
         mut errors,
         ..
     } = parse_command_line_worker(
-        &*build_options_did_you_mean_diagnostics(),
+        &*build_options_did_you_mean_diagnostics(arena).ref_(arena),
         args,
         Option::<fn(&str) -> io::Result<Option<String>>>::None,
         arena,

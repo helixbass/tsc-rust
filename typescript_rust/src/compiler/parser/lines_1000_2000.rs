@@ -6,16 +6,17 @@ use super::{ParserType, ParsingContext, SpeculationKind};
 use crate::{
     add_range, attach_file_to_diagnostics, create_detached_diagnostic, find_index,
     get_jsdoc_comment_ranges, get_language_variant, get_spelling_suggestion, id_text,
-    is_declaration_file_name, is_external_module, is_identifier, is_identifier_text, is_keyword,
-    is_modifier_kind, is_tagged_template_expression, is_template_literal_kind, last_or_undefined,
-    map_defined, process_comment_pragmas, process_pragmas_into_fields, set_parent_recursive,
-    set_text_range, set_text_range_pos_end, set_text_range_pos_width, skip_trivia, starts_with,
-    text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, AllArenas, BaseNode,
-    ComputedPropertyName, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
-    Diagnostics, HasArena, HasStatementsInterface, InArena, IncrementalParser,
-    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node, NodeArray,
-    NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget,
-    SyntaxKind, TextRange, TransformFlags,
+    impl_has_arena, is_declaration_file_name, is_external_module, is_identifier,
+    is_identifier_text, is_keyword, is_modifier_kind, is_tagged_template_expression,
+    is_template_literal_kind, last_or_undefined, map_defined, process_comment_pragmas,
+    process_pragmas_into_fields, set_parent_recursive, set_text_range, set_text_range_pos_end,
+    set_text_range_pos_width, skip_trivia, starts_with, text_to_keyword_obj,
+    token_is_identifier_or_keyword, token_to_string, AllArenas, BaseNode, ComputedPropertyName,
+    Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, HasArena,
+    HasStatementsInterface, InArena, IncrementalParser, IncrementalParserSyntaxCursor,
+    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
+    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
+    TransformFlags,
 };
 
 impl ParserType {
@@ -148,6 +149,7 @@ impl ParserType {
         self.set_syntax_cursor(Some(
             IncrementalParserSyntaxCursorReparseTopLevelAwait::new(
                 self.alloc_incremental_parser_syntax_cursor(base_syntax_cursor),
+                self,
             )
             .into(),
         ));
@@ -1468,12 +1470,19 @@ lazy_static! {
 }
 
 pub struct IncrementalParserSyntaxCursorReparseTopLevelAwait {
+    arena: *const AllArenas,
     base_syntax_cursor: Id<IncrementalParserSyntaxCursor>,
 }
 
 impl IncrementalParserSyntaxCursorReparseTopLevelAwait {
-    pub fn new(base_syntax_cursor: Id<IncrementalParserSyntaxCursor>) -> Self {
-        Self { base_syntax_cursor }
+    pub fn new(
+        base_syntax_cursor: Id<IncrementalParserSyntaxCursor>,
+        arena: &impl HasArena,
+    ) -> Self {
+        Self {
+            base_syntax_cursor,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -1494,11 +1503,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorRep
     }
 }
 
-impl HasArena for IncrementalParserSyntaxCursorReparseTopLevelAwait {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(IncrementalParserSyntaxCursorReparseTopLevelAwait);
 
 impl From<IncrementalParserSyntaxCursorReparseTopLevelAwait> for IncrementalParserSyntaxCursor {
     fn from(value: IncrementalParserSyntaxCursorReparseTopLevelAwait) -> Self {

@@ -2095,6 +2095,7 @@ impl Program {
                     self.host(),
                     self,
                 ))),
+                self,
             ))));
         }
         let symlinks = self.symlinks().unwrap();

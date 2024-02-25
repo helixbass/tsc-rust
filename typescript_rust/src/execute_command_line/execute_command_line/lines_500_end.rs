@@ -14,16 +14,16 @@ use crate::{
     create_solution_builder_with_watch_host, create_watch_compiler_host_of_config_file,
     create_watch_program, create_watch_status_reporter as create_watch_status_reporter_,
     dump_tracing_legend, emit_files_and_report_errors_and_get_exit_status,
-    get_config_file_parsing_diagnostics, get_error_summary_text, get_sys, parse_build_command,
-    parse_command_line, perform_incremental_compilation as perform_incremental_compilation_,
-    start_tracing, to_path, validate_locale_and_set_language, AllArenas, BuildOptions,
-    BuilderProgram, CharacterCodes, CompilerHost, CompilerOptions, CreateProgram,
-    CreateProgramOptions, CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic,
-    DiagnosticReporter, Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus,
-    ExtendedConfigCacheEntry, HasArena, InArena, IncrementalCompilationOptions, Node,
-    ParsedBuildCommand, ParsedCommandLine, Path, Program, ProgramHost, ReportEmitErrorSummary,
-    SemanticDiagnosticsBuilderProgram, SolutionBuilderHostBase, System, ToPath, WatchCompilerHost,
-    WatchOptions, WatchStatusReporter,
+    get_config_file_parsing_diagnostics, get_error_summary_text, get_sys, impl_has_arena,
+    parse_build_command, parse_command_line,
+    perform_incremental_compilation as perform_incremental_compilation_, start_tracing, to_path,
+    validate_locale_and_set_language, AllArenas, BuildOptions, BuilderProgram, CharacterCodes,
+    CompilerHost, CompilerOptions, CreateProgram, CreateProgramOptions,
+    CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic, DiagnosticReporter,
+    Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
+    HasArena, InArena, IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine,
+    Path, Program, ProgramHost, ReportEmitErrorSummary, SemanticDiagnosticsBuilderProgram,
+    SolutionBuilderHostBase, System, ToPath, WatchCompilerHost, WatchOptions, WatchStatusReporter,
 };
 
 pub fn is_build(command_line_args: &[String]) -> bool {
@@ -322,19 +322,24 @@ pub(super) fn create_report_error_summary(
     arena: &impl HasArena,
 ) -> Option<Rc<dyn ReportEmitErrorSummary>> {
     if should_be_pretty(&**sys.ref_(arena), options, arena) {
-        Some(Rc::new(ReportEmitErrorSummaryConcrete::new(sys)))
+        // TODO: this looks like it should be arena-ified?
+        Some(Rc::new(ReportEmitErrorSummaryConcrete::new(sys, arena)))
     } else {
         None
     }
 }
 
 pub(super) struct ReportEmitErrorSummaryConcrete {
+    arena: *const AllArenas,
     sys: Id<Box<dyn System>>,
 }
 
 impl ReportEmitErrorSummaryConcrete {
-    pub fn new(sys: Id<Box<dyn System>>) -> Self {
-        Self { sys }
+    pub fn new(sys: Id<Box<dyn System>>, arena: &impl HasArena) -> Self {
+        Self {
+            sys,
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -347,11 +352,7 @@ impl ReportEmitErrorSummary for ReportEmitErrorSummaryConcrete {
     }
 }
 
-impl HasArena for ReportEmitErrorSummaryConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ReportEmitErrorSummaryConcrete);
 
 pub(super) fn perform_compilation(
     sys: Id<Box<dyn System>>,

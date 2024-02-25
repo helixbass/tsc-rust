@@ -2069,6 +2069,7 @@ impl From<BaseNode> for Node {
 impl Clone for BaseNode {
     fn clone(&self) -> Self {
         Self {
+            arena: self.arena,
             _arena_id: Default::default(),
             _id_override: self._id_override.clone(),
             _symbol_override: self._symbol_override.clone(),

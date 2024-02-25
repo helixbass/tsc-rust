@@ -4,9 +4,9 @@ use bitflags::bitflags;
 use id_arena::Id;
 
 use crate::{
-    create_node_factory, maybe_text_char_at_index, object_allocator, per_arena, AllArenas,
-    BaseNode, BaseNodeFactory, CharacterCodes, HasArena, InArena, Node, NodeArray, NodeFactory,
-    NodeFactoryFlags, OptionTry, SourceTextAsChars, SyntaxKind,
+    create_node_factory, impl_has_arena, maybe_text_char_at_index, object_allocator, per_arena,
+    AllArenas, BaseNode, BaseNodeFactory, CharacterCodes, HasArena, InArena, Node, NodeArray,
+    NodeFactory, NodeFactoryFlags, OptionTry, SourceTextAsChars, SyntaxKind,
 };
 
 bitflags! {
@@ -30,6 +30,7 @@ pub(super) enum SpeculationKind {
 #[derive(Debug)]
 #[allow(non_snake_case)]
 pub struct ParseBaseNodeFactory {
+    arena: *const AllArenas,
     NodeConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     TokenConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
     IdentifierConstructor: RefCell<Option<fn(SyntaxKind, isize, isize, &AllArenas) -> BaseNode>>,
@@ -39,13 +40,14 @@ pub struct ParseBaseNodeFactory {
 }
 
 impl ParseBaseNodeFactory {
-    pub fn new() -> Self {
+    pub fn new(arena: &impl HasArena) -> Self {
         Self {
-            NodeConstructor: RefCell::new(None),
-            TokenConstructor: RefCell::new(None),
-            IdentifierConstructor: RefCell::new(None),
-            PrivateIdentifierConstructor: RefCell::new(None),
-            SourceFileConstructor: RefCell::new(None),
+            arena: arena.arena(),
+            NodeConstructor: Default::default(),
+            TokenConstructor: Default::default(),
+            IdentifierConstructor: Default::default(),
+            PrivateIdentifierConstructor: Default::default(),
+            SourceFileConstructor: Default::default(),
         }
     }
 }
@@ -94,17 +96,13 @@ impl BaseNodeFactory for ParseBaseNodeFactory {
     }
 }
 
-impl HasArena for ParseBaseNodeFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParseBaseNodeFactory);
 
 pub fn get_parse_base_node_factory(arena: &impl HasArena) -> Id<Box<dyn BaseNodeFactory>> {
     per_arena!(
         Box<dyn BaseNodeFactory>,
         arena,
-        arena.alloc_base_node_factory(Box::new(ParseBaseNodeFactory::new()))
+        arena.alloc_base_node_factory(Box::new(ParseBaseNodeFactory::new(arena)))
     )
 }
 

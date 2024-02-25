@@ -9,9 +9,9 @@ use id_arena::Id;
 
 use super::ParserType;
 use crate::{
-    attach_file_to_diagnostics, for_each, for_each_child_returns, is_export_assignment,
-    is_export_declaration, is_external_module_reference, is_import_declaration,
-    is_import_equals_declaration, is_jsdoc_like_text, is_meta_property,
+    attach_file_to_diagnostics, for_each, for_each_child_returns, impl_has_arena,
+    is_export_assignment, is_export_declaration, is_external_module_reference,
+    is_import_declaration, is_import_equals_declaration, is_jsdoc_like_text, is_meta_property,
     last_index_of_returns_isize, per_arena, set_parent, some, AllArenas, BaseNode, BaseNodeFactory,
     Debug_, Diagnostic, HasArena, HasStatementsInterface, InArena, JSDoc, LanguageVariant, Node,
     NodeArray, NodeFlags, NodeInterface, OptionInArena, ScriptKind, ScriptTarget,
@@ -353,16 +353,17 @@ impl ParserType {
         if !is_jsdoc_like_text(&content_as_chars, start) {
             return None;
         }
-        ParseJSDocCommentWorker::new(self, start, end, length, &content_as_chars).call()
+        ParseJSDocCommentWorker::new(self, start, end, length, &content_as_chars, self).call()
     }
 }
 
-pub(super) struct ParseJSDocCommentWorker<'parser> {
-    pub(super) parser: &'parser ParserType,
+pub(super) struct ParseJSDocCommentWorker<'a> {
+    arena: *const AllArenas,
+    pub(super) parser: &'a ParserType,
     pub(super) start: usize,
     pub(super) end: usize,
     pub(super) length: usize,
-    pub(super) content: &'parser SourceTextAsChars,
+    pub(super) content: &'a SourceTextAsChars,
     pub(super) tags: Option<Vec<Id<Node /*JSDocTag*/>>>,
     pub(super) tags_pos: Option<isize>,
     pub(super) tags_end: Option<isize>,
@@ -372,15 +373,17 @@ pub(super) struct ParseJSDocCommentWorker<'parser> {
     pub(super) parts: Vec<Id<Node /*JSDocComment*/>>,
 }
 
-impl<'parser> ParseJSDocCommentWorker<'parser> {
+impl<'a> ParseJSDocCommentWorker<'a> {
     pub(super) fn new(
-        parser: &'parser ParserType,
+        parser: &'a ParserType,
         start: usize,
         end: usize,
         length: usize,
-        content: &'parser SourceTextAsChars,
+        content: &'a SourceTextAsChars,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             parser,
             start,
             end,
@@ -1075,11 +1078,7 @@ impl<'parser> ParseJSDocCommentWorker<'parser> {
     }
 }
 
-impl HasArena for ParseJSDocCommentWorker<'_> {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ParseJSDocCommentWorker<'_>);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(super) enum JSDocState {
