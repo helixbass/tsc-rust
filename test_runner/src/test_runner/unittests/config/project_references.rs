@@ -235,7 +235,9 @@ fn test_project_references(
     let mut file = parse_json_config_file_content(
         config,
         &parse_config_host_from_compiler_host_like(
-            arena.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::from(host))),
+            arena.alloc_compiler_host_like(Box::new(CompilerHostLikeRcDynCompilerHost::new(
+                host, arena,
+            ))),
             None,
             arena,
         ),

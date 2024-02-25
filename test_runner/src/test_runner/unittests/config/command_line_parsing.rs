@@ -8,11 +8,11 @@ mod parse_command_line {
     use harness::AllArenasHarness;
     use itertools::Itertools;
     use typescript_rust::{
-        compiler_options_did_you_mean_diagnostics, parse_command_line_worker, BaseDiagnostic,
-        BaseDiagnosticRelatedInformationBuilder, CompilerOptionsBuilder, DiagnosticMessageText,
-        DiagnosticRelatedInformationInterface, Diagnostics, HasArena, InArena, ModuleKind,
-        ParseCommandLineWorkerDiagnostics, ParsedCommandLine, ParsedCommandLineBuilder,
-        ScriptTarget,
+        compiler_options_did_you_mean_diagnostics, id_arena::Id, parse_command_line_worker,
+        BaseDiagnostic, BaseDiagnosticRelatedInformationBuilder, CompilerOptionsBuilder,
+        DiagnosticMessageText, DiagnosticRelatedInformationInterface, Diagnostics, HasArena,
+        InArena, ModuleKind, ParseCommandLineWorkerDiagnostics, ParsedCommandLine,
+        ParsedCommandLineBuilder, ScriptTarget,
     };
 
     use super::*;
@@ -20,15 +20,16 @@ mod parse_command_line {
     fn assert_parse_result<'command_line>(
         command_line: impl IntoIterator<Item = &'command_line str>,
         expected_parsed_command_line: ParsedCommandLine,
-        worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
+        worker_diagnostic: Option<impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>,
     ) {
         let ref arena = AllArenasHarness::default();
         let parsed = parse_command_line_worker(
-            &*if let Some(mut worker_diagnostic) = worker_diagnostic {
+            &**if let Some(mut worker_diagnostic) = worker_diagnostic {
                 worker_diagnostic()
             } else {
-                compiler_options_did_you_mean_diagnostics()
-            },
+                compiler_options_did_you_mean_diagnostics(arena)
+            }
+            .ref_(arena),
             &command_line
                 .into_iter()
                 .map(ToOwned::to_owned)
@@ -120,7 +121,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -151,7 +152,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -189,7 +190,7 @@ mod parse_command_line {
                 ], &arena)
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -213,7 +214,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -254,7 +255,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -306,7 +307,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -357,7 +358,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -412,7 +413,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -460,7 +461,7 @@ mod parse_command_line {
                 .options(arena.alloc_compiler_options(CompilerOptionsBuilder::default().build().unwrap()))
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -508,7 +509,7 @@ mod parse_command_line {
                 .options(arena.alloc_compiler_options(CompilerOptionsBuilder::default().build().unwrap()))
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -548,7 +549,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -588,7 +589,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -610,7 +611,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -651,7 +652,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -692,7 +693,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -723,7 +724,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -757,7 +758,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -793,7 +794,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -814,7 +815,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -835,7 +836,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -855,7 +856,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -876,7 +877,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -897,7 +898,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -921,13 +922,15 @@ mod parse_command_line {
             pub non_null_value: Option<String>,
             #[builder(default)]
             pub worker_diagnostic:
-                Option<Rc<dyn Fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics> + 'a>>,
+                Option<Rc<dyn Fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>> + 'a>>,
             pub diagnostic_message: &'static DiagnosticMessage,
         }
 
         fn verify_null_allows_setting_it_to_null(
             option_name: &str,
-            worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
+            worker_diagnostic: Option<
+                impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
+            >,
         ) {
             let ref arena = AllArenasHarness::default();
             assert_parse_result(
@@ -949,7 +952,9 @@ mod parse_command_line {
             option_name: &str,
             non_null_value: &str,
             diagnostic_message: &DiagnosticMessage,
-            worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
+            worker_diagnostic: Option<
+                impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
+            >,
         ) {
             let ref arena = AllArenasHarness::default();
             assert_parse_result(
@@ -988,7 +993,9 @@ mod parse_command_line {
         fn verify_null_errors_if_its_followed_by_another_option(
             option_name: &str,
             diagnostic_message: &DiagnosticMessage,
-            worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
+            worker_diagnostic: Option<
+                impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
+            >,
         ) {
             let ref arena = AllArenasHarness::default();
             assert_parse_result(
@@ -1030,7 +1037,9 @@ mod parse_command_line {
         fn verify_null_errors_if_its_last_option(
             option_name: &str,
             diagnostic_message: &DiagnosticMessage,
-            worker_diagnostic: Option<impl FnMut() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>,
+            worker_diagnostic: Option<
+                impl FnMut() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
+            >,
         ) {
             let ref arena = AllArenasHarness::default();
             assert_parse_result(
@@ -1111,7 +1120,8 @@ mod parse_command_line {
 
         struct VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
             option_declarations: Id<Vec<Id<CommandLineOption>>>,
-            compiler_options_did_you_mean_diagnostics: Rc<dyn ParseCommandLineWorkerDiagnostics>,
+            compiler_options_did_you_mean_diagnostics:
+                Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
         }
 
         impl ParseCommandLineWorkerDiagnostics
@@ -1124,12 +1134,15 @@ mod parse_command_line {
                 ))
             }
 
-            fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
+            fn option_type_mismatch_diagnostic(&self) -> &'static DiagnosticMessage {
                 self.compiler_options_did_you_mean_diagnostics
+                    .ref_(self)
                     .option_type_mismatch_diagnostic()
             }
 
-            fn as_did_you_mean_options_diagnostics(&self) -> &dyn DidYouMeanOptionsDiagnostics {
+            fn as_did_you_mean_options_diagnostics(
+                &self,
+            ) -> &(dyn DidYouMeanOptionsDiagnostics + 'static) {
                 self
             }
         }
@@ -1141,16 +1154,19 @@ mod parse_command_line {
 
             fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>> {
                 self.compiler_options_did_you_mean_diagnostics
+                    .ref_(self)
                     .maybe_alternate_mode()
             }
 
-            fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+            fn unknown_option_diagnostic(&self) -> &'static DiagnosticMessage {
                 self.compiler_options_did_you_mean_diagnostics
+                    .ref_(self)
                     .unknown_option_diagnostic()
             }
 
-            fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+            fn unknown_did_you_mean_diagnostic(&self) -> &'static DiagnosticMessage {
                 self.compiler_options_did_you_mean_diagnostics
+                    .ref_(self)
                     .unknown_did_you_mean_diagnostic()
             }
         }
@@ -1180,8 +1196,8 @@ mod parse_command_line {
                     diagnostic_message: &Diagnostics::Option_0_can_only_be_specified_in_tsconfig_json_file_or_set_to_null_on_command_line,
                     worker_diagnostic: Some(Rc::new(move || {
                         let option_declarations: Id<Vec<Id<CommandLineOption>>> =
-                            arena.alloc_vec_command_line_option(compiler_options_did_you_mean_diagnostics()
-                                .option_declarations()
+                            arena.alloc_vec_command_line_option(compiler_options_did_you_mean_diagnostics(arena)
+                                .ref_(arena).option_declarations()
                                 .ref_(arena)
                                 .clone()
                                 .and_push(
@@ -1192,12 +1208,12 @@ mod parse_command_line {
                                         .category(&*Diagnostics::Backwards_Compatibility)
                                         .description(&*Diagnostics::Enable_project_compilation)
                                         .default_value_description("undefined".to_owned())
-                                        .build().unwrap().try_into().unwrap())
+                                        .build().unwrap().try_into_command_line_option(arena).unwrap())
                                 ));
-                        Rc::new(VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
+                        arena.alloc_parse_command_line_worker_diagnostics(Box::new(VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
                             option_declarations,
-                            compiler_options_did_you_mean_diagnostics: compiler_options_did_you_mean_diagnostics()
-                        })
+                            compiler_options_did_you_mean_diagnostics: compiler_options_did_you_mean_diagnostics(arena)
+                        }))
                     })),
                 }
             );
@@ -1223,7 +1239,7 @@ mod parse_command_line {
                         )
                         .build()
                         .unwrap(),
-                    Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                    Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
                 );
             }
 
@@ -1301,7 +1317,7 @@ mod parse_command_line {
                 )
                 .build()
                 .unwrap(),
-            Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+            Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
         );
     }
 
@@ -1326,7 +1342,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1344,7 +1360,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1362,7 +1378,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1380,7 +1396,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1420,7 +1436,7 @@ mod parse_command_line {
                     .watch_options(WatchOptions::default())
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1438,7 +1454,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1471,7 +1487,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1489,7 +1505,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
 
@@ -1522,7 +1538,7 @@ mod parse_command_line {
                     )
                     .build()
                     .unwrap(),
-                Option::<fn() -> Rc<dyn ParseCommandLineWorkerDiagnostics>>::None,
+                Option::<fn() -> Id<Box<dyn ParseCommandLineWorkerDiagnostics>>>::None,
             );
         }
     }

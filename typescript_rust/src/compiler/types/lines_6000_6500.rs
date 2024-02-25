@@ -2624,8 +2624,8 @@ pub struct AlternateModeDiagnostics {
 pub trait DidYouMeanOptionsDiagnostics {
     fn maybe_alternate_mode(&self) -> Option<Rc<AlternateModeDiagnostics>>;
     fn option_declarations(&self) -> Id<Vec<Id<CommandLineOption>>>;
-    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage;
-    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage;
+    fn unknown_option_diagnostic(&self) -> &'static DiagnosticMessage;
+    fn unknown_did_you_mean_diagnostic(&self) -> &'static DiagnosticMessage;
 }
 
 #[command_line_option_type]

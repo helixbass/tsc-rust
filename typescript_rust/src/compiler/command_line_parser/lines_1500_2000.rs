@@ -298,11 +298,11 @@ impl DidYouMeanOptionsDiagnostics for CompilerOptionsDidYouMeanDiagnostics {
         option_declarations(self)
     }
 
-    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_option_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_compiler_option_0
     }
 
-    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_did_you_mean_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_compiler_option_0_Did_you_mean_1
     }
 }
@@ -312,7 +312,7 @@ impl ParseCommandLineWorkerDiagnostics for CompilerOptionsDidYouMeanDiagnostics 
         get_options_name_map(self)
     }
 
-    fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
+    fn option_type_mismatch_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Compiler_option_0_expects_an_argument
     }
 
@@ -427,11 +427,11 @@ impl DidYouMeanOptionsDiagnostics for BuildOptionsDidYouMeanDiagnostics {
         build_opts(self)
     }
 
-    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_option_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_build_option_0
     }
 
-    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_did_you_mean_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_build_option_0_Did_you_mean_1
     }
 }
@@ -441,7 +441,7 @@ impl ParseCommandLineWorkerDiagnostics for BuildOptionsDidYouMeanDiagnostics {
         get_build_options_name_map(self)
     }
 
-    fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
+    fn option_type_mismatch_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Build_option_0_requires_a_value_of_type_1
     }
 
@@ -776,11 +776,11 @@ impl DidYouMeanOptionsDiagnostics for TypeAcquisitionDidYouMeanDiagnostics {
         type_acquisition_declarations(self)
     }
 
-    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_option_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_type_acquisition_option_0
     }
 
-    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_did_you_mean_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_type_acquisition_option_0_Did_you_mean_1
     }
 }
@@ -829,11 +829,11 @@ impl DidYouMeanOptionsDiagnostics for WatchOptionsDidYouMeanDiagnostics {
         options_for_watch(self)
     }
 
-    fn unknown_option_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_option_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_watch_option_0
     }
 
-    fn unknown_did_you_mean_diagnostic(&self) -> &DiagnosticMessage {
+    fn unknown_did_you_mean_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Unknown_watch_option_0_Did_you_mean_1
     }
 }
@@ -843,7 +843,7 @@ impl ParseCommandLineWorkerDiagnostics for WatchOptionsDidYouMeanDiagnostics {
         get_watch_options_name_map(self)
     }
 
-    fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage {
+    fn option_type_mismatch_diagnostic(&self) -> &'static DiagnosticMessage {
         &Diagnostics::Watch_option_0_requires_a_value_of_type_1
     }
 

@@ -489,7 +489,7 @@ pub fn parse_list_type_option(
 
 pub trait ParseCommandLineWorkerDiagnostics: DidYouMeanOptionsDiagnostics {
     fn get_options_name_map(&self) -> Id<OptionsNameMap>;
-    fn option_type_mismatch_diagnostic(&self) -> &DiagnosticMessage;
+    fn option_type_mismatch_diagnostic(&self) -> &'static DiagnosticMessage;
     fn as_did_you_mean_options_diagnostics(&self) -> &(dyn DidYouMeanOptionsDiagnostics + 'static);
 }
 
