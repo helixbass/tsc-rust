@@ -470,7 +470,7 @@ pub(crate) fn parse_build_command(args: &[String], arena: &impl HasArena) -> Par
         mut errors,
         ..
     } = parse_command_line_worker(
-        &*build_options_did_you_mean_diagnostics(arena).ref_(arena),
+        &**build_options_did_you_mean_diagnostics(arena).ref_(arena),
         args,
         Option::<fn(&str) -> io::Result<Option<String>>>::None,
         arena,
