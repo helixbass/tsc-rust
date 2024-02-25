@@ -45,7 +45,7 @@ pub(super) struct PerFileState {
 }
 
 pub(super) struct TransformJsx {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     compiler_options: Id<CompilerOptions>,
     factory: Id<NodeFactory>,
@@ -58,7 +58,7 @@ impl TransformJsx {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             compiler_options: context_ref.get_compiler_options(),
             context,
@@ -1167,11 +1167,7 @@ impl TransformerInterface for TransformJsx {
     }
 }
 
-impl HasArena for TransformJsx {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformJsx);
 
 struct TransformJsxFactory {
     arena: *const AllArenas,

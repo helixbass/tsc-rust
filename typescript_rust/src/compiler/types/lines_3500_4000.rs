@@ -1053,12 +1053,6 @@ impl HasOldFileOfCurrentEmitInterface for InputFiles {
     }
 }
 
-impl HasArena for InputFiles {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
 #[derive(Debug)]
 pub enum InputFilesInitializedState {
     Uninitialized,

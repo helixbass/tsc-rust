@@ -19,11 +19,11 @@ use crate::{
     get_emit_module_kind, get_mode_for_resolution_at_index, get_normalized_absolute_path,
     get_path_components, get_path_from_path_components, get_paths_base_path,
     get_relative_path_from_directory, get_root_length, has_js_file_extension,
-    has_trailing_directory_separator, is_external_module_name_relative, is_rooted_disk_path,
-    last_index_of, match_pattern_or_exact, matched_text, normalize_path, normalize_path_and_parts,
-    normalize_slashes, options_have_module_resolution_changes, package_id_to_string,
-    path_is_relative, pattern_text, read_json, remove_file_extension, remove_prefix, sort,
-    starts_with, string_contains, to_path, try_first_defined, try_for_each,
+    has_trailing_directory_separator, impl_has_arena, is_external_module_name_relative,
+    is_rooted_disk_path, last_index_of, match_pattern_or_exact, matched_text, normalize_path,
+    normalize_path_and_parts, normalize_slashes, options_have_module_resolution_changes,
+    package_id_to_string, path_is_relative, pattern_text, read_json, remove_file_extension,
+    remove_prefix, sort, starts_with, string_contains, to_path, try_first_defined, try_for_each,
     try_for_each_ancestor_directory, try_get_extension_from_path, try_maybe_for_each,
     try_parse_patterns, try_remove_extension, version, version_major_minor, AllArenas, ArenaAlloc,
     CharacterCodes, Comparison, CompilerOptions, Debug_, DiagnosticMessage, Diagnostics, Extension,
@@ -1003,6 +1003,7 @@ pub fn get_automatic_type_directive_names(
 }
 
 pub struct TypeReferenceDirectiveResolutionCache {
+    arena: *const AllArenas,
     pub pre_directory_resolution_cache: PerDirectoryResolutionCacheConcrete<
         Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>,
     >,
@@ -1029,6 +1030,7 @@ where
 }
 
 pub struct ModuleResolutionCache {
+    arena: *const AllArenas,
     current_directory: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     pre_directory_resolution_cache:
@@ -1055,12 +1057,14 @@ pub trait PackageJsonInfoCache {
 }
 
 pub struct PerModuleNameCache {
+    arena: *const AllArenas,
     current_directory: String,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     directory_path_map: RefCell<HashMap<String, Id<ResolvedModuleWithFailedLookupLocations>>>,
 }
 
 pub struct CacheWithRedirects<TCache: 'static> {
+    arena: *const AllArenas,
     options: Cell<Option<Id<CompilerOptions>>>,
     own_map: Cell<Id<HashMap<String, Id<TCache>>>>,
     redirects_map: Id<HashMap<Path, Id<HashMap<String, Id<TCache>>>>>,
@@ -1076,6 +1080,7 @@ where
 {
     pub fn new(options: Option<Id<CompilerOptions>>, arena: &impl HasArena) -> Self {
         Self {
+            arena: arena.arena(),
             options: Cell::new(options),
             own_map: Cell::new(HashMap::<String, Id<TCache>>::new().alloc(arena)),
             redirects_map: HashMap::<Path, Id<HashMap<String, Id<TCache>>>>::new().alloc(arena),
@@ -1145,7 +1150,7 @@ where
 
 impl<TCache> HasArena for CacheWithRedirects<TCache> {
     fn arena(&self) -> &AllArenas {
-        unimplemented!()
+        unsafe { &*self.arena }
     }
 }
 
@@ -1166,8 +1171,10 @@ where
 pub fn create_package_json_info_cache(
     current_directory: &str,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
+    arena: &impl HasArena,
 ) -> PackageJsonInfoCacheConcrete {
     PackageJsonInfoCacheConcrete {
+        arena: arena.arena(),
         current_directory: current_directory.to_owned(),
         cache: Default::default(),
         get_canonical_file_name,
@@ -1175,6 +1182,7 @@ pub fn create_package_json_info_cache(
 }
 
 pub struct PackageJsonInfoCacheConcrete {
+    arena: *const AllArenas,
     pub current_directory: String,
     pub cache: RefCell<Option<HashMap<Path, PackageJsonInfoOrBool>>>,
     pub get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
@@ -1219,11 +1227,7 @@ impl PackageJsonInfoCache for PackageJsonInfoCacheConcrete {
     }
 }
 
-impl HasArena for PackageJsonInfoCacheConcrete {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(PackageJsonInfoCacheConcrete);
 
 fn get_or_create_cache<TCache>(
     cache_with_redirects: &CacheWithRedirects<TCache>,
@@ -1255,8 +1259,10 @@ fn create_per_directory_resolution_cache<TValue>(
     current_directory: &str,
     get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     directory_to_module_name_map: Id<CacheWithRedirects<ModeAwareCache<TValue>>>,
+    arena: &impl HasArena,
 ) -> PerDirectoryResolutionCacheConcrete<TValue> {
     PerDirectoryResolutionCacheConcrete {
+        arena: arena.arena(),
         current_directory: current_directory.to_owned(),
         get_canonical_file_name,
         directory_to_module_name_map,
@@ -1264,13 +1270,10 @@ fn create_per_directory_resolution_cache<TValue>(
 }
 
 pub struct PerDirectoryResolutionCacheConcrete<TValue: 'static> {
+    arena: *const AllArenas,
     pub current_directory: String,
     pub get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
     pub directory_to_module_name_map: Id<CacheWithRedirects<ModeAwareCache<TValue>>>,
-}
-
-pub trait GetCanonicalFileName {
-    fn call(&self, file_name: &str) -> String;
 }
 
 impl<TValue: Clone + 'static> PerDirectoryResolutionCache<TValue>
@@ -1314,8 +1317,12 @@ where
 
 impl<TValue: Clone> HasArena for PerDirectoryResolutionCacheConcrete<TValue> {
     fn arena(&self) -> &AllArenas {
-        unimplemented!()
+        unsafe { &*self.arena }
     }
+}
+
+pub trait GetCanonicalFileName {
+    fn call(&self, file_name: &str) -> String;
 }
 
 pub(crate) fn create_mode_aware_cache<TValue: Clone>() -> ModeAwareCache<TValue> {
@@ -1418,6 +1425,7 @@ pub fn create_module_resolution_cache(
         current_directory,
         get_canonical_file_name.clone(),
         directory_to_module_name_map.clone(),
+        arena,
     );
     let module_name_to_directory_map = module_name_to_directory_map.unwrap_or_else(|| {
         arena.alloc_cache_with_redirects_per_module_name_cache(create_cache_with_redirects(
@@ -1429,9 +1437,11 @@ pub fn create_module_resolution_cache(
         .alloc_package_json_info_cache(Box::new(create_package_json_info_cache(
             current_directory,
             get_canonical_file_name.clone(),
+            arena,
         )));
 
     ModuleResolutionCache {
+        arena: arena.arena(),
         current_directory: current_directory.to_owned(),
         get_canonical_file_name,
         pre_directory_resolution_cache,
@@ -1453,6 +1463,7 @@ impl ModuleResolutionCache {
         PerModuleNameCache::new(
             self.current_directory.clone(),
             self.get_canonical_file_name.clone(),
+            self,
         )
     }
 }
@@ -1461,8 +1472,10 @@ impl PerModuleNameCache {
     pub fn new(
         current_directory: String,
         get_canonical_file_name: Id<Box<dyn GetCanonicalFileName>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena,
             current_directory,
             get_canonical_file_name,
             directory_path_map: Default::default(),
@@ -1557,11 +1570,7 @@ impl PerModuleNameCache {
     }
 }
 
-impl HasArena for PerModuleNameCache {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(PerModuleNameCache);
 
 impl PerDirectoryResolutionCache<Id<ResolvedModuleWithFailedLookupLocations>>
     for ModuleResolutionCache
@@ -1634,11 +1643,7 @@ impl PackageJsonInfoCache for ModuleResolutionCache {
     }
 }
 
-impl HasArena for ModuleResolutionCache {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(ModuleResolutionCache);
 
 pub fn create_type_reference_directive_resolution_cache(
     current_directory: &str,
@@ -1659,15 +1664,18 @@ pub fn create_type_reference_directive_resolution_cache(
         get_canonical_file_name.clone(),
         directory_to_module_name_map
             .unwrap_or_else(|| arena.alloc_cache_with_redirects_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations(create_cache_with_redirects(options, arena))),
+        arena,
     );
     let package_json_info_cache = package_json_info_cache.unwrap_or_else(|| {
         arena.alloc_package_json_info_cache(Box::new(create_package_json_info_cache(
             current_directory,
             get_canonical_file_name,
+            arena,
         )))
     });
 
     TypeReferenceDirectiveResolutionCache {
+        arena: arena.arena(),
         pre_directory_resolution_cache,
         package_json_info_cache,
     }
@@ -1722,11 +1730,7 @@ impl PackageJsonInfoCache for TypeReferenceDirectiveResolutionCache {
     }
 }
 
-impl HasArena for TypeReferenceDirectiveResolutionCache {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TypeReferenceDirectiveResolutionCache);
 
 pub fn resolve_module_name(
     module_name: &str,
@@ -3460,6 +3464,7 @@ fn load_module_from_self_name_reference(
         state,
         cache,
         redirected_reference,
+        arena,
     )
 }
 
@@ -3470,6 +3475,7 @@ fn load_module_from_exports(
     state: &ModuleResolutionState,
     cache: Option<Id<ModuleResolutionCache>>,
     redirected_reference: Option<Id<ResolvedProjectReference>>,
+    arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
     let scope_package_json_exports = scope.package_json_content.get("exports");
     if scope_package_json_exports.is_none() {
@@ -3505,6 +3511,7 @@ fn load_module_from_exports(
                     subpath,
                     scope,
                     false,
+                    arena,
                 );
             return load_module_from_target_import_or_export.call(Some(main_export), "", false);
         }
@@ -3528,6 +3535,7 @@ fn load_module_from_exports(
             scope_package_json_exports.as_object().unwrap(),
             scope,
             false,
+            arena,
         )?;
         if result.is_some() {
             return Ok(result);
@@ -3564,6 +3572,7 @@ fn load_module_from_imports_or_exports(
     lookup_table: &serde_json::Map<String, serde_json::Value>,
     scope: &PackageJsonInfo,
     is_imports: bool,
+    arena: &impl HasArena,
 ) -> io::Result<SearchResult<Resolved>> {
     let load_module_from_target_import_or_export = get_load_module_from_target_import_or_export(
         extensions,
@@ -3573,6 +3582,7 @@ fn load_module_from_imports_or_exports(
         module_name,
         scope,
         is_imports,
+        arena,
     );
 
     if !ends_with(module_name, directory_separator_str)
@@ -3656,8 +3666,10 @@ fn get_load_module_from_target_import_or_export<'a>(
     module_name: &'a str,
     scope: &'a PackageJsonInfo,
     is_imports: bool,
+    arena: &impl HasArena,
 ) -> LoadModuleFromTargetImportOrExport<'a> {
     LoadModuleFromTargetImportOrExport {
+        arena: arena.arena(),
         extensions,
         state,
         cache,
@@ -3669,6 +3681,7 @@ fn get_load_module_from_target_import_or_export<'a>(
 }
 
 struct LoadModuleFromTargetImportOrExport<'a> {
+    arena: *const AllArenas,
     extensions: Extensions,
     state: &'a ModuleResolutionState<'a>,
     cache: Option<Id<ModuleResolutionCache>>,
@@ -3885,7 +3898,7 @@ impl<'a> LoadModuleFromTargetImportOrExport<'a> {
 
 impl<'a> HasArena for LoadModuleFromTargetImportOrExport<'a> {
     fn arena(&self) -> &AllArenas {
-        unimplemented!()
+        unsafe { &*self.arena }
     }
 }
 
@@ -4130,6 +4143,7 @@ fn load_module_from_specific_node_modules_directory(
                     state,
                     cache.clone(),
                     redirected_reference.clone(),
+                    arena,
                 )?.and_then(|search_result| search_result.value));
             }
             let path_and_extension =

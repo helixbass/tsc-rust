@@ -14,7 +14,7 @@ use crate::{
 };
 
 struct TransformES2020 {
-    _arena: *const AllArenas,
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
     factory: Id<NodeFactory>,
 }
@@ -27,7 +27,7 @@ impl TransformES2020 {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             context,
         }))
@@ -607,11 +607,6 @@ impl TransformES2020 {
     }
 }
 
-struct FlattenChainReturn {
-    pub expression: Id<Node>,
-    pub chain: Vec<Id<Node>>,
-}
-
 impl TransformerInterface for TransformES2020 {
     fn call(&self, node: Id<Node>) -> io::Result<Id<Node>> {
         Ok(self.transform_source_file(node))
@@ -622,10 +617,11 @@ impl TransformerInterface for TransformES2020 {
     }
 }
 
-impl HasArena for TransformES2020 {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
+impl_has_arena!(TransformES2020);
+
+struct FlattenChainReturn {
+    pub expression: Id<Node>,
+    pub chain: Vec<Id<Node>>,
 }
 
 struct TransformES2020Factory {

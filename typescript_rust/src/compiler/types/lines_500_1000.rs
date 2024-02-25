@@ -60,11 +60,11 @@ use super::{
 };
 use crate::{
     add_emit_flags, add_emit_helpers, add_synthetic_leading_comment,
-    add_synthetic_trailing_comment, get_emit_flags, move_synthetic_comments, remove_all_comments,
-    set_comment_range, set_emit_flags, set_original_node, set_parent_recursive,
-    set_source_map_range, set_text_range_end, set_text_range_id_node, set_text_range_pos,
-    start_on_new_line, AllArenas, CaseOrDefaultClauseInterface, EmitFlags, EmitHelper, HasArena,
-    HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
+    add_synthetic_trailing_comment, get_emit_flags, impl_has_arena, move_synthetic_comments,
+    remove_all_comments, set_comment_range, set_emit_flags, set_original_node,
+    set_parent_recursive, set_source_map_range, set_text_range_end, set_text_range_id_node,
+    set_text_range_pos, start_on_new_line, AllArenas, CaseOrDefaultClauseInterface, EmitFlags,
+    EmitHelper, HasArena, HasArgumentsInterface, HasAssertClauseInterface, HasChildrenInterface,
     HasDotDotDotTokenInterface, HasFileNameInterface, HasLeftAndRightInterface,
     HasMembersInterface, HasModuleSpecifierInterface, HasOldFileOfCurrentEmitInterface,
     HasTagNameInterface, HasTextsInterface, InArena, InferenceContext, JSDocHeritageTagInterface,
@@ -1708,6 +1708,7 @@ impl Node {
 }
 
 pub struct BaseNode {
+    arena: *const AllArenas,
     _arena_id: Cell<Option<Id<Node>>>,
     _id_override: Cell<Option<Id<Box<dyn NodeIdOverride>>>>,
     _symbol_override: Cell<Option<Id<Box<dyn NodeSymbolOverride>>>>,
@@ -1777,6 +1778,7 @@ impl BaseNode {
         arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             _arena_id: Default::default(),
             _id_override: Default::default(),
             _symbol_override: Default::default(),
@@ -2056,11 +2058,7 @@ impl ReadonlyTextRange for BaseNode {
     }
 }
 
-impl HasArena for BaseNode {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(BaseNode);
 
 impl From<BaseNode> for Node {
     fn from(base_node: BaseNode) -> Self {

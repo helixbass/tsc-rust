@@ -45,7 +45,11 @@ impl AstTypeArgs {
     }
 
     fn interfaces_vec(&self) -> Vec<String> {
-        let mut vec = vec!["ReadonlyTextRange".to_string(), "NodeInterface".to_string()];
+        let mut vec = vec![
+            "ReadonlyTextRange".to_string(),
+            "NodeInterface".to_string(),
+            "HasArena".to_string(),
+        ];
         if let Some(interfaces_str) = self.interfaces.as_ref() {
             vec.append(
                 &mut interfaces_str
@@ -315,6 +319,15 @@ fn get_ast_struct_interface_impl(
 
                     fn set_end(&self, end: isize) {
                         self.#first_field_name.set_end(end);
+                    }
+                }
+            }
+        }
+        "HasArena" => {
+            quote! {
+                impl crate::HasArena for #ast_type_name {
+                    fn arena(&self) -> &crate::AllArenas {
+                        self.#first_field_name.arena()
                     }
                 }
             }
@@ -896,6 +909,17 @@ fn get_ast_enum_interface_impl(
                 }
             }
         }
+        "HasArena" => {
+            quote! {
+                impl crate::HasArena for #ast_type_name {
+                    fn arena(&self) -> &crate::AllArenas {
+                        match self {
+                            #(#ast_type_name::#variant_names(nested) => nested.arena()),*
+                        }
+                    }
+                }
+            }
+        }
         "LiteralLikeNodeInterface" => {
             quote! {
                 impl crate::LiteralLikeNodeInterface for #ast_type_name {
@@ -1162,7 +1186,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    let node_interface_and_readonly_text_range_implementation = match data {
+    let node_interface_readonly_text_range_and_has_arena_implementation = match data {
         Struct(struct_) => {
             let first_field_name = match struct_.fields {
                 Fields::Named(FieldsNamed { named, .. }) => named
@@ -1254,7 +1278,7 @@ pub fn ast_type(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[derive(Clone)]
         #item_as_proc_macro2_token_stream
 
-        #node_interface_and_readonly_text_range_implementation
+        #node_interface_readonly_text_range_and_has_arena_implementation
 
         #into_implementations
     }

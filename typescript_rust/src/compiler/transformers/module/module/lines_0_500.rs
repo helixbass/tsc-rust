@@ -38,7 +38,7 @@ pub(super) struct AsynchronousDependencies {
 }
 
 pub(super) struct TransformModule {
-    pub(super) _arena: *const AllArenas,
+    pub(super) arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) resolver: Id<Box<dyn EmitResolver>>,
@@ -63,7 +63,7 @@ impl TransformModule {
         let context_ref = context.ref_(arena_ref);
         let compiler_options = context_ref.get_compiler_options();
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             resolver: context_ref.get_emit_resolver(),
             host: context_ref.get_emit_host(),
@@ -80,12 +80,16 @@ impl TransformModule {
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
-                TransformModuleOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+                TransformModuleOnEmitNodeOverrider::new(ret, previous_on_emit_node, arena_ref),
             ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
             arena_ref.alloc_transformation_context_on_substitute_node_overrider(Box::new(
-                TransformModuleOnSubstituteNodeOverrider::new(ret, previous_on_substitute_node),
+                TransformModuleOnSubstituteNodeOverrider::new(
+                    ret,
+                    previous_on_substitute_node,
+                    arena_ref,
+                ),
             ))
         });
         context_ref.enable_substitution(SyntaxKind::CallExpression);
@@ -965,13 +969,10 @@ impl TransformerInterface for TransformModule {
     }
 }
 
-impl HasArena for TransformModule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformModule);
 
 struct TransformModuleOnEmitNodeOverrider {
+    arena: *const AllArenas,
     transform_module: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
@@ -980,8 +981,10 @@ impl TransformModuleOnEmitNodeOverrider {
     fn new(
         transform_module: Transformer,
         previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_module,
             previous_on_emit_node,
         }
@@ -1027,13 +1030,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformModuleOnEmitNodeOverr
     }
 }
 
-impl HasArena for TransformModuleOnEmitNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformModuleOnEmitNodeOverrider);
 
 struct TransformModuleOnSubstituteNodeOverrider {
+    arena: *const AllArenas,
     transform_module: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
@@ -1042,8 +1042,10 @@ impl TransformModuleOnSubstituteNodeOverrider {
     fn new(
         transform_module: Transformer,
         previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_module,
             previous_on_substitute_node,
         }
@@ -1340,11 +1342,7 @@ impl TransformationContextOnSubstituteNodeOverrider for TransformModuleOnSubstit
     }
 }
 
-impl HasArena for TransformModuleOnSubstituteNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformModuleOnSubstituteNodeOverrider);
 
 struct TransformModuleFactory {
     arena: *const AllArenas,

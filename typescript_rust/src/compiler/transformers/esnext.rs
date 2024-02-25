@@ -3,18 +3,22 @@ use std::{any::Any, io};
 use id_arena::Id;
 
 use crate::{
-    chain_bundle, visit_each_child, AllArenas, HasArena, InArena, Node, NodeInterface,
-    TransformFlags, TransformNodesTransformationResult, Transformer,
+    chain_bundle, impl_has_arena, visit_each_child, AllArenas, HasArena, InArena, Node,
+    NodeInterface, TransformFlags, TransformNodesTransformationResult, Transformer,
     TransformerFactory, TransformerFactoryInterface, TransformerInterface, VisitResult,
 };
 
 struct TransformESNext {
+    arena: *const AllArenas,
     context: Id<TransformNodesTransformationResult>,
 }
 
 impl TransformESNext {
-    fn new(context: Id<TransformNodesTransformationResult>) -> Self {
-        Self { context }
+    fn new(context: Id<TransformNodesTransformationResult>, arena: &impl HasArena) -> Self {
+        Self {
+            context,
+            arena: arena.arena(),
+        }
     }
 
     fn transform_source_file(&self, node: Id<Node> /*SourceFile*/) -> Id<Node> {
@@ -65,17 +69,17 @@ impl TransformerInterface for TransformESNext {
     }
 }
 
-impl HasArena for TransformESNext {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
+impl_has_arena!(TransformESNext);
+
+struct TransformESNextFactory {
+    arena: *const AllArenas,
 }
 
-struct TransformESNextFactory {}
-
 impl TransformESNextFactory {
-    fn new() -> Self {
-        Self {}
+    fn new(arena: &impl HasArena) -> Self {
+        Self {
+            arena: arena.arena(),
+        }
     }
 }
 
@@ -83,17 +87,13 @@ impl TransformerFactoryInterface for TransformESNextFactory {
     fn call(&self, context: Id<TransformNodesTransformationResult>) -> Transformer {
         chain_bundle(self).ref_(self).call(
             context,
-            self.alloc_transformer(Box::new(TransformESNext::new(context))),
+            self.alloc_transformer(Box::new(TransformESNext::new(context, self))),
         )
     }
 }
 
-impl HasArena for TransformESNextFactory {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformESNextFactory);
 
 pub fn transform_esnext(arena: &impl HasArena) -> TransformerFactory {
-    arena.alloc_transformer_factory(Box::new(TransformESNextFactory::new()))
+    arena.alloc_transformer_factory(Box::new(TransformESNextFactory::new(arena)))
 }

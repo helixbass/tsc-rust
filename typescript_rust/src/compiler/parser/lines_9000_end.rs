@@ -10,8 +10,8 @@ use regex::{Captures, Regex};
 
 use crate::{
     file_extension_is_one_of, for_each_child_bool, get_leading_comment_ranges, get_pragma_spec,
-    map, to_pragma_name, trim_string, AllArenas, AmdDependency, CheckJsDirective, CommentRange,
-    Debug_, DiagnosticMessage, Diagnostics, Extension, FileReference, HasArena,
+    impl_has_arena, map, to_pragma_name, trim_string, AllArenas, AmdDependency, CheckJsDirective,
+    CommentRange, Debug_, DiagnosticMessage, Diagnostics, Extension, FileReference, HasArena,
     HasStatementsInterface, InArena, IncrementalParserSyntaxCursorReparseTopLevelAwait,
     IncrementalParserType, Node, NodeArray, NodeInterface, ParserType, PragmaArgument,
     PragmaArgumentName, PragmaArgumentWithCapturedSpan, PragmaArguments, PragmaKindFlags,
@@ -61,6 +61,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursor {
 }
 
 pub struct IncrementalParserSyntaxCursorCreated {
+    arena: *const AllArenas,
     source_file: Id<Node /*SourceFile*/>,
     current_array: Cell<Option<Id<NodeArray>>>,
     current_array_index: Cell<Option<usize>>,
@@ -77,6 +78,7 @@ impl IncrementalParserSyntaxCursorCreated {
 
         Debug_.assert(current_array_index < current_array.ref_(arena).len(), None);
         Self {
+            arena: arena.arena(),
             source_file,
             current_array: Cell::new(Some(current_array.clone())),
             current_array_index: Cell::new(Some(current_array_index)),
@@ -219,11 +221,7 @@ impl IncrementalParserSyntaxCursorInterface for IncrementalParserSyntaxCursorCre
     }
 }
 
-impl HasArena for IncrementalParserSyntaxCursorCreated {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(IncrementalParserSyntaxCursorCreated);
 
 pub(crate) fn is_declaration_file_name(file_name: &str) -> bool {
     file_extension_is_one_of(

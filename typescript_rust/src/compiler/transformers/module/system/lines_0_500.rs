@@ -33,7 +33,7 @@ pub(super) struct DependencyGroup {
 }
 
 pub(super) struct TransformSystemModule {
-    pub(super) _arena: *const AllArenas,
+    pub(super) arena: *const AllArenas,
     pub(super) context: Id<TransformNodesTransformationResult>,
     pub(super) factory: Id<NodeFactory>,
     pub(super) compiler_options: Id<CompilerOptions>,
@@ -61,7 +61,7 @@ impl TransformSystemModule {
         let arena_ref = unsafe { &*arena };
         let context_ref = context.ref_(arena_ref);
         let ret = arena_ref.alloc_transformer(Box::new(Self {
-            _arena: arena,
+            arena,
             factory: context_ref.factory(),
             compiler_options: context_ref.get_compiler_options(),
             resolver: context_ref.get_emit_resolver(),
@@ -82,7 +82,11 @@ impl TransformSystemModule {
         }));
         context_ref.override_on_emit_node(&mut |previous_on_emit_node| {
             arena_ref.alloc_transformation_context_on_emit_node_overrider(Box::new(
-                TransformSystemModuleOnEmitNodeOverrider::new(ret, previous_on_emit_node),
+                TransformSystemModuleOnEmitNodeOverrider::new(
+                    ret,
+                    previous_on_emit_node,
+                    arena_ref,
+                ),
             ))
         });
         context_ref.override_on_substitute_node(&mut |previous_on_substitute_node| {
@@ -90,6 +94,7 @@ impl TransformSystemModule {
                 TransformSystemModuleOnSubstituteNodeOverrider::new(
                     ret,
                     previous_on_substitute_node,
+                    arena_ref,
                 ),
             ))
         });
@@ -926,13 +931,10 @@ impl TransformerInterface for TransformSystemModule {
     }
 }
 
-impl HasArena for TransformSystemModule {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformSystemModule);
 
 struct TransformSystemModuleOnEmitNodeOverrider {
+    arena: *const AllArenas,
     transform_system_module: Transformer,
     previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
 }
@@ -941,8 +943,10 @@ impl TransformSystemModuleOnEmitNodeOverrider {
     fn new(
         transform_system_module: Transformer,
         previous_on_emit_node: Id<Box<dyn TransformationContextOnEmitNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_system_module,
             previous_on_emit_node,
         }
@@ -1018,13 +1022,10 @@ impl TransformationContextOnEmitNodeOverrider for TransformSystemModuleOnEmitNod
     }
 }
 
-impl HasArena for TransformSystemModuleOnEmitNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformSystemModuleOnEmitNodeOverrider);
 
 struct TransformSystemModuleOnSubstituteNodeOverrider {
+    arena: *const AllArenas,
     transform_system_module: Transformer,
     previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
 }
@@ -1033,8 +1034,10 @@ impl TransformSystemModuleOnSubstituteNodeOverrider {
     fn new(
         transform_system_module: Transformer,
         previous_on_substitute_node: Id<Box<dyn TransformationContextOnSubstituteNodeOverrider>>,
+        arena: &impl HasArena,
     ) -> Self {
         Self {
+            arena: arena.arena(),
             transform_system_module,
             previous_on_substitute_node,
         }
@@ -1334,11 +1337,7 @@ impl TransformationContextOnSubstituteNodeOverrider
     }
 }
 
-impl HasArena for TransformSystemModuleOnSubstituteNodeOverrider {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(TransformSystemModuleOnSubstituteNodeOverrider);
 
 struct TransformSystemModuleFactory {
     arena: *const AllArenas,

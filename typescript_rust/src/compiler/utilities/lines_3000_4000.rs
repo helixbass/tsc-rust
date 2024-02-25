@@ -22,7 +22,7 @@ use crate::{
     Debug_, InArena, InterfaceOrClassLikeDeclarationInterface, ModifierFlags,
     NamedDeclarationInterface, Node, NodeArray, NodeInterface, ReadonlyTextRange, SortedArray,
     Symbol, SymbolInterface, SyntaxKind, TokenFlags, __String, escape_leading_underscores,
-    get_name_of_declaration, insert_sorted, is_member_name, AllArenas, Diagnostic,
+    get_name_of_declaration, impl_has_arena, insert_sorted, is_member_name, AllArenas, Diagnostic,
     DiagnosticCollection, DiagnosticRelatedInformationInterface, HasArena,
 };
 
@@ -898,11 +898,11 @@ pub fn create_diagnostic_collection(arena: &impl HasArena) -> DiagnosticCollecti
 impl DiagnosticCollection {
     pub fn new(arena: &impl HasArena) -> Self {
         DiagnosticCollection {
+            arena: arena.arena(),
             non_file_diagnostics: SortedArray::<Id<Diagnostic>>::new(vec![]),
             files_with_diagnostics: SortedArray::<String>::new(vec![]),
             file_diagnostics: HashMap::<String, SortedArray<Id<Diagnostic>>>::new(),
             has_read_non_file_diagnostics: Cell::new(false),
-            arena: arena.arena(),
         }
     }
 
@@ -1018,11 +1018,7 @@ impl DiagnosticCollection {
     }
 }
 
-impl HasArena for DiagnosticCollection {
-    fn arena(&self) -> &AllArenas {
-        unsafe { &*self.arena }
-    }
-}
+impl_has_arena!(DiagnosticCollection);
 
 lazy_static! {
     static ref template_substitution_reg_exp: Regex = Regex::new(r"\$\{").unwrap();
