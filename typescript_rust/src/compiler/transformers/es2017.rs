@@ -1414,7 +1414,7 @@ impl TransformerInterface for TransformES2017 {
     }
 
     fn as_dyn_any(&self) -> &dyn Any {
-        unimplemented!()
+        self
     }
 }
 

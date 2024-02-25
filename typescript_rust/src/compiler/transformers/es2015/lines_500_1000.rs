@@ -8,8 +8,8 @@ use crate::{
     get_comment_range, get_emit_flags, get_first_constructor_with_body, has_syntactic_modifier,
     id_text, insert_statements_after_standard_prologue, is_binary_expression, is_call_expression,
     is_expression, is_expression_statement, is_identifier_a_non_contextual_keyword, is_statement,
-    is_super_call, set_emit_flags, single_or_many_node, skip_outer_expressions, skip_trivia,
-    try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list,
+    is_super_call, released, set_emit_flags, single_or_many_node, skip_outer_expressions,
+    skip_trivia, try_visit_each_child, try_visit_node, try_visit_nodes, try_visit_parameter_list,
     CoreTransformationContext, EmitFlags, FunctionLikeDeclarationInterface,
     GeneratedIdentifierFlags, GetOrInsertDefault, HasStatementsInterface, InArena, MapOrDefault,
     Matches, ModifierFlags, Node, NodeArray, NodeArrayExt, NodeArrayOrVec, NodeExt, NodeInterface,
@@ -39,7 +39,7 @@ impl TransformES2015 {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    node.ref_(self).as_source_file().statements(),
+                    released!(node.ref_(self).as_source_file().statements()),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(statement_offset),
@@ -78,7 +78,7 @@ impl TransformES2015 {
                 .ref_(self)
                 .create_node_array(Some(concatenate(prologue, statements)), None)
                 .set_text_range(
-                    Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                    Some(&*released!(node.ref_(self).as_source_file().statements()).ref_(self)),
                     self,
                 ),
             None,
