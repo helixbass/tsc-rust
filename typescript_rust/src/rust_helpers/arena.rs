@@ -2417,6 +2417,26 @@ pub trait HasArena {
             )
     }
 
+    fn mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map_mut(
+        &self,
+        mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map: Id<
+            HashMap<
+                String,
+                Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>,
+            >,
+        >,
+    ) -> RefMut<
+        HashMap<
+            String,
+            Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>,
+        >,
+    > {
+        self.arena()
+            .mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map_mut(
+                mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map,
+            )
+    }
+
     fn alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map(
         &self,
         mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map: HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>,
@@ -2471,6 +2491,19 @@ pub trait HasArena {
     ) -> Ref<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>> {
         self.arena()
             .mode_aware_cache_resolved_module_with_failed_lookup_locations_map(
+                mode_aware_cache_resolved_module_with_failed_lookup_locations_map,
+            )
+    }
+
+    fn mode_aware_cache_resolved_module_with_failed_lookup_locations_map_mut(
+        &self,
+        mode_aware_cache_resolved_module_with_failed_lookup_locations_map: Id<
+            HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
+        >,
+    ) -> RefMut<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>
+    {
+        self.arena()
+            .mode_aware_cache_resolved_module_with_failed_lookup_locations_map_mut(
                 mode_aware_cache_resolved_module_with_failed_lookup_locations_map,
             )
     }
@@ -2537,6 +2570,14 @@ pub trait HasArena {
     ) -> Ref<HashMap<String, Id<PerModuleNameCache>>> {
         self.arena()
             .per_module_name_cache_map(per_module_name_cache_map)
+    }
+
+    fn per_module_name_cache_map_mut(
+        &self,
+        per_module_name_cache_map: Id<HashMap<String, Id<PerModuleNameCache>>>,
+    ) -> RefMut<HashMap<String, Id<PerModuleNameCache>>> {
+        self.arena()
+            .per_module_name_cache_map_mut(per_module_name_cache_map)
     }
 
     fn alloc_per_module_name_cache_map(
@@ -5638,6 +5679,26 @@ impl HasArena for AllArenas {
         Ref::map(self.mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps.borrow(), |mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps| &mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps[mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map])
     }
 
+    fn mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map_mut(
+        &self,
+        mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map: Id<
+            HashMap<
+                String,
+                Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>,
+            >,
+        >,
+    ) -> RefMut<
+        HashMap<
+            String,
+            Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>,
+        >,
+    > {
+        RefMut::map(
+            self.mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps.borrow_mut(),
+            |mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps| &mut mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps[mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map],
+        )
+    }
+
     fn alloc_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map(
         &self,
         mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map: HashMap<String, Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>>,
@@ -5704,6 +5765,23 @@ impl HasArena for AllArenas {
                 .borrow(),
             |mode_aware_cache_resolved_module_with_failed_lookup_locations_maps| {
                 &mode_aware_cache_resolved_module_with_failed_lookup_locations_maps
+                    [mode_aware_cache_resolved_module_with_failed_lookup_locations_map]
+            },
+        )
+    }
+
+    fn mode_aware_cache_resolved_module_with_failed_lookup_locations_map_mut(
+        &self,
+        mode_aware_cache_resolved_module_with_failed_lookup_locations_map: Id<
+            HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>,
+        >,
+    ) -> RefMut<HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>
+    {
+        RefMut::map(
+            self.mode_aware_cache_resolved_module_with_failed_lookup_locations_maps
+                .borrow_mut(),
+            |mode_aware_cache_resolved_module_with_failed_lookup_locations_maps| {
+                &mut mode_aware_cache_resolved_module_with_failed_lookup_locations_maps
                     [mode_aware_cache_resolved_module_with_failed_lookup_locations_map]
             },
         )
@@ -5780,6 +5858,16 @@ impl HasArena for AllArenas {
         Ref::map(
             self.per_module_name_cache_maps.borrow(),
             |per_module_name_cache_maps| &per_module_name_cache_maps[per_module_name_cache_map],
+        )
+    }
+
+    fn per_module_name_cache_map_mut(
+        &self,
+        per_module_name_cache_map: Id<HashMap<String, Id<PerModuleNameCache>>>,
+    ) -> RefMut<HashMap<String, Id<PerModuleNameCache>>> {
+        RefMut::map(
+            self.per_module_name_cache_maps.borrow_mut(),
+            |per_module_name_cache_maps| &mut per_module_name_cache_maps[per_module_name_cache_map],
         )
     }
 
@@ -7294,6 +7382,22 @@ impl InArena
                 *self,
             )
     }
+
+    fn ref_mut<'a>(
+        &self,
+        has_arena: &'a impl HasArena,
+    ) -> RefMut<
+        'a,
+        HashMap<
+            String,
+            Id<ModeAwareCache<Id<ResolvedTypeReferenceDirectiveWithFailedLookupLocations>>>,
+        >,
+    > {
+        has_arena
+            .mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_map_mut(
+                *self,
+            )
+    }
 }
 
 impl InArena
@@ -7350,6 +7454,14 @@ impl InArena
     {
         has_arena.mode_aware_cache_resolved_module_with_failed_lookup_locations_map(*self)
     }
+
+    fn ref_mut<'a>(
+        &self,
+        has_arena: &'a impl HasArena,
+    ) -> RefMut<'a, HashMap<String, Id<ModeAwareCache<Id<ResolvedModuleWithFailedLookupLocations>>>>>
+    {
+        has_arena.mode_aware_cache_resolved_module_with_failed_lookup_locations_map_mut(*self)
+    }
 }
 
 impl InArena
@@ -7387,6 +7499,13 @@ impl InArena for Id<HashMap<String, Id<PerModuleNameCache>>> {
         has_arena: &'a impl HasArena,
     ) -> Ref<'a, HashMap<String, Id<PerModuleNameCache>>> {
         has_arena.per_module_name_cache_map(*self)
+    }
+
+    fn ref_mut<'a>(
+        &self,
+        has_arena: &'a impl HasArena,
+    ) -> RefMut<'a, HashMap<String, Id<PerModuleNameCache>>> {
+        has_arena.per_module_name_cache_map_mut(*self)
     }
 }
 
