@@ -18,7 +18,7 @@ use crate::{
     find_ancestor, first_or_undefined, get_emit_script_target, get_object_flags, impl_has_arena,
     is_identifier, is_identifier_text, is_import_call, is_jsx_attribute, is_jsx_attributes,
     is_jsx_opening_like_element, is_object_literal_element_like, maybe_get_source_file_of_node,
-    some, try_reduce_left, AllArenas, Debug_, Diagnostic, DiagnosticMessage,
+    released, some, try_reduce_left, AllArenas, Debug_, Diagnostic, DiagnosticMessage,
     DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasArena, InArena, Node,
     NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, OptionTry, RelationComparisonResult,
     SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -215,11 +215,11 @@ impl CheckTypeRelatedTo {
         let result = Self::is_related_to(
             self_,
             arena,
-            self_.ref_(arena).source,
-            self_.ref_(arena).target,
+            released!(self_.ref_(arena).source),
+            released!(self_.ref_(arena).target),
             Some(RecursionFlags::Both),
-            Some(self_.ref_(arena).maybe_error_node().is_some()),
-            self_.ref_(arena).head_message.clone(),
+            Some(released!(self_.ref_(arena).maybe_error_node().is_some())),
+            released!(self_.ref_(arena).head_message.clone()),
             None,
         )?;
         if !self_.ref_(arena).incompatible_stack().is_empty() {
@@ -604,9 +604,7 @@ impl CheckTypeRelatedTo {
                 .ref_(arena)
                 .get_base_type_of_literal_type(source)?;
             Debug_.assert(
-                !self_
-                    .ref_(arena)
-                    .type_checker
+                !released!(self_.ref_(arena).type_checker)
                     .ref_(arena)
                     .is_type_assignable_to(generalized_source, target)?,
                 Some("generalized source shouldn't be assignable"),
