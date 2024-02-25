@@ -11,7 +11,7 @@ use crate::{
     for_each_child_returns, get_common_source_directory_of_config, get_emit_script_target,
     get_normalized_absolute_path_without_root, get_output_declaration_file_name, has_extension,
     has_js_file_extension, has_jsdoc_nodes, impl_has_arena, is_declaration_file_name,
-    maybe_for_each, maybe_map, node_modules_path_part, out_file, package_id_to_string,
+    maybe_for_each, maybe_map, node_modules_path_part, out_file, package_id_to_string, released,
     resolve_module_name, set_resolved_type_reference_directive, some, string_contains,
     to_file_name_lower_case, try_for_each, try_maybe_for_each, AllArenas, AsDoubleDeref,
     CompilerHost, CompilerOptionsBuilder, DiagnosticMessage, Diagnostics, Extension,
@@ -870,11 +870,8 @@ impl Program {
         file: Id<Node>, /*SourceFile*/
         is_default_lib: bool,
     ) -> io::Result<()> {
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
         try_maybe_for_each(
-            file_as_source_file
-                .maybe_referenced_files()
+            released!(file.ref_(self).as_source_file().maybe_referenced_files())
                 .as_ref()
                 .map(|file_referenced_files| (**file_referenced_files).borrow())
                 .as_deref(),
@@ -882,7 +879,7 @@ impl Program {
                 self.process_source_file(
                     &resolve_tripleslash_reference(
                         &ref_.file_name,
-                        &file_as_source_file.file_name(),
+                        &released!(file.ref_(self).as_source_file().file_name().clone()),
                     ),
                     is_default_lib,
                     false,
@@ -890,7 +887,7 @@ impl Program {
                     self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(
                         ReferencedFile {
                             kind: FileIncludeKind::ReferenceFile,
-                            file: file_as_source_file.path().clone(),
+                            file: released!(file.ref_(self).as_source_file().path().clone()),
                             index,
                         },
                     )),

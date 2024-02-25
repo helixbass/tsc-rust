@@ -13,9 +13,9 @@ use crate::{
     is_external_or_common_js_module, is_function_expression, is_function_like, is_identifier,
     is_in_js_file, is_module_declaration, is_named_declaration, is_object_binding_pattern,
     is_object_literal_expression, is_parameter_declaration, is_property_access_expression,
-    is_prototype_access, is_require_variable_declaration, is_variable_like, node_is_missing, some,
-    try_for_each, try_for_each_child_bool, ClassLikeDeclarationInterface, Debug_, Diagnostics,
-    ExternalEmitHelpers, HasArena, HasInitializerInterface, InArena, ModifierFlags,
+    is_prototype_access, is_require_variable_declaration, is_variable_like, node_is_missing,
+    released, some, try_for_each, try_for_each_child_bool, ClassLikeDeclarationInterface, Debug_,
+    Diagnostics, ExternalEmitHelpers, HasArena, HasInitializerInterface, InArena, ModifierFlags,
     ModuleInstanceState, ModuleKind, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
     OptionInArena, OptionTry, ScriptTarget, SignatureKind, Symbol, SymbolFlags, SymbolInterface,
     SyntaxKind, Type, TypeChecker, TypeFlags,
@@ -419,11 +419,10 @@ impl TypeChecker {
             return Ok(());
         };
 
-        let node_ref = node.ref_(self);
-        let node_as_has_initializer = node_ref.as_has_initializer();
         if node_name.ref_(self).kind() == SyntaxKind::ComputedPropertyName {
             self.check_computed_property_name(node_name)?;
-            if let Some(node_initializer) = node_as_has_initializer.maybe_initializer() {
+            if let Some(node_initializer) = node.ref_(self).as_has_initializer().maybe_initializer()
+            {
                 self.check_expression_cached(node_initializer, None)?;
             }
         }
@@ -498,7 +497,11 @@ impl TypeChecker {
                 },
             )?;
         }
-        if node_as_has_initializer.maybe_initializer().is_some()
+        if node
+            .ref_(self)
+            .as_has_initializer()
+            .maybe_initializer()
+            .is_some()
             && is_parameter_declaration(node, self)
             && node_is_missing(
                 get_containing_function(node, self)
@@ -518,7 +521,11 @@ impl TypeChecker {
             return Ok(());
         }
         if is_binding_pattern(Some(&node_name.ref_(self))) {
-            let need_check_initializer = node_as_has_initializer.maybe_initializer().is_some()
+            let need_check_initializer = node
+                .ref_(self)
+                .as_has_initializer()
+                .maybe_initializer()
+                .is_some()
                 && node
                     .ref_(self)
                     .parent()
@@ -538,7 +545,10 @@ impl TypeChecker {
                     self.get_widened_type_for_variable_like_declaration(node, None)?;
                 if need_check_initializer {
                     let initializer_type = self.check_expression_cached(
-                        node_as_has_initializer.maybe_initializer().unwrap(),
+                        node.ref_(self)
+                            .as_has_initializer()
+                            .maybe_initializer()
+                            .unwrap(),
                         None,
                     )?;
                     if self.strict_null_checks && need_check_widened_type {
@@ -548,7 +558,7 @@ impl TypeChecker {
                             initializer_type,
                             self.get_widened_type_for_variable_like_declaration(node, None)?,
                             Some(node),
-                            node_as_has_initializer.maybe_initializer(),
+                            node.ref_(self).as_has_initializer().maybe_initializer(),
                             None,
                             None,
                         )?;
@@ -657,7 +667,8 @@ impl TypeChecker {
                     declaration_type,
                 )?;
             }
-            if let Some(node_initializer) = node_as_has_initializer.maybe_initializer() {
+            if let Some(node_initializer) = node.ref_(self).as_has_initializer().maybe_initializer()
+            {
                 self.check_type_assignable_to_and_optionally_elaborate(
                     self.check_expression_cached(node_initializer, None)?,
                     declaration_type,
@@ -798,22 +809,23 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         if !self.check_grammar_decorators_and_modifiers(node)
             && !self.check_grammar_variable_declaration_list(
-                node_as_variable_statement.declaration_list,
+                node.ref_(self).as_variable_statement().declaration_list,
             )
         {
             self.check_grammar_for_disallowed_let_or_const_statement(node);
         }
         try_for_each(
-            &*node_as_variable_statement
-                .declaration_list
-                .ref_(self)
-                .as_variable_declaration_list()
-                .declarations
-                .ref_(self),
+            &*released!(
+                node.ref_(self)
+                    .as_variable_statement()
+                    .declaration_list
+                    .ref_(self)
+                    .as_variable_declaration_list()
+                    .declarations
+            )
+            .ref_(self),
             |&declaration, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(declaration))?;
                 Ok(None)

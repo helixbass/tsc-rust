@@ -10,8 +10,8 @@ use crate::{
     is_module_declaration, is_non_null_expression, is_nullish_coalesce, is_optional_chain,
     is_parenthesized_expression, is_property_access_entity_name_expression,
     is_property_access_expression, is_string_literal_like, is_string_or_numeric_literal_like,
-    is_type_of_expression, node_is_present, Debug_, FlowCondition, FlowFlags, FlowLabel, FlowNode,
-    FlowNodeBase, FlowReduceLabel, FlowStart, HasArena, HasStatementsInterface, InArena,
+    is_type_of_expression, node_is_present, released, Debug_, FlowCondition, FlowFlags, FlowLabel,
+    FlowNode, FlowNodeBase, FlowReduceLabel, FlowStart, HasArena, HasStatementsInterface, InArena,
     ModifierFlags, Node, NodeArray, NodeFlags, NodeInterface, OptionInArena, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind,
 };
@@ -91,15 +91,16 @@ impl Binder {
                     None,
                     None,
                 );
-                local.ref_(self).set_export_symbol(Some(self.declare_symbol(
-                    self.container().ref_(self).symbol().ref_(self).exports(),
+                let export_symbol = self.declare_symbol(
+                    released!(self.container().ref_(self).symbol().ref_(self).exports()),
                     Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
                     symbol_excludes,
                     None,
                     None,
-                )));
+                );
+                local.ref_(self).set_export_symbol(Some(export_symbol));
                 node.ref_(self).set_local_symbol(Some(local));
                 local
             } else {

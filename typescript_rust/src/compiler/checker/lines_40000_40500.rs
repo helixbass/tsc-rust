@@ -11,10 +11,10 @@ use crate::{
     is_external_or_common_js_module, is_in_js_file, is_jsdoc_callback_tag, is_jsdoc_function_type,
     is_jsdoc_parameter_tag, is_jsdoc_type_expression, is_logging,
     is_module_exports_access_expression, is_parameter, is_rest_parameter, last, last_or_undefined,
-    relative_complement, skip_type_checking, try_for_each, try_for_each_child, try_maybe_for_each,
-    CancellationToken, Diagnostic, Diagnostics, HasStatementsInterface, ImportsNotUsedAsValues,
-    InArena, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface, OptionInArena,
-    SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
+    relative_complement, released, skip_type_checking, try_for_each, try_for_each_child,
+    try_maybe_for_each, CancellationToken, Diagnostic, Diagnostics, HasStatementsInterface,
+    ImportsNotUsedAsValues, InArena, Node, NodeArray, NodeCheckFlags, NodeFlags, NodeInterface,
+    OptionInArena, SignatureDeclarationInterface, SyntaxKind, Type, TypeChecker, TypeCheckerHost,
 };
 
 impl TypeChecker {
@@ -638,16 +638,14 @@ impl TypeChecker {
             clear(&mut self.potential_weak_map_set_collisions_mut());
             clear(&mut self.potential_reflect_collisions_mut());
 
-            let node_ref = node.ref_(self);
-            let node_as_source_file = node_ref.as_source_file();
             try_for_each(
-                &*node_as_source_file.statements().ref_(self),
+                &*released!(node.ref_(self).as_source_file().statements()).ref_(self),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)
                 },
             )?;
-            self.check_source_element(Some(node_as_source_file.end_of_file_token()))?;
+            self.check_source_element(Some(node.ref_(self).as_source_file().end_of_file_token()))?;
 
             self.check_deferred_nodes(node)?;
 
@@ -655,7 +653,7 @@ impl TypeChecker {
                 self.register_for_unused_identifiers_check(node);
             }
 
-            if !node_as_source_file.is_declaration_file()
+            if !node.ref_(self).as_source_file().is_declaration_file()
                 && (self.compiler_options.ref_(self).no_unused_locals == Some(true)
                     || self.compiler_options.ref_(self).no_unused_parameters == Some(true))
             {
@@ -679,7 +677,7 @@ impl TypeChecker {
 
             if self.compiler_options.ref_(self).imports_not_used_as_values
                 == Some(ImportsNotUsedAsValues::Error)
-                && !node_as_source_file.is_declaration_file()
+                && !node.ref_(self).as_source_file().is_declaration_file()
                 && is_external_module(&node.ref_(self))
             {
                 self.check_imports_for_type_only_conversion(node)?;

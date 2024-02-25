@@ -59,10 +59,10 @@ impl Program {
 
         let type_checker = self.get_diagnostics_producing_type_checker()?;
 
-        let source_file_ref = source_file.ref_(self);
-        let source_file_as_source_file = source_file_ref.as_source_file();
         Debug_.assert(
-            source_file_as_source_file
+            source_file
+                .ref_(self)
+                .as_source_file()
                 .maybe_bind_diagnostics()
                 .is_some(),
             None,
@@ -71,16 +71,20 @@ impl Program {
         let is_check_js =
             is_check_js_enabled_for_file(&source_file.ref_(self), &self.options.ref_(self));
         let is_ts_no_check = matches!(
-            source_file_as_source_file.maybe_check_js_directive().as_ref(),
+            source_file.ref_(self).as_source_file().maybe_check_js_directive().as_ref(),
             Some(source_file_check_js_directive) if source_file_check_js_directive.enabled == false
         );
         let include_bind_and_check_diagnostics = !is_ts_no_check
             && (matches!(
-                source_file_as_source_file.script_kind(),
+                source_file.ref_(self).as_source_file().script_kind(),
                 ScriptKind::TS | ScriptKind::TSX | ScriptKind::External | ScriptKind::Deferred
             ) || is_check_js);
         let bind_diagnostics = if include_bind_and_check_diagnostics {
-            source_file_as_source_file.bind_diagnostics().clone()
+            source_file
+                .ref_(self)
+                .as_source_file()
+                .bind_diagnostics()
+                .clone()
         } else {
             vec![]
         };
@@ -99,7 +103,9 @@ impl Program {
                 Some(bind_diagnostics),
                 Some(check_diagnostics),
                 if is_check_js {
-                    source_file_as_source_file
+                    source_file
+                        .ref_(self)
+                        .as_source_file()
                         .maybe_js_doc_diagnostics()
                         .clone()
                 } else {
