@@ -25,7 +25,7 @@ use crate::{
     is_string_literal_or_jsx_expression, is_template_head, is_template_literal,
     is_template_literal_type_span, is_template_middle_or_template_tail, is_template_span, is_token,
     is_type_element, is_type_node, is_type_node_or_type_parameter_declaration,
-    is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list,
+    is_type_parameter_declaration, is_variable_declaration, is_variable_declaration_list, released,
     return_ok_default_if_none, try_maybe_visit_node, try_maybe_visit_nodes,
     ClassLikeDeclarationInterface, FunctionLikeDeclarationInterface, HasArena,
     HasInitializerInterface, HasMembersInterface, HasQuestionTokenInterface,
@@ -2403,29 +2403,27 @@ pub fn try_maybe_visit_each_child_full(
                 ),
             )
         }
-        SyntaxKind::VariableStatement => {
-            let node_ref = node.ref_(arena);
-            let node_as_variable_statement = node_ref.as_variable_statement();
-            Some(
-                factory.ref_(arena).update_variable_statement(
-                    node,
-                    nodes_visitor(
-                        node.ref_(arena).maybe_modifiers(),
-                        Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
-                        None,
-                        None,
-                    )?,
-                    node_visitor(
-                        Some(node_as_variable_statement.declaration_list),
-                        Some(&mut visitor),
-                        Some(&|node: Id<Node>| is_variable_declaration_list(&node.ref_(arena))),
-                        None,
-                    )?
-                    .unwrap(),
-                ),
-            )
-        }
+        SyntaxKind::VariableStatement => Some(
+            factory.ref_(arena).update_variable_statement(
+                node,
+                nodes_visitor(
+                    released!(node.ref_(arena).maybe_modifiers()),
+                    Some(&mut |node: Id<Node>| visitor(node)),
+                    Some(&|node: Id<Node>| is_modifier(&node.ref_(arena))),
+                    None,
+                    None,
+                )?,
+                node_visitor(
+                    Some(released!(
+                        node.ref_(arena).as_variable_statement().declaration_list
+                    )),
+                    Some(&mut visitor),
+                    Some(&|node: Id<Node>| is_variable_declaration_list(&node.ref_(arena))),
+                    None,
+                )?
+                .unwrap(),
+            ),
+        ),
         SyntaxKind::ExpressionStatement => {
             let node_ref = node.ref_(arena);
             let node_as_expression_statement = node_ref.as_expression_statement();
@@ -2805,23 +2803,21 @@ pub fn try_maybe_visit_each_child_full(
                 )?,
             ))
         }
-        SyntaxKind::VariableDeclarationList => {
-            let node_ref = node.ref_(arena);
-            let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
-            Some(
-                factory.ref_(arena).update_variable_declaration_list(
-                    node,
-                    nodes_visitor(
-                        Some(node_as_variable_declaration_list.declarations),
-                        Some(&mut |node: Id<Node>| visitor(node)),
-                        Some(&|node: Id<Node>| is_variable_declaration(&node.ref_(arena))),
-                        None,
-                        None,
-                    )?
-                    .unwrap(),
-                ),
-            )
-        }
+        SyntaxKind::VariableDeclarationList => Some(
+            factory.ref_(arena).update_variable_declaration_list(
+                node,
+                nodes_visitor(
+                    Some(released!(
+                        node.ref_(arena).as_variable_declaration_list().declarations
+                    )),
+                    Some(&mut |node: Id<Node>| visitor(node)),
+                    Some(&|node: Id<Node>| is_variable_declaration(&node.ref_(arena))),
+                    None,
+                    None,
+                )?
+                .unwrap(),
+            ),
+        ),
         SyntaxKind::FunctionDeclaration => {
             let node_ref = node.ref_(arena);
             let node_as_function_declaration = node_ref.as_function_declaration();

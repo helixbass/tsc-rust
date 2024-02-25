@@ -9,7 +9,7 @@ use crate::{
     get_strict_option_value, has_syntactic_modifier, insert_statements_after_standard_prologue,
     is_class_element, is_external_module, is_heritage_clause, is_identifier, is_json_source_file,
     is_modifier, is_parameter_property_declaration, is_static, maybe_visit_nodes,
-    move_range_past_decorators, node_or_child_is_decorated, parameter_is_this_keyword,
+    move_range_past_decorators, node_or_child_is_decorated, parameter_is_this_keyword, released,
     set_emit_flags, skip_outer_expressions, skip_trivia, some, try_maybe_visit_each_child,
     try_maybe_visit_nodes, try_visit_each_child, try_visit_lexical_environment_full,
     try_visit_nodes, AsDoubleDeref, BoolExt, ClassLikeDeclarationInterface,
@@ -34,7 +34,7 @@ impl TransformTypeScript {
         Ok(self.factory.ref_(self).update_source_file(
             node,
             try_visit_lexical_environment_full(
-                node.ref_(self).as_source_file().statements(),
+                released!(node.ref_(self).as_source_file().statements()),
                 |node: Id<Node>| self.source_element_visitor(node),
                 &*self.context.ref_(self),
                 Some(0),

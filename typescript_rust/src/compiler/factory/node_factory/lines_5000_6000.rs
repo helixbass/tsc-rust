@@ -294,9 +294,7 @@ impl NodeFactory {
         has_no_default_lib: bool,
         lib_reference_directives: Rc<RefCell<Vec<FileReference>>>,
     ) -> Id<Node> {
-        let source_ref = source.ref_(self);
-        let source_as_source_file = source_ref.as_source_file();
-        let mut node = source_as_source_file.clone();
+        let mut node = source.ref_(self).as_source_file().clone();
         node.set_pos(-1);
         node.set_end(-1);
         node.set_id(0);
@@ -311,7 +309,7 @@ impl NodeFactory {
             .update_cloned_node(node.base_node());
 
         node.set_statements(self.create_node_array(Some(statements), None));
-        node.set_end_of_file_token(source_as_source_file.end_of_file_token());
+        node.set_end_of_file_token(source.ref_(self).as_source_file().end_of_file_token());
         node.set_is_declaration_file(is_declaration_file);
         node.set_referenced_files(referenced_files);
         node.set_type_reference_directives(type_reference_directives);
@@ -321,7 +319,12 @@ impl NodeFactory {
             propagate_children_flags(Some(&node.statements().ref_(self)))
                 | propagate_child_flags(Some(node.end_of_file_token()), self),
         );
-        node.set_implied_node_format(source_as_source_file.maybe_implied_node_format());
+        node.set_implied_node_format(
+            source
+                .ref_(self)
+                .as_source_file()
+                .maybe_implied_node_format(),
+        );
         node.alloc(self.arena())
     }
 
@@ -335,34 +338,37 @@ impl NodeFactory {
         has_no_default_lib: Option<bool>,
         lib_reference_directives: Option<Rc<RefCell<Vec<FileReference>>>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        let is_declaration_file =
-            is_declaration_file.unwrap_or_else(|| node_as_source_file.is_declaration_file());
+        let is_declaration_file = is_declaration_file
+            .unwrap_or_else(|| node.ref_(self).as_source_file().is_declaration_file());
         let referenced_files =
-            referenced_files.unwrap_or_else(|| node_as_source_file.referenced_files());
+            referenced_files.unwrap_or_else(|| node.ref_(self).as_source_file().referenced_files());
         let type_reference_directives = type_reference_directives
-            .unwrap_or_else(|| node_as_source_file.type_reference_directives());
-        let has_no_default_lib =
-            has_no_default_lib.unwrap_or_else(|| node_as_source_file.has_no_default_lib());
+            .unwrap_or_else(|| node.ref_(self).as_source_file().type_reference_directives());
+        let has_no_default_lib = has_no_default_lib
+            .unwrap_or_else(|| node.ref_(self).as_source_file().has_no_default_lib());
         let lib_reference_directives = lib_reference_directives
-            .unwrap_or_else(|| node_as_source_file.lib_reference_directives());
+            .unwrap_or_else(|| node.ref_(self).as_source_file().lib_reference_directives());
         let statements = statements.into();
-        if has_node_array_changed(node_as_source_file.statements(), &statements)
-            || node_as_source_file.is_declaration_file() != is_declaration_file
+        if has_node_array_changed(node.ref_(self).as_source_file().statements(), &statements)
+            || node.ref_(self).as_source_file().is_declaration_file() != is_declaration_file
             || !are_option_rcs_equal(
-                node_as_source_file.maybe_referenced_files().as_ref(),
+                node.ref_(self)
+                    .as_source_file()
+                    .maybe_referenced_files()
+                    .as_ref(),
                 Some(&referenced_files),
             )
             || !are_option_rcs_equal(
-                node_as_source_file
+                node.ref_(self)
+                    .as_source_file()
                     .maybe_type_reference_directives()
                     .as_ref(),
                 Some(&type_reference_directives),
             )
-            || node_as_source_file.has_no_default_lib() != has_no_default_lib
+            || node.ref_(self).as_source_file().has_no_default_lib() != has_no_default_lib
             || !are_option_rcs_equal(
-                node_as_source_file
+                node.ref_(self)
+                    .as_source_file()
                     .maybe_lib_reference_directives()
                     .as_ref(),
                 Some(&lib_reference_directives),

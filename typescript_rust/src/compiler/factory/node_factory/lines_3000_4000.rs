@@ -4,9 +4,9 @@ use local_macros::generate_node_factory_method_wrapper;
 use super::{propagate_child_flags, propagate_children_flags};
 use crate::{
     has_node_array_changed, has_option_node_array_changed, is_external_module_reference,
-    is_non_null_chain, modifiers_to_flags, AsDoubleDeref, AsExpression, Block, BreakStatement,
-    CaseBlock, ClassDeclaration, ClassLikeDeclarationInterface, ContinueStatement, Debug_,
-    DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
+    is_non_null_chain, modifiers_to_flags, released, AsDoubleDeref, AsExpression, Block,
+    BreakStatement, CaseBlock, ClassDeclaration, ClassLikeDeclarationInterface, ContinueStatement,
+    Debug_, DebuggerStatement, DoStatement, EmptyStatement, EnumDeclaration, ExpressionStatement,
     ExpressionWithTypeArguments, ForInStatement, ForOfStatement, ForStatement, FunctionDeclaration,
     FunctionLikeDeclarationInterface, HasInitializerInterface, HasMembersInterface,
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, IfStatement,
@@ -333,11 +333,9 @@ impl NodeFactory {
         modifiers: Option<impl Into<NodeArrayOrVec>>,
         declaration_list: Id<Node /*VariableDeclarationList*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         let modifiers = modifiers.map(Into::into);
         if has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
-            || node_as_variable_statement.declaration_list != declaration_list
+            || node.ref_(self).as_variable_statement().declaration_list != declaration_list
         {
             self.update(
                 self.create_variable_statement(modifiers, declaration_list),
@@ -951,12 +949,14 @@ impl NodeFactory {
         type_: Option<Id<Node /*TypeNode*/>>,
         initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
-        if node_as_variable_declaration.maybe_name() != name
-            || node_as_variable_declaration.maybe_type() != type_
-            || node_as_variable_declaration.exclamation_token != exclamation_token
-            || node_as_variable_declaration.maybe_initializer() != initializer
+        if node.ref_(self).as_variable_declaration().maybe_name() != name
+            || node.ref_(self).as_variable_declaration().maybe_type() != type_
+            || node.ref_(self).as_variable_declaration().exclamation_token != exclamation_token
+            || node
+                .ref_(self)
+                .as_variable_declaration()
+                .maybe_initializer()
+                != initializer
         {
             self.update(
                 self.create_variable_declaration(name, exclamation_token, type_, initializer),
@@ -995,15 +995,16 @@ impl NodeFactory {
         node: Id<Node>, /*VariableDeclarationList*/
         declarations: impl Into<NodeArrayOrVec>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
         let declarations = declarations.into();
         if has_node_array_changed(
-            node_as_variable_declaration_list.declarations,
+            node.ref_(self).as_variable_declaration_list().declarations,
             &declarations,
         ) {
             self.update(
-                self.create_variable_declaration_list(declarations, Some(node.ref_(self).flags())),
+                self.create_variable_declaration_list(
+                    declarations,
+                    Some(released!(node.ref_(self).flags())),
+                ),
                 node,
             )
         } else {

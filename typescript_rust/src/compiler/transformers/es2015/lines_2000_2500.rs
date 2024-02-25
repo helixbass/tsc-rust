@@ -229,8 +229,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node /*Statement*/>>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::None,
             if has_syntactic_modifier(node, ModifierFlags::Export, self) {
@@ -241,7 +239,9 @@ impl TransformES2015 {
         );
         let updated: Option<Id<Node /*Statement*/>>;
         if let Some(converted_loop_state) = self.maybe_converted_loop_state().filter(|_| {
-            !node_as_variable_statement
+            !node
+                .ref_(self)
+                .as_variable_statement()
                 .declaration_list
                 .ref_(self)
                 .flags()
@@ -249,7 +249,9 @@ impl TransformES2015 {
                 && !self.is_variable_statement_of_type_script_class_wrapper(node)
         }) {
             let mut assignments: Option<Vec<Id<Node /*Expression*/>>> = Default::default();
-            for &decl in &*node_as_variable_statement
+            for &decl in &*node
+                .ref_(self)
+                .as_variable_statement()
                 .declaration_list
                 .ref_(self)
                 .as_variable_declaration_list()
@@ -334,8 +336,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*VariableDeclarationList*/
     ) -> io::Result<Id<Node /*VariableDeclarationList*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration_list = node_ref.as_variable_declaration_list();
         if node.ref_(self).flags().intersects(NodeFlags::BlockScoped)
             || node
                 .ref_(self)
@@ -347,7 +347,13 @@ impl TransformES2015 {
             }
 
             let declarations: Vec<Id<Node>> = try_flat_map(
-                Some(&*node_as_variable_declaration_list.declarations.ref_(self)),
+                Some(
+                    &*node
+                        .ref_(self)
+                        .as_variable_declaration_list()
+                        .declarations
+                        .ref_(self),
+                ),
                 |&declaration: &Id<Node>, _| -> io::Result<_> {
                     Ok(if node.ref_(self).flags().intersects(NodeFlags::Let) {
                         self.visit_variable_declaration_in_let_declaration_list(declaration)?
@@ -372,19 +378,28 @@ impl TransformES2015 {
                 .transform_flags()
                 .intersects(TransformFlags::ContainsBindingPattern)
                 && (is_binding_pattern(
-                    node_as_variable_declaration_list.declarations.ref_(self)[0]
+                    node.ref_(self)
+                        .as_variable_declaration_list()
+                        .declarations
+                        .ref_(self)[0]
                         .ref_(self)
                         .as_variable_declaration()
                         .maybe_name()
                         .refed(self)
                         .as_deref(),
                 ) || is_binding_pattern(
-                    last(&node_as_variable_declaration_list.declarations.ref_(self))
-                        .ref_(self)
-                        .as_variable_declaration()
-                        .maybe_name()
-                        .refed(self)
-                        .as_deref(),
+                    last(
+                        &node
+                            .ref_(self)
+                            .as_variable_declaration_list()
+                            .declarations
+                            .ref_(self),
+                    )
+                    .ref_(self)
+                    .as_variable_declaration()
+                    .maybe_name()
+                    .refed(self)
+                    .as_deref(),
                 ))
             {
                 set_source_map_range(

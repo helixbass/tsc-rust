@@ -22,8 +22,6 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node /*SourceFile*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         let ancestor_facts = self.enter_subtree(
             HierarchyFacts::SourceFileExcludes,
             HierarchyFacts::SourceFileIncludes,
@@ -32,7 +30,7 @@ impl TransformES2015 {
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         self.context.ref_(self).start_lexical_environment();
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements().ref_(self),
+            &node.ref_(self).as_source_file().statements().ref_(self),
             &mut prologue,
             Some(false),
             Some(|node: Id<Node>| self.visitor(node)),
@@ -41,7 +39,7 @@ impl TransformES2015 {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    node_as_source_file.statements(),
+                    node.ref_(self).as_source_file().statements(),
                     Some(|node: Id<Node>| self.visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(statement_offset),
@@ -79,7 +77,10 @@ impl TransformES2015 {
             self.factory
                 .ref_(self)
                 .create_node_array(Some(concatenate(prologue, statements)), None)
-                .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
+                .set_text_range(
+                    Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                    self,
+                ),
             None,
             None,
             None,

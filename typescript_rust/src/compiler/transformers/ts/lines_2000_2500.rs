@@ -1,4 +1,4 @@
-use std::{io};
+use std::io;
 
 use id_arena::Id;
 
@@ -10,7 +10,7 @@ use crate::{
     is_instantiated_module, is_jsx_attributes, is_jsx_tag_name_expression,
     is_left_hand_side_expression, is_modifier, is_module_declaration, maybe_visit_nodes,
     move_range_past_decorators, move_range_past_modifiers, node_is_missing,
-    parameter_is_this_keyword, set_comment_range, set_emit_flags, set_source_map_range,
+    parameter_is_this_keyword, released, set_comment_range, set_emit_flags, set_source_map_range,
     set_synthetic_leading_comments, set_synthetic_trailing_comments, set_text_range,
     set_text_range_id_node, should_preserve_const_enums, skip_outer_expressions,
     try_flatten_destructuring_assignment, try_map, try_maybe_visit_each_child,
@@ -371,11 +371,11 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*VariableStatement*/
     ) -> io::Result<Option<Id<Node /*Statement*/>>> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_statement = node_ref.as_variable_statement();
         Ok(if self.is_export_of_namespace(node) {
-            let variables =
-                get_initialized_variables(node_as_variable_statement.declaration_list, self);
+            let variables = get_initialized_variables(
+                node.ref_(self).as_variable_statement().declaration_list,
+                self,
+            );
             if variables.is_empty() {
                 return Ok(None);
             }
@@ -447,15 +447,13 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*VariableDeclaration*/
     ) -> io::Result<VisitResult> {
-        let node_ref = node.ref_(self);
-        let node_as_variable_declaration = node_ref.as_variable_declaration();
         Ok(Some(
             self.factory
                 .ref_(self)
                 .update_variable_declaration(
                     node,
                     try_maybe_visit_node(
-                        node_as_variable_declaration.maybe_name(),
+                        released!(node.ref_(self).as_variable_declaration().maybe_name()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node: Id<Node>| is_binding_name(&node.ref_(self))),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,
@@ -463,7 +461,10 @@ impl TransformTypeScript {
                     None,
                     None,
                     try_maybe_visit_node(
-                        node_as_variable_declaration.maybe_initializer(),
+                        released!(node
+                            .ref_(self)
+                            .as_variable_declaration()
+                            .maybe_initializer()),
                         Some(|node: Id<Node>| self.visitor(node)),
                         Some(|node| is_expression(node, self)),
                         Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

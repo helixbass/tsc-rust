@@ -17,10 +17,10 @@ use crate::{
     is_class_like, is_default_clause, is_function_like, is_identifier, is_if_statement,
     is_internal_name, is_iteration_statement, is_labeled_statement, is_property_declaration,
     is_return_statement, is_switch_statement, is_try_statement, is_with_statement, ref_unwrapped,
-    try_maybe_visit_each_child, AllArenas, CompilerOptions, CoreTransformationContext, EmitFlags,
-    EmitHelperFactory, EmitHint, EmitResolver, GeneratedIdentifierFlags, GetOrInsertDefault,
-    HasArena, InArena, Matches, Node, NodeExt, NodeFactory, NodeInterface, OptionTry,
-    ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SyntaxKind, TransformFlags,
+    released, try_maybe_visit_each_child, AllArenas, CompilerOptions, CoreTransformationContext,
+    EmitFlags, EmitHelperFactory, EmitHint, EmitResolver, GeneratedIdentifierFlags,
+    GetOrInsertDefault, HasArena, InArena, Matches, Node, NodeExt, NodeFactory, NodeInterface,
+    OptionTry, ReadonlyTextRange, SourceFileLike, SourceTextAsChars, SyntaxKind, TransformFlags,
     TransformNodesTransformationResult, TransformationContext,
     TransformationContextOnEmitNodeOverrider, TransformationContextOnSubstituteNodeOverrider,
     Transformer, TransformerFactory, TransformerFactoryInterface, TransformerInterface,
@@ -341,14 +341,14 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        if node_as_source_file.is_declaration_file() {
+        if node.ref_(self).as_source_file().is_declaration_file() {
             return Ok(node);
         }
 
         self.set_current_source_file(Some(node));
-        self.set_current_text(Some(node_as_source_file.text_as_chars().clone()));
+        self.set_current_text(Some(
+            node.ref_(self).as_source_file().text_as_chars().clone(),
+        ));
 
         let visited = self
             .visit_source_file(node)?
@@ -488,7 +488,7 @@ impl TransformES2015 {
         node: Id<Node>,
         expression_result_is_unused: bool,
     ) -> io::Result<VisitResult> /*<Node>*/ {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::StaticKeyword => None,
             SyntaxKind::ClassDeclaration => self.visit_class_declaration(node)?,
             SyntaxKind::ClassExpression => Some(self.visit_class_expression(node)?.into()),
