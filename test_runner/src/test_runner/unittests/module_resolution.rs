@@ -1242,8 +1242,8 @@ mod relative_imports {
 
     use harness::Compiler;
     use typescript_rust::{
-        combine_paths, create_program, create_source_file, normalize_path, not_implemented,
-        AllArenas, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
+        combine_paths, create_program, create_source_file, impl_has_arena, normalize_path,
+        not_implemented, AllArenas, CompilerHost, CompilerOptions, CompilerOptionsBuilder,
         CreateProgramOptionsBuilder, ModuleKind, Node, Owned, ScriptReferenceHost, ScriptTarget,
     };
 
@@ -1304,6 +1304,7 @@ mod relative_imports {
     }
 
     struct RelativeImportsCompilerHost {
+        arena: *const AllArenas,
         current_directory: String,
         files: HashMap<String, String>,
     }
@@ -1315,6 +1316,7 @@ mod relative_imports {
             arena: &impl HasArena,
         ) -> Id<Box<dyn CompilerHost>> {
             arena.alloc_compiler_host(Box::new(Self {
+                arena: arena.arena(),
                 current_directory,
                 files,
             }))
@@ -1514,11 +1516,7 @@ mod relative_imports {
         }
     }
 
-    impl HasArena for RelativeImportsCompilerHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
+    impl_has_arena!(RelativeImportsCompilerHost);
 
     #[test]
     fn test_should_find_all_modules() {
@@ -1589,10 +1587,11 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     use once_cell::unsync::OnceCell;
     use typescript_rust::{
         combine_paths, create_get_canonical_file_name, create_program, create_source_file,
-        id_arena::Id, normalize_path, not_implemented, sort_and_deduplicate_diagnostics, AllArenas,
-        CompilerHost, CompilerOptions, CompilerOptionsBuilder, CreateProgramOptionsBuilder,
-        Diagnostic, DiagnosticInterface, DiagnosticRelatedInformationInterface, Diagnostics,
-        ModuleKind, Node, Owned, Program, ScriptTarget, VecExt,
+        id_arena::Id, impl_has_arena, normalize_path, not_implemented,
+        sort_and_deduplicate_diagnostics, AllArenas, CompilerHost, CompilerOptions,
+        CompilerOptionsBuilder, CreateProgramOptionsBuilder, Diagnostic, DiagnosticInterface,
+        DiagnosticRelatedInformationInterface, Diagnostics, ModuleKind, Node, Owned, Program,
+        ScriptTarget, VecExt,
     };
 
     use super::*;
@@ -1658,6 +1657,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
     }
 
     struct FilesWithDifferentCasingCompilerHost {
+        arena: *const AllArenas,
         current_directory: String,
         files: HashMap<String, String>,
         get_canonical_file_name: fn(&str) -> String,
@@ -1673,6 +1673,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
             arena: &impl HasArena,
         ) -> Id<Box<dyn CompilerHost>> {
             arena.alloc_compiler_host(Box::new(Self {
+                arena: arena.arena(),
                 current_directory,
                 files,
                 get_canonical_file_name,
@@ -1895,11 +1896,7 @@ mod files_with_different_casing_with_force_consistent_casing_in_file_names {
         }
     }
 
-    impl HasArena for FilesWithDifferentCasingCompilerHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
+    impl_has_arena!(FilesWithDifferentCasingCompilerHost);
 
     #[test]
     fn test_should_succeed_when_the_same_file_is_referenced_using_absolute_and_relative_names() {
@@ -3346,7 +3343,7 @@ mod type_reference_directive_resolution {
     use std::any::Any;
 
     use typescript_rust::{
-        array_to_map, create_program, create_source_file, not_implemented,
+        array_to_map, create_program, create_source_file, impl_has_arena, not_implemented,
         resolve_type_reference_directive, AllArenas, CompilerHost, CompilerOptions,
         CompilerOptionsBuilder, CreateProgramOptionsBuilder, MapOrDefault, Node, Owned,
         ResolvedProjectReference, ScriptTarget, SourceFileLike, StructureIsReused, VecExt,
@@ -3673,6 +3670,7 @@ mod type_reference_directive_resolution {
     }
 
     struct ReusedProgramKeepsErrorsCompilerHost {
+        arena: *const AllArenas,
         source_files: HashMap<String, Id<Node>>,
     }
 
@@ -3681,7 +3679,10 @@ mod type_reference_directive_resolution {
             source_files: HashMap<String, Id<Node>>,
             arena: &impl HasArena,
         ) -> Id<Box<dyn CompilerHost>> {
-            arena.alloc_compiler_host(Box::new(Self { source_files }))
+            arena.alloc_compiler_host(Box::new(Self {
+                source_files,
+                arena: arena.arena(),
+            }))
         }
     }
 
@@ -3871,11 +3872,7 @@ mod type_reference_directive_resolution {
         }
     }
 
-    impl HasArena for ReusedProgramKeepsErrorsCompilerHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
+    impl_has_arena!(ReusedProgramKeepsErrorsCompilerHost);
 
     #[test]
     fn test_modules_in_the_same_d_ts_file_are_preferred_to_external_files() {
@@ -3916,12 +3913,16 @@ mod type_reference_directive_resolution {
     }
 
     struct ModulesInTheSameKeepsErrorsCompilerHost {
+        arena: *const AllArenas,
         file: Id<Node /*SourceFile*/>,
     }
 
     impl ModulesInTheSameKeepsErrorsCompilerHost {
         pub fn new(file: Id<Node>, arena: &impl HasArena) -> Id<Box<dyn CompilerHost>> {
-            arena.alloc_compiler_host(Box::new(Self { file }))
+            arena.alloc_compiler_host(Box::new(Self {
+                file,
+                arena: arena.arena(),
+            }))
         }
     }
 
@@ -4134,11 +4135,7 @@ mod type_reference_directive_resolution {
         }
     }
 
-    impl HasArena for ModulesInTheSameKeepsErrorsCompilerHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
+    impl_has_arena!(ModulesInTheSameKeepsErrorsCompilerHost);
 
     #[test]
     fn test_modules_in_ts_file_are_not_checked_in_the_same_file() {
@@ -4179,12 +4176,16 @@ mod type_reference_directive_resolution {
     }
 
     struct ModulesInTsFileCompilerHost {
+        arena: *const AllArenas,
         file: Id<Node /*SourceFile*/>,
     }
 
     impl ModulesInTsFileCompilerHost {
         pub fn new(file: Id<Node>, arena: &impl HasArena) -> Id<Box<dyn CompilerHost>> {
-            arena.alloc_compiler_host(Box::new(Self { file }))
+            arena.alloc_compiler_host(Box::new(Self {
+                file,
+                arena: arena.arena(),
+            }))
         }
     }
 
@@ -4398,11 +4399,7 @@ mod type_reference_directive_resolution {
         }
     }
 
-    impl HasArena for ModulesInTsFileCompilerHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
+    impl_has_arena!(ModulesInTsFileCompilerHost);
 
     mod can_be_resolved_when_type_reference_directive_is_relative_and_in_a_sibling_folder {
         use once_cell::sync::Lazy;

@@ -906,8 +906,8 @@ mod parse_command_line {
         use derive_builder::Builder;
         use indexmap::IndexMap;
         use typescript_rust::{
-            create_option_name_map, format_string_from_args, id_arena::Id, AllArenas,
-            AlternateModeDiagnostics, CommandLineOption, CommandLineOptionBaseBuilder,
+            create_option_name_map, format_string_from_args, id_arena::Id, impl_has_arena,
+            AllArenas, AlternateModeDiagnostics, CommandLineOption, CommandLineOptionBaseBuilder,
             CommandLineOptionType, DiagnosticMessage, DidYouMeanOptionsDiagnostics, HasArena,
             ModuleResolutionKind, NonEmpty, OptionsNameMap, VecExt,
         };
@@ -1119,6 +1119,7 @@ mod parse_command_line {
         }
 
         struct VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
+            arena: *const AllArenas,
             option_declarations: Id<Vec<Id<CommandLineOption>>>,
             compiler_options_did_you_mean_diagnostics:
                 Id<Box<dyn ParseCommandLineWorkerDiagnostics>>,
@@ -1171,11 +1172,7 @@ mod parse_command_line {
             }
         }
 
-        impl HasArena for VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
-            fn arena(&self) -> &AllArenas {
-                unimplemented!()
-            }
-        }
+        impl_has_arena!(VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics);
 
         struct VerifyNullNonIncludedOption {
             pub type_: CommandLineOptionType,
@@ -1211,6 +1208,7 @@ mod parse_command_line {
                                         .build().unwrap().try_into_command_line_option(arena).unwrap())
                                 ));
                         arena.alloc_parse_command_line_worker_diagnostics(Box::new(VerifyNullNonIncludedOptionParseCommandLineWorkerDiagnostics {
+                            arena: arena.arena(),
                             option_declarations,
                             compiler_options_did_you_mean_diagnostics: compiler_options_did_you_mean_diagnostics(arena)
                         }))

@@ -2,17 +2,18 @@ use std::{borrow::Cow, collections::HashMap, io, path::Path as StdPath};
 
 use harness::{
     compiler, describe, get_file_based_test_configuration_description,
-    get_file_based_test_configurations, get_io, it, vpath, AllArenasHarness, Baseline, Compiler,
-    EnumerateFilesOptions, FileBasedTest, FileBasedTestConfiguration, HasArenaHarness, RunnerBase,
-    RunnerBaseSub, StringOrFileBasedTest, TestCaseParser, TestRunnerKind, Utils, IO,
+    get_file_based_test_configurations, get_io, impl_has_arena_harness, it, vpath,
+    AllArenasHarness, Baseline, Compiler, EnumerateFilesOptions, FileBasedTest,
+    FileBasedTestConfiguration, HasArenaHarness, RunnerBase, RunnerBaseSub, StringOrFileBasedTest,
+    TestCaseParser, TestRunnerKind, Utils, IO,
 };
 use itertools::Itertools;
 use jsonxf::Formatter;
 use regex::Regex;
 use typescript_rust::{
     combine_paths, file_extension_is, get_directory_path, get_normalized_absolute_path,
-    id_arena::Id, is_rooted_disk_path, regex, some, to_path, AllArenas, CompilerOptions, Extension,
-    HasArena, InArena, OptionInArena,
+    id_arena::Id, is_rooted_disk_path, regex, some, to_path, CompilerOptions, Extension, InArena,
+    OptionInArena,
 };
 
 use super::runner::{should_run_category, TestCategory};
@@ -27,6 +28,7 @@ pub enum CompilerTestType {
 pub type CompilerFileBasedTest = FileBasedTest;
 
 pub struct CompilerBaselineRunner {
+    arena: *const AllArenasHarness,
     base_path: String,
     test_suite_name: TestRunnerKind,
     emit: bool,
@@ -34,13 +36,14 @@ pub struct CompilerBaselineRunner {
 }
 
 impl CompilerBaselineRunner {
-    pub fn new(test_type: CompilerTestType) -> Self {
+    pub fn new(test_type: CompilerTestType, arena: &impl HasArenaHarness) -> Self {
         let test_suite_name = match test_type {
             CompilerTestType::Conformance => TestRunnerKind::Conformance,
             CompilerTestType::Regression => TestRunnerKind::Compiler,
             CompilerTestType::Test262 => TestRunnerKind::Test262,
         };
         Self {
+            arena: arena.arena_harness(),
             base_path: format!(
                 "tests/cases/{:?}",
                 // "../typescript_rust/typescript_src/tests/cases/{:?}",
@@ -58,7 +61,7 @@ impl CompilerBaselineRunner {
         arena: &impl HasArenaHarness,
     ) -> RunnerBase {
         RunnerBase::new(
-            arena.alloc_runner_base_sub(Box::new(Self::new(test_type))),
+            arena.alloc_runner_base_sub(Box::new(Self::new(test_type, arena))),
             arena,
         )
     }
@@ -354,20 +357,11 @@ impl RunnerBaseSub for CompilerBaselineRunner {
     }
 }
 
-impl HasArena for CompilerBaselineRunner {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
-impl HasArenaHarness for CompilerBaselineRunner {
-    fn arena_harness(&self) -> &AllArenasHarness {
-        unimplemented!()
-    }
-}
+impl_has_arena_harness!(CompilerBaselineRunner);
 
 #[allow(dead_code)]
 struct CompilerTest {
+    arena: *const AllArenasHarness,
     file_name: String,
     just_name: String,
     configured_name: String,
@@ -560,6 +554,7 @@ impl CompilerTest {
         let options = result.options.clone();
 
         Ok(Self {
+            arena: arena.arena_harness(),
             file_name,
             just_name,
             configured_name,
@@ -742,14 +737,4 @@ impl CompilerTest {
     }
 }
 
-impl HasArena for CompilerTest {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
-impl HasArenaHarness for CompilerTest {
-    fn arena_harness(&self) -> &AllArenasHarness {
-        unimplemented!()
-    }
-}
+impl_has_arena_harness!(CompilerTest);
