@@ -288,13 +288,12 @@ impl CheckTypeRelatedTo {
                             .type_checker
                             .ref_(arena)
                             .get_symbol_links(source_symbol);
-                        if let Some(links_originating_import) = links
-                            .ref_(self_.ref_(arena))
-                            .originating_import
-                            .clone()
-                            .filter(|&links_originating_import| {
-                                !is_import_call(links_originating_import, arena)
-                            })
+                        if let Some(links_originating_import) =
+                            links.ref_(arena).originating_import.clone().filter(
+                                |&links_originating_import| {
+                                    !is_import_call(links_originating_import, arena)
+                                },
+                            )
                         {
                             let helpful_retry = self_
                                 .ref_(arena)
@@ -438,14 +437,13 @@ impl CheckTypeRelatedTo {
         self_: Id<Self>,
         arena: &impl HasArena,
     ) -> io::Result<()> {
-        let mut stack = self_command_line_option.arenaincompatible_stack().clone();
-        *self_command_line_option.arenaincompatible_stack() = vec![];
-        let info = self_command_line_option.arenamaybe_last_skipped_info();
-        self_command_line_option.arenaset_last_skipped_info(None);
+        let mut stack = self_.ref_(arena).incompatible_stack().clone();
+        *self_.ref_(arena).incompatible_stack() = vec![];
+        let info = self_.ref_(arena).maybe_last_skipped_info();
+        self_.ref_(arena).set_last_skipped_info(None);
         if stack.len() == 1 {
             let (stack_0_error, stack_0_args) = stack.into_iter().next().unwrap();
-            self_command_line_option
-                .arenareport_error(Cow::Borrowed(stack_0_error), stack_0_args)?;
+            Self::report_error(self_, arena, Cow::Borrowed(stack_0_error), stack_0_args)?;
             if let Some((info_0, info_1)) = info {
                 Self::report_relation_error(self_, arena, None, info_0, info_1)?;
             }
@@ -578,7 +576,7 @@ impl CheckTypeRelatedTo {
         target: Id<Type>,
     ) -> io::Result<()> {
         if !self_.ref_(arena).incompatible_stack().is_empty() {
-            self_.ref_(arena).report_incompatible_stack()?;
+            Self::report_incompatible_stack(self_, arena)?;
         }
         let (source_type, target_type) = self_
             .ref_(arena)
@@ -949,7 +947,9 @@ impl CheckTypeRelatedTo {
                 .is_mutable_array_or_tuple(target)
         {
             if report_errors {
-                self_.ref_(arena).report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1),
                     Some(vec![
                         self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
@@ -1050,7 +1050,9 @@ impl CheckTypeRelatedTo {
             {
                 return Ok(Ternary::True);
             }
-            self_.ref_(arena).report_error_results(
+            Self::report_error_results(
+                self_,
+                arena,
                 report_errors,
                 head_message.clone(),
                 original_source,
@@ -1366,7 +1368,9 @@ impl CheckTypeRelatedTo {
                 .flags()
                 .intersects(TypeFlags::UnionOrIntersection)
         {
-            result = self_.ref_(arena).recursive_type_related_to(
+            result = Self::recursive_type_related_to(
+                self_,
+                arena,
                 source,
                 target,
                 report_errors,
@@ -1385,7 +1389,9 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::StructuredOrInstantiable))
         {
-            result = self_.ref_(arena).recursive_type_related_to(
+            result = Self::recursive_type_related_to(
+                self_,
+                arena,
                 source,
                 target,
                 report_errors,
@@ -1499,7 +1505,9 @@ impl CheckTypeRelatedTo {
                     ))
         {
             self_.ref_(arena).set_in_property_check(true);
-            result &= self_.ref_(arena).recursive_type_related_to(
+            result &= Self::recursive_type_related_to(
+                self_,
+                arena,
                 source,
                 target,
                 report_errors,
@@ -1600,7 +1608,9 @@ impl CheckTypeRelatedTo {
                     .global_object_type()
                     == source
             {
-                self_.ref_(arena).report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead),
                     None,
                 )?;
@@ -1655,9 +1665,7 @@ impl CheckTypeRelatedTo {
                     .set_last_skipped_info(Some((source, target)));
                 return Ok(()) /*result*/;
             }
-            self_
-                .ref_(arena)
-                .report_relation_error(head_message, source, target)?;
+            Self::report_relation_error(self_, arena, head_message, source, target)?;
         }
 
         Ok(())
@@ -1746,7 +1754,9 @@ impl CheckTypeRelatedTo {
             }
             return Ok(result);
         }
-        self_.ref_(arena).recursive_type_related_to(
+        Self::recursive_type_related_to(
+            self_,
+            arena,
             source,
             target,
             false,

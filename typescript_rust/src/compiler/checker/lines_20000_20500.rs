@@ -8,7 +8,6 @@ use std::{
 
 use id_arena::Id;
 
-
 use super::{CheckTypeRelatedTo, IntersectionState, RecursionFlags};
 use crate::{
     get_declaration_modifier_flags_from_symbol, get_object_flags, try_every, ConditionalRoot,
@@ -22,42 +21,53 @@ use crate::{
 
 impl CheckTypeRelatedTo {
     pub(super) fn index_info_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source_info: Id<IndexInfo>,
         target_info: Id<IndexInfo>,
         report_errors: bool,
     ) -> io::Result<Ternary> {
-        let related = self.is_related_to(
-            source_info.ref_(self).type_,
-            target_info.ref_(self).type_,
+        let related = Self::is_related_to(
+            self_,
+            arena,
+            source_info.ref_(arena).type_,
+            target_info.ref_(arena).type_,
             Some(RecursionFlags::Both),
             Some(report_errors),
             None,
             None,
         )?;
         if related == Ternary::False && report_errors {
-            if source_info.ref_(self).key_type == target_info.ref_(self).key_type {
-                self.report_error(
+            if source_info.ref_(arena).key_type == target_info.ref_(arena).key_type {
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::_0_index_signatures_are_incompatible),
-                    Some(vec![self.type_checker.ref_(self).type_to_string_(
-                        source_info.ref_(self).key_type,
-                        Option::<Id<Node>>::None,
-                        None,
-                        None,
-                    )?]),
+                    Some(vec![self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .type_to_string_(
+                            source_info.ref_(arena).key_type,
+                            Option::<Id<Node>>::None,
+                            None,
+                            None,
+                        )?]),
                 )?;
             } else {
-                self.report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::_0_and_1_index_signatures_are_incompatible),
                     Some(vec![
-                        self.type_checker.ref_(self).type_to_string_(
-                            source_info.ref_(self).key_type,
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
+                            source_info.ref_(arena).key_type,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
-                        self.type_checker.ref_(self).type_to_string_(
-                            target_info.ref_(self).key_type,
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
+                            target_info.ref_(arena).key_type,
                             Option::<Id<Node>>::None,
                             None,
                             None,
@@ -70,7 +80,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn index_signatures_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         source_is_primitive: bool,
@@ -78,19 +89,21 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         if Rc::ptr_eq(
-            &self.relation,
-            &self.type_checker.ref_(self).identity_relation,
+            &self_.ref_(arena).relation,
+            &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
         ) {
-            return self.index_signatures_identical_to(source, target);
+            return Self::index_signatures_identical_to(self_, arena, source, target);
         }
-        let index_infos = self
+        let index_infos = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_index_infos_of_type(target)?;
         let target_has_string_index = some(
             Some(&index_infos),
             Some(|info: &Id<IndexInfo>| {
-                info.ref_(self).key_type == self.type_checker.ref_(self).string_type()
+                info.ref_(arena).key_type
+                    == self_.ref_(arena).type_checker.ref_(arena).string_type()
             }),
         );
         let mut result = Ternary::True;
@@ -98,31 +111,38 @@ impl CheckTypeRelatedTo {
             let related = if !source_is_primitive
                 && target_has_string_index
                 && target_info
-                    .ref_(self)
+                    .ref_(arena)
                     .type_
-                    .ref_(self)
+                    .ref_(arena)
                     .flags()
                     .intersects(TypeFlags::Any)
             {
                 Ternary::True
-            } else if self
+            } else if self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .is_generic_mapped_type(source)?
                 && target_has_string_index
             {
-                self.is_related_to(
-                    self.type_checker
-                        .ref_(self)
+                Self::is_related_to(
+                    self_,
+                    arena,
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
                         .get_template_type_from_mapped_type(source)?,
-                    target_info.ref_(self).type_,
+                    target_info.ref_(arena).type_,
                     Some(RecursionFlags::Both),
                     Some(report_errors),
                     None,
                     None,
                 )?
             } else {
-                self.type_related_to_index_info(
+                Self::type_related_to_index_info(
+                    self_,
+                    arena,
                     source,
                     target_info,
                     report_errors,
@@ -138,38 +158,55 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn type_related_to_index_info(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target_info: Id<IndexInfo>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        let source_info = self
+        let source_info = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
-            .get_applicable_index_info(source, target_info.ref_(self).key_type)?;
+            .ref_(arena)
+            .get_applicable_index_info(source, target_info.ref_(arena).key_type)?;
         if let Some(source_info) = source_info {
-            return self.index_info_related_to(source_info, target_info, report_errors);
+            return Self::index_info_related_to(
+                self_,
+                arena,
+                source_info,
+                target_info,
+                report_errors,
+            );
         }
         if !intersection_state.intersects(IntersectionState::Source)
-            && self
+            && self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .is_object_type_with_inferable_index(source)?
         {
-            return self.members_related_to_index_info(source, target_info, report_errors);
+            return Self::members_related_to_index_info(
+                self_,
+                arena,
+                source,
+                target_info,
+                report_errors,
+            );
         }
         if report_errors {
-            self.report_error(
+            Self::report_error(
+                self_,
+                arena,
                 Cow::Borrowed(&Diagnostics::Index_signature_for_type_0_is_missing_in_type_1),
                 Some(vec![
-                    self.type_checker.ref_(self).type_to_string_(
-                        target_info.ref_(self).key_type,
+                    self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
+                        target_info.ref_(arena).key_type,
                         Option::<Id<Node>>::None,
                         None,
                         None,
                     )?,
-                    self.type_checker.ref_(self).type_to_string_(
+                    self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                         source,
                         Option::<Id<Node>>::None,
                         None,
@@ -182,34 +219,40 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn index_signatures_identical_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<Ternary> {
-        let source_infos = self
+        let source_infos = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_index_infos_of_type(source)?;
-        let target_infos = self
+        let target_infos = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_index_infos_of_type(target)?;
         if source_infos.len() != target_infos.len() {
             return Ok(Ternary::False);
         }
         for target_info in &target_infos {
-            let source_info = self
+            let source_info = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
-                .get_index_info_of_type_(source, target_info.ref_(self).key_type)?;
+                .ref_(arena)
+                .get_index_info_of_type_(source, target_info.ref_(arena).key_type)?;
             if !matches!(
                 source_info.as_ref(),
-                Some(source_info) if self.is_related_to(
-                    source_info.ref_(self).type_,
-                    target_info.ref_(self).type_,
+                Some(source_info) if Self::is_related_to(
+                    self_,
+                    arena,
+                    source_info.ref_(arena).type_,
+                    target_info.ref_(arena).type_,
                     Some(RecursionFlags::Both),
                     None, None, None
-                )? != Ternary::False && source_info.ref_(self).is_readonly == target_info.ref_(self).is_readonly
+                )? != Ternary::False && source_info.ref_(arena).is_readonly == target_info.ref_(arena).is_readonly
             ) {
                 return Ok(Ternary::False);
             }
@@ -218,14 +261,15 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn constructor_visibilities_are_compatible(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source_signature: Id<Signature>,
         target_signature: Id<Signature>,
         report_errors: bool,
     ) -> io::Result<bool> {
         let (Some(source_signature_declaration), Some(target_signature_declaration)) = (
-            source_signature.ref_(self).declaration,
-            target_signature.ref_(self).declaration,
+            source_signature.ref_(arena).declaration,
+            target_signature.ref_(arena).declaration,
         ) else {
             return Ok(true);
         };
@@ -233,12 +277,12 @@ impl CheckTypeRelatedTo {
         let source_accessibility = get_selected_effective_modifier_flags(
             source_signature_declaration,
             ModifierFlags::NonPublicAccessibilityModifier,
-            self,
+            arena,
         );
         let target_accessibility = get_selected_effective_modifier_flags(
             target_signature_declaration,
             ModifierFlags::NonPublicAccessibilityModifier,
-            self,
+            arena,
         );
 
         if target_accessibility == ModifierFlags::Private {
@@ -258,17 +302,23 @@ impl CheckTypeRelatedTo {
         }
 
         if report_errors {
-            self.report_error(
+            Self::report_error(
+                self_,
+                arena,
                 Cow::Borrowed(
                     &Diagnostics::Cannot_assign_a_0_constructor_type_to_a_1_constructor_type,
                 ),
                 Some(vec![
-                    self.type_checker
-                        .ref_(self)
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
                         .visibility_to_string(source_accessibility)
                         .to_owned(),
-                    self.type_checker
-                        .ref_(self)
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
                         .visibility_to_string(target_accessibility)
                         .to_owned(),
                 ]),

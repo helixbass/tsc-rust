@@ -399,14 +399,18 @@ impl CheckTypeRelatedTo {
                 IntersectionState::None,
             )?;
             if result != Ternary::False {
-                result &= self_.ref_(arena).signatures_related_to(
+                result &= Self::signatures_related_to(
+                    self_,
+                    arena,
                     source,
                     type_,
                     SignatureKind::Call,
                     false,
                 )?;
                 if result != Ternary::False {
-                    result &= self_.ref_(arena).signatures_related_to(
+                    result &= Self::signatures_related_to(
+                        self_,
+                        arena,
                         source,
                         type_,
                         SignatureKind::Construct,
@@ -424,7 +428,9 @@ impl CheckTypeRelatedTo {
                                 .ref_(arena)
                                 .is_tuple_type(type_))
                     {
-                        result &= self_.ref_(arena).index_signatures_related_to(
+                        result &= Self::index_signatures_related_to(
+                            self_,
+                            arena,
                             source,
                             type_,
                             false,
@@ -849,7 +855,9 @@ impl CheckTypeRelatedTo {
                 .type_checker
                 .ref_(arena)
                 .get_type_names_for_error_display(source, target)?;
-            self_.ref_(arena).report_error(
+            Self::report_error(
+                self_,
+                arena,
                 Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2),
                 Some(vec![prop_name.clone(), source_string, target_string]),
             )?;
@@ -907,7 +915,9 @@ impl CheckTypeRelatedTo {
                     ])
                 )?
             } else {
-                self_.ref_(arena).report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::Type_0_is_missing_the_following_properties_from_type_1_Colon_2),
                     Some(vec![
                         self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
@@ -1049,7 +1059,9 @@ impl CheckTypeRelatedTo {
                 let target_min_length = target_target.ref_(arena).as_tuple_type().min_length;
                 if source_rest_flag == ElementFlags::None && source_arity < target_min_length {
                     if report_errors {
-                        self_.ref_(arena).report_error(
+                        Self::report_error(
+                            self_,
+                            arena,
                             Cow::Borrowed(
                                 &Diagnostics::Source_has_0_element_s_but_target_requires_1,
                             ),
@@ -1063,7 +1075,9 @@ impl CheckTypeRelatedTo {
                 }
                 if target_rest_flag == ElementFlags::None && target_arity < source_min_length {
                     if report_errors {
-                        self_.ref_(arena).report_error(
+                        Self::report_error(
+                            self_,
+                            arena,
                             Cow::Borrowed(
                                 &Diagnostics::Source_has_0_element_s_but_target_allows_only_1,
                             ),
@@ -1080,14 +1094,18 @@ impl CheckTypeRelatedTo {
                 {
                     if report_errors {
                         if source_min_length < target_min_length {
-                            self_.ref_(arena).report_error(
+                            Self::report_error(
+                                self_,
+                                arena,
                                 Cow::Borrowed(&Diagnostics::Target_requires_0_element_s_but_source_may_have_fewer),
                                 Some(vec![
                                     target_min_length.to_string(),
                                 ])
                             )?;
                         } else {
-                            self_.ref_(arena).report_error(
+                            Self::report_error(
+                                self_,
+                                arena,
                                 Cow::Borrowed(&Diagnostics::Target_allows_only_0_element_s_but_source_may_have_more),
                                 Some(vec![
                                     target_arity.to_string(),
@@ -1188,7 +1206,9 @@ impl CheckTypeRelatedTo {
                         && !source_flags.intersects(ElementFlags::Variadic)
                     {
                         if report_errors {
-                            self_.ref_(arena).report_error(
+                            Self::report_error(
+                                self_,
+                                arena,
                                 Cow::Borrowed(&Diagnostics::Source_provides_no_match_for_variadic_element_at_position_0_in_target),
                                 Some(vec![
                                     i.to_string(),
@@ -1293,7 +1313,9 @@ impl CheckTypeRelatedTo {
                                 target_flags.intersects(ElementFlags::Optional),
                             )
                     };
-                    let related = self_.ref_(arena).is_related_to(
+                    let related = Self::is_related_to(
+                        self_,
+                        arena,
                         source_type,
                         target_check_type,
                         Some(RecursionFlags::Both),
@@ -1575,72 +1597,95 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn signatures_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         kind: SignatureKind,
         report_errors: bool,
     ) -> io::Result<Ternary> {
         if Rc::ptr_eq(
-            &self.relation,
-            &self.type_checker.ref_(self).identity_relation,
+            &self_.ref_(arena).relation,
+            &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
         ) {
-            return self.signatures_identical_to(source, target, kind);
+            return Self::signatures_identical_to(self_, arena, source, target, kind);
         }
-        if target == self.type_checker.ref_(self).any_function_type()
-            || source == self.type_checker.ref_(self).any_function_type()
+        if target
+            == self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .any_function_type()
+            || source
+                == self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .any_function_type()
         {
             return Ok(Ternary::True);
         }
 
         let source_is_js_constructor = matches!(
-            source.ref_(self).maybe_symbol(),
-            Some(source_symbol) if self.type_checker.ref_(self).is_js_constructor(source_symbol.ref_(self).maybe_value_declaration())?
+            source.ref_(arena).maybe_symbol(),
+            Some(source_symbol) if self_.ref_(arena).type_checker.ref_(arena).is_js_constructor(source_symbol.ref_(arena).maybe_value_declaration())?
         );
         let target_is_js_constructor = matches!(
-            target.ref_(self).maybe_symbol(),
-            Some(target_symbol) if self.type_checker.ref_(self).is_js_constructor(target_symbol.ref_(self).maybe_value_declaration())?
+            target.ref_(arena).maybe_symbol(),
+            Some(target_symbol) if self_.ref_(arena).type_checker.ref_(arena).is_js_constructor(target_symbol.ref_(arena).maybe_value_declaration())?
         );
 
-        let source_signatures = self.type_checker.ref_(self).get_signatures_of_type(
-            source,
-            if source_is_js_constructor && kind == SignatureKind::Construct {
-                SignatureKind::Call
-            } else {
-                kind
-            },
-        )?;
-        let target_signatures = self.type_checker.ref_(self).get_signatures_of_type(
-            target,
-            if target_is_js_constructor && kind == SignatureKind::Construct {
-                SignatureKind::Call
-            } else {
-                kind
-            },
-        )?;
+        let source_signatures = self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .get_signatures_of_type(
+                source,
+                if source_is_js_constructor && kind == SignatureKind::Construct {
+                    SignatureKind::Call
+                } else {
+                    kind
+                },
+            )?;
+        let target_signatures = self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .get_signatures_of_type(
+                target,
+                if target_is_js_constructor && kind == SignatureKind::Construct {
+                    SignatureKind::Call
+                } else {
+                    kind
+                },
+            )?;
 
         if kind == SignatureKind::Construct
             && !source_signatures.is_empty()
             && !target_signatures.is_empty()
         {
             let source_is_abstract = source_signatures[0]
-                .ref_(self)
+                .ref_(arena)
                 .flags
                 .intersects(SignatureFlags::Abstract);
             let target_is_abstract = target_signatures[0]
-                .ref_(self)
+                .ref_(arena)
                 .flags
                 .intersects(SignatureFlags::Abstract);
             if source_is_abstract && !target_is_abstract {
                 if report_errors {
-                    self.report_error(
+                    Self::report_error(
+                        self_,
+                        arena,
                         Cow::Borrowed(&Diagnostics::Cannot_assign_an_abstract_constructor_type_to_a_non_abstract_constructor_type),
                         None,
                     )?;
                 }
                 return Ok(Ternary::False);
             }
-            if !self.constructor_visibilities_are_compatible(
+            if !Self::constructor_visibilities_are_compatible(
+                self_,
+                arena,
                 source_signatures[0],
                 target_signatures[0],
                 report_errors,
@@ -1650,7 +1695,7 @@ impl CheckTypeRelatedTo {
         }
 
         let mut result = Ternary::True;
-        let save_error_info = self.capture_error_calculation_state();
+        let save_error_info = self_.ref_(arena).capture_error_calculation_state();
         let incompatible_reporter: fn(
             &Self,
             Id<Signature>,
@@ -1660,19 +1705,25 @@ impl CheckTypeRelatedTo {
         } else {
             Self::report_incompatible_call_signature_return
         };
-        let source_object_flags = get_object_flags(&source.ref_(self));
-        let target_object_flags = get_object_flags(&target.ref_(self));
+        let source_object_flags = get_object_flags(&source.ref_(arena));
+        let target_object_flags = get_object_flags(&target.ref_(arena));
         if source_object_flags.intersects(ObjectFlags::Instantiated)
             && target_object_flags.intersects(ObjectFlags::Instantiated)
-            && source.ref_(self).maybe_symbol() == target.ref_(self).maybe_symbol()
+            && source.ref_(arena).maybe_symbol() == target.ref_(arena).maybe_symbol()
         {
             for i in 0..target_signatures.len() {
-                let related = self.signature_related_to(
+                let related = Self::signature_related_to(
+                    self_,
+                    arena,
                     source_signatures[i].clone(),
                     target_signatures[i].clone(),
                     true,
                     report_errors,
-                    incompatible_reporter(self, source_signatures[i], target_signatures[i]),
+                    incompatible_reporter(
+                        &self_.ref_(arena),
+                        source_signatures[i],
+                        target_signatures[i],
+                    ),
                 )?;
                 if related == Ternary::False {
                     return Ok(Ternary::False);
@@ -1681,55 +1732,71 @@ impl CheckTypeRelatedTo {
             }
         } else if source_signatures.len() == 1 && target_signatures.len() == 1 {
             let erase_generics = Rc::ptr_eq(
-                &self.relation,
-                &self.type_checker.ref_(self).comparable_relation,
+                &self_.ref_(arena).relation,
+                &self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .comparable_relation,
             ) || matches!(
-                self.type_checker
-                    .ref_(self)
+                self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
                     .compiler_options
-                    .ref_(self)
+                    .ref_(arena)
                     .no_strict_generic_checks,
                 Some(true)
             );
             let source_signature = source_signatures[0];
             let target_signature = target_signatures[0];
-            result = self.signature_related_to(
+            result = Self::signature_related_to(
+                self_,
+                arena,
                 source_signature.clone(),
                 target_signature.clone(),
                 erase_generics,
                 report_errors,
-                incompatible_reporter(self, source_signature, target_signature),
+                incompatible_reporter(&self_.ref_(arena), source_signature, target_signature),
             )?;
             if result == Ternary::False
                 && report_errors
                 && kind == SignatureKind::Construct
                 && source_object_flags & target_object_flags != ObjectFlags::None
                 && (matches!(
-                    target_signature.ref_(self).declaration,
-                    Some(target_signature_declaration) if target_signature_declaration.ref_(self).kind() == SyntaxKind::Constructor
+                    target_signature.ref_(arena).declaration,
+                    Some(target_signature_declaration) if target_signature_declaration.ref_(arena).kind() == SyntaxKind::Constructor
                 ) || matches!(
-                    source_signature.ref_(self).declaration,
-                    Some(source_signature_declaration) if source_signature_declaration.ref_(self).kind() == SyntaxKind::Constructor
+                    source_signature.ref_(arena).declaration,
+                    Some(source_signature_declaration) if source_signature_declaration.ref_(arena).kind() == SyntaxKind::Constructor
                 ))
             {
                 let construct_signature_to_string =
                     |signature: Id<Signature>| -> io::Result<String> {
-                        self.type_checker.ref_(self).signature_to_string_(
-                            signature,
-                            Option::<Id<Node>>::None,
-                            Some(TypeFormatFlags::WriteArrowStyleSignature),
-                            Some(kind),
-                            None,
-                        )
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .signature_to_string_(
+                                signature,
+                                Option::<Id<Node>>::None,
+                                Some(TypeFormatFlags::WriteArrowStyleSignature),
+                                Some(kind),
+                                None,
+                            )
                     };
-                self.report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1),
                     Some(vec![
                         construct_signature_to_string(source_signature.clone())?,
                         construct_signature_to_string(target_signature.clone())?,
                     ]),
                 )?;
-                self.report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::Types_of_construct_signatures_are_incompatible),
                     None,
                 )?;
@@ -1739,38 +1806,46 @@ impl CheckTypeRelatedTo {
             'outer: for &t in &target_signatures {
                 let mut should_elaborate_errors = report_errors;
                 for &s in &source_signatures {
-                    let related = self.signature_related_to(
+                    let related = Self::signature_related_to(
+                        self_,
+                        arena,
                         s.clone(),
                         t.clone(),
                         true,
                         should_elaborate_errors,
-                        incompatible_reporter(self, s, t),
+                        incompatible_reporter(&self_.ref_(arena), s, t),
                     )?;
                     if related != Ternary::False {
                         result &= related;
-                        self.reset_error_info(save_error_info.clone());
+                        self_.ref_(arena).reset_error_info(save_error_info.clone());
                         continue 'outer;
                     }
                     should_elaborate_errors = false;
                 }
 
                 if should_elaborate_errors {
-                    self.report_error(
+                    Self::report_error(
+                        self_,
+                        arena,
                         Cow::Borrowed(&Diagnostics::Type_0_provides_no_match_for_the_signature_1),
                         Some(vec![
-                            self.type_checker.ref_(self).type_to_string_(
+                            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                                 source,
                                 Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
-                            self.type_checker.ref_(self).signature_to_string_(
-                                t.clone(),
-                                Option::<Id<Node>>::None,
-                                None,
-                                Some(kind),
-                                None,
-                            )?,
+                            self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .signature_to_string_(
+                                    t.clone(),
+                                    Option::<Id<Node>>::None,
+                                    None,
+                                    Some(kind),
+                                    None,
+                                )?,
                         ]),
                     )?;
                 }
@@ -1901,79 +1976,106 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn signature_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Signature>,
         target: Id<Signature>,
         erase: bool,
         report_errors: bool,
         incompatible_reporter: fn(&Self, Id<Type>, Id<Type>) -> io::Result<()>,
     ) -> io::Result<Ternary> {
-        self.type_checker.ref_(self).compare_signatures_related(
-            if erase {
-                self.type_checker.ref_(self).get_erased_signature(source)?
-            } else {
-                source
-            },
-            if erase {
-                self.type_checker.ref_(self).get_erased_signature(target)?
-            } else {
-                target
-            },
-            if Rc::ptr_eq(
-                &self.relation,
-                &self.type_checker.ref_(self).strict_subtype_relation,
-            ) {
-                SignatureCheckMode::StrictArity
-            } else {
-                SignatureCheckMode::None
-            },
-            report_errors,
-            &mut Some(&mut |message: Cow<'static, DiagnosticMessage>,
-                            args: Option<Vec<String>>| {
-                self.report_error(message, args)
-            }),
-            Some(&|source: Id<Type>, target: Id<Type>| incompatible_reporter(self, source, target)),
-            self.alloc_type_comparer(Box::new(TypeComparerIsRelatedToWorker::new(
-                self.arena_id(),
-                self,
-            ))),
-            Some(
-                self.type_checker
-                    .ref_(self)
-                    .make_function_type_mapper(ReportUnreliableMarkers),
-            ),
-        )
+        self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .compare_signatures_related(
+                if erase {
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .get_erased_signature(source)?
+                } else {
+                    source
+                },
+                if erase {
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .get_erased_signature(target)?
+                } else {
+                    target
+                },
+                if Rc::ptr_eq(
+                    &self_.ref_(arena).relation,
+                    &self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .strict_subtype_relation,
+                ) {
+                    SignatureCheckMode::StrictArity
+                } else {
+                    SignatureCheckMode::None
+                },
+                report_errors,
+                &mut Some(&mut |message: Cow<'static, DiagnosticMessage>,
+                                args: Option<Vec<String>>| {
+                    Self::report_error(self_, arena, message, args)
+                }),
+                Some(&|source: Id<Type>, target: Id<Type>| {
+                    incompatible_reporter(&self_.ref_(arena), source, target)
+                }),
+                self_.ref_(arena).alloc_type_comparer(Box::new(
+                    TypeComparerIsRelatedToWorker::new(self_, arena),
+                )),
+                Some(
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .make_function_type_mapper(ReportUnreliableMarkers),
+                ),
+            )
     }
 
     pub(super) fn signatures_identical_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         kind: SignatureKind,
     ) -> io::Result<Ternary> {
-        let source_signatures = self
+        let source_signatures = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_signatures_of_type(source, kind)?;
-        let target_signatures = self
+        let target_signatures = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_signatures_of_type(target, kind)?;
         if source_signatures.len() != target_signatures.len() {
             return Ok(Ternary::False);
         }
         let mut result = Ternary::True;
         for i in 0..source_signatures.len() {
-            let related = self.type_checker.ref_(self).compare_signatures_identical(
-                source_signatures[i].clone(),
-                target_signatures[i].clone(),
-                false,
-                false,
-                false,
-                |source: Id<Type>, target: Id<Type>| {
-                    self.is_related_to(source, target, None, None, None, None)
-                },
-            )?;
+            let related = self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .compare_signatures_identical(
+                    source_signatures[i].clone(),
+                    target_signatures[i].clone(),
+                    false,
+                    false,
+                    false,
+                    |source: Id<Type>, target: Id<Type>| {
+                        Self::is_related_to(self_, arena, source, target, None, None, None, None)
+                    },
+                )?;
             if related == Ternary::False {
                 return Ok(Ternary::False);
             }
@@ -1983,66 +2085,88 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn members_related_to_index_info(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target_info: Id<IndexInfo>,
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
-        let key_type = target_info.ref_(self).key_type;
+        let key_type = target_info.ref_(arena).key_type;
         let props = if source
-            .ref_(self)
+            .ref_(arena)
             .flags()
             .intersects(TypeFlags::Intersection)
         {
-            self.type_checker
-                .ref_(self)
+            self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .get_properties_of_union_or_intersection_type(source)?
         } else {
-            self.type_checker
-                .ref_(self)
+            self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .get_properties_of_object_type(source)?
         };
         for prop in props {
-            if self
+            if self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .is_ignored_jsx_property(source, prop)
             {
                 continue;
             }
-            if self.type_checker.ref_(self).is_applicable_index_type(
-                self.type_checker
-                    .ref_(self)
-                    .get_literal_type_from_property(
-                        prop,
-                        TypeFlags::StringOrNumberLiteralOrUnique,
-                        None,
-                    )?,
-                key_type,
-            )? {
-                let prop_type = self
+            if self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .is_applicable_index_type(
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .get_literal_type_from_property(
+                            prop,
+                            TypeFlags::StringOrNumberLiteralOrUnique,
+                            None,
+                        )?,
+                    key_type,
+                )?
+            {
+                let prop_type = self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_non_missing_type_of_symbol(prop)?;
-                let type_ = if self.type_checker.ref_(self).exact_optional_property_types
+                let type_ = if self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .exact_optional_property_types
                     == Some(true)
                     || prop_type
-                        .ref_(self)
+                        .ref_(arena)
                         .flags()
                         .intersects(TypeFlags::Undefined)
-                    || key_type == self.type_checker.ref_(self).number_type()
-                    || !prop.ref_(self).flags().intersects(SymbolFlags::Optional)
+                    || key_type == self_.ref_(arena).type_checker.ref_(arena).number_type()
+                    || !prop.ref_(arena).flags().intersects(SymbolFlags::Optional)
                 {
                     prop_type
                 } else {
-                    self.type_checker
-                        .ref_(self)
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
                         .get_type_with_facts(prop_type, TypeFacts::NEUndefined)?
                 };
-                let related = self.is_related_to(
+                let related = Self::is_related_to(
+                    self_,
+                    arena,
                     type_,
-                    target_info.ref_(self).type_,
+                    target_info.ref_(arena).type_,
                     Some(RecursionFlags::Both),
                     Some(report_errors),
                     None,
@@ -2050,17 +2174,23 @@ impl CheckTypeRelatedTo {
                 )?;
                 if related == Ternary::False {
                     if report_errors {
-                        self.report_error(
+                        Self::report_error(
+                            self_,
+                            arena,
                             Cow::Borrowed(
                                 &Diagnostics::Property_0_is_incompatible_with_index_signature,
                             ),
-                            Some(vec![self.type_checker.ref_(self).symbol_to_string_(
-                                prop,
-                                Option::<Id<Node>>::None,
-                                None,
-                                None,
-                                None,
-                            )?]),
+                            Some(vec![self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .symbol_to_string_(
+                                    prop,
+                                    Option::<Id<Node>>::None,
+                                    None,
+                                    None,
+                                    None,
+                                )?]),
                         )?;
                     }
                     return Ok(Ternary::False);
@@ -2068,17 +2198,20 @@ impl CheckTypeRelatedTo {
                 result &= related;
             }
         }
-        for &info in &self
+        for &info in &self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_index_infos_of_type(source)?
         {
-            if self
+            if self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
-                .is_applicable_index_type(info.ref_(self).key_type, key_type)?
+                .ref_(arena)
+                .is_applicable_index_type(info.ref_(arena).key_type, key_type)?
             {
-                let related = self.index_info_related_to(info, target_info, report_errors)?;
+                let related =
+                    Self::index_info_related_to(self_, arena, info, target_info, report_errors)?;
                 if related == Ternary::False {
                     return Ok(Ternary::False);
                 }
