@@ -202,94 +202,121 @@ impl CheckTypeRelatedTo {
         self.in_property_check.set(in_property_check)
     }
 
-    pub(super) fn call(&self) -> io::Result<bool> {
+    pub(super) fn call(self_: Id<Self>, arena: &impl HasArena) -> io::Result<bool> {
         Debug_.assert(
             !Rc::ptr_eq(
-                &self.relation,
-                &self.type_checker.ref_(self).identity_relation,
-            ) || self.maybe_error_node().is_none(),
+                &self_.ref_(arena).relation,
+                &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
+            ) || self_.ref_(arena).maybe_error_node().is_none(),
             Some("no error reporting in identity checking"),
         );
 
-        let result = self.is_related_to(
-            self.source,
-            self.target,
+        let result = self_.ref_(arena).is_related_to(
+            self_.ref_(arena).source,
+            self_.ref_(arena).target,
             Some(RecursionFlags::Both),
-            Some(self.maybe_error_node().is_some()),
-            self.head_message.clone(),
+            Some(self_.ref_(arena).maybe_error_node().is_some()),
+            self_.ref_(arena).head_message.clone(),
             None,
         )?;
-        if !self.incompatible_stack().is_empty() {
-            self.report_incompatible_stack()?;
+        if !self_.ref_(arena).incompatible_stack().is_empty() {
+            Self::report_incompatible_stack(self_, arena)?;
         }
-        if self.overflow() {
+        if self_.ref_(arena).overflow() {
             // tracing?.instant(tracing.Phase.CheckTypes, "checkTypeRelatedTo_DepthLimit", { sourceId: source.id, targetId: target.id, depth: sourceDepth, targetDepth });
-            let diag = self.type_checker.ref_(self).error(
-                self.maybe_error_node()
-                    .or_else(|| self.type_checker.ref_(self).maybe_current_node()),
+            let diag = self_.ref_(arena).type_checker.ref_(arena).error(
+                self_.ref_(arena).maybe_error_node().or_else(|| {
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .maybe_current_node()
+                }),
                 &Diagnostics::Excessive_stack_depth_comparing_types_0_and_1,
                 Some(vec![
-                    self.type_checker.ref_(self).type_to_string_(
-                        self.source,
+                    self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
+                        self_.ref_(arena).source,
                         Option::<Id<Node>>::None,
                         None,
                         None,
                     )?,
-                    self.type_checker.ref_(self).type_to_string_(
-                        self.target,
+                    self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
+                        self_.ref_(arena).target,
                         Option::<Id<Node>>::None,
                         None,
                         None,
                     )?,
                 ]),
             );
-            if let Some(error_output_container) = self.error_output_container.as_ref() {
-                error_output_container.ref_(self).push_error(diag);
+            if let Some(error_output_container) = self_.ref_(arena).error_output_container.as_ref()
+            {
+                error_output_container.ref_(arena).push_error(diag);
             }
-        } else if self.maybe_error_info().is_some() {
-            if let Some(containing_message_chain) = self.containing_message_chain.as_ref() {
-                let chain = containing_message_chain.ref_(self).get()?;
+        } else if self_.ref_(arena).maybe_error_info().is_some() {
+            if let Some(containing_message_chain) =
+                self_.ref_(arena).containing_message_chain.as_ref()
+            {
+                let chain = containing_message_chain.ref_(arena).get()?;
                 if let Some(chain) = chain {
                     concatenate_diagnostic_message_chains(
                         &mut chain.borrow_mut(),
-                        self.maybe_error_info().as_deref().cloned().unwrap(),
+                        self_
+                            .ref_(arena)
+                            .maybe_error_info()
+                            .as_deref()
+                            .cloned()
+                            .unwrap(),
                     );
                     // TODO: is this ever a problem? Not sure why I made containing_message_chain return an Rc<RefCell<DiagnosticMessageChain>> (vs just DiagnosticMessageChain)
                     // but seems like .clone()'ing here means that that original Rc'd DiagnosticMessageChain now no longer is "sharing this mutation"
-                    *self.maybe_error_info_mut() = Some(Rc::new((*chain).borrow().clone()));
+                    *self_.ref_(arena).maybe_error_info_mut() =
+                        Some(Rc::new((*chain).borrow().clone()));
                 }
             }
 
             let mut related_information: Option<Vec<Id<DiagnosticRelatedInformation>>> = None;
-            if self.head_message.is_some() && self.maybe_error_node().is_some() {
+            if self_.ref_(arena).head_message.is_some()
+                && self_.ref_(arena).maybe_error_node().is_some()
+            {
                 if result == Ternary::False {
-                    if let Some(source_symbol) = self.source.ref_(self).maybe_symbol() {
-                        let links = self.type_checker.ref_(self).get_symbol_links(source_symbol);
-                        if let Some(links_originating_import) =
-                            links.ref_(self).originating_import.clone().filter(
-                                |&links_originating_import| {
-                                    !is_import_call(links_originating_import, self)
-                                },
-                            )
+                    if let Some(source_symbol) = self_.ref_(arena).source.ref_(arena).maybe_symbol()
+                    {
+                        let links = self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .get_symbol_links(source_symbol);
+                        if let Some(links_originating_import) = links
+                            .ref_(self_.ref_(arena))
+                            .originating_import
+                            .clone()
+                            .filter(|&links_originating_import| {
+                                !is_import_call(links_originating_import, arena)
+                            })
                         {
-                            let helpful_retry =
-                                self.type_checker.ref_(self).check_type_related_to(
-                                    self.type_checker
-                                        .ref_(self)
-                                        .get_type_of_symbol(links.ref_(self).target.unwrap())?,
-                                    self.target,
-                                    self.relation.clone(),
+                            let helpful_retry = self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .check_type_related_to(
+                                    self_
+                                        .ref_(arena)
+                                        .type_checker
+                                        .ref_(arena)
+                                        .get_type_of_symbol(links.ref_(arena).target.unwrap())?,
+                                    self_.ref_(arena).target,
+                                    self_.ref_(arena).relation.clone(),
                                     Option::<Id<Node>>::None,
                                     None,
                                     None,
                                     None,
                                 )?;
                             if helpful_retry {
-                                let diag: Id<DiagnosticRelatedInformation> = self.alloc_diagnostic_related_information(create_diagnostic_for_node(
+                                let diag: Id<DiagnosticRelatedInformation> = self_.ref_(arena).alloc_diagnostic_related_information(create_diagnostic_for_node(
                                     links_originating_import,
                                     &Diagnostics::Type_originates_at_this_import_A_namespace_style_import_cannot_be_called_or_constructed_and_will_cause_a_failure_at_runtime_Consider_using_a_default_import_or_import_require_here_instead,
                                     None,
-                                    self,
+                                    arena,
                                 ).into());
                                 if related_information.is_none() {
                                     related_information = Some(vec![]);
@@ -300,47 +327,67 @@ impl CheckTypeRelatedTo {
                     }
                 }
             }
-            let diag: Id<Diagnostic> = self.alloc_diagnostic(
+            let diag: Id<Diagnostic> = self_.ref_(arena).alloc_diagnostic(
                 create_diagnostic_for_node_from_message_chain(
-                    self.maybe_error_node().unwrap(),
-                    self.maybe_error_info().as_deref().cloned().unwrap(),
+                    self_.ref_(arena).maybe_error_node().unwrap(),
+                    self_
+                        .ref_(arena)
+                        .maybe_error_info()
+                        .as_deref()
+                        .cloned()
+                        .unwrap(),
                     related_information,
-                    self,
+                    arena,
                 )
                 .into(),
             );
-            if let Some(related_info) = self.maybe_related_info().clone() {
+            if let Some(related_info) = self_.ref_(arena).maybe_related_info().clone() {
                 add_related_info(
-                    &diag.ref_(self),
+                    &diag.ref_(arena),
                     related_info
                         .into_iter()
-                        .map(|related_info| self.alloc_diagnostic_related_information(related_info))
+                        .map(|related_info| {
+                            self_
+                                .ref_(arena)
+                                .alloc_diagnostic_related_information(related_info)
+                        })
                         .collect(),
                 );
             }
-            if let Some(error_output_container) = self.error_output_container.as_ref() {
-                error_output_container.ref_(self).push_error(diag.clone());
+            if let Some(error_output_container) = self_.ref_(arena).error_output_container.as_ref()
+            {
+                error_output_container.ref_(arena).push_error(diag.clone());
             }
-            if match self.error_output_container.as_ref() {
+            if match self_.ref_(arena).error_output_container.as_ref() {
                 None => true,
-                Some(error_output_container) => {
-                    !matches!(error_output_container.ref_(self).skip_logging(), Some(true))
-                }
+                Some(error_output_container) => !matches!(
+                    error_output_container.ref_(arena).skip_logging(),
+                    Some(true)
+                ),
             } {
-                self.type_checker.ref_(self).diagnostics().add(diag);
+                self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .diagnostics()
+                    .add(diag);
             }
         }
-        if self.maybe_error_node().is_some() {
-            if let Some(error_output_container) =
-                self.error_output_container
-                    .as_ref()
-                    .filter(|error_output_container| {
-                        matches!(error_output_container.ref_(self).skip_logging(), Some(true),)
-                    })
+        if self_.ref_(arena).maybe_error_node().is_some() {
+            if let Some(error_output_container) = self_
+                .ref_(arena)
+                .error_output_container
+                .as_ref()
+                .filter(|error_output_container| {
+                    matches!(
+                        error_output_container.ref_(arena).skip_logging(),
+                        Some(true),
+                    )
+                })
             {
                 if result == Ternary::False {
                     Debug_.assert(
-                        error_output_container.ref_(self).errors_len() > 0,
+                        error_output_container.ref_(arena).errors_len() > 0,
                         Some("missed opportunity to interact with error."),
                     );
                 }
@@ -385,16 +432,20 @@ impl CheckTypeRelatedTo {
         self.incompatible_stack().push((message, args));
     }
 
-    pub(super) fn report_incompatible_stack(&self) -> io::Result<()> {
-        let mut stack = self.incompatible_stack().clone();
-        *self.incompatible_stack() = vec![];
-        let info = self.maybe_last_skipped_info();
-        self.set_last_skipped_info(None);
+    pub(super) fn report_incompatible_stack(
+        self_: Id<Self>,
+        arena: &impl HasArena,
+    ) -> io::Result<()> {
+        let mut stack = self_command_line_option.arenaincompatible_stack().clone();
+        *self_command_line_option.arenaincompatible_stack() = vec![];
+        let info = self_command_line_option.arenamaybe_last_skipped_info();
+        self_command_line_option.arenaset_last_skipped_info(None);
         if stack.len() == 1 {
             let (stack_0_error, stack_0_args) = stack.into_iter().next().unwrap();
-            self.report_error(Cow::Borrowed(stack_0_error), stack_0_args)?;
+            self_command_line_option
+                .arenareport_error(Cow::Borrowed(stack_0_error), stack_0_args)?;
             if let Some((info_0, info_1)) = info {
-                self.report_relation_error(None, info_0, info_1)?;
+                Self::report_relation_error(self_, arena, None, info_0, info_1)?;
             }
             return Ok(());
         }
@@ -411,7 +462,7 @@ impl CheckTypeRelatedTo {
                 let str = &args[0];
                 if path.is_empty() {
                     path = str.clone();
-                } else if is_identifier_text(str, Some(get_emit_script_target(&self.type_checker.ref_(self).compiler_options.ref_(self))), None) {
+                } else if is_identifier_text(str, Some(get_emit_script_target(&self_.ref_(arena).type_checker.ref_(arena).compiler_options.ref_(arena))), None) {
                     path = format!("{}.{}", path, str);
                 } else if {
                     let str_chars: Vec<char> = str.chars().collect();
@@ -457,7 +508,9 @@ impl CheckTypeRelatedTo {
             }
         }
         if !path.is_empty() {
-            self.report_error(
+            Self::report_error(
+                self_,
+                arena,
                 Cow::Borrowed(if path.chars().last().unwrap() == ')' {
                     &Diagnostics::The_types_returned_by_0_are_incompatible_between_these_types
                 } else {
@@ -471,32 +524,37 @@ impl CheckTypeRelatedTo {
         for (msg, args) in secondary_root_errors {
             let original_value = msg.maybe_elided_in_compatability_pyramid();
             msg.set_elided_in_compatability_pyramid(Some(false));
-            self.report_error(Cow::Borrowed(msg), args)?;
+            Self::report_error(self_, arena, Cow::Borrowed(msg), args)?;
             msg.set_elided_in_compatability_pyramid(original_value);
         }
         if let Some((info_0, info_1)) = info {
-            self.report_relation_error(None, info_0, info_1)?;
+            Self::report_relation_error(self_, arena, None, info_0, info_1)?;
         }
 
         Ok(())
     }
 
     pub(super) fn report_error(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         message: Cow<'static, DiagnosticMessage>,
         args: Option<Vec<String>>,
     ) -> io::Result<()> {
-        Debug_.assert(self.maybe_error_node().is_some(), None);
-        if !self.incompatible_stack().is_empty() {
-            self.report_incompatible_stack()?;
+        Debug_.assert(self_.ref_(arena).maybe_error_node().is_some(), None);
+        if !self_.ref_(arena).incompatible_stack().is_empty() {
+            Self::report_incompatible_stack(self_, arena)?;
         }
         if matches!(message.maybe_elided_in_compatability_pyramid(), Some(true)) {
             return Ok(());
         }
         let error_info = {
-            chain_diagnostic_messages(self.maybe_error_info().as_deref().cloned(), &message, args)
+            chain_diagnostic_messages(
+                self_.ref_(arena).maybe_error_info().as_deref().cloned(),
+                &message,
+                args,
+            )
         };
-        *self.maybe_error_info_mut() = Some(Rc::new(error_info));
+        *self_.ref_(arena).maybe_error_info_mut() = Some(Rc::new(error_info));
 
         Ok(())
     }
@@ -511,69 +569,85 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn report_relation_error(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         mut message: Option<Cow<'static, DiagnosticMessage>>,
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
-        if !self.incompatible_stack().is_empty() {
-            self.report_incompatible_stack()?;
+        if !self_.ref_(arena).incompatible_stack().is_empty() {
+            self_.ref_(arena).report_incompatible_stack()?;
         }
-        let (source_type, target_type) = self
+        let (source_type, target_type) = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_type_names_for_error_display(source, target)?;
         let mut generalized_source = source;
         let mut generalized_source_type = source_type.clone();
 
-        if self.type_checker.ref_(self).is_literal_type(source)
-            && !self
+        if self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_literal_type(source)
+            && !self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .type_could_have_top_level_singleton_types(target)?
         {
-            generalized_source = self
+            generalized_source = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_base_type_of_literal_type(source)?;
             Debug_.assert(
-                !self
+                !self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .is_type_assignable_to(generalized_source, target)?,
                 Some("generalized source shouldn't be assignable"),
             );
-            generalized_source_type = self
+            generalized_source_type = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_type_name_for_error_display(generalized_source)?;
         }
 
         if target
-            .ref_(self)
+            .ref_(arena)
             .flags()
             .intersects(TypeFlags::TypeParameter)
         {
-            let constraint = self
+            let constraint = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_base_constraint_of_type(target)?;
             let mut needs_original_source: Option<bool> = None;
             if let Some(constraint) = constraint.try_filter(|&constraint| -> io::Result<_> {
-                Ok(self
+                Ok(self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .is_type_assignable_to(generalized_source, constraint)?
                     || {
                         needs_original_source = Some(
-                            self.type_checker
-                                .ref_(self)
+                            self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
                                 .is_type_assignable_to(source, constraint)?,
                         );
                         matches!(needs_original_source, Some(true))
                     })
             })? {
-                self.report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::_0_is_assignable_to_the_constraint_of_type_1_but_1_could_be_instantiated_with_a_different_subtype_of_constraint_2),
                     Some(vec![
                         if matches!(
@@ -585,7 +659,7 @@ impl CheckTypeRelatedTo {
                             generalized_source_type.clone()
                         },
                         target_type.clone(),
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             constraint,
                             Option::<Id<Node>>::None,
                             None,
@@ -594,8 +668,10 @@ impl CheckTypeRelatedTo {
                     ])
                 )?;
             } else {
-                *self.maybe_error_info_mut() = None;
-                self.report_error(
+                *self_.ref_(arena).maybe_error_info_mut() = None;
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::_0_could_be_instantiated_with_an_arbitrary_type_which_could_be_unrelated_to_1),
                     Some(vec![
                         target_type.clone(),
@@ -607,8 +683,12 @@ impl CheckTypeRelatedTo {
 
         if message.is_none() {
             if Rc::ptr_eq(
-                &self.relation,
-                &self.type_checker.ref_(self).comparable_relation,
+                &self_.ref_(arena).relation,
+                &self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .comparable_relation,
             ) {
                 message = Some(Cow::Borrowed(
                     &Diagnostics::Type_0_is_not_comparable_to_type_1,
@@ -616,35 +696,43 @@ impl CheckTypeRelatedTo {
             } else if source_type == target_type {
                 message = Some(Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated));
             } else if matches!(
-                self.type_checker.ref_(self).exact_optional_property_types,
+                self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .exact_optional_property_types,
                 Some(true)
-            ) && !self
+            ) && !self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_exact_optional_unassignable_properties(source, target)?
                 .is_empty()
             {
                 message = Some(Cow::Borrowed(&Diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties));
             } else {
                 if source
-                    .ref_(self)
+                    .ref_(arena)
                     .flags()
                     .intersects(TypeFlags::StringLiteral)
-                    && target.ref_(self).flags().intersects(TypeFlags::Union)
+                    && target.ref_(arena).flags().intersects(TypeFlags::Union)
                 {
-                    let suggested_type = self
+                    let suggested_type = self_
+                        .ref_(arena)
                         .type_checker
-                        .ref_(self)
+                        .ref_(arena)
                         .get_suggested_type_for_nonexistent_string_literal_type(source, target);
                     if let Some(suggested_type) = suggested_type {
-                        self.report_error(
+                        Self::report_error(
+                            self_,
+                            arena,
                             Cow::Borrowed(
                                 &Diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
                             ),
                             Some(vec![
                                 generalized_source_type.clone(),
                                 target_type.clone(),
-                                self.type_checker.ref_(self).type_to_string_(
+                                self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                                     suggested_type,
                                     Option::<Id<Node>>::None,
                                     None,
@@ -663,18 +751,25 @@ impl CheckTypeRelatedTo {
             message.as_ref(),
             Some(message) if ptr::eq(&**message, &*Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1)
         ) && matches!(
-            self.type_checker.ref_(self).exact_optional_property_types,
+            self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .exact_optional_property_types,
             Some(true)
-        ) && !self
+        ) && !self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_exact_optional_unassignable_properties(source, target)?
             .is_empty()
         {
             message = Some(Cow::Borrowed(&Diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_Colon_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties));
         }
 
-        self.report_error(
+        Self::report_error(
+            self_,
+            arena,
             message.unwrap(),
             Some(vec![generalized_source_type, target_type]),
         )?;
@@ -683,50 +778,53 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn try_elaborate_errors_for_primitives_and_objects(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
     ) -> io::Result<()> {
-        let source_type = if self
+        let source_type = if self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
-            .symbol_value_declaration_is_context_sensitive(source.ref_(self).maybe_symbol())?
+            .ref_(arena)
+            .symbol_value_declaration_is_context_sensitive(source.ref_(arena).maybe_symbol())?
         {
-            self.type_checker.ref_(self).type_to_string_(
+            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                 source,
                 source
-                    .ref_(self)
+                    .ref_(arena)
                     .symbol()
-                    .ref_(self)
+                    .ref_(arena)
                     .maybe_value_declaration(),
                 None,
                 None,
             )?
         } else {
-            self.type_checker.ref_(self).type_to_string_(
+            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                 source,
                 Option::<Id<Node>>::None,
                 None,
                 None,
             )?
         };
-        let target_type = if self
+        let target_type = if self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
-            .symbol_value_declaration_is_context_sensitive(target.ref_(self).maybe_symbol())?
+            .ref_(arena)
+            .symbol_value_declaration_is_context_sensitive(target.ref_(arena).maybe_symbol())?
         {
-            self.type_checker.ref_(self).type_to_string_(
+            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                 target,
                 target
-                    .ref_(self)
+                    .ref_(arena)
                     .symbol()
-                    .ref_(self)
+                    .ref_(arena)
                     .maybe_value_declaration(),
                 None,
                 None,
             )?
         } else {
-            self.type_checker.ref_(self).type_to_string_(
+            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                 target,
                 Option::<Id<Node>>::None,
                 None,
@@ -734,20 +832,38 @@ impl CheckTypeRelatedTo {
             )?
         };
 
-        if (self.type_checker.ref_(self).global_string_type() == source
-            && self.type_checker.ref_(self).string_type() == target)
-            || (self.type_checker.ref_(self).global_number_type() == source
-                && self.type_checker.ref_(self).number_type() == target)
-            || (self.type_checker.ref_(self).global_boolean_type() == source
-                && self.type_checker.ref_(self).boolean_type() == target)
-            || (self
+        if (self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .global_string_type()
+            == source
+            && self_.ref_(arena).type_checker.ref_(arena).string_type() == target)
+            || (self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
+                .global_number_type()
+                == source
+                && self_.ref_(arena).type_checker.ref_(arena).number_type() == target)
+            || (self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .global_boolean_type()
+                == source
+                && self_.ref_(arena).type_checker.ref_(arena).boolean_type() == target)
+            || (self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .get_global_es_symbol_type(false)?
                 == source
-                && self.type_checker.ref_(self).es_symbol_type() == target)
+                && self_.ref_(arena).type_checker.ref_(arena).es_symbol_type() == target)
         {
-            self.report_error(
+            Self::report_error(
+                self_,
+                arena,
                 Cow::Borrowed(&Diagnostics::_0_is_a_primitive_but_1_is_a_wrapper_object_Prefer_using_0_when_possible),
                 Some(vec![
                     target_type,
@@ -760,35 +876,44 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn try_elaborate_array_like_errors(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         report_errors: bool,
     ) -> io::Result<bool> {
-        if self.type_checker.ref_(self).is_tuple_type(source) {
+        if self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_tuple_type(source)
+        {
             if source
-                .ref_(self)
+                .ref_(arena)
                 .as_type_reference()
                 .target
-                .ref_(self)
+                .ref_(arena)
                 .as_tuple_type()
                 .readonly
-                && self
+                && self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .is_mutable_array_or_tuple(target)
             {
                 if report_errors {
-                    self.report_error(
+                    Self::report_error(
+                        self_,
+                        arena,
                         Cow::Borrowed(&Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1),
                         Some(vec![
-                            self.type_checker.ref_(self).type_to_string_(
+                            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                                 source,
                                 Option::<Id<Node>>::None,
                                 None,
                                 None,
                             )?,
-                            self.type_checker.ref_(self).type_to_string_(
+                            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                                 target,
                                 Option::<Id<Node>>::None,
                                 None,
@@ -799,26 +924,39 @@ impl CheckTypeRelatedTo {
                 }
                 return Ok(false);
             }
-            return Ok(self.type_checker.ref_(self).is_tuple_type(target)
-                || self.type_checker.ref_(self).is_array_type(target));
-        }
-        if self.type_checker.ref_(self).is_readonly_array_type(source)
-            && self
+            return Ok(self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
+                .is_tuple_type(target)
+                || self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .is_array_type(target));
+        }
+        if self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_readonly_array_type(source)
+            && self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .is_mutable_array_or_tuple(target)
         {
             if report_errors {
-                self.report_error(
+                self_.ref_(arena).report_error(
                     Cow::Borrowed(&Diagnostics::The_type_0_is_readonly_and_cannot_be_assigned_to_the_mutable_type_1),
                     Some(vec![
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             source,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             target,
                             Option::<Id<Node>>::None,
                             None,
@@ -829,8 +967,17 @@ impl CheckTypeRelatedTo {
             }
             return Ok(false);
         }
-        if self.type_checker.ref_(self).is_tuple_type(target) {
-            return Ok(self.type_checker.ref_(self).is_array_type(source));
+        if self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_tuple_type(target)
+        {
+            return Ok(self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .is_array_type(source));
         }
         Ok(true)
     }
@@ -1287,7 +1434,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn report_error_results(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         report_errors: bool,
         head_message: Option<Cow<'static, DiagnosticMessage>>,
         original_source: Id<Type>,
@@ -1298,82 +1446,100 @@ impl CheckTypeRelatedTo {
         is_comparing_jsx_attributes: bool,
     ) -> io::Result<()> {
         if result == Ternary::False && report_errors {
-            let source_has_base = self
+            let source_has_base = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_single_base_for_non_augmenting_subtype(original_source)?
                 .is_some();
-            let target_has_base = self
+            let target_has_base = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_single_base_for_non_augmenting_subtype(original_target)?
                 .is_some();
             let source =
-                if original_source.ref_(self).maybe_alias_symbol().is_some() || source_has_base {
+                if original_source.ref_(arena).maybe_alias_symbol().is_some() || source_has_base {
                     original_source
                 } else {
                     source
                 };
             let target =
-                if original_target.ref_(self).maybe_alias_symbol().is_some() || target_has_base {
+                if original_target.ref_(arena).maybe_alias_symbol().is_some() || target_has_base {
                     original_target
                 } else {
                     target
                 };
-            let mut maybe_suppress = self.override_next_error_info() > 0;
+            let mut maybe_suppress = self_.ref_(arena).override_next_error_info() > 0;
             if maybe_suppress {
-                self.set_override_next_error_info(self.override_next_error_info() - 1);
+                self_
+                    .ref_(arena)
+                    .set_override_next_error_info(self_.ref_(arena).override_next_error_info() - 1);
             }
-            if source.ref_(self).flags().intersects(TypeFlags::Object)
-                && target.ref_(self).flags().intersects(TypeFlags::Object)
+            if source.ref_(arena).flags().intersects(TypeFlags::Object)
+                && target.ref_(arena).flags().intersects(TypeFlags::Object)
             {
-                let current_error = self.maybe_error_info();
-                self.try_elaborate_array_like_errors(source, target, report_errors)?;
-                if !match (self.maybe_error_info().as_ref(), current_error.as_ref()) {
+                let current_error = self_.ref_(arena).maybe_error_info();
+                Self::try_elaborate_array_like_errors(self_, arena, source, target, report_errors)?;
+                if !match (
+                    self_.ref_(arena).maybe_error_info().as_ref(),
+                    current_error.as_ref(),
+                ) {
                     (None, None) => true,
                     (Some(error_info), Some(current_error)) => {
                         Rc::ptr_eq(error_info, current_error)
                     }
                     _ => false,
                 } {
-                    maybe_suppress = self.maybe_error_info().is_some();
+                    maybe_suppress = self_.ref_(arena).maybe_error_info().is_some();
                 }
             }
-            if source.ref_(self).flags().intersects(TypeFlags::Object)
-                && target.ref_(self).flags().intersects(TypeFlags::Primitive)
+            if source.ref_(arena).flags().intersects(TypeFlags::Object)
+                && target.ref_(arena).flags().intersects(TypeFlags::Primitive)
             {
-                self.try_elaborate_errors_for_primitives_and_objects(source, target)?;
-            } else if source.ref_(self).maybe_symbol().is_some()
-                && source.ref_(self).flags().intersects(TypeFlags::Object)
-                && self.type_checker.ref_(self).global_object_type() == source
+                Self::try_elaborate_errors_for_primitives_and_objects(
+                    self_, arena, source, target,
+                )?;
+            } else if source.ref_(arena).maybe_symbol().is_some()
+                && source.ref_(arena).flags().intersects(TypeFlags::Object)
+                && self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .global_object_type()
+                    == source
             {
-                self.report_error(
+                self_.ref_(arena).report_error(
                     Cow::Borrowed(&Diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead),
                     None,
                 )?;
             } else if is_comparing_jsx_attributes
                 && target
-                    .ref_(self)
+                    .ref_(arena)
                     .flags()
                     .intersects(TypeFlags::Intersection)
             {
-                let target_ref = target.ref_(self);
+                let target_ref = target.ref_(arena);
                 let target_types = target_ref.as_union_or_intersection_type_interface().types();
-                let intrinsic_attributes = self
+                let intrinsic_attributes =
+                    self_.ref_(arena).type_checker.ref_(arena).get_jsx_type(
+                        &JsxNames::IntrinsicAttributes,
+                        self_.ref_(arena).maybe_error_node(),
+                    )?;
+                let intrinsic_class_attributes =
+                    self_.ref_(arena).type_checker.ref_(arena).get_jsx_type(
+                        &JsxNames::IntrinsicClassAttributes,
+                        self_.ref_(arena).maybe_error_node(),
+                    )?;
+                if !self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
-                    .get_jsx_type(&JsxNames::IntrinsicAttributes, self.maybe_error_node())?;
-                let intrinsic_class_attributes = self
-                    .type_checker
-                    .ref_(self)
-                    .get_jsx_type(&JsxNames::IntrinsicClassAttributes, self.maybe_error_node())?;
-                if !self
-                    .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .is_error_type(intrinsic_attributes)
-                    && !self
+                    && !self_
+                        .ref_(arena)
                         .type_checker
-                        .ref_(self)
+                        .ref_(arena)
                         .is_error_type(intrinsic_class_attributes)
                     && (contains(Some(target_types), &intrinsic_attributes)
                         || contains(Some(target_types), &intrinsic_class_attributes))
@@ -1381,21 +1547,26 @@ impl CheckTypeRelatedTo {
                     return Ok(()) /*result*/;
                 }
             } else {
-                let error_info = self
+                let error_info = self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .elaborate_never_intersection(
-                        self.maybe_error_info().as_deref().cloned(),
+                        self_.ref_(arena).maybe_error_info().as_deref().cloned(),
                         original_target,
                     )?
                     .map(Rc::new);
-                *self.maybe_error_info_mut() = error_info;
+                *self_.ref_(arena).maybe_error_info_mut() = error_info;
             }
             if head_message.is_none() && maybe_suppress {
-                self.set_last_skipped_info(Some((source, target)));
+                self_
+                    .ref_(arena)
+                    .set_last_skipped_info(Some((source, target)));
                 return Ok(()) /*result*/;
             }
-            self.report_relation_error(head_message, source, target)?;
+            self_
+                .ref_(arena)
+                .report_relation_error(head_message, source, target)?;
         }
 
         Ok(())

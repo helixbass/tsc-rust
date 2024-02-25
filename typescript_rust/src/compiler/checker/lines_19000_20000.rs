@@ -593,7 +593,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn report_unmatched_property(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         unmatched_property: Id<Symbol>,
@@ -601,71 +602,76 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<()> {
         let mut should_skip_elaboration = false;
         if let Some(unmatched_property_value_declaration) = unmatched_property
-            .ref_(self)
+            .ref_(arena)
             .maybe_value_declaration()
             .filter(|unmatched_property_value_declaration| {
-                is_named_declaration(&unmatched_property_value_declaration.ref_(self))
+                is_named_declaration(&unmatched_property_value_declaration.ref_(arena))
                     && is_private_identifier(
                         &unmatched_property_value_declaration
-                            .ref_(self)
+                            .ref_(arena)
                             .as_named_declaration()
                             .name()
-                            .ref_(self),
+                            .ref_(arena),
                     )
             })
         {
-            if let Some(source_symbol) = source.ref_(self).maybe_symbol().filter(|&source_symbol| {
-                source_symbol
-                    .ref_(self)
-                    .flags()
-                    .intersects(SymbolFlags::Class)
-            }) {
+            if let Some(source_symbol) =
+                source.ref_(arena).maybe_symbol().filter(|&source_symbol| {
+                    source_symbol
+                        .ref_(arena)
+                        .flags()
+                        .intersects(SymbolFlags::Class)
+                })
+            {
                 let unmatched_property_value_declaration_name =
                     unmatched_property_value_declaration
-                        .ref_(self)
+                        .ref_(arena)
                         .as_named_declaration()
                         .name();
                 let unmatched_property_value_declaration_name_ref =
-                    unmatched_property_value_declaration_name.ref_(self);
+                    unmatched_property_value_declaration_name.ref_(arena);
                 let private_identifier_description = &unmatched_property_value_declaration_name_ref
                     .as_private_identifier()
                     .escaped_text;
                 let symbol_table_key = get_symbol_name_for_private_identifier(
-                    &source_symbol.ref_(self),
+                    &source_symbol.ref_(arena),
                     private_identifier_description,
                 );
                 if
                 /*symbolTableKey &&*/
-                self
+                self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_property_of_type_(source, &symbol_table_key, None)?
                     .is_some()
                 {
-                    let source_name = get_factory(self).get_declaration_name(
-                        source_symbol.ref_(self).maybe_value_declaration(),
+                    let source_name = get_factory(arena).get_declaration_name(
+                        source_symbol.ref_(arena).maybe_value_declaration(),
                         None,
                         None,
                     );
-                    let target_name = get_factory(self).get_declaration_name(
+                    let target_name = get_factory(arena).get_declaration_name(
                         target
-                            .ref_(self)
+                            .ref_(arena)
                             .symbol()
-                            .ref_(self)
+                            .ref_(arena)
                             .maybe_value_declaration(),
                         None,
                         None,
                     );
-                    self.report_error(
+                    Self::report_error(
+                        self_,
+                        arena,
                         Cow::Borrowed(&Diagnostics::Property_0_in_type_1_refers_to_a_different_member_that_cannot_be_accessed_from_within_type_2),
                         Some(vec![
-                            self.type_checker.ref_(self).diagnostic_name((&**private_identifier_description).into()).into_owned(),
-                            self.type_checker.ref_(self).diagnostic_name(if source_name.ref_(self).as_identifier().escaped_text == "" {
+                            self_.ref_(arena).type_checker.ref_(arena).diagnostic_name((&**private_identifier_description).into()).into_owned(),
+                            self_.ref_(arena).type_checker.ref_(arena).diagnostic_name(if source_name.ref_(arena).as_identifier().escaped_text == "" {
                                 anon.into()
                             } else {
                                 source_name.into()
                             }).into_owned(),
-                            self.type_checker.ref_(self).diagnostic_name(if target_name.ref_(self).as_identifier().escaped_text == "" {
+                            self_.ref_(arena).type_checker.ref_(arena).diagnostic_name(if target_name.ref_(arena).as_identifier().escaped_text == "" {
                                 anon.into()
                             } else {
                                 target_name.into()
@@ -676,13 +682,12 @@ impl CheckTypeRelatedTo {
                 }
             }
         }
-        let props = self.type_checker.ref_(self).get_unmatched_properties(
-            source,
-            target,
-            require_optional_properties,
-            false,
-        )?;
-        if match self.head_message.as_ref() {
+        let props = self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .get_unmatched_properties(source, target, require_optional_properties, false)?;
+        if match self_.ref_(arena).head_message.as_ref() {
             None => true,
             Some(head_message) => head_message.code != Diagnostics::Class_0_incorrectly_implements_interface_1.code &&
                 head_message.code != Diagnostics::Class_0_incorrectly_implements_class_1_Did_you_mean_to_extend_1_and_inherit_its_members_as_a_subclass.code
@@ -690,62 +695,71 @@ impl CheckTypeRelatedTo {
             should_skip_elaboration = true;
         }
         if props.len() == 1 {
-            let prop_name = self.type_checker.ref_(self).symbol_to_string_(
-                unmatched_property,
-                Option::<Id<Node>>::None,
-                None,
-                None,
-                None,
-            )?;
-            let (source_string, target_string) = self
+            let prop_name = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
+                .symbol_to_string_(
+                    unmatched_property,
+                    Option::<Id<Node>>::None,
+                    None,
+                    None,
+                    None,
+                )?;
+            let (source_string, target_string) = self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .get_type_names_for_error_display(source, target)?;
-            self.report_error(
+            self_.ref_(arena).report_error(
                 Cow::Borrowed(&Diagnostics::Property_0_is_missing_in_type_1_but_required_in_type_2),
                 Some(vec![prop_name.clone(), source_string, target_string]),
             )?;
             if length(
                 unmatched_property
-                    .ref_(self)
+                    .ref_(arena)
                     .maybe_declarations()
                     .as_deref(),
             ) > 0
             {
-                self.associate_related_info(
+                self_.ref_(arena).associate_related_info(
                     create_diagnostic_for_node(
                         unmatched_property
-                            .ref_(self)
+                            .ref_(arena)
                             .maybe_declarations()
                             .as_ref()
                             .unwrap()[0],
                         &Diagnostics::_0_is_declared_here,
                         Some(vec![prop_name]),
-                        self,
+                        arena,
                     )
                     .into(),
                 );
             }
-            if should_skip_elaboration && self.maybe_error_info().is_some() {
-                self.set_override_next_error_info(self.override_next_error_info() + 1);
+            if should_skip_elaboration && self_.ref_(arena).maybe_error_info().is_some() {
+                self_
+                    .ref_(arena)
+                    .set_override_next_error_info(self_.ref_(arena).override_next_error_info() + 1);
             }
-        } else if self.try_elaborate_array_like_errors(source, target, false)? {
+        } else if Self::try_elaborate_array_like_errors(self_, arena, source, target, false)? {
             if props.len() > 5 {
-                self.report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(&Diagnostics::Type_0_is_missing_the_following_properties_from_type_1_Colon_2_and_3_more),
                     Some(vec![
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             source,
                             Option::<Id<Node>>::None,
                             None, None,
                         )?,
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             target,
                             Option::<Id<Node>>::None,
                             None, None,
                         )?,
                         (&props[0..4]).into_iter().map(|&p: &Id<Symbol>|
-                            self.type_checker.ref_(self).symbol_to_string_(
+                            self_.ref_(arena).type_checker.ref_(arena).symbol_to_string_(
                                 p,
                                 Option::<Id<Node>>::None,
                                 None, None, None,
@@ -755,21 +769,21 @@ impl CheckTypeRelatedTo {
                     ])
                 )?
             } else {
-                self.report_error(
+                self_.ref_(arena).report_error(
                     Cow::Borrowed(&Diagnostics::Type_0_is_missing_the_following_properties_from_type_1_Colon_2),
                     Some(vec![
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             source,
                             Option::<Id<Node>>::None,
                             None, None,
                         )?,
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             target,
                             Option::<Id<Node>>::None,
                             None, None,
                         )?,
                         props.iter().map(|&p: &Id<Symbol>|
-                            self.type_checker.ref_(self).symbol_to_string_(
+                            self_.ref_(arena).type_checker.ref_(arena).symbol_to_string_(
                                 p,
                                 Option::<Id<Node>>::None,
                                 None, None, None,
@@ -778,8 +792,10 @@ impl CheckTypeRelatedTo {
                     ])
                 )?
             }
-            if should_skip_elaboration && self.maybe_error_info().is_some() {
-                self.set_override_next_error_info(self.override_next_error_info() + 1);
+            if should_skip_elaboration && self_.ref_(arena).maybe_error_info().is_some() {
+                self_
+                    .ref_(arena)
+                    .set_override_next_error_info(self_.ref_(arena).override_next_error_info() + 1);
             }
         }
 
@@ -787,7 +803,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn properties_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         report_errors: bool,
@@ -795,44 +812,74 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         if Rc::ptr_eq(
-            &self.relation,
-            &self.type_checker.ref_(self).identity_relation,
+            &self_.ref_(arena).relation,
+            &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
         ) {
-            return self.properties_identical_to(source, target, excluded_properties);
+            return self_
+                .ref_(arena)
+                .properties_identical_to(source, target, excluded_properties);
         }
         let mut result = Ternary::True;
-        if self.type_checker.ref_(self).is_tuple_type(target) {
-            let target_target = target.ref_(self).as_type_reference_interface().target();
-            if self.type_checker.ref_(self).is_array_type(source)
-                || self.type_checker.ref_(self).is_tuple_type(source)
+        if self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_tuple_type(target)
+        {
+            let target_target = target.ref_(arena).as_type_reference_interface().target();
+            if self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .is_array_type(source)
+                || self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .is_tuple_type(source)
             {
-                if !target_target.ref_(self).as_tuple_type().readonly
-                    && (self.type_checker.ref_(self).is_readonly_array_type(source)
-                        || self.type_checker.ref_(self).is_tuple_type(source)
+                if !target_target.ref_(arena).as_tuple_type().readonly
+                    && (self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .is_readonly_array_type(source)
+                        || self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .is_tuple_type(source)
                             && source
-                                .ref_(self)
+                                .ref_(arena)
                                 .as_type_reference_interface()
                                 .target()
-                                .ref_(self)
+                                .ref_(arena)
                                 .as_tuple_type()
                                 .readonly)
                 {
                     return Ok(Ternary::False);
                 }
-                let source_arity = self
+                let source_arity = self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_type_reference_arity(source);
-                let target_arity = self
+                let target_arity = self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_type_reference_arity(target);
-                let source_rest_flag = if self.type_checker.ref_(self).is_tuple_type(source) {
+                let source_rest_flag = if self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .is_tuple_type(source)
+                {
                     source
-                        .ref_(self)
+                        .ref_(arena)
                         .as_type_reference_interface()
                         .target()
-                        .ref_(self)
+                        .ref_(arena)
                         .as_tuple_type()
                         .combined_flags
                         & ElementFlags::Rest
@@ -840,22 +887,27 @@ impl CheckTypeRelatedTo {
                     ElementFlags::Rest
                 };
                 let target_rest_flag =
-                    target_target.ref_(self).as_tuple_type().combined_flags & ElementFlags::Rest;
-                let source_min_length = if self.type_checker.ref_(self).is_tuple_type(source) {
+                    target_target.ref_(arena).as_tuple_type().combined_flags & ElementFlags::Rest;
+                let source_min_length = if self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .is_tuple_type(source)
+                {
                     source
-                        .ref_(self)
+                        .ref_(arena)
                         .as_type_reference_interface()
                         .target()
-                        .ref_(self)
+                        .ref_(arena)
                         .as_tuple_type()
                         .min_length
                 } else {
                     0
                 };
-                let target_min_length = target_target.ref_(self).as_tuple_type().min_length;
+                let target_min_length = target_target.ref_(arena).as_tuple_type().min_length;
                 if source_rest_flag == ElementFlags::None && source_arity < target_min_length {
                     if report_errors {
-                        self.report_error(
+                        self_.ref_(arena).report_error(
                             Cow::Borrowed(
                                 &Diagnostics::Source_has_0_element_s_but_target_requires_1,
                             ),
@@ -869,7 +921,7 @@ impl CheckTypeRelatedTo {
                 }
                 if target_rest_flag == ElementFlags::None && target_arity < source_min_length {
                     if report_errors {
-                        self.report_error(
+                        self_.ref_(arena).report_error(
                             Cow::Borrowed(
                                 &Diagnostics::Source_has_0_element_s_but_target_allows_only_1,
                             ),
@@ -886,14 +938,14 @@ impl CheckTypeRelatedTo {
                 {
                     if report_errors {
                         if source_min_length < target_min_length {
-                            self.report_error(
+                            self_.ref_(arena).report_error(
                                 Cow::Borrowed(&Diagnostics::Target_requires_0_element_s_but_source_may_have_fewer),
                                 Some(vec![
                                     target_min_length.to_string(),
                                 ])
                             )?;
                         } else {
-                            self.report_error(
+                            self_.ref_(arena).report_error(
                                 Cow::Borrowed(&Diagnostics::Target_allows_only_0_element_s_but_source_may_have_more),
                                 Some(vec![
                                     target_arity.to_string(),
@@ -903,35 +955,63 @@ impl CheckTypeRelatedTo {
                     }
                     return Ok(Ternary::False);
                 }
-                let source_type_arguments =
-                    self.type_checker.ref_(self).get_type_arguments(source)?;
-                let target_type_arguments =
-                    self.type_checker.ref_(self).get_type_arguments(target)?;
+                let source_type_arguments = self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .get_type_arguments(source)?;
+                let target_type_arguments = self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .get_type_arguments(target)?;
                 let start_count = cmp::min(
-                    if self.type_checker.ref_(self).is_tuple_type(source) {
-                        self.type_checker.ref_(self).get_start_element_count(
-                            source.ref_(self).as_type_reference_interface().target(),
-                            ElementFlags::NonRest,
-                        )
+                    if self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .is_tuple_type(source)
+                    {
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .get_start_element_count(
+                                source.ref_(arena).as_type_reference_interface().target(),
+                                ElementFlags::NonRest,
+                            )
                     } else {
                         0
                     },
-                    self.type_checker
-                        .ref_(self)
+                    self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
                         .get_start_element_count(target_target, ElementFlags::NonRest),
                 );
                 let end_count = cmp::min(
-                    if self.type_checker.ref_(self).is_tuple_type(source) {
-                        self.type_checker.ref_(self).get_end_element_count(
-                            source.ref_(self).as_type_reference_interface().target(),
-                            ElementFlags::NonRest,
-                        )
+                    if self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .is_tuple_type(source)
+                    {
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .get_end_element_count(
+                                source.ref_(arena).as_type_reference_interface().target(),
+                                ElementFlags::NonRest,
+                            )
                     } else {
                         0
                     },
                     if target_rest_flag != ElementFlags::None {
-                        self.type_checker
-                            .ref_(self)
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
                             .get_end_element_count(target_target, ElementFlags::NonRest)
                     } else {
                         0
@@ -944,25 +1024,29 @@ impl CheckTypeRelatedTo {
                     } else {
                         i + source_arity - target_arity
                     };
-                    let source_flags = if self.type_checker.ref_(self).is_tuple_type(source)
+                    let source_flags = if self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .is_tuple_type(source)
                         && (i < start_count || i >= target_arity - end_count)
                     {
                         source
-                            .ref_(self)
+                            .ref_(arena)
                             .as_type_reference()
                             .target
-                            .ref_(self)
+                            .ref_(arena)
                             .as_tuple_type()
                             .element_flags[source_index]
                     } else {
                         ElementFlags::Rest
                     };
-                    let target_flags = target_target.ref_(self).as_tuple_type().element_flags[i];
+                    let target_flags = target_target.ref_(arena).as_tuple_type().element_flags[i];
                     if target_flags.intersects(ElementFlags::Variadic)
                         && !source_flags.intersects(ElementFlags::Variadic)
                     {
                         if report_errors {
-                            self.report_error(
+                            self_.ref_(arena).report_error(
                                 Cow::Borrowed(&Diagnostics::Source_provides_no_match_for_variadic_element_at_position_0_in_target),
                                 Some(vec![
                                     i.to_string(),
@@ -975,7 +1059,9 @@ impl CheckTypeRelatedTo {
                         && !target_flags.intersects(ElementFlags::Variable)
                     {
                         if report_errors {
-                            self.report_error(
+                            Self::report_error(
+                                self_,
+                                arena,
                                 Cow::Borrowed(&Diagnostics::Variadic_element_at_position_0_in_source_does_not_match_element_at_position_1_in_target),
                                 Some(vec![
                                     source_index.to_string(),
@@ -989,7 +1075,9 @@ impl CheckTypeRelatedTo {
                         && !source_flags.intersects(ElementFlags::Required)
                     {
                         if report_errors {
-                            self.report_error(
+                            Self::report_error(
+                                self_,
+                                arena,
                                 Cow::Borrowed(&Diagnostics::Source_provides_no_match_for_required_element_at_position_0_in_target),
                                 Some(vec![
                                     i.to_string(),
@@ -1013,38 +1101,57 @@ impl CheckTypeRelatedTo {
                             continue;
                         }
                     }
-                    let source_type = if !self.type_checker.ref_(self).is_tuple_type(source) {
+                    let source_type = if !self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .is_tuple_type(source)
+                    {
                         source_type_arguments[0].clone()
                     } else if i < start_count || i >= target_arity - end_count {
-                        self.type_checker.ref_(self).remove_missing_type(
-                            source_type_arguments[source_index],
-                            (source_flags & target_flags).intersects(ElementFlags::Optional),
-                        )
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .remove_missing_type(
+                                source_type_arguments[source_index],
+                                (source_flags & target_flags).intersects(ElementFlags::Optional),
+                            )
                     } else {
-                        self.type_checker
-                            .ref_(self)
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
                             .get_element_type_of_slice_of_tuple_type(
                                 source,
                                 start_count,
                                 Some(end_count),
                                 None,
                             )?
-                            .unwrap_or_else(|| self.type_checker.ref_(self).never_type())
+                            .unwrap_or_else(|| {
+                                self_.ref_(arena).type_checker.ref_(arena).never_type()
+                            })
                     };
                     let target_type = target_type_arguments[i];
                     let target_check_type = if source_flags.intersects(ElementFlags::Variadic)
                         && target_flags.intersects(ElementFlags::Rest)
                     {
-                        self.type_checker
-                            .ref_(self)
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
                             .create_array_type(target_type, None)
                     } else {
-                        self.type_checker.ref_(self).remove_missing_type(
-                            target_type,
-                            target_flags.intersects(ElementFlags::Optional),
-                        )
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .remove_missing_type(
+                                target_type,
+                                target_flags.intersects(ElementFlags::Optional),
+                            )
                     };
-                    let related = self.is_related_to(
+                    let related = self_.ref_(arena).is_related_to(
                         source_type,
                         target_check_type,
                         Some(RecursionFlags::Both),
@@ -1058,7 +1165,7 @@ impl CheckTypeRelatedTo {
                                 || i >= target_arity - end_count
                                 || source_arity - start_count - end_count == 1
                             {
-                                self.report_incompatible_error(
+                                self_.ref_(arena).report_incompatible_error(
                                     &Diagnostics::Type_at_position_0_in_source_is_not_compatible_with_type_at_position_1_in_target,
                                     Some(vec![
                                         source_index.to_string(),
@@ -1066,7 +1173,7 @@ impl CheckTypeRelatedTo {
                                     ])
                                 );
                             } else {
-                                self.report_incompatible_error(
+                                self_.ref_(arena).report_incompatible_error(
                                     &Diagnostics::Type_at_positions_0_through_1_in_source_is_not_compatible_with_type_at_position_2_in_target,
                                     Some(vec![
                                         start_count.to_string(),
@@ -1083,7 +1190,7 @@ impl CheckTypeRelatedTo {
                 return Ok(result);
             }
             if target_target
-                .ref_(self)
+                .ref_(arena)
                 .as_tuple_type()
                 .combined_flags
                 .intersects(ElementFlags::Variable)
@@ -1091,28 +1198,41 @@ impl CheckTypeRelatedTo {
                 return Ok(Ternary::False);
             }
         }
-        let require_optional_properties =
-            (Rc::ptr_eq(
-                &self.relation,
-                &self.type_checker.ref_(self).subtype_relation,
-            ) || Rc::ptr_eq(
-                &self.relation,
-                &self.type_checker.ref_(self).strict_subtype_relation,
-            )) && !self.type_checker.ref_(self).is_object_literal_type(source)
-                && !self
-                    .type_checker
-                    .ref_(self)
-                    .is_empty_array_literal_type(source)?
-                && !self.type_checker.ref_(self).is_tuple_type(source);
-        let unmatched_property = self.type_checker.ref_(self).get_unmatched_property(
-            source,
-            target,
-            require_optional_properties,
-            false,
-        )?;
+        let require_optional_properties = (Rc::ptr_eq(
+            &self_.ref_(arena).relation,
+            &self_.ref_(arena).type_checker.ref_(arena).subtype_relation,
+        ) || Rc::ptr_eq(
+            &self_.ref_(arena).relation,
+            &self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .strict_subtype_relation,
+        )) && !self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_object_literal_type(source)
+            && !self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .is_empty_array_literal_type(source)?
+            && !self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .is_tuple_type(source);
+        let unmatched_property = self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .get_unmatched_property(source, target, require_optional_properties, false)?;
         if let Some(unmatched_property) = unmatched_property {
             if report_errors {
-                self.report_unmatched_property(
+                Self::report_unmatched_property(
+                    self_,
+                    arena,
                     source,
                     target,
                     unmatched_property,
@@ -1121,41 +1241,55 @@ impl CheckTypeRelatedTo {
             }
             return Ok(Ternary::False);
         }
-        if self.type_checker.ref_(self).is_object_literal_type(target) {
-            for &source_prop in &self.exclude_properties(
-                &self
+        if self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_object_literal_type(target)
+        {
+            for &source_prop in &self_.ref_(arena).exclude_properties(
+                &self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_properties_of_type(source)?,
                 excluded_properties,
             ) {
-                if self
+                if self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
-                    .get_property_of_object_type(target, source_prop.ref_(self).escaped_name())?
+                    .ref_(arena)
+                    .get_property_of_object_type(target, source_prop.ref_(arena).escaped_name())?
                     .is_none()
                 {
-                    let source_type = self
+                    let source_type = self_
+                        .ref_(arena)
                         .type_checker
-                        .ref_(self)
+                        .ref_(arena)
                         .get_type_of_symbol(source_prop)?;
                     if !source_type
-                        .ref_(self)
+                        .ref_(arena)
                         .flags()
                         .intersects(TypeFlags::Undefined)
                     {
                         if report_errors {
-                            self.report_error(
+                            Self::report_error(
+                                self_,
+                                arena,
                                 Cow::Borrowed(&Diagnostics::Property_0_does_not_exist_on_type_1),
                                 Some(vec![
-                                    self.type_checker.ref_(self).symbol_to_string_(
-                                        source_prop,
-                                        Option::<Id<Node>>::None,
-                                        None,
-                                        None,
-                                        None,
-                                    )?,
-                                    self.type_checker.ref_(self).type_to_string_(
+                                    self_
+                                        .ref_(arena)
+                                        .type_checker
+                                        .ref_(arena)
+                                        .symbol_to_string_(
+                                            source_prop,
+                                            Option::<Id<Node>>::None,
+                                            None,
+                                            None,
+                                            None,
+                                        )?,
+                                    self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                                         target,
                                         Option::<Id<Node>>::None,
                                         None,
@@ -1169,44 +1303,67 @@ impl CheckTypeRelatedTo {
                 }
             }
         }
-        let properties = self
+        let properties = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_properties_of_type(target)?;
-        let numeric_names_only = self.type_checker.ref_(self).is_tuple_type(source)
-            && self.type_checker.ref_(self).is_tuple_type(target);
-        for &target_prop in &self.exclude_properties(&properties, excluded_properties) {
-            let target_prop_ref = target_prop.ref_(self);
+        let numeric_names_only = self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .is_tuple_type(source)
+            && self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .is_tuple_type(target);
+        for &target_prop in &self_
+            .ref_(arena)
+            .exclude_properties(&properties, excluded_properties)
+        {
+            let target_prop_ref = target_prop.ref_(arena);
             let name = target_prop_ref.escaped_name();
             if !target_prop
-                .ref_(self)
+                .ref_(arena)
                 .flags()
                 .intersects(SymbolFlags::Prototype)
                 && (!numeric_names_only
-                    || self.type_checker.ref_(self).is_numeric_literal_name(name)
+                    || self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .is_numeric_literal_name(name)
                     || name == "length")
             {
-                let source_prop = self
+                let source_prop = self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_property_of_type_(source, name, None)?;
                 if let Some(source_prop) = source_prop {
                     if source_prop != target_prop {
-                        let related = self.property_related_to(
+                        let related = self_.ref_(arena).property_related_to(
                             source,
                             target,
                             source_prop,
                             target_prop,
                             |symbol| {
-                                self.type_checker
-                                    .ref_(self)
+                                self_
+                                    .ref_(arena)
+                                    .type_checker
+                                    .ref_(arena)
                                     .get_non_missing_type_of_symbol(symbol)
                             },
                             report_errors,
                             intersection_state,
                             Rc::ptr_eq(
-                                &self.relation,
-                                &self.type_checker.ref_(self).comparable_relation,
+                                &self_.ref_(arena).relation,
+                                &self_
+                                    .ref_(arena)
+                                    .type_checker
+                                    .ref_(arena)
+                                    .comparable_relation,
                             ),
                         )?;
                         if related == Ternary::False {

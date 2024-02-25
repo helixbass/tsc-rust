@@ -590,18 +590,19 @@ impl TypeChecker {
         containing_message_chain: Option<Id<Box<dyn CheckTypeContainingMessageChain>>>,
         error_output_container: Option<Id<Box<dyn CheckTypeErrorOutputContainer>>>,
     ) -> io::Result<bool> {
-        CheckTypeRelatedTo::new(
-            self,
-            source,
-            target,
-            relation,
-            error_node,
-            head_message,
-            containing_message_chain,
-            error_output_container,
+        CheckTypeRelatedTo::call(
+            CheckTypeRelatedTo::new(
+                self,
+                source,
+                target,
+                relation,
+                error_node,
+                head_message,
+                containing_message_chain,
+                error_output_container,
+                self,
+            ),
             self,
         )
-        .ref_(self)
-        .call()
     }
 }
