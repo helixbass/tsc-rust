@@ -43,7 +43,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn relate_variances(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         result: &mut Ternary,
         report_errors: bool,
         original_error_info: &mut Option<Rc<DiagnosticMessageChain>>,
@@ -54,7 +55,9 @@ impl CheckTypeRelatedTo {
         variances: &[VarianceFlags],
         intersection_state: IntersectionState,
     ) -> io::Result<Option<Ternary>> {
-        *result = self.type_arguments_related_to(
+        *result = Self::type_arguments_related_to(
+            self_,
+            arena,
             source_type_arguments.map(ToOwned::to_owned),
             target_type_arguments.map(ToOwned::to_owned),
             Some(variances.to_owned()),
@@ -69,12 +72,12 @@ impl CheckTypeRelatedTo {
             Some(|v: &VarianceFlags| v.intersects(VarianceFlags::AllowsStructuralFallback)),
         ) {
             *original_error_info = None;
-            self.reset_error_info(save_error_info.clone());
+            self_.ref_(arena).reset_error_info(save_error_info.clone());
             return Ok(None);
         }
         let allow_structural_fallback = matches!(
             target_type_arguments,
-            Some(target_type_arguments) if self.type_checker.ref_(self).has_covariant_void_argument(target_type_arguments, variances)
+            Some(target_type_arguments) if self_.ref_(arena).type_checker.ref_(arena).has_covariant_void_argument(target_type_arguments, variances)
         );
         *variance_check_failed = !allow_structural_fallback;
         if !variances.is_empty() && !allow_structural_fallback {
@@ -89,69 +92,94 @@ impl CheckTypeRelatedTo {
             {
                 return Ok(Some(Ternary::False));
             }
-            *original_error_info = self.maybe_error_info();
-            self.reset_error_info(save_error_info.clone());
+            *original_error_info = self_.ref_(arena).maybe_error_info();
+            self_.ref_(arena).reset_error_info(save_error_info.clone());
         }
         Ok(None)
     }
 
     pub(super) fn mapped_type_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>, /*MappedType*/
         target: Id<Type>, /*MappedType*/
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let modifiers_related = Rc::ptr_eq(
-            &self.relation,
-            &self.type_checker.ref_(self).comparable_relation,
+            &self_.ref_(arena).relation,
+            &self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .comparable_relation,
         ) || if Rc::ptr_eq(
-            &self.relation,
-            &self.type_checker.ref_(self).identity_relation,
+            &self_.ref_(arena).relation,
+            &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
         ) {
-            self.type_checker
-                .ref_(self)
+            self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .get_mapped_type_modifiers(source)
-                == self
+                == self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_mapped_type_modifiers(target)
         } else {
-            self.type_checker
-                .ref_(self)
+            self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .get_combined_mapped_type_optionality(source)?
-                <= self
+                <= self_
+                    .ref_(arena)
                     .type_checker
-                    .ref_(self)
+                    .ref_(arena)
                     .get_combined_mapped_type_optionality(target)?
         };
         if modifiers_related {
             let result: Ternary;
-            let target_constraint = self
+            let target_constraint = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_constraint_type_from_mapped_type(target)?;
-            let source_constraint = self.type_checker.ref_(self).instantiate_type(
-                self.type_checker
-                    .ref_(self)
-                    .get_constraint_type_from_mapped_type(source)?,
-                Some(
-                    if self
+            let source_constraint = self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .instantiate_type(
+                    self_
+                        .ref_(arena)
                         .type_checker
-                        .ref_(self)
-                        .get_combined_mapped_type_optionality(source)?
-                        < 0
-                    {
-                        self.type_checker
-                            .ref_(self)
-                            .make_function_type_mapper(ReportUnmeasurableMarkers)
-                    } else {
-                        self.type_checker
-                            .ref_(self)
-                            .make_function_type_mapper(ReportUnreliableMarkers)
-                    },
-                ),
-            )?;
-            result = self.is_related_to(
+                        .ref_(arena)
+                        .get_constraint_type_from_mapped_type(source)?,
+                    Some(
+                        if self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .get_combined_mapped_type_optionality(source)?
+                            < 0
+                        {
+                            self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .make_function_type_mapper(ReportUnmeasurableMarkers)
+                        } else {
+                            self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .make_function_type_mapper(ReportUnreliableMarkers)
+                        },
+                    ),
+                )?;
+            result = Self::is_related_to(
+                self_,
+                arena,
                 target_constraint,
                 source_constraint,
                 Some(RecursionFlags::Both),
@@ -160,37 +188,67 @@ impl CheckTypeRelatedTo {
                 None,
             )?;
             if result != Ternary::False {
-                let mapper = self.type_checker.ref_(self).create_type_mapper(
-                    vec![self
+                let mapper = self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .create_type_mapper(
+                        vec![self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .get_type_parameter_from_mapped_type(source)?],
+                        Some(vec![self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .get_type_parameter_from_mapped_type(target)?]),
+                    );
+                if self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
+                    .maybe_instantiate_type(
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .get_name_type_from_mapped_type(source)?,
+                        Some(mapper.clone()),
+                    )?
+                    == self_
+                        .ref_(arena)
                         .type_checker
-                        .ref_(self)
-                        .get_type_parameter_from_mapped_type(source)?],
-                    Some(vec![self
-                        .type_checker
-                        .ref_(self)
-                        .get_type_parameter_from_mapped_type(target)?]),
-                );
-                if self.type_checker.ref_(self).maybe_instantiate_type(
-                    self.type_checker
-                        .ref_(self)
-                        .get_name_type_from_mapped_type(source)?,
-                    Some(mapper.clone()),
-                )? == self.type_checker.ref_(self).maybe_instantiate_type(
-                    self.type_checker
-                        .ref_(self)
-                        .get_name_type_from_mapped_type(target)?,
-                    Some(mapper.clone()),
-                )? {
+                        .ref_(arena)
+                        .maybe_instantiate_type(
+                            self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .get_name_type_from_mapped_type(target)?,
+                            Some(mapper.clone()),
+                        )?
+                {
                     return Ok(result
-                        & self.is_related_to(
-                            self.type_checker.ref_(self).instantiate_type(
-                                self.type_checker
-                                    .ref_(self)
-                                    .get_template_type_from_mapped_type(source)?,
-                                Some(mapper),
-                            )?,
-                            self.type_checker
-                                .ref_(self)
+                        & Self::is_related_to(
+                            self_,
+                            arena,
+                            self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .instantiate_type(
+                                    self_
+                                        .ref_(arena)
+                                        .type_checker
+                                        .ref_(arena)
+                                        .get_template_type_from_mapped_type(source)?,
+                                    Some(mapper),
+                                )?,
+                            self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
                                 .get_template_type_from_mapped_type(target)?,
                             Some(RecursionFlags::Both),
                             Some(report_errors),
@@ -204,17 +262,20 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn type_related_to_discriminated_type(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>, /*UnionType*/
     ) -> io::Result<Ternary> {
-        let source_properties = self
+        let source_properties = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .get_properties_of_type(source)?;
-        let source_properties_filtered = self
+        let source_properties_filtered = self_
+            .ref_(arena)
             .type_checker
-            .ref_(self)
+            .ref_(arena)
             .find_discriminant_properties(&source_properties, target)?;
         if source_properties_filtered.is_none() {
             return Ok(Ternary::False);
@@ -223,9 +284,11 @@ impl CheckTypeRelatedTo {
 
         let mut num_combinations = 1;
         for &source_property in &source_properties_filtered {
-            num_combinations *= self.type_checker.ref_(self).count_types(
-                self.type_checker
-                    .ref_(self)
+            num_combinations *= self_.ref_(arena).type_checker.ref_(arena).count_types(
+                self_
+                    .ref_(arena)
+                    .type_checker
+                    .ref_(arena)
                     .get_non_missing_type_of_symbol(source_property)?,
             );
             if num_combinations > 25 {
@@ -238,18 +301,19 @@ impl CheckTypeRelatedTo {
             Vec::with_capacity(source_properties_filtered.len());
         let mut excluded_properties: HashSet<__String> = HashSet::new();
         for &source_property in source_properties_filtered.iter() {
-            let source_property_type = self
+            let source_property_type = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_non_missing_type_of_symbol(source_property)?;
             source_discriminant_types.push(
                 if source_property_type
-                    .ref_(self)
+                    .ref_(arena)
                     .flags()
                     .intersects(TypeFlags::Union)
                 {
                     source_property_type
-                        .ref_(self)
+                        .ref_(arena)
                         .as_union_or_intersection_type_interface()
                         .types()
                         .to_owned()
@@ -257,7 +321,7 @@ impl CheckTypeRelatedTo {
                     vec![source_property_type]
                 },
             );
-            excluded_properties.insert(source_property.ref_(self).escaped_name().to_owned());
+            excluded_properties.insert(source_property.ref_(arena).escaped_name().to_owned());
         }
 
         let discriminant_combinations = cartesian_product(&source_discriminant_types);
@@ -265,16 +329,20 @@ impl CheckTypeRelatedTo {
         for combination in &discriminant_combinations {
             let mut has_match = false;
             'outer: for &type_ in target
-                .ref_(self)
+                .ref_(arena)
                 .as_union_or_intersection_type_interface()
                 .types()
             {
                 for (i, &source_property) in source_properties_filtered.iter().enumerate() {
-                    let target_property = self.type_checker.ref_(self).get_property_of_type_(
-                        type_,
-                        source_property.ref_(self).escaped_name(),
-                        None,
-                    )?;
+                    let target_property = self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .get_property_of_type_(
+                            type_,
+                            source_property.ref_(arena).escaped_name(),
+                            None,
+                        )?;
                     if target_property.is_none() {
                         continue 'outer;
                     }
@@ -282,7 +350,9 @@ impl CheckTypeRelatedTo {
                     if source_property == target_property {
                         continue;
                     }
-                    let related = self.property_related_to(
+                    let related = Self::property_related_to(
+                        self_,
+                        arena,
                         source,
                         target,
                         source_property,
@@ -290,10 +360,18 @@ impl CheckTypeRelatedTo {
                         |_| Ok(combination[i].clone()),
                         false,
                         IntersectionState::None,
-                        self.type_checker.ref_(self).strict_null_checks
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .strict_null_checks
                             || Rc::ptr_eq(
-                                &self.relation,
-                                &self.type_checker.ref_(self).comparable_relation,
+                                &self_.ref_(arena).relation,
+                                &self_
+                                    .ref_(arena)
+                                    .type_checker
+                                    .ref_(arena)
+                                    .comparable_relation,
                             ),
                     )?;
 
@@ -311,7 +389,9 @@ impl CheckTypeRelatedTo {
 
         let mut result = Ternary::True;
         for &type_ in &matching_types {
-            result &= self.properties_related_to(
+            result &= Self::properties_related_to(
+                self_,
+                arena,
                 source,
                 type_,
                 false,
@@ -319,15 +399,32 @@ impl CheckTypeRelatedTo {
                 IntersectionState::None,
             )?;
             if result != Ternary::False {
-                result &= self.signatures_related_to(source, type_, SignatureKind::Call, false)?;
+                result &= self_.ref_(arena).signatures_related_to(
+                    source,
+                    type_,
+                    SignatureKind::Call,
+                    false,
+                )?;
                 if result != Ternary::False {
-                    result &=
-                        self.signatures_related_to(source, type_, SignatureKind::Construct, false)?;
+                    result &= self_.ref_(arena).signatures_related_to(
+                        source,
+                        type_,
+                        SignatureKind::Construct,
+                        false,
+                    )?;
                     if result != Ternary::False
-                        && !(self.type_checker.ref_(self).is_tuple_type(source)
-                            && self.type_checker.ref_(self).is_tuple_type(type_))
+                        && !(self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .is_tuple_type(source)
+                            && self_
+                                .ref_(arena)
+                                .type_checker
+                                .ref_(arena)
+                                .is_tuple_type(type_))
                     {
-                        result &= self.index_signatures_related_to(
+                        result &= self_.ref_(arena).index_signatures_related_to(
                             source,
                             type_,
                             false,
@@ -367,24 +464,33 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn is_property_symbol_type_related(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source_prop: Id<Symbol>,
         target_prop: Id<Symbol>,
         mut get_type_of_source_property: impl FnMut(Id<Symbol>) -> io::Result<Id<Type>>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        let target_is_optional = self.type_checker.ref_(self).strict_null_checks
-            && get_check_flags(&target_prop.ref_(self)).intersects(CheckFlags::Partial);
-        let effective_target = self.type_checker.ref_(self).add_optionality(
-            self.type_checker
-                .ref_(self)
+        let target_is_optional = self_
+            .ref_(arena)
+            .type_checker
+            .ref_(arena)
+            .strict_null_checks
+            && get_check_flags(&target_prop.ref_(arena)).intersects(CheckFlags::Partial);
+        let effective_target = self_.ref_(arena).type_checker.ref_(arena).add_optionality(
+            self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
                 .get_non_missing_type_of_symbol(target_prop)?,
             Some(false),
             Some(target_is_optional),
         )?;
         let effective_source = get_type_of_source_property(source_prop)?;
-        self.is_related_to(
+        Self::is_related_to(
+            self_,
+            arena,
             effective_source,
             effective_target,
             Some(RecursionFlags::Both),
@@ -395,7 +501,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn property_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         source_prop: Id<Symbol>,
@@ -405,22 +512,26 @@ impl CheckTypeRelatedTo {
         intersection_state: IntersectionState,
         skip_optional: bool,
     ) -> io::Result<Ternary> {
-        let source_prop_flags = get_declaration_modifier_flags_from_symbol(source_prop, None, self);
-        let target_prop_flags = get_declaration_modifier_flags_from_symbol(target_prop, None, self);
+        let source_prop_flags =
+            get_declaration_modifier_flags_from_symbol(source_prop, None, arena);
+        let target_prop_flags =
+            get_declaration_modifier_flags_from_symbol(target_prop, None, arena);
         if source_prop_flags.intersects(ModifierFlags::Private)
             || target_prop_flags.intersects(ModifierFlags::Private)
         {
-            if source_prop.ref_(self).maybe_value_declaration()
-                != target_prop.ref_(self).maybe_value_declaration()
+            if source_prop.ref_(arena).maybe_value_declaration()
+                != target_prop.ref_(arena).maybe_value_declaration()
             {
                 if report_errors {
                     if source_prop_flags.intersects(ModifierFlags::Private)
                         && target_prop_flags.intersects(ModifierFlags::Private)
                     {
-                        self.report_error(
+                        Self::report_error(
+                            self_,
+                            arena,
                             Cow::Borrowed(&Diagnostics::Types_have_separate_declarations_of_a_private_property_0),
                             Some(vec![
-                                self.type_checker.ref_(self).symbol_to_string_(
+                                self_.ref_(arena).type_checker.ref_(arena).symbol_to_string_(
                                     target_prop,
                                     Option::<Id<Node>>::None,
                                     None, None, None
@@ -428,19 +539,25 @@ impl CheckTypeRelatedTo {
                             ])
                         )?;
                     } else {
-                        self.report_error(
+                        Self::report_error(
+                            self_,
+                            arena,
                             Cow::Borrowed(
                                 &Diagnostics::Property_0_is_private_in_type_1_but_not_in_type_2,
                             ),
                             Some(vec![
-                                self.type_checker.ref_(self).symbol_to_string_(
-                                    target_prop,
-                                    Option::<Id<Node>>::None,
-                                    None,
-                                    None,
-                                    None,
-                                )?,
-                                self.type_checker.ref_(self).type_to_string_(
+                                self_
+                                    .ref_(arena)
+                                    .type_checker
+                                    .ref_(arena)
+                                    .symbol_to_string_(
+                                        target_prop,
+                                        Option::<Id<Node>>::None,
+                                        None,
+                                        None,
+                                        None,
+                                    )?,
+                                self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                                     if source_prop_flags.intersects(ModifierFlags::Private) {
                                         source
                                     } else {
@@ -450,7 +567,7 @@ impl CheckTypeRelatedTo {
                                     None,
                                     None,
                                 )?,
-                                self.type_checker.ref_(self).type_to_string_(
+                                self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                                     if source_prop_flags.intersects(ModifierFlags::Private) {
                                         target
                                     } else {
@@ -467,27 +584,30 @@ impl CheckTypeRelatedTo {
                 return Ok(Ternary::False);
             }
         } else if target_prop_flags.intersects(ModifierFlags::Protected) {
-            if !self
+            if !self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .is_valid_override_of(source_prop, target_prop)?
             {
                 if report_errors {
-                    self.report_error(
+                    Self::report_error(
+                        self_,
+                        arena,
                         Cow::Borrowed(&Diagnostics::Property_0_is_protected_but_type_1_is_not_a_class_derived_from_2),
                         Some(vec![
-                            self.type_checker.ref_(self).symbol_to_string_(
+                            self_.ref_(arena).type_checker.ref_(arena).symbol_to_string_(
                                 target_prop,
                                 Option::<Id<Node>>::None,
                                 None, None, None
                             )?,
-                            self.type_checker.ref_(self).type_to_string_(
-                                self.type_checker.ref_(self).get_declaring_class(source_prop)?.unwrap_or_else(|| source),
+                            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
+                                self_.ref_(arena).type_checker.ref_(arena).get_declaring_class(source_prop)?.unwrap_or_else(|| source),
                                 Option::<Id<Node>>::None,
                                 None, None,
                             )?,
-                            self.type_checker.ref_(self).type_to_string_(
-                                self.type_checker.ref_(self).get_declaring_class(target_prop)?.unwrap_or_else(|| target),
+                            self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
+                                self_.ref_(arena).type_checker.ref_(arena).get_declaring_class(target_prop)?.unwrap_or_else(|| target),
                                 Option::<Id<Node>>::None,
                                 None, None,
                             )?,
@@ -498,25 +618,31 @@ impl CheckTypeRelatedTo {
             }
         } else if source_prop_flags.intersects(ModifierFlags::Protected) {
             if report_errors {
-                self.report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(
                         &Diagnostics::Property_0_is_protected_in_type_1_but_public_in_type_2,
                     ),
                     Some(vec![
-                        self.type_checker.ref_(self).symbol_to_string_(
-                            target_prop,
-                            Option::<Id<Node>>::None,
-                            None,
-                            None,
-                            None,
-                        )?,
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .symbol_to_string_(
+                                target_prop,
+                                Option::<Id<Node>>::None,
+                                None,
+                                None,
+                                None,
+                            )?,
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             source,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             target,
                             Option::<Id<Node>>::None,
                             None,
@@ -527,7 +653,9 @@ impl CheckTypeRelatedTo {
             }
             return Ok(Ternary::False);
         }
-        let related = self.is_property_symbol_type_related(
+        let related = Self::is_property_symbol_type_related(
+            self_,
+            arena,
             source_prop,
             target_prop,
             get_type_of_source_property,
@@ -536,49 +664,59 @@ impl CheckTypeRelatedTo {
         )?;
         if related == Ternary::False {
             if report_errors {
-                self.report_incompatible_error(
+                self_.ref_(arena).report_incompatible_error(
                     &Diagnostics::Types_of_property_0_are_incompatible,
-                    Some(vec![self.type_checker.ref_(self).symbol_to_string_(
-                        target_prop,
-                        Option::<Id<Node>>::None,
-                        None,
-                        None,
-                        None,
-                    )?]),
+                    Some(vec![self_
+                        .ref_(arena)
+                        .type_checker
+                        .ref_(arena)
+                        .symbol_to_string_(
+                            target_prop,
+                            Option::<Id<Node>>::None,
+                            None,
+                            None,
+                            None,
+                        )?]),
                 );
             }
             return Ok(Ternary::False);
         }
         if !skip_optional
             && source_prop
-                .ref_(self)
+                .ref_(arena)
                 .flags()
                 .intersects(SymbolFlags::Optional)
             && !target_prop
-                .ref_(self)
+                .ref_(arena)
                 .flags()
                 .intersects(SymbolFlags::Optional)
         {
             if report_errors {
-                self.report_error(
+                Self::report_error(
+                    self_,
+                    arena,
                     Cow::Borrowed(
                         &Diagnostics::Property_0_is_optional_in_type_1_but_required_in_type_2,
                     ),
                     Some(vec![
-                        self.type_checker.ref_(self).symbol_to_string_(
-                            target_prop,
-                            Option::<Id<Node>>::None,
-                            None,
-                            None,
-                            None,
-                        )?,
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .symbol_to_string_(
+                                target_prop,
+                                Option::<Id<Node>>::None,
+                                None,
+                                None,
+                                None,
+                            )?,
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             source,
                             Option::<Id<Node>>::None,
                             None,
                             None,
                         )?,
-                        self.type_checker.ref_(self).type_to_string_(
+                        self_.ref_(arena).type_checker.ref_(arena).type_to_string_(
                             target,
                             Option::<Id<Node>>::None,
                             None,
@@ -815,9 +953,13 @@ impl CheckTypeRelatedTo {
             &self_.ref_(arena).relation,
             &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
         ) {
-            return self_
-                .ref_(arena)
-                .properties_identical_to(source, target, excluded_properties);
+            return Self::properties_identical_to(
+                self_,
+                arena,
+                source,
+                target,
+                excluded_properties,
+            );
         }
         let mut result = Ternary::True;
         if self_
@@ -1343,7 +1485,9 @@ impl CheckTypeRelatedTo {
                     .get_property_of_type_(source, name, None)?;
                 if let Some(source_prop) = source_prop {
                     if source_prop != target_prop {
-                        let related = self_.ref_(arena).property_related_to(
+                        let related = Self::property_related_to(
+                            self_,
+                            arena,
                             source,
                             target,
                             source_prop,
@@ -1378,27 +1522,30 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn properties_identical_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         excluded_properties: Option<&HashSet<__String>>,
     ) -> io::Result<Ternary> {
-        if !(source.ref_(self).flags().intersects(TypeFlags::Object)
-            && target.ref_(self).flags().intersects(TypeFlags::Object))
+        if !(source.ref_(arena).flags().intersects(TypeFlags::Object)
+            && target.ref_(arena).flags().intersects(TypeFlags::Object))
         {
             return Ok(Ternary::False);
         }
-        let source_properties = self.exclude_properties(
-            &self
+        let source_properties = self_.ref_(arena).exclude_properties(
+            &self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_properties_of_object_type(source)?,
             excluded_properties,
         );
-        let target_properties = self.exclude_properties(
-            &self
+        let target_properties = self_.ref_(arena).exclude_properties(
+            &self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_properties_of_object_type(target)?,
             excluded_properties,
         );
@@ -1407,15 +1554,18 @@ impl CheckTypeRelatedTo {
         }
         let mut result = Ternary::True;
         for &source_prop in &source_properties {
-            let target_prop = return_ok_default_if_none!(self
+            let target_prop = return_ok_default_if_none!(self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
-                .get_property_of_object_type(target, source_prop.ref_(self).escaped_name())?);
-            let related = self.type_checker.ref_(self).compare_properties(
-                source_prop,
-                target_prop,
-                |source, target| self.is_related_to(source, target, None, None, None, None),
-            )?;
+                .ref_(arena)
+                .get_property_of_object_type(target, source_prop.ref_(arena).escaped_name())?);
+            let related = self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .compare_properties(source_prop, target_prop, |source, target| {
+                    Self::is_related_to(self_, arena, source, target, None, None, None, None)
+                })?;
             if related == Ternary::False {
                 return Ok(Ternary::False);
             }

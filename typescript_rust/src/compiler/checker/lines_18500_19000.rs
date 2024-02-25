@@ -32,18 +32,20 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn each_type_related_to_some_type(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>, /*UnionOrIntersectionType*/
         target: Id<Type>, /*UnionOrIntersectionType*/
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
         let source_types = source
-            .ref_(self)
+            .ref_(arena)
             .as_union_or_intersection_type_interface()
             .types()
             .to_owned();
         for source_type in source_types {
-            let related = self.type_related_to_some_type(source_type, target, false)?;
+            let related =
+                Self::type_related_to_some_type(self_, arena, source_type, target, false)?;
             if related == Ternary::False {
                 return Ok(Ternary::False);
             }
@@ -53,30 +55,35 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn type_related_to_some_type(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>, /*UnionOrIntersectionType*/
         report_errors: bool,
     ) -> io::Result<Ternary> {
         let ref target_types = target
-            .ref_(self)
+            .ref_(arena)
             .as_union_or_intersection_type_interface()
             .types()
             .to_owned();
-        if target.ref_(self).flags().intersects(TypeFlags::Union) {
-            if self
+        if target.ref_(arena).flags().intersects(TypeFlags::Union) {
+            if self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .contains_type(target_types, source)
             {
                 return Ok(Ternary::True);
             }
-            let match_ = self
+            let match_ = self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .get_matching_union_constituent_for_type(target, source)?;
             if let Some(match_) = match_ {
-                let related = self.is_related_to(
+                let related = Self::is_related_to(
+                    self_,
+                    arena,
                     source,
                     match_,
                     Some(RecursionFlags::Target),
@@ -90,7 +97,9 @@ impl CheckTypeRelatedTo {
             }
         }
         for &type_ in target_types {
-            let related = self.is_related_to(
+            let related = Self::is_related_to(
+                self_,
+                arena,
                 source,
                 type_,
                 Some(RecursionFlags::Target),
@@ -103,14 +112,20 @@ impl CheckTypeRelatedTo {
             }
         }
         if report_errors {
-            let best_matching_type = self.type_checker.ref_(self).get_best_matching_type(
-                source,
-                target,
-                Some(|source: Id<Type>, target: Id<Type>| {
-                    self.is_related_to(source, target, None, None, None, None)
-                }),
-            )?;
-            self.is_related_to(
+            let best_matching_type = self_
+                .ref_(arena)
+                .type_checker
+                .ref_(arena)
+                .get_best_matching_type(
+                    source,
+                    target,
+                    Some(|source: Id<Type>, target: Id<Type>| {
+                        Self::is_related_to(self_, arena, source, target, None, None, None, None)
+                    }),
+                )?;
+            Self::is_related_to(
+                self_,
+                arena,
                 source,
                 best_matching_type.unwrap_or_else(|| target_types[target_types.len() - 1].clone()),
                 Some(RecursionFlags::Target),
@@ -123,7 +138,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn type_related_to_each_type(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>, /*IntersectionType*/
         report_errors: bool,
@@ -131,12 +147,14 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
         let target_types = target
-            .ref_(self)
+            .ref_(arena)
             .as_union_or_intersection_type_interface()
             .types()
             .to_owned();
         for target_type in target_types {
-            let related = self.is_related_to(
+            let related = Self::is_related_to(
+                self_,
+                arena,
                 source,
                 target_type,
                 Some(RecursionFlags::Target),
@@ -153,25 +171,29 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn some_type_related_to_type(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>, /*UnionOrIntersectionType*/
         target: Id<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
-        let source_ref = source.ref_(self);
+        let source_ref = source.ref_(arena);
         let source_types = source_ref.as_union_or_intersection_type_interface().types();
-        if source.ref_(self).flags().intersects(TypeFlags::Union)
-            && self
+        if source.ref_(arena).flags().intersects(TypeFlags::Union)
+            && self_
+                .ref_(arena)
                 .type_checker
-                .ref_(self)
+                .ref_(arena)
                 .contains_type(source_types, target)
         {
             return Ok(Ternary::True);
         }
         let len = source_types.len();
         for i in 0..len {
-            let related = self.is_related_to(
+            let related = Self::is_related_to(
+                self_,
+                arena,
                 source_types[i],
                 target,
                 Some(RecursionFlags::Source),
@@ -217,7 +239,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn each_type_related_to_type(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>, /*UnionOrIntersectionType*/
         target: Id<Type>,
         report_errors: bool,
@@ -225,28 +248,31 @@ impl CheckTypeRelatedTo {
     ) -> io::Result<Ternary> {
         let mut result = Ternary::True;
         let source_types = &source
-            .ref_(self)
+            .ref_(arena)
             .as_union_or_intersection_type_interface()
             .types()
             .to_owned();
-        let undefined_stripped_target =
-            self.get_undefined_stripped_target_if_needed(source, target);
+        let undefined_stripped_target = self_
+            .ref_(arena)
+            .get_undefined_stripped_target_if_needed(source, target);
         for (i, source_type) in source_types.into_iter().enumerate() {
             let source_type = *source_type;
             if undefined_stripped_target
-                .ref_(self)
+                .ref_(arena)
                 .flags()
                 .intersects(TypeFlags::Union)
             {
                 let undefined_stripped_target_types = undefined_stripped_target
-                    .ref_(self)
+                    .ref_(arena)
                     .as_union_type()
                     .types()
                     .to_owned();
                 if source_types.len() >= undefined_stripped_target_types.len()
                     && source_types.len() % undefined_stripped_target_types.len() == 0
                 {
-                    let related = self.is_related_to(
+                    let related = Self::is_related_to(
+                        self_,
+                        arena,
                         source_type,
                         undefined_stripped_target_types[i % undefined_stripped_target_types.len()],
                         Some(RecursionFlags::Both),
@@ -260,7 +286,9 @@ impl CheckTypeRelatedTo {
                     }
                 }
             }
-            let related = self.is_related_to(
+            let related = Self::is_related_to(
+                self_,
+                arena,
                 source_type,
                 target,
                 Some(RecursionFlags::Source),
@@ -277,7 +305,8 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn type_arguments_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         sources: Option<Vec<Id<Type>>>,
         targets: Option<Vec<Id<Type>>>,
         variances: Option<Vec<VarianceFlags>>,
@@ -289,8 +318,8 @@ impl CheckTypeRelatedTo {
         let variances = variances.unwrap_or_else(|| vec![]);
         if sources.len() != targets.len()
             && Rc::ptr_eq(
-                &self.relation,
-                &self.type_checker.ref_(self).identity_relation,
+                &self_.ref_(arena).relation,
+                &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
             )
         {
             return Ok(Ternary::False);
@@ -314,10 +343,12 @@ impl CheckTypeRelatedTo {
                 let mut related: Ternary/* = Ternary::True*/;
                 if variance_flags.intersects(VarianceFlags::Unmeasurable) {
                     related = if Rc::ptr_eq(
-                        &self.relation,
-                        &self.type_checker.ref_(self).identity_relation,
+                        &self_.ref_(arena).relation,
+                        &self_.ref_(arena).type_checker.ref_(arena).identity_relation,
                     ) {
-                        self.is_related_to(
+                        Self::is_related_to(
+                            self_,
+                            arena,
                             s,
                             t,
                             Some(RecursionFlags::Both),
@@ -326,10 +357,16 @@ impl CheckTypeRelatedTo {
                             None,
                         )?
                     } else {
-                        self.type_checker.ref_(self).compare_types_identical(s, t)?
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .compare_types_identical(s, t)?
                     };
                 } else if variance == VarianceFlags::Covariant {
-                    related = self.is_related_to(
+                    related = Self::is_related_to(
+                        self_,
+                        arena,
                         s,
                         t,
                         Some(RecursionFlags::Both),
@@ -338,7 +375,9 @@ impl CheckTypeRelatedTo {
                         Some(intersection_state),
                     )?;
                 } else if variance == VarianceFlags::Contravariant {
-                    related = self.is_related_to(
+                    related = Self::is_related_to(
+                        self_,
+                        arena,
                         t,
                         s,
                         Some(RecursionFlags::Both),
@@ -347,7 +386,9 @@ impl CheckTypeRelatedTo {
                         Some(intersection_state),
                     )?;
                 } else if variance == VarianceFlags::Bivariant {
-                    related = self.is_related_to(
+                    related = Self::is_related_to(
+                        self_,
+                        arena,
                         t,
                         s,
                         Some(RecursionFlags::Both),
@@ -356,7 +397,9 @@ impl CheckTypeRelatedTo {
                         None,
                     )?;
                     if related == Ternary::False {
-                        related = self.is_related_to(
+                        related = Self::is_related_to(
+                            self_,
+                            arena,
                             s,
                             t,
                             Some(RecursionFlags::Both),
@@ -366,7 +409,9 @@ impl CheckTypeRelatedTo {
                         )?;
                     }
                 } else {
-                    related = self.is_related_to(
+                    related = Self::is_related_to(
+                        self_,
+                        arena,
                         s,
                         t,
                         Some(RecursionFlags::Both),
@@ -375,7 +420,9 @@ impl CheckTypeRelatedTo {
                         Some(intersection_state),
                     )?;
                     if related != Ternary::False {
-                        related &= self.is_related_to(
+                        related &= Self::is_related_to(
+                            self_,
+                            arena,
                             t,
                             s,
                             Some(RecursionFlags::Both),
@@ -624,14 +671,17 @@ impl CheckTypeRelatedTo {
     }
 
     pub(super) fn structured_type_related_to(
-        &self,
+        self_: Id<Self>,
+        arena: &impl HasArena,
         source: Id<Type>,
         target: Id<Type>,
         report_errors: bool,
         intersection_state: IntersectionState,
     ) -> io::Result<Ternary> {
         // tracing?.push(tracing.Phase.CheckTypes, "structuredTypeRelatedTo", { sourceId: source.id, targetId: target.id });
-        let result = self.structured_type_related_to_worker(
+        let result = Self::structured_type_related_to_worker(
+            self_,
+            arena,
             source,
             target,
             report_errors,
@@ -672,7 +722,9 @@ impl CheckTypeRelatedTo {
                             .ref_(arena)
                             .comparable_relation,
                     ) {
-                        self_.ref_(arena).some_type_related_to_type(
+                        Self::some_type_related_to_type(
+                            self_,
+                            arena,
                             source,
                             target,
                             report_errors
@@ -680,7 +732,9 @@ impl CheckTypeRelatedTo {
                             intersection_state & !IntersectionState::UnionIntersectionCheck,
                         )?
                     } else {
-                        self_.ref_(arena).each_type_related_to_type(
+                        Self::each_type_related_to_type(
+                            self_,
+                            arena,
                             source,
                             target,
                             report_errors
@@ -691,7 +745,9 @@ impl CheckTypeRelatedTo {
                 );
             }
             if target.ref_(arena).flags().intersects(TypeFlags::Union) {
-                return self_.ref_(arena).type_related_to_some_type(
+                return Self::type_related_to_some_type(
+                    self_,
+                    arena,
                     self_
                         .ref_(arena)
                         .type_checker
@@ -708,7 +764,9 @@ impl CheckTypeRelatedTo {
                 .flags()
                 .intersects(TypeFlags::Intersection)
             {
-                return self_.ref_(arena).type_related_to_each_type(
+                return Self::type_related_to_each_type(
+                    self_,
+                    arena,
                     self_
                         .ref_(arena)
                         .type_checker
@@ -769,7 +827,9 @@ impl CheckTypeRelatedTo {
                     }
                 }
             }
-            return self_.ref_(arena).some_type_related_to_type(
+            return Self::some_type_related_to_type(
+                self_,
+                arena,
                 source,
                 target,
                 false,
@@ -948,7 +1008,9 @@ impl CheckTypeRelatedTo {
                             if variances.is_empty() {
                                 return Ok(Ternary::Unknown);
                             }
-                            let variance_result = self_.ref_(arena).relate_variances(
+                            let variance_result = Self::relate_variances(
+                                self_,
+                                arena,
                                 &mut result,
                                 report_errors,
                                 &mut original_error_info,
@@ -2020,14 +2082,18 @@ impl CheckTypeRelatedTo {
                         )? != Ternary::False)
                 {
                     result = self_.ref_(arena).is_related_to(
-                        self.type_checker.ref_(arena).instantiate_type(
-                            self_
-                                .ref_(arena)
-                                .type_checker
-                                .ref_(arena)
-                                .get_true_type_from_conditional_type(source)?,
-                            mapper,
-                        )?,
+                        self_
+                            .ref_(arena)
+                            .type_checker
+                            .ref_(arena)
+                            .instantiate_type(
+                                self_
+                                    .ref_(arena)
+                                    .type_checker
+                                    .ref_(arena)
+                                    .get_true_type_from_conditional_type(source)?,
+                                mapper,
+                            )?,
                         self_
                             .ref_(arena)
                             .type_checker
@@ -2139,9 +2205,7 @@ impl CheckTypeRelatedTo {
                     .is_generic_mapped_type(source)?
                 {
                     result =
-                        self_
-                            .ref_(arena)
-                            .mapped_type_related_to(source, target, report_errors)?;
+                        Self::mapped_type_related_to(self_, arena, source, target, report_errors)?;
                     if result != Ternary::False {
                         self_.ref_(arena).reset_error_info(save_error_info);
                         return Ok(result);
@@ -2186,7 +2250,9 @@ impl CheckTypeRelatedTo {
                 if variances.is_empty() {
                     return Ok(Ternary::Unknown);
                 }
-                let variance_result = self_.ref_(arena).relate_variances(
+                let variance_result = Self::relate_variances(
+                    self_,
+                    arena,
                     &mut result,
                     report_errors,
                     &mut original_error_info,
@@ -2380,9 +2446,12 @@ impl CheckTypeRelatedTo {
                     .flags()
                     .intersects(TypeFlags::Union)
                 {
-                    let result = self_
-                        .ref_(arena)
-                        .type_related_to_discriminated_type(source, object_only_target)?;
+                    let result = Self::type_related_to_discriminated_type(
+                        self_,
+                        arena,
+                        source,
+                        object_only_target,
+                    )?;
                     if result != Ternary::False {
                         return Ok(result);
                     }
@@ -2451,7 +2520,9 @@ impl TypeComparerIsRelatedToWorker {
 
 impl TypeComparer for TypeComparerIsRelatedToWorker {
     fn call(&self, s: Id<Type>, t: Id<Type>, report_errors: Option<bool>) -> io::Result<Ternary> {
-        self.check_type_related_to.ref_(self).is_related_to_worker(
+        CheckTypeRelatedTo::is_related_to_worker(
+            self.check_type_related_to,
+            self,
             s,
             t,
             report_errors.unwrap_or(false), // the default isn't in the Typescript version but that appears to be a type-checking bug there
