@@ -55,14 +55,14 @@ impl Program {
         &self,
         file: Id<Node>, /*SourceFile*/
     ) -> io::Result<()> {
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
         try_maybe_for_each(
-            file_as_source_file
-                .maybe_lib_reference_directives()
-                .as_ref()
-                .map(|file_lib_reference_directives| (**file_lib_reference_directives).borrow())
-                .as_deref(),
+            released!(file
+                .ref_(self)
+                .as_source_file()
+                .maybe_lib_reference_directives())
+            .as_ref()
+            .map(|file_lib_reference_directives| (*file_lib_reference_directives).borrow())
+            .as_deref(),
             |lib_reference: &FileReference, index| -> io::Result<Option<()>> {
                 let lib_name = to_file_name_lower_case(&lib_reference.file_name);
                 let lib_file_name = lib_map.with(|lib_map_| lib_map_.get(&&*lib_name).copied());
@@ -74,7 +74,7 @@ impl Program {
                         self.alloc_file_include_reason(FileIncludeReason::ReferencedFile(
                             ReferencedFile {
                                 kind: FileIncludeKind::LibReferenceDirective,
-                                file: file_as_source_file.path().clone(),
+                                file: released!(file.ref_(self).as_source_file().path().clone()),
                                 index,
                             },
                         )),
@@ -98,7 +98,7 @@ impl Program {
                             kind: FilePreprocessingDiagnosticsKind::FilePreprocessingReferencedDiagnostic,
                             reason: ReferencedFile {
                                 kind: FileIncludeKind::LibReferenceDirective,
-                                file: file_as_source_file.path().clone(),
+                                file: file.ref_(self).as_source_file().path().clone(),
                                 index,
                             },
                             diagnostic,

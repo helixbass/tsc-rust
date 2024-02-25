@@ -16,9 +16,9 @@ use crate::{
     dump_tracing_legend, emit_files_and_report_errors_and_get_exit_status,
     get_config_file_parsing_diagnostics, get_error_summary_text, get_sys, impl_has_arena,
     parse_build_command, parse_command_line,
-    perform_incremental_compilation as perform_incremental_compilation_, start_tracing, to_path,
-    validate_locale_and_set_language, AllArenas, BuildOptions, BuilderProgram, CharacterCodes,
-    CompilerHost, CompilerOptions, CreateProgram, CreateProgramOptions,
+    perform_incremental_compilation as perform_incremental_compilation_, released, start_tracing,
+    to_path, validate_locale_and_set_language, AllArenas, BuildOptions, BuilderProgram,
+    CharacterCodes, CompilerHost, CompilerOptions, CreateProgram, CreateProgramOptions,
     CreateWatchCompilerHostOfConfigFileInput, CustomTransformers, Diagnostic, DiagnosticReporter,
     Diagnostics, EmitAndSemanticDiagnosticsBuilderProgram, ExitStatus, ExtendedConfigCacheEntry,
     HasArena, InArena, IncrementalCompilationOptions, Node, ParsedBuildCommand, ParsedCommandLine,
@@ -100,11 +100,11 @@ pub fn execute_command_line(
         Some(|path: &str| system.ref_(arena).read_file(path)),
         arena,
     );
-    if let Some(command_line_options_generate_cpu_profile) = command_line
+    if let Some(command_line_options_generate_cpu_profile) = released!(command_line
         .options
         .ref_(arena)
         .generate_cpu_profile
-        .clone()
+        .clone())
     {
         system
             .ref_(arena)

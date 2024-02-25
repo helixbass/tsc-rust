@@ -9,14 +9,14 @@ use crate::{
     impl_has_arena, is_declaration_file_name, is_external_module, is_identifier,
     is_identifier_text, is_keyword, is_modifier_kind, is_tagged_template_expression,
     is_template_literal_kind, last_or_undefined, map_defined, process_comment_pragmas,
-    process_pragmas_into_fields, set_parent_recursive, set_text_range, set_text_range_pos_end,
-    set_text_range_pos_width, skip_trivia, starts_with, text_to_keyword_obj,
-    token_is_identifier_or_keyword, token_to_string, AllArenas, BaseNode, ComputedPropertyName,
-    Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface, Diagnostics, HasArena,
-    HasStatementsInterface, InArena, IncrementalParser, IncrementalParserSyntaxCursor,
-    IncrementalParserSyntaxCursorInterface, Node, NodeArray, NodeArrayOrVec, NodeFlags,
-    NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget, SyntaxKind, TextRange,
-    TransformFlags,
+    process_pragmas_into_fields, released, set_parent_recursive, set_text_range,
+    set_text_range_pos_end, set_text_range_pos_width, skip_trivia, starts_with,
+    text_to_keyword_obj, token_is_identifier_or_keyword, token_to_string, AllArenas, BaseNode,
+    ComputedPropertyName, Debug_, DiagnosticMessage, DiagnosticRelatedInformationInterface,
+    Diagnostics, HasArena, HasStatementsInterface, InArena, IncrementalParser,
+    IncrementalParserSyntaxCursor, IncrementalParserSyntaxCursorInterface, Node, NodeArray,
+    NodeArrayOrVec, NodeFlags, NodeInterface, ReadonlyTextRange, ScriptKind, ScriptTarget,
+    SyntaxKind, TextRange, TransformFlags,
 };
 
 impl ParserType {
@@ -120,7 +120,10 @@ impl ParserType {
     pub(super) fn add_jsdoc_comment(&self, node: Id<Node>) -> Id<Node> {
         Debug_.assert(node.ref_(self).maybe_js_doc().is_none(), None);
         let js_doc = map_defined(
-            get_jsdoc_comment_ranges(&*node.ref_(self), &self.source_text_as_chars()),
+            released!(get_jsdoc_comment_ranges(
+                &*node.ref_(self),
+                &self.source_text_as_chars()
+            )),
             |comment, _| {
                 self.JSDocParser_parse_jsdoc_comment(
                     node,

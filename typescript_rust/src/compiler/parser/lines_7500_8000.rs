@@ -12,10 +12,10 @@ use crate::{
     attach_file_to_diagnostics, for_each, for_each_child_returns, impl_has_arena,
     is_export_assignment, is_export_declaration, is_external_module_reference,
     is_import_declaration, is_import_equals_declaration, is_jsdoc_like_text, is_meta_property,
-    last_index_of_returns_isize, per_arena, set_parent, some, AllArenas, BaseNode, BaseNodeFactory,
-    Debug_, Diagnostic, HasArena, HasStatementsInterface, InArena, JSDoc, LanguageVariant, Node,
-    NodeArray, NodeFlags, NodeInterface, OptionInArena, ScriptKind, ScriptTarget,
-    SourceTextAsChars, StringOrNodeArray, SyntaxKind,
+    last_index_of_returns_isize, per_arena, released, set_parent, some, AllArenas, BaseNode,
+    BaseNodeFactory, Debug_, Diagnostic, HasArena, HasStatementsInterface, InArena, JSDoc,
+    LanguageVariant, Node, NodeArray, NodeFlags, NodeInterface, OptionInArena, ScriptKind,
+    ScriptTarget, SourceTextAsChars, StringOrNodeArray, SyntaxKind,
 };
 
 impl ParserType {
@@ -671,7 +671,7 @@ impl<'a> ParseJSDocCommentWorker<'a> {
         let indent_text = self.skip_whitespace_or_asterisk();
 
         let tag: Option<Node>;
-        match &*tag_name.ref_(self).as_identifier().escaped_text {
+        match &*released!(tag_name.ref_(self).as_identifier().escaped_text.clone()) {
             "author" => {
                 tag = Some(
                     self.parse_author_tag(start, tag_name, margin, &indent_text)
