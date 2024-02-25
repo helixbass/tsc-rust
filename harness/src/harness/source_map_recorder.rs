@@ -1,12 +1,15 @@
 pub mod SourceMapRecorder {
     use typescript_rust::{
         Node, Program, SourceMapEmitResult, _d, compute_line_starts, decode_mappings, ends_with,
-        get_line_info, id_arena::Id, is_source_mapping, try_get_source_mapping_url, AllArenas,
-        BoolExt, Debug_, Extension, HasArena, InArena, Mapping, MappingsDecoder, RawSourceMap,
-        ScriptReferenceHost, SourceFileLike, SourceTextAsChars,
+        get_line_info, id_arena::Id, is_source_mapping, try_get_source_mapping_url, BoolExt,
+        Debug_, Extension, InArena, Mapping, MappingsDecoder, RawSourceMap, ScriptReferenceHost,
+        SourceFileLike, SourceTextAsChars,
     };
 
-    use crate::{documents, AllArenasHarness, Compiler, HasArenaHarness, InArenaHarness, Utils};
+    use crate::{
+        documents, impl_has_arena_harness, AllArenasHarness, Compiler, HasArenaHarness,
+        InArenaHarness, Utils,
+    };
 
     struct SourceMapSpanWithDecodeErrors {
         pub source_map_span: Mapping,
@@ -42,6 +45,7 @@ pub mod SourceMapRecorder {
     }
 
     struct SourceMapSpanWriter<'a> {
+        arena: *const AllArenasHarness,
         source_map_recorder: &'a mut Compiler::WriterAggregator,
         source_map_sources: &'a [String],
         #[allow(dead_code)]
@@ -66,6 +70,7 @@ pub mod SourceMapRecorder {
             arena: &impl HasArenaHarness,
         ) -> Self {
             let ret = Self {
+                arena: arena.arena_harness(),
                 source_map_recorder: source_map_record_writer,
                 source_map_sources: &source_map.sources,
                 source_map_names: source_map.names.as_deref(),
@@ -219,17 +224,7 @@ pub mod SourceMapRecorder {
         }
     }
 
-    impl HasArena for SourceMapSpanWriter<'_> {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for SourceMapSpanWriter<'_> {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(SourceMapSpanWriter<'_>);
 
     pub fn get_source_map_record(
         source_map_data_list: &[SourceMapEmitResult],

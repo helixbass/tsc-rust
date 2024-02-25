@@ -1,11 +1,11 @@
 use std::cell::Cell;
 
 use regex::Regex;
-use typescript_rust::{id_arena::Id, map, normalize_slashes, AllArenas, HasArena};
+use typescript_rust::{id_arena::Id, map, normalize_slashes};
 
 use crate::{
-    get_io, user_specified_root, AllArenasHarness, FileBasedTest, HasArenaHarness, InArenaHarness,
-    ListFilesOptions, IO,
+    get_io, impl_has_arena_harness, user_specified_root, AllArenasHarness, FileBasedTest,
+    HasArenaHarness, InArenaHarness, ListFilesOptions, IO,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -54,13 +54,18 @@ fn get_shard_id() -> usize {
 }
 
 pub struct RunnerBase {
+    arena: *const AllArenasHarness,
     sub: Id<Box<dyn RunnerBaseSub>>,
     pub tests: Vec<StringOrFileBasedTest>,
 }
 
 impl RunnerBase {
-    pub fn new(sub: Id<Box<dyn RunnerBaseSub>>) -> Self {
-        Self { sub, tests: vec![] }
+    pub fn new(sub: Id<Box<dyn RunnerBaseSub>>, arena: &impl HasArenaHarness) -> Self {
+        Self {
+            sub,
+            tests: vec![],
+            arena: arena.arena_harness(),
+        }
     }
 
     pub fn add_test(&mut self, file_name: String) {
@@ -116,17 +121,7 @@ impl RunnerBase {
     }
 }
 
-impl HasArena for RunnerBase {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
-impl HasArenaHarness for RunnerBase {
-    fn arena_harness(&self) -> &AllArenasHarness {
-        unimplemented!()
-    }
-}
+impl_has_arena_harness!(RunnerBase);
 
 #[derive(Clone)]
 pub enum StringOrFileBasedTest {

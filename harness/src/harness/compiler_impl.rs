@@ -12,7 +12,7 @@ pub mod compiler {
     };
 
     use crate::{
-        collections, documents, fakes,
+        collections, documents, fakes, impl_has_arena_harness,
         vfs::{self, SortOptionsComparerFromStringComparer},
         vpath, AllArenasHarness, HasArenaHarness, InArenaHarness, SourceMapRecorder,
     };
@@ -25,6 +25,7 @@ pub mod compiler {
     }
 
     pub struct CompilationResult {
+        arena: *const AllArenasHarness,
         pub host: Id<Box<dyn typescript_rust::CompilerHost /*fakes::CompilerHost*/>>,
         pub program: Option<Id<Program>>,
         pub result: Option<EmitResult>,
@@ -64,33 +65,39 @@ pub mod compiler {
                     comparer: arena.alloc_sort_options_comparer_string(Box::new(
                         SortOptionsComparerFromStringComparer::new(
                             host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                            arena,
                         ),
                     )),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Id<documents::TextDocument>>>::None,
+                arena,
             );
             let mut dts = collections::SortedMap::new(
                 collections::SortOptions {
                     comparer: arena.alloc_sort_options_comparer_string(Box::new(
                         SortOptionsComparerFromStringComparer::new(
                             host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                            arena,
                         ),
                     )),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Id<documents::TextDocument>>>::None,
+                arena,
             );
             let mut maps = collections::SortedMap::new(
                 collections::SortOptions {
                     comparer: arena.alloc_sort_options_comparer_string(Box::new(
                         SortOptionsComparerFromStringComparer::new(
                             host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                            arena,
                         ),
                     )),
                     sort: Some(collections::SortOptionsSort::Insertion),
                 },
                 Option::<HashMap<String, Id<documents::TextDocument>>>::None,
+                arena,
             );
             for document in &*host_as_fakes_compiler_host.outputs() {
                 if vpath::is_java_script(&document.ref_(arena).file)
@@ -104,6 +111,7 @@ pub mod compiler {
                 }
             }
             let mut ret = Self {
+                arena: arena.arena_harness(),
                 host,
                 program,
                 result,
@@ -117,11 +125,13 @@ pub mod compiler {
                         comparer: arena.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
                                 host_as_fakes_compiler_host.vfs().string_comparer.clone(),
+                                arena,
                             ),
                         )),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
                     Option::<HashMap<String, Id<CompilationOutput>>>::None,
+                    arena,
                 ),
                 _inputs: Default::default(),
                 symlinks: Default::default(),
@@ -151,6 +161,7 @@ pub mod compiler {
                             source_file_as_source_file.text().clone(),
                             source_file_as_source_file.text_as_chars().clone(),
                             None,
+                            arena,
                         ));
                         ret._inputs.push(input.clone());
                         if !vpath::is_declaration(&source_file_as_source_file.file_name()) {
@@ -201,6 +212,7 @@ pub mod compiler {
                             source_file_as_source_file.text().clone(),
                             source_file_as_source_file.text_as_chars().clone(),
                             None,
+                            arena,
                         ));
                         ret._inputs.push(input.clone());
                         if !vpath::is_declaration(&source_file_as_source_file.file_name()) {
@@ -381,17 +393,7 @@ pub mod compiler {
         }
     }
 
-    impl HasArena for CompilationResult {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for CompilationResult {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(CompilationResult);
 
     pub fn compile_files(
         host: Id<Box<dyn typescript_rust::CompilerHost>>,

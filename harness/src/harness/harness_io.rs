@@ -11,10 +11,10 @@ use typescript_rust::{
     compare_strings_case_insensitive, compare_strings_case_sensitive, comparison_to_ordering,
     debug_cell, ends_with, equate_strings_case_insensitive, find, find_index, for_each,
     fs_exists_sync, fs_mkdir_sync, fs_readdir_sync, fs_stat_sync, fs_unlink_sync,
-    get_base_file_name, get_sys, id_arena::Id, map, normalize_slashes, option_declarations,
-    ordered_remove_item_at, path_join, per_arena, starts_with, AllArenas, CommandLineOption,
-    CommandLineOptionInterface, CommandLineOptionMapTypeValue, CommandLineOptionType, Extension,
-    FileSystemEntries, HasArena, InArena, StatLike,
+    get_base_file_name, get_sys, id_arena::Id, impl_has_arena, map, normalize_slashes,
+    option_declarations, ordered_remove_item_at, path_join, per_arena, starts_with, AllArenas,
+    CommandLineOption, CommandLineOptionInterface, CommandLineOptionMapTypeValue,
+    CommandLineOptionType, Extension, FileSystemEntries, HasArena, InArena, StatLike,
 };
 
 use crate::{vfs, vpath, HasArenaHarness, InArenaHarness, RunnerBase, StringOrFileBasedTest};
@@ -56,11 +56,15 @@ fn create_node_io(arena: &impl HasArenaHarness) -> Id<NodeIO> {
     NodeIO::new(arena)
 }
 
-pub struct NodeIO;
+pub struct NodeIO {
+    arena: *const AllArenas,
+}
 
 impl NodeIO {
     pub fn new(arena: &impl HasArenaHarness) -> Id<Self> {
-        arena.alloc_node_io(Self)
+        arena.alloc_node_io(Self {
+            arena: arena.arena(),
+        })
     }
 
     fn files_in_folder(
@@ -223,11 +227,7 @@ impl vfs::FileSystemResolverHost for NodeIO {
     }
 }
 
-impl HasArena for NodeIO {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
+impl_has_arena!(NodeIO);
 
 pub const lib_folder: &'static str = "built/local/";
 
@@ -262,19 +262,18 @@ pub mod Compiler {
         get_emit_script_target, get_error_count_for_summary, get_error_summary_text,
         get_normalized_absolute_path, id_arena::Id, map, normalize_slashes, option_declarations,
         parse_custom_type_option, parse_list_type_option, per_arena, regex, remove_file_extension,
-        return_ok_default_if_none, sort, starts_with, text_span_end, to_path, AllArenas,
-        CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
-        CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
-        CompilerOptionsValue, Diagnostic, DiagnosticInterface,
-        DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
-        GetOrInsertDefault, HasArena, InArena, NewLineKind, ScriptKind, ScriptReferenceHost,
-        StringOrDiagnosticMessage, TextSpan,
+        return_ok_default_if_none, sort, starts_with, text_span_end, to_path, CommandLineOption,
+        CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionType,
+        Comparison, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic,
+        DiagnosticInterface, DiagnosticRelatedInformationInterface, Extension,
+        FormatDiagnosticsHost, GetOrInsertDefault, HasArena, InArena, NewLineKind, ScriptKind,
+        ScriptReferenceHost, StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{get_io_id, is_built_file, is_default_library_file, Baseline, TestCaseParser};
     use crate::{
-        compiler, documents, fakes, get_io, vfs, vpath, AllArenasHarness, HasArenaHarness,
-        InArenaHarness, Utils, IO,
+        compiler, documents, fakes, get_io, impl_has_arena_harness, vfs, vpath, AllArenasHarness,
+        HasArenaHarness, InArenaHarness, Utils, IO,
     };
 
     #[derive(Default)]
@@ -406,7 +405,7 @@ pub mod Compiler {
                         ))
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -418,7 +417,7 @@ pub mod Compiler {
                         ))
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -427,7 +426,7 @@ pub mod Compiler {
                         .type_(CommandLineOptionType::String)
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -436,7 +435,7 @@ pub mod Compiler {
                         .type_(CommandLineOptionType::String)
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -445,7 +444,7 @@ pub mod Compiler {
                         .type_(CommandLineOptionType::String)
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -454,7 +453,7 @@ pub mod Compiler {
                         .type_(CommandLineOptionType::String)
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -466,7 +465,7 @@ pub mod Compiler {
                         ))
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -478,7 +477,7 @@ pub mod Compiler {
                         ))
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -490,7 +489,7 @@ pub mod Compiler {
                         ))
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -499,7 +498,7 @@ pub mod Compiler {
                         .type_(CommandLineOptionType::String)
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -508,7 +507,7 @@ pub mod Compiler {
                         .type_(CommandLineOptionType::String)
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -517,7 +516,7 @@ pub mod Compiler {
                         .type_(CommandLineOptionType::String)
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -529,7 +528,7 @@ pub mod Compiler {
                         ))
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
                 arena.alloc_command_line_option(
@@ -541,7 +540,7 @@ pub mod Compiler {
                         ))
                         .build()
                         .unwrap()
-                        .try_into()
+                        .try_into_command_line_option(arena)
                         .unwrap()
                 ),
             ])
@@ -725,8 +724,10 @@ pub mod Compiler {
             .into_iter()
             .chain(other_files.into_iter())
             .map(|file| {
-                arena
-                    .alloc_text_document(documents::TextDocument::from_test_file(&file.ref_(arena)))
+                arena.alloc_text_document(documents::TextDocument::from_test_file(
+                    &file.ref_(arena),
+                    arena,
+                ))
             })
             .collect::<Vec<_>>();
         let fs = arena.alloc_file_system(vfs::create_from_file_system(
@@ -969,9 +970,9 @@ pub mod Compiler {
     pub fn minimal_diagnostics_to_string(
         diagnostics: &[Id<Diagnostic>],
         pretty: Option<bool>,
-        arena: &impl HasArena,
+        arena: &impl HasArenaHarness,
     ) -> io::Result<String> {
-        let host = MinimalDiagnosticsToStringFormatDiagnosticsHost;
+        let host = MinimalDiagnosticsToStringFormatDiagnosticsHost::new(arena);
         if pretty == Some(true) {
             format_diagnostics_with_color_and_context(diagnostics, &host, arena)
         } else {
@@ -979,7 +980,17 @@ pub mod Compiler {
         }
     }
 
-    struct MinimalDiagnosticsToStringFormatDiagnosticsHost;
+    struct MinimalDiagnosticsToStringFormatDiagnosticsHost {
+        arena: *const AllArenasHarness,
+    }
+
+    impl MinimalDiagnosticsToStringFormatDiagnosticsHost {
+        pub fn new(arena: &impl HasArenaHarness) -> Self {
+            Self {
+                arena: arena.arena_harness(),
+            }
+        }
+    }
 
     impl FormatDiagnosticsHost for MinimalDiagnosticsToStringFormatDiagnosticsHost {
         fn get_current_directory(&self) -> io::Result<String> {
@@ -995,17 +1006,7 @@ pub mod Compiler {
         }
     }
 
-    impl HasArena for MinimalDiagnosticsToStringFormatDiagnosticsHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for MinimalDiagnosticsToStringFormatDiagnosticsHost {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(MinimalDiagnosticsToStringFormatDiagnosticsHost);
 
     pub fn get_error_baseline(
         input_files: &[Id<TestFile>],
@@ -1056,7 +1057,7 @@ pub mod Compiler {
 
         let mut first_line = true;
 
-        let format_diagnsotic_host = FormatDiagnsoticHost::new(options.as_ref());
+        let format_diagnsotic_host = FormatDiagnsoticHost::new(options.as_ref(), arena);
 
         let mut ret: Vec<(String, String, usize)> = vec![];
         ret.push((
@@ -1271,13 +1272,18 @@ pub mod Compiler {
     }
 
     struct FormatDiagnsoticHost<'a> {
+        arena: *const AllArenasHarness,
         options: Option<&'a IterateErrorBaselineOptions>,
         get_canonical_file_name: fn(&str) -> String,
     }
 
     impl<'a> FormatDiagnsoticHost<'a> {
-        pub fn new(options: Option<&'a IterateErrorBaselineOptions>) -> Self {
+        pub fn new(
+            options: Option<&'a IterateErrorBaselineOptions>,
+            arena: &impl HasArenaHarness,
+        ) -> Self {
             Self {
+                arena: arena.arena_harness(),
                 options,
                 get_canonical_file_name: create_get_canonical_file_name(
                     options
@@ -1305,17 +1311,7 @@ pub mod Compiler {
         }
     }
 
-    impl HasArena for FormatDiagnsoticHost<'_> {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for FormatDiagnsoticHost<'_> {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(FormatDiagnsoticHost<'_>);
 
     fn output_error_text(
         format_diagnsotic_host: &FormatDiagnsoticHost<'_>,

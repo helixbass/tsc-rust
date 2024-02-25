@@ -3,11 +3,11 @@ use std::borrow::Cow;
 use itertools::Itertools;
 use regex::{Captures, Regex, SubCaptureMatches};
 use typescript_rust::{
-    format_string_from_args, id_arena::Id, per_arena, reg_exp_escape, regex, AllArenas,
-    DiagnosticMessage, Diagnostics, HasArena, Owned,
+    format_string_from_args, id_arena::Id, per_arena, reg_exp_escape, regex, DiagnosticMessage,
+    Diagnostics, Owned,
 };
 
-use crate::{AllArenasHarness, HasArenaHarness, InArenaHarness};
+use crate::{impl_has_arena_harness, AllArenasHarness, HasArenaHarness, InArenaHarness};
 
 fn test_path_prefix_reg_exp() -> &'static Regex {
     regex!(r"(?:(file:/{3})|/)\.(ts|lib|src)/")
@@ -45,6 +45,7 @@ pub fn maybe_remove_test_path_prefixes(
 fn create_diagnostic_message_replacer(
     diagnostic_message: &'static DiagnosticMessage,
     replacer: Id<Box<dyn Replacer>>,
+    arena: &impl HasArenaHarness,
 ) -> DiagnosticMessageReplacer {
     let message_parts = regex!(r#"\{\d+\}"#).split(&diagnostic_message.message);
     let reg_exp = Regex::new(&format!(
@@ -55,10 +56,11 @@ fn create_diagnostic_message_replacer(
             .join("(.*?)")
     ))
     .unwrap();
-    DiagnosticMessageReplacer::new(reg_exp, replacer, diagnostic_message)
+    DiagnosticMessageReplacer::new(reg_exp, replacer, diagnostic_message, arena)
 }
 
 pub struct DiagnosticMessageReplacer {
+    arena: *const AllArenasHarness,
     reg_exp: Regex,
     replacer: Id<Box<dyn Replacer>>,
     diagnostic_message: &'static DiagnosticMessage,
@@ -69,8 +71,10 @@ impl DiagnosticMessageReplacer {
         reg_exp: Regex,
         replacer: Id<Box<dyn Replacer>>,
         diagnostic_message: &'static DiagnosticMessage,
+        arena: &impl HasArenaHarness,
     ) -> Self {
         Self {
+            arena: arena.arena_harness(),
             reg_exp,
             replacer,
             diagnostic_message,
@@ -89,17 +93,7 @@ impl DiagnosticMessageReplacer {
     }
 }
 
-impl HasArena for DiagnosticMessageReplacer {
-    fn arena(&self) -> &AllArenas {
-        unimplemented!()
-    }
-}
-
-impl HasArenaHarness for DiagnosticMessageReplacer {
-    fn arena_harness(&self) -> &AllArenasHarness {
-        unimplemented!()
-    }
-}
+impl_has_arena_harness!(DiagnosticMessageReplacer);
 
 pub trait Replacer {
     fn call(&self, message_args: SubCaptureMatches<'_, '_>, args: Vec<String>) -> Vec<String>;
@@ -112,7 +106,8 @@ fn replace_types_version_message(arena: &impl HasArenaHarness) -> Id<DiagnosticM
         arena.alloc_diagnostic_message_replacer(
             create_diagnostic_message_replacer(
                 &Diagnostics::package_json_has_a_typesVersions_entry_0_that_matches_compiler_version_1_looking_for_a_pattern_to_match_module_name_2,
-                ReplaceTypesVersionMessageReplacer::new(arena)
+                ReplaceTypesVersionMessageReplacer::new(arena),
+                arena,
             )
         )
     )

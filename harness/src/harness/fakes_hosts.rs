@@ -12,17 +12,17 @@ pub mod fakes {
     use typescript_rust::{
         continue_if_err, create_source_file, debug_cell, generate_djb2_hash,
         get_default_lib_file_name, get_new_line_character, id_arena::Id, match_files,
-        millis_since_epoch_to_system_time, not_implemented, return_ok_default_if_none, AllArenas,
+        millis_since_epoch_to_system_time, not_implemented, return_ok_default_if_none,
         CompilerOptions, ConvertToTSConfigHost, DirectoryWatcherCallback, ExitStatus,
-        FileSystemEntries, FileWatcher, FileWatcherCallback, HasArena, InArena,
-        ModuleResolutionHost, ModuleResolutionHostOverrider, Node, ScriptTarget, System as _,
-        WatchOptions,
+        FileSystemEntries, FileWatcher, FileWatcherCallback, InArena, ModuleResolutionHost,
+        ModuleResolutionHostOverrider, Node, ScriptTarget, System as _, WatchOptions,
     };
     use typescript_services_rust::{get_default_compiler_options, NodeServicesInterface};
 
     use crate::{
-        collections, documents, get_light_mode, vfs, vfs::SortOptionsComparerFromStringComparer,
-        vpath, AllArenasHarness, HasArenaHarness, InArenaHarness, Utils,
+        collections, documents, get_light_mode, impl_has_arena_harness, vfs,
+        vfs::SortOptionsComparerFromStringComparer, vpath, AllArenasHarness, HasArenaHarness,
+        InArenaHarness, Utils,
     };
 
     // const processExitSentinel = new Error("System exit");
@@ -35,6 +35,7 @@ pub mod fakes {
     }
 
     pub struct System {
+        arena: *const AllArenasHarness,
         pub vfs: Id<vfs::FileSystem>,
         pub args: Vec<String>,
         output: RefCell<Vec<String>>,
@@ -61,6 +62,7 @@ pub mod fakes {
             let new_line = new_line.unwrap_or("\r\n");
             let use_case_sensitive_file_names = !vfs.ref_(arena).ignore_case;
             Ok(Self {
+                arena: arena.arena_harness(),
                 args: Default::default(),
                 output: Default::default(),
                 exit_code: Default::default(),
@@ -359,19 +361,10 @@ pub mod fakes {
         }
     }
 
-    impl HasArena for System {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for System {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(System);
 
     pub struct ParseConfigHost {
+        arena: *const AllArenasHarness,
         pub sys: Id<System>,
     }
 
@@ -387,7 +380,10 @@ pub mod fakes {
                     arena.alloc_fakes_system(System::new(sys, None, arena)?)
                 }
             };
-            Ok(Self { sys })
+            Ok(Self {
+                sys,
+                arena: arena.arena_harness(),
+            })
         }
 
         pub fn vfs(&self) -> Id<vfs::FileSystem> {
@@ -438,19 +434,10 @@ pub mod fakes {
         }
     }
 
-    impl HasArena for ParseConfigHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for ParseConfigHost {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(ParseConfigHost);
 
     pub struct CompilerHost {
+        arena: *const AllArenasHarness,
         pub sys: Id<System>,
         pub default_lib_location: String,
         outputs: RefCell<Vec<Id<documents::TextDocument>>>,
@@ -489,6 +476,7 @@ pub mod fakes {
                 }
             };
             Ok(arena.alloc_compiler_host(Box::new(Self {
+                arena: arena.arena_harness(),
                 sys: sys.clone(),
                 default_lib_location: {
                     let value = sys
@@ -510,11 +498,13 @@ pub mod fakes {
                         comparer: arena.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
                                 sys.ref_(arena).vfs.ref_(arena).string_comparer.clone(),
+                                arena,
                             ),
                         )),
                         sort: Some(collections::SortOptionsSort::Insertion),
                     },
                     Option::<HashMap<String, Id<Node>>>::None,
+                    arena,
                 )),
                 _set_parent_nodes: set_parent_nodes,
                 _outputs_map: RefCell::new(collections::SortedMap::new(
@@ -522,11 +512,13 @@ pub mod fakes {
                         comparer: arena.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
                                 sys.ref_(arena).vfs.ref_(arena).string_comparer.clone(),
+                                arena,
                             ),
                         )),
                         sort: None,
                     },
                     Option::<HashMap<String, usize>>::None,
+                    arena,
                 )),
                 outputs: Default::default(),
                 traces: Default::default(),
@@ -710,8 +702,13 @@ pub mod fakes {
             let _ = self.sys.ref_(self).write_file(file_name, &content, None);
 
             let content_as_chars = content.chars().collect();
-            let mut document =
-                documents::TextDocument::new(file_name.to_owned(), content, content_as_chars, None);
+            let mut document = documents::TextDocument::new(
+                file_name.to_owned(),
+                content,
+                content_as_chars,
+                None,
+                self,
+            );
             document
                 .meta
                 .insert("fileName".to_owned(), file_name.to_owned());
@@ -1058,17 +1055,7 @@ pub mod fakes {
         }
     }
 
-    impl HasArena for CompilerHost {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for CompilerHost {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(CompilerHost);
 
     pub enum RcSystemOrRcFileSystem {
         RcSystem(Id<System>),

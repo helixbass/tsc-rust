@@ -5,13 +5,13 @@ pub mod documents {
     };
 
     use typescript_rust::{
-        _d, compute_line_starts, id_arena::Id, ref_unwrapped, AllArenas, HasArena,
-        SourceTextAsChars,
+        _d, compute_line_starts, id_arena::Id, ref_unwrapped, SourceTextAsChars,
     };
 
-    use crate::{AllArenasHarness, Compiler, HasArenaHarness};
+    use crate::{impl_has_arena_harness, AllArenasHarness, Compiler, HasArenaHarness};
 
     pub struct TextDocument {
+        arena: *const AllArenasHarness,
         pub meta: HashMap<String, String>,
         pub file: String,
         pub text: String,
@@ -27,8 +27,10 @@ pub mod documents {
             text: String,
             text_as_chars: SourceTextAsChars,
             meta: Option<HashMap<String, String>>,
+            arena: &impl HasArenaHarness,
         ) -> Self {
             Self {
+                arena: arena.arena_harness(),
                 file,
                 text,
                 text_as_chars,
@@ -45,12 +47,13 @@ pub mod documents {
             ref_unwrapped(&self._line_starts)
         }
 
-        pub fn from_test_file(file: &Compiler::TestFile) -> Self {
+        pub fn from_test_file(file: &Compiler::TestFile, arena: &impl HasArenaHarness) -> Self {
             Self::new(
                 file.unit_name.clone(),
                 file.content.clone(),
                 file.content.chars().collect(),
                 file.file_options.clone(),
+                arena,
             )
         }
 
@@ -65,15 +68,5 @@ pub mod documents {
         }
     }
 
-    impl HasArena for TextDocument {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for TextDocument {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(TextDocument);
 }

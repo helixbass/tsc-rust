@@ -17,8 +17,9 @@ pub mod vfs {
     };
 
     use crate::{
-        collections, collections::SortOptionsComparer, documents, vpath, AllArenasHarness,
-        HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness, OptionInArenaHarness,
+        collections, collections::SortOptionsComparer, documents, impl_has_arena_harness, vpath,
+        AllArenasHarness, HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
+        OptionInArenaHarness,
     };
 
     pub const built_folder: &'static str = "/.ts";
@@ -87,12 +88,19 @@ pub mod vfs {
     }
 
     pub struct SortOptionsComparerFromStringComparer {
+        arena: *const AllArenasHarness,
         string_comparer: Id<Box<dyn StringComparer>>,
     }
 
     impl SortOptionsComparerFromStringComparer {
-        pub fn new(string_comparer: Id<Box<dyn StringComparer>>) -> Self {
-            Self { string_comparer }
+        pub fn new(
+            string_comparer: Id<Box<dyn StringComparer>>,
+            arena: &impl HasArenaHarness,
+        ) -> Self {
+            Self {
+                string_comparer,
+                arena: arena.arena_harness(),
+            }
         }
     }
 
@@ -102,19 +110,10 @@ pub mod vfs {
         }
     }
 
-    impl HasArena for SortOptionsComparerFromStringComparer {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for SortOptionsComparerFromStringComparer {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(SortOptionsComparerFromStringComparer);
 
     pub struct FileSystem {
+        arena: *const AllArenasHarness,
         pub ignore_case: bool,
         pub string_comparer: Id<Box<dyn StringComparer>>,
         _lazy: FileSystemLazy,
@@ -142,6 +141,7 @@ pub mod vfs {
             let time = time.unwrap_or(TimestampOrNowOrSystemTimeOrCallback::Now);
 
             let ret = Self {
+                arena: arena.arena_harness(),
                 ignore_case,
                 string_comparer: arena
                     .alloc_string_comparer(Box::new(StringComparerFileSystem::new(ignore_case))),
@@ -209,6 +209,7 @@ pub mod vfs {
                         self._shadow_root
                             .as_ref()
                             .map(|_shadow_root| _shadow_root.ref_(self).meta_id()),
+                        self,
                     )),
                 ));
             }
@@ -319,7 +320,12 @@ pub mod vfs {
                     } else {
                         None
                     };
-                    Some(self.alloc_metadata_metavalue(collections::Metadata::new(parent_meta)))
+                    Some(
+                        self.alloc_metadata_metavalue(collections::Metadata::new(
+                            parent_meta,
+                            self,
+                        )),
+                    )
                 });
             }
             node.meta().unwrap()
@@ -836,11 +842,13 @@ pub mod vfs {
                             comparer: self.alloc_sort_options_comparer_string(Box::new(
                                 SortOptionsComparerFromStringComparer::new(
                                     self.string_comparer.clone(),
+                                    self,
                                 ),
                             )),
                             sort: None,
                         },
                         Option::<HashMap<String, Id<Inode>>>::None,
+                        self,
                     );
                     if let Some(_shadow_root) = self._shadow_root.as_ref() {
                         self._copy_shadow_links(
@@ -869,11 +877,13 @@ pub mod vfs {
                         comparer: self.alloc_sort_options_comparer_string(Box::new(
                             SortOptionsComparerFromStringComparer::new(
                                 self.string_comparer.clone(),
+                                self,
                             ),
                         )),
                         sort: None,
                     },
                     Option::<HashMap<String, Id<Inode>>>::None,
+                    self,
                 );
                 let source = node_as_directory_inode.maybe_source();
                 let resolver = node_as_directory_inode.maybe_resolver();
@@ -1304,17 +1314,7 @@ pub mod vfs {
         }
     }
 
-    impl HasArena for FileSystem {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for FileSystem {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(FileSystem);
 
     #[derive(Clone)]
     pub enum MetaValue {
@@ -1463,6 +1463,7 @@ pub mod vfs {
     }
 
     pub struct FileSystemResolver {
+        arena: *const AllArenasHarness,
         pub host: IdForFileSystemResolverHost,
     }
 
@@ -1503,17 +1504,7 @@ pub mod vfs {
         }
     }
 
-    impl HasArena for FileSystemResolver {
-        fn arena(&self) -> &AllArenas {
-            unimplemented!()
-        }
-    }
-
-    impl HasArenaHarness for FileSystemResolver {
-        fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
-        }
-    }
+    impl_has_arena_harness!(FileSystemResolver);
 
     pub struct FileSystemResolverStats {
         pub mode: u32,
@@ -1529,8 +1520,14 @@ pub mod vfs {
         fn get_workspace_root(&self) -> String;
     }
 
-    pub fn create_resolver(host: IdForFileSystemResolverHost) -> FileSystemResolver {
-        FileSystemResolver { host }
+    pub fn create_resolver(
+        host: IdForFileSystemResolverHost,
+        arena: &impl HasArenaHarness,
+    ) -> FileSystemResolver {
+        FileSystemResolver {
+            host,
+            arena: arena.arena_harness(),
+        }
     }
 
     pub fn create_from_file_system(
@@ -2545,7 +2542,7 @@ pub mod vfs {
             set_built_local_host(Some(host.clone()), arena);
         }
         if maybe_built_local_ci(arena).is_none() {
-            let resolver = arena.alloc_file_system_resolver(create_resolver(host));
+            let resolver = arena.alloc_file_system_resolver(create_resolver(host, arena));
             set_built_local_ci(
                 Some(
                     arena.alloc_file_system(FileSystem::new(

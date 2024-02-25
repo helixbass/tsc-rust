@@ -28,6 +28,7 @@ pub mod collections {
     }
 
     pub struct SortedMap<TKey: 'static, TValue> {
+        arena: *const AllArenasHarness,
         _comparer: Id<Box<dyn SortOptionsComparer<TKey>>>,
         _keys: Vec<TKey>,
         _values: Vec<TValue>,
@@ -41,15 +42,17 @@ pub mod collections {
         Id<Box<dyn SortOptionsComparer<TKey>>>:
             InArenaHarness<Item = Box<dyn SortOptionsComparer<TKey>>>,
     {
-        pub fn new<TIterable: IntoIterator<Item = (TKey, TValue)>>(
+        pub fn new(
             comparer: SortOptions<TKey>,
-            iterable: Option<TIterable>,
+            iterable: Option<impl IntoIterator<Item = (TKey, TValue)>>,
+            arena: &impl HasArenaHarness,
         ) -> Self {
             let SortOptions {
                 comparer: comparer_comparer,
                 sort: comparer_sort,
             } = comparer;
             let mut ret = Self {
+                arena: arena.arena_harness(),
                 _comparer: comparer_comparer,
                 _order: if comparer_sort == Some(SortOptionsSort::Insertion) {
                     Some(vec![])
@@ -261,13 +264,13 @@ pub mod collections {
 
     impl<TKey, TValue> HasArena for SortedMap<TKey, TValue> {
         fn arena(&self) -> &AllArenas {
-            unimplemented!()
+            unsafe { &(*self.arena).all_arenas }
         }
     }
 
     impl<TKey, TValue> HasArenaHarness for SortedMap<TKey, TValue> {
         fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
+            unsafe { &*self.arena }
         }
     }
 
@@ -489,6 +492,7 @@ pub mod collections {
     }
 
     pub struct Metadata<TValue: 'static> {
+        arena: *const AllArenasHarness,
         _parent: Option<Id<Metadata<TValue>>>,
         _map: HashMap<String, TValue>,
         _version: usize,
@@ -502,8 +506,9 @@ pub mod collections {
     where
         Id<Metadata<TValue>>: InArenaHarness<Item = Metadata<TValue>>,
     {
-        pub fn new(parent: Option<Id<Metadata<TValue>>>) -> Self {
+        pub fn new(parent: Option<Id<Metadata<TValue>>>, arena: &impl HasArenaHarness) -> Self {
             Self {
+                arena: arena.arena_harness(),
                 _parent: parent,
                 _map: HashMap::new(),
                 _version: 0,
@@ -616,13 +621,13 @@ pub mod collections {
 
     impl<TValue: Clone + 'static> HasArena for Metadata<TValue> {
         fn arena(&self) -> &AllArenas {
-            unimplemented!()
+            unsafe { &(*self.arena).all_arenas }
         }
     }
 
     impl<TValue: Clone + 'static> HasArenaHarness for Metadata<TValue> {
         fn arena_harness(&self) -> &AllArenasHarness {
-            unimplemented!()
+            unsafe { &*self.arena }
         }
     }
 }

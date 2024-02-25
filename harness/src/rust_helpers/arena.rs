@@ -21,7 +21,7 @@ use crate::{
 
 #[derive(Default)]
 pub struct AllArenasHarness {
-    all_arenas: AllArenas,
+    pub all_arenas: AllArenas,
     node_ios: RefCell<Arena<NodeIO>>,
     file_system_resolver_hosts: RefCell<Arena<Box<dyn FileSystemResolverHost>>>,
     text_documents: RefCell<Arena<TextDocument>>,
@@ -876,4 +876,21 @@ impl From<Id<NodeIO>> for IdForFileSystemResolverHost {
     fn from(value: Id<NodeIO>) -> Self {
         Self::NodeIO(value)
     }
+}
+
+#[macro_export]
+macro_rules! impl_has_arena_harness {
+    ($type:ty $(,)?) => {
+        impl typescript_rust::HasArena for $type {
+            fn arena(&self) -> &typescript_rust::AllArenas {
+                unsafe { &(*self.arena).all_arenas }
+            }
+        }
+
+        impl $crate::HasArenaHarness for $type {
+            fn arena_harness(&self) -> &$crate::AllArenasHarness {
+                unsafe { &*self.arena }
+            }
+        }
+    };
 }

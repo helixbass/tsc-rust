@@ -57,7 +57,10 @@ impl CompilerBaselineRunner {
         test_type: CompilerTestType,
         arena: &impl HasArenaHarness,
     ) -> RunnerBase {
-        RunnerBase::new(arena.alloc_runner_base_sub(Box::new(Self::new(test_type))))
+        RunnerBase::new(
+            arena.alloc_runner_base_sub(Box::new(Self::new(test_type))),
+            arena,
+        )
     }
 
     fn check_test_code_output(&self, file_name: &str, test: Option<&CompilerFileBasedTest>) {
