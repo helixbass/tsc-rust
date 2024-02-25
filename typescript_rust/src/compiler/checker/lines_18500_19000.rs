@@ -2264,7 +2264,9 @@ impl CheckTypeRelatedTo {
                         None,
                     )?;
                     if result != Ternary::False {
-                        result &= self_.ref_(arena).is_related_to(
+                        result &= Self::is_related_to(
+                            self_,
+                            arena,
                             self_
                                 .ref_(arena)
                                 .type_checker

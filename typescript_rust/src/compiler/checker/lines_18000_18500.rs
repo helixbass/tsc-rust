@@ -92,6 +92,7 @@ impl CheckTypeRelatedTo {
         })
     }
 
+    #[allow(dead_code)]
     pub(super) fn arena_id(&self) -> Id<Self> {
         self._arena_id.get().unwrap()
     }
