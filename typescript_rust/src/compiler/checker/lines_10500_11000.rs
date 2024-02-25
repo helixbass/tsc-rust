@@ -126,8 +126,8 @@ impl TypeChecker {
     pub(super) fn late_bind_member(
         &self,
         parent: Id<Symbol>,
-        early_symbols: Option<&SymbolTable>,
-        late_symbols: &mut SymbolTable,
+        early_symbols: Option<Id<SymbolTable>>,
+        late_symbols: Id<SymbolTable>,
         decl: Id<Node>, /*LateBoundDeclaration | LateBoundBinaryExpressionDeclaration*/
     ) -> io::Result<Id<Symbol>> {
         Debug_.assert(
@@ -158,7 +158,7 @@ impl TypeChecker {
                 let symbol_flags = decl.ref_(self).symbol().ref_(self).flags();
 
                 let mut late_symbol: Option<Id<Symbol>> =
-                    late_symbols.get(&*member_name).map(Clone::clone);
+                    late_symbols.ref_(self).get(&*member_name).copied();
                 if late_symbol.is_none() {
                     late_symbol = Some(
                         self.alloc_symbol(
@@ -170,19 +170,21 @@ impl TypeChecker {
                             .into(),
                         ),
                     );
-                    late_symbols.insert((*member_name).to_owned(), late_symbol.clone().unwrap());
+                    late_symbols
+                        .ref_mut(self)
+                        .insert((*member_name).to_owned(), late_symbol.clone().unwrap());
                 }
                 let mut late_symbol = late_symbol.unwrap();
 
-                let early_symbol =
-                    early_symbols.and_then(|early_symbols| early_symbols.get(&*member_name));
+                let early_symbol = early_symbols
+                    .and_then(|early_symbols| early_symbols.ref_(self).get(&*member_name).copied());
                 if late_symbol
                     .ref_(self)
                     .flags()
                     .intersects(self.get_excluded_symbol_flags(symbol_flags))
                     || early_symbol.is_some()
                 {
-                    let declarations = if let Some(&early_symbol) = early_symbol {
+                    let declarations = if let Some(early_symbol) = early_symbol {
                         maybe_concatenate(
                             early_symbol.ref_(self).maybe_declarations().clone(),
                             late_symbol.ref_(self).maybe_declarations().clone(),
@@ -272,8 +274,8 @@ impl TypeChecker {
                 ),
             );
 
-            let mut late_symbols = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
-            let early_symbols_ref = early_symbols.map(|early_symbols| early_symbols.ref_(self));
+            let late_symbols =
+                self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
             if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
                 for &decl in symbol_declarations {
                     let members = get_members_of_declaration(&decl.ref_(self));
@@ -282,12 +284,7 @@ impl TypeChecker {
                             if is_static == has_static_modifier(member, self)
                                 && self.has_late_bindable_name(member)?
                             {
-                                self.late_bind_member(
-                                    symbol,
-                                    early_symbols_ref.as_deref(),
-                                    &mut late_symbols,
-                                    member,
-                                )?;
+                                self.late_bind_member(symbol, early_symbols, late_symbols, member)?;
                             }
                         }
                     }
@@ -311,12 +308,7 @@ impl TypeChecker {
                                     | AssignmentDeclarationKind::Prototype
                             );
                         if is_static != is_instance_member && self.has_late_bindable_name(member)? {
-                            self.late_bind_member(
-                                symbol,
-                                early_symbols_ref.as_deref(),
-                                &mut late_symbols,
-                                member,
-                            )?;
+                            self.late_bind_member(symbol, early_symbols, late_symbols, member)?;
                         }
                     }
                 }
@@ -325,11 +317,8 @@ impl TypeChecker {
                     links,
                     resolution_kind,
                     Some(
-                        self.combine_symbol_tables(
-                            early_symbols.clone(),
-                            Some(self.alloc_symbol_table(late_symbols)),
-                        )?
-                        .unwrap_or_else(|| self.empty_symbols()),
+                        self.combine_symbol_tables(early_symbols, Some(late_symbols))?
+                            .unwrap_or_else(|| self.empty_symbols()),
                     ),
                 )
             }

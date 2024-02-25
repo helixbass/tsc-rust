@@ -946,7 +946,7 @@ impl Binder {
                     )));
                 }
                 self.declare_symbol(
-                    &mut container_locals.as_ref().unwrap().ref_mut(self),
+                    container_locals.clone().unwrap(),
                     Option::<Id<Symbol>>::None,
                     node,
                     SymbolFlags::TypeParameter,

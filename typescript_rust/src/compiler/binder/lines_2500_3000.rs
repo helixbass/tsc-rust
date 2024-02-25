@@ -14,10 +14,10 @@ use crate::{
     is_object_literal_method, is_part_of_type_query, is_private_identifier,
     is_property_access_expression, is_prototype_access, is_shorthand_property_assignment,
     is_source_file, is_special_property_declaration, is_static, is_this_initialized_declaration,
-    remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind, Debug_,
-    Diagnostics, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena, InternalSymbolName,
-    Node, NodeInterface, OptionInArena, Symbol, SymbolFlags, SymbolInterface, SymbolTable,
-    SyntaxKind,
+    released, remove_file_extension, set_parent, set_value_declaration, AssignmentDeclarationKind,
+    Debug_, Diagnostics, GetOrInsertDefault, HasArena, HasStatementsInterface, InArena,
+    InternalSymbolName, Node, NodeInterface, OptionInArena, Symbol, SymbolFlags, SymbolInterface,
+    SymbolTable, SyntaxKind,
 };
 
 impl Binder {
@@ -524,7 +524,7 @@ impl Binder {
                 SymbolFlags::Property
             };
             let symbol = self.declare_symbol(
-                self.container().ref_(self).symbol().ref_(self).exports(),
+                released!(self.container().ref_(self).symbol().ref_(self).exports()),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 flags,
