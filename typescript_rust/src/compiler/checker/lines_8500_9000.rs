@@ -1134,10 +1134,9 @@ impl TypeChecker {
         {
             let s = self.get_symbol_of_node(decl)?;
             if let Some(s) = s {
-                if let Some(s_exports) = s.ref_(self).maybe_exports().as_ref() {
-                    let s_exports = s_exports.ref_(self);
-                    if !s_exports.is_empty() {
-                        self.merge_symbol_table(exports.clone(), &s_exports, None)?;
+                if let Some(s_exports) = s.ref_(self).maybe_exports() {
+                    if !s_exports.ref_(self).is_empty() {
+                        self.merge_symbol_table(exports.clone(), s_exports, None)?;
                     }
                 }
             }
@@ -1149,10 +1148,9 @@ impl TypeChecker {
         }
         let s = self.get_symbol_of_node(decl)?;
         if let Some(s) = s {
-            if let Some(s_exports) = s.ref_(self).maybe_exports().as_ref() {
-                let s_exports = s_exports.ref_(self);
-                if !s_exports.is_empty() {
-                    self.merge_symbol_table(exports.clone(), &s_exports, None)?;
+            if let Some(s_exports) = s.ref_(self).maybe_exports() {
+                if !s_exports.ref_(self).is_empty() {
+                    self.merge_symbol_table(exports.clone(), s_exports, None)?;
                 }
             }
         }

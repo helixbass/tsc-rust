@@ -624,7 +624,7 @@ impl TypeChecker {
             ) {
                 self.merge_symbol_table(
                     inferred.ref_(self).maybe_exports().unwrap(),
-                    &source.ref_(self).maybe_exports().unwrap().ref_(self),
+                    source.ref_(self).maybe_exports().unwrap(),
                     None,
                 )?;
             }
@@ -634,7 +634,7 @@ impl TypeChecker {
             ) {
                 self.merge_symbol_table(
                     inferred.ref_(self).maybe_members().unwrap(),
-                    &source.ref_(self).maybe_members().unwrap().ref_(self),
+                    source.ref_(self).maybe_members().unwrap(),
                     None,
                 )?;
             }

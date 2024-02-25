@@ -2,7 +2,6 @@ use std::{collections::HashMap, io};
 
 use id_arena::Id;
 
-
 use super::EmitResolverCreateResolver;
 use crate::{
     add_related_info, bind_source_file, concatenate, create_diagnostic_for_node,
@@ -765,20 +764,12 @@ impl TypeChecker {
                         );
                     }
                 }
-                self.merge_symbol_table(
-                    self.globals_id(),
-                    &file.ref_(self).locals().ref_(self),
-                    None,
-                )?;
+                self.merge_symbol_table(self.globals_id(), file.ref_(self).locals(), None)?;
             }
             if let Some(file_js_global_augmentations) =
                 file_as_source_file.maybe_js_global_augmentations()
             {
-                self.merge_symbol_table(
-                    self.globals_id(),
-                    &file_js_global_augmentations.ref_(self),
-                    None,
-                )?;
+                self.merge_symbol_table(self.globals_id(), file_js_global_augmentations, None)?;
             }
             if let Some(file_pattern_ambient_modules) = file_as_source_file
                 .maybe_pattern_ambient_modules()

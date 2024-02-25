@@ -39,7 +39,7 @@ use crate::{
     BaseTransientSymbol, CheckFlags, Debug_, Diagnostic, DiagnosticMessage, HasArena, InArena,
     Node, NodeInterface, NodeLinks, Symbol, SymbolFlags, SymbolInterface, SymbolLinks, SymbolTable,
     SyntaxKind, TransientSymbol, TransientSymbolInterface, TypeChecker, _d, get_factory,
-    index_of_eq, push_if_unique_eq,
+    index_of_eq, push_if_unique_eq, released,
 };
 
 impl TypeChecker {
@@ -602,7 +602,7 @@ impl TypeChecker {
                     None,
                 );
             }
-            if let Some(source_members) = source.ref_(self).maybe_members().as_ref() {
+            if let Some(source_members) = source.ref_(self).maybe_members() {
                 let target_ref = target.ref_(self);
                 if target_ref.maybe_members().is_none() {
                     target_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
@@ -612,11 +612,11 @@ impl TypeChecker {
                 }
                 self.merge_symbol_table(
                     target_ref.members(),
-                    &source_members.ref_(self),
+                    source_members,
                     Some(unidirectional),
                 )?;
             }
-            if let Some(source_exports) = source.ref_(self).maybe_exports().as_ref() {
+            if let Some(source_exports) = source.ref_(self).maybe_exports() {
                 let target_ref = target.ref_(self);
                 if target_ref.maybe_exports().is_none() {
                     target_ref.set_exports(Some(self.alloc_symbol_table(create_symbol_table(
@@ -626,7 +626,7 @@ impl TypeChecker {
                 }
                 self.merge_symbol_table(
                     target_ref.exports(),
-                    &source_exports.ref_(self),
+                    source_exports,
                     Some(unidirectional),
                 )?;
             }
@@ -900,19 +900,19 @@ impl TypeChecker {
         }
         let combined =
             self.alloc_symbol_table(create_symbol_table(Option::<&[Id<Symbol>]>::None, self));
-        self.merge_symbol_table(combined, &first.ref_(self), None)?;
-        self.merge_symbol_table(combined, &second.ref_(self), None)?;
+        self.merge_symbol_table(combined, first, None)?;
+        self.merge_symbol_table(combined, second, None)?;
         Ok(Some(combined))
     }
 
     pub(super) fn merge_symbol_table(
         &self,
         target: Id<SymbolTable>,
-        source: &SymbolTable,
+        source: Id<SymbolTable>,
         unidirectional: Option<bool>,
     ) -> io::Result<()> {
         let unidirectional = unidirectional.unwrap_or(false);
-        for (id, &source_symbol) in source {
+        for (id, &source_symbol) in &released!(source.ref_(self).clone()) {
             let target_symbol = {
                 let value = target.ref_(self).get(id).cloned();
                 value
@@ -950,12 +950,7 @@ impl TypeChecker {
         if is_global_scope_augmentation(&module_augmentation.ref_(self)) {
             self.merge_symbol_table(
                 self.globals_id(),
-                &mut module_augmentation
-                    .ref_(self)
-                    .symbol()
-                    .ref_(self)
-                    .exports()
-                    .ref_mut(self),
+                module_augmentation.ref_(self).symbol().ref_(self).exports(),
                 None,
             )?;
         } else {
