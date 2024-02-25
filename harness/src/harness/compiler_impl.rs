@@ -5,10 +5,9 @@ pub mod compiler {
         add_related_info, compare_diagnostics, create_compiler_diagnostic, create_program,
         debug_cell, file_extension_is, filter, get_declaration_emit_extension_for_path,
         get_output_extension, get_pre_emit_diagnostics, id_arena::Id, is_option_str_empty, length,
-        some, AllArenas, Comparison, CompilerOptions, CreateProgramOptions, Diagnostic,
-        DiagnosticCategory, DiagnosticMessage, DiagnosticRelatedInformation, EmitResult, Extension,
-        HasArena, InArena, ModuleKind, NewLineKind, NonEmpty, OptionTry, Program, ScriptTarget,
-        SourceFileLike,
+        some, Comparison, CompilerOptions, CreateProgramOptions, Diagnostic, DiagnosticCategory,
+        DiagnosticMessage, DiagnosticRelatedInformation, EmitResult, Extension, InArena,
+        ModuleKind, NewLineKind, NonEmpty, OptionTry, Program, ScriptTarget, SourceFileLike,
     };
 
     use crate::{

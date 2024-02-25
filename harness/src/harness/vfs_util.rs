@@ -12,8 +12,7 @@ pub mod vfs {
     use local_macros::enum_unwrapped;
     use typescript_rust::{
         debug_cell, get_sys, id_arena::Id, io_error_from_name, is_option_str_empty,
-        millis_since_epoch_to_system_time, AllArenas, Buffer, Comparison, FileSystemEntries,
-        HasArena, InArena, Node,
+        millis_since_epoch_to_system_time, Buffer, Comparison, FileSystemEntries, InArena, Node,
     };
 
     use crate::{
