@@ -18,8 +18,8 @@ pub mod vfs {
 
     use crate::{
         collections, collections::SortOptionsComparer, documents, impl_has_arena_harness, vpath,
-        AllArenasHarness, HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
-        OptionInArenaHarness,
+        AllArenasHarness, AllArenasHarnessId, HasArenaHarness, IdForFileSystemResolverHost,
+        InArenaHarness, OptionInArenaHarness,
     };
 
     pub const built_folder: &'static str = "/.ts";
@@ -2451,16 +2451,16 @@ pub mod vfs {
     }
 
     thread_local! {
-        static BUILT_LOCAL_HOST_PER_ARENA: RefCell<HashMap<*const AllArenasHarness, IdForFileSystemResolverHost>> = RefCell::new(HashMap::new());
-        static BUILT_LOCAL_CI_PER_ARENA: RefCell<HashMap<*const AllArenasHarness, Id<FileSystem>>> = RefCell::new(HashMap::new());
-        static BUILT_LOCAL_CS_PER_ARENA: RefCell<HashMap<*const AllArenasHarness, Id<FileSystem>>> = RefCell::new(HashMap::new());
+        static BUILT_LOCAL_HOST_PER_ARENA: RefCell<HashMap<AllArenasHarnessId, IdForFileSystemResolverHost>> = RefCell::new(HashMap::new());
+        static BUILT_LOCAL_CI_PER_ARENA: RefCell<HashMap<AllArenasHarnessId, Id<FileSystem>>> = RefCell::new(HashMap::new());
+        static BUILT_LOCAL_CS_PER_ARENA: RefCell<HashMap<AllArenasHarnessId, Id<FileSystem>>> = RefCell::new(HashMap::new());
     }
 
     fn maybe_built_local_host(arena: &impl HasArenaHarness) -> Option<IdForFileSystemResolverHost> {
         BUILT_LOCAL_HOST_PER_ARENA.with(|per_arena| {
             let per_arena = per_arena.borrow();
-            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
-            per_arena.get(&arena_ptr).copied()
+            let arena_id = arena.all_arenas_harness_id();
+            per_arena.get(&arena_id).copied()
         })
     }
 
@@ -2470,13 +2470,13 @@ pub mod vfs {
     ) {
         BUILT_LOCAL_HOST_PER_ARENA.with(|per_arena| {
             let mut per_arena = per_arena.borrow_mut();
-            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            let arena_id = arena.all_arenas_harness_id();
             match value {
                 Some(value) => {
-                    per_arena.insert(arena_ptr, value);
+                    per_arena.insert(arena_id, value);
                 }
                 None => {
-                    per_arena.remove(&arena_ptr);
+                    per_arena.remove(&arena_id);
                 }
             }
         });
@@ -2485,21 +2485,21 @@ pub mod vfs {
     fn maybe_built_local_ci(arena: &impl HasArenaHarness) -> Option<Id<FileSystem>> {
         BUILT_LOCAL_CI_PER_ARENA.with(|per_arena| {
             let per_arena = per_arena.borrow();
-            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
-            per_arena.get(&arena_ptr).copied()
+            let arena_id = arena.all_arenas_harness_id();
+            per_arena.get(&arena_id).copied()
         })
     }
 
     fn set_built_local_ci(value: Option<Id<FileSystem>>, arena: &impl HasArenaHarness) {
         BUILT_LOCAL_CI_PER_ARENA.with(|per_arena| {
             let mut per_arena = per_arena.borrow_mut();
-            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            let arena_id = arena.all_arenas_harness_id();
             match value {
                 Some(value) => {
-                    per_arena.insert(arena_ptr, value);
+                    per_arena.insert(arena_id, value);
                 }
                 None => {
-                    per_arena.remove(&arena_ptr);
+                    per_arena.remove(&arena_id);
                 }
             }
         });
@@ -2508,21 +2508,21 @@ pub mod vfs {
     fn maybe_built_local_cs(arena: &impl HasArenaHarness) -> Option<Id<FileSystem>> {
         BUILT_LOCAL_CS_PER_ARENA.with(|per_arena| {
             let per_arena = per_arena.borrow();
-            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
-            per_arena.get(&arena_ptr).copied()
+            let arena_id = arena.all_arenas_harness_id();
+            per_arena.get(&arena_id).copied()
         })
     }
 
     fn set_built_local_cs(value: Option<Id<FileSystem>>, arena: &impl HasArenaHarness) {
         BUILT_LOCAL_CS_PER_ARENA.with(|per_arena| {
             let mut per_arena = per_arena.borrow_mut();
-            let arena_ptr: *const AllArenasHarness = arena.arena_harness();
+            let arena_id = arena.all_arenas_harness_id();
             match value {
                 Some(value) => {
-                    per_arena.insert(arena_ptr, value);
+                    per_arena.insert(arena_id, value);
                 }
                 None => {
-                    per_arena.remove(&arena_ptr);
+                    per_arena.remove(&arena_id);
                 }
             }
         });

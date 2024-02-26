@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use typescript_rust::{
     debug_cell::{Ref, RefCell, RefMut},
     id_arena::{Arena, Id},
@@ -19,8 +21,10 @@ use crate::{
     Utils::{DiagnosticMessageReplacer, Replacer},
 };
 
-#[derive(Default)]
+pub type AllArenasHarnessId = usize;
+
 pub struct AllArenasHarness {
+    id: AllArenasHarnessId,
     pub all_arenas: AllArenas,
     node_ios: RefCell<Arena<NodeIO>>,
     file_system_resolver_hosts: RefCell<Arena<Box<dyn FileSystemResolverHost>>>,
@@ -44,8 +48,41 @@ pub struct AllArenasHarness {
         RefCell<Arena<Box<dyn TimestampOrNowOrSystemTimeOrCallbackCallback>>>,
 }
 
+impl Default for AllArenasHarness {
+    fn default() -> Self {
+        static ARENA_COUNTER: AtomicUsize = AtomicUsize::new(0);
+        Self {
+            id: ARENA_COUNTER.fetch_add(1, Ordering::SeqCst),
+            all_arenas: Default::default(),
+            node_ios: Default::default(),
+            file_system_resolver_hosts: Default::default(),
+            text_documents: Default::default(),
+            compilation_outputs: Default::default(),
+            file_systems: Default::default(),
+            sort_options_comparer_strings: Default::default(),
+            metadata_strings: Default::default(),
+            metadata_metavalues: Default::default(),
+            runner_base_subs: Default::default(),
+            test_files: Default::default(),
+            replacers: Default::default(),
+            diagnostic_message_replacers: Default::default(),
+            systems: Default::default(),
+            parse_config_hosts: Default::default(),
+            string_comparers: Default::default(),
+            file_system_resolvers: Default::default(),
+            inodes: Default::default(),
+            links: Default::default(),
+            timestamp_or_now_or_system_time_or_callback_callbacks: Default::default(),
+        }
+    }
+}
+
 pub trait HasArenaHarness: HasArena {
     fn arena_harness(&self) -> &AllArenasHarness;
+
+    fn all_arenas_harness_id(&self) -> AllArenasHarnessId {
+        self.arena_harness().all_arenas_harness_id()
+    }
 
     fn node_io(&self, node_io: Id<NodeIO>) -> Ref<NodeIO> {
         self.arena_harness().node_io(node_io)
@@ -313,6 +350,10 @@ impl HasArena for AllArenasHarness {
 impl HasArenaHarness for AllArenasHarness {
     fn arena_harness(&self) -> &AllArenasHarness {
         self
+    }
+
+    fn all_arenas_harness_id(&self) -> AllArenasHarnessId {
+        self.id
     }
 
     fn node_io(&self, node_io: Id<NodeIO>) -> Ref<NodeIO> {

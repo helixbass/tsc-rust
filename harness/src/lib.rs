@@ -27,8 +27,8 @@ pub use harness::{
 };
 pub use mocha::{after, before, describe, it, MochaArgs};
 pub use rust_helpers::arena::{
-    AllArenasHarness, HasArenaHarness, IdForFileSystemResolverHost, InArenaHarness,
-    OptionInArenaHarness,
+    AllArenasHarness, AllArenasHarnessId, HasArenaHarness, IdForFileSystemResolverHost,
+    InArenaHarness, OptionInArenaHarness,
 };
 
 pub mod Utils {
