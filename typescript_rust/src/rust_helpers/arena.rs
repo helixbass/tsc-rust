@@ -1,4 +1,8 @@
-use std::{any::Any, collections::HashMap};
+use std::{
+    any::Any,
+    collections::HashMap,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use debug_cell::{Ref, RefCell, RefMut};
 use id_arena::{Arena, Id};
@@ -41,8 +45,10 @@ use crate::{
     WriteFileCallback,
 };
 
-#[derive(Default)]
+pub type AllArenasId = usize;
+
 pub struct AllArenas {
+    id: AllArenasId,
     pub nodes: RefCell<Arena<Node>>,
     pub symbols: RefCell<Arena<Symbol>>,
     pub types: RefCell<Arena<Type>>,
@@ -269,8 +275,19 @@ pub struct AllArenas {
     pub did_you_mean_options_diagnostics: RefCell<Arena<Box<dyn DidYouMeanOptionsDiagnostics>>>,
 }
 
+impl Default for AllArenas {
+    fn default() -> Self {
+        static ARENA_COUNTER: AtomicUsize = AtomicUsize::new(0);
+        Self { id: ARENA_COUNTER.fetch_add(1, Ordering::SeqCst), nodes: Default::default(), symbols: Default::default(), types: Default::default(), type_mappers: Default::default(), transform_nodes_transformation_results: Default::default(), transformers: Default::default(), transformer_factories: Default::default(), emit_text_writers: Default::default(), symbol_trackers: Default::default(), emit_hosts: Default::default(), module_specifier_resolution_host_and_get_common_source_directories: Default::default(), file_include_reasons: Default::default(), systems: Default::default(), source_map_ranges: Default::default(), emit_helpers: Default::default(), compiler_options: Default::default(), flow_nodes: Default::default(), diagnostics: Default::default(), programs: Default::default(), signatures: Default::default(), diagnostic_reporters: Default::default(), node_factories: Default::default(), base_node_factories: Default::default(), emit_resolvers: Default::default(), resolved_type_reference_directives: Default::default(), compiler_hosts: Default::default(), symbol_links: Default::default(), printers: Default::default(), diagnostic_related_informations: Default::default(), index_infos: Default::default(), current_parenthesizer_rules: Default::default(), parenthesizer_rules: Default::default(), iteration_types: Default::default(), type_predicates: Default::default(), active_labels: Default::default(), to_paths: Default::default(), module_resolution_host_overriders: Default::default(), wrap_custom_transformer_factory_handle_defaults: Default::default(), transformation_context_on_emit_node_overriders: Default::default(), source_map_generators: Default::default(), get_canonical_file_names: Default::default(), emit_helper_factories: Default::default(), transformation_context_on_substitute_node_overriders: Default::default(), parsed_command_lines: Default::default(), cancellation_tokens: Default::default(), resolved_project_references: Default::default(), transformer_factory_or_custom_transformer_factories: Default::default(), symlink_caches: Default::default(), write_file_callbacks: Default::default(), resolved_module_fulls: Default::default(), node_arrays: Default::default(), bundle_file_sections: Default::default(), build_infos: Default::default(), program_build_infos: Default::default(), bundle_build_infos: Default::default(), bundle_file_infos: Default::default(), symbol_tables: Default::default(), inference_infos: Default::default(), sys_format_diagnostics_hosts: Default::default(), class_lexical_environments: Default::default(), converted_loop_states: Default::default(), emit_helper_text_callbacks: Default::default(), conditional_roots: Default::default(), emit_nodes: Default::default(), check_binary_expressions: Default::default(), source_map_sources: Default::default(), outofband_variance_marker_handlers: Default::default(), bind_binary_expression_flows: Default::default(), type_checkers: Default::default(), read_file_callbacks: Default::default(), binders: Default::default(), get_source_files: Default::default(), get_symlink_caches: Default::default(), emit_binary_expressions: Default::default(), relative_to_build_infos: Default::default(), print_handlers: Default::default(), get_resolved_project_references: Default::default(), for_each_resolved_project_references: Default::default(), compiler_host_likes: Default::default(), directory_structure_hosts: Default::default(), builder_programs: Default::default(), type_reference_directive_resolution_caches: Default::default(), module_resolution_caches: Default::default(), parse_config_file_hosts: Default::default(), file_preprocessing_diagnostics: Default::default(), actual_resolve_module_names_workers: Default::default(), actual_resolve_type_reference_directive_names_workers: Default::default(), get_program_build_infos: Default::default(), load_with_mode_aware_cache_loaders: Default::default(), load_with_local_cache_loaders: Default::default(), symbol_accessibility_diagnostics: Default::default(), code_blocks: Default::default(), private_identifier_environments: Default::default(), private_identifier_infos: Default::default(), external_module_infos: Default::default(), resolved_modules_with_failed_lookup_locations: Default::default(), resolved_type_reference_directives_with_failed_lookup_locations: Default::default(), package_json_info_caches: Default::default(), mode_aware_cache_resolved_module_with_failed_lookup_locations: Default::default(), mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: Default::default(), per_module_name_caches: Default::default(), vec_diagnostics: Default::default(), file_reasons: Default::default(), get_symbol_accessibility_diagnostic_interfaces: Default::default(), option_vec_nodes: Default::default(), vec_pending_declarations: Default::default(), package_json_infos: Default::default(), vec_types: Default::default(), pattern_ambient_modules: Default::default(), check_type_containing_message_chains: Default::default(), check_type_error_output_containers: Default::default(), resolved_type_reference_directives_maps: Default::default(), node_builders: Default::default(), node_builder_contexts: Default::default(), option_vec_types: Default::default(), option_type_parameter_names: Default::default(), option_vec_symbols: Default::default(), type_comparers: Default::default(), inference_contexts: Default::default(), skip_trivias: Default::default(), custom_transformer_factory_interfaces: Default::default(), custom_transformer_interfaces: Default::default(), node_links: Default::default(), parsers: Default::default(), incremental_parser_syntax_cursors: Default::default(), command_line_options: Default::default(), vec_command_line_options: Default::default(), options_name_maps: Default::default(), command_line_options_maps: Default::default(), node_symbol_overrides: Default::default(), node_id_overrides: Default::default(), make_serialize_property_symbol_create_properties: Default::default(), symbol_table_to_declaration_statements: Default::default(), input_files_initialized_states: Default::default(), vec_symbol_tables: Default::default(), check_type_related_tos: Default::default(), flow_loop_caches: Default::default(), vec_symbols: Default::default(), vec_nodes: Default::default(), type_mapper_callbacks: Default::default(), option_symbol_tables: Default::default(), cache_with_redirects_per_module_name_caches: Default::default(), cache_with_redirects_mode_aware_cache_resolved_module_with_failed_lookup_locations: Default::default(), cache_with_redirects_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations: Default::default(), mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps: Default::default(), path_mode_aware_cache_resolved_type_reference_directive_with_failed_lookup_locations_maps: Default::default(), mode_aware_cache_resolved_module_with_failed_lookup_locations_maps: Default::default(), path_mode_aware_cache_resolved_module_with_failed_lookup_locations_maps: Default::default(), per_module_name_cache_maps: Default::default(), path_per_module_name_cache_maps: Default::default(), logging_hosts: Default::default(), parse_command_line_worker_diagnostics: Default::default(), did_you_mean_options_diagnostics: Default::default() }
+    }
+}
+
 pub trait HasArena {
     fn arena(&self) -> &AllArenas;
+
+    fn all_arenas_id(&self) -> AllArenasId {
+        self.arena().all_arenas_id()
+    }
 
     fn node(&self, node: Id<Node>) -> Ref<Node> {
         self.arena().node(node)
@@ -2650,6 +2667,10 @@ pub trait HasArena {
 impl HasArena for AllArenas {
     fn arena(&self) -> &AllArenas {
         self
+    }
+
+    fn all_arenas_id(&self) -> AllArenasId {
+        self.id
     }
 
     #[track_caller]
@@ -7835,16 +7856,16 @@ macro_rules! per_arena {
         use std::cell::RefCell;
         use std::collections::HashMap;
         use $crate::id_arena::Id;
-        use $crate::AllArenas;
+        use $crate::AllArenasId;
 
         thread_local! {
-            static PER_ARENA: RefCell<HashMap<*const AllArenas, Id<$type>>> = RefCell::new(HashMap::new());
+            static PER_ARENA: RefCell<HashMap<AllArenasId, Id<$type>>> = RefCell::new(HashMap::new());
         }
 
         PER_ARENA.with(|per_arena| {
             let mut per_arena = per_arena.borrow_mut();
-            let arena_ptr: *const AllArenas = $arena.arena();
-            *per_arena.entry(arena_ptr).or_insert_with(|| $initializer)
+            let arena_id = $arena.all_arenas_id();
+            *per_arena.entry(arena_id).or_insert_with(|| $initializer)
         })
     }}
 }
