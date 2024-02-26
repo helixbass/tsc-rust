@@ -262,12 +262,13 @@ pub mod Compiler {
         get_emit_script_target, get_error_count_for_summary, get_error_summary_text,
         get_normalized_absolute_path, id_arena::Id, map, normalize_slashes, option_declarations,
         parse_custom_type_option, parse_list_type_option, per_arena, regex, remove_file_extension,
-        return_ok_default_if_none, sort, starts_with, text_span_end, to_path, CommandLineOption,
-        CommandLineOptionBaseBuilder, CommandLineOptionInterface, CommandLineOptionType,
-        Comparison, CompilerOptions, CompilerOptionsBuilder, CompilerOptionsValue, Diagnostic,
-        DiagnosticInterface, DiagnosticRelatedInformationInterface, Extension,
-        FormatDiagnosticsHost, GetOrInsertDefault, HasArena, InArena, NewLineKind, ScriptKind,
-        ScriptReferenceHost, StringOrDiagnosticMessage, TextSpan,
+        return_ok_default_if_none, sort, starts_with, text_span_end, to_path, AllArenasId,
+        CommandLineOption, CommandLineOptionBaseBuilder, CommandLineOptionInterface,
+        CommandLineOptionType, Comparison, CompilerOptions, CompilerOptionsBuilder,
+        CompilerOptionsValue, Diagnostic, DiagnosticInterface,
+        DiagnosticRelatedInformationInterface, Extension, FormatDiagnosticsHost,
+        GetOrInsertDefault, HasArena, InArena, NewLineKind, ScriptKind, ScriptReferenceHost,
+        StringOrDiagnosticMessage, TextSpan,
     };
 
     use super::{get_io_id, is_built_file, is_default_library_file, Baseline, TestCaseParser};
@@ -548,14 +549,17 @@ pub mod Compiler {
         .ref_(arena)
     }
 
-    thread_local! {
-        static options_index: RefCell<Option<HashMap<String, Id<CommandLineOption>>>> = RefCell::new(None);
-    }
     fn get_command_line_option(name: &str, arena: &impl HasArena) -> Option<Id<CommandLineOption>> {
-        options_index.with(|options_index_| {
-            options_index_
-                .borrow_mut()
-                .get_or_insert_with(|| {
+        thread_local! {
+            static PER_ARENA: RefCell<HashMap<AllArenasId, HashMap<String, Id<CommandLineOption>>>> = RefCell::new(HashMap::new());
+        }
+
+        PER_ARENA.with(|per_arena| {
+            let mut per_arena = per_arena.borrow_mut();
+            let arena_id = arena.all_arenas_id();
+            per_arena
+                .entry(arena_id)
+                .or_insert_with(|| {
                     let mut options_index_ = HashMap::new();
                     for &option in &*option_declarations(arena).ref_(arena) {
                         options_index_.insert(option.ref_(arena).name().to_lowercase(), option);
