@@ -144,8 +144,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_class_declaration = node_ref.as_class_declaration();
         #[allow(clippy::nonminimal_bool)]
         if !self.is_class_like_declaration_with_type_script_syntax(node)
             && !(self.maybe_current_namespace().is_some()
@@ -167,7 +165,7 @@ impl TransformTypeScript {
             self.context.ref_(self).start_lexical_environment();
         }
 
-        let name = node_as_class_declaration.maybe_name().or_else(|| {
+        let name = node.ref_(self).as_class_declaration().maybe_name().or_else(|| {
             if facts.intersects(ClassFacts::NeedsName) {
                 Some(
                     self.factory
@@ -198,7 +196,7 @@ impl TransformTypeScript {
                         .ref_(self)
                         .as_source_file()
                         .text_as_chars(),
-                    node_as_class_declaration.members().ref_(self).end(),
+                    node.ref_(self).as_class_declaration().members().ref_(self).end(),
                     None,
                     None,
                     None,
