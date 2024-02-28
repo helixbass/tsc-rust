@@ -17,9 +17,9 @@ use crate::{
     is_parameter_property_declaration, is_private_identifier, is_property_access_expression,
     is_prototype_access, is_require_call, is_require_variable_declaration, is_source_file,
     is_statement, is_statement_but_not_declaration, is_variable_declaration, is_variable_statement,
-    maybe_is_function_like_declaration, set_parent, should_preserve_const_enums, slice_after_eq,
-    some, symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags, FlowNodeBase,
-    HasArena, HasInitializerInterface, InArena, InternalSymbolName, ModifierFlags,
+    maybe_is_function_like_declaration, released, set_parent, should_preserve_const_enums,
+    slice_after_eq, some, symbol_name, unreachable_code_is_error, Debug_, Diagnostics, FlowFlags,
+    FlowNodeBase, HasArena, HasInitializerInterface, InArena, InternalSymbolName, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind,
 };
@@ -240,7 +240,7 @@ impl Binder {
                         /*let table =*/
                         if let Some(parent) = parent {
                             Some(self.declare_symbol(
-                                parent.ref_(self).exports(),
+                                released!(parent.ref_(self).exports()),
                                 Some(parent),
                                 id,
                                 flags,
@@ -776,7 +776,7 @@ impl Binder {
         if is_parameter_property_declaration(node, node.ref_(self).parent(), self) {
             let class_declaration = node.ref_(self).parent().ref_(self).parent();
             self.declare_symbol(
-                class_declaration.ref_(self).symbol().ref_(self).members(),
+                released!(class_declaration.ref_(self).symbol().ref_(self).members()),
                 Some(class_declaration.ref_(self).symbol()),
                 node,
                 SymbolFlags::Property

@@ -12,8 +12,8 @@ use crate::{
     is_identifier, is_logical_or_coalescing_assignment_operator, is_module_augmentation_external,
     is_module_block, is_object_literal_or_class_expression_method_or_accessor,
     is_omitted_expression, is_optional_chain, is_optional_chain_root, is_outermost_optional_chain,
-    is_push_or_unshift_identifier, is_source_file, is_static, set_parent, set_parent_recursive,
-    skip_parentheses, try_cast, try_parse_pattern, AllArenas, AsDoubleDeref,
+    is_push_or_unshift_identifier, is_source_file, is_static, released, set_parent,
+    set_parent_recursive, skip_parentheses, try_cast, try_parse_pattern, AllArenas, AsDoubleDeref,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, Diagnostics, FlowFlags, FlowNode,
     HasArena, HasInitializerInterface, HasTypeArgumentsInterface, InArena, ModifierFlags,
     NamedDeclarationInterface, Node, NodeFlags, NodeInterface, OptionInArena, PatternAmbientModule,
@@ -488,7 +488,7 @@ impl Binder {
             }
 
             SyntaxKind::EnumDeclaration => Some(self.declare_symbol(
-                self.container().ref_(self).symbol().ref_(self).exports(),
+                released!(self.container().ref_(self).symbol().ref_(self).exports()),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -502,7 +502,7 @@ impl Binder {
             | SyntaxKind::ObjectLiteralExpression
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::JsxAttributes => Some(self.declare_symbol(
-                self.container().ref_(self).symbol().ref_(self).members(),
+                released!(self.container().ref_(self).symbol().ref_(self).members()),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -551,7 +551,7 @@ impl Binder {
     ) -> Id<Symbol> {
         if is_static(node, self) {
             self.declare_symbol(
-                self.container().ref_(self).symbol().ref_(self).exports(),
+                released!(self.container().ref_(self).symbol().ref_(self).exports()),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,
@@ -561,7 +561,7 @@ impl Binder {
             )
         } else {
             self.declare_symbol(
-                self.container().ref_(self).symbol().ref_(self).members(),
+                released!(self.container().ref_(self).symbol().ref_(self).members()),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 symbol_flags,

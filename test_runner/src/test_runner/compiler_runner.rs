@@ -543,7 +543,10 @@ impl CompilerTest {
             &to_be_compiled,
             &other_files,
             Some(&harness_settings),
-            ts_config_options.refed(arena).as_deref(),
+            ts_config_options
+                .refed(arena)
+                .map(|compiler_options| compiler_options.clone())
+                .as_ref(),
             harness_settings
                 .get("currentDirectory")
                 .map(|value| &**value),

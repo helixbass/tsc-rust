@@ -32,7 +32,7 @@ impl Binder {
                     && has_export_modifier
             {
                 self.declare_symbol(
-                    self.container().ref_(self).symbol().ref_(self).exports(),
+                    released!(self.container().ref_(self).symbol().ref_(self).exports()),
                     Some(self.container().ref_(self).symbol()),
                     node,
                     symbol_flags,
@@ -68,7 +68,7 @@ impl Binder {
                         && self.get_declaration_name(node).is_none()
                 {
                     return self.declare_symbol(
-                        self.container().ref_(self).symbol().ref_(self).exports(),
+                        released!(self.container().ref_(self).symbol().ref_(self).exports()),
                         Some(self.container().ref_(self).symbol()),
                         node,
                         symbol_flags,

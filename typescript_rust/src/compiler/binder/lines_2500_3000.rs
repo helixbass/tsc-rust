@@ -590,9 +590,8 @@ impl Binder {
                 );
         } else {
             let file_symbol = self.file().ref_(self).symbol();
-            let file_symbol_ref = file_symbol.ref_(self);
-            if file_symbol_ref.maybe_global_exports().is_none() {
-                file_symbol_ref.set_global_exports(Some(
+            if file_symbol.ref_(self).maybe_global_exports().is_none() {
+                file_symbol.ref_(self).set_global_exports(Some(
                     self.alloc_symbol_table(create_symbol_table(
                         Option::<&[Id<Symbol>]>::None,
                         self,
@@ -600,7 +599,7 @@ impl Binder {
                 ));
             }
             self.declare_symbol(
-                file_symbol_ref.maybe_global_exports().unwrap(),
+                released!(file_symbol.ref_(self).maybe_global_exports().unwrap()),
                 Some(self.file().ref_(self).symbol()),
                 node,
                 SymbolFlags::Alias,
@@ -625,7 +624,7 @@ impl Binder {
             );
         } else if node_as_export_declaration.export_clause.is_none() {
             self.declare_symbol(
-                self.container().ref_(self).symbol().ref_(self).exports(),
+                released!(self.container().ref_(self).symbol().ref_(self).exports()),
                 Some(self.container().ref_(self).symbol()),
                 node,
                 SymbolFlags::ExportStar,
@@ -636,7 +635,7 @@ impl Binder {
         } else if is_namespace_export(&node_as_export_declaration.export_clause.unwrap().ref_(self))
         {
             self.declare_symbol(
-                self.container().ref_(self).symbol().ref_(self).exports(),
+                released!(self.container().ref_(self).symbol().ref_(self).exports()),
                 Some(self.container().ref_(self).symbol()),
                 node_as_export_declaration.export_clause.unwrap(),
                 SymbolFlags::Alias,
@@ -701,7 +700,7 @@ impl Binder {
         if let Some(symbol) = symbol {
             let flags = SymbolFlags::Property | SymbolFlags::ExportValue;
             self.declare_symbol(
-                symbol.ref_(self).exports(),
+                released!(symbol.ref_(self).exports()),
                 Some(symbol),
                 node,
                 flags,
@@ -763,7 +762,7 @@ impl Binder {
             };
             set_parent(&node_as_binary_expression.left.ref_(self), Some(node));
             self.declare_symbol(
-                symbol.ref_(self).exports(),
+                released!(symbol.ref_(self).exports()),
                 Some(symbol),
                 node_as_binary_expression.left,
                 flags,
@@ -821,7 +820,7 @@ impl Binder {
             SymbolFlags::Property | SymbolFlags::ExportValue | SymbolFlags::ValueModule
         };
         let symbol = self.declare_symbol(
-            self.file().ref_(self).symbol().ref_(self).exports(),
+            released!(self.file().ref_(self).symbol().ref_(self).exports()),
             Some(self.file().ref_(self).symbol()),
             node,
             flags | SymbolFlags::Assignment,
@@ -837,7 +836,7 @@ impl Binder {
         node: Id<Node>, /*ShorthandPropertyAssignment*/
     ) {
         self.declare_symbol(
-            self.file().ref_(self).symbol().ref_(self).exports(),
+            released!(self.file().ref_(self).symbol().ref_(self).exports()),
             Some(self.file().ref_(self).symbol()),
             node,
             SymbolFlags::Alias | SymbolFlags::Assignment,
@@ -989,7 +988,7 @@ impl Binder {
                     .is_some()
                 {
                     self.declare_symbol(
-                        this_container.ref_(self).symbol().ref_(self).exports(),
+                        released!(this_container.ref_(self).symbol().ref_(self).exports()),
                         Some(this_container.ref_(self).symbol()),
                         node,
                         SymbolFlags::Property | SymbolFlags::ExportValue,
