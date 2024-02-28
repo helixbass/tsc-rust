@@ -46,10 +46,11 @@ impl Program {
         if module_names.is_empty() {
             return Ok(vec![]);
         }
-        let containing_file_ref = containing_file.ref_(self);
-        let containing_file_as_source_file = containing_file_ref.as_source_file();
         let containing_file_name = get_normalized_absolute_path(
-            &containing_file_as_source_file.original_file_name(),
+            &containing_file
+                .ref_(self)
+                .as_source_file()
+                .original_file_name(),
             Some(&self.current_directory()),
         );
         let redirected_reference = self.get_redirect_reference_for_resolution(containing_file);
@@ -436,10 +437,10 @@ impl Program {
         module_names: &[String],
         file: Id<Node>, /*SourceFile*/
     ) -> io::Result<Vec<Option<Id<ResolvedModuleFull>>>> {
-        let file_ref = file.ref_(self);
-        let file_as_source_file = file_ref.as_source_file();
         if self.structure_is_reused() == StructureIsReused::Not
-            && file_as_source_file
+            && file
+                .ref_(self)
+                .as_source_file()
                 .maybe_ambient_module_names()
                 .as_ref()
                 .unwrap()
@@ -451,11 +452,14 @@ impl Program {
         let old_source_file = self.maybe_old_program().as_ref().and_then(|old_program| {
             old_program
                 .ref_(self)
-                .get_source_file_(&file_as_source_file.file_name())
+                .get_source_file_(&file.ref_(self).as_source_file().file_name())
         });
         if old_source_file != Some(file) {
-            if let Some(file_resolved_modules) =
-                file_as_source_file.maybe_resolved_modules().as_ref()
+            if let Some(file_resolved_modules) = file
+                .ref_(self)
+                .as_source_file()
+                .maybe_resolved_modules()
+                .as_ref()
             {
                 let mut result: Vec<Option<Id<ResolvedModuleFull>>> = vec![];
                 let mut i = 0;
@@ -463,7 +467,11 @@ impl Program {
                     let resolved_module = file_resolved_modules
                         .get(
                             module_name,
-                            get_mode_for_resolution_at_index(file_as_source_file, i, self),
+                            get_mode_for_resolution_at_index(
+                                file.ref_(self).as_source_file(),
+                                i,
+                                self,
+                            ),
                         )
                         .flatten();
                     i += 1;
@@ -507,7 +515,7 @@ impl Program {
                                     Some(vec![
                                         module_name.clone(),
                                         get_normalized_absolute_path(
-                                            &file_as_source_file.original_file_name(),
+                                            &file.ref_(self).as_source_file().original_file_name(),
                                             Some(&self.current_directory()),
                                         ),
                                         old_resolved_module.ref_(self).resolved_file_name.clone(),
@@ -517,7 +525,7 @@ impl Program {
                                     Some(vec![
                                         module_name.clone(),
                                         get_normalized_absolute_path(
-                                            &file_as_source_file.original_file_name(),
+                                            &file.ref_(self).as_source_file().original_file_name(),
                                             Some(&self.current_directory()),
                                         ),
                                         old_resolved_module.ref_(self).resolved_file_name.clone(),
@@ -539,7 +547,10 @@ impl Program {
             }
             let resolves_to_ambient_module_in_non_modified_file: bool/* = false*/;
             if contains(
-                file_as_source_file.maybe_ambient_module_names().as_deref(),
+                file.ref_(self)
+                    .as_source_file()
+                    .maybe_ambient_module_names()
+                    .as_deref(),
                 module_name,
             ) {
                 resolves_to_ambient_module_in_non_modified_file = true;
@@ -553,7 +564,7 @@ impl Program {
                         Some(vec![
                             module_name.clone(),
                             get_normalized_absolute_path(
-                                &file_as_source_file.original_file_name(),
+                                &file.ref_(self).as_source_file().original_file_name(),
                                 Some(&self.current_directory()),
                             )
                         ])

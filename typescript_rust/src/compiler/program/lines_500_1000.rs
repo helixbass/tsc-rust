@@ -279,11 +279,13 @@ pub(crate) fn load_with_mode_aware_cache<TValue: Clone>(
     let mut resolutions: Vec<TValue> = Default::default();
     let mut cache: HashMap<String, TValue> = Default::default();
     let mut i = 0;
-    let containing_file_ref = containing_file.ref_(arena);
-    let containing_file_as_source_file = containing_file_ref.as_source_file();
     for name in names {
         let result: TValue;
-        let mode = get_mode_for_resolution_at_index(containing_file_as_source_file, i, arena);
+        let mode = get_mode_for_resolution_at_index(
+            containing_file.ref_(arena).as_source_file(),
+            i,
+            arena,
+        );
         i += 1;
         let cache_key = if let Some(mode) = mode {
             format!("{:?}|{}", mode, name)
