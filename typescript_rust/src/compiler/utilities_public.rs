@@ -1,6 +1,5 @@
 use std::{borrow::Cow, cmp, collections::HashMap, ops::BitOrAssign};
 
-
 use id_arena::Id;
 use regex::Regex;
 use serde_json;

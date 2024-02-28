@@ -1,9 +1,6 @@
 use std::{borrow::Cow, iter};
 
-
 use itertools::Either;
-
-
 
 pub trait NonEmpty {
     type Optional;

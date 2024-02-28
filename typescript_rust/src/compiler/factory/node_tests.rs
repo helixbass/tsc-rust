@@ -1,5 +1,3 @@
-
-
 use crate::{Node, NodeInterface, SyntaxKind};
 
 pub fn is_numeric_literal(node: &Node) -> bool {

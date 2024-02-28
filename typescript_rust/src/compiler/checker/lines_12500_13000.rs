@@ -2,7 +2,6 @@ use std::{collections::HashMap, io};
 
 use id_arena::Id;
 
-
 use super::signature_has_rest_parameter;
 use crate::{
     declaration_name_to_string, find_index, first_defined, get_declaration_of_kind,

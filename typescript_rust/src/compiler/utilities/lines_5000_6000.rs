@@ -13,18 +13,17 @@ use crate::{
     is_assignment_operator, is_bindable_static_access_expression, is_class_like,
     is_element_access_expression, is_entity_name_expression, is_identifier, is_jsdoc_member_name,
     is_namespace_export_declaration, is_property_access_expression, is_property_name,
-    is_qualified_name, parse_config_file_text_to_json, position_is_synthesized, skip_trivia,
-    token_to_string, unescape_leading_underscores, walk_up_parenthesized_expressions, AllArenas,
-    BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol, BaseTextRange,
-    BaseType, BoolExt, BundleFileSection, CheckFlags, CompilerOptions, Debug_, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
+    is_qualified_name, parse_config_file_text_to_json, position_is_synthesized, released,
+    skip_trivia, token_to_string, unescape_leading_underscores, walk_up_parenthesized_expressions,
+    AllArenas, BaseDiagnostic, BaseDiagnosticRelatedInformation, BaseNode, BaseSymbol,
+    BaseTextRange, BaseType, BoolExt, BundleFileSection, CheckFlags, CompilerOptions, Debug_,
+    Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticRelatedInformation,
     DiagnosticRelatedInformationInterface, DiagnosticWithDetachedLocation, DiagnosticWithLocation,
     Extension, HasArena, HasInitializerInterface, InArena, MapLike, ModifierFlags,
     NamedDeclarationInterface, NewLineKind, Node, NodeFlags, NodeInterface, ObjectFlags,
     ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind,
 };
-use crate::released;
 
 pub fn get_first_identifier(mut node: Id<Node>, arena: &impl HasArena) -> Id<Node /*Identifier*/> {
     match node.ref_(arena).kind() {

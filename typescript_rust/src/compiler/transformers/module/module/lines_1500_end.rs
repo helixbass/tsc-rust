@@ -2,7 +2,6 @@ use std::{cell::OnceCell, io};
 
 use id_arena::Id;
 
-
 use super::TransformModule;
 use crate::{
     get_original_node_id, has_syntactic_modifier, id_text, is_binding_pattern,

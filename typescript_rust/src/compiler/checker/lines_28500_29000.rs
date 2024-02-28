@@ -1,7 +1,6 @@
 use std::{convert::TryInto, io, ptr};
 
 use id_arena::Id;
-
 use local_macros::enum_unwrapped;
 use regex::Regex;
 

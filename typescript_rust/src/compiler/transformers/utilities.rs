@@ -3,10 +3,10 @@ use std::{collections::HashMap, io};
 use id_arena::Id;
 
 use crate::{
-    get_node_id, get_original_node, maybe_get_original_node, CompilerOptions,
-    EmitResolver, GetOrInsertDefault, HasStatementsInterface, NamedDeclarationInterface, Node,
-    NodeFactory, NodeId, NodeInterface, OptionTry, SyntaxKind, TransformationContext, Transformer,
-    VisitResult, WrapCustomTransformerFactoryHandleDefault, _d, cast,
+    get_node_id, get_original_node, maybe_get_original_node, CompilerOptions, EmitResolver,
+    GetOrInsertDefault, HasStatementsInterface, NamedDeclarationInterface, Node, NodeFactory,
+    NodeId, NodeInterface, OptionTry, SyntaxKind, TransformationContext, Transformer, VisitResult,
+    WrapCustomTransformerFactoryHandleDefault, _d, cast,
     create_external_helpers_import_declaration_if_needed, create_multi_map,
     get_namespace_declaration_node, has_static_modifier, has_syntactic_modifier, id_text,
     is_binding_pattern, is_class_static_block_declaration, is_default_import,

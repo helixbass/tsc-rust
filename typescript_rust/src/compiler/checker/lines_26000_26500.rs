@@ -2,7 +2,6 @@ use std::{convert::TryInto, io};
 
 use id_arena::Id;
 
-
 use super::{IterationUse, JsxNames};
 use crate::{
     cast, find_ancestor, get_assignment_declaration_kind, get_check_flags,

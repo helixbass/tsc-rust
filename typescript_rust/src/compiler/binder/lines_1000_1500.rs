@@ -1,5 +1,3 @@
-
-
 use id_arena::Id;
 
 use super::{init_flow_node, ActiveLabel, Binder};
