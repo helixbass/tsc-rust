@@ -3,6 +3,8 @@
 use speculoos::prelude::*;
 
 mod parse_config_file_text_to_json {
+    use std::env;
+
     use derive_builder::Builder;
     use harness::{fakes, vfs, AllArenasHarness, HasArenaHarness};
     use serde::Serialize;
@@ -53,7 +55,7 @@ mod parse_config_file_text_to_json {
                 .maybe_as_dyn_parse_config_host()
                 .unwrap(),
             // "tests/cases/unittests",
-            "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
+            &format!("{}/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests", env::var("HOME").unwrap()),
             None,
             None,
             None,
@@ -76,7 +78,7 @@ mod parse_config_file_text_to_json {
                 .maybe_as_dyn_parse_config_host()
                 .unwrap(),
             // "tests/cases/unittests",
-            "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests",
+            &format!("{}/prj/tsc-rust/typescript_rust/typescript_src/tests/cases/unittests", env::var("HOME").unwrap()),
             None,
             None,
             None,
@@ -240,7 +242,7 @@ mod parse_config_file_text_to_json {
         let ref arena = AllArenasHarness::default();
         let json_text = json_text.into();
         let base_path =
-            &format!("/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/{base_path}");
+            &format!("{}/prj/tsc-rust/typescript_rust/typescript_src/{base_path}", env::var("HOME").unwrap());
         let parsed = get_parsed_command_json(
             json_text.clone(),
             config_file_name,

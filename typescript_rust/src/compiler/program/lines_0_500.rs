@@ -7,6 +7,7 @@ use std::{
     convert::TryInto,
     io, time,
     time::SystemTime,
+    env,
 };
 
 use id_arena::Id;
@@ -529,7 +530,7 @@ impl CompilerHost for CompilerHostConcrete {
         // Some(get_directory_path(&normalize_path(
         //     &self.system.get_executing_file_path(),
         // )))
-        Ok(Some("/Users/jrosse/prj/TypeScript/built/local".to_owned()))
+        Ok(Some(format!("{}/prj/TypeScript/built/local", env::var("HOME").unwrap())))
     }
 
     fn get_default_lib_file_name(&self, options: &CompilerOptions) -> io::Result<String> {

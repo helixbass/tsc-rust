@@ -4,6 +4,7 @@ use std::{
     io,
     iter::FromIterator,
     path::{Path as StdPath, PathBuf},
+    env,
 };
 
 use regex::Regex;
@@ -223,7 +224,7 @@ impl vfs::FileSystemResolverHost for NodeIO {
     }
 
     fn get_workspace_root(&self) -> String {
-        "/Users/jrosse/prj/tsc-rust/typescript_rust/typescript_src/".to_owned()
+        format!("{}/prj/tsc-rust/typescript_rust/typescript_src/", env::var("HOME").unwrap())
     }
 }
 

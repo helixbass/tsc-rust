@@ -5,7 +5,7 @@ pub mod vfs {
         collections::HashMap,
         io,
         iter::FromIterator,
-        time::{SystemTime, UNIX_EPOCH},
+        time::{SystemTime, UNIX_EPOCH}, env,
     };
 
     use derive_builder::Builder;
@@ -2557,7 +2557,7 @@ pub mod vfs {
                                             //     &host.get_workspace_root(),
                                             //     &[Some("built/local")],
                                             // ),
-                                            "/Users/jrosse/prj/TypeScript/built/local/".to_owned(),
+                                            format!("{}/prj/TypeScript/built/local/", env::var("HOME").unwrap()),
                                             resolver.clone(),
                                             None,
                                         )
@@ -2572,7 +2572,7 @@ pub mod vfs {
                                             //     &host.get_workspace_root(),
                                             //     &[Some("tests/lib")],
                                             // ),
-                                            "/Users/jrosse/prj/TypeScript/tests/lib".to_owned(),
+                                            format!("{}/prj/TypeScript/tests/lib", env::var("HOME").unwrap()),
                                             resolver.clone(),
                                             None,
                                         )
