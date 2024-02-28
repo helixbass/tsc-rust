@@ -8,6 +8,9 @@ members = [
 ]
 resolver = "2"
 
+[workspace.dependencies]
+indexmap = "2.2.2"
+
 [profile.test]
 # opt-level = 3
 # codegen-units = 16
