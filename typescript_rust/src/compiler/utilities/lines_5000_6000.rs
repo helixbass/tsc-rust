@@ -24,6 +24,7 @@ use crate::{
     ReadonlyTextRange, Signature, SignatureFlags, SignatureKind, SourceFileLike, Symbol,
     SymbolFlags, SymbolInterface, SyntaxKind,
 };
+use crate::released;
 
 pub fn get_first_identifier(mut node: Id<Node>, arena: &impl HasArena) -> Id<Node /*Identifier*/> {
     match node.ref_(arena).kind() {
@@ -1022,13 +1023,13 @@ pub fn attach_file_to_diagnostics(
         .iter()
         .map(|diagnostic| {
             arena.alloc_diagnostic(
-                attach_file_to_diagnostic(
+                released!(attach_file_to_diagnostic(
                     diagnostic
                         .ref_(arena)
                         .as_diagnostic_with_detached_location(),
                     file,
                     arena,
-                )
+                ))
                 .into(),
             )
         })
