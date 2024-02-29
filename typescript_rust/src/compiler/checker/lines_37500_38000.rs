@@ -8,9 +8,10 @@ use super::{
 use crate::{
     append, is_class_static_block_declaration, some, ObjectTypeInterface, Signature, SignatureKind,
     SymbolFlags, SymbolInterface, SyntaxKind, __String, escape_leading_underscores,
-    get_containing_function_or_class_static_block, get_function_flags, try_map, Diagnostics,
-    FunctionFlags, InArena, IterationTypeCacheKey, IterationTypes, IterationTypesResolver, Node,
-    NodeInterface, OptionTry, Symbol, Type, TypeChecker, TypeFlags, TypeInterface,
+    get_containing_function_or_class_static_block, get_function_flags, released, try_map,
+    Diagnostics, FunctionFlags, InArena, IterationTypeCacheKey, IterationTypes,
+    IterationTypesResolver, Node, NodeInterface, OptionTry, Symbol, Type, TypeChecker, TypeFlags,
+    TypeInterface,
 };
 
 impl TypeChecker {
@@ -932,7 +933,7 @@ impl TypeChecker {
                     unwrapped_expr_type,
                     unwrapped_return_type,
                     Some(node),
-                    node.ref_(self).as_return_statement().expression,
+                    released!(node.ref_(self).as_return_statement().expression),
                     None,
                     None,
                 )?;

@@ -1140,9 +1140,7 @@ impl NodeFactory {
         node: Id<Node>, /*ParenthesizedExpression*/
         expression: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
-        if node_as_parenthesized_expression.expression != expression {
+        if node.ref_(self).as_parenthesized_expression().expression != expression {
             self.update(self.create_parenthesized_expression(expression), node)
         } else {
             node

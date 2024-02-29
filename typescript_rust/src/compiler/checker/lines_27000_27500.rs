@@ -255,10 +255,10 @@ impl TypeChecker {
         opening_like_element: Id<Node>, /*JsxOpeningLikeElement*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let opening_like_element_ref = opening_like_element.ref_(self);
-        let opening_like_element_as_jsx_opening_like_element =
-            opening_like_element_ref.as_jsx_opening_like_element();
-        let attributes = opening_like_element_as_jsx_opening_like_element.attributes();
+        let attributes = opening_like_element
+            .ref_(self)
+            .as_jsx_opening_like_element()
+            .attributes();
         let mut all_attributes_table = if self.strict_null_checks {
             Some(create_symbol_table(Option::<&[Id<Symbol>]>::None, self))
         } else {
@@ -451,7 +451,10 @@ impl TypeChecker {
                     }
 
                     let contextual_type = self.get_apparent_type_of_contextual_type(
-                        opening_like_element_as_jsx_opening_like_element.attributes(),
+                        opening_like_element
+                            .ref_(self)
+                            .as_jsx_opening_like_element()
+                            .attributes(),
                         None,
                     )?;
                     let children_contextual_type =
@@ -660,7 +663,7 @@ impl TypeChecker {
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
         self.create_jsx_attributes_type_from_attributes_property(
-            node.ref_(self).parent(),
+            released!(node.ref_(self).parent()),
             check_mode,
         )
     }

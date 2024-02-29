@@ -161,17 +161,17 @@ impl TypeChecker {
         node: Id<Node>, /*PropertyAccessExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
         Ok(
             if node.ref_(self).flags().intersects(NodeFlags::OptionalChain) {
                 self.check_property_access_chain(node, check_mode)?
             } else {
                 self.check_property_access_expression_or_qualified_name(
                     node,
-                    node_as_property_access_expression.expression,
-                    self.check_non_null_expression(node_as_property_access_expression.expression)?,
-                    node_as_property_access_expression.name,
+                    node.ref_(self).as_property_access_expression().expression,
+                    self.check_non_null_expression(
+                        node.ref_(self).as_property_access_expression().expression,
+                    )?,
+                    node.ref_(self).as_property_access_expression().name,
                     check_mode,
                 )?
             },

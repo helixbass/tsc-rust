@@ -378,7 +378,7 @@ impl TypeChecker {
             let fake_signature = self.create_signature_for_jsx_intrinsic(node, result)?;
             self.check_type_assignable_to_and_optionally_elaborate(
                 self.check_expression_with_contextual_type(
-                    node.ref_(self).as_jsx_opening_like_element().attributes(),
+                    released!(node.ref_(self).as_jsx_opening_like_element().attributes()),
                     self.get_effective_first_argument_for_jsx_signature(
                         fake_signature.clone(),
                         node,

@@ -189,8 +189,6 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*FunctionDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_function_declaration = node_ref.as_function_declaration();
         if !self.should_emit_function_like_declaration(node) {
             return Ok(Some(
                 self.factory
@@ -210,11 +208,13 @@ impl TransformTypeScript {
                 None,
                 self,
             ),
-            node_as_function_declaration.maybe_asterisk_token(),
-            node_as_function_declaration.maybe_name(),
+            node.ref_(self)
+                .as_function_declaration()
+                .maybe_asterisk_token(),
+            node.ref_(self).as_function_declaration().maybe_name(),
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node_as_function_declaration.parameters()),
+                Some(node.ref_(self).as_function_declaration().parameters()),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -223,7 +223,7 @@ impl TransformTypeScript {
             None,
             Some(
                 try_visit_function_body(
-                    node_as_function_declaration.maybe_body(),
+                    node.ref_(self).as_function_declaration().maybe_body(),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,

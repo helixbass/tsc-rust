@@ -817,15 +817,15 @@ impl TypeChecker {
             self.check_grammar_for_disallowed_let_or_const_statement(node);
         }
         try_for_each(
-            &*released!(
-                node.ref_(self)
-                    .as_variable_statement()
-                    .declaration_list
-                    .ref_(self)
-                    .as_variable_declaration_list()
-                    .declarations
-            )
-            .ref_(self),
+            &*released!(node
+                .ref_(self)
+                .as_variable_statement()
+                .declaration_list
+                .ref_(self)
+                .as_variable_declaration_list()
+                .declarations
+                .ref_(self)
+                .clone()),
             |&declaration, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(declaration))?;
                 Ok(None)
@@ -852,25 +852,31 @@ impl TypeChecker {
 
     pub(super) fn check_if_statement(&self, node: Id<Node> /*IfStatement*/) -> io::Result<()> {
         self.check_grammar_statement_in_ambient_context(node);
-        let node_ref = node.ref_(self);
-        let node_as_if_statement = node_ref.as_if_statement();
-        let type_ = self.check_truthiness_expression(node_as_if_statement.expression, None)?;
+        let type_ =
+            self.check_truthiness_expression(node.ref_(self).as_if_statement().expression, None)?;
         self.check_testing_known_truthy_callable_or_awaitable_type(
-            node_as_if_statement.expression,
+            node.ref_(self).as_if_statement().expression,
             type_,
-            Some(node_as_if_statement.then_statement),
+            Some(node.ref_(self).as_if_statement().then_statement),
         )?;
-        self.check_source_element(Some(node_as_if_statement.then_statement))?;
+        self.check_source_element(Some(node.ref_(self).as_if_statement().then_statement))?;
 
-        if node_as_if_statement.then_statement.ref_(self).kind() == SyntaxKind::EmptyStatement {
+        if node
+            .ref_(self)
+            .as_if_statement()
+            .then_statement
+            .ref_(self)
+            .kind()
+            == SyntaxKind::EmptyStatement
+        {
             self.error(
-                Some(node_as_if_statement.then_statement),
+                Some(node.ref_(self).as_if_statement().then_statement),
                 &Diagnostics::The_body_of_an_if_statement_cannot_be_the_empty_statement,
                 None,
             );
         }
 
-        self.check_source_element(node_as_if_statement.else_statement)?;
+        self.check_source_element(node.ref_(self).as_if_statement().else_statement)?;
 
         Ok(())
     }

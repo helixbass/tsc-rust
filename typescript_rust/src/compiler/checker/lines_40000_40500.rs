@@ -639,7 +639,12 @@ impl TypeChecker {
             clear(&mut self.potential_reflect_collisions_mut());
 
             try_for_each(
-                &*released!(node.ref_(self).as_source_file().statements()).ref_(self),
+                &*released!(node
+                    .ref_(self)
+                    .as_source_file()
+                    .statements()
+                    .ref_(self)
+                    .clone()),
                 |&statement, _| -> io::Result<_> {
                     self.check_source_element(Some(statement))?;
                     Ok(Option::<()>::None)

@@ -10,7 +10,7 @@ use crate::{
     get_function_flags, get_semantic_jsx_children, get_source_file_of_node, get_text_of_node,
     has_type, id_text, is_block, is_computed_non_literal_name, is_identifier_type_predicate,
     is_jsx_element, is_jsx_opening_element, is_jsx_spread_attribute, is_omitted_expression,
-    is_spread_assignment, length, some, try_flat_map, try_map, try_some,
+    is_spread_assignment, length, released, some, try_flat_map, try_map, try_some,
     unescape_leading_underscores, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
     Diagnostics, FunctionFlags, FunctionLikeDeclarationInterface, HasArena,
     HasInitializerInterface, InArena, NamedDeclarationInterface, Node, NodeInterface, Number,
@@ -121,7 +121,7 @@ impl TypeChecker {
         )? {
             return Ok(true);
         }
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::JsxExpression | SyntaxKind::ParenthesizedExpression => {
                 return self.elaborate_error(
                     node.ref_(self).as_has_expression().maybe_expression(),

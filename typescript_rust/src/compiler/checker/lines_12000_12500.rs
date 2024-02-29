@@ -311,8 +311,7 @@ impl TypeChecker {
             .into(),
         );
         let result_links = result.ref_(self).as_transient_symbol().symbol_links();
-        let mut result_links = result_links.ref_mut(self);
-        result_links.containing_type = Some(containing_type);
+        result_links.ref_mut(self).containing_type = Some(containing_type);
         if !has_non_uniform_value_declaration {
             if let Some(first_value_declaration) = first_value_declaration {
                 result
@@ -335,17 +334,17 @@ impl TypeChecker {
         if let Some(declarations) = declarations {
             result.ref_(self).set_declarations(declarations);
         }
-        result_links.name_type = name_type;
+        result_links.ref_mut(self).name_type = name_type;
         if prop_types.len() > 2 {
             let result_ref = result.ref_(self);
             let result_as_transient_symbol = result_ref.as_transient_symbol();
             result_as_transient_symbol.set_check_flags(
                 result_as_transient_symbol.check_flags() | CheckFlags::DeferredType,
             );
-            result_links.deferral_parent = Some(containing_type);
-            result_links.deferral_constituents = Some(prop_types);
+            result_links.ref_mut(self).deferral_parent = Some(containing_type);
+            result_links.ref_mut(self).deferral_constituents = Some(prop_types);
         } else {
-            result_links.type_ = Some(if is_union {
+            result_links.ref_mut(self).type_ = Some(if is_union {
                 self.get_union_type(&prop_types, None, Option::<Id<Symbol>>::None, None, None)?
             } else {
                 self.get_intersection_type(&prop_types, Option::<Id<Symbol>>::None, None)?

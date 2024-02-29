@@ -276,41 +276,50 @@ impl TypeChecker {
         node: Id<Node>, /*TypeAliasDeclaration*/
     ) -> io::Result<()> {
         self.check_grammar_decorators_and_modifiers(node);
-        let node_ref = node.ref_(self);
-        let node_as_type_alias_declaration = node_ref.as_type_alias_declaration();
         self.check_type_name_is_reserved(
-            node_as_type_alias_declaration.name(),
+            node.ref_(self).as_type_alias_declaration().name(),
             &Diagnostics::Type_alias_name_cannot_be_0,
         );
         self.check_exports_on_merged_declarations(node)?;
         self.check_type_parameters(
-            node_as_type_alias_declaration
+            node.ref_(self)
+                .as_type_alias_declaration()
                 .maybe_type_parameters()
                 .refed(self)
                 .as_double_deref(),
         )?;
-        if node_as_type_alias_declaration.type_.ref_(self).kind() == SyntaxKind::IntrinsicKeyword {
+        if node
+            .ref_(self)
+            .as_type_alias_declaration()
+            .type_
+            .ref_(self)
+            .kind()
+            == SyntaxKind::IntrinsicKeyword
+        {
             if !intrinsic_type_kinds.contains_key(
-                &&*node_as_type_alias_declaration
+                &&*node
+                    .ref_(self)
+                    .as_type_alias_declaration()
                     .name()
                     .ref_(self)
                     .as_identifier()
                     .escaped_text,
             ) || length(
-                node_as_type_alias_declaration
+                node.ref_(self)
+                    .as_type_alias_declaration()
                     .maybe_type_parameters()
                     .refed(self)
                     .as_double_deref(),
             ) != 1
             {
                 self.error(
-                    Some(node_as_type_alias_declaration.type_),
+                    Some(node.ref_(self).as_type_alias_declaration().type_),
                     &Diagnostics::The_intrinsic_keyword_can_only_be_used_to_declare_compiler_provided_intrinsic_types,
                     None,
                 );
             }
         } else {
-            self.check_source_element(Some(node_as_type_alias_declaration.type_))?;
+            self.check_source_element(Some(node.ref_(self).as_type_alias_declaration().type_))?;
             self.register_for_unused_identifiers_check(node);
         }
 
