@@ -13,8 +13,8 @@ use crate::{
     is_check_js_enabled_for_file, is_in_js_file, is_type_node_kind, try_for_each_bool, try_map,
     try_some, AllArenas, DiagnosticMessage, Diagnostics, HasArena, InArena, InferenceContext,
     InferenceFlags, InferenceInfo, IteratorExt, Node, NodeInterface, ObjectFlags, Signature,
-    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeFlags, TypeInterface, UnionReduction,
-    WideningContext,
+    Symbol, SymbolFlags, Ternary, Type, TypeChecker, TypeComparerCall, TypeFlags, TypeInterface,
+    UnionReduction, WideningContext,
 };
 
 impl TypeChecker {
@@ -1258,9 +1258,29 @@ impl TypeComparerCompareTypesAssignable {
 }
 
 impl TypeComparer for TypeComparerCompareTypesAssignable {
+    fn get_call(&self) -> Box<dyn TypeComparerCall> {
+        Box::new(TypeComparerCompareTypesAssignableCall::new(self))
+    }
+}
+
+pub(super) struct TypeComparerCompareTypesAssignableCall {
+    arena: *const AllArenas,
+    type_checker: Id<TypeChecker>,
+}
+
+impl TypeComparerCompareTypesAssignableCall {
+    pub fn new(type_comparer: &TypeComparerCompareTypesAssignable) -> Self {
+        Self {
+            type_checker: type_comparer.type_checker,
+            arena: type_comparer.arena,
+        }
+    }
+}
+
+impl TypeComparerCall for TypeComparerCompareTypesAssignableCall {
     fn call(&self, s: Id<Type>, t: Id<Type>, _report_errors: Option<bool>) -> io::Result<Ternary> {
         self.type_checker.ref_(self).compare_types_assignable(s, t)
     }
 }
 
-impl_has_arena!(TypeComparerCompareTypesAssignable);
+impl_has_arena!(TypeComparerCompareTypesAssignableCall);

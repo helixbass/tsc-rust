@@ -1357,13 +1357,13 @@ impl TypeChecker {
             let target_this_type = self.get_this_type_of_signature(target)?;
             if let Some(target_this_type) = target_this_type {
                 let related = if !strict_variance {
-                    let mut related = compare_types.ref_(self).call(
+                    let mut related = released!(compare_types.ref_(self).get_call()).call(
                         source_this_type,
                         target_this_type,
                         Some(false),
                     )?;
                     if related == Ternary::False {
-                        related = compare_types.ref_(self).call(
+                        related = released!(compare_types.ref_(self).get_call()).call(
                             target_this_type,
                             source_this_type,
                             Some(report_errors),
@@ -1371,7 +1371,7 @@ impl TypeChecker {
                     }
                     related
                 } else {
-                    compare_types.ref_(self).call(
+                    released!(compare_types.ref_(self).get_call()).call(
                         target_this_type,
                         source_this_type,
                         Some(report_errors),
@@ -1440,54 +1440,54 @@ impl TypeChecker {
                             self.get_falsy_flags(source_type) & TypeFlags::Nullable ==
                             self.get_falsy_flags(target_type) & TypeFlags::Nullable
                     );
-                    let mut related = if callbacks {
-                        self.compare_signatures_related(
-                            target_sig.unwrap(),
-                            source_sig.unwrap(),
-                            (check_mode & SignatureCheckMode::StrictArity)
-                                | if strict_variance {
-                                    SignatureCheckMode::StrictCallback
-                                } else {
-                                    SignatureCheckMode::BivariantCallback
-                                },
-                            report_errors,
-                            error_reporter,
-                            incompatible_error_reporter.clone(),
-                            compare_types.clone(),
-                            report_unreliable_markers.clone(),
-                        )?
-                    } else {
-                        if !check_mode.intersects(SignatureCheckMode::Callback) && !strict_variance
-                        {
-                            let mut related = compare_types.ref_(self).call(
-                                source_type,
-                                target_type,
-                                Some(false),
-                            )?;
-                            if related == Ternary::False {
-                                related = compare_types.ref_(self).call(
+                    let mut related =
+                        if callbacks {
+                            self.compare_signatures_related(
+                                target_sig.unwrap(),
+                                source_sig.unwrap(),
+                                (check_mode & SignatureCheckMode::StrictArity)
+                                    | if strict_variance {
+                                        SignatureCheckMode::StrictCallback
+                                    } else {
+                                        SignatureCheckMode::BivariantCallback
+                                    },
+                                report_errors,
+                                error_reporter,
+                                incompatible_error_reporter.clone(),
+                                compare_types.clone(),
+                                report_unreliable_markers.clone(),
+                            )?
+                        } else {
+                            if !check_mode.intersects(SignatureCheckMode::Callback)
+                                && !strict_variance
+                            {
+                                let mut related = released!(compare_types.ref_(self).get_call())
+                                    .call(source_type, target_type, Some(false))?;
+                                if related == Ternary::False {
+                                    related = released!(compare_types.ref_(self).get_call()).call(
+                                        target_type,
+                                        source_type,
+                                        Some(report_errors),
+                                    )?;
+                                }
+                                related
+                            } else {
+                                released!(compare_types.ref_(self).get_call()).call(
                                     target_type,
                                     source_type,
                                     Some(report_errors),
-                                )?;
+                                )?
                             }
-                            related
-                        } else {
-                            compare_types.ref_(self).call(
-                                target_type,
-                                source_type,
-                                Some(report_errors),
-                            )?
-                        }
-                    };
+                        };
                     if related != Ternary::False
                         && check_mode.intersects(SignatureCheckMode::StrictArity)
                         && i >= self.get_min_argument_count(source, None)?
                         && i < self.get_min_argument_count(target, None)?
-                        && compare_types
-                            .ref_(self)
-                            .call(source_type, target_type, Some(false))?
-                            != Ternary::False
+                        && released!(compare_types.ref_(self).get_call()).call(
+                            source_type,
+                            target_type,
+                            Some(false),
+                        )? != Ternary::False
                     {
                         related = Ternary::False;
                     }
@@ -1565,7 +1565,7 @@ impl TypeChecker {
                         report_errors,
                         error_reporter,
                         &mut |s: Id<Type>, t: Id<Type>, report_errors: Option<bool>| {
-                            compare_types.ref_(self).call(s, t, report_errors)
+                            released!(compare_types.ref_(self).get_call()).call(s, t, report_errors)
                         },
                     )?;
                 } else if is_identifier_type_predicate(&target_type_predicate.ref_(self)) {
@@ -1585,13 +1585,13 @@ impl TypeChecker {
                 }
             } else {
                 result &= if check_mode.intersects(SignatureCheckMode::BivariantCallback) {
-                    let mut val = compare_types.ref_(self).call(
+                    let mut val = released!(compare_types.ref_(self).get_call()).call(
                         target_return_type,
                         source_return_type,
                         Some(false),
                     )?;
                     if val == Ternary::False {
-                        val = compare_types.ref_(self).call(
+                        val = released!(compare_types.ref_(self).get_call()).call(
                             source_return_type,
                             target_return_type,
                             Some(report_errors),
@@ -1599,7 +1599,7 @@ impl TypeChecker {
                     }
                     val
                 } else {
-                    compare_types.ref_(self).call(
+                    released!(compare_types.ref_(self).get_call()).call(
                         source_return_type,
                         target_return_type,
                         Some(report_errors),

@@ -4,7 +4,7 @@ use id_arena::Id;
 
 use super::InferTypes;
 use crate::{
-    every, find, flat_map, get_object_flags, try_some, DiagnosticMessage, Diagnostics,
+    every, find, flat_map, get_object_flags, released, try_some, DiagnosticMessage, Diagnostics,
     ElementFlags, InArena, InferenceContext, InferenceFlags, InferenceInfo, InferencePriority,
     Node, NodeInterface, ObjectFlags, OptionTry, Signature, SignatureKind, Symbol, SymbolFlags,
     SymbolInterface, SyntaxKind, Ternary, Type, TypeChecker, TypeFlags, TypeInterface,
@@ -1094,7 +1094,7 @@ impl TypeChecker {
                 if match inferred_type {
                     None => true,
                     Some(inferred_type) => {
-                        context.ref_(self).compare_types.ref_(self).call(
+                        released!(context.ref_(self).compare_types.ref_(self).get_call()).call(
                             inferred_type,
                             self.get_type_with_this_argument(
                                 instantiated_constraint,

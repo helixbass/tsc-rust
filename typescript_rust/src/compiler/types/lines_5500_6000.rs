@@ -1098,6 +1098,10 @@ impl BitAndAssign for Ternary {
 }
 
 pub trait TypeComparer {
+    fn get_call(&self) -> Box<dyn TypeComparerCall>;
+}
+
+pub trait TypeComparerCall {
     fn call(&self, s: Id<Type>, t: Id<Type>, report_errors: Option<bool>) -> io::Result<Ternary>;
 }
 

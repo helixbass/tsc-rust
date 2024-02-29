@@ -11,7 +11,7 @@ use crate::{
     DiagnosticMessageChain, HasArena, InArena, InferenceFlags, InferencePriority, Node,
     NodeInterface, ObjectFlags, ObjectTypeInterface, OutofbandVarianceMarkerHandler,
     RelationComparisonResult, SignatureKind, Symbol, SymbolInterface, Ternary, Type, TypeChecker,
-    TypeComparer, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
+    TypeComparer, TypeComparerCall, TypeFlags, TypeInterface, TypeMapper, TypeMapperCallback,
     UnionOrIntersectionTypeInterface, VarianceFlags,
 };
 
@@ -2692,6 +2692,26 @@ impl TypeComparerIsRelatedToWorker {
 }
 
 impl TypeComparer for TypeComparerIsRelatedToWorker {
+    fn get_call(&self) -> Box<dyn TypeComparerCall> {
+        Box::new(TypeComparerIsRelatedToWorkerCall::new(self))
+    }
+}
+
+pub(super) struct TypeComparerIsRelatedToWorkerCall {
+    arena: *const AllArenas,
+    check_type_related_to: Id<CheckTypeRelatedTo>,
+}
+
+impl TypeComparerIsRelatedToWorkerCall {
+    pub fn new(type_comparer_is_related_to_worker: &TypeComparerIsRelatedToWorker) -> Self {
+        Self {
+            arena: type_comparer_is_related_to_worker.arena,
+            check_type_related_to: type_comparer_is_related_to_worker.check_type_related_to,
+        }
+    }
+}
+
+impl TypeComparerCall for TypeComparerIsRelatedToWorkerCall {
     fn call(&self, s: Id<Type>, t: Id<Type>, report_errors: Option<bool>) -> io::Result<Ternary> {
         CheckTypeRelatedTo::is_related_to_worker(
             self.check_type_related_to,
@@ -2703,7 +2723,7 @@ impl TypeComparer for TypeComparerIsRelatedToWorker {
     }
 }
 
-impl_has_arena!(TypeComparerIsRelatedToWorker);
+impl_has_arena!(TypeComparerIsRelatedToWorkerCall);
 
 struct RecursiveTypeRelatedToOutofbandVarianceMarkerHandler {
     arena: *const AllArenas,

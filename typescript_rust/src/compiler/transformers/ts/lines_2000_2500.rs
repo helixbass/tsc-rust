@@ -201,20 +201,24 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.modifier_visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
                 None,
                 self,
             ),
-            node.ref_(self)
+            released!(node
+                .ref_(self)
                 .as_function_declaration()
-                .maybe_asterisk_token(),
-            node.ref_(self).as_function_declaration().maybe_name(),
+                .maybe_asterisk_token()),
+            released!(node.ref_(self).as_function_declaration().maybe_name()),
             Option::<Id<NodeArray>>::None,
             try_visit_parameter_list(
-                Some(node.ref_(self).as_function_declaration().parameters()),
+                Some(released!(node
+                    .ref_(self)
+                    .as_function_declaration()
+                    .parameters())),
                 |node: Id<Node>| self.visitor(node),
                 &*self.context.ref_(self),
                 self,
@@ -223,7 +227,7 @@ impl TransformTypeScript {
             None,
             Some(
                 try_visit_function_body(
-                    node.ref_(self).as_function_declaration().maybe_body(),
+                    released!(node.ref_(self).as_function_declaration().maybe_body()),
                     |node: Id<Node>| self.visitor(node),
                     &*self.context.ref_(self),
                     self,
