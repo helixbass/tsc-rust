@@ -1594,11 +1594,9 @@ impl NodeFactory {
         operator: Id<Node /*BinaryOperatorToken*/>,
         right: Id<Node /*Expression*/>,
     ) -> Id<Node> {
-        let node_ref = node.ref_(self);
-        let node_as_binary_expression = node_ref.as_binary_expression();
-        if node_as_binary_expression.left != left
-            || node_as_binary_expression.operator_token != operator
-            || node_as_binary_expression.right != right
+        if node.ref_(self).as_binary_expression().left != left
+            || node.ref_(self).as_binary_expression().operator_token != operator
+            || node.ref_(self).as_binary_expression().right != right
         {
             self.update(self.create_binary_expression(left, operator, right), node)
         } else {

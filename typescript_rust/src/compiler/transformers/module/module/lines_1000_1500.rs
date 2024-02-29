@@ -52,9 +52,9 @@ impl TransformModule {
                             Option::<Id<NodeArray>>::None,
                             self.factory.ref_(self).create_variable_declaration_list(
                                 vec![self.factory.ref_(self).create_variable_declaration(
-                                    Some(self.factory.ref_(self).clone_node(
-                                        node.ref_(self).as_import_equals_declaration().name(),
-                                    )),
+                                    Some(self.factory.ref_(self).clone_node(released!(
+                                        node.ref_(self).as_import_equals_declaration().name()
+                                    ))),
                                     None,
                                     None,
                                     Some(self.create_require_call(node)?),

@@ -19,15 +19,15 @@ use crate::{
     is_binding_pattern, is_call_expression, is_function_expression_or_arrow_function,
     is_function_like_declaration, is_identifier, is_in_js_file, is_jsx_opening_element,
     is_jsx_opening_like_element, is_new_expression, is_parameter, is_property_access_expression,
-    is_rest_parameter, last, length, map, node_is_present, return_ok_default_if_none, set_parent,
-    set_text_range, set_text_range_pos_end, skip_outer_expressions, some, try_maybe_for_each,
-    try_some, AllArenas, BaseDiagnostic, BaseDiagnosticRelatedInformation, Debug_, Diagnostic,
-    DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain, DiagnosticMessageText,
-    DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface, Diagnostics, ElementFlags,
-    HasArena, InArena, InferenceContext, InferenceFlags, Node, NodeArray, NodeInterface,
-    OptionInArena, ReadonlyTextRange, RelationComparisonResult, ScriptTarget, Signature,
-    SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type, TypeChecker,
-    UsizeOrNegativeInfinity,
+    is_rest_parameter, last, length, map, node_is_present, released, return_ok_default_if_none,
+    set_parent, set_text_range, set_text_range_pos_end, skip_outer_expressions, some,
+    try_maybe_for_each, try_some, AllArenas, BaseDiagnostic, BaseDiagnosticRelatedInformation,
+    Debug_, Diagnostic, DiagnosticInterface, DiagnosticMessage, DiagnosticMessageChain,
+    DiagnosticMessageText, DiagnosticRelatedInformation, DiagnosticRelatedInformationInterface,
+    Diagnostics, ElementFlags, HasArena, InArena, InferenceContext, InferenceFlags, Node,
+    NodeArray, NodeInterface, OptionInArena, ReadonlyTextRange, RelationComparisonResult,
+    ScriptTarget, Signature, SignatureFlags, SymbolFlags, SymbolInterface, SyntaxKind, Type,
+    TypeChecker, UsizeOrNegativeInfinity,
 };
 
 impl TypeChecker {
@@ -1271,7 +1271,7 @@ impl TypeChecker {
             let mut inference_context: Option<Id<InferenceContext>> = None;
 
             if let Some(ref candidate_type_parameters) =
-                candidate.ref_(self).maybe_type_parameters().clone()
+                released!(candidate.ref_(self).maybe_type_parameters().clone())
             {
                 let type_argument_types: Option<Vec<Id<Type>>>;
                 if some(
@@ -1321,7 +1321,11 @@ impl TypeChecker {
                 check_candidate = self.get_signature_instantiation(
                     candidate.clone(),
                     type_argument_types.as_deref(),
-                    is_in_js_file(candidate.ref_(self).declaration.refed(self).as_deref()),
+                    is_in_js_file(
+                        released!(candidate.ref_(self).declaration)
+                            .refed(self)
+                            .as_deref(),
+                    ),
                     inference_context
                         .as_ref()
                         .and_then(|inference_context| {

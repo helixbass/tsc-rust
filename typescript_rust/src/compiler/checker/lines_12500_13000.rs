@@ -858,9 +858,9 @@ impl TypeChecker {
                 signature.clone(),
                 self.fill_missing_type_arguments(
                     type_arguments.map(ToOwned::to_owned),
-                    signature.ref_(self).maybe_type_parameters().as_deref(),
+                    released!(signature.ref_(self).maybe_type_parameters().clone()).as_deref(),
                     self.get_min_type_argument_count(
-                        signature.ref_(self).maybe_type_parameters().as_deref(),
+                        released!(signature.ref_(self).maybe_type_parameters().clone()).as_deref(),
                     ),
                     is_javascript,
                 )?
@@ -898,12 +898,23 @@ impl TypeChecker {
         let mut instantiations = signature_ref.maybe_instantiations();
         let instantiations = instantiations.as_mut().unwrap();
         let id = self.get_type_list_id(type_arguments);
-        let mut instantiation = instantiations.get(&id).map(Clone::clone);
+        let mut instantiation = signature
+            .ref_(self)
+            .maybe_instantiations()
+            .as_ref()
+            .unwrap()
+            .get(&id)
+            .map(Clone::clone);
         if instantiation.is_none() {
             instantiation = Some(self.alloc_signature(
                 self.create_signature_instantiation(signature.clone(), type_arguments)?,
             ));
-            instantiations.insert(id, instantiation.clone().unwrap());
+            signature
+                .ref_(self)
+                .maybe_instantiations()
+                .as_mut()
+                .unwrap()
+                .insert(id, instantiation.clone().unwrap());
         }
         Ok(instantiation.unwrap())
     }

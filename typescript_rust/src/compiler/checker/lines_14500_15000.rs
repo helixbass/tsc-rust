@@ -503,9 +503,8 @@ impl TypeChecker {
             type_ref.maybe_resolved_string_index_type().unwrap()
         } else {
             if type_.ref_(self).maybe_resolved_index_type().is_none() {
-                type_
-                    .ref_(self)
-                    .set_resolved_index_type(Some(self.create_index_type(type_, false)));
+                let index_type = self.create_index_type(type_, false);
+                type_.ref_(self).set_resolved_index_type(Some(index_type));
             }
             type_.ref_(self).maybe_resolved_index_type().unwrap()
         }

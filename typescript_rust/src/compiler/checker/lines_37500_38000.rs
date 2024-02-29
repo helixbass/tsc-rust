@@ -880,18 +880,16 @@ impl TypeChecker {
         let signature = self.get_signature_from_declaration_(container)?;
         let return_type = self.get_return_type_of_signature(signature)?;
         let function_flags = get_function_flags(Some(container), self);
-        let node_ref = node.ref_(self);
-        let node_as_return_statement = node_ref.as_return_statement();
         if self.strict_null_checks
-            || node_as_return_statement.expression.is_some()
+            || node.ref_(self).as_return_statement().expression.is_some()
             || return_type.ref_(self).flags().intersects(TypeFlags::Never)
         {
-            let expr_type = match node_as_return_statement.expression {
+            let expr_type = match node.ref_(self).as_return_statement().expression {
                 Some(expression) => self.check_expression_cached(expression, None)?,
                 None => self.undefined_type(),
             };
             if container.ref_(self).kind() == SyntaxKind::SetAccessor {
-                if node_as_return_statement.expression.is_some() {
+                if node.ref_(self).as_return_statement().expression.is_some() {
                     self.error(
                         Some(node),
                         &Diagnostics::Setters_cannot_return_a_value,
@@ -900,7 +898,7 @@ impl TypeChecker {
                 }
             } else if container.ref_(self).kind() == SyntaxKind::Constructor {
                 if matches!(
-                    node_as_return_statement.expression,
+                    node.ref_(self).as_return_statement().expression,
                     Some(node_expression) if !self.check_type_assignable_to_and_optionally_elaborate(
                         expr_type,
                         return_type,
@@ -934,7 +932,7 @@ impl TypeChecker {
                     unwrapped_expr_type,
                     unwrapped_return_type,
                     Some(node),
-                    node_as_return_statement.expression,
+                    node.ref_(self).as_return_statement().expression,
                     None,
                     None,
                 )?;

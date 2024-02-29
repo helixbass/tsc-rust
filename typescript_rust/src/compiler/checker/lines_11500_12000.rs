@@ -9,7 +9,7 @@ use crate::{
     is_type_parameter_declaration, maybe_for_each, maybe_for_each_bool, Diagnostics, IteratorExt,
     Node, NodeInterface, ObjectFlags, ObjectFlagsTypeInterface, ObjectTypeInterface, OptionTry,
     Symbol, SymbolInterface, SyntaxKind, Type, TypeChecker, TypeFlags, TypeInterface,
-    TypeSystemPropertyName, __String, _d, try_map_defined, HasArena, InArena,
+    TypeSystemPropertyName, __String, _d, released, try_map_defined, HasArena, InArena,
 };
 
 impl TypeChecker {
@@ -366,7 +366,7 @@ impl TypeChecker {
                     if !members.contains_key(prop.ref_(self).escaped_name()) {
                         let combined_prop = self.get_property_of_union_or_intersection_type(
                             type_,
-                            prop.ref_(self).escaped_name(),
+                            &released!(prop.ref_(self).escaped_name().to_owned()),
                             None,
                         )?;
                         if let Some(combined_prop) = combined_prop {
