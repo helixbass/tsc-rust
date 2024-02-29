@@ -539,7 +539,7 @@ impl TypeChecker {
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {
             result.ref_(self).set_exports(Some(
-                self.alloc_symbol_table(symbol_exports.ref_(self).clone()),
+                self.alloc_symbol_table(released!(symbol_exports.ref_(self).clone())),
             ));
         }
         self.record_merged_symbol(result, symbol);
@@ -609,7 +609,7 @@ impl TypeChecker {
                     )));
                 }
                 self.merge_symbol_table(
-                    target.ref_(self).members(),
+                    released!(target.ref_(self).members()),
                     source_members,
                     Some(unidirectional),
                 )?;

@@ -275,7 +275,7 @@ impl Binder {
             }
 
             if let Some(current_return_target) = self.maybe_current_return_target() {
-                self.add_antecedent(&current_return_target.ref_(self), self.current_flow());
+                self.add_antecedent(current_return_target, self.current_flow());
                 self.set_current_flow(Some(self.finish_flow_label(current_return_target)));
                 if matches!(
                     node.ref_(self).kind(),
@@ -648,20 +648,24 @@ impl Binder {
 
     pub(super) fn add_antecedent(
         &self,
-        label: &FlowNode, /*FlowLabel*/
+        label: Id<FlowNode>, /*FlowLabel*/
         antecedent: Id<FlowNode>,
     ) {
-        let label_as_flow_label = label.as_flow_label();
         if !antecedent
             .ref_(self)
             .flags()
             .intersects(FlowFlags::Unreachable)
             && !contains(
-                label_as_flow_label.maybe_antecedents().as_deref(),
+                label
+                    .ref_(self)
+                    .as_flow_label()
+                    .maybe_antecedents()
+                    .as_deref(),
                 &antecedent,
             )
         {
-            let mut label_antecedents = label_as_flow_label.maybe_antecedents_mut();
+            let label_ref = label.ref_(self);
+            let mut label_antecedents = label_ref.as_flow_label().maybe_antecedents_mut();
             if label_antecedents.is_none() {
                 *label_antecedents = Some(vec![]);
             }

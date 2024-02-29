@@ -842,7 +842,7 @@ impl TypeChecker {
         self.check_grammar_statement_in_ambient_context(node);
 
         self.check_expression(
-            node.ref_(self).as_expression_statement().expression,
+            released!(node.ref_(self).as_expression_statement().expression),
             None,
             None,
         )?;

@@ -56,11 +56,11 @@ impl Binder {
         self.set_current_flow(Some(self.finish_flow_label(true_label)));
         self.bind(Some(node_as_conditional_expression.question_token));
         self.bind(Some(node_as_conditional_expression.when_true));
-        self.add_antecedent(&post_expression_label.ref_(self), self.current_flow());
+        self.add_antecedent(post_expression_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(false_label)));
         self.bind(Some(node_as_conditional_expression.colon_token));
         self.bind(Some(node_as_conditional_expression.when_false));
-        self.add_antecedent(&post_expression_label.ref_(self), self.current_flow());
+        self.add_antecedent(post_expression_label, self.current_flow());
         self.set_current_flow(Some(self.finish_flow_label(post_expression_label)));
     }
 
@@ -177,7 +177,7 @@ impl Binder {
         );
         if !is_optional_chain(&node.ref_(self)) || is_outermost_optional_chain(node, self) {
             self.add_antecedent(
-                &true_target.ref_(self),
+                true_target,
                 self.create_flow_condition(
                     FlowFlags::TrueCondition,
                     self.current_flow(),
@@ -185,7 +185,7 @@ impl Binder {
                 ),
             );
             self.add_antecedent(
-                &false_target.ref_(self),
+                false_target,
                 self.create_flow_condition(
                     FlowFlags::FalseCondition,
                     self.current_flow(),
@@ -258,7 +258,7 @@ impl Binder {
         );
         if is_outermost_optional_chain(node, self) {
             self.add_antecedent(
-                &true_target.ref_(self),
+                true_target,
                 self.create_flow_condition(
                     FlowFlags::TrueCondition,
                     self.current_flow(),
@@ -266,7 +266,7 @@ impl Binder {
                 ),
             );
             self.add_antecedent(
-                &false_target.ref_(self),
+                false_target,
                 self.create_flow_condition(
                     FlowFlags::FalseCondition,
                     self.current_flow(),

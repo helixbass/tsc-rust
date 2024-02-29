@@ -977,7 +977,9 @@ impl TypeChecker {
         }
         if type_.is_none() {
             let mut types: Option<Vec<Id<Type>>> = None;
-            if let Some(symbol_declarations) = symbol.ref_(self).maybe_declarations().as_deref() {
+            if let Some(symbol_declarations) =
+                symbol.ref_(self).maybe_declarations().clone().as_deref()
+            {
                 let mut jsdoc_type: Option<Id<Type>> = None;
                 for &declaration in symbol_declarations {
                     let Some(expression) = (if is_binary_expression(&declaration.ref_(self))

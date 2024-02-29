@@ -172,9 +172,7 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
-        if node_as_source_file.is_declaration_file()
+        if node.ref_(self).as_source_file().is_declaration_file()
             || !(is_effective_external_module(&node.ref_(self), &self.compiler_options.ref_(self))
                 || node
                     .ref_(self)
@@ -228,8 +226,6 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*SourceFile*/
     ) -> io::Result<Id<Node>> {
-        let node_ref = node.ref_(self);
-        let node_as_source_file = node_ref.as_source_file();
         self.context.ref_(self).start_lexical_environment();
 
         let mut statements: Vec<Id<Node /*Statement*/>> = _d();
@@ -238,7 +234,7 @@ impl TransformModule {
                 || self.compiler_options.ref_(self).no_implicit_use_strict != Some(true)
                     && is_external_module(&self.current_source_file().ref_(self));
         let statement_offset = self.factory.ref_(self).try_copy_prologue(
-            &node_as_source_file.statements().ref_(self),
+            &node.ref_(self).as_source_file().statements().ref_(self),
             &mut statements,
             Some(ensure_use_strict && !is_json_source_file(&node.ref_(self))),
             Some(|node: Id<Node>| self.top_level_visitor(node)),
@@ -298,7 +294,7 @@ impl TransformModule {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    node_as_source_file.statements(),
+                    node.ref_(self).as_source_file().statements(),
                     Some(|node: Id<Node>| self.top_level_visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(statement_offset),
@@ -325,7 +321,10 @@ impl TransformModule {
                 self.factory
                     .ref_(self)
                     .create_node_array(Some(statements), None)
-                    .set_text_range(Some(&*node_as_source_file.statements().ref_(self)), self),
+                    .set_text_range(
+                        Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                        self,
+                    ),
                 None,
                 None,
                 None,

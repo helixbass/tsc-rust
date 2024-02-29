@@ -8,7 +8,7 @@ use crate::{
     get_effective_type_parameter_declarations, get_interface_base_type_nodes, has_initializer,
     is_computed_property_name, is_element_access_expression, is_entity_name_expression,
     is_jsdoc_type_alias, is_named_declaration, is_private_identifier_class_element_declaration,
-    is_static, is_string_literal_like, is_type_alias, node_is_missing, try_every,
+    is_static, is_string_literal_like, is_type_alias, node_is_missing, released, try_every,
     BaseInterfaceType, Debug_, Diagnostics, EnumKind, GenericableTypeInterface, HasArena,
     HasTypeArgumentsInterface, InArena, InterfaceTypeInterface,
     InterfaceTypeWithDeclaredMembersInterface, InternalSymbolName, Node, NodeFlags, NodeInterface,
@@ -776,7 +776,7 @@ impl TypeChecker {
         let mut result = create_symbol_table(Option::<&[Id<Symbol>]>::None, self);
         for &symbol in symbols {
             result.insert(
-                symbol.ref_(self).escaped_name().to_owned(),
+                released!(symbol.ref_(self).escaped_name().to_owned()),
                 if mapping_this_only && self.is_thisless(symbol) {
                     symbol.clone()
                 } else {

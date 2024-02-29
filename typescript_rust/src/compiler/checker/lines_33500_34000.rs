@@ -835,19 +835,17 @@ impl TypeChecker {
         node: Id<Node>, /*ParenthesizedExpression*/
         check_mode: Option<CheckMode>,
     ) -> io::Result<Id<Type>> {
-        let node_ref = node.ref_(self);
-        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         if has_jsdoc_nodes(&node.ref_(self)) && is_jsdoc_type_assertion(node, self) {
             let type_ = get_jsdoc_type_assertion_type(node, self);
             return self.check_assertion_worker(
                 type_,
                 type_,
-                node_as_parenthesized_expression.expression,
+                node.ref_(self).as_parenthesized_expression().expression,
                 check_mode,
             );
         }
         self.check_expression(
-            node_as_parenthesized_expression.expression,
+            node.ref_(self).as_parenthesized_expression().expression,
             check_mode,
             None,
         )
