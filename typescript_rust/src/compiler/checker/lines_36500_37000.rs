@@ -412,7 +412,10 @@ impl TypeChecker {
     ) -> io::Result<()> {
         self.check_decorators(node)?;
         if !is_binding_element(&node.ref_(self)) {
-            self.check_source_element(node.ref_(self).as_variable_like_declaration().maybe_type())?;
+            self.check_source_element(released!(node
+                .ref_(self)
+                .as_variable_like_declaration()
+                .maybe_type()))?;
         }
 
         let Some(node_name) = node.ref_(self).as_named_declaration().maybe_name() else {
@@ -878,7 +881,7 @@ impl TypeChecker {
             );
         }
 
-        self.check_source_element(node.ref_(self).as_if_statement().else_statement)?;
+        self.check_source_element(released!(node.ref_(self).as_if_statement().else_statement))?;
 
         Ok(())
     }

@@ -10,14 +10,14 @@ use crate::{
     is_expression, is_identifier, is_left_hand_side_expression, is_modifier,
     is_parameter_property_declaration, is_private_identifier, is_property_name,
     is_simple_inlineable_expression, is_statement, move_range_past_decorators, move_range_pos,
-    node_is_missing, set_comment_range, set_source_map_range, skip_partially_emitted_expressions,
-    try_add_prologue_directives_and_initial_super_call, try_maybe_visit_each_child,
-    try_maybe_visit_node, try_maybe_visit_nodes, try_visit_function_body, try_visit_node,
-    try_visit_nodes, try_visit_parameter_list, AsDoubleDeref, CoreTransformationContext, EmitFlags,
-    FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface, InArena, Matches,
-    ModifierFlags, Node, NodeArray, NodeArrayExt, NodeExt, NodeFlags, NodeInterface, NonEmpty,
-    OptionInArena, ScriptTarget, SignatureDeclarationInterface, SyntaxKind,
-    TypeReferenceSerializationKind, VisitResult,
+    node_is_missing, released, set_comment_range, set_source_map_range,
+    skip_partially_emitted_expressions, try_add_prologue_directives_and_initial_super_call,
+    try_maybe_visit_each_child, try_maybe_visit_node, try_maybe_visit_nodes,
+    try_visit_function_body, try_visit_node, try_visit_nodes, try_visit_parameter_list,
+    AsDoubleDeref, CoreTransformationContext, EmitFlags, FunctionLikeDeclarationInterface,
+    HasArena, HasInitializerInterface, InArena, Matches, ModifierFlags, Node, NodeArray,
+    NodeArrayExt, NodeExt, NodeFlags, NodeInterface, NonEmpty, OptionInArena, ScriptTarget,
+    SignatureDeclarationInterface, SyntaxKind, TypeReferenceSerializationKind, VisitResult,
 };
 
 impl TransformTypeScript {
@@ -438,7 +438,7 @@ impl TransformTypeScript {
             node,
             Option::<Id<NodeArray>>::None,
             try_maybe_visit_nodes(
-                node.ref_(self).maybe_modifiers(),
+                released!(node.ref_(self).maybe_modifiers()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node: Id<Node>| is_modifier(&node.ref_(self))),
                 None,
@@ -449,9 +449,10 @@ impl TransformTypeScript {
             None,
             None,
             try_maybe_visit_node(
-                node.ref_(self)
+                released!(node
+                    .ref_(self)
                     .as_property_declaration()
-                    .maybe_initializer(),
+                    .maybe_initializer()),
                 Some(|node: Id<Node>| self.visitor(node)),
                 Option::<fn(Id<Node>) -> bool>::None,
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

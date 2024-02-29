@@ -10,7 +10,7 @@ use crate::{
     add_related_info, chain_diagnostic_messages, create_diagnostic_for_node, entity_name_to_string,
     find, find_index, is_in_js_file, is_jsx_opening_element, is_jsx_opening_like_element,
     is_jsx_self_closing_element, is_optional_chain, is_optional_chain_root, last, length,
-    node_is_missing, set_text_range_pos_end, some, try_map, try_maybe_every, AccessFlags,
+    node_is_missing, released, set_text_range_pos_end, some, try_map, try_maybe_every, AccessFlags,
     AsDoubleDeref, ContextFlags, Debug_, Diagnostic, DiagnosticMessage, DiagnosticMessageChain,
     Diagnostics, ElementFlags, HasArena, InArena, InferenceContext, InferenceFlags, InferenceInfo,
     InferencePriority, JsxReferenceKind, Node, NodeArray, NodeInterface, Number, OptionInArena,
@@ -871,7 +871,10 @@ impl TypeChecker {
             } else {
                 None
             },
-            Some(node.ref_(self).as_jsx_opening_like_element().attributes()),
+            Some(released!(node
+                .ref_(self)
+                .as_jsx_opening_like_element()
+                .attributes())),
             None,
             containing_message_chain,
             Some(error_output_container),

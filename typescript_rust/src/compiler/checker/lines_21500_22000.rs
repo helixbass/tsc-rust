@@ -10,10 +10,10 @@ use id_arena::Id;
 use super::{ExpandingFlags, RecursionIdentity};
 use crate::{
     append_if_unique_eq, arrays_equal, contains, create_scanner, filter, get_check_flags,
-    get_object_flags, impl_has_arena, some, try_every, try_map, try_some, AllArenas, CheckFlags,
-    ElementFlags, HasArena, InArena, InferenceInfo, InferencePriority, Node, ObjectFlags,
-    ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type, TypeChecker,
-    TypeFlags, TypeInterface, UnionReduction, VarianceFlags,
+    get_object_flags, impl_has_arena, released, some, try_every, try_map, try_some, AllArenas,
+    CheckFlags, ElementFlags, HasArena, InArena, InferenceInfo, InferencePriority, Node,
+    ObjectFlags, ScriptTarget, Symbol, SymbolFlags, SymbolInterface, SyntaxKind, TokenFlags, Type,
+    TypeChecker, TypeFlags, TypeInterface, UnionReduction, VarianceFlags,
 };
 
 impl TypeChecker {
@@ -1052,10 +1052,10 @@ impl InferTypes {
             self.infer_from_type_arguments(
                 &*self.type_checker.ref_(self).get_type_arguments(source)?,
                 &*self.type_checker.ref_(self).get_type_arguments(target)?,
-                &self
-                    .type_checker
+                &self.type_checker.ref_(self).get_variances(released!(source
                     .ref_(self)
-                    .get_variances(source.ref_(self).as_type_reference_interface().target()),
+                    .as_type_reference_interface()
+                    .target())),
             )?;
         } else if source.ref_(self).flags().intersects(TypeFlags::Index)
             && target.ref_(self).flags().intersects(TypeFlags::Index)

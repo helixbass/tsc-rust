@@ -462,9 +462,12 @@ impl TransformES2015 {
         &self,
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
-        if node_as_class_like_declaration.maybe_name().is_some() {
+        if node
+            .ref_(self)
+            .as_class_like_declaration()
+            .maybe_name()
+            .is_some()
+        {
             self.enable_substitutions_for_block_scoped_bindings();
         }
 
@@ -559,8 +562,6 @@ impl TransformES2015 {
         node: Id<Node>, /*ClassExpression | ClassDeclaration*/
         extends_clause_element: Option<Id<Node>>, /*ExpressionWithTypeArguments*/
     ) -> io::Result<Id<Node /*Block*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_class_like_declaration = node_ref.as_class_like_declaration();
         let mut statements: Vec<Id<Node /*Statement*/>> = Default::default();
         let name = self.factory.ref_(self).get_internal_name(node, None, None);
         let constructor_like_name = if is_identifier_a_non_contextual_keyword(&name.ref_(self)) {
@@ -583,7 +584,11 @@ impl TransformES2015 {
         let closing_brace_location = create_token_range(
             skip_trivia(
                 &self.current_text(),
-                node_as_class_like_declaration.members().ref_(self).end(),
+                node.ref_(self)
+                    .as_class_like_declaration()
+                    .members()
+                    .ref_(self)
+                    .end(),
                 None,
                 None,
                 None,
@@ -620,7 +625,13 @@ impl TransformES2015 {
                     .ref_(self)
                     .create_node_array(Some(statements), None)
                     .set_text_range(
-                        Some(&*node_as_class_like_declaration.members().ref_(self)),
+                        Some(
+                            &*node
+                                .ref_(self)
+                                .as_class_like_declaration()
+                                .members()
+                                .ref_(self),
+                        ),
                         self,
                     ),
                 Some(true),

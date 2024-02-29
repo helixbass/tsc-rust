@@ -434,8 +434,6 @@ impl NodeFactory {
         type_: Option<Id<Node /*TypeNode*/>>,
         initializer: Option<Id<Node /*Expression*/>>,
     ) -> Id<Node> /*PropertyDeclaration*/ {
-        let node_ref = node.ref_(self);
-        let node_as_property_declaration = node_ref.as_property_declaration();
         let decorators = decorators.map(Into::into);
         let modifiers = modifiers.map(Into::into);
         let name = name.into();
@@ -443,18 +441,25 @@ impl NodeFactory {
             || has_option_node_array_changed(node.ref_(self).maybe_modifiers(), modifiers.as_ref())
             || !matches!(
                 &name,
-                StrOrRcNode::RcNode(name) if node_as_property_declaration.name() == *name
+                StrOrRcNode::RcNode(name) if node.ref_(self).as_property_declaration().name() == *name
             )
-            || node_as_property_declaration.maybe_question_token()
+            || node
+                .ref_(self)
+                .as_property_declaration()
+                .maybe_question_token()
                 != question_or_exclamation_token.filter(|question_or_exclamation_token| {
                     is_question_token(&question_or_exclamation_token.ref_(self))
                 })
-            || node_as_property_declaration.exclamation_token
+            || node.ref_(self).as_property_declaration().exclamation_token
                 != question_or_exclamation_token.filter(|question_or_exclamation_token| {
                     is_exclamation_token(&question_or_exclamation_token.ref_(self))
                 })
-            || node_as_property_declaration.maybe_type() != type_
-            || node_as_property_declaration.maybe_initializer() != initializer
+            || node.ref_(self).as_property_declaration().maybe_type() != type_
+            || node
+                .ref_(self)
+                .as_property_declaration()
+                .maybe_initializer()
+                != initializer
         {
             self.update(
                 self.create_property_declaration(

@@ -885,8 +885,6 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*ClassDeclaration*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_class_declaration = node_ref.as_class_declaration();
         if some(
             node.ref_(self)
                 .maybe_decorators()
@@ -894,7 +892,7 @@ impl TypeChecker {
                 .as_double_deref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) && some(
-            Some(&*node_as_class_declaration.members().ref_(self)),
+            Some(&*node.ref_(self).as_class_declaration().members().ref_(self)),
             Some(|&p: &Id<Node>| {
                 has_static_modifier(p, self)
                     && is_private_identifier_class_element_declaration(p, self)
@@ -906,7 +904,11 @@ impl TypeChecker {
                 None,
             );
         }
-        if node_as_class_declaration.maybe_name().is_none()
+        if node
+            .ref_(self)
+            .as_class_declaration()
+            .maybe_name()
+            .is_none()
             && !has_syntactic_modifier(node, ModifierFlags::Default, self)
         {
             self.grammar_error_on_first_token(
@@ -917,7 +919,7 @@ impl TypeChecker {
         }
         self.check_class_like_declaration(node)?;
         try_for_each(
-            &*node_as_class_declaration.members().ref_(self),
+            &*node.ref_(self).as_class_declaration().members().ref_(self),
             |&member: &Id<Node>, _| -> io::Result<Option<()>> {
                 self.check_source_element(Some(member))?;
                 Ok(None)

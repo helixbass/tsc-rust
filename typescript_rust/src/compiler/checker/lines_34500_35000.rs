@@ -12,7 +12,7 @@ use crate::{
     has_question_token, has_syntactic_modifier, is_assignment_target, is_global_scope_augmentation,
     is_in_js_file, is_in_jsdoc, is_module_block, is_module_declaration, is_named_tuple_member,
     is_private_identifier_class_element_declaration, is_prologue_directive, is_static,
-    is_super_call, is_type_reference_type, node_is_missing, node_is_present,
+    is_super_call, is_type_reference_type, node_is_missing, node_is_present, released,
     return_ok_default_if_none, some, symbol_name, try_cast, try_for_each, try_for_each_child,
     try_maybe_for_each, try_maybe_map, unescape_leading_underscores, DiagnosticRelatedInformation,
     Diagnostics, ElementFlags, FunctionLikeDeclarationInterface, HasArena, HasInitializerInterface,
@@ -48,9 +48,7 @@ impl TypeChecker {
             self.check_grammar_constructor_type_annotation(node);
         }
 
-        let node_ref = node.ref_(self);
-        let node_as_constructor_declaration = node_ref.as_constructor_declaration();
-        self.check_source_element(node_as_constructor_declaration.maybe_body())?;
+        self.check_source_element(node.ref_(self).as_constructor_declaration().maybe_body())?;
 
         let symbol = self.get_symbol_of_node(node)?.unwrap();
         let first_declaration = get_declaration_of_kind(symbol, node.ref_(self).kind(), self);
@@ -60,14 +58,19 @@ impl TypeChecker {
         }
 
         if node_is_missing(
-            node_as_constructor_declaration
+            node.ref_(self)
+                .as_constructor_declaration()
                 .maybe_body()
                 .refed(self)
                 .as_deref(),
         ) {
             return Ok(());
         }
-        let node_body = node_as_constructor_declaration.maybe_body().unwrap();
+        let node_body = node
+            .ref_(self)
+            .as_constructor_declaration()
+            .maybe_body()
+            .unwrap();
 
         if !self.produce_diagnostics {
             return Ok(());
@@ -105,7 +108,13 @@ impl TypeChecker {
                             self.is_instance_property_with_initializer_or_private_identifier_property(member)
                         }),
                     ) || some(
-                        Some(&*node_as_constructor_declaration.parameters().ref_(self)),
+                        Some(
+                            &*node
+                                .ref_(self)
+                                .as_constructor_declaration()
+                                .parameters()
+                                .ref_(self),
+                        ),
                         Some(|&p: &Id<Node>| {
                             has_syntactic_modifier(
                                 p,
@@ -793,7 +802,7 @@ impl TypeChecker {
                 constraint_type,
                 self.keyof_constraint_type(),
                 get_effective_constraint_of_type_parameter(
-                    node.ref_(self).as_mapped_type_node().type_parameter,
+                    released!(node.ref_(self).as_mapped_type_node().type_parameter),
                     self,
                 ),
                 None,

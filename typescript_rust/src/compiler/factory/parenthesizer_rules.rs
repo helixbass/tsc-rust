@@ -5,10 +5,11 @@ use crate::{
     get_leftmost_expression, get_operator_associativity, get_operator_precedence, impl_has_arena,
     is_binary_expression, is_block, is_call_expression, is_comma_sequence,
     is_function_or_constructor_type_node, is_left_hand_side_expression, is_literal_kind,
-    is_unary_expression, maybe_same_map, same_map, set_text_range, set_text_range_id_node,
-    skip_partially_emitted_expressions, some, AllArenas, Associativity, Comparison, HasArena,
-    HasTypeArgumentsInterface, InArena, Node, NodeArray, NodeArrayOrVec, NodeExt, NodeFactory,
-    NodeInterface, OperatorPrecedence, OuterExpressionKinds, ParenthesizerRules, SyntaxKind,
+    is_unary_expression, maybe_same_map, released, same_map, set_text_range,
+    set_text_range_id_node, skip_partially_emitted_expressions, some, AllArenas, Associativity,
+    Comparison, HasArena, HasTypeArgumentsInterface, InArena, Node, NodeArray, NodeArrayOrVec,
+    NodeExt, NodeFactory, NodeInterface, OperatorPrecedence, OuterExpressionKinds,
+    ParenthesizerRules, SyntaxKind,
 };
 
 pub fn create_parenthesizer_rules(
@@ -479,7 +480,7 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
     }
 
     fn parenthesize_member_of_element_type(&self, member: Id<Node>) -> Id<Node> {
-        match member.ref_(self).kind() {
+        match released!(member.ref_(self).kind()) {
             SyntaxKind::UnionType
             | SyntaxKind::IntersectionType
             | SyntaxKind::FunctionType
