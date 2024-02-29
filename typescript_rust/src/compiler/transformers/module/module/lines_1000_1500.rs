@@ -10,7 +10,7 @@ use crate::{
     get_es_module_interop, get_original_node_id, get_text_of_identifier_or_literal, id_text,
     is_arrow_function, is_binding_pattern, is_class_expression, is_export_name,
     is_export_namespace_as_default_declaration, is_function_expression, is_identifier,
-    is_local_name, is_modifier, is_named_exports, maybe_visit_nodes, remove_all_comments,
+    is_local_name, is_modifier, is_named_exports, maybe_visit_nodes, released, remove_all_comments,
     return_if_none, set_emit_flags, single_or_many_node, try_flatten_destructuring_assignment,
     try_maybe_visit_each_child, try_maybe_visit_nodes, try_visit_each_child, try_visit_node,
     try_visit_nodes, ClassLikeDeclarationInterface, EmitFlags, FlattenLevel,
@@ -734,8 +734,6 @@ impl TransformModule {
         decl: Id<Node>, /*ImportDeclaration*/
     ) /*: Statement[] | undefined */
     {
-        let decl_ref = decl.ref_(self);
-        let decl_as_import_declaration = decl_ref.as_import_declaration();
         if self
             .current_module_info()
             .ref_(self)
@@ -745,25 +743,21 @@ impl TransformModule {
             return /*statements*/;
         }
 
-        let import_clause = return_if_none!(decl_as_import_declaration.import_clause);
-        let import_clause_ref = import_clause.ref_(self);
-        let import_clause_as_import_clause = import_clause_ref.as_import_clause();
-        if import_clause_as_import_clause.name.is_some() {
+        let import_clause = return_if_none!(decl.ref_(self).as_import_declaration().import_clause);
+        if import_clause.ref_(self).as_import_clause().name.is_some() {
             self.append_exports_of_declaration(statements, import_clause, None);
         }
 
-        let named_bindings = import_clause_as_import_clause.named_bindings;
+        let named_bindings = import_clause.ref_(self).as_import_clause().named_bindings;
         if let Some(named_bindings) = named_bindings {
-            match named_bindings.ref_(self).kind() {
+            match released!(named_bindings.ref_(self).kind()) {
                 SyntaxKind::NamespaceImport => {
                     self.append_exports_of_declaration(statements, named_bindings, None);
                 }
                 SyntaxKind::NamedImports => {
-                    for &import_binding in &*named_bindings
-                        .ref_(self)
-                        .as_named_imports()
-                        .elements
-                        .ref_(self)
+                    for &import_binding in
+                        &*released!(named_bindings.ref_(self).as_named_imports().elements)
+                            .ref_(self)
                     {
                         self.append_exports_of_declaration(statements, import_binding, Some(true));
                     }

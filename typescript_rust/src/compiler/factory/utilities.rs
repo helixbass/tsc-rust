@@ -24,7 +24,8 @@ use crate::{
     get_source_text_of_node_from_source_file, is_assignment_operator, is_default_import,
     is_export_namespace_as_default_declaration, is_file_level_unique_name, is_generated_identifier,
     is_property_assignment, is_property_name, is_shorthand_property_assignment,
-    is_spread_assignment, map, out_file, push_if_unique_eq, HasArena, InArena, ModuleKind,
+    is_spread_assignment, map, out_file, push_if_unique_eq, released, HasArena, InArena,
+    ModuleKind,
 };
 
 pub fn create_empty_exports(factory: &NodeFactory) -> Id<Node> {
@@ -1573,10 +1574,12 @@ fn binary_expression_state_left<TMachine: BinaryExpressionStateMachine>(
         binary_expression_state_next_state(machine, BinaryExpressionState::Left),
     );
     let next_node = machine.on_left(
-        node_stack[stack_index]
-            .ref_(machine)
-            .as_binary_expression()
-            .left,
+        released!(
+            node_stack[stack_index]
+                .ref_(machine)
+                .as_binary_expression()
+                .left
+        ),
         user_state_stack[stack_index].clone().unwrap(),
         node_stack[stack_index],
     )?;

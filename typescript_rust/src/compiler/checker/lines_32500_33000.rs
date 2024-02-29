@@ -8,7 +8,7 @@ use crate::{
     get_assignment_declaration_kind, get_object_flags, get_source_file_of_node, impl_has_arena,
     is_assignment_operator, is_binary_expression, is_if_statement, is_in_js_file,
     is_private_identifier_property_access_expression, is_spread_assignment, push_or_replace,
-    skip_parentheses, skip_trivia, text_span_contains_position, token_to_string,
+    released, skip_parentheses, skip_trivia, text_span_contains_position, token_to_string,
     walk_up_parenthesized_expressions, AccessFlags, AllArenas, AssignmentDeclarationKind,
     BinaryExpressionStateMachine, BinaryExpressionTrampoline, Debug_,
     DiagnosticRelatedInformationInterface, Diagnostics, ExternalEmitHelpers, HasArena, InArena,
@@ -1298,9 +1298,9 @@ impl BinaryExpressionStateMachine for CheckBinaryExpressionStateMachine {
                 self.type_checker
                     .ref_(self)
                     .check_binary_like_expression_worker(
-                        node.ref_(self).as_binary_expression().left,
-                        node.ref_(self).as_binary_expression().operator_token,
-                        node.ref_(self).as_binary_expression().right,
+                        released!(node.ref_(self).as_binary_expression().left),
+                        released!(node.ref_(self).as_binary_expression().operator_token),
+                        released!(node.ref_(self).as_binary_expression().right),
                         left_type,
                         right_type,
                         Some(node),

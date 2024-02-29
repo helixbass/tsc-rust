@@ -522,8 +522,8 @@ impl ParenthesizerRules for ParenthesizerRulesConcrete {
         if some(
             type_arguments
                 .as_ref()
-                .map(|type_arguments| type_arguments.ref_(self))
-                .as_deref(),
+                .map(|type_arguments| type_arguments.to_vec(self))
+                .as_ref(),
             Option::<fn(&Id<Node>) -> bool>::None,
         ) {
             return Some(

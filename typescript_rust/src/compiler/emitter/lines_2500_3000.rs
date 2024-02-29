@@ -717,10 +717,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*ExpressionStatement*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_expression_statement = node_ref.as_expression_statement();
         self.emit_expression(
-            Some(node_as_expression_statement.expression),
+            Some(node.ref_(self).as_expression_statement().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeExpressionOfExpressionStatementCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -730,7 +728,13 @@ impl Printer {
         )?;
         Ok(
             if !is_json_source_file(&self.current_source_file().ref_(self))
-                || node_is_synthesized(&*node_as_expression_statement.expression.ref_(self))
+                || node_is_synthesized(
+                    &*node
+                        .ref_(self)
+                        .as_expression_statement()
+                        .expression
+                        .ref_(self),
+                )
             {
                 self.write_trailing_semicolon();
             },

@@ -1,6 +1,7 @@
 use std::{cell::Cell, ops::Deref};
 
 use bitflags::bitflags;
+use id_arena::Id;
 use local_macros::{ast_type, enum_unwrapped};
 
 use super::{
@@ -9,7 +10,7 @@ use super::{
     HasTypeArgumentsInterface, HasTypeInterface, HasTypeParametersInterface, Node, NodeInterface,
     ReadonlyTextRange, SyntaxKind, TransformFlags, __String,
 };
-use crate::{set_text_range_node_array, HasArena};
+use crate::{set_text_range_node_array, HasArena, InArena};
 
 mod _NodeArrayDeriveTraceScope {
     use std::slice;
@@ -167,36 +168,35 @@ impl NodeArrayExt for Id<NodeArray> {
     }
 }
 
-mod _NodeArrayOrVecDeriveTraceScope {
-    use super::*;
-    use crate::InArena;
+#[derive(Clone, Debug)]
+pub enum NodeArrayOrVec {
+    NodeArray(Id<NodeArray>),
+    Vec(Vec<Id<Node>>),
+}
 
-    #[derive(Clone, Debug)]
-    pub enum NodeArrayOrVec {
-        NodeArray(Id<NodeArray>),
-        Vec(Vec<Id<Node>>),
+impl NodeArrayOrVec {
+    pub fn as_vec_owned(self) -> Vec<Id<Node>> {
+        enum_unwrapped!(self, [NodeArrayOrVec, Vec])
     }
 
-    impl NodeArrayOrVec {
-        pub fn as_vec_owned(self) -> Vec<Id<Node>> {
-            enum_unwrapped!(self, [NodeArrayOrVec, Vec])
-        }
+    pub fn as_node_array(self) -> Id<NodeArray> {
+        enum_unwrapped!(self, [NodeArrayOrVec, NodeArray])
+    }
 
-        pub fn as_node_array(self) -> Id<NodeArray> {
-            enum_unwrapped!(self, [NodeArrayOrVec, NodeArray])
+    pub fn ref_<'a>(&'a self, arena: &'a impl HasArena) -> NodeArrayOrVecRef<'a> {
+        match self {
+            Self::NodeArray(value) => value.ref_(arena).into(),
+            Self::Vec(value) => value.into(),
         }
+    }
 
-        pub fn ref_<'a>(&'a self, arena: &'a impl HasArena) -> NodeArrayOrVecRef<'a> {
-            match self {
-                Self::NodeArray(value) => value.ref_(arena).into(),
-                Self::Vec(value) => value.into(),
-            }
+    pub fn to_vec(&self, arena: &impl HasArena) -> Vec<Id<Node>> {
+        match self {
+            Self::NodeArray(value) => value.ref_(arena).to_vec(),
+            Self::Vec(value) => value.clone(),
         }
     }
 }
-
-pub use _NodeArrayOrVecDeriveTraceScope::NodeArrayOrVec;
-use id_arena::Id;
 
 impl From<Id<NodeArray>> for NodeArrayOrVec {
     fn from(node_array: Id<NodeArray>) -> Self {

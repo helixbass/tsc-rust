@@ -13,7 +13,7 @@ use crate::{
     get_trailing_semicolon_deferring_writer, is_bundle_file_text_like, is_declaration,
     is_empty_statement, is_expression, is_identifier, is_in_json_file, is_internal_declaration,
     is_keyword, is_source_file, is_string_literal, is_token_kind, is_type_parameter_declaration,
-    is_unparsed_prepend, is_unparsed_source, is_variable_statement, BundleFileSection,
+    is_unparsed_prepend, is_unparsed_source, is_variable_statement, released, BundleFileSection,
     BundleFileSectionKind, CurrentParenthesizerRule, Debug_, EmitFlags, EmitHint, EmitTextWriter,
     GetOrInsertDefault, HasArena, InArena, Node, NodeInterface, Printer, SourceMapGenerator,
     SyntaxKind, TempFlags,
@@ -524,7 +524,7 @@ impl Printer {
             return Ok(self.emit_empty_statement(true));
         }
         if hint == EmitHint::Unspecified {
-            match node.ref_(self).kind() {
+            match released!(node.ref_(self).kind()) {
                 SyntaxKind::TemplateHead
                 | SyntaxKind::TemplateMiddle
                 | SyntaxKind::TemplateTail => return Ok(self.emit_literal(node, false)),
@@ -749,7 +749,7 @@ impl Printer {
             }
         }
         if hint == EmitHint::Expression {
-            match node.ref_(self).kind() {
+            match released!(node.ref_(self).kind()) {
                 SyntaxKind::NumericLiteral | SyntaxKind::BigIntLiteral => {
                     return Ok(self.emit_numeric_or_big_int_literal(node))
                 }

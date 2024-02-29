@@ -294,7 +294,7 @@ impl TransformModule {
             &mut statements,
             Some(
                 &try_visit_nodes(
-                    node.ref_(self).as_source_file().statements(),
+                    released!(node.ref_(self).as_source_file().statements()),
                     Some(|node: Id<Node>| self.top_level_visitor(node)),
                     Some(|node| is_statement(node, self)),
                     Some(statement_offset),
@@ -322,7 +322,7 @@ impl TransformModule {
                     .ref_(self)
                     .create_node_array(Some(statements), None)
                     .set_text_range(
-                        Some(&*node.ref_(self).as_source_file().statements().ref_(self)),
+                        Some(&*released!(node.ref_(self).as_source_file().statements()).ref_(self)),
                         self,
                     ),
                 None,

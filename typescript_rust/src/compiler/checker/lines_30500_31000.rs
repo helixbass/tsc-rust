@@ -371,14 +371,14 @@ impl TypeChecker {
         candidates_out_array: Option<&mut Vec<Id<Signature>>>,
         check_mode: CheckMode,
     ) -> io::Result<Id<Signature>> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_opening_like_element = node_ref.as_jsx_opening_like_element();
-        if self.is_jsx_intrinsic_identifier(node_as_jsx_opening_like_element.tag_name()) {
+        if self
+            .is_jsx_intrinsic_identifier(node.ref_(self).as_jsx_opening_like_element().tag_name())
+        {
             let result = self.get_intrinsic_attributes_type_from_jsx_opening_like_element(node)?;
             let fake_signature = self.create_signature_for_jsx_intrinsic(node, result)?;
             self.check_type_assignable_to_and_optionally_elaborate(
                 self.check_expression_with_contextual_type(
-                    node_as_jsx_opening_like_element.attributes(),
+                    node.ref_(self).as_jsx_opening_like_element().attributes(),
                     self.get_effective_first_argument_for_jsx_signature(
                         fake_signature.clone(),
                         node,
@@ -387,20 +387,22 @@ impl TypeChecker {
                     CheckMode::Normal,
                 )?,
                 result,
-                Some(node_as_jsx_opening_like_element.tag_name()),
-                Some(node_as_jsx_opening_like_element.attributes()),
+                Some(node.ref_(self).as_jsx_opening_like_element().tag_name()),
+                Some(node.ref_(self).as_jsx_opening_like_element().attributes()),
                 None,
                 None,
             )?;
             if length(
-                node_as_jsx_opening_like_element
+                node.ref_(self)
+                    .as_jsx_opening_like_element()
                     .maybe_type_arguments()
                     .refed(self)
                     .as_double_deref(),
             ) > 0
             {
                 try_maybe_for_each(
-                    node_as_jsx_opening_like_element
+                    node.ref_(self)
+                        .as_jsx_opening_like_element()
                         .maybe_type_arguments()
                         .refed(self)
                         .as_deref(),
@@ -413,7 +415,9 @@ impl TypeChecker {
                     self.alloc_diagnostic(
                         create_diagnostic_for_node_array(
                             &get_source_file_of_node(node, self).ref_(self),
-                            &node_as_jsx_opening_like_element
+                            &node
+                                .ref_(self)
+                                .as_jsx_opening_like_element()
                                 .maybe_type_arguments()
                                 .unwrap()
                                 .ref_(self),
@@ -421,7 +425,8 @@ impl TypeChecker {
                             Some(vec![
                                 0usize.to_string(),
                                 length(
-                                    node_as_jsx_opening_like_element
+                                    node.ref_(self)
+                                        .as_jsx_opening_like_element()
                                         .maybe_type_arguments()
                                         .refed(self)
                                         .as_double_deref(),
@@ -435,8 +440,11 @@ impl TypeChecker {
             }
             return Ok(fake_signature);
         }
-        let expr_types =
-            self.check_expression(node_as_jsx_opening_like_element.tag_name(), None, None)?;
+        let expr_types = self.check_expression(
+            node.ref_(self).as_jsx_opening_like_element().tag_name(),
+            None,
+            None,
+        )?;
         let apparent_type = self.get_apparent_type(expr_types)?;
         if self.is_error_type(apparent_type) {
             return self.resolve_error_call(node);
@@ -449,10 +457,10 @@ impl TypeChecker {
 
         if signatures.is_empty() {
             self.error(
-                Some(node_as_jsx_opening_like_element.tag_name()),
+                Some(node.ref_(self).as_jsx_opening_like_element().tag_name()),
                 &Diagnostics::JSX_element_type_0_does_not_have_any_construct_or_call_signatures,
                 Some(vec![get_text_of_node(
-                    node_as_jsx_opening_like_element.tag_name(),
+                    node.ref_(self).as_jsx_opening_like_element().tag_name(),
                     None,
                     self,
                 )

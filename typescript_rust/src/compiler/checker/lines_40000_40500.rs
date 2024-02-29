@@ -535,7 +535,7 @@ impl TypeChecker {
         let save_current_node = self.maybe_current_node();
         self.set_current_node(Some(node));
         self.set_instantiation_count(0);
-        match node.ref_(self).kind() {
+        match released!(node.ref_(self).kind()) {
             SyntaxKind::CallExpression
             | SyntaxKind::NewExpression
             | SyntaxKind::TaggedTemplateExpression

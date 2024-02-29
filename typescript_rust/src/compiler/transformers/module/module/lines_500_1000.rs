@@ -13,16 +13,16 @@ use crate::{
     get_export_needs_import_star_helper, get_external_module_name_literal,
     get_import_needs_import_default_helper, get_import_needs_import_star_helper,
     get_namespace_declaration_node, get_node_id, get_original_node_id, is_default_import,
-    is_prefix_unary_expression, is_simple_copiable_expression, is_string_literal, set_emit_flags,
-    single_or_many_node, try_flatten_destructuring_assignment, try_maybe_visit_node,
-    try_visit_each_child, try_visit_iteration_body, try_visit_node, CoreTransformationContext,
-    EmitFlags, GetOrInsertDefault, InArena, LiteralLikeNodeInterface, MapOrDefault, ModuleKind,
-    NodeArray, NodeFlags, ScriptTarget,
+    is_prefix_unary_expression, is_simple_copiable_expression, is_string_literal, released,
+    set_emit_flags, single_or_many_node, try_flatten_destructuring_assignment,
+    try_maybe_visit_node, try_visit_each_child, try_visit_iteration_body, try_visit_node,
+    CoreTransformationContext, EmitFlags, GetOrInsertDefault, InArena, LiteralLikeNodeInterface,
+    MapOrDefault, ModuleKind, NodeArray, NodeFlags, ScriptTarget,
 };
 
 impl TransformModule {
     pub(super) fn top_level_visitor(&self, node: Id<Node>) -> io::Result<VisitResult> /*<Node>*/ {
-        Ok(match node.ref_(self).kind() {
+        Ok(match released!(node.ref_(self).kind()) {
             SyntaxKind::ImportDeclaration => self.visit_import_declaration(node)?,
             SyntaxKind::ImportEqualsDeclaration => self.visit_import_equals_declaration(node)?,
             SyntaxKind::ExportDeclaration => self.visit_export_declaration(node)?,
@@ -690,12 +690,15 @@ impl TransformModule {
         &self,
         node: Id<Node>, /*ImportDeclaration*/
     ) -> io::Result<VisitResult> /*<Statement>*/ {
-        let node_ref = node.ref_(self);
-        let node_as_import_declaration = node_ref.as_import_declaration();
         let mut statements: Option<Vec<Id<Node /*Statement*/>>> = _d();
         let namespace_declaration = get_namespace_declaration_node(node, self);
         if self.module_kind != ModuleKind::AMD {
-            if node_as_import_declaration.import_clause.is_none() {
+            if node
+                .ref_(self)
+                .as_import_declaration()
+                .import_clause
+                .is_none()
+            {
                 return Ok(Some(
                     self.factory
                         .ref_(self)
@@ -711,14 +714,12 @@ impl TransformModule {
                 {
                     variables.push(
                         self.factory.ref_(self).create_variable_declaration(
-                            Some(
-                                self.factory.ref_(self).clone_node(
-                                    namespace_declaration
+                            Some(self.factory.ref_(self).clone_node(
+                                released!(namespace_declaration
                                         .ref_(self)
                                         .as_named_declaration()
-                                        .name(),
-                                ),
-                            ),
+                                        .name()),
+                            )),
                             None,
                             None,
                             Some(self.get_helper_expression_for_import(

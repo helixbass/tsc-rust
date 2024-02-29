@@ -974,10 +974,8 @@ impl Printer {
         &self,
         node: Id<Node>, /*PropertyAccessExpression*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_property_access_expression = node_ref.as_property_access_expression();
         self.emit_expression(
-            Some(node_as_property_access_expression.expression),
+            Some(node.ref_(self).as_property_access_expression().expression),
             Some(self.alloc_current_parenthesizer_rule(Box::new(
                 ParenthesizeLeftSideOfAccessCurrentParenthesizerRule::new(
                     self.parenthesizer(),
@@ -985,34 +983,44 @@ impl Printer {
                 ),
             ))),
         )?;
-        let token = node_as_property_access_expression
+        let token = node
+            .ref_(self)
+            .as_property_access_expression()
             .question_dot_token
             .clone()
             .unwrap_or_else(|| {
                 let token: Id<Node> = get_factory(self).create_token(SyntaxKind::DotToken);
                 set_text_range_pos_end(
                     &*token.ref_(self),
-                    node_as_property_access_expression
+                    node.ref_(self)
+                        .as_property_access_expression()
                         .expression
                         .ref_(self)
                         .end(),
-                    node_as_property_access_expression.name.ref_(self).pos(),
+                    node.ref_(self)
+                        .as_property_access_expression()
+                        .name
+                        .ref_(self)
+                        .pos(),
                 );
                 token
             });
         let lines_before_dot = self.get_lines_between_nodes(
             node,
-            node_as_property_access_expression.expression,
+            node.ref_(self).as_property_access_expression().expression,
             token,
         );
-        let lines_after_dot =
-            self.get_lines_between_nodes(node, token, node_as_property_access_expression.name);
+        let lines_after_dot = self.get_lines_between_nodes(
+            node,
+            token,
+            node.ref_(self).as_property_access_expression().name,
+        );
 
         self.write_lines_and_indent(lines_before_dot, false);
 
         let should_emit_dot_dot = token.ref_(self).kind() != SyntaxKind::QuestionDotToken
             && self.may_need_dot_dot_for_property_access(
-                node_as_property_access_expression.expression,
+                node.ref_(self).as_property_access_expression().expression,
             )
             && !self.writer().has_trailing_comment()
             && !self.writer().has_trailing_whitespace();
@@ -1021,7 +1029,9 @@ impl Printer {
             self.write_punctuation(".");
         }
 
-        if node_as_property_access_expression
+        if node
+            .ref_(self)
+            .as_property_access_expression()
             .question_dot_token
             .is_some()
         {
@@ -1029,7 +1039,8 @@ impl Printer {
         } else {
             self.emit_token_with_comment(
                 token.ref_(self).kind(),
-                node_as_property_access_expression
+                node.ref_(self)
+                    .as_property_access_expression()
                     .expression
                     .ref_(self)
                     .end(),
@@ -1039,7 +1050,10 @@ impl Printer {
             );
         }
         self.write_lines_and_indent(lines_after_dot, false);
-        self.emit(Some(node_as_property_access_expression.name), None)?;
+        self.emit(
+            Some(node.ref_(self).as_property_access_expression().name),
+            None,
+        )?;
         self.decrease_indent_if(lines_before_dot != 0, Some(lines_after_dot != 0));
 
         Ok(())

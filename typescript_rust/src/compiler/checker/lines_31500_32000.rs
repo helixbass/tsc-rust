@@ -167,7 +167,7 @@ impl TypeChecker {
         if let Some(signature_this_parameter) = signature.ref_(self).maybe_this_parameter() {
             self.assign_parameter_type(signature_this_parameter, None)?;
         }
-        for &parameter in signature.ref_(self).parameters() {
+        for parameter in released!(signature.ref_(self).parameters().to_owned()) {
             self.assign_parameter_type(parameter, None)?;
         }
 
