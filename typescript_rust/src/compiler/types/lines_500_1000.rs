@@ -1705,6 +1705,22 @@ impl Node {
     pub fn as_synthetic_reference_expression(&self) -> &SyntheticReferenceExpression {
         enum_unwrapped!(self, [Node, SyntheticReferenceExpression])
     }
+
+    pub fn as_base_jsdoc_tag(&self) -> &BaseJSDocTag {
+        enum_unwrapped!(self, [Node, BaseJSDocTag])
+    }
+
+    pub fn as_jsdoc_link(&self) -> &JSDocLink {
+        enum_unwrapped!(self, [Node, JSDocLink])
+    }
+
+    pub fn as_jsdoc_link_code(&self) -> &JSDocLinkCode {
+        enum_unwrapped!(self, [Node, JSDocLinkCode])
+    }
+
+    pub fn as_jsdoc_link_plain(&self) -> &JSDocLinkPlain {
+        enum_unwrapped!(self, [Node, JSDocLinkPlain])
+    }
 }
 
 pub struct BaseNode {
