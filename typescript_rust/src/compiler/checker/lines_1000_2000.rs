@@ -602,16 +602,14 @@ impl TypeChecker {
                     None,
                 );
             }
-            if let Some(source_members) = source.ref_(self).maybe_members() {
-                let target_ref = target.ref_(self);
-                if target_ref.maybe_members().is_none() {
-                    target_ref.set_members(Some(self.alloc_symbol_table(create_symbol_table(
-                        Option::<&[Id<Symbol>]>::None,
-                        self,
-                    ))));
+            if let Some(source_members) = released!(source.ref_(self).maybe_members()) {
+                if target.ref_(self).maybe_members().is_none() {
+                    target.ref_(self).set_members(Some(self.alloc_symbol_table(
+                        create_symbol_table(Option::<&[Id<Symbol>]>::None, self),
+                    )));
                 }
                 self.merge_symbol_table(
-                    target_ref.members(),
+                    target.ref_(self).members(),
                     source_members,
                     Some(unidirectional),
                 )?;
