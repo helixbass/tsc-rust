@@ -478,16 +478,14 @@ impl TransformTypeScript {
         &self,
         node: Id<Node>, /*ParenthesizedExpression*/
     ) -> io::Result<Id<Node /*Expression*/>> {
-        let node_ref = node.ref_(self);
-        let node_as_parenthesized_expression = node_ref.as_parenthesized_expression();
         let inner_expression = skip_outer_expressions(
-            node_as_parenthesized_expression.expression,
+            node.ref_(self).as_parenthesized_expression().expression,
             Some(!OuterExpressionKinds::Assertions),
             self,
         );
         if is_assertion_expression(&inner_expression.ref_(self)) {
             let expression = try_visit_node(
-                node_as_parenthesized_expression.expression,
+                node.ref_(self).as_parenthesized_expression().expression,
                 Some(|node: Id<Node>| self.visitor(node)),
                 Some(|node| is_expression(node, self)),
                 Option::<fn(&[Id<Node>]) -> Id<Node>>::None,

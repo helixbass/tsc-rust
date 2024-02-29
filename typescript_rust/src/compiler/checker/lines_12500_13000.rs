@@ -14,7 +14,7 @@ use crate::{
     is_jsdoc_parameter_tag, is_jsdoc_signature, is_jsdoc_variadic_type, is_part_of_type_node,
     is_rest_parameter, is_type_parameter_declaration, is_type_predicate_node,
     is_value_signature_declaration, last_or_undefined, length, map_defined, maybe_filter,
-    node_is_missing, node_starts_new_lexical_environment, return_ok_default_if_none,
+    node_is_missing, node_starts_new_lexical_environment, released, return_ok_default_if_none,
     return_ok_false_if_none, try_for_each_child_bool, try_map, try_maybe_map, try_some, CheckFlags,
     Debug_, Diagnostics, HasArena, HasInitializerInterface, HasTypeInterface, InArena, IndexInfo,
     InterfaceTypeInterface, InternalSymbolName, ModifierFlags, Node, NodeArray, NodeCheckFlags,
@@ -653,49 +653,50 @@ impl TypeChecker {
             ) {
                 return Ok(self.error_type());
             }
-            let mut type_: Id<Type> = if let Some(signature_target) = signature.ref_(self).target {
-                self.instantiate_type(
-                    self.get_return_type_of_signature(signature_target.clone())?,
-                    signature.ref_(self).mapper.clone(),
-                )?
-            } else if let Some(signature_composite_signatures) =
-                signature.ref_(self).composite_signatures.as_deref()
-            {
-                self.instantiate_type(
-                    self.get_union_or_intersection_type(
-                        &try_map(
-                            signature_composite_signatures,
-                            |signature: &Id<Signature>, _| {
-                                self.get_return_type_of_signature(signature.clone())
-                            },
+            let mut type_: Id<Type> =
+                if let Some(signature_target) = released!(signature.ref_(self).target) {
+                    self.instantiate_type(
+                        self.get_return_type_of_signature(signature_target.clone())?,
+                        signature.ref_(self).mapper.clone(),
+                    )?
+                } else if let Some(signature_composite_signatures) =
+                    released!(signature.ref_(self).composite_signatures.clone()).as_deref()
+                {
+                    self.instantiate_type(
+                        self.get_union_or_intersection_type(
+                            &try_map(
+                                signature_composite_signatures,
+                                |signature: &Id<Signature>, _| {
+                                    self.get_return_type_of_signature(signature.clone())
+                                },
+                            )?,
+                            signature.ref_(self).composite_kind,
+                            Some(UnionReduction::Subtype),
                         )?,
-                        signature.ref_(self).composite_kind,
-                        Some(UnionReduction::Subtype),
-                    )?,
-                    signature.ref_(self).mapper.clone(),
-                )?
-            } else {
-                let signature_declaration = signature.ref_(self).declaration.unwrap();
-                self.get_return_type_from_annotation(signature_declaration)?
-                    .try_unwrap_or_else(|| -> io::Result<_> {
-                        Ok(
-                            if node_is_missing(
-                                signature_declaration
-                                    .ref_(self)
-                                    .maybe_as_function_like_declaration()
-                                    .and_then(|function_like_declaration| {
-                                        function_like_declaration.maybe_body()
-                                    })
-                                    .refed(self)
-                                    .as_deref(),
-                            ) {
-                                self.any_type()
-                            } else {
-                                self.get_return_type_from_body(signature_declaration, None)?
-                            },
-                        )
-                    })?
-            };
+                        signature.ref_(self).mapper.clone(),
+                    )?
+                } else {
+                    let signature_declaration = signature.ref_(self).declaration.unwrap();
+                    self.get_return_type_from_annotation(signature_declaration)?
+                        .try_unwrap_or_else(|| -> io::Result<_> {
+                            Ok(
+                                if node_is_missing(
+                                    signature_declaration
+                                        .ref_(self)
+                                        .maybe_as_function_like_declaration()
+                                        .and_then(|function_like_declaration| {
+                                            function_like_declaration.maybe_body()
+                                        })
+                                        .refed(self)
+                                        .as_deref(),
+                                ) {
+                                    self.any_type()
+                                } else {
+                                    self.get_return_type_from_body(signature_declaration, None)?
+                                },
+                            )
+                        })?
+                };
             if signature
                 .ref_(self)
                 .flags
