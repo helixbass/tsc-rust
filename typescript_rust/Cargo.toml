@@ -30,6 +30,8 @@ id-arena = "2.2.1"
 # debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "5d34baa" }
 # use-panic-location-caller
 debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "2eb8cb4" }
+# use-panic-location-caller-release
+# debug-cell = { git = "https://github.com/helixbass/debug-cell", rev = "9e68904" }
 indexmap = { workspace = true }
 
 [dev-dependencies]

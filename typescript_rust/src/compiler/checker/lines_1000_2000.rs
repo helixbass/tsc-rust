@@ -507,8 +507,8 @@ impl TypeChecker {
     pub(super) fn clone_symbol(&self, symbol: Id<Symbol>) -> Id<Symbol> {
         let result = self.alloc_symbol(
             self.create_symbol(
-                symbol.ref_(self).flags(),
-                symbol.ref_(self).escaped_name().to_owned(),
+                released!(symbol.ref_(self).flags()),
+                released!(symbol.ref_(self).escaped_name().to_owned()),
                 None,
             )
             .into(),
@@ -534,7 +534,7 @@ impl TypeChecker {
         }
         if let Some(symbol_members) = symbol.ref_(self).maybe_members().as_ref() {
             result.ref_(self).set_members(Some(
-                self.alloc_symbol_table(symbol_members.ref_(self).clone()),
+                self.alloc_symbol_table(released!(symbol_members.ref_(self).clone())),
             ));
         }
         if let Some(symbol_exports) = symbol.ref_(self).maybe_exports().as_ref() {

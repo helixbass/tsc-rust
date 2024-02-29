@@ -29,3 +29,7 @@ name = "test_runner"
 
 [[bin]]
 name = "runner"
+
+[profile.release-with-debug]
+inherits = "release"
+debug = true
