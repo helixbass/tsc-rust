@@ -214,8 +214,6 @@ impl TypeChecker {
             return Ok(None);
         }
         let iife = get_immediately_invoked_function_expression(func, self);
-        let parameter_ref = parameter.ref_(self);
-        let parameter_as_parameter_declaration = parameter_ref.as_parameter_declaration();
         let func_ref = func.ref_(self);
         let func_as_function_like_declaration = func_ref.as_function_like_declaration();
         if let Some(iife) = iife
@@ -228,7 +226,9 @@ impl TypeChecker {
                 .into_iter()
                 .position(|&param| param == parameter)
                 .unwrap();
-            if parameter_as_parameter_declaration
+            if parameter
+                .ref_(self)
+                .as_parameter_declaration()
                 .dot_dot_dot_token
                 .is_some()
             {
@@ -250,7 +250,9 @@ impl TypeChecker {
                     None,
                     None,
                 )?)?)
-            } else if parameter_as_parameter_declaration
+            } else if parameter
+                .ref_(self)
+                .as_parameter_declaration()
                 .maybe_initializer()
                 .is_some()
             {
@@ -275,7 +277,9 @@ impl TypeChecker {
                     0
                 };
             return Ok(
-                if parameter_as_parameter_declaration
+                if parameter
+                    .ref_(self)
+                    .as_parameter_declaration()
                     .dot_dot_dot_token
                     .is_some()
                     && matches!(

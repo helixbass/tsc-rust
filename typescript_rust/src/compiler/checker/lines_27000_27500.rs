@@ -135,23 +135,23 @@ impl TypeChecker {
         &self,
         node: Id<Node>, /*JsxElement*/
     ) -> io::Result<()> {
-        let node_ref = node.ref_(self);
-        let node_as_jsx_element = node_ref.as_jsx_element();
         self.check_jsx_opening_like_element_or_opening_fragment(
-            node_as_jsx_element.opening_element,
+            node.ref_(self).as_jsx_element().opening_element,
         )?;
 
         if self.is_jsx_intrinsic_identifier(
-            node_as_jsx_element
+            node.ref_(self)
+                .as_jsx_element()
                 .closing_element
                 .ref_(self)
                 .as_jsx_closing_element()
                 .tag_name,
         ) {
-            self.get_intrinsic_tag_symbol(node_as_jsx_element.closing_element)?;
+            self.get_intrinsic_tag_symbol(node.ref_(self).as_jsx_element().closing_element)?;
         } else {
             self.check_expression(
-                node_as_jsx_element
+                node.ref_(self)
+                    .as_jsx_element()
                     .closing_element
                     .ref_(self)
                     .as_jsx_closing_element()

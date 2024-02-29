@@ -621,7 +621,7 @@ impl TypeChecker {
                     )));
                 }
                 self.merge_symbol_table(
-                    target.ref_(self).exports(),
+                    released!(target.ref_(self).exports()),
                     source_exports,
                     Some(unidirectional),
                 )?;

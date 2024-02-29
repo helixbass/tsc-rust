@@ -9,7 +9,7 @@ use crate::{
     get_jsdoc_class_tag, get_object_flags, get_selected_effective_modifier_flags,
     get_source_file_of_node, has_syntactic_modifier, is_call_chain, is_call_expression,
     is_in_js_file, is_line_break, is_outermost_optional_chain, last, length, map_defined,
-    min_and_max, skip_trivia, text_char_at_index, try_map_defined, AsDoubleDeref, Debug_,
+    min_and_max, released, skip_trivia, text_char_at_index, try_map_defined, AsDoubleDeref, Debug_,
     DiagnosticMessage, DiagnosticMessageChain, DiagnosticRelatedInformation, Diagnostics, HasArena,
     HasTypeArgumentsInterface, InArena, InferenceFlags, IteratorExt, Matches, MinAndMax,
     ModifierFlags, Node, NodeInterface, ObjectFlags, OptionInArena, ReadonlyTextRange,
@@ -358,8 +358,11 @@ impl TypeChecker {
         }
 
         let call_chain_flags: SignatureFlags;
-        let mut func_type =
-            self.check_expression(node.ref_(self).as_call_expression().expression, None, None)?;
+        let mut func_type = self.check_expression(
+            released!(node.ref_(self).as_call_expression().expression),
+            None,
+            None,
+        )?;
         if is_call_chain(&node.ref_(self)) {
             let non_optional_type = self.get_optional_expression_type(
                 func_type,

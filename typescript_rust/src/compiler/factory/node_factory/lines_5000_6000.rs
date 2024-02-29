@@ -1490,10 +1490,8 @@ impl NodeFactory {
         if found_use_strict.is_none() {
             return self
                 .create_node_array(
-                    Some(
-                        vec![self.create_use_strict_prologue()]
-                            .and_extend(statements.ref_(self).iter().cloned()),
-                    ),
+                    Some(released!(vec![self.create_use_strict_prologue()]
+                        .and_extend(statements.ref_(self).iter().cloned()))),
                     None,
                 )
                 .set_text_range(Some(&*statements.ref_(self)), self);
